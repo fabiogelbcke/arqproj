@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% set slug = project.summary.slug %}
+{% block title %}{{ project.title }} · {{ site_name }}{% endblock %}
+
+{% macro status_pill(status) -%}
+  {% if status %}<span class="pill pill--{{ status }}">{{ t('status.' ~ status) }}</span>{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero__main">
+    <h1 class="hero__title">{{ project.title }}</h1>
+    {% if project.config.description %}
+    <div class="hero__description">
+      {% for block in project.config.description %}
+        {% if block.kind == 'ul' %}
+        <ul>{% for item in block.items %}<li>{{ item }}</li>{% endfor %}</ul>
+        {% else %}
+        <p>{{ block.items[0] }}</p>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% if project.config.details or project.last_modified %}
+  <dl class="facts">
+    {% for label, value in project.config.details %}
+    <div class="facts__row"><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+    {% endfor %}
+    {% if project.last_modified %}
+    <div class="facts__row facts__row--muted"><dt>{{ t('last_updated') }}</dt><dd>{{ project.last_modified|date }}</dd></div>
+    {% endif %}
+  </dl>
+  {% endif %}
+</section>
+
+{% if project.stages %}
+<nav class="timeline" aria-label="{{ t('stages') }}">
+  <ol class="timeline__list" style="--n: {{ project.stages|length }}">
+    {% for stage in project.stages %}
+    <li class="step{% if stage.status %} step--{{ stage.status }}{% endif %}">
+      <a href="#{{ stage.anchor }}">
+        <span class="step__dot" aria-hidden="true"></span>
+        <span class="step__num">{{ '%02d'|format(stage.number) if stage.number is not none else '·' }}</span>
+        <span class="step__label">{{ stage.label }}</span>
+        {% if stage.status %}<span class="step__status">{{ t('status.' ~ stage.status) }}</span>{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ol>
+</nav>
+
+{% for stage in project.stages %}
+{% set files = stage.files %}
+<section class="stage{% if stage.status %} stage--{{ stage.status }}{% endif %}" id="{{ stage.anchor }}">
+  <header class="stage__header">
+    <span class="stage__num">{{ '%02d'|format(stage.number) if stage.number is not none else '' }}</span>
+    <div class="stage__heading">
+      <h2>{{ stage.label }}</h2>
+      <p class="stage__meta">
+        {{ status_pill(stage.status) }}
+        {% if files %}<span>{{ files|length|files }}</span>{% endif %}
+        {% if stage.last_modified %}<span>{{ t('updated', date=stage.last_modified|date) }}</span>{% endif %}
+      </p>
+    </div>
+  </header>
+
+  {% if not files %}
+  <p class="stage__empty">{{ t('no_files') }}</p>
+  {% else %}
+    {% for group in stage.groups if group.files %}
+    {% if group.path %}<h3 class="group-title">{{ group.path|join(' / ') }}</h3>{% endif %}
+    <ul class="files">
+      {% for f in group.files %}
+      <li>
+        <a class="file" href="{{ url_for('download', slug=slug, file_id=f.id) }}" target="_blank" rel="noopener">
+          <span class="file__thumb">
+            <span class="file__type">{{ f|type_label }}</span>
+            {% if f.thumbnail_link %}
+            <img src="{{ url_for('thumbnail', slug=slug, file_id=f.id) }}" alt="" loading="lazy" onerror="this.remove()">
+            {% endif %}
+          </span>
+          <span class="file__body">
+            <span class="file__name">{{ f.name }}</span>
+            <span class="file__meta">
+              {{ f|type_label }}{% if f.size %} · {{ f.size|filesize }}{% endif %}{% if f.modified %} · {{ f.modified|date }}{% endif %}
+            </span>
+          </span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endfor %}
+  {% endif %}
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

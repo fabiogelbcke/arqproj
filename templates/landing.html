@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="message">
+  <h1>{{ site_name }}</h1>
+  <p>{{ t('landing.body') }}</p>
+  {% if projects %}
+  <h2 class="eyebrow">{{ t('projects') }}</h2>
+  <ul class="project-index">
+    {% for p in projects %}
+    <li><a href="{{ url_for('project_page', slug=p.slug) }}">{{ p.title }}</a><span>/{{ p.slug }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}
