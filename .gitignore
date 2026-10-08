@@ -39,6 +39,10 @@ application_default_credentials.json
 
 # Local Drive documents and generated previews
 /Projects/
+/local-test-data/
+/local-test-data-backup-*/
+/.local-test-data-*/
+/.local-test-data.lock/
 /Claude outputs/
 sample-drive/
 sample-drive.zip

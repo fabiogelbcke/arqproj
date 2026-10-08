@@ -10,6 +10,11 @@ __pycache__/
 *.json
 sample-drive/
 sample-drive.zip
+local-test-data/
+local-test-data-backup-*/
+.local-test-data-*/
+.local-test-data.lock/
+run_local.py
 tests/
 tools/
 demo.py

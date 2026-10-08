@@ -127,6 +127,52 @@ The generator `tools/fake_drive.py` and demo code are committed; generated
 files are not. Keep fictional fixtures current when features or data formats
 change. Each collaborator creates their own ignored `.env` and credentials.
 
+### Editing and regenerating local test files
+
+On first launch, test mode generates `local-test-data/Projects/`. Edit the
+`_project.txt` and `_stage.txt` files, rename stages, or add your own test
+PDFs and images using the same folder conventions as Drive. Restart the
+server with **reuse** after edits; files are loaded at startup, not watched.
+
+If the dataset already exists, the launcher asks whether to reuse it or
+regenerate defaults. Codex asks in your language before choosing the flag:
+
+```bash
+.venv/bin/python run_local.py test --reuse-data
+.venv/bin/python run_local.py test --regenerate-data
+```
+
+Regeneration creates a new dataset first, then preserves the old directory
+intact as `local-test-data-backup-<timestamp>-<unique-id>/`. It prints that
+backup path. If generation or backup fails, existing files are not replaced.
+You can copy files out of a backup to recover manual edits. Backups are never
+automatically removed. Dataset and backup directories are ignored by Git.
+
+To generate or regenerate without starting the website:
+
+```bash
+.venv/bin/python -m tools.local_data
+# Explicitly regenerate, with a backup if data already exists:
+.venv/bin/python -m tools.local_data --regenerate
+```
+
+Both commands accept `--data-dir PATH` for a dedicated dataset directory
+containing `Projects/`. Custom locations and backups must also stay out of Git.
+The launcher detects changes to the generator, exporter, and regeneration
+script using a saved fingerprint and recommends regeneration when outdated.
+It never regenerates existing data without your choice. In noninteractive
+runs, supply an explicit choice; missing input does not overwrite files.
+
+The generator remains `tools/fake_drive.py`; exporting is handled by
+`tools/export_sample.py`, and backup/version management by `tools/local_data.py`.
+Keep these scripts and tests current when features require new samples.
+Google Docs become text files and Slides become sample PDFs. A disk folder
+cannot represent duplicate sibling names or Google shortcuts; these cases
+remain covered by the in-memory automated fixtures. Symbolic links are skipped.
+Use real Drive mode to verify actual Google-native exports and permissions.
+`python demo.py` still runs the original in-memory demo when
+`LOCAL_TEST_PROJECTS` is unset; automated tests do not use your editable dataset.
+
 ## Connect a real Drive (~15 min)
 
 1. At <https://console.cloud.google.com>, create a project. Any Google account works, and billing isn't needed.

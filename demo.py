@@ -15,7 +15,11 @@ PORT = int(os.environ.get("PORT", "5000"))
 
 
 def start_fake_drive() -> FakeDrive:
-    fake = FakeDrive(f"http://127.0.0.1:{FAKE_PORT}")
+    if os.environ.get("LOCAL_TEST_PROJECTS"):
+        from tools.folder_drive import FolderDrive
+        fake = FolderDrive(f"http://127.0.0.1:{FAKE_PORT}", os.environ["LOCAL_TEST_PROJECTS"])
+    else:
+        fake = FakeDrive(f"http://127.0.0.1:{FAKE_PORT}")
     server = make_server("127.0.0.1", FAKE_PORT, fake.app(), threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return fake

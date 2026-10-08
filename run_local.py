@@ -13,7 +13,7 @@ APP_SETTINGS = {
     'DRIVE_ROOT_FOLDER_ID', 'DRIVE_API_BASE', 'SITE_NAME', 'SITE_LANG',
     'SITE_TIMEZONE', 'CACHE_TTL_SECONDS', 'SHOW_PROJECT_INDEX', 'NEW_BADGE_DAYS',
     'DASHBOARD_PASSWORD', 'USE_METADATA_SERVER', 'METADATA_TOKEN_URL',
-    'K_SERVICE', 'DEBUG', 'PORT', 'FAKE_DRIVE_PORT',
+    'K_SERVICE', 'DEBUG', 'PORT', 'FAKE_DRIVE_PORT', 'LOCAL_TEST_PROJECTS',
 }
 
 
@@ -53,6 +53,7 @@ def local_environment(mode, env_path):
         for key in ('DRIVE_API_BASE', 'USE_METADATA_SERVER', 'METADATA_TOKEN_URL', 'K_SERVICE'):
             env.pop(key, None)
     env['DEBUG'] = '0'
+    env['FLASK_SKIP_DOTENV'] = '1'
     return env
 
 
@@ -61,10 +62,22 @@ def main():
     parser.add_argument('mode', choices=['test', 'drive'])
     parser.add_argument('--port', type=int, default=5000)
     parser.add_argument('--fake-drive-port', type=int, default=8765)
+    parser.add_argument('--data-dir', type=Path, default=ROOT / 'local-test-data')
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument('--reuse-data', action='store_true')
+    selection.add_argument('--regenerate-data', action='store_true')
     args = parser.parse_args()
     try:
         env = local_environment(args.mode, ROOT / '.env')
-    except ValueError as error:
+        if args.mode == 'drive' and (args.reuse_data or args.regenerate_data):
+            raise ValueError('Dataset flags apply only to test mode.')
+        if args.mode == 'test':
+            from tools.local_data import prepare
+            choice = 'reuse' if args.reuse_data else 'regenerate' if args.regenerate_data else None
+            projects = prepare(args.data_dir, choice)
+            env['LOCAL_TEST_PROJECTS'] = str(projects)
+            print(f'Editable files: {projects}\nAfter editing, restart with --reuse-data.', flush=True)
+    except (ValueError, OSError) as error:
         parser.exit(2, f'{error}\n')
     env['PORT'] = str(args.port)
     env['FAKE_DRIVE_PORT'] = str(args.fake_drive_port)

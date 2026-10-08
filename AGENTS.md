@@ -55,7 +55,8 @@ Before finishing:
   “Localmente” alone does not select a data source: both modes run locally.
 - Treat “run the website locally with test data” as a request to run
   `.venv/bin/python run_local.py test`. This mode ignores `.env`, generates
-  fictional data, and needs no Google account. Open
+  fictional data on first use, and needs no Google account. Follow the local-folder
+  startup workflow below before launching an existing dataset. Open
   `http://127.0.0.1:5000/casa-jardim`; `/painel` uses password `demo`.
 - Treat “run the website with Google Drive data” as a request to run
   `.venv/bin/python run_local.py drive`. This still runs locally and reads
@@ -73,7 +74,8 @@ Before finishing:
 
 ### Maintaining test data
 
-- Keep `tools/fake_drive.py`, `demo.py`, and `run_local.py` tracked in Git.
+- Keep `tools/fake_drive.py`, `tools/export_sample.py`, `tools/local_data.py`,
+  `tools/folder_drive.py`, `demo.py`, and `run_local.py` tracked in Git.
   Generated documents and screenshots remain ignored.
 - Whenever supported data structures, parsing rules, or features change,
   review and update `tools/fake_drive.py` with representative fictional
@@ -82,6 +84,56 @@ Before finishing:
   existing fixtures already cover the change, explain that explicitly.
 - Never copy real client documents, credentials, or private information
   into committed fixtures.
+
+### Local-folder test data workflow
+
+Manual test mode serves editable `local-test-data/Projects/` files through
+`tools/folder_drive.py`. Automated tests retain isolated in-memory fixtures
+for Google-specific behavior and errors. Real Drive mode still uses `.env`.
+The local folder is loaded at startup; restart with `--reuse-data` after
+manual edits. Do not promise live file watching.
+
+Follow these steps for each new manual test run:
+
+1. Check whether a local test dataset exists. If none exists, generate the
+   default fictional dataset automatically.
+2. If a dataset exists, ask whether to reuse the existing files or regenerate
+   the defaults, unless the user already specified their choice. Ask in the
+   user's language, for example: “Usar os arquivos de teste existentes ou
+   gerar novamente os exemplos padrão?” Wait for their answer; silence is
+   not permission to regenerate.
+3. Track the generator/fixture version used to create the dataset. If it has
+   changed, explain that updated examples are available and recommend
+   regeneration, especially when new features require new test cases.
+4. Before any regeneration, back up the entire existing dataset to a unique
+   location. Verify the backup succeeded before replacing files; if it fails,
+   stop regeneration. Report the backup location and preserve earlier backups.
+   Use the provided regeneration command; do not delete or overwrite files by hand.
+5. Start the simulator using the selected folder, verify a project page, and
+   provide both the editable folder path and the localhost URL.
+6. Restarting the server alone must preserve manual file changes. Never
+   regenerate or overwrite an existing dataset merely because the server
+   restarted.
+
+After the user's choice, launch with `.venv/bin/python run_local.py test
+--reuse-data` or `--regenerate-data` (on one line). Without either flag the
+launcher prompts in a terminal; in a noninteractive Codex task, ask the user
+in conversation first. Missing datasets are generated automatically.
+For regeneration without starting the site, use
+`.venv/bin/python -m tools.local_data --regenerate` after authorization.
+The default dataset and timestamped sibling backups are ignored by Git.
+Use `--data-dir PATH` only for a dedicated test directory and ensure custom
+locations and their backups are also excluded from commits.
+
+Keep the generator as the source of the default dataset. For feature or data
+format changes, review and update `tools/fake_drive.py`, the exporter
+`tools/export_sample.py`, and the regeneration script `tools/local_data.py`
+where needed, plus folder loading and tests. Never update only generated
+files to add default coverage. The version is a hash of all three generator
+files, so changes automatically mark existing datasets as outdated. Update
+that version calculation if generation gains additional source files. Keep generated datasets and backups
+out of Git. Automated tests must not prompt or modify the user's manual
+dataset; they should create their own isolated fixtures.
 
 ## Safety
 

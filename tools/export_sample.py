@@ -37,6 +37,7 @@ def write(node, fake: FakeDrive, dest: str) -> int:
             data = data[:MAX_FAKE_BYTES]
     with open(os.path.join(dest, name), "wb") as fh:
         fh.write(data)
+    os.utime(os.path.join(dest, name), (node.modified.timestamp(), node.modified.timestamp()))
     return 1
 
 
