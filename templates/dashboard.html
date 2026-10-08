@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ t('dash.title') }} · {{ site_name }}{% endblock %}
+{% block header_meta %}{{ t('dash.title') }}{% endblock %}
+{% block content %}
+<section class="dash">
+  <header class="dash__header">
+    <h1>{{ t('dash.title') }}</h1>
+    <div class="dash__actions">
+      <form method="post" action="{{ url_for('dashboard_refresh') }}"><button type="submit" class="btn">{{ t('dash.refresh') }}</button></form>
+      <form method="post" action="{{ url_for('dashboard_logout') }}"><button type="submit" class="btn btn--quiet">{{ t('dash.logout') }}</button></form>
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}<p class="flash">{{ m }}</p>{% endfor %}
+  {% endwith %}
+
+  {% set needing = projects|selectattr('warnings')|list|length %}
+  {% if root_error %}
+  <p class="flash flash--error">{{ root_error }}</p>
+  {% elif needing %}
+  <p class="dash__summary">{{ t('dash.attention', n=needing, total=projects|length) }}</p>
+  {% endif %}
+
+  {% if not projects and not root_error %}
+  <p class="stage__empty">{{ t('dash.none') }}</p>
+  {% else %}
+  <ul class="dash__list">
+    {% for p in projects %}
+    {% set current = p.current_stage %}
+    {% set done = p.stages|selectattr('status', 'equalto', 'done')|list|length %}
+    {% set new_count = p.stages|map(attribute='entries')|sum(start=[])|selectattr('file', 'new')|list|length %}
+    {% set url = base_url ~ url_for('project_page', slug=p.slug) %}
+    {% set hidden = p.summary.hidden %}
+    <li class="dash-card{% if p.warnings %} dash-card--warn{% endif %}{% if hidden %} dash-card--hidden{% endif %}">
+      <div class="dash-card__main">
+        <h2>
+          {% if p.summary.error %}{{ p.title }}
+          {% else %}<a href="{{ url_for('project_page', slug=p.slug) }}" target="_blank" rel="noopener">{{ p.title }}</a>{% endif %}
+          {% if hidden %}<span class="pill pill--hidden">{{ t('dash.hidden') }}</span>{% endif %}
+        </h2>
+        {% if p.summary.folder_name != p.title %}<p class="dash-card__folder">{{ t('dash.folder') }}: {{ p.summary.folder_name }}</p>{% endif %}
+      </div>
+
+      <dl class="dash-card__facts">
+        <div>
+          <dt>{{ t('dash.stage') }}</dt>
+          <dd>
+            {% if current %}{{ '%02d'|format(current.number) ~ ' · ' if current.number is not none }}{{ current.label }}
+            {% elif p.stages and done == p.stages|length %}{{ t('status.done') }}
+            {% else %}<span class="muted">{{ t('dash.no_status') }}</span>{% endif %}
+            {% if p.stages %}
+            <span class="progress" aria-hidden="true">
+              {% for s in p.stages %}<i class="progress__seg progress__seg--{{ s.status or 'none' }}"></i>{% endfor %}
+            </span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>{{ t('dash.files') }}</dt>
+          <dd>{{ p.entry_count }}{% if new_count %} <span class="stage__new">{{ t('new_files', n=new_count) }}</span>{% endif %}</dd>
+        </div>
+        <div>
+          <dt>{{ t('dash.updated') }}</dt>
+          <dd>{{ p.last_modified|date if p.last_modified else '—' }}</dd>
+        </div>
+      </dl>
+
+      <div class="dash-card__link">
+        {% if not hidden %}
+        <code title="{{ url }}">/{{ p.slug }}</code>
+        <button type="button" class="btn btn--small" data-copy="{{ url }}" data-copied="{{ t('dash.copied') }}">
+          <svg aria-hidden="true"><use href="#i-link"></use></svg>{{ t('dash.copy') }}
+        </button>
+        {% endif %}
+      </div>
+
+      {% if p.warnings %}
+      <div class="dash-card__warnings">
+        <strong>{{ t('dash.issues') }}</strong>
+        <ul>{% for key, params in p.warnings %}<li>{{ t(key, **params) }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-copy]");
+    if (!btn) return;
+    try {
+      await navigator.clipboard.writeText(btn.dataset.copy);
+      const label = btn.lastChild;
+      const original = label.textContent;
+      label.textContent = btn.dataset.copied;
+      setTimeout(() => { label.textContent = original; }, 1500);
+    } catch (_) {
+      window.prompt("", btn.dataset.copy);
+    }
+  });
+</script>
+{% endblock %}

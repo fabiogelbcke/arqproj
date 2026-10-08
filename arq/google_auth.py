@@ -1,8 +1,13 @@
 """Service-account auth for the Drive API, without the Google SDK.
 
-Signs a JWT with the service account's private key and exchanges it for a
-short-lived access token (OAuth 2.0 JWT bearer flow). Tokens are cached until
-~1 minute before expiry.
+Two token sources, both cached until ~1 minute before expiry:
+
+- ServiceAccountAuth: signs a JWT with a downloaded key and exchanges it for an
+  access token (OAuth 2.0 JWT bearer flow). Used for local development.
+- MetadataServerAuth: on Cloud Run, asks the metadata server for a token for
+  the service account attached to the service. No key file exists anywhere.
+
+get_auth() picks one: an explicit key wins; otherwise the metadata server.
 """
 
 from __future__ import annotations
@@ -82,3 +87,48 @@ class ServiceAccountAuth:
             self._token = data["access_token"]
             self._expires_at = now + int(data.get("expires_in", 3600))
             return self._token
+
+
+METADATA_TOKEN_URL = (
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+)
+
+
+class MetadataServerAuth:
+    """Token for the service account attached to the Cloud Run service."""
+
+    def __init__(self, url: str | None = None):
+        self.url = url or os.environ.get("METADATA_TOKEN_URL") or METADATA_TOKEN_URL
+        self._token: str | None = None
+        self._expires_at = 0.0
+        self._lock = threading.Lock()
+
+    def token(self) -> str:
+        with self._lock:
+            if self._token and time.time() < self._expires_at - 60:
+                return self._token
+            resp = requests.get(
+                self.url,
+                params={"scopes": SCOPE},
+                headers={"Metadata-Flavor": "Google"},
+                timeout=10,
+            )
+            if not resp.ok:
+                raise RuntimeError(f"metadata server token request failed ({resp.status_code}): {resp.text[:300]}")
+            data = resp.json()
+            self._token = data["access_token"]
+            self._expires_at = time.time() + int(data.get("expires_in", 3600))
+            return self._token
+
+
+def get_auth():
+    if os.environ.get("GOOGLE_SERVICE_ACCOUNT_KEY", "").strip() or os.environ.get(
+        "GOOGLE_APPLICATION_CREDENTIALS", ""
+    ).strip():
+        return ServiceAccountAuth.from_env()
+    if os.environ.get("K_SERVICE") or os.environ.get("USE_METADATA_SERVER"):
+        return MetadataServerAuth()  # K_SERVICE is set by Cloud Run
+    raise RuntimeError(
+        "No Google credentials. Locally, set GOOGLE_APPLICATION_CREDENTIALS to the key file path "
+        "(or GOOGLE_SERVICE_ACCOUNT_KEY to its JSON). On Cloud Run, the attached service account is used."
+    )

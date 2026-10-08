@@ -11,10 +11,18 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+  {% include "icons.html" %}
   <header class="site-header">
     <div class="wrap site-header__inner">
+      {% if logo() %}
+      <picture>
+        {% if logo(dark=True) %}<source media="(prefers-color-scheme: dark)" srcset="{{ url_for('site_logo', v='dark') }}">{% endif %}
+        <img class="brand-logo{% if not logo(dark=True) %} brand-logo--auto-dark{% endif %}" src="{{ url_for('site_logo') }}" alt="{{ site_name }}">
+      </picture>
+      {% else %}
       <span class="brand">{{ site_name }}</span>
-      <span class="site-header__meta">{{ t('portal') }}</span>
+      {% endif %}
+      <span class="site-header__meta">{% block header_meta %}{{ t('portal') }}{% endblock %}</span>
     </div>
   </header>
   <main class="wrap">
@@ -23,5 +31,6 @@
   <footer class="site-footer">
     <div class="wrap">{{ site_name }}</div>
   </footer>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

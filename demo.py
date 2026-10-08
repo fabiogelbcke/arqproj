@@ -30,8 +30,10 @@ if __name__ == "__main__":
     )
     os.environ.setdefault("SITE_NAME", "Atelier Demo")
     os.environ.setdefault("SHOW_PROJECT_INDEX", "1")
+    os.environ.setdefault("DASHBOARD_PASSWORD", "demo")
 
     from app import create_app
 
-    print(f"\n  Demo running: http://127.0.0.1:{PORT}/casa-jardim\n")
+    print(f"\n  Demo running: http://127.0.0.1:{PORT}/casa-jardim")
+    print(f"  Dashboard:    http://127.0.0.1:{PORT}/painel  (password: {os.environ['DASHBOARD_PASSWORD']})\n")
     create_app().run(host="127.0.0.1", port=PORT)

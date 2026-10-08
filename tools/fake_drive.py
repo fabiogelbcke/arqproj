@@ -22,7 +22,10 @@ from flask import Flask, Response, abort, jsonify, request
 FOLDER = "application/vnd.google-apps.folder"
 DOC = "application/vnd.google-apps.document"
 SLIDES = "application/vnd.google-apps.presentation"
+SHORTCUT = "application/vnd.google-apps.shortcut"
 TOKEN = "fake-access-token"
+# Sample dates are relative to startup so "New" badges always show up in the demo.
+NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
 CASA_JARDIM = """Title: Casa Jardim
 Client: Família Oliveira
@@ -39,6 +42,22 @@ The design organizes the living spaces around a planted central courtyard, with 
 - Rainwater collection feeding the courtyard garden
 """
 
+SCHEMATIC_NOTES = """Review meeting: 30 Sep 2026
+Status: Awaiting client feedback
+
+Rev B of the floor plans incorporates the comments from the concept review.
+Please review the plans and the renders, and send feedback before the meeting.
+"""
+
+LOJA_CENTRO = """Title: Loja Centro
+Client: Café Aurora
+Current stage: Executivo
+Slug: loja-centro-k3x9
+
+Interior fit-out for a 90 m² café in the historic center.
+Etapa atual: 2
+"""
+
 
 @dataclass
 class Node:
@@ -50,6 +69,7 @@ class Node:
     content: bytes = b""
     text: str | None = None  # for Google Docs export
     thumb: bool = False
+    target: tuple[str, str] | None = None  # shortcut: (target id, target mime)
     children: list["Node"] = field(default_factory=list)
 
 
@@ -80,11 +100,11 @@ class FakeDrive:
     def _add(self, name, mime, parent, days_ago=10, **kw) -> Node:
         self._n += 1
         node = Node(
-            id=f"demo{self._n:06d}",
+            id=f"demo-{self._n:06d}-sample-folder",
             name=name,
             mime=mime,
             parent=parent.id if parent else None,
-            modified=datetime(2026, 9, 22, 15, 0, tzinfo=timezone.utc) - timedelta(days=days_ago),
+            modified=NOW - timedelta(days=days_ago),
             **kw,
         )
         self.nodes[node.id] = node
@@ -123,10 +143,13 @@ class FakeDrive:
         self._jpg("Massing study B.jpg", s2, 36)
 
         s3 = self._folder("03 - Schematic Design", casa)
+        self._add("_stage", DOC, s3, 2, text=SCHEMATIC_NOTES)
+        self._pdf("Floor plans – rev A.pdf", s3, 21)
         self._pdf("Floor plans – rev B.pdf", s3, 4)
         self._pdf("Sections and elevations.pdf", s3, 6)
         self._add("Site plan.dwg", "image/vnd.dwg", s3, 6, content=b"AC1032" + b"\0" * 2_400_000)
         self._add("Model.skp", "application/octet-stream", s3, 5, content=b"\0" * 18_700_000)
+        self._jpg("Model.jpg", s3, 5)  # preview for Model.skp
         renders = self._folder("Renders", s3)
         for name in ("Living room.jpg", "Courtyard.jpg", "Façade at dusk.jpg"):
             self._jpg(name, renders, 3)
@@ -135,9 +158,37 @@ class FakeDrive:
         self._folder("05 - Construction Documents", casa)
 
         apt = self._folder("Apartamento Higienópolis", root)
+        self._pdf("Contrato.pdf", apt, 30)  # loose file in project root → dashboard warning
         a1 = self._folder("1. Levantamento", apt)
         self._jpg("Planta existente.jpg", a1, 20)
         self._folder("2. Estudo preliminar", apt)
+        self._folder("2. Anteprojeto", apt)  # two stages numbered 2 → flagged
+
+        loja = self._folder("Loja Centro", root)
+        self._add("_project", DOC, loja, 12, text=LOJA_CENTRO)
+        l1 = self._folder("01 - Estudo preliminar", loja)
+        self._pdf("Layout.pdf", l1, 12)
+        self._folder("02 - Anteprojeto", loja)
+
+        # Common mistakes, so the dashboard has something to flag:
+        # a project whose _project was copied from Casa Jardim (same slug) ...
+        copy = self._folder("Casa Jardim (cópia)", root)
+        self._add("_project", DOC, copy, 1, text=CASA_JARDIM.replace("Família Oliveira", "Família Souza"))
+        c1 = self._folder("01 - Briefing", copy)
+        self._pdf("Programa.pdf", c1, 1)
+        self._add("02 - Externo", SHORTCUT, copy, 1, target=("not-shared-stage-0000000000", FOLDER))
+        # ... an invalid slug (never rewritten, just flagged) ...
+        nova = self._folder("Casa Nova", root)
+        self._add("_project", DOC, nova, 1, text="Title: Casa Nova\nSlug: Casa Nova!\n\nA new house.")
+        self._pdf("Estudo.pdf", self._folder("01 - Estudo", nova), 1)
+        # ... a second folder with the same name as an existing project ...
+        self._folder("Loja Centro", root)
+        # ... and a shortcut to a folder the site account can't see.
+        self._add("Projeto Externo", SHORTCUT, root, 2,
+                  target=("not-shared-folder-000000000", FOLDER))
+
+        site = self._folder("_site", root)
+        self._add("logo.png", "image/png", site, 30, content=_logo_png(), thumb=False)
 
         self._folder("_templates", root)
         return root.id
@@ -151,6 +202,8 @@ class FakeDrive:
             d["size"] = str(len(n.content))
         if n.thumb:
             d["thumbnailLink"] = f"{self.base_url}/thumb/{n.id}=s220"
+        if n.target:
+            d["shortcutDetails"] = {"targetId": n.target[0], "targetMimeType": n.target[1]}
         return d
 
     def app(self) -> Flask:
@@ -167,6 +220,13 @@ class FakeDrive:
                                 audience=f"{self.base_url}/token")
             assert claims["scope"] == "https://www.googleapis.com/auth/drive.readonly"
             return jsonify(access_token=TOKEN, expires_in=3600, token_type="Bearer")
+
+        @app.get("/computeMetadata/v1/instance/service-accounts/default/token")
+        def metadata_token():
+            if request.headers.get("Metadata-Flavor") != "Google":
+                abort(403)
+            assert request.args.get("scopes") == "https://www.googleapis.com/auth/drive.readonly"
+            return jsonify(access_token=TOKEN, expires_in=3599, token_type="Bearer")
 
         @app.get("/drive/v3/files")
         def list_files():
@@ -254,6 +314,24 @@ def _sheet(seed: str, w: int, h: int) -> bytes:
         d.rectangle([x0, y0, min(x1, w - m * 3), min(y1, h - m * 4)], outline=(40, 40, 40), width=2)
     buf = io.BytesIO()
     img.save(buf, "JPEG", quality=85)
+    return buf.getvalue()
+
+
+def _logo_png() -> bytes:
+    """A plain wordmark standing in for the firm's logo."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new("RGBA", (520, 80), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.load_default(size=40)
+    except TypeError:  # Pillow < 10.1
+        font = ImageFont.load_default()
+    d.rectangle([0, 14, 52, 66], outline=(155, 90, 58), width=4)
+    d.line([0, 66, 52, 14], fill=(155, 90, 58), width=4)
+    d.text((72, 18), "ATELIER DEMO", fill=(27, 26, 24), font=font)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
     return buf.getvalue()
 
 

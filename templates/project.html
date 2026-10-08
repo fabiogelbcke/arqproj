@@ -6,21 +6,60 @@
   {% if status %}<span class="pill pill--{{ status }}">{{ t('status.' ~ status) }}</span>{% endif %}
 {%- endmacro %}
 
+{% macro description(blocks, cls) -%}
+  {% if blocks %}
+  <div class="{{ cls }}">
+    {% for block in blocks %}
+      {% if block.kind == 'ul' %}
+      <ul>{% for item in block.items %}<li>{{ item }}</li>{% endfor %}</ul>
+      {% else %}
+      <p>{{ block.items[0] }}</p>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro file_card(entry) -%}
+  {% set f = entry.file %}
+  <a class="file" href="{{ url_for('download', slug=slug, file_id=f.id) }}" target="_blank" rel="noopener">
+    <span class="file__thumb">
+      <span class="file__icon">
+        <svg aria-hidden="true"><use href="#i-{{ f|category }}"></use></svg>
+        <span class="file__type">{{ f|type_label }}</span>
+      </span>
+      {% if entry.thumb %}
+      <img src="{{ url_for('thumbnail', slug=slug, file_id=entry.thumb.id) }}" alt="" loading="lazy" onerror="this.remove()">
+      {% endif %}
+      {% if f|is_new %}<span class="badge-new">{{ t('new') }}</span>{% endif %}
+    </span>
+    <span class="file__body">
+      <span class="file__name">{{ f.name }}</span>
+      <span class="file__meta">
+        {{ f|type_label }}{% if f.size %} · {{ f.size|filesize }}{% endif %}{% if f.modified %} · {{ f.modified|date }}{% endif %}
+      </span>
+    </span>
+  </a>
+  {% if entry.older %}
+  <details class="versions">
+    <summary>{{ t('previous_versions', n=entry.older|length) }}</summary>
+    <ul>
+      {% for old, label in entry.older %}
+      <li>
+        <a href="{{ url_for('download', slug=slug, file_id=old.id) }}" target="_blank" rel="noopener">{{ label or old.name }}</a>
+        <span>{{ old.modified|date }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+{%- endmacro %}
+
 {% block content %}
 <section class="hero">
   <div class="hero__main">
     <h1 class="hero__title">{{ project.title }}</h1>
-    {% if project.config.description %}
-    <div class="hero__description">
-      {% for block in project.config.description %}
-        {% if block.kind == 'ul' %}
-        <ul>{% for item in block.items %}<li>{{ item }}</li>{% endfor %}</ul>
-        {% else %}
-        <p>{{ block.items[0] }}</p>
-        {% endif %}
-      {% endfor %}
-    </div>
-    {% endif %}
+    {{ description(project.config.description, 'hero__description') }}
   </div>
   {% if project.config.details or project.last_modified %}
   <dl class="facts">
@@ -51,7 +90,8 @@
 </nav>
 
 {% for stage in project.stages %}
-{% set files = stage.files %}
+{% set entries = stage.entries %}
+{% set new_count = entries|selectattr('file', 'new')|list|length %}
 <section class="stage{% if stage.status %} stage--{{ stage.status }}{% endif %}" id="{{ stage.anchor }}">
   <header class="stage__header">
     <span class="stage__num">{{ '%02d'|format(stage.number) if stage.number is not none else '' }}</span>
@@ -59,35 +99,34 @@
       <h2>{{ stage.label }}</h2>
       <p class="stage__meta">
         {{ status_pill(stage.status) }}
-        {% if files %}<span>{{ files|length|files }}</span>{% endif %}
+        {% if entries %}<span>{{ entries|length|files }}</span>{% endif %}
+        {% if new_count %}<span class="stage__new">{{ t('new_files', n=new_count) }}</span>{% endif %}
         {% if stage.last_modified %}<span>{{ t('updated', date=stage.last_modified|date) }}</span>{% endif %}
       </p>
     </div>
   </header>
 
-  {% if not files %}
+  {% if stage.notes and (stage.notes.description or stage.notes.details) %}
+  <div class="stage__notes">
+    {{ description(stage.notes.description, 'stage__notes-text') }}
+    {% if stage.notes.details %}
+    <dl class="stage__notes-facts">
+      {% for label, value in stage.notes.details %}
+      <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+      {% endfor %}
+    </dl>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if not entries %}
   <p class="stage__empty">{{ t('no_files') }}</p>
   {% else %}
-    {% for group in stage.groups if group.files %}
+    {% for group in stage.groups if group.entries %}
     {% if group.path %}<h3 class="group-title">{{ group.path|join(' / ') }}</h3>{% endif %}
     <ul class="files">
-      {% for f in group.files %}
-      <li>
-        <a class="file" href="{{ url_for('download', slug=slug, file_id=f.id) }}" target="_blank" rel="noopener">
-          <span class="file__thumb">
-            <span class="file__type">{{ f|type_label }}</span>
-            {% if f.thumbnail_link %}
-            <img src="{{ url_for('thumbnail', slug=slug, file_id=f.id) }}" alt="" loading="lazy" onerror="this.remove()">
-            {% endif %}
-          </span>
-          <span class="file__body">
-            <span class="file__name">{{ f.name }}</span>
-            <span class="file__meta">
-              {{ f|type_label }}{% if f.size %} · {{ f.size|filesize }}{% endif %}{% if f.modified %} · {{ f.modified|date }}{% endif %}
-            </span>
-          </span>
-        </a>
-      </li>
+      {% for entry in group.entries %}
+      <li>{{ file_card(entry) }}</li>
       {% endfor %}
     </ul>
     {% endfor %}

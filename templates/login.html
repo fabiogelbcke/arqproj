@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ t('dash.title') }} · {{ site_name }}{% endblock %}
+{% block header_meta %}{{ t('dash.title') }}{% endblock %}
+{% block content %}
+<section class="message">
+  <h1>{{ t('dash.title') }}</h1>
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}<p class="flash flash--error">{{ m }}</p>{% endfor %}
+  {% endwith %}
+  <form class="login" method="post" action="{{ url_for('dashboard_login') }}">
+    <label for="password">{{ t('dash.password') }}</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+    <button type="submit" class="btn">{{ t('dash.login') }}</button>
+  </form>
+</section>
+{% endblock %}

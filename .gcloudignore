@@ -1,0 +1,16 @@
+# Files NOT uploaded to Cloud Build. Secrets must never leave your machine.
+.gcloudignore
+.git/
+.gitignore
+.venv/
+__pycache__/
+*.pyc
+.env
+.env*
+*.json
+sample-drive/
+sample-drive.zip
+tests/
+tools/
+demo.py
+Claude outputs/
