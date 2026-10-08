@@ -99,11 +99,33 @@ The dashboard is enabled by setting `DASHBOARD_PASSWORD`. Without it, `/painel` 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
-python demo.py        # → http://127.0.0.1:5000/casa-jardim  and  /painel (password: demo)
+python run_local.py test  # → http://127.0.0.1:5000/casa-jardim and /painel (password: demo)
 python -m unittest discover -s tests -v
 ```
 
 The demo runs a fake Drive API locally, with real JWT signing and verification, loaded with sample data.
+
+### Two local testing modes (including Codex)
+
+Ask Codex **“run the website locally with test data”** or
+**“run the website with Google Drive data”**. The root `AGENTS.md` maps these
+requests to the commands below, checks startup, and provides the local URL.
+You can also ask naturally in Portuguese, for example **“roda o site com dados
+de teste”** or **“roda localmente com os dados do Google Drive”**. Codex follows
+the intended data source, not an exact phrase, and replies in your language.
+
+| Data source | Command | Setup |
+| --- | --- | --- |
+| Generated fictional data | `.venv/bin/python run_local.py test` | No Google credentials; ignores `.env` |
+| Actual Google Drive | `.venv/bin/python run_local.py drive` | Your own `.env`, service-account credentials, and folder access |
+
+Both run only on your computer. Drive mode uses read-only access and does not
+deploy. Use `--port 5001` if port 5000 is already occupied; a second test-data
+instance also needs `--fake-drive-port 8766`.
+
+The generator `tools/fake_drive.py` and demo code are committed; generated
+files are not. Keep fictional fixtures current when features or data formats
+change. Each collaborator creates their own ignored `.env` and credentials.
 
 ## Connect a real Drive (~15 min)
 
@@ -116,10 +138,27 @@ The demo runs a fake Drive API locally, with real JWT signing and verification, 
 7. Configure and run:
 
 ```bash
-cp .env.example .env      # fill in DRIVE_ROOT_FOLDER_ID and SITE_NAME
-set -a; source .env; set +a
-python app.py             # → http://127.0.0.1:5000/<project-slug>
+python run_local.py drive  # → http://127.0.0.1:5000/<project-slug>
 ```
+
+Before running, create `.env` in the project root with your local settings
+(`.env.example` is optional and is not committed):
+
+```dotenv
+DRIVE_ROOT_FOLDER_ID=your-test-root-folder-id
+GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+SITE_NAME="Your Studio"
+SITE_LANG=en
+SHOW_PROJECT_INDEX=1
+DASHBOARD_PASSWORD="choose-a-local-test-password"
+```
+
+With `SHOW_PROJECT_INDEX=1`, open `http://127.0.0.1:5000/` to find project
+links. The dashboard is at `/painel` and uses your configured password.
+The root folder should contain project folders following the conventions above.
+The launcher reads literal `KEY=value` lines, optional `export`, quotes, and
+comments; it does not execute shell commands or expand variables such as `$HOME`.
+Use an absolute credentials path. Never commit `.env` or credential files.
 
 ## Cloud Run
 

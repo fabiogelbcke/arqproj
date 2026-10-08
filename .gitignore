@@ -1,8 +1,67 @@
+# Python environments and bytecode
 .venv/
+.venv-*/
+venv/
+env/
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Python tooling, tests, and package builds
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Local environment settings and credentials
 .env
-service-account.json
+.env.*
+.envrc
+service-account*.json
+service_account*.json
+credentials.json
+application_default_credentials.json
 *.json.key
+*.pem
+*.key
+
+# Local deployment script
+/deploy.sh
+
+# Local Drive documents and generated previews
+/Projects/
+/Claude outputs/
 sample-drive/
 sample-drive.zip
+
+# Local Flask runtime files and logs
+/instance/
+*.log
+*.pid
+
+# Operating-system clutter
+.DS_Store
+._*
+.AppleDouble/
+.LSOverride
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor settings, swap files, and backups
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bak
+*.orig
