@@ -135,3 +135,6 @@
 {% endfor %}
 {% endif %}
 {% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='project-title.js') }}" defer></script>
+{% endblock %}
