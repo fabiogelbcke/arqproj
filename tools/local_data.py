@@ -17,6 +17,7 @@ def fixture_version():
     digest = hashlib.sha256()
     for name in ('fake_drive.py', 'export_sample.py', 'local_data.py'):
         digest.update((ROOT / 'tools' / name).read_bytes())
+    digest.update((ROOT / 'arq' / 'stages.py').read_bytes())
     return digest.hexdigest()
 
 

@@ -22,7 +22,9 @@ def write(node, fake: FakeDrive, dest: str) -> int:
     if node.mime == SHORTCUT:
         return 0  # can't be recreated by uploading files
     if node.mime == FOLDER:
-        path = os.path.join(dest, node.name)
+        # Drive permits slashes in names; local folders must remain one level.
+        name = node.name.replace('/', '-').replace('\\', '-')
+        path = os.path.join(dest, name)
         os.makedirs(path, exist_ok=True)
         for child in node.children:
             count += write(child, fake, path)

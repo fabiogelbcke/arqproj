@@ -198,6 +198,16 @@ class FakeDrive:
         self._add("logo.png", "image/png", site, 30, content=_logo_png(), thumb=False)
 
         self._folder("_templates", root)
+        # Standard workflow; keep the older projects for parsing/error coverage.
+        from arq.stages import STANDARD_STAGES
+        standard = self._folder("Projeto Padrão", root)
+        self._add("_project", DOC, standard, 1,
+                  text="Título: Projeto Padrão\nSlug: projeto-padrao\nEtapa atual: 1\n")
+        for number, label in enumerate(STANDARD_STAGES, 1):
+            folder = self._folder(f"{number:02d} - {label}", standard)
+            if number == 1:
+                self._pdf("Proposta de serviços.pdf", folder, 1)
+
         return root.id
 
     # -- HTTP --------------------------------------------------------------------

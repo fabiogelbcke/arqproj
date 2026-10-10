@@ -152,6 +152,12 @@ class Stage:
     anchor_override: str | None = None
 
     @property
+    def explanation(self):
+        from . import i18n
+        from .stages import stage_explanation
+        return stage_explanation(self.number, self.label, i18n.lang())
+
+    @property
     def anchor(self) -> str:
         if self.anchor_override:
             return self.anchor_override

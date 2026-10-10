@@ -90,6 +90,14 @@ Free-form description. Each line is a paragraph.
 
 ### `_stage` notes (optional, one per stage folder)
 
+The standard workflow uses seven folders: `01 - Proposta`, `02 - Briefing e Levantamento`,
+`03 - Estudos Preliminares / Anteprojeto`, `04 - Projeto 3D`, `05 - Projeto Executivo`,
+`06 - Entrega Final`, and `07 - Serviços extras`. Standard headings show an information
+button with a short explanation and expected deliverables.
+Custom stages remain supported and do not receive an unrelated standard explanation.
+The fictional `Projeto Padrão` sample covers this workflow. Local exports replace the
+slash in stage 03 with a hyphen because slashes cannot be part of local folder names.
+
 Same format as `_project`: `Key: value` lines are shown as small facts, and the rest as text. For example:
 
 ```
