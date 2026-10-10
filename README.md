@@ -42,7 +42,7 @@ the header of `_project` (before the description) to schedule it:
 Reunião agendada: 20/10/2026 14:00
 Fim da reunião: 20/10/2026 15:00
 Assunto da reunião: Apresentação do layout
-Local da reunião: Online · Google Meet
+Local da reunião: Online
 Link da reunião: https://meet.google.com/your-meeting-code
 ```
 
@@ -54,9 +54,10 @@ subject, location and HTTPS meeting link are optional. English aliases are
 Invalid settings are flagged in the dashboard. Missing or finished meetings
 show “Não há reuniões agendadas” (localized to the site language).
 
-“Adicionar ao Google Agenda” opens a prefilled event for the client to save in
+“Adicionar à agenda” expands Google Calendar and Apple Calendar options.
+The Google option opens a prefilled event for the client to save in
 their own calendar. This does not synchronize calendars, invite attendees or
-create a Google Meet link automatically. “Apple Agenda” downloads an `.ics`
+create a Google Meet link automatically. “Calendário da Apple” downloads an `.ics`
 file with the same date, time, subject, location and meeting link for importing
 into Apple Calendar. Both actions require the client to confirm saving the event.
 If the date changes, the saved event
@@ -251,7 +252,7 @@ The app is set up for Cloud Run source deploys:
 ## Environment
 
 The header provides a light/dark mode toggle on every page. The initial theme
-is light; the visitor's choice is saved in their browser and restored on later
+is dark; the visitor's choice is saved in their browser and restored on later
 visits. The logo background and glass surfaces adapt to both themes. An
 available `_site/logo-dark.*` follows the selected theme; otherwise the regular
 header logo is adjusted for contrast.

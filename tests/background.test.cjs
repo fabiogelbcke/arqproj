@@ -10,6 +10,9 @@ test('logo background follows page height without creating horizontal overflow',
     const page = await browser.newPage();
     await page.route('https://fonts.googleapis.com/**', route => route.abort());
     await page.goto(process.env.PROJECT_TEST_URL || 'http://127.0.0.1:5002/residencia-campo-alegre', { waitUntil: 'domcontentloaded' });
+    if (await page.locator('html').getAttribute('data-theme') === 'dark') {
+      await page.locator('.theme-toggle').click();
+    }
     const asset = await page.request.get(new URL('/static/project-background.svg', page.url()).href);
     assert.equal(asset.status(), 200);
     assert.ok((await asset.text()).includes('viewBox="0 0 4461.12 4573.02"'));

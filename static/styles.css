@@ -190,6 +190,12 @@ a { color: inherit; }
 .meeting__none { margin: 0; color: var(--muted); }
 .meeting__actions { display: flex; flex-wrap: wrap; gap: 10px; flex-shrink: 0; }
 .meeting__actions .btn { text-decoration: none; background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.meeting__calendar summary { list-style: none; }
+.meeting__calendar summary::-webkit-details-marker { display: none; }
+.meeting__calendar summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.meeting__calendar-options { margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 4px; background: var(--surface); }
+.meeting__calendar-options a { display: block; padding: 10px 12px; border-radius: 8px; font-size: 13px; text-decoration: none; color: var(--ink); }
+.meeting__calendar-options a:hover, .meeting__calendar-options a:focus-visible { background: rgb(128 128 128 / 18%); }
 .meeting--empty { border-left-color: var(--line); }
 @media (max-width: 899px) {
   .meeting { flex-direction: column; align-items: stretch; padding: 20px; }

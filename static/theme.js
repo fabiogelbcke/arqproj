@@ -1,8 +1,8 @@
 (() => {
   const root = document.documentElement;
-  let theme = 'light';
+  let theme = 'dark';
   try {
-    if (localStorage.getItem('arq-theme') === 'dark') theme = 'dark';
+    if (localStorage.getItem('arq-theme') === 'light') theme = 'light';
   } catch (_) { /* The toggle also works when storage is unavailable. */ }
   root.dataset.theme = theme;
 

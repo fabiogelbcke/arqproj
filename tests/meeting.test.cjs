@@ -13,9 +13,14 @@ test('meeting card and calendar dates work on desktop and mobile', async () => {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     const card = page.locator('.meeting');
     const link = card.locator('a[href^="https://calendar.google.com/"]');
+    const calendarButton = card.locator('.meeting__calendar summary');
+    assert.equal(await link.isVisible(), false);
+    await calendarButton.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await link.isVisible(), true);
     const params = new URL(await link.getAttribute('href')).searchParams;
     assert.equal(params.get('action'), 'TEMPLATE');
-    assert.equal(params.get('text'), 'Apresentação do layout');
+    assert.equal(params.get('text'), await card.locator('.meeting__title').textContent());
     const times = await card.locator('time').evaluateAll(elements => elements.map(el => el.dateTime));
     const format = value => new Date(value).toISOString().replace(/[-:]/g, '').replace('.000', '');
     assert.equal(params.get('dates'), times.map(format).join('/'));
@@ -24,7 +29,7 @@ test('meeting card and calendar dates work on desktop and mobile', async () => {
     assert.equal(response.status(), 200);
     assert.ok(response.headers()['content-type'].startsWith('text/calendar'));
     assert.ok((await response.text()).includes('BEGIN:VEVENT'));
-    assert.equal(await apple.evaluate(el => getComputedStyle(el).backgroundColor),
+    assert.equal(await calendarButton.evaluate(el => getComputedStyle(el).backgroundColor),
       await page.evaluate(() => {
         const probe = document.createElement('span');
         probe.style.backgroundColor = 'var(--accent)';

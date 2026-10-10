@@ -38,7 +38,7 @@ Slug: casa-jardim
 Reunião agendada: {(NOW + timedelta(days=7)).replace(hour=17, minute=0, second=0).isoformat()}
 Fim da reunião: {(NOW + timedelta(days=7)).replace(hour=18, minute=0, second=0).isoformat()}
 Assunto da reunião: Apresentação do layout
-Local da reunião: Online · Google Meet
+Local da reunião: Online
 Link da reunião: https://meet.google.com/abc-defg-hij
 
 A single-family house on a sloped lot overlooking the Lagoa da Conceição.

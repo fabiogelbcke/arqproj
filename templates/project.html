@@ -84,14 +84,19 @@
       – <time datetime="{{ meeting.end.isoformat() }}">{% if meeting.end.date() != meeting.start.date() %}{{ meeting.end|date }} · {% endif %}{{ meeting.end.strftime('%H:%M') }}</time>
       <span class="meeting__zone">({{ meeting.timezone_label }})</span>
     </p>
-    {% if meeting.location %}<p class="meeting__meta">{{ meeting.location }}</p>{% endif %}
+    {% if meeting.location %}<p class="meeting__meta">{{ t('meeting.location') }}: {{ meeting.location }}</p>{% endif %}
     {% else %}<p class="meeting__none">{{ t('meeting.none') }}</p>{% endif %}
   </div>
   {% if meeting and meeting.upcoming %}
   <div class="meeting__actions">
     {% if meeting.link %}<a class="btn" href="{{ meeting.link }}" target="_blank" rel="noopener noreferrer">{{ t('meeting.join') }}</a>{% endif %}
-    <a class="btn" href="{{ meeting.calendar_url(project.title) }}" target="_blank" rel="noopener noreferrer">{{ t('meeting.calendar') }}</a>
-    <a class="btn" href="{{ url_for('meeting_calendar', slug=slug) }}">{{ t('meeting.apple') }}</a>
+    <details class="meeting__calendar">
+      <summary class="btn">{{ t('meeting.add') }} <span aria-hidden="true">⌄</span></summary>
+      <div class="meeting__calendar-options">
+        <a href="{{ meeting.calendar_url(project.title) }}" target="_blank" rel="noopener noreferrer">{{ t('meeting.calendar') }}</a>
+        <a href="{{ url_for('meeting_calendar', slug=slug) }}">{{ t('meeting.apple') }}</a>
+      </div>
+    </details>
   </div>
   {% endif %}
 </section>
