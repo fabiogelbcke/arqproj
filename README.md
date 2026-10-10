@@ -38,6 +38,7 @@ Projects/                        ← root folder (shared with the service accoun
 ```
 Title: Casa Jardim
 Client: Família Oliveira
+Tipo de projeto: Projeto Arquitetônico
 Location: Florianópolis, SC
 Built area: 320 m²
 Current stage: 3
@@ -50,6 +51,7 @@ Free-form description. Each line is a paragraph.
 - The header is the `Key: value` lines at the top. Blank lines between them are fine, and it ends at the first line of description text.
 - `Title`, `Slug` and `Current stage` control behavior. Portuguese aliases work too: `Título`, `Etapa atual`, `Link`.
 - **Every other key is shown to the client** as a project detail.
+- Add `Tipo de projeto: Projeto Arquitetônico` or `Tipo de projeto: Projeto de Interiores` to the `_project` header to show the project type in the side panel. Existing projects need this line added to their Drive document; the site does not guess a type when it is absent.
 - `Current stage` takes a number (`3`) or a stage name, and overrides the automatic status. `done` / `concluído` marks everything complete.
 - **`Slug` must be lowercase letters, numbers and hyphens only**, e.g. `casa-nova-7k2p`. An invalid slug is never rewritten: the project is hidden from clients and flagged in the dashboard until it's fixed.
 - If `Slug` is missing, the URL comes from the folder name, which is easy to guess. The folder ID also always works as a URL.

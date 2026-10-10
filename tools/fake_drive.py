@@ -29,6 +29,7 @@ NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
 CASA_JARDIM = """Title: Casa Jardim
 Client: Família Oliveira
+Tipo de projeto: Projeto Arquitetônico
 Location: Florianópolis, SC
 Site area: 1,240 m²
 Built area: 320 m²
@@ -51,6 +52,7 @@ Please review the plans and the renders, and send feedback before the meeting.
 
 LOJA_CENTRO = """Title: Loja Centro
 Client: Café Aurora
+Tipo de projeto: Projeto de Interiores
 Current stage: Executivo
 Slug: loja-centro-k3x9
 

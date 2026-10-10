@@ -33,6 +33,13 @@ class ConfigParsing(unittest.TestCase):
         self.assertIsNone(cfg.title)
         self.assertEqual(cfg.description[0].items, ["Just a description with no fields."])
 
+    def test_project_type_is_a_detail(self):
+        for value in ("Projeto Arquitetônico", "Projeto de Interiores"):
+            with self.subTest(value=value):
+                cfg = parse_config(f"Título: Casa\nTipo de projeto: {value}\n\nDescrição.")
+                self.assertEqual(cfg.details, [("Tipo de projeto", value)])
+                self.assertEqual(cfg.description[0].items, ["Descrição."])
+
     def test_url_line_is_not_a_field(self):
         cfg = parse_config("Title: A\nhttps://example.com is the site")
         self.assertEqual(cfg.title, "A")
@@ -94,6 +101,15 @@ class EndToEnd(unittest.TestCase):
         self.assertIn("step step--current", html)
         self.assertIn("step step--upcoming", html)
         self.assertEqual(r.headers["X-Robots-Tag"], "noindex, nofollow")
+
+    def test_project_types_in_side_panel(self):
+        for slug, value in (("casa-jardim", "Projeto Arquitetônico"),
+                            ("loja-centro-k3x9", "Projeto de Interiores")):
+            with self.subTest(slug=slug):
+                response = self.client.get(f"/{slug}")
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(f"<dt>Tipo de projeto</dt><dd>{value}</dd>",
+                              response.get_data(as_text=True))
 
     def test_folder_name_slug_and_id_lookup(self):
         self.assertEqual(self.client.get("/apartamento-higienopolis").status_code, 200)
@@ -371,7 +387,7 @@ class FailLoudly(unittest.TestCase):
         self.assertIn("Programa.pdf", page)
 
     def test_config_issue_is_shown_and_hidden_from_clients(self):
-        self.assertIn("“Etapa atual:” on line 7 of _project is below the description text", self.dash)
+        self.assertIn("“Etapa atual:” on line 8 of _project is below the description text", self.dash)
         self.assertNotIn("Etapa atual", self.client.get("/loja-centro-k3x9").get_data(as_text=True))
 
 
