@@ -117,10 +117,17 @@
   </ol>
 </nav>
 
+<div class="project-files">
+<div class="file-search" hidden>
+  <label for="file-search">{{ t('file_search') }}</label>
+  <input id="file-search" type="search" placeholder="{{ t('file_search') }}" autocomplete="off">
+</div>
+<p class="file-search__empty" role="status" hidden>{{ t('file_search_empty') }}</p>
+
 {% for stage in project.stages %}
 {% set entries = stage.entries %}
 {% set new_count = entries|selectattr('file', 'new')|list|length %}
-<section class="stage{% if stage.status %} stage--{{ stage.status }}{% endif %}" id="{{ stage.anchor }}">
+<section class="stage{% if loop.first %} stage--first{% endif %}{% if stage.status %} stage--{{ stage.status }}{% endif %}" id="{{ stage.anchor }}">
   <header class="stage__header">
     <span class="stage__num">{{ '%02d'|format(stage.number) if stage.number is not none else '' }}</span>
     <div class="stage__heading">
@@ -151,18 +158,22 @@
   <p class="stage__empty">{{ t('no_files') }}</p>
   {% else %}
     {% for group in stage.groups if group.entries %}
+    <div class="file-group">
     {% if group.path %}<h3 class="group-title">{{ group.path|join(' / ') }}</h3>{% endif %}
     <ul class="files">
       {% for entry in group.entries %}
       <li>{{ file_card(entry) }}</li>
       {% endfor %}
     </ul>
+    </div>
     {% endfor %}
   {% endif %}
 </section>
 {% endfor %}
+</div>
 {% endif %}
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='project-title.js') }}" defer></script>
+<script src="{{ url_for('static', filename='file-search.js') }}" defer></script>
 {% endblock %}
