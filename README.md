@@ -52,7 +52,7 @@ accepted. Only the start is required; the default duration is one hour. The
 subject, location and HTTPS meeting link are optional. English aliases are
 `Meeting start`, `Meeting end`, `Meeting title`, `Meeting location`, `Meeting link`.
 Invalid settings are flagged in the dashboard. Missing or finished meetings
-show “Nenhuma reunião agendada” (localized to the site language).
+show “Não há reuniões agendadas” (localized to the site language).
 
 “Adicionar ao Google Agenda” opens a prefilled event for the client to save in
 their own calendar. This does not synchronize calendars, invite attendees or

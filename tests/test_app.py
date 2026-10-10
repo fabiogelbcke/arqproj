@@ -115,7 +115,7 @@ class EndToEnd(unittest.TestCase):
         from unittest.mock import patch
         with patch.dict(os.environ, SITE_LANG='pt'):
             html = self.client.get('/casa-jardim').get_data(as_text=True)
-            self.assertIn('Reunião agendada', html)
+            self.assertIn('<h2 id="meeting-heading">Reunião</h2>', html)
             self.assertIn('Apresentação do layout', html)
             self.assertIn('Adicionar ao Google Agenda', html)
             self.assertIn('https://calendar.google.com/calendar/render?', html)
@@ -123,7 +123,11 @@ class EndToEnd(unittest.TestCase):
             self.assertLess(html.index('id="meeting-heading"'), html.index('class="timeline"'))
             self.assertNotIn('<dt>Reunião agendada</dt>', html)
             empty = self.client.get('/loja-centro-k3x9').get_data(as_text=True)
-            self.assertIn('Nenhuma reunião agendada', empty)
+            self.assertIn('Não há reuniões agendadas', empty)
+            self.assertIn('<h2 id="meeting-heading">Reunião</h2>', empty)
+            self.assertNotIn('Entrar na reunião', empty)
+            self.assertNotIn('Apple Agenda', empty)
+            self.assertNotIn('<time ', empty)
             self.assertNotIn('calendar.google.com', empty)
 
     def test_finished_meeting_is_not_offered(self):
@@ -132,7 +136,7 @@ class EndToEnd(unittest.TestCase):
         from tools.fake_drive import NOW
         with patch.dict(os.environ, SITE_LANG='pt'), patch('arq.i18n.now', return_value=NOW + timedelta(days=20)):
             html = self.client.get('/casa-jardim').get_data(as_text=True)
-            self.assertIn('Nenhuma reunião agendada', html)
+            self.assertIn('Não há reuniões agendadas', html)
             self.assertNotIn('calendar.google.com', html)
             self.assertEqual(self.client.get('/casa-jardim/reuniao.ics').status_code, 404)
 

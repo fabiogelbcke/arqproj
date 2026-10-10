@@ -13,7 +13,7 @@ STRINGS = {
     "en": {
         "portal": "Project portal",
         "stages": "Stages",
-        "meeting.heading": "Scheduled meeting",
+        "meeting.heading": "Meeting",
         "meeting.none": "No meeting scheduled",
         "meeting.default_title": "Project meeting · {project}",
         "meeting.calendar": "Add to Google Calendar",
@@ -87,8 +87,8 @@ STRINGS = {
     "pt": {
         "portal": "Portal do projeto",
         "stages": "Etapas",
-        "meeting.heading": "Reunião agendada",
-        "meeting.none": "Nenhuma reunião agendada",
+        "meeting.heading": "Reunião",
+        "meeting.none": "Não há reuniões agendadas",
         "meeting.default_title": "Reunião do projeto · {project}",
         "meeting.calendar": "Adicionar ao Google Agenda",
         "meeting.apple": "Apple Agenda",
