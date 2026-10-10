@@ -24,11 +24,17 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from .meetings import Meeting, build_meeting
 
 _ALIASES = {
     "title": {"title", "titulo", "project", "projeto", "nome do projeto"},
     "slug": {"slug", "link", "url"},
     "current_stage": {"current stage", "stage", "etapa atual", "etapa", "fase atual", "fase"},
+    "meeting_start": {"meeting start", "reuniao", "reuniao agendada", "inicio da reuniao"},
+    "meeting_end": {"meeting end", "fim da reuniao"},
+    "meeting_title": {"meeting title", "assunto da reuniao"},
+    "meeting_location": {"meeting location", "local da reuniao"},
+    "meeting_link": {"meeting link", "link da reuniao"},
 }
 _FIELD_RE = re.compile(r"^([^:]{1,40}):\s*(.*)$")
 _BULLET_RE = re.compile(r"^\s*[-*•●]\s+(.*)$")
@@ -63,6 +69,12 @@ class ProjectConfig:
     title: str | None = None
     slug: str | None = None
     current_stage: str | None = None
+    meeting_start: str | None = None
+    meeting_end: str | None = None
+    meeting_title: str | None = None
+    meeting_location: str | None = None
+    meeting_link: str | None = None
+    meeting: Meeting | None = None
     details: list[tuple[str, str]] = field(default_factory=list)
     description: list[DescriptionBlock] = field(default_factory=list)
     slug_invalid: bool = False
@@ -129,4 +141,9 @@ def parse_config(text: str) -> ProjectConfig:
                 cfg.description.append(DescriptionBlock("ul", [bullet.group(1)]))
         else:
             cfg.description.append(DescriptionBlock("p", [line]))
+    try:
+        cfg.meeting = build_meeting(cfg.meeting_start, cfg.meeting_end, cfg.meeting_title,
+                                   cfg.meeting_location, cfg.meeting_link)
+    except ValueError as exc:
+        cfg.issues.append(("cfg.invalid_meeting", {"detail": str(exc)}))
     return cfg

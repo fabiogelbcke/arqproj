@@ -136,6 +136,30 @@ a { color: inherit; }
 
 /* Timeline -------------------------------------------------------------- */
 
+.meeting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  padding: 24px;
+  margin-bottom: 32px;
+}
+.meeting__info { min-width: 0; overflow-wrap: anywhere; }
+.meeting h2 { margin: 0 0 12px; color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+.meeting__title { margin: 0 0 8px; font-size: 20px; }
+.meeting__meta { margin: 4px 0 0; color: var(--ink-2); font-size: 14px; }
+.meeting__zone { color: var(--muted); font-size: 12px; }
+.meeting__none { margin: 0; color: var(--muted); }
+.meeting__actions { display: flex; flex-wrap: wrap; gap: 10px; flex-shrink: 0; }
+.meeting__actions .btn { text-decoration: none; background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.meeting--empty { border-left-color: var(--line); }
+@media (max-width: 899px) {
+  .meeting { flex-direction: column; align-items: stretch; padding: 20px; }
+  .meeting__actions .btn { white-space: normal; text-align: center; }
+}
+
 .timeline {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);

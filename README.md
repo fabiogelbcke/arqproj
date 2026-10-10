@@ -33,6 +33,36 @@ Projects/                        ← root folder (shared with the service accoun
 - **Shortcuts** are followed, so you can link a file into a stage without moving it.
 - **Dates** are shown in `SITE_TIMEZONE` (default `America/Sao_Paulo`).
 
+### Scheduled meeting
+
+The project page shows a meeting card above the timeline. Add these fields to
+the header of `_project` (before the description) to schedule it:
+
+```text
+Reunião agendada: 20/10/2026 14:00
+Fim da reunião: 20/10/2026 15:00
+Assunto da reunião: Apresentação do layout
+Local da reunião: Online · Google Meet
+Link da reunião: https://meet.google.com/your-meeting-code
+```
+
+Use `DD/MM/YYYY HH:MM` or ISO `YYYY-MM-DD HH:MM`; times use `SITE_TIMEZONE`
+(default `America/Sao_Paulo`). ISO timestamps with an explicit offset are also
+accepted. Only the start is required; the default duration is one hour. The
+subject, location and HTTPS meeting link are optional. English aliases are
+`Meeting start`, `Meeting end`, `Meeting title`, `Meeting location`, `Meeting link`.
+Invalid settings are flagged in the dashboard. Missing or finished meetings
+show “Nenhuma reunião agendada” (localized to the site language).
+
+“Adicionar ao Google Agenda” opens a prefilled event for the client to save in
+their own calendar. This does not synchronize calendars, invite attendees or
+create a Google Meet link automatically. “Apple Agenda” downloads an `.ics`
+file with the same date, time, subject, location and meeting link for importing
+into Apple Calendar. Both actions require the client to confirm saving the event.
+If the date changes, the saved event
+must also be updated by the client. Never put fictional meeting details in a
+real client project.
+
 ### `_project` doc
 
 ```

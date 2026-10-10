@@ -115,6 +115,17 @@ def create_app(store: ProjectStore | None = None) -> Flask:
             abort(404)
         return project.files[file_id]
 
+    @app.get('/<slug>/reuniao.ics')
+    def meeting_calendar(slug: str):
+        project = store.load(slug)
+        if project is None or project.config.meeting is None or not project.config.meeting.upcoming:
+            abort(404)
+        return Response(project.config.meeting.icalendar(project.title, project.summary.id),
+                        content_type='text/calendar; charset=utf-8', headers={
+                            'Content-Disposition': 'attachment; filename="reuniao.ics"',
+                            'Cache-Control': 'private, no-store',
+                        })
+
     @app.get("/<slug>/f/<file_id>")
     def download(slug: str, file_id: str):
         f = _project_file(slug, file_id)

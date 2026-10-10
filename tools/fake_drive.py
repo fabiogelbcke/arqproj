@@ -27,7 +27,7 @@ TOKEN = "fake-access-token"
 # Sample dates are relative to startup so "New" badges always show up in the demo.
 NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
-CASA_JARDIM = """Title: Casa Jardim
+CASA_JARDIM = f"""Title: Casa Jardim
 Client: Família Oliveira
 Tipo de projeto: Projeto Arquitetônico
 Location: Florianópolis, SC
@@ -35,6 +35,11 @@ Site area: 1,240 m²
 Built area: 320 m²
 Current stage: 3
 Slug: casa-jardim
+Reunião agendada: {(NOW + timedelta(days=7)).replace(hour=17, minute=0, second=0).isoformat()}
+Fim da reunião: {(NOW + timedelta(days=7)).replace(hour=18, minute=0, second=0).isoformat()}
+Assunto da reunião: Apresentação do layout
+Local da reunião: Online · Google Meet
+Link da reunião: https://meet.google.com/abc-defg-hij
 
 A single-family house on a sloped lot overlooking the Lagoa da Conceição.
 The design organizes the living spaces around a planted central courtyard, with the bedroom wing stepping down the terrain to keep views open from every room.

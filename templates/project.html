@@ -73,6 +73,29 @@
   {% endif %}
 </section>
 
+{% set meeting = project.config.meeting %}
+<section class="meeting{% if not meeting or not meeting.upcoming %} meeting--empty{% endif %}" aria-labelledby="meeting-heading">
+  <div class="meeting__info">
+    <h2 id="meeting-heading">{{ t('meeting.heading') }}</h2>
+    {% if meeting and meeting.upcoming %}
+    <p class="meeting__title">{{ meeting.title or t('meeting.default_title', project=project.title) }}</p>
+    <p class="meeting__meta">
+      <time datetime="{{ meeting.start.isoformat() }}">{{ meeting.start|date }} · {{ meeting.start.strftime('%H:%M') }}</time>
+      – <time datetime="{{ meeting.end.isoformat() }}">{% if meeting.end.date() != meeting.start.date() %}{{ meeting.end|date }} · {% endif %}{{ meeting.end.strftime('%H:%M') }}</time>
+      <span class="meeting__zone">({{ meeting.timezone_label }})</span>
+    </p>
+    {% if meeting.location %}<p class="meeting__meta">{{ meeting.location }}</p>{% endif %}
+    {% else %}<p class="meeting__none">{{ t('meeting.none') }}</p>{% endif %}
+  </div>
+  {% if meeting and meeting.upcoming %}
+  <div class="meeting__actions">
+    {% if meeting.link %}<a class="btn" href="{{ meeting.link }}" target="_blank" rel="noopener noreferrer">{{ t('meeting.join') }}</a>{% endif %}
+    <a class="btn" href="{{ meeting.calendar_url(project.title) }}" target="_blank" rel="noopener noreferrer">{{ t('meeting.calendar') }}</a>
+    <a class="btn" href="{{ url_for('meeting_calendar', slug=slug) }}">{{ t('meeting.apple') }}</a>
+  </div>
+  {% endif %}
+</section>
+
 {% if project.stages %}
 <nav class="timeline" aria-label="{{ t('stages') }}">
   <ol class="timeline__list" style="--n: {{ project.stages|length }}">

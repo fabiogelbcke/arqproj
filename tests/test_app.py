@@ -111,6 +111,42 @@ class EndToEnd(unittest.TestCase):
                 self.assertIn(f"<dt>Tipo de projeto</dt><dd>{value}</dd>",
                               response.get_data(as_text=True))
 
+    def test_meeting_card_precedes_timeline(self):
+        from unittest.mock import patch
+        with patch.dict(os.environ, SITE_LANG='pt'):
+            html = self.client.get('/casa-jardim').get_data(as_text=True)
+            self.assertIn('Reunião agendada', html)
+            self.assertIn('Apresentação do layout', html)
+            self.assertIn('Adicionar ao Google Agenda', html)
+            self.assertIn('https://calendar.google.com/calendar/render?', html)
+            self.assertIn('https://meet.google.com/abc-defg-hij', html)
+            self.assertLess(html.index('id="meeting-heading"'), html.index('class="timeline"'))
+            self.assertNotIn('<dt>Reunião agendada</dt>', html)
+            empty = self.client.get('/loja-centro-k3x9').get_data(as_text=True)
+            self.assertIn('Nenhuma reunião agendada', empty)
+            self.assertNotIn('calendar.google.com', empty)
+
+    def test_finished_meeting_is_not_offered(self):
+        from datetime import timedelta
+        from unittest.mock import patch
+        from tools.fake_drive import NOW
+        with patch.dict(os.environ, SITE_LANG='pt'), patch('arq.i18n.now', return_value=NOW + timedelta(days=20)):
+            html = self.client.get('/casa-jardim').get_data(as_text=True)
+            self.assertIn('Nenhuma reunião agendada', html)
+            self.assertNotIn('calendar.google.com', html)
+            self.assertEqual(self.client.get('/casa-jardim/reuniao.ics').status_code, 404)
+
+    def test_apple_calendar_download(self):
+        response = self.client.get('/casa-jardim/reuniao.ics')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, 'text/calendar')
+        self.assertIn('attachment', response.headers['Content-Disposition'])
+        self.assertEqual(response.headers['Cache-Control'], 'private, no-store')
+        self.assertIn('BEGIN:VEVENT\r\n', response.get_data(as_text=True))
+        self.assertIn('SUMMARY:Apresentação do layout', response.get_data(as_text=True))
+        self.assertEqual(self.client.get('/loja-centro-k3x9/reuniao.ics').status_code, 404)
+        self.assertEqual(self.client.get('/missing-project/reuniao.ics').status_code, 404)
+
     def test_folder_name_slug_and_id_lookup(self):
         self.assertEqual(self.client.get("/apartamento-higienopolis").status_code, 200)
         self.assertEqual(self.client.get(f"/{self.id_of('Casa Jardim')}").status_code, 200)
