@@ -8,7 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='liquid-glass') }}">
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='theme-toggle') }}">
 </head>
 <body>
   {% include "icons.html" %}
@@ -16,13 +17,15 @@
     <div class="wrap site-header__inner">
       {% if logo() %}
       <picture>
-        {% if logo(dark=True) %}<source media="(prefers-color-scheme: dark)" srcset="{{ url_for('site_logo', v='dark') }}">{% endif %}
-        <img class="brand-logo{% if not logo(dark=True) %} brand-logo--auto-dark{% endif %}" src="{{ url_for('site_logo') }}" alt="{{ site_name }}">
+        <img class="brand-logo{% if not logo(dark=True) %} brand-logo--auto-dark{% endif %}" src="{{ url_for('site_logo') }}" data-light-src="{{ url_for('site_logo') }}" {% if logo(dark=True) %}data-dark-src="{{ url_for('site_logo', v='dark') }}"{% endif %} alt="{{ site_name }}">
       </picture>
       {% else %}
       <span class="brand">{{ site_name }}</span>
       {% endif %}
-      <span class="site-header__meta">{% block header_meta %}{{ t('portal') }}{% endblock %}</span>
+      <div class="header-actions">
+        <span class="site-header__meta">{% block header_meta %}{{ t('portal') }}{% endblock %}</span>
+        <button type="button" class="theme-toggle" hidden aria-pressed="false" data-light-label="{{ t('theme.light') }}" data-dark-label="{{ t('theme.dark') }}">{{ t('theme.dark') }}</button>
+      </div>
     </div>
   </header>
   <main class="wrap">

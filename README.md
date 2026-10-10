@@ -250,6 +250,12 @@ The app is set up for Cloud Run source deploys:
 
 ## Environment
 
+The header provides a light/dark mode toggle on every page. The initial theme
+is light; the visitor's choice is saved in their browser and restored on later
+visits. The logo background and glass surfaces adapt to both themes. An
+available `_site/logo-dark.*` follows the selected theme; otherwise the regular
+header logo is adjusted for contrast.
+
 | Variable | |
 |---|---|
 | `DRIVE_ROOT_FOLDER_ID` | Root folder containing the project folders (required). |

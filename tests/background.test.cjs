@@ -13,7 +13,7 @@ test('logo background follows page height without creating horizontal overflow',
     const asset = await page.request.get(new URL('/static/project-background.svg', page.url()).href);
     assert.equal(asset.status(), 200);
     assert.ok((await asset.text()).includes('viewBox="0 0 4461.12 4573.02"'));
-    for (const width of [1440, 390]) {
+    for (const width of [3440, 1920, 1440, 390]) {
       await page.setViewportSize({ width, height: 900 });
       const before = await page.evaluate(() => document.body.getBoundingClientRect().height);
       await page.evaluate(() => {
@@ -36,7 +36,7 @@ test('logo background follows page height without creating horizontal overflow',
       });
       assert.ok(result.height >= before + 1199);
       assert.ok(result.image.includes('project-background.svg'));
-      assert.equal(result.size, 'auto 100%');
+      assert.equal(result.size, 'cover');
       assert.equal(result.position, '0% 100%');
       assert.equal(result.repeat, 'no-repeat');
       assert.equal(result.attachment, 'scroll');

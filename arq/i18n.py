@@ -12,6 +12,8 @@ from .drive import NATIVE_PREFIX, DriveFile
 STRINGS = {
     "en": {
         "portal": "Project portal",
+        "theme.light": "Light mode",
+        "theme.dark": "Dark mode",
         "stages": "Stages",
         "meeting.heading": "Meeting",
         "meeting.none": "No meeting scheduled",
@@ -86,6 +88,8 @@ STRINGS = {
     },
     "pt": {
         "portal": "Portal do projeto",
+        "theme.light": "Modo claro",
+        "theme.dark": "Modo escuro",
         "stages": "Etapas",
         "meeting.heading": "Reunião",
         "meeting.none": "Não há reuniões agendadas",
