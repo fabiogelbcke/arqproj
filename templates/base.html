@@ -23,7 +23,7 @@
       <span class="brand">{{ site_name }}</span>
       {% endif %}
       <div class="header-actions">
-        <span class="site-header__meta">{% block header_meta %}{{ t('portal') }}{% endblock %}</span>
+        <span class="site-header__meta">{% block header_meta %}{% endblock %}</span>
         <button type="button" class="theme-toggle" hidden aria-pressed="false" data-light-label="{{ t('theme.light') }}" data-dark-label="{{ t('theme.dark') }}">{{ t('theme.dark') }}</button>
       </div>
     </div>

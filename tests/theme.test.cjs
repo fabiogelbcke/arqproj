@@ -29,7 +29,7 @@ test('theme toggle persists across reloads and pages and works with the keyboard
       await page.locator('.theme-toggle').click();
       assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
       await page.goto(url, { waitUntil: 'domcontentloaded' });
-      assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(195, 208, 208)');
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(244, 244, 244)');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     }
   } finally {

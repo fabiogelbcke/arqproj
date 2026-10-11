@@ -261,7 +261,7 @@ The app is set up for Cloud Run source deploys:
 
 The header provides a light/dark mode toggle on every page. The initial theme
 is dark; the visitor's choice is saved in their browser and restored on later
-visits. The logo background and glass surfaces adapt to both themes. An
+visits. The plain background is ice white (#F4F4F4) in light mode and graphite (#101111) in dark mode; glass surfaces adapt to both themes. An
 available `_site/logo-dark.*` follows the selected theme; otherwise the regular
 header logo is adjusted for contrast.
 

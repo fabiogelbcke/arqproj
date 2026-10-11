@@ -1,6 +1,6 @@
 :root {
-  --bg: #C3D0D0;
-  --surface: #C3D0D0;
+  --bg: #F4F4F4;
+  --surface: #F4F4F4;
   --ink: #101111;
   --ink-2: #101111;
   --muted: #505d5d;
@@ -8,7 +8,7 @@
   --accent: #EDEBA9;
   --accent-soft: #f5f3ce;
   --on-accent: #101111;
-  --thumb: #C3D0D0;
+  --thumb: #F4F4F4;
   --radius: 4px;
   --font: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   color-scheme: light;
@@ -26,17 +26,6 @@
   color-scheme: dark;
 }
 
-:root[data-theme="dark"] body { background-image: none; }
-:root[data-theme="dark"] body::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background: #273632;
-  -webkit-mask: url('project-background.svg') left bottom / cover no-repeat;
-  mask: url('project-background.svg') left bottom / cover no-repeat;
-}
 :root[data-theme="dark"] .brand-logo--auto-dark { filter: brightness(0) invert(1); }
 :root[data-theme="light"] .brand-logo--auto-dark { filter: none; }
 .header-actions { display: flex; align-items: center; gap: 16px; }
@@ -55,36 +44,11 @@ body {
   margin: 0;
   min-height: 100vh;
   background-color: var(--bg);
-  background-image: url('project-background.svg');
-  background-position: left bottom;
-  background-size: cover;
-  background-repeat: no-repeat;
   color: var(--ink);
   font-family: var(--font);
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-}
-
-/* A translucent light layer over the full-height logo background. */
-body::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: linear-gradient(135deg, rgb(255 255 255 / 16%), transparent 42%, rgb(255 255 255 / 8%));
-  -webkit-backdrop-filter: blur(5px) saturate(115%);
-  backdrop-filter: blur(5px) saturate(115%);
-}
-
-/* Keep the lower logo tip visible when tall mobile pages crop the sides. */
-@media (max-width: 719px) {
-  body { background-position: 36.008% bottom; }
-  :root[data-theme="dark"] body::after {
-    -webkit-mask-position: 36.008% bottom;
-    mask-position: 36.008% bottom;
-  }
 }
 
 .site-header { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); background: rgb(255 255 255 / 8%); }
@@ -319,6 +283,23 @@ a { color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .stage--current .stage__num { color: var(--ink); }
+.stage--current {
+  position: relative; isolation: isolate;
+  --ink: #101111; --ink-2: #101111; --muted: #505d5d; --line: #9aabab; --surface: #F4F4F4;
+  --stage-highlight: #E8ECEA;
+  --stage-border: #D4DCD7;
+  color: var(--ink);
+}
+.stage--current::before {
+  content: ''; position: absolute; inset: 16px -12px 12px; z-index: -1; pointer-events: none;
+  border: 1px solid var(--stage-border); border-radius: 16px;
+  background: var(--stage-highlight);
+}
+:root[data-theme="dark"] .stage--current {
+  --stage-highlight: #252B29; --stage-border: #414B46;
+  --ink: #edf2ef; --ink-2: #edf2ef; --muted: #c0ccc8;
+  --line: #657571; --surface: #1e2625;
+}
 .stage__heading h2 {
   margin: 0 0 8px;
   font-weight: 500;
