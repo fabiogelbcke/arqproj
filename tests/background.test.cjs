@@ -40,12 +40,16 @@ test('logo background follows page height without creating horizontal overflow',
       assert.ok(result.height >= before + 1199);
       assert.ok(result.image.includes('project-background.svg'));
       assert.equal(result.size, 'cover');
-      assert.equal(result.position, '0% 100%');
+      assert.equal(result.position, width < 720 ? '36.008% 100%' : '0% 100%');
       assert.equal(result.repeat, 'no-repeat');
       assert.equal(result.attachment, 'scroll');
       assert.equal(result.overflow, false);
       await page.locator('#extra-content').evaluate(el => el.remove());
     }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.theme-toggle').click();
+    const maskPosition = await page.evaluate(() => getComputedStyle(document.body, '::after').maskPosition);
+    assert.equal(maskPosition, '36.008% 100%');
   } finally {
     await browser.close();
   }

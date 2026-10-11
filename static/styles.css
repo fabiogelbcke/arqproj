@@ -78,6 +78,15 @@ body::before {
   backdrop-filter: blur(5px) saturate(115%);
 }
 
+/* Keep the lower logo tip visible when tall mobile pages crop the sides. */
+@media (max-width: 719px) {
+  body { background-position: 36.008% bottom; }
+  :root[data-theme="dark"] body::after {
+    -webkit-mask-position: 36.008% bottom;
+    mask-position: 36.008% bottom;
+  }
+}
+
 .site-header { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); background: rgb(255 255 255 / 8%); }
 
 a { color: inherit; }
