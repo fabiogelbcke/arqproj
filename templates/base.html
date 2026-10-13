@@ -15,7 +15,12 @@
   {% include "icons.html" %}
   <header class="site-header">
     <div class="wrap site-header__inner">
-      {% if logo() %}
+      {% if site_name == 'ALINEA ARQUITETOS' %}
+      <span class="brand brand--alinea">
+        <svg viewBox="0 0 4461.12 4573.02" aria-hidden="true"><polygon fill="currentColor" points="4088.81 0 2482.45 0 0 1945.77 675.66 1945.77 1606.36 4573.02 4088.81 2627.24 4461.12 2335.43 4461.12 0"/></svg>
+        {{ site_name }}
+      </span>
+      {% elif logo() %}
       <picture>
         <img class="brand-logo{% if not logo(dark=True) %} brand-logo--auto-dark{% endif %}" src="{{ url_for('site_logo') }}" data-light-src="{{ url_for('site_logo') }}" {% if logo(dark=True) %}data-dark-src="{{ url_for('site_logo', v='dark') }}"{% endif %} alt="{{ site_name }}">
       </picture>

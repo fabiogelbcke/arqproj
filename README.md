@@ -234,7 +234,7 @@ Before running, create `.env` in the project root with your local settings
 ```dotenv
 DRIVE_ROOT_FOLDER_ID=your-test-root-folder-id
 GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
-SITE_NAME="Your Studio"
+SITE_NAME="ALINEA ARQUITETOS"
 SITE_LANG=en
 SHOW_PROJECT_INDEX=1
 DASHBOARD_PASSWORD="choose-a-local-test-password"

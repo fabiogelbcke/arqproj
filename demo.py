@@ -32,7 +32,7 @@ if __name__ == "__main__":
         DRIVE_API_BASE=f"http://127.0.0.1:{FAKE_PORT}/drive/v3",
         DRIVE_ROOT_FOLDER_ID=fake.root_id,
     )
-    os.environ.setdefault("SITE_NAME", "Atelier Demo")
+    os.environ.setdefault("SITE_NAME", "ALINEA ARQUITETOS")
     os.environ.setdefault("SHOW_PROJECT_INDEX", "1")
     os.environ.setdefault("DASHBOARD_PASSWORD", "demo")
 

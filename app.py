@@ -39,7 +39,9 @@ def create_app(store: ProjectStore | None = None) -> Flask:
             os.environ.get("DRIVE_ROOT_FOLDER_ID", ""),
             ttl_seconds=float(os.environ.get("CACHE_TTL_SECONDS", "60")),
         )
-    site_name = os.environ.get("SITE_NAME", "Studio")
+    site_name = os.environ.get("SITE_NAME", "ALINEA ARQUITETOS")
+    if site_name.upper() in ("STUDIO ALINEA ARQUITETURA", "STUDIO ALÍNEA ARQUITETURA", "STUDIO ALINEA", "STUDIO ALÍNEA"):
+        site_name = "ALINEA ARQUITETOS"
     show_index = _env_flag("SHOW_PROJECT_INDEX")
     dashboard_password = os.environ.get("DASHBOARD_PASSWORD", "")
 

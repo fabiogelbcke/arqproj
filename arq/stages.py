@@ -11,28 +11,36 @@ EXPLANATIONS = {
     'pt': (
         ('Apresentação do escopo, das condições e do planejamento do projeto.',
          'Proposta de serviços com etapas, prazos e valores previstos.'),
-        ('Entendimento das necessidades, preferências e características do espaço.',
-         'Briefing e registros do levantamento, como medidas, fotos e informações do imóvel.'),
-        ('Desenvolvimento das primeiras soluções e definição da proposta de organização dos ambientes.',
-         'Estudos de layout, plantas e referências para avaliação e ajustes.'),
-        ('Visualização da proposta para entender volumes, materiais e a atmosfera dos ambientes.',
-         'Imagens e vistas 3D dos ambientes previstos no escopo.'),
-        ('Detalhamento das soluções aprovadas para orientar a execução.',
-         'Desenhos técnicos, detalhamentos e especificações previstos no escopo.'),
-        ('Organização e disponibilização dos documentos finais do projeto.',
-         'Conjunto final de arquivos e orientações de uso dos documentos.'),
+        ('',
+         'Briefing\nConceito\nPesquisa\nMoodboard\nLevantamento técnico'),
+        ('', 'Plantas humanizadas\nMoodboard\nImagens de referência'),
+        ('', 'Imagens realistas'),
+        ('', 'Plantas executivas\nDetalhamento de marcenaria\nForros e paginações\nEspecificações de materiais\nMemorial descritivo'),
+        ('', 'Projeto completo de esquadrias, marcenaria, iluminação, mobiliário, climatização, entre outros.'),
         ('Atividades complementares acordadas além do escopo inicial.',
          'Materiais e registros dos serviços adicionais contratados.'),
     ),
     'en': (
         ('Presentation of the scope, terms and project plan.', 'Service proposal with planned stages, dates and fees.'),
-        ('Understanding needs, preferences and the existing space.', 'Brief and survey records, such as measurements, photos and property information.'),
-        ('Exploring initial solutions and defining the arrangement of spaces.', 'Layout studies, plans and references for review and refinement.'),
-        ('Visualizing volumes, materials and the atmosphere of the design.', '3D images and views of spaces included in the scope.'),
-        ('Detailing approved solutions to guide implementation.', 'Technical drawings, details and specifications included in the scope.'),
-        ('Organizing and sharing the final project documents.', 'Final files and guidance on using the documents.'),
+        ('', 'Brief\nConcept\nResearch\nMoodboard\nTechnical survey'),
+        ('', 'Illustrated floor plans\nMoodboard\nReference images'),
+        ('', 'Realistic images'),
+        ('', 'Construction drawings\nJoinery details\nCeiling and surface layouts\nMaterial specifications\nDescriptive report'),
+        ('', 'Complete design for windows and doors, joinery, lighting, furniture, climate control, and more.'),
         ('Additional activities agreed beyond the initial scope.', 'Materials and records for the additional services commissioned.'),
     ),
+}
+
+PRELIMINARY_ACTIVITIES = {
+    'pt': ('Estudo de layout', 'Distribuição dos ambientes', 'Estudos de mobiliário',
+           'Definição dos fluxos', 'Primeiras definições de materiais'),
+    'en': ('Layout study', 'Arrangement of spaces', 'Furniture studies',
+           'Circulation planning', 'Initial material selections'),
+}
+
+MODELING_ACTIVITIES = {
+    'pt': ('Modelagem tridimensional', 'Volumetrias', 'Aplicação de materiais'),
+    'en': ('3D modeling', 'Volume studies', 'Material application'),
 }
 
 

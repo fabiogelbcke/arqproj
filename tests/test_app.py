@@ -156,6 +156,28 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(self.client.get('/loja-centro-k3x9/reuniao.ics').status_code, 404)
         self.assertEqual(self.client.get('/missing-project/reuniao.ics').status_code, 404)
 
+    def test_default_firm_name(self):
+        from unittest.mock import patch
+        from app import create_app
+        with patch.dict(os.environ):
+            os.environ.pop("SITE_NAME", None)
+            client = create_app().test_client()
+            for path in ("/", "/casa-jardim"):
+                response = client.get(path)
+                self.assertEqual(response.status_code, 200)
+                html = response.get_data(as_text=True)
+                self.assertIn("ALINEA ARQUITETOS", html)
+                self.assertNotIn("BRUMA", html.upper())
+        self.assertIn("Test Studio", self.client.get("/casa-jardim").get_data(as_text=True))
+
+    def test_previous_firm_setting_uses_new_brand(self):
+        from unittest.mock import patch
+        from app import create_app
+        with patch.dict(os.environ, {'SITE_NAME': 'STUDIO ALINEA ARQUITETURA'}):
+            html = create_app().test_client().get('/casa-jardim').get_data(as_text=True)
+            self.assertIn('ALINEA ARQUITETOS', html)
+            self.assertNotIn('STUDIO ALINEA ARQUITETURA', html)
+
     def test_folder_name_slug_and_id_lookup(self):
         self.assertEqual(self.client.get("/apartamento-higienopolis").status_code, 200)
         self.assertEqual(self.client.get(f"/{self.id_of('Casa Jardim')}").status_code, 200)

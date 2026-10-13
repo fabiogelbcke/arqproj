@@ -158,6 +158,15 @@ class Stage:
         return stage_explanation(self.number, self.label, i18n.lang())
 
     @property
+    def activities(self):
+        from . import i18n
+        from .stages import PRELIMINARY_ACTIVITIES, MODELING_ACTIVITIES
+        activities = {3: PRELIMINARY_ACTIVITIES, 4: MODELING_ACTIVITIES}.get(self.number)
+        if activities and self.explanation:
+            return activities.get(i18n.lang(), activities['pt'])
+        return ()
+
+    @property
     def anchor(self) -> str:
         if self.anchor_override:
             return self.anchor_override

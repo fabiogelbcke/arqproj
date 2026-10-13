@@ -341,12 +341,12 @@ def _logo_png() -> bytes:
     img = Image.new("RGBA", (520, 80), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     try:
-        font = ImageFont.load_default(size=40)
+        font = ImageFont.load_default(size=26)
     except TypeError:  # Pillow < 10.1
         font = ImageFont.load_default()
     d.rectangle([0, 14, 52, 66], outline=(155, 90, 58), width=4)
     d.line([0, 66, 52, 14], fill=(155, 90, 58), width=4)
-    d.text((72, 18), "ATELIER DEMO", fill=(27, 26, 24), font=font)
+    d.text((72, 26), "ALINEA ARQUITETOS", fill=(27, 26, 24), font=font)
     buf = io.BytesIO()
     img.save(buf, "PNG")
     return buf.getvalue()

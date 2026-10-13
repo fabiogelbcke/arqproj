@@ -135,11 +135,18 @@
         <h2>{{ stage.label }}</h2>
         {% if stage.explanation %}
         <details class="stage-info" name="stage-info">
-          <summary aria-label="{{ t('stage.info', stage=stage.label) }}"><span aria-hidden="true">i</span></summary>
+          <summary aria-label="{{ t('stage.info', stage=stage.label) }}">{{ t('stage.about') }}</summary>
           <div class="stage-info__content">
-            <p>{{ stage.explanation[0] }}</p>
-            <strong>{{ t('stage.delivery') }}</strong>
-            <p>{{ stage.explanation[1] }}</p>
+            {% if stage.explanation[0] %}<p>{{ stage.explanation[0] }}</p>{% endif %}
+            {% if stage.activities %}
+            <strong>{{ t('stage.activities') }}</strong>
+            <ul>{% for item in stage.activities %}<li>{{ item }}</li>{% endfor %}</ul>
+            {% endif %}
+            <strong>{{ t('stage.activities' if stage.number == 2 else 'stage.delivery') }}</strong>
+            {% if stage.explanation[1].splitlines()|length > 1 %}
+            <ul>{% for item in stage.explanation[1].splitlines() %}<li>{{ item }}</li>{% endfor %}</ul>
+            {% else %}<p>{{ stage.explanation[1] }}</p>{% endif %}
+            {% if stage.number in (2, 3, 4, 5) %}<p class="stage-info__time"><strong>{{ t('stage.time') }}</strong>{{ t('stage.fourteen_days') }}</p>{% endif %}
           </div>
         </details>
         {% endif %}

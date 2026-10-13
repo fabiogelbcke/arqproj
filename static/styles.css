@@ -29,6 +29,8 @@
 :root[data-theme="dark"] .brand-logo--auto-dark { filter: brightness(0) invert(1); }
 :root[data-theme="light"] .brand-logo--auto-dark { filter: none; }
 .header-actions { display: flex; align-items: center; gap: 16px; }
+.brand--alinea { display: flex; align-items: center; gap: 10px; font-size: clamp(14px, 2vw, 20px); white-space: nowrap; }
+.brand--alinea svg { width: 24px; height: 25px; flex: 0 0 auto; }
 .theme-toggle { font: inherit; font-size: 12px; color: var(--ink); background: rgb(255 255 255 / 12%); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
 .theme-toggle:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .theme-toggle[hidden] { display: none; }
@@ -307,13 +309,14 @@ a { color: inherit; }
   letter-spacing: -0.01em;
   line-height: 1.2;
 }
-.stage__title-row { display: flex; align-items: flex-start; gap: 10px; position: relative; }
+.stage__title-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 12px; position: relative; }
 .stage-info { flex: 0 0 auto; padding-top: 2px; }
 .stage-info summary {
-  display: flex; align-items: center; justify-content: center; width: 21px; height: 21px;
-  border: 1px solid var(--ink); border-radius: 50%; color: var(--ink);
-  font-size: 13px; line-height: 1; cursor: pointer; list-style: none;
+  display: flex; align-items: center; justify-content: center; padding: 5px 10px;
+  border: 1px solid var(--line); border-radius: 8px; color: var(--ink);
+  font-size: 12px; line-height: 1.2; cursor: pointer; list-style: none; white-space: nowrap;
 }
+.stage-info { margin-bottom: 8px; }
 .stage-info summary::-webkit-details-marker { display: none; }
 .stage-info summary:hover { background: var(--accent); color: var(--on-accent); }
 .stage-info summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -328,6 +331,8 @@ a { color: inherit; }
 .stage-info__content strong { display: block; margin-bottom: 4px; font-weight: 500; color: var(--accent); }
 :root[data-theme="light"] .stage-info__content strong { color: var(--ink); background: var(--accent); width: fit-content; padding: 2px 6px; border-radius: 4px; }
 .stage-info__content p:last-child { margin-bottom: 0; }
+.stage-info__content ul { margin: 0 0 16px; padding-left: 20px; }
+.stage-info__time { padding-top: 12px; border-top: 1px solid var(--line); }
 .stage__meta {
   margin: 0;
   display: flex;
