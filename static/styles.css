@@ -6,7 +6,7 @@
   --muted: #505d5d;
   --line: #9aabab;
   --accent: #EDEBA9;
-  --accent-soft: #f5f3ce;
+  --accent-soft: #EDEBA9;
   --on-accent: #101111;
   --thumb: #F4F4F4;
   --radius: 4px;
@@ -15,6 +15,7 @@
 }
 
 :root[data-theme="dark"] {
+  --accent: #EDEBA9;
   --bg: #101111;
   --surface: #1e2625;
   --ink: #edf2ef;
@@ -371,7 +372,6 @@ a { color: inherit; }
 .stage--done .stage__heading, .stage--current .stage__heading, .stage--upcoming .stage__heading { padding-right: 44px; }
 .stage--upcoming.stage--collapsed { padding: 22px 0; }
 .stage--upcoming.stage--collapsed .stage__header { margin-bottom: 0; align-items: center; }
-.stage--upcoming.stage--collapsed .stage__heading h2 { margin-bottom: 0; }
 .stage--upcoming.stage--collapsed .stage-info { display: none; }
 .stage--upcoming.stage--collapsed .stage__meta { margin-bottom: 0; }
 .stage--upcoming.stage--collapsed .stage-toggle { top: 50%; transform: translateY(-50%); }
