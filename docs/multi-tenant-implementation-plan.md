@@ -9,6 +9,14 @@ new backend; it does not apply migrations, create cloud resources, or authorize
 deployment. It separates chosen product behavior, recommended implementation,
 verified behavior, and work that still needs external verification.
 
+Framework decision updated after discussion: the new backend will use FastAPI
+and Pydantic, while retaining Python and the existing Jinja/HTML/CSS/JavaScript
+UI where useful. References to Flask/Gunicorn in the current-state inventory and
+verification history describe the existing application, not the target backend.
+
+Companion: [infrastructure cost comparison and POC options](infrastructure-cost-comparison.md),
+including free-tier assumptions and Cloud Scheduler versus local cron.
+
 ## 1. Product agreement and scope
 
 The product is an architecture office's client portal. Each office keeps its
@@ -24,7 +32,8 @@ release readiness is determined by evidence rather than an assumed coding speed.
 
 Confirmed choices:
 
-- Keep Python, Flask, Jinja, and the useful existing HTML/CSS/JavaScript UI.
+- Keep Python, Jinja, and the useful existing HTML/CSS/JavaScript UI; use FastAPI
+  and Pydantic for the new backend.
 - Build a clean multi-tenant backend instead of threading tenant parameters
   through the prototype's single-office backend.
 - Office URLs use `{office-slug}.{product-domain}`. Display-name changes do not
@@ -56,7 +65,7 @@ its affected tests before coding proceeds.
 
 | ID | Decision | Status and reason |
 | --- | --- | --- |
-| A01 | New backend in the same repository and stack | Agreed direction; the prototype is small enough that preserving its architecture has little value |
+| A01 | New backend in the same repository, retaining Python and the UI | Agreed direction; replace the Flask backend with FastAPI rather than preserve the prototype's architecture |
 | A02 | Modular application, one database, shared web deployment | Recommended; independent web/worker processes can use the same code and image |
 | A03 | PostgreSQL + SQLAlchemy 2 + Alembic + psycopg 3 | Recommended; relationships, transactions, migrations and local parity |
 | A04 | OAuth writes + service-account reads | Product choice, core flow reported tested by Fabio; remaining capability matrix below |
@@ -64,15 +73,17 @@ its affected tests before coding proceeds.
 | A06 | Public or password-protected project access | Agreed; no mandatory client account for the pilot |
 | A07 | Atomic DB creation plus recoverable Drive provisioning | Recommended implementation of an all-or-nothing customer experience |
 | A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules |
-| A09 | PostgreSQL job queue and transactional outbox | Recommended; avoid adding Redis/Celery for the pilot |
+| A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: hourly authenticated endpoint in the web service, with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
 | A10 | Incremental Drive sync, initially polled; reconciliation as repair | Recommended; webhooks can accelerate later without becoming a correctness dependency |
 | A11 | Streaming proxy for private Drive content; optional Drive links | Recommended; clients need not have Google accounts or Drive sharing permissions |
 | A12 | Email first, 60-minute fixed batching window | Recommended default; configurable per office |
 | A13 | Protected main, staging and approved promotion of one build | Recommended; environments are separate without requiring permanent divergent code branches |
 | A14 | Same PostgreSQL engine locally and in production | Recommended; SQLite cannot validate the intended constraints, queue locks or row policies |
-| A15 | Cloud Run web + bounded worker invocations | Proposed hosting continuation; actual infrastructure requires separate approval |
+| A15 | Cloud Run web with bounded maintenance execution | Proposed hosting continuation; POC can run maintenance in the same service. Actual infrastructure requires separate approval |
 | A16 | Managed PostgreSQL; Neon as initial provider candidate | Provider purchase/region/backup plan pending; SQL design remains portable |
 | A17 | Resend behind an email adapter | Proposed first provider; choose a plan based on actual volumes and delivery limits |
+| A18 | FastAPI + Pydantic + Uvicorn for the new web backend | Agreed framework switch; validated request/response contracts, dependency injection and native async support; Cloud Run remains compatible |
+| A19 | Cloud Scheduler preferred within its free allowance; local cron retained as an alternative | User accepts managed scheduling when free. Both call the same protected maintenance endpoint; cadence and deployment shape remain separate decisions. See the [cost comparison](infrastructure-cost-comparison.md). |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains, multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -131,7 +142,7 @@ portal/
   notifications/         subscriptions, batching, delivery adapters
   jobs/                  leases, retries, durable work and outbox
   branding/              validated themes and assets
-  web/                   blueprints, forms, presentation models
+  web/                   FastAPI routers, forms, Pydantic request/response models
   db/                    models and repository implementations
 migrations/              reviewed Alembic migrations
 ```
@@ -141,11 +152,38 @@ A service takes tenant context and dependencies explicitly. A background job
 constructs that context from its stored tenant, never from ambient HTTP state.
 Use ordinary Python classes/functions, not a generic plugin or event framework.
 
+FastAPI dependencies provide explicit tenant, staff and service context to route
+handlers; services still enforce authorization and database constraints. Pydantic
+validates input and controls response fields. Keep input/output schemas separate
+from SQLAlchemy persistence models, especially for credentials, password hashes
+and internal IDs. Alembic still manages database schema changes. OpenAPI provides
+an API contract; generating frontend types from it is optional future tooling,
+not a requirement to replace Jinja with a separate frontend application.
+
+Use asynchronous HTTP calls for Drive streaming and an async SQLAlchemy/psycopg
+database path in the new request handlers. Initialize reusable clients/pools
+through application lifespan and close them on shutdown. Do not call blocking
+legacy `requests` helpers directly inside async handlers; adapt or isolate them
+during migration. CPU-heavy preview work belongs in bounded worker jobs. FastAPI
+background tasks are not the durable provisioning or notification queue.
+
+Port Flask-specific template helpers, redirects, session handling and CSRF
+protection explicitly. FastAPI does not supply the application's complete browser
+authentication/access policy just by declaring API models. Retain tests for both
+server-rendered pages and JSON routes as these integrations change.
+
 ## 4. Deployment shape and data flow
+
+**POC simplification under discussion:** following the cost review, first evaluate
+one web deployment with an authenticated maintenance endpoint called hourly. The
+worker below is a logical function and need not be a separate deployed service.
+The fuller queue and wildcard load-balancer design remains an alternative, not
+a prerequisite for the POC. Domain routing and slower refresh timing still need
+agreement; the cost comparison records those tradeoffs explicitly.
 
 ```mermaid
 flowchart LR
-  Client[Client or office browser] --> Web[Flask web application]
+  Client[Client or office browser] --> Web[FastAPI web application]
   Web --> DB[(PostgreSQL)]
   Web -->|authorize and stream| Read[Office-scoped Drive reader]
   Web -->|authorized uploads| Write[Office OAuth writer]
@@ -158,15 +196,85 @@ flowchart LR
   Worker --> Mail[Email adapter]
 ```
 
-Use one deployable codebase with web and worker entry points. For the pilot,
-an authenticated scheduler invokes the worker every minute. The worker claims a
-bounded amount of durable work, checkpoints long tasks, and exits before its
-request deadline. Set an initial work budget around 45 seconds per invocation
-and a longer service timeout; actual limits are tuned with load tests. Never
-start untracked Flask threads and assume Cloud Run will keep them alive.
+Use one deployable codebase with web and maintenance handlers. The diagram shows
+the logical recurring-work path, not a settled choice of queue technology.
+Workers process bounded durable work, checkpoint long tasks, and exit before
+their request deadline. Never start untracked in-process tasks and assume Cloud
+Run will keep them alive.
 
-Use the same immutable image for both entry points. The worker endpoint is not
-publicly callable. Its runtime credentials should have only the access needed
+### Scheduling and queue technology: proposal under discussion
+
+The original minute-by-minute scheduler plus PostgreSQL queue was a recommendation,
+not an agreed product decision. Separate three responsibilities: a scheduler
+decides when recurring work is due, a queue preserves pending work, and a worker
+executes it. FastAPI itself does not replace any of these durable responsibilities.
+
+| Option | Technology | Benefit | Main tradeoff |
+| --- | --- | --- | --- |
+| E: revised POC proposal | One hourly Cloud Scheduler job or local cron → authenticated endpoint in the web service | One deployment; no broker/managed task queue; can let the database sleep | Slower Drive discovery; bounded work shares web resources; retain retryable state and overlap protection |
+| A: original proposal | Cloud Scheduler → Cloud Run worker → PostgreSQL jobs | Few services; portable; easy to exercise against local PostgreSQL | We implement leases, retries, recovery and dispatch; minute polling keeps the DB awake and adds dispatch latency |
+| B: managed queue alternative | Cloud Tasks → Cloud Run worker, with Cloud Scheduler for recurring checks/recovery | Managed delivery retries, delayed tasks and dispatch limits; enqueue work promptly | Provider-specific adapter and cloud integration tests; SQL idempotency/outbox still required |
+| C: established Python queue | Celery with Redis/RabbitMQ, dedicated workers and Beat for recurrence | Mature Python task ecosystem; useful for substantial continuous work | Additional broker and always-running processes to operate and fund |
+| D: dedicated scheduler/worker process | APScheduler or cron plus durable PostgreSQL jobs on an always-on host | Reasonable for a small VM deployment | Own process supervision, availability and coordination; does not fit a scale-to-zero web process |
+
+[Cloud Tasks behavior](https://docs.cloud.google.com/tasks/docs/dual-overview),
+[Celery](https://docs.celeryq.dev/en/stable/getting-started/introduction.html),
+[APScheduler](https://apscheduler.readthedocs.io/en/master/userguide.html).
+
+Evaluate **E first for the POC**, subject to confirming freshness and domain
+tradeoffs. Keep cursors, pending batches, provisioning progress and operation IDs
+in SQL; prevent overlapping execution and safely resume partial work. No general
+queue framework is necessary. Process within the HTTP request and a bounded
+deadline; report unfinished work for a subsequent/manual retry. Verify the
+scheduler's identity and allowed caller in the endpoint itself, since the web
+service also allows public requests. **Prefer Cloud Scheduler when a free job is
+available in the billing account; retain local cron as an alternative.** This
+scheduling preference does not require Cloud Tasks or a separate worker service.
+Use one shared job for all offices. Before setup, confirm the account-wide free
+allowance rather than assuming each project receives its own. Local cron calls
+the same protected endpoint with an authorized credential outside the repository,
+but processing pauses while its host is asleep or disconnected. Enable only one
+timer; both options still incur the same endpoint/database work. See the
+[cost comparison](infrastructure-cost-comparison.md) for timer pricing and limits.
+Record a last-success time so failures are visible. Check database free-tier
+limits and restore needs before selecting a paid plan.
+
+If background volume or latency later warrants a queue, **B is the preferred
+Google Cloud alternative**, subject to review. In that alternative use
+Cloud Tasks for provisioning steps, synchronization and delayed email delivery;
+use a small number of shared scheduler jobs for recurring Drive checks, watch
+renewal, reconciliation and recovery. Do not create a scheduler resource per
+office/project. Queue payloads contain internal IDs, never documents or tokens.
+Tasks have at-least-once delivery and no exact execution-time guarantee: show
+provisioning progress and interpret an email deadline as earliest eligibility.
+
+Commit business state and an outbox event in one SQL transaction, then attempt
+dispatch after commit. A scheduled rescue pass retries undispatched events;
+otherwise a crash between database commit and enqueue could lose work. Keep
+application-level job state, deduplication, stale-connection rejection and
+reconciliation of uncertain external side effects. Cloud Tasks owns transport
+retry timing; avoid an independent SQL retry loop scheduling duplicate attempts.
+Persist failure/attention state before acknowledging terminal failures, and
+detect stale work if the managed queue exhausts retries.
+
+Under A, begin with one scheduler invocation per minute and a roughly 45-second
+work budget. Under B, bounded handlers run on task delivery; recurring Drive
+polling remains approximately every two minutes initially. A less frequent rescue
+scan can be tuned separately. Neither option lets the database sleep while we
+continue frequent Drive polling. Do not claim savings from event-driven delivery
+until the polling behavior actually changes.
+
+Local tests run the same handlers using a controllable clock and an isolated
+queue adapter; exercise duplicate delivery, retries and crashes after commit.
+Real-cloud acceptance separately verifies IAM, delivery deadlines and retry
+behavior. A local fake cannot prove the provider's configuration. Choose E, A or B
+before implementing dispatch; do not build multiple production queue systems.
+The [infrastructure cost comparison](infrastructure-cost-comparison.md) records
+cost assumptions and free allowances for this decision.
+
+If a separate worker is introduced, use the same immutable image for both entry
+points. Maintenance must reject unauthorized calls, whether its HTTP route is
+on the public web service or a separate worker. Runtime credentials have only the access needed
 for its jobs. Preview processing has explicit byte/time limits so a large file
 cannot monopolize synchronization or email.
 
@@ -183,7 +291,7 @@ database awake continuously; budget that behavior instead of assuming it sleeps
 whenever nobody views a page. Later wake-up optimization is possible without
 changing the durable-job model.
 
-For Cloud Run office subdomains, use a global external Application Load Balancer
+For the fuller Cloud Run office-subdomain design, use a global external Application Load Balancer
 with a serverless backend, wildcard DNS and a Certificate Manager certificate
 issued through DNS authorization. Route office hosts to the same application;
 do not create a deployment per office. Cloud Run's built-in domain mapping does
@@ -196,11 +304,54 @@ authenticated. Staging uses its own hostname/certificate coverage and services;
 Quote load-balancer, certificate and transfer costs before approving infrastructure;
 one forwarding-rule price is not the total hosting bill.
 
+To avoid that fixed load-balancer cost in the POC, explicitly choose another
+domain path first. A temporary `run.app` URL with tenant paths changes the agreed
+URL requirement; individual subdomain mappings preserve it but are Preview and
+not recommended by Google for production. Neither is approved by this proposal.
+The cost comparison distinguishes a near-free constrained POC from the fuller
+wildcard deployment; do not describe ~$65/month as the unavoidable pilot minimum.
+
 Start with small connection pools and capped instances. Calculate maximum DB
 connections as the sum of every process's pool across every possible instance,
 plus maintenance headroom. Request-scoped sessions close promptly; no SQL
 transaction or connection remains open while streaming a large file. A database
 outage should yield a recoverable application error, not bypass authorization.
+
+### FastAPI deployment and free-tier implications
+
+The existing repository uses Cloud Run source deployment with Python 3.13 and a
+Gunicorn `Procfile`. Google also documents a direct FastAPI source-deployment
+workflow; Flask is not a requirement for this hosting path.
+[Cloud Run FastAPI quickstart](https://docs.cloud.google.com/run/docs/quickstarts/build-and-deploy/deploy-python-fastapi-service)
+
+For the new backend, explicitly replace the legacy WSGI startup command with an
+ASGI server. Proposed command, once `portal.app:create_app` exists:
+
+```sh
+uvicorn portal.app:create_app --factory --host 0.0.0.0 --port "$PORT"
+```
+
+Declare and pin the server dependency. Start with one server process per
+container and tune Cloud Run concurrency/max instances and database pools from
+measurements. Keep the legacy `Procfile` unchanged until the new entry point is
+implemented and release-ready. Maintain streaming rather than buffering file
+responses; test large transfers, timeout and client-disconnect behavior through
+the actual deployment path before migration.
+
+Cloud Run free-tier eligibility depends on resource usage and billing settings,
+not Flask versus FastAPI. Prefer request-based billing and zero minimum web
+instances initially, accepting cold starts. There is no framework surcharge or
+need for an always-running server just because FastAPI uses async. CPU/memory
+use can differ, so equal application traffic does not guarantee equal cost.
+Build/image storage and outbound transfer have separate charging rules. The
+database, wildcard-domain infrastructure and scheduled work need their own budget.
+[Cloud Run pricing](https://cloud.google.com/run/pricing)
+
+No promise that the complete multi-tenant product stays free follows from keeping
+the web service within its allowance. The framework switch itself does not
+require abandoning Cloud Run, purchasing a higher hosting tier or introducing a
+separate frontend deployment. These are planning decisions only; no live billing
+settings, deployment configuration or cloud resources were changed for this update.
 
 ## 5. Tenant routing and staff identity
 
@@ -614,8 +765,10 @@ then replays changes from that token to close the scan race. Suppress historical
 notification events during this baseline. A reconnect establishes a new baseline
 without notifying clients about every old file again.
 
-Poll active connections approximately every two minutes initially; UI-triggered
-sync can request earlier work with a rate limit. Show this freshness expectation
+The fuller design polls active connections approximately every two minutes.
+Option E instead proposes an hourly sweep for the POC, or 15 minutes after checking
+database usage; this freshness tradeoff needs agreement. UI-triggered sync can
+request earlier bounded work with a rate limit. Show the selected freshness expectation
 rather than “instant”. Coalesce repeated poll requests. A scheduled daily
 reconciliation compares the complete in-scope tree with indexed state and repairs
 missed moves/deletes or cursor errors. For larger trees, paginate and checkpoint
@@ -635,7 +788,8 @@ channel/resource identifiers and secret tokens, then enqueue work and return
 quickly. Periodic polling/reconciliation remains the repair path.
 [Google push notifications](https://developers.google.com/workspace/drive/api/guides/push)
 
-Job mechanics:
+Job mechanics (PostgreSQL queue option A; adapt transport ownership for option B
+as described in section 4, retaining the business-level guarantees):
 
 - Claim eligible jobs with row locks and `SKIP LOCKED`, setting lease owner,
   expiry and a fencing token. Commit before work starts.
@@ -725,7 +879,7 @@ bypass a portal password; that needs an explicit separate product choice.
 [Google download methods](https://developers.google.com/workspace/drive/api/guides/manage-downloads)
 
 Uploads use resumable sessions so a network interruption need not restart a
-large file. Prefer bounded chunks through the backend initially. Do not let Flask
+large file. Prefer bounded chunks through the backend initially. Do not let the app
 parse a whole multi-GB multipart request into memory or temporary disk. If a
 direct browser-to-Google session path is validated, it can reduce our transfer
 work; the session URL is a capability and must be scoped, protected and verified
@@ -780,7 +934,7 @@ versioned: updating defaults does not overwrite an office's edited project stage
 
 ## 17. API and error conventions
 
-Use Flask blueprints and server-rendered forms with progressive JavaScript.
+Use FastAPI routers and Jinja server-rendered forms with progressive JavaScript.
 JSON endpoints support file uploads, operation progress and directory browsing;
 a wholesale SPA rewrite is unnecessary. Administrative paths require staff
 sessions and CSRF protection even when a project is public.
@@ -852,7 +1006,7 @@ that proposed command exists until implemented. Local environments have unique
 DB names/volumes; a test safety check refuses a production URL or a nonlocal DB
 unless an explicitly designated disposable-test configuration is provided.
 
-Run the actual Flask services, SQL repositories and worker code against those
+Run the actual FastAPI services, SQL repositories and worker code against those
 local components. Mock at provider boundaries, not every internal service call.
 The fake should implement both read and write identities and deliberately deny
 external-file writes when the selected capability scenario requires it. Include
@@ -919,7 +1073,9 @@ production-image build/start smoke test. Pin Python to the production 3.13 line
 and use a supported Node LTS for test tooling. Introduce a Python dependency lock
 as the new backend is scaffolded; the current broad requirements are not yet a
 fully reproducible production dependency set. Node is needed for tests, not for
-serving this Flask UI.
+serving this Jinja-rendered UI. Build/start checks must exercise the new Uvicorn
+entry point and streaming behavior rather than reuse a passing legacy Gunicorn
+check as evidence for the FastAPI deployment.
 
 Staging is a distinct service, database, Google connection and email sink.
 It must not share production refresh tokens, Drive roots or job queues.
@@ -1038,7 +1194,7 @@ and external failures do not shrink simply because code generation is fast.
 | Slice | Concrete deliverable | Exit evidence | Rough focused effort |
 | --- | --- | --- | --- |
 | 0. Baseline | This decision doc and repeatable current local tests | Python/browser suite runs without Google; open issues recorded | Current work |
-| 1. New foundation | New Flask factory, local PostgreSQL, migrations, tenant routing, fake identity, two offices | Wrong-host/ID tests; runtime-role isolation; production image boots locally | 1–2 days |
+| 1. New foundation | New FastAPI factory and Uvicorn entry point, local PostgreSQL, migrations, tenant routing, fake identity, two offices | Wrong-host/ID tests; runtime-role isolation; production image boots locally | 1–2 days |
 | 2. First useful vertical slice | Public/password project page, DB metadata, reused UI, read adapter and legacy import | Two branded offices; password protects every content endpoint; migration dry run | 2–3 days |
 | 3. Project creation + files | Durable provisioning, form, folders, resumable upload, capability-aware listing | Crash/retry matrix; progress UI; no duplicate creation | 2–3 days |
 | 4. Sync + revisions | Incremental index, repair, explicit versioning, preview fallback | External upload/overwrite/move scenarios; old-content honesty | 2–3 days |
@@ -1086,6 +1242,9 @@ choices need an owner before their corresponding feature ships:
 | --- | --- | --- |
 | Product name/domain and first hosting region | Choose once office URL examples and latency are reviewed | Real DNS/OAuth registration |
 | Database provider/plan/backup retention | Managed PostgreSQL; evaluate Neon against budget and restore needs | Infrastructure purchase |
+| Background dispatch technology and refresh interval | Evaluate hourly in-app maintenance first for POC; add a queue/worker when needed | Maintenance implementation |
+| Timer setup | Prefer Cloud Scheduler within account-wide free allowance; local cron is the alternative | Confirm allowance and cadence before setup |
+| POC domain routing | Review cheaper temporary routing against the agreed office-subdomain requirement | Hosting setup |
 | Password setter | Office owner/member; viewers cannot change it | Access UI implementation |
 | Digest semantics | Fixed 60-minute window, configurable 5–120 minutes | Notification acceptance tests |
 | External file write limitations | Disable unsupported actions + Open in Drive / explicit authorization | Live Google acceptance |
