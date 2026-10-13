@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import logging
 import os
+import secrets
 import time
 from datetime import timedelta
 from functools import wraps
@@ -13,7 +14,7 @@ from urllib.parse import quote
 
 from flask import Flask, Response, abort, flash, redirect, render_template, request, session, url_for
 
-from arq import i18n
+from arq import i18n, oauth_drive
 from arq.drive import Drive, DriveFile, NotDownloadable
 from arq.google_auth import get_auth
 from arq.projects import ProjectStore
@@ -226,6 +227,156 @@ def create_app(store: ProjectStore | None = None) -> Flask:
         store.refresh()
         flash(i18n.t("dash.refreshed"))
         return redirect(url_for("dashboard"))
+
+    # -- Drive connection (OAuth) -------------------------------------------
+    # Writes go through the architect's own OAuth grant (drive.file); reads keep
+    # going through the service account, which the delivery folder is shared with
+    # at creation time. See arq/oauth_drive.py for why it has to be that way.
+
+    oauth_cfg = oauth_drive.OAuthConfig.from_env()
+    connection = oauth_drive.Connection(
+        oauth_cfg, service_account_email=oauth_drive.service_account_email()
+    )
+
+    def _drive_context(**extra):
+        """Everything the panel shows, with each lookup failing on its own."""
+        ctx = {
+            "configured": oauth_cfg.configured,
+            "connected": False,
+            "account": None,
+            "quota": None,
+            "state": {},
+            "projects": [],
+            "service_account": connection.service_account_email,
+            "default_stages": oauth_drive.DEFAULT_STAGES,
+            "seen_by_service_account": None,
+            "error": None,
+            "needs_reconnect": False,
+        }
+        ctx.update(extra)
+        if not oauth_cfg.configured:
+            return ctx
+        try:
+            ctx["state"] = connection.state()
+            ctx["connected"] = connection.connected
+        except Exception as exc:
+            ctx["error"] = str(exc)
+            return ctx
+        if not ctx["connected"]:
+            return ctx
+        try:
+            about = connection.writer().about()
+            ctx["account"] = about.get("user", {}).get("emailAddress")
+            q = about.get("storageQuota", {})
+            limit, usage = int(q.get("limit") or 0), int(q.get("usage") or 0)
+            ctx["quota"] = {
+                "usage": usage,
+                "limit": limit,
+                "percent": (usage * 100 // limit) if limit else None,
+            }
+            ctx["projects"] = connection.projects()
+        except oauth_drive.NotConnected as exc:
+            ctx["needs_reconnect"] = True
+            ctx["error"] = str(exc)
+            return ctx
+        except Exception as exc:
+            ctx["error"] = str(exc)
+            return ctx
+
+        # The proof that the whole chain works: what the *service account* can
+        # see inside the folder the OAuth grant created and shared with it.
+        folder_id = ctx["state"].get("delivery_folder_id")
+        if folder_id:
+            try:
+                ctx["seen_by_service_account"] = [
+                    f.name for f in store.drive.list_children(folder_id)
+                ]
+            except Exception as exc:
+                ctx["seen_by_service_account"] = []
+                ctx["error"] = ctx["error"] or str(exc)
+        return ctx
+
+    @app.get("/painel/drive")
+    @dashboard_login_required
+    def drive_panel():
+        return render_template("drive.html", **_drive_context())
+
+    @app.get("/painel/drive/connect")
+    @dashboard_login_required
+    def drive_connect():
+        if not oauth_cfg.configured:
+            abort(404)
+        state = secrets.token_urlsafe(16)
+        session["drive_oauth_state"] = state
+        return redirect(oauth_drive.authorize_url(oauth_cfg, state))
+
+    @app.get("/painel/drive/callback")
+    @dashboard_login_required
+    def drive_callback():
+        if not oauth_cfg.configured:
+            abort(404)
+        expected = session.pop("drive_oauth_state", None)
+        if not expected or request.args.get("state") != expected:
+            flash(i18n.t("drive.bad_state"))
+            return redirect(url_for("drive_panel"))
+        if request.args.get("error"):
+            flash(i18n.t("drive.denied"))
+            return redirect(url_for("drive_panel"))
+        try:
+            connection.complete_login(request.args.get("code", ""))
+        except Exception as exc:
+            logging.getLogger(__name__).exception("drive: login failed")
+            flash(i18n.t("drive.connect_failed", detail=str(exc)))
+        else:
+            flash(i18n.t("drive.connected"))
+        return redirect(url_for("drive_panel"))
+
+    @app.post("/painel/drive/setup")
+    @dashboard_login_required
+    def drive_setup():
+        name = (request.form.get("name") or "").strip() or i18n.t("drive.folder_default")
+        try:
+            connection.setup_delivery_folder(name)
+            flash(i18n.t("drive.folder_created", name=name))
+        except Exception as exc:
+            logging.getLogger(__name__).exception("drive: delivery folder failed")
+            flash(i18n.t("drive.failed", detail=str(exc)))
+        return redirect(url_for("drive_panel"))
+
+    @app.post("/painel/drive/project")
+    @dashboard_login_required
+    def drive_create_project():
+        title = (request.form.get("title") or "").strip()
+        if not title:
+            flash(i18n.t("drive.need_title"))
+            return redirect(url_for("drive_panel"))
+        stages = [s.strip() for s in request.form.getlist("stage") if s.strip()]
+        try:
+            connection.create_project(title, stages, slug=(request.form.get("slug") or "").strip())
+            flash(i18n.t("drive.project_created", title=title))
+        except Exception as exc:
+            logging.getLogger(__name__).exception("drive: create project failed")
+            flash(i18n.t("drive.failed", detail=str(exc)))
+        return redirect(url_for("drive_panel"))
+
+    @app.post("/painel/drive/publish")
+    @dashboard_login_required
+    def drive_publish():
+        try:
+            connection.publish_project(request.form["folder_id"], request.form["title"])
+            store.refresh()  # so the client site picks it up straight away
+            flash(i18n.t("drive.published"))
+        except Exception as exc:
+            logging.getLogger(__name__).exception("drive: publish failed")
+            flash(i18n.t("drive.failed", detail=str(exc)))
+        return redirect(url_for("drive_panel"))
+
+    @app.post("/painel/drive/disconnect")
+    @dashboard_login_required
+    def drive_disconnect():
+        connection.disconnect()
+        flash(i18n.t("drive.disconnected"))
+        return redirect(url_for("drive_panel"))
 
     # -- Errors --------------------------------------------------------------
 

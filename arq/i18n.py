@@ -323,3 +323,109 @@ def new_badge_days() -> int:
 def is_new(f: DriveFile) -> bool:
     days = new_badge_days()
     return bool(days > 0 and f.modified and f.modified >= now() - timedelta(days=days))
+
+
+# --- Drive connection panel (OAuth) ----------------------------------------
+# Kept in one block, apart from the main table, so the whole feature can be
+# removed in a single edit if the rewrite takes a different shape.
+STRINGS["en"].update({
+    "drive.title": "Google Drive connection",
+    "drive.intro": "Connect the office's Google Drive. The files stay yours, in your "
+                   "Drive — we only organise them and show them to your clients.",
+    "drive.not_configured": "OAuth is not configured on this deployment "
+                            "(OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REDIRECT_URI).",
+    "drive.connect": "Connect Google Drive",
+    "drive.connected": "Google Drive connected.",
+    "drive.disconnect": "Disconnect",
+    "drive.disconnected": "Disconnected.",
+    "drive.denied": "Authorisation was cancelled.",
+    "drive.bad_state": "That sign-in attempt expired. Please try again.",
+    "drive.connect_failed": "Could not complete the connection: {detail}",
+    "drive.failed": "That didn't work: {detail}",
+    "drive.account": "Connected as",
+    "drive.quota": "{used} of {total} used ({percent}%)",
+    "drive.quota_unlimited": "Pooled storage (Workspace)",
+    "drive.quota_warn": "Running low on space. We recommend a Google Workspace "
+                        "account with a shared drive.",
+    "drive.reconnect": "The connection to Google Drive has lapsed.",
+    "drive.reconnect_body": "Client pages keep working — only creating new projects "
+                            "needs the connection. Reconnect to continue.",
+    "drive.delivery_folder": "Delivery folder",
+    "drive.folder_default": "Portal Clientes",
+    "drive.folder_name": "Folder name in your Drive",
+    "drive.folder_create": "Create the delivery folder",
+    "drive.folder_created": "Created “{name}” in your Drive.",
+    "drive.folder_intro": "We create one folder for everything the client sees. "
+                          "Your working files stay where they are.",
+    "drive.shared_with": "Shared for reading with {email}",
+    "drive.new_project": "New project",
+    "drive.project_title": "Project name",
+    "drive.project_slug": "Link (optional)",
+    "drive.stages": "Stages",
+    "drive.create": "Create project",
+    "drive.project_created": "Created “{title}” as a draft.",
+    "drive.need_title": "Give the project a name.",
+    "drive.projects": "Projects created here",
+    "drive.no_projects": "No projects yet.",
+    "drive.draft": "Draft",
+    "drive.publish": "Publish",
+    "drive.published": "Published. It is now visible to clients.",
+    "drive.open_drive": "Open in Drive",
+    "drive.seen_by_sa": "Visible to the site",
+    "drive.seen_intro": "What the site itself can read inside that folder. Drop a file "
+                        "into it from Finder and it should appear here.",
+    "drive.seen_none": "Nothing readable yet.",
+    "drive.back": "Back to the dashboard",
+    "drive.link": "Drive connection",
+})
+STRINGS["pt"].update({
+    "drive.title": "Conexão com o Google Drive",
+    "drive.intro": "Conecte o Google Drive do escritório. Os arquivos continuam sendo "
+                   "seus, no seu Drive — nós só organizamos e mostramos para o cliente.",
+    "drive.not_configured": "O OAuth não está configurado nesta instalação "
+                            "(OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REDIRECT_URI).",
+    "drive.connect": "Conectar o Google Drive",
+    "drive.connected": "Google Drive conectado.",
+    "drive.disconnect": "Desconectar",
+    "drive.disconnected": "Desconectado.",
+    "drive.denied": "A autorização foi cancelada.",
+    "drive.bad_state": "A tentativa de login expirou. Tente novamente.",
+    "drive.connect_failed": "Não foi possível concluir a conexão: {detail}",
+    "drive.failed": "Não funcionou: {detail}",
+    "drive.account": "Conectado como",
+    "drive.quota": "{used} de {total} usados ({percent}%)",
+    "drive.quota_unlimited": "Armazenamento compartilhado (Workspace)",
+    "drive.quota_warn": "Pouco espaço livre. Recomendamos uma conta Google Workspace "
+                        "com drive compartilhado.",
+    "drive.reconnect": "A conexão com o Google Drive expirou.",
+    "drive.reconnect_body": "As páginas dos clientes continuam funcionando — só a "
+                            "criação de novos projetos depende da conexão. "
+                            "Reconecte para continuar.",
+    "drive.delivery_folder": "Pasta de entrega",
+    "drive.folder_default": "Portal Clientes",
+    "drive.folder_name": "Nome da pasta no seu Drive",
+    "drive.folder_create": "Criar a pasta de entrega",
+    "drive.folder_created": "Criamos “{name}” no seu Drive.",
+    "drive.folder_intro": "Criamos uma pasta só para o que o cliente vê. Seus arquivos "
+                          "de trabalho continuam onde estão.",
+    "drive.shared_with": "Compartilhada para leitura com {email}",
+    "drive.new_project": "Novo projeto",
+    "drive.project_title": "Nome do projeto",
+    "drive.project_slug": "Link (opcional)",
+    "drive.stages": "Etapas",
+    "drive.create": "Criar projeto",
+    "drive.project_created": "“{title}” criado como rascunho.",
+    "drive.need_title": "Dê um nome ao projeto.",
+    "drive.projects": "Projetos criados aqui",
+    "drive.no_projects": "Nenhum projeto ainda.",
+    "drive.draft": "Rascunho",
+    "drive.publish": "Publicar",
+    "drive.published": "Publicado. Já está visível para os clientes.",
+    "drive.open_drive": "Abrir no Drive",
+    "drive.seen_by_sa": "Visível para o site",
+    "drive.seen_intro": "O que o próprio site consegue ler dentro dessa pasta. Arraste "
+                        "um arquivo para ela pelo Finder e ele deve aparecer aqui.",
+    "drive.seen_none": "Nada legível ainda.",
+    "drive.back": "Voltar ao painel",
+    "drive.link": "Conexão com o Drive",
+})

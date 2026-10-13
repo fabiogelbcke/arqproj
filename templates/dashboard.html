@@ -6,6 +6,7 @@
   <header class="dash__header">
     <h1>{{ t('dash.title') }}</h1>
     <div class="dash__actions">
+      <a class="btn btn--quiet" href="{{ url_for('drive_panel') }}">{{ t('drive.link') }}</a>
       <form method="post" action="{{ url_for('dashboard_refresh') }}"><button type="submit" class="btn">{{ t('dash.refresh') }}</button></form>
       <form method="post" action="{{ url_for('dashboard_logout') }}"><button type="submit" class="btn btn--quiet">{{ t('dash.logout') }}</button></form>
     </div>

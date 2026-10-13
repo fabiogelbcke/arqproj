@@ -73,3 +73,6 @@ $RECYCLE.BIN/
 *.bak
 *.orig
 /.drive-connection.json
+spike/.tokens.json
+spike/__pycache__/
+spike/

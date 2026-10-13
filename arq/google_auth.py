@@ -22,11 +22,13 @@ import jwt
 import requests
 
 SCOPE = "https://www.googleapis.com/auth/drive.readonly"
+GCS_SCOPE = "https://www.googleapis.com/auth/devstorage.read_write"
 DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token"
 
 
 class ServiceAccountAuth:
-    def __init__(self, info: dict):
+    def __init__(self, info: dict, scope: str = SCOPE):
+        self.scope = scope
         try:
             self.email = info["client_email"]
             self.private_key = info["private_key"]
@@ -38,7 +40,7 @@ class ServiceAccountAuth:
         self._lock = threading.Lock()
 
     @classmethod
-    def from_env(cls) -> "ServiceAccountAuth":
+    def from_env(cls, scope: str = SCOPE) -> "ServiceAccountAuth":
         """GOOGLE_SERVICE_ACCOUNT_KEY (raw JSON or base64 JSON) wins over
         GOOGLE_APPLICATION_CREDENTIALS (path to the JSON key file)."""
         raw = os.environ.get("GOOGLE_SERVICE_ACCOUNT_KEY", "").strip()
@@ -53,7 +55,7 @@ class ServiceAccountAuth:
                 "No service account configured. Set GOOGLE_APPLICATION_CREDENTIALS "
                 "to the key file path, or GOOGLE_SERVICE_ACCOUNT_KEY to its JSON."
             )
-        return cls(info)
+        return cls(info, scope)
 
     def token(self) -> str:
         with self._lock:
@@ -63,7 +65,7 @@ class ServiceAccountAuth:
             assertion = jwt.encode(
                 {
                     "iss": self.email,
-                    "scope": SCOPE,
+                    "scope": self.scope,
                     "aud": self.token_uri,
                     "iat": now,
                     "exp": now + 3600,
@@ -97,7 +99,8 @@ METADATA_TOKEN_URL = (
 class MetadataServerAuth:
     """Token for the service account attached to the Cloud Run service."""
 
-    def __init__(self, url: str | None = None):
+    def __init__(self, url: str | None = None, scope: str = SCOPE):
+        self.scope = scope
         self.url = url or os.environ.get("METADATA_TOKEN_URL") or METADATA_TOKEN_URL
         self._token: str | None = None
         self._expires_at = 0.0
@@ -109,7 +112,7 @@ class MetadataServerAuth:
                 return self._token
             resp = requests.get(
                 self.url,
-                params={"scopes": SCOPE},
+                params={"scopes": self.scope},
                 headers={"Metadata-Flavor": "Google"},
                 timeout=10,
             )
@@ -121,13 +124,13 @@ class MetadataServerAuth:
             return self._token
 
 
-def get_auth():
+def get_auth(scope: str = SCOPE):
     if os.environ.get("GOOGLE_SERVICE_ACCOUNT_KEY", "").strip() or os.environ.get(
         "GOOGLE_APPLICATION_CREDENTIALS", ""
     ).strip():
-        return ServiceAccountAuth.from_env()
+        return ServiceAccountAuth.from_env(scope)
     if os.environ.get("K_SERVICE") or os.environ.get("USE_METADATA_SERVER"):
-        return MetadataServerAuth()  # K_SERVICE is set by Cloud Run
+        return MetadataServerAuth(scope=scope)  # K_SERVICE is set by Cloud Run
     raise RuntimeError(
         "No Google credentials. Locally, set GOOGLE_APPLICATION_CREDENTIALS to the key file path "
         "(or GOOGLE_SERVICE_ACCOUNT_KEY to its JSON). On Cloud Run, the attached service account is used."
