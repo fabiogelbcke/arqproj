@@ -134,7 +134,9 @@ a { color: inherit; }
   /* No logo-dark variant: invert the light logo so it stays legible (keeps hues). */
   .brand-logo--auto-dark { filter: invert(1) hue-rotate(180deg); }
 }
-.brand-logo { display: block; height: 28px; width: auto; max-width: 60vw; object-fit: contain; }
+.site-header__inner > picture { min-width: 0; }
+.header-actions { flex-shrink: 0; }
+.brand-logo { display: block; height: 28px; width: auto; max-width: 100%; object-fit: contain; object-position: left center; }
 .brand {
   font-weight: 600;
   font-size: 13px;

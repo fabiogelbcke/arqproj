@@ -7,9 +7,11 @@ test('stage information opens by keyboard and dismisses without overflow', async
   try {
     const page = await browser.newPage();
     await page.route('https://fonts.googleapis.com/**', route => route.abort());
-    await page.goto(process.env.PROJECT_TEST_URL, { waitUntil: 'domcontentloaded' });
+    await page.goto(process.env.STANDARD_PROJECT_TEST_URL || process.env.PROJECT_TEST_URL, { waitUntil: 'domcontentloaded' });
     assert.equal(await page.locator('.stage-info').count(), 7);
     const first = page.locator('.stage-info').first();
+    const firstStage = page.locator('.stage').filter({ has: first });
+    if (!(await first.isVisible())) await firstStage.locator('.stage-toggle').click();
     for (const width of [1440, 720, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       await first.locator('summary').focus();

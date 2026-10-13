@@ -16,9 +16,6 @@ from arq.config import parse_config  # noqa: E402
 from arq.projects import parse_stage_name  # noqa: E402
 from tools.fake_drive import FakeDrive, service_account_json  # noqa: E402
 
-PORT = 8799
-
-
 class ConfigParsing(unittest.TestCase):
     def test_header_and_description(self):
         cfg = parse_config("﻿Título: Casa X\r\nCliente: Ana\r\nEtapa atual: 2\r\n\r\nPara 1\r\n- a\r\n* b\r\nPara 2")
@@ -62,12 +59,13 @@ class ConfigParsing(unittest.TestCase):
 class EndToEnd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.fake = FakeDrive(f"http://127.0.0.1:{PORT}", example_language='en')
-        cls.server = make_server("127.0.0.1", PORT, cls.fake.app(), threaded=True)
+        cls.fake = FakeDrive("http://127.0.0.1:0", example_language='en')
+        cls.server = make_server("127.0.0.1", 0, cls.fake.app(), threaded=True)
+        cls.fake.base_url = f"http://127.0.0.1:{cls.server.server_port}"
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
         os.environ.update(
             GOOGLE_SERVICE_ACCOUNT_KEY=service_account_json(cls.fake),
-            DRIVE_API_BASE=f"http://127.0.0.1:{PORT}/drive/v3",
+            DRIVE_API_BASE=f"{cls.fake.base_url}/drive/v3",
             DRIVE_ROOT_FOLDER_ID=cls.fake.root_id,
             SITE_NAME="Test Studio",
             SITE_LANG="en",
@@ -80,6 +78,7 @@ class EndToEnd(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.server.shutdown()
+        cls.server.server_close()
 
     def id_of(self, name):
         return next(n.id for n in self.fake.nodes.values() if n.name == name)
@@ -212,7 +211,7 @@ class EndToEnd(unittest.TestCase):
 
     def test_metadata_server_auth(self):
         from arq.google_auth import MetadataServerAuth, get_auth
-        auth = MetadataServerAuth(f"http://127.0.0.1:{PORT}/computeMetadata/v1/instance/service-accounts/default/token")
+        auth = MetadataServerAuth(f"{self.fake.base_url}/computeMetadata/v1/instance/service-accounts/default/token")
         self.assertEqual(auth.token(), "fake-access-token")
         saved = {k: os.environ.pop(k, None) for k in ("GOOGLE_SERVICE_ACCOUNT_KEY", "GOOGLE_APPLICATION_CREDENTIALS")}
         os.environ["K_SERVICE"] = "arq-portal"
@@ -281,18 +280,16 @@ class Helpers(unittest.TestCase):
         self.assertGreater(parse_version("x rev 10")[2], parse_version("x rev 9")[2])
 
 
-PORT2 = 8798
-
-
 class Features(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.fake = FakeDrive(f"http://127.0.0.1:{PORT2}", example_language='en')
-        cls.server = make_server("127.0.0.1", PORT2, cls.fake.app(), threaded=True)
+        cls.fake = FakeDrive("http://127.0.0.1:0", example_language='en')
+        cls.server = make_server("127.0.0.1", 0, cls.fake.app(), threaded=True)
+        cls.fake.base_url = f"http://127.0.0.1:{cls.server.server_port}"
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
         os.environ.update(
             GOOGLE_SERVICE_ACCOUNT_KEY=service_account_json(cls.fake),
-            DRIVE_API_BASE=f"http://127.0.0.1:{PORT2}/drive/v3",
+            DRIVE_API_BASE=f"{cls.fake.base_url}/drive/v3",
             DRIVE_ROOT_FOLDER_ID=cls.fake.root_id,
             DASHBOARD_PASSWORD="correct horse",
         )
@@ -304,6 +301,7 @@ class Features(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.server.shutdown()
+        cls.server.server_close()
 
     def id_of(self, name):
         return next(n.id for n in self.fake.nodes.values() if n.name == name)
@@ -412,20 +410,18 @@ class ConfigDiagnostics(unittest.TestCase):
             self.assertFalse(parse_config(f"Slug: {good}").slug_invalid, good)
 
 
-PORT3 = 8796
-
-
 class FailLoudly(unittest.TestCase):
     """Mistakes in Drive must show up in the dashboard, never make projects vanish."""
 
     @classmethod
     def setUpClass(cls):
-        cls.fake = FakeDrive(f"http://127.0.0.1:{PORT3}", example_language='en')
-        cls.server = make_server("127.0.0.1", PORT3, cls.fake.app(), threaded=True)
+        cls.fake = FakeDrive("http://127.0.0.1:0", example_language='en')
+        cls.server = make_server("127.0.0.1", 0, cls.fake.app(), threaded=True)
+        cls.fake.base_url = f"http://127.0.0.1:{cls.server.server_port}"
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
         os.environ.update(
             GOOGLE_SERVICE_ACCOUNT_KEY=service_account_json(cls.fake),
-            DRIVE_API_BASE=f"http://127.0.0.1:{PORT3}/drive/v3",
+            DRIVE_API_BASE=f"{cls.fake.base_url}/drive/v3",
             DRIVE_ROOT_FOLDER_ID=cls.fake.root_id,
             DASHBOARD_PASSWORD="pw",
         )
@@ -439,6 +435,7 @@ class FailLoudly(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.server.shutdown()
+        cls.server.server_close()
 
     def id_of(self, name):
         return next(n.id for n in self.fake.nodes.values() if n.name == name)

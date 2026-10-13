@@ -214,6 +214,52 @@ Use real Drive mode to verify actual Google-native exports and permissions.
 `python demo.py` still runs the original in-memory demo when
 `LOCAL_TEST_PROJECTS` is unset; automated tests do not use your editable dataset.
 
+## Run all automated tests locally
+
+No Google account, `.env`, or manually started website is required. Install the
+test dependencies once (Python 3.13 is the production target; use a supported
+Node.js LTS release, version 20 or newer):
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+npm ci
+npm run browsers:install
+```
+
+Then run:
+
+```bash
+.venv/bin/python -m tools.test_local
+# Equivalent: npm test
+```
+
+The command runs Python tests and all Chromium browser tests. It creates its
+own fictional Drive data, starts temporary browser-test servers on available
+localhost ports, verifies project pages, and stops those servers afterwards.
+Python integration servers also select available ports.
+It ignores `.env` and real Drive app settings, preserves running manual servers,
+and never reads or regenerates `local-test-data/`. No real email is sent.
+Dependency/browser installation needs internet; browser tests block Google
+Fonts and use fallback fonts, so they do not prove the live webfont layout.
+The browser fixture includes a standard project with completed, current, and
+future stages, and exercises the custom-logo header at mobile widths.
+
+Run a subset with `--python-only` or `--browser-only`. A failing suite returns
+a nonzero exit code. Browser tests also accept explicit `PROJECT_TEST_URL` and,
+for stage tests, `STANDARD_PROJECT_TEST_URL` when run directly with Node against
+an intentionally chosen test server; they have no real-data URL fallback.
+
+These tests cover the current application and our simulated Google behavior.
+They cannot prove Google's real permissions, OAuth consent/refresh behavior,
+Shared Drive policies, or Google-native exports. Those need separate integration
+checks against a dedicated Google sandbox once account setup is available.
+The multi-tenant/database/notification tests described in
+`docs/multi-tenant-implementation-plan.md` are planned work, not implemented tests.
+
+There is no frontend production build. A production-runtime check uses Gunicorn
+and the Python version in `.python-version`; the Cloud Run source build is a
+separate release check and must not be triggered by deploying during testing.
+
 ## Connect a real Drive (~15 min)
 
 1. At <https://console.cloud.google.com>, create a project. Any Google account works, and billing isn't needed.

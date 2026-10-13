@@ -1,5 +1,4 @@
-// With Playwright installed and the meeting sample running:
-// PROJECT_TEST_URL=http://127.0.0.1:5002/casa-jardim node --test tests/meeting.test.cjs
+// Run with the isolated fixture server: npm run test:browser
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
@@ -9,7 +8,7 @@ test('meeting card and calendar dates work on desktop and mobile', async () => {
   try {
     const page = await browser.newPage();
     await page.route('https://fonts.googleapis.com/**', route => route.abort());
-    const url = process.env.PROJECT_TEST_URL || 'http://127.0.0.1:5002/casa-jardim';
+    const url = process.env.PROJECT_TEST_URL;
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     const card = page.locator('.meeting');
     const link = card.locator('a[href^="https://calendar.google.com/"]');

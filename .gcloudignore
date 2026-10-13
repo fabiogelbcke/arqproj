@@ -18,4 +18,8 @@ run_local.py
 tests/
 tools/
 demo.py
+node_modules/
+package.json
+package-lock.json
+docs/
 Claude outputs/

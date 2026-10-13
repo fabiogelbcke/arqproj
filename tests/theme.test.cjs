@@ -8,7 +8,7 @@ test('theme toggle persists across reloads and pages and works with the keyboard
   try {
     const page = await browser.newPage();
     await page.route('https://fonts.googleapis.com/**', route => route.abort());
-    const url = process.env.PROJECT_TEST_URL || 'http://127.0.0.1:5002/residencia-campo-alegre';
+    const url = process.env.PROJECT_TEST_URL;
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
     await page.locator('.theme-toggle').click();

@@ -1,0 +1,1127 @@
+# Multi-tenant portal: architecture, implementation and rollout
+
+**Decision draft · 13 October 2026**
+
+Prepared against repository `main` at `8a21b5b`, the supplied
+`multi-tenant-plan.md`, and Fabio's subsequent decisions. The newer decisions
+below supersede conflicting parts of the attachment. This document proposes a
+new backend; it does not apply migrations, create cloud resources, or authorize
+deployment. It separates chosen product behavior, recommended implementation,
+verified behavior, and work that still needs external verification.
+
+## 1. Product agreement and scope
+
+The product is an architecture office's client portal. Each office keeps its
+working files in its own Google Drive. Its staff can continue using Drive, while
+clients get a clearer, branded view of deliverables, versions, project progress,
+and meetings. Staff also gain a website for creating projects and managing files.
+
+Start with approximately five friendly offices, onboarded personally and probably
+free. Aim to put a useful pilot in their hands in the next few weeks. After
+feedback, expand to another 10–20 early offices, likely paid. Engineering time is
+variable, including nights/weekends. AI assistance should shorten implementation;
+release readiness is determined by evidence rather than an assumed coding speed.
+
+Confirmed choices:
+
+- Keep Python, Flask, Jinja, and the useful existing HTML/CSS/JavaScript UI.
+- Build a clean multi-tenant backend instead of threading tenant parameters
+  through the prototype's single-office backend.
+- Office URLs use `{office-slug}.{product-domain}`. Display-name changes do not
+  silently change URLs. Product/domain naming is still open.
+- PostgreSQL owns project metadata. Drive owns file bytes and physical folders.
+- Use office-user OAuth with `drive.file` for writes, and an explicitly shared
+  service account for reads. Fabio has tested the essential split successfully.
+- Automatically publish files placed in the designated client-deliverables
+  folder. A separate manual approval step is not required for the pilot.
+- Public project links are supported. Password protection is optional per project.
+  Office administration always requires authentication and authorization.
+- Start with email update digests, grouping nearby uploads; support other channels
+  later through a small delivery interface.
+- Start with constrained office branding, then expand templates/customization.
+- Keep Drive ownership and familiar workflows as product advantages. Hosting the
+  offices' originals ourselves is a possible future option, not pilot scope.
+- Preserve the working office's existing site until migration is proven.
+
+Personal Gmail/My Drive is the first account type to validate. Workspace My Drive
+and Shared Drives remain intended supported configurations, but each needs a real
+acceptance result before we advertise it. Unknown account types are an onboarding
+question, not a reason to require offices to purchase Workspace.
+
+## 2. Decision register
+
+“Recommended” means a concrete default for implementation review, not something
+already deployed. A change to a recommendation should update this register and
+its affected tests before coding proceeds.
+
+| ID | Decision | Status and reason |
+| --- | --- | --- |
+| A01 | New backend in the same repository and stack | Agreed direction; the prototype is small enough that preserving its architecture has little value |
+| A02 | Modular application, one database, shared web deployment | Recommended; independent web/worker processes can use the same code and image |
+| A03 | PostgreSQL + SQLAlchemy 2 + Alembic + psycopg 3 | Recommended; relationships, transactions, migrations and local parity |
+| A04 | OAuth writes + service-account reads | Product choice, core flow reported tested by Fabio; remaining capability matrix below |
+| A05 | Tenant and project checks on every resource path | Required even for public projects; public within one office does not mean cross-office access |
+| A06 | Public or password-protected project access | Agreed; no mandatory client account for the pilot |
+| A07 | Atomic DB creation plus recoverable Drive provisioning | Recommended implementation of an all-or-nothing customer experience |
+| A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules |
+| A09 | PostgreSQL job queue and transactional outbox | Recommended; avoid adding Redis/Celery for the pilot |
+| A10 | Incremental Drive sync, initially polled; reconciliation as repair | Recommended; webhooks can accelerate later without becoming a correctness dependency |
+| A11 | Streaming proxy for private Drive content; optional Drive links | Recommended; clients need not have Google accounts or Drive sharing permissions |
+| A12 | Email first, 60-minute fixed batching window | Recommended default; configurable per office |
+| A13 | Protected main, staging and approved promotion of one build | Recommended; environments are separate without requiring permanent divergent code branches |
+| A14 | Same PostgreSQL engine locally and in production | Recommended; SQLite cannot validate the intended constraints, queue locks or row policies |
+| A15 | Cloud Run web + bounded worker invocations | Proposed hosting continuation; actual infrastructure requires separate approval |
+| A16 | Managed PostgreSQL; Neon as initial provider candidate | Provider purchase/region/backup plan pending; SQL design remains portable |
+| A17 | Resend behind an email adapter | Proposed first provider; choose a plan based on actual volumes and delivery limits |
+
+Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
+domains, multiple portal templates, SSO, arbitrary custom CSS/HTML, client
+accounts, comments/approvals, complex professional-level pricing, and hosted
+original-file storage. These are extension points, not parallel pilot projects.
+
+## 3. What to retain and what to replace
+
+The current app is a useful behavior reference, not the architecture to generalize.
+It has one global Drive root, office identity, language, timezone and dashboard
+password. `ProjectStore` combines Drive traversal, metadata parsing, visibility,
+cache management and view models. Office configuration is read from environment
+variables, and some branding is hardcoded. Project metadata is parsed from
+`_project` and stage text files. The dashboard uses a shared password. Downloads
+already stream through Flask. The notification bell is a browser-local recent-file
+indicator; it does not provide reliable email notifications.
+
+Retain or selectively adapt:
+
+- The client page layout, timeline, meetings, search, collapsible stages, theme
+  toggle and small JavaScript components.
+- Portuguese copy and translations, moved into tenant-aware/request-local rendering.
+- Parsers as **legacy import tools**, with characterization tests for old inputs.
+- Existing fake Drive, editable-folder simulator, generators and local backup flow.
+- Small Drive HTTP utilities when their behavior fits the new adapter contract.
+- Tests for hidden-file access, previews, stage behavior, mobile layouts and exports.
+
+Replace:
+
+- Global office configuration and in-memory project discovery as the source of truth.
+- Shared dashboard passwords and signing keys derived from them.
+- Filename matching as authoritative version identity.
+- Request-time recursive Drive discovery and process-local background work.
+- Bare provider file IDs as the application's only file identity.
+
+Build a separate package such as `portal/` with its own application factory and
+entry point. Keep `app.py` available for the legacy site until migration. Reuse
+presentation components deliberately; do not maintain two permanently equivalent
+products. Transfer the selected UI into the new entry point, establish parity,
+then remove legacy runtime code after the rollback period. Old parsers remain
+available to imports for as long as supported.
+
+Suggested layout:
+
+```text
+portal/
+  app.py                 application factory, dependency wiring
+  config.py              typed deployment settings; no tenant state in env
+  tenancy/               hostname resolution and tenant context
+  identity/              staff login, memberships, sessions, invitations
+  projects/              project metadata, stages, access policies
+  documents/             documents, revisions, publication and previews
+  storage/               provider contract, Google adapter, fake adapter
+  connections/           OAuth lifecycle, read identities, capabilities
+  sync/                  cursors, reconciliation and change normalization
+  notifications/         subscriptions, batching, delivery adapters
+  jobs/                  leases, retries, durable work and outbox
+  branding/              validated themes and assets
+  web/                   blueprints, forms, presentation models
+  db/                    models and repository implementations
+migrations/              reviewed Alembic migrations
+```
+
+Modules call explicit services; templates do not call Google or construct SQL.
+A service takes tenant context and dependencies explicitly. A background job
+constructs that context from its stored tenant, never from ambient HTTP state.
+Use ordinary Python classes/functions, not a generic plugin or event framework.
+
+## 4. Deployment shape and data flow
+
+```mermaid
+flowchart LR
+  Client[Client or office browser] --> Web[Flask web application]
+  Web --> DB[(PostgreSQL)]
+  Web -->|authorize and stream| Read[Office-scoped Drive reader]
+  Web -->|authorized uploads| Write[Office OAuth writer]
+  Read --> Drive[Office-owned Google Drive]
+  Write --> Drive
+  Scheduler[Authenticated scheduler] --> Worker[Worker: sync, provision, notify]
+  Worker --> DB
+  Worker --> Read
+  Worker --> Write
+  Worker --> Mail[Email adapter]
+```
+
+Use one deployable codebase with web and worker entry points. For the pilot,
+an authenticated scheduler invokes the worker every minute. The worker claims a
+bounded amount of durable work, checkpoints long tasks, and exits before its
+request deadline. Set an initial work budget around 45 seconds per invocation
+and a longer service timeout; actual limits are tuned with load tests. Never
+start untracked Flask threads and assume Cloud Run will keep them alive.
+
+Use the same immutable image for both entry points. The worker endpoint is not
+publicly callable. Its runtime credentials should have only the access needed
+for its jobs. Preview processing has explicit byte/time limits so a large file
+cannot monopolize synchronization or email.
+
+Cloud Run is a proposed continuation of current hosting. Managed PostgreSQL avoids
+making database maintenance a nights-and-weekends responsibility. Neon is an
+initial candidate; confirm backup retention, restore capabilities, region,
+connection limits and a spending cap before selecting a plan. Do not depend on a
+free tier as the recovery strategy for offices' only project metadata. Keep web,
+worker and database geographically close where practical and measure latency
+from Brazil. Region and jurisdiction commitments remain an explicit choice.
+Compare the provider's actual [plan and recovery options](https://github.com/neondatabase/website/blob/main/content/docs/introduction/plans.md)
+before committing to it. Minute-by-minute database polling may keep a serverless
+database awake continuously; budget that behavior instead of assuming it sleeps
+whenever nobody views a page. Later wake-up optimization is possible without
+changing the durable-job model.
+
+For Cloud Run office subdomains, use a global external Application Load Balancer
+with a serverless backend, wildcard DNS and a Certificate Manager certificate
+issued through DNS authorization. Route office hosts to the same application;
+do not create a deployment per office. Cloud Run's built-in domain mapping does
+not support wildcard certificates. Restrict the web service's direct ingress so
+the intended front door cannot be bypassed, while keeping the worker separately
+authenticated. Staging uses its own hostname/certificate coverage and services;
+`*.product.com` alone does not cover `office.beta.product.com`.
+[Cloud Run domain options](https://docs.cloud.google.com/run/docs/mapping-custom-domains),
+[DNS-authorized certificates](https://docs.cloud.google.com/certificate-manager/docs/deploy-google-managed-dns-auth).
+Quote load-balancer, certificate and transfer costs before approving infrastructure;
+one forwarding-rule price is not the total hosting bill.
+
+Start with small connection pools and capped instances. Calculate maximum DB
+connections as the sum of every process's pool across every possible instance,
+plus maintenance headroom. Request-scoped sessions close promptly; no SQL
+transaction or connection remains open while streaming a large file. A database
+outage should yield a recoverable application error, not bypass authorization.
+
+## 5. Tenant routing and staff identity
+
+Resolve the normalized hostname against a `tenant_domains` table. Accept only
+configured product suffixes or explicitly verified custom domains. Reject unknown
+hosts; never fall back to the first office. Handle casing, ports, trailing dots
+and invalid labels deliberately. Reserve names such as `www`, `auth`, `admin`,
+`api`, `beta`, `support` and `mail`. Keep office URL slugs stable and unique.
+
+Behind a proxy, trust forwarded headers only from the actual trusted proxy path.
+Do not derive OAuth callbacks or password-reset links from an arbitrary Host
+header. Construct external links from stored canonical domains.
+
+Recommended staff login: Google OpenID Connect, separate from Drive connection
+consent. Someone may administer a portal without being the Google account that
+owns its files. Identify users by verified provider subject, not mutable display
+names. Invitations bind a verified email to an office membership; never grant
+membership merely because a user's email has the office's domain.
+
+Use a maintained OAuth/OIDC library, such as Authlib, with state, nonce, PKCE and
+strict callback validation. Centralize Google callbacks on an auth subdomain so
+each new office does not require another registered redirect URI. Complete login
+on the target office through a short-lived, single-use handoff code. Bind that
+code to the initiating tenant and browser flow, store only its hash, and reject
+replay, wrong-host and mismatched-browser redemption. Preserve the initiating
+browser proof in a host-only cookie. Exact protocol handling gets its own tests
+and security review; do not improvise a cross-subdomain token in localStorage.
+
+Staff roles for the pilot:
+
+| Actor | Read public project | Administer project/files | Invite staff / Drive connection / office settings |
+| --- | --- | --- | --- |
+| Anonymous visitor | Yes, or project password challenge | No | No |
+| Office member | Yes, including password-protected projects through staff access | Yes within their office | No |
+| Office owner | Yes | Yes | Yes |
+| Platform operator | No automatic customer-content browsing | Explicit audited support action only | Operational tools with audit |
+
+Keep roles small. Store an optional responsible professional and later project
+assignments without making every office adopt a complex permission hierarchy.
+Owner transfer must leave at least one owner. A revoked membership invalidates
+sessions or is rechecked on each administrative request.
+
+Use random secret signing material independent of user passwords; server-side
+sessions with rotation on login, secure/HttpOnly/SameSite cookies in production,
+and **no parent-domain cookie** shared by every office. Staff mutations use CSRF
+protection. Password attempts, login handoffs and invitations are rate-limited.
+Local test mode uses an explicit fake identity provider and is refused in
+production configuration; it must never become a hidden production bypass.
+
+## 6. Public projects and optional passwords
+
+Choose `access_mode = public | password`. Public means a person with the URL can
+view and share the page without signing in. Default to unlisted pages with
+`noindex`, no public office-wide project directory and no referrer leakage.
+These reduce accidental discovery; they are not access control. Explain this
+plainly when an office chooses public access. A publicly accessible project need
+not make the underlying Drive folder publicly shared.
+
+Recommended route: `https://office.product/p/{public_token}/{optional-slug}`.
+Use a stable random public token, with a cosmetic readable slug. This avoids
+collisions and exposes fewer predictable URLs, but does not turn public mode
+into a secrecy promise. Imported old URLs receive explicit aliases. Office staff
+can rotate a link if needed, knowing that old links and emails will stop working.
+
+For password mode, office staff set/reset the password through the panel. This
+interprets “clients can add a password” as the office/customer controlling the
+setting; anonymous project viewers cannot change access policy. Store an
+adaptive password hash, never recoverable plaintext. A successful challenge
+creates a session grant scoped to `(tenant, project, access_version)`. Password
+changes and policy changes increment that version. Apply the same policy to the
+page, file bytes, thumbnails, revisions, search, calendar exports and API calls.
+
+A tenant ID and project ID on the request are never sufficient authorization.
+The resolved host, session membership/access grant, database row, folder boundary
+and provider connection must agree. Return a non-disclosing not-found response
+for wrong-tenant resources. Cache keys include tenant, project and revision;
+private/protected responses cannot enter a shared public cache. On access-mode
+changes, invalidate authorization caches and purge generated preview access.
+Use no-store for password challenges and protected content where browser caching
+would defeat the office's intended change in access.
+
+An office can choose public access while another chooses passwords. Email
+subscriptions do not grant administrative or password-protected access. Do not
+send the password alongside every notification. A future client-account mode
+can extend `access_mode`; it is not required to ship the first pilot.
+
+## 7. Data model and database boundaries
+
+Use UUID identifiers, UTC timestamps, explicit state values, and soft deletion
+where recovery/audit requires it. Render dates in each office's IANA timezone.
+Use relational fields for core relationships; JSONB is appropriate for bounded
+custom project details and provider-specific metadata, not for all business data.
+
+The following is a logical schema specification, not a migration:
+
+| Table | Main fields / purpose |
+| --- | --- |
+| `tenants` | ID, display name, slug, locale, timezone, lifecycle, plan/feature settings |
+| `tenant_domains` | hostname unique, tenant ID, canonical/alias status |
+| `users` | identity provider + subject unique, verified email, display name |
+| `memberships` | tenant + user unique, owner/member role, active/revoked |
+| `invitations` | tenant, intended email, role, token hash, expiry, accepted/revoked |
+| `sessions` | opaque token hash, user, tenant, expiry, revocation/version |
+| `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
+| `projects` | tenant, title, public token, slug, status, connection, root/deliverables folder IDs, description, client display name, project type, optional professional, access mode/hash/version, row version |
+| `project_details` | tenant, project, ordered label/value fields from existing metadata |
+| `project_stages` | tenant, project, stable stage key, title, order, status, notes, bound folder ID |
+| `meetings` | tenant, project, title, start/end, timezone, location/link; supports current single meeting first |
+| `folder_bindings` | tenant, project, connection, provider folder ID, parent ID, path display, classification |
+| `storage_items` | tenant, connection, provider file ID, parent, MIME, name, size, checksum/revision metadata, observed capabilities, present/trashed state, last seen |
+| `documents` | tenant, project, logical title, stage, current revision ID, publication state |
+| `document_revisions` | tenant, document, storage item, application sequence, label, observed content marker, source, published time, availability state |
+| `project_recipients` | tenant, project, email, locale, subscription state, unsubscribe-token hash |
+| `publication_events` | tenant, project, document/revision, kind, source fingerprint, detected/published times |
+| `notification_batches` | tenant, project, start/due time, state; events captured in batch-item rows |
+| `notification_deliveries` | tenant, batch, recipient, idempotency key, provider ID, attempt/result timestamps |
+| `operations` / `operation_steps` | tenant, type, request key/hash, state, result IDs, provisioning progress |
+| `jobs` | tenant, kind, payload version, dedupe key, run-after, attempts, lease token/expiry, last safe error |
+| `outbox` | tenant, committed event payload/version, dispatch status |
+| `sync_cursors` | tenant, connection/generation, corpus/drive ID, page token, last successful poll/reconcile |
+| `audit_events` | tenant, actor, action, resource ID, request/operation ID, safe change summary |
+| `theme_settings` | tenant, template version, approved colors, asset references, draft/published version |
+
+Tenant-owned rows have non-null `tenant_id`. Use composite unique keys and
+foreign keys such as `(tenant_id, project_id)` so a programming mistake cannot
+attach office A's document to office B's project. Every query path requires a
+tenant; code review rejects generic `get_project(id)` outside explicitly global
+operations. Uniqueness includes tenant where appropriate and provider connection
+for file identity. Provider IDs and filenames are not global product primary keys.
+Also constrain a document's current revision to belong to that same document,
+not merely the same tenant. Prevent different offices from registering identical
+or overlapping Drive roots by default; any intentional shared-source arrangement
+would need a separately designed ownership/publication contract.
+
+Add PostgreSQL row-level security as a second defense on customer tables. The
+runtime role is neither table owner nor a bypass role. Set tenant context locally
+inside each transaction and reset it automatically at transaction end. Missing
+context denies access. Migration and tightly controlled global scheduling roles
+are separate from request roles. Test policies through the **runtime role**, not
+only an owner connection. PostgreSQL owners/bypass roles otherwise defeat the
+intended test. [PostgreSQL row security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+
+Use optimistic row versions for simultaneous form edits: a stale update returns
+a conflict with the latest values instead of silently replacing someone else's
+work. External Google calls happen outside database transactions. Database
+constraints, unique request keys and row locks protect concurrency; retries must
+not depend on a single worker instance.
+
+## 8. Source-of-truth and synchronization rules
+
+| Data | Authority | Behavior when edited elsewhere |
+| --- | --- | --- |
+| Project title/client/status/meeting/stages/custom fields | PostgreSQL | Drive `_project` files are imported once, then ignored for product metadata |
+| File bytes, physical filename/folder placement, trash | Google Drive | Reconcile into the application's index |
+| Document grouping, revision labels, selected current revision | PostgreSQL | External files may create new documents/revision observations; do not silently overwrite manual grouping |
+| Client visibility | Deliverables boundary plus DB project/access state | Moving out of the boundary removes portal availability |
+| Recipients, email preferences, delivery results | PostgreSQL | Drive has no authority over them |
+| Office appearance and users | PostgreSQL | Never read another office's environment/global cache |
+
+The database is an authoritative store for some data and a rebuildable index for
+other data. Distinguish those roles explicitly. A “rebuild index” must not delete
+project descriptions, password hashes, recipient lists or version grouping.
+
+Binding by Drive IDs survives renames. Renaming a stage folder does not
+implicitly change the official stage title/order; show its updated physical name
+in the file manager and let staff update the portal title deliberately. A deleted
+and recreated folder has a new identity; flag the broken binding and offer an
+explicit rebind, rather than guessing from its name. Moving a file between stages
+updates placement; moving it to another project requires reassessing publication
+and document grouping, never merely changing the parent foreign key.
+
+## 9. Google connection and capability contract
+
+Fabio's experiment establishes the useful core: OAuth creates/writes app-managed
+files while the service account reads files uploaded through Drive. Build around
+that result. The remaining live checks refine exactly which operations to expose;
+they are not a prerequisite for coding the database, UI and workflow logic.
+
+The reader has read-only scope and explicit sharing permission on the office's
+designated root. The writer uses the office user's refresh token with
+`drive.file`. A read permission does not confer write authorization on the other
+identity. Track both health states and capabilities separately. An expired writer
+can disable uploads while the reader still keeps an existing portal available.
+An explicit product disconnect disables both immediately in our application.
+Evaluate write capabilities using the writer identity: capability fields fetched
+as the read-only account describe that reader and cannot authorize a writer action.
+
+Prefer an individual reader identity per office during white-glove onboarding,
+using short-lived impersonation/managed identity rather than downloaded private
+keys in production. This limits accidental cross-office visibility. The runtime
+still needs carefully scoped permission to obtain those identities; a compromised
+central runtime is not magically isolated by having many service accounts.
+One shared reader can be supported as a documented temporary operational choice,
+but must not weaken tenant/path checks. Store the reader identity per connection
+so this choice does not change domain code.
+
+Encrypt refresh tokens using a managed envelope key, record key version, and
+keep tokens/resumable-session URLs out of logs and browser storage. For local
+simulation use non-secret dummy credentials. Local live testing uses dedicated
+credentials from ignored files, never committed samples.
+
+Onboarding flow:
+
+1. Create office, owner membership and provisional subdomain.
+2. Owner connects the Google account; use incremental consent for file writing.
+3. Create an application root or select an existing one through Picker. Confirm
+   the root explicitly; do not assume OAuth folder selection authorizes every child.
+4. Share that root with the assigned reader. White-glove onboarding can perform
+   or guide this step; verify access with the reader rather than assuming it worked.
+5. Record personal/Workspace/Shared Drive type, owner account and drive ID.
+6. Verify listing, one sample read and an authorized sample write in the sandbox
+   or a specifically approved onboarding test folder. Record results.
+7. Establish initial sync with historical notifications suppressed.
+8. Explain the deliverables boundary and visibility/password setting; preview
+   the client page together before enabling notifications.
+
+The file manager presents each item's actual available actions. App-created
+files generally have the intended write path. For a Drive-uploaded file that the
+writer cannot modify, offer “Open in Drive” and, where validated, “Authorize this
+file” using Picker. Do not advertise universal website rename/move/trash until
+that combination is verified. Do not silently broaden OAuth scopes.
+
+`drive.file` is a per-file, non-sensitive scope in Google's documentation; this
+does not prove every organizational policy or the entire hybrid product is
+exempt from review. Record the actual requested scopes and publishing
+requirements. [Google scope documentation](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)
+
+External OAuth apps left in Testing can have seven-day refresh-token expiration
+for Drive access. Account/MFA setup, consent-screen publishing and any applicable
+review are launch work. Do not mistake a friendly test-user list for a durable
+connection strategy. [Google OAuth documentation](https://developers.google.com/identity/protocols/oauth2)
+
+Pending live acceptance matrix:
+
+| Scenario | Verify independently |
+| --- | --- |
+| Personal My Drive; Workspace My Drive; Shared Drive | Root sharing, ownership, policy restrictions and account health |
+| App upload, Drive browser upload, desktop sync, another staff member | Reader discovery/download; writer create/rename/move/trash capabilities |
+| Existing folder selected vs root created by app | Nested items and files moved in after connection |
+| PDF/image/CAD, Google Docs/Slides, shortcut | MIME/export/preview behavior and content boundaries |
+| Same file overwritten; new revision file | Revision markers, duplicate changes, revision retrieval |
+| Token revoked, reader unshared, owner leaves | Honest degraded state, reconnect and disconnect |
+| Large interrupted upload, quota exhausted, rate limiting | Retry/resume, no duplicate files, useful user errors |
+| Shared Drive policies and pagination | `supportsAllDrives`, corpus/drive parameters, changes coverage |
+
+The first personal-Drive pass unlocks an appropriately labeled pilot. Unsupported
+account types can wait without redesigning tenant isolation or project metadata.
+
+## 10. Project creation: atomic experience, recoverable external work
+
+**Yes: project creation should be atomic in the database and appear complete to
+the customer only when its required setup is complete.** The limitation is that
+PostgreSQL and Google Drive do not share a transaction coordinator. A SQL rollback
+cannot undo a folder that Google already created, and Google may succeed even
+when our connection times out before receiving its response.
+
+Do not hold a database transaction open during a sequence of network calls.
+Instead implement a durable provisioning operation:
+
+```text
+submitted → provisioning → ready
+                    ↘ retry_wait → provisioning
+                    ↘ needs_attention → retry or cancel
+```
+
+1. Validate form, membership, connection, quota policy and idempotency key.
+2. In **one DB transaction**, create the project as `provisioning`, its stages,
+   operation record and an outbox/job record. Repeated submission with the same
+   key and body returns the same operation. Same key with different body: conflict.
+3. A worker claims the operation with a lease and creates the project folder,
+   deliverables folder and stage folders, checkpointing every completed step.
+4. Tag app-created resources with opaque operation/step identifiers in Drive
+   properties as recovery hints. Keep substantive project metadata in SQL.
+   Use pre-generated provider IDs where supported and tested; otherwise look up
+   the recorded operation marker through the creating OAuth application before
+   retrying an ambiguous create response. Do not assume private app properties
+   are visible through a different application identity.
+5. Confirm bindings and reader access. In one DB transaction set `ready` and
+   finalize the operation. Only ready projects appear in the client portal.
+6. The panel shows progress or a specific recoverable error. Refreshing the page
+   or clicking retry continues the same operation; it does not create a new one.
+
+API shape: `POST /admin/projects` returns `202` and an operation URL;
+`GET /admin/operations/{id}` reports progress and the ready project's URL.
+Short operations may finish while the form shows progress, but a request timeout
+does not erase the durable operation.
+
+Recovery rules:
+
+- If Google creation succeeded but saving its ID failed, reconcile before retry.
+- A lease prevents normal duplicate workers; provider idempotency/reconciliation
+  protects against crashes, expired leases and ambiguous responses as well.
+- Partial folders may exist in Drive during provisioning. This is an explicit
+  limitation of cross-system atomicity, hidden from the client portal but not
+  falsely described as impossible to observe in Drive.
+- Cancellation hides/cancels the pending project and queues careful cleanup.
+  Only remove resources proven created by this operation and still safe to remove.
+  If staff have added content or ownership is ambiguous, preserve and flag them.
+- A final SQL transaction failing after Drive completed is retried; do not delete
+  successful user-visible Drive work merely to simulate rollback.
+
+Acceptance: kill the worker after every external side effect and before every
+checkpoint; after retry there is one ready project and one intended folder tree.
+A fault injected after database commit must not lose the creation job.
+
+## 11. Folders, publication and the staff file manager
+
+Proposed default layout, customizable in future through versioned templates:
+
+```text
+Office application root/
+  Project name/
+    Entregas ao cliente/
+      01 - Proposta/
+      02 - Levantamento/
+      ...
+```
+
+Private working files may live outside `Entregas ao cliente`. The application
+must not expose them merely because the reader can see a parent folder. Existing
+offices can bind an established deliverables folder rather than move everything
+immediately. Bind by ID and validate ancestry; paths are presentation, not identity.
+Shortcuts outside the approved boundary are excluded in the pilot. Cycles,
+duplicate sibling names, hidden/config files and missing folders have explicit
+handling. Never follow shortcuts recursively without tenant/root validation.
+
+Files publish automatically after discovery, valid in-bound placement, successful
+access verification and a stable content observation. For externally changing
+files, require a short settling check (proposed 30–60 seconds after the last
+observed content change) before notifications. This does not guarantee that a
+staff member has finished all work; the folder itself is the publishing action.
+UI copy must say that placing files there shares them with project viewers.
+
+Website uploads to the deliverables folder follow the same publication service;
+they do not send emails directly from an upload route. Files removed or moved out
+are withdrawn on detection. Downloads also validate current access/boundary,
+so a stale listing does not authorize arbitrary files. Withdrawal cannot erase
+copies someone previously downloaded; avoid promising that it can.
+
+Pilot file manager: breadcrumbs, folders, filename/type/size/updated columns,
+preview, upload progress, create folder, and capability-dependent rename/move/trash.
+Show an obvious “Open in Google Drive” link. No attempt at copying every Drive
+feature or matching its branding. Do not offer hard delete. Cross-project moves
+are explicit operations with publication consequences, not casual drag/drop in
+v1. Within-project moves preserve the logical document unless staff split it.
+
+UI may show cached data with its last-sync time in administration. A public
+project should show unavailable content honestly; a missing preview does not
+prevent an otherwise authorized original download.
+
+## 12. Document versions and previews
+
+Treat these as three different concepts:
+
+1. **Logical document:** “Planta baixa”, with a stable application ID.
+2. **Published revision:** a labeled delivery associated with that document.
+3. **Provider content observation:** an observed state of a Drive file, which may
+   change without creating another physical file.
+
+A filename such as `Planta_final_v2_final.pdf` is not a reliable identity scheme.
+For website uploads, offer “New document” or “New revision of…”; the latter
+explicitly binds to the selected document. Store a monotonic sequence, optional
+human label, date and source. “Current” is a database pointer, not whichever
+filename sorts last. Default a successfully published new website revision to
+current; staff can select another available revision, with an audit entry.
+
+For external Drive uploads:
+
+- A new file ID creates a new document unless an explicit existing association
+  applies. Filename similarity can suggest grouping to staff; ambiguous matches
+  never merge documents silently.
+- An update to an existing file ID creates a new content observation. Use binary
+  checksums and provider revision metadata where available, not just modified
+  time. Metadata-only rename/move should not create a content-update email.
+- Where Google-native content markers cannot distinguish content from metadata
+  precisely, normalize known metadata changes and record the limitation. Validate
+  with real Docs/Slides before promising exact content-change notifications.
+- Staff can group separate files as revisions or split an incorrect group. That
+  changes presentation; it does not rename, delete or rewrite Drive files.
+
+**History metadata is not a backup of historical bytes.** Website revision
+uploads should default to a new physical Drive file, preserving earlier files in
+the office's Drive. If staff overwrite the same file through Drive, older content
+may only be available under Google's revision rules. Preserve metadata but mark
+an unavailable historical revision as unavailable; never serve today's bytes
+under yesterday's revision label. Pinning provider revisions may require write
+capability and has limits. Full immutable archival guarantees are a separate
+feature. [Google revision behavior](https://developers.google.com/workspace/drive/api/guides/manage-revisions)
+
+For previews, prioritize predictable originals: image thumbnails, PDF first-page
+previews and browser PDF viewing, then Google-native exports where supported.
+Use an adapter interface so future renderers for CAD/BIM or image galleries do
+not alter project/auth code. A missing/failed preview falls back to a file-type
+card with download/Open in Drive. Do not invent an image for a real document.
+
+Preview keys include tenant, document/revision, renderer version and size. Async
+rendering has memory, file-size, page-count and time limits. Treat filenames and
+file contents as untrusted; do not render arbitrary HTML/SVG/scripts in the
+portal origin. Keep credentials and provider thumbnail URLs server-side. If
+persistent generated previews are introduced, use a private, size-bounded cache
+with tenant-aware access and deletion; it is a derivative cache, not custody of
+all original files. The initial pilot can use upstream thumbnails and ephemeral
+rendering to avoid requiring that extra storage service immediately.
+
+## 13. Sync and durable jobs
+
+Use the read identity's changes feed when coverage is validated. Scope a cursor
+to connection generation, identity and Drive corpus; Shared Drives have explicit
+configuration. Initial indexing takes a start token, scans the selected tree,
+then replays changes from that token to close the scan race. Suppress historical
+notification events during this baseline. A reconnect establishes a new baseline
+without notifying clients about every old file again.
+
+Poll active connections approximately every two minutes initially; UI-triggered
+sync can request earlier work with a rate limit. Show this freshness expectation
+rather than “instant”. Coalesce repeated poll requests. A scheduled daily
+reconciliation compares the complete in-scope tree with indexed state and repairs
+missed moves/deletes or cursor errors. For larger trees, paginate and checkpoint
+scans; mark missing files only after a complete successful reconciliation.
+
+Apply each page and persist its next cursor in the same DB transaction. A crash
+before commit replays safely; a crash after commit continues from the saved token.
+Deduplicate by provider identity/content marker and normalized event kind. Drive
+change records reflect resource changes, not a perfect immutable business audit.
+Our own publication/audit events provide the product history.
+[Google changes guide](https://developers.google.com/workspace/drive/api/guides/manage-changes)
+
+Later, push notifications can wake the same sync job. They are hints to fetch
+changes, not the complete file payload. Watch registrations expire and require
+renewal; duplicated or missing callbacks must not break correctness. Verify
+channel/resource identifiers and secret tokens, then enqueue work and return
+quickly. Periodic polling/reconciliation remains the repair path.
+[Google push notifications](https://developers.google.com/workspace/drive/api/guides/push)
+
+Job mechanics:
+
+- Claim eligible jobs with row locks and `SKIP LOCKED`, setting lease owner,
+  expiry and a fencing token. Commit before work starts.
+- Heartbeat/checkpoint long work. Completion checks the current lease token.
+- Retry transient errors with bounded exponential backoff and jitter; honor
+  provider retry hints. Treat permission/reconnect errors as actionable states.
+- Store attempt count, next run time and a safe error class; no tokens/documents
+  in error logs. Exhausted jobs enter an attention queue.
+- Enforce dedupe keys and resource constraints in SQL. At-least-once execution
+  is expected; side effects must be idempotent or reconciled.
+- Queue only committed business events via the transactional outbox. An outbox
+  dispatcher can be retried without creating a second logical event.
+- Fair scheduling and per-office concurrency limits prevent one large office
+  from delaying everyone else's notifications.
+- A disconnect increments the connection generation, cancels work and makes
+  workers reject stale queued jobs before making provider calls.
+
+## 14. Notifications and recipient privacy
+
+Email is the first delivery channel. Use a verified product sender domain, with
+an office-specific display name and a validated reply-to address. Do not attempt
+to impersonate an office's domain before it has configured email authentication.
+Resend is the proposed adapter; keep provider-specific behavior out of batching
+logic. Configure SPF/DKIM/DMARC, suppression and bounce handling before sending
+to customers. Provider quotas count recipients, so a digest to ten people is not
+necessarily one billable message. [Resend limits and plans](https://resend.com/pricing)
+
+Default batching: a **fixed 60-minute window starting with the first eligible
+publication** for a project. Additional publications join that window without
+pushing its due time indefinitely. Example: uploads at 10:00, 10:20 and 10:50
+produce one batch due at 11:00; an 11:05 upload starts the next window. Offer an
+office setting with a bounded range, initially 5–120 minutes. A send-now action
+can close a pending batch; it does not create duplicate deliveries.
+
+This is a deliberate interpretation of “within about an hour”. If offices prefer
+“one hour after the last upload”, add a trailing window with a maximum wait cap;
+do not silently change the behavior. Initial recipients share a project batch,
+but delivery and subscription state are individual.
+
+Pipeline:
+
+1. Publication and outbox event commit together.
+2. Batch worker deduplicates and attaches eligible events under a project lock.
+3. When due, freeze the batch and create one delivery per active recipient.
+4. Immediately before sending, recheck project/tenant status, subscription and
+   file visibility. Remove withdrawn items; drop an empty digest.
+5. Send using a stable provider idempotency key per logical delivery. Record
+   provider ID and outcome. Unknown timeout outcomes are reconciled where the
+   provider permits; do not promise mathematical exactly-once email delivery.
+6. Signed provider callbacks update delivery/bounce state idempotently.
+
+Email contains a short summary and portal links, not attachments or passwords.
+Send recipients separately to avoid exposing the client list. Offer an
+unguessable unsubscribe link scoped to that recipient/project and an office
+preference control. Disabled recipients remain suppressed on retries. Initial
+imports, rename-only changes, previews, metadata edits and moves within the same
+published project do not create “new file” mail. A genuinely new visible revision
+does. Repeated edits in a batch are summarized once per document with the latest
+still-visible state.
+
+Local tests use a collecting fake email provider and virtual clock; no waiting
+an hour and no SMTP credentials. Staging uses an allowlisted recipient sink even
+when realistic data is used. SMS and WhatsApp can consume the same publication
+batches later, with separate consent, templates, provider costs and preferences.
+
+## 15. Downloads, uploads and costs
+
+The existing app already streams downloads: it forwards chunks instead of
+loading the entire file into memory. Keep that principle. It reduces memory and
+time-to-first-byte; **it does not remove outbound bytes from our hosting**.
+Cloud Run documents outbound network transfer separately from compute.
+[Cloud Run pricing](https://cloud.google.com/run/pricing)
+
+Pilot default: authenticated server-to-Drive stream after tenant/project/file
+checks, for both public and password projects. This supports clients without
+Google accounts while leaving original ownership with the office. Forward
+supported byte ranges and relevant validators for binary files, close upstream
+connections on client disconnect, bound timeouts and never buffer an entire
+large file. Handle export-specific limits separately. Do not hold a database
+connection open for the stream.
+
+A `webContentLink` redirect can avoid our transfer path when the viewing user
+already has Drive download access. It is not a transferable service-account
+credential. Never put an OAuth token in a URL or browser response. Making a Drive
+file public solely to enable redirects would change its sharing policy and could
+bypass a portal password; that needs an explicit separate product choice.
+[Google download methods](https://developers.google.com/workspace/drive/api/guides/manage-downloads)
+
+Uploads use resumable sessions so a network interruption need not restart a
+large file. Prefer bounded chunks through the backend initially. Do not let Flask
+parse a whole multi-GB multipart request into memory or temporary disk. If a
+direct browser-to-Google session path is validated, it can reduce our transfer
+work; the session URL is a capability and must be scoped, protected and verified
+at completion. Never expose the office's broad access/refresh token to the
+browser. Constrain destination and MIME/size policy and reconcile the finished
+provider file before publication. [Google upload guide](https://developers.google.com/workspace/drive/api/guides/manage-uploads)
+
+Transfer is not inherently cheaper than storage. Storage is charged per unit
+**per month**; transfer is charged for bytes delivered, potentially many times.
+For illustration only, using hypothetical rates of $0.02/GiB-month storage and
+$0.12/GiB outbound transfer: keeping 100 GiB costs $2/month in storage, while
+serving those 100 GiB three times costs $36 in transfer. These are arithmetic
+assumptions, not a Google quote. Real rates depend on provider, region,
+destination, allowances and other services. Compare current
+[storage pricing](https://cloud.google.com/storage/pricing) and
+[network pricing](https://cloud.google.com/vpc/network-pricing) for the selected setup.
+
+Drive remains a sensible choice because ownership, workflow and avoided original
+storage all matter. Moving originals into our own storage would not inherently
+remove download costs either. Offer a direct “Open in Drive” path where suitable,
+measure actual usage, then decide whether a separate delivery/storage tier is
+worth introducing.
+
+Track monthly per-office original-download bytes, preview bytes, upload handling,
+request count, active projects and support time. Budget includes web/worker,
+PostgreSQL/backups, domain/TLS/load balancing, email, secrets/keys, logs and
+network. Do not price the product from storage alone or advertise unlimited
+bandwidth while learning these workloads. Public links need abuse monitoring
+and rate controls without forcing legitimate clients to create accounts.
+
+## 16. Branding, accessibility and language
+
+Pilot branding: office name, light/dark logo, accent color, bounded neutral palette,
+contact details and one versioned portal template. Keep the current Alínea design
+as one office configuration. Provide a preview and publish action for theme edits.
+Validate colors and contrast; do not accept arbitrary script, CSS or markup.
+Brand assets need size/type limits and safe rendering. Tiny uploaded brand assets
+can live in a designated office Drive folder and be indexed like other approved
+assets; avoid coupling them to publicly listed deliverable folders.
+
+Use CSS variables/design tokens and component boundaries so another layout is
+possible later without replacing backend services. Template version is explicit
+per tenant. Theme choice must not change authorization, semantic document IDs or
+file URLs. Support mobile, keyboard navigation, meaningful empty/loading/error
+states, readable filenames and accessible focus/contrast from the first pilot.
+
+Brazilian Portuguese is the default. Preserve English capability through explicit
+locale arguments; never change global environment variables per request. Timezone
+is per office. Long Portuguese labels, accents, duplicate filenames and non-Latin
+names belong in fixtures. Template content and default stage descriptions are
+versioned: updating defaults does not overwrite an office's edited project stages.
+
+## 17. API and error conventions
+
+Use Flask blueprints and server-rendered forms with progressive JavaScript.
+JSON endpoints support file uploads, operation progress and directory browsing;
+a wholesale SPA rewrite is unnecessary. Administrative paths require staff
+sessions and CSRF protection even when a project is public.
+
+Representative contract:
+
+| Endpoint | Behavior |
+| --- | --- |
+| `GET /p/{token}/{slug?}` | Resolve tenant and project; render or password challenge |
+| `POST /p/{token}/unlock` | Verify project password; issue project-scoped grant |
+| `GET /p/{token}/documents/{id}/revisions/{revision}/download` | Check membership in project, access, availability and stream |
+| `GET /p/{token}/documents/{id}/preview` | Same boundary checks; safe thumbnail/fallback |
+| `POST /admin/projects` | Validate + create durable provisioning operation |
+| `PATCH /admin/projects/{id}` | Tenant-bound edit with row-version conflict detection |
+| `GET /admin/projects/{id}/folders/{id}` | Indexed listing and current capabilities |
+| `POST /admin/projects/{id}/uploads` | Create scoped resumable upload operation |
+| `POST /admin/projects/{id}/sync` | Deduplicated, rate-limited sync request |
+| `POST /admin/documents/{id}/revisions` | Explicit version association / upload |
+| `POST /admin/connections/{id}/disconnect` | Disable both application access paths; cancel stale work |
+| `GET /admin/operations/{id}` | Progress or actionable failure |
+| `POST /integrations/drive/events` | Validate registered channel; enqueue sync only |
+| `POST /integrations/email/events` | Validate signature; deduplicate delivery update |
+
+Never accept a caller-supplied tenant as authority. Resolve it from the host/session
+and verify every resource. Use consistent error codes: validation, conflict,
+connection needs attention, quota exceeded, provider unavailable, file unavailable.
+Show clear Portuguese messages and a support/request ID. Redact provider details
+that contain credentials or private filenames from shared logs.
+
+## 18. Local testing now and in the new architecture
+
+### Current repository: runnable without Google
+
+The current suite has 80 Python tests and eight browser test files. The initial
+review found the local environment missing declared PyMuPDF and undeclared
+Playwright/browser setup. This work adds pinned Playwright tooling, a lockfile,
+and a combined isolated runner:
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+npm ci
+npm run browsers:install
+.venv/bin/python -m tools.test_local
+```
+
+The runner ignores `.env`, uses fictional in-memory data and temporary folders,
+and starts/stops its browser-test servers on available ports. Python integration
+fixtures also select available ports. It preserves manually running servers and
+`local-test-data/`. Browser tests include a realistic in-progress standard project
+and custom office logo. Subsets: `--python-only` and `--browser-only`.
+
+Manual UI testing still follows `run_local.py test --reuse-data` or authorized
+`--regenerate-data`. Existing data is backed up before regeneration. This manual
+workflow and its Portuguese/English intent instructions remain in `AGENTS.md`.
+Automated tests never prompt for regeneration or alter a developer's dataset.
+
+The suite is for the **current** app. It does not yet test a multi-tenant database,
+Google user OAuth writes, job queue or real email delivery because those features
+have not been implemented. Browser tests deliberately block external webfonts
+and test fallback layout. Live-font rendering is a separate visual check.
+
+### Target: all application behavior locally, real provider proof separately
+
+Use PostgreSQL of the selected production major version in a local container
+(or a dedicated local installation), migrations, fake Google/OIDC endpoints,
+collecting email adapter, virtual clock and deterministic worker drain command.
+The first backend slice adds a single local orchestration command. Do not claim
+that proposed command exists until implemented. Local environments have unique
+DB names/volumes; a test safety check refuses a production URL or a nonlocal DB
+unless an explicitly designated disposable-test configuration is provided.
+
+Run the actual Flask services, SQL repositories and worker code against those
+local components. Mock at provider boundaries, not every internal service call.
+The fake should implement both read and write identities and deliberately deny
+external-file writes when the selected capability scenario requires it. Include
+pagination, duplicate/out-of-order events, quotas, token refresh errors, timeouts
+before/after provider side effects, moved-out files and missing revision bytes.
+
+A local fake proves our behavior under a stated Google contract. It cannot prove
+that Google's servers grant a scope, emit a particular change, permit a download,
+or enforce an organization's sharing policy. Keep those live tests clearly
+separate and opt-in, with dedicated sandbox accounts and folders. Fabio's current
+account/MFA delay blocks those tests, not the local design/implementation stream.
+
+Required acceptance matrix for the new backend:
+
+| Area | Local scenarios and assertions |
+| --- | --- |
+| Tenant boundary | Two offices, same project/file names; wrong host/IDs/cookies, API, download, thumbnail, export, search, worker and cache all deny cross-office access |
+| PostgreSQL | Runtime-role RLS, composite FKs, missing context, connection reuse, migrations from empty and prior schema, constraints and concurrent updates |
+| Public/password | Public works anonymously; password applies to every content path; rotation/revocation, CSRF and rate limits |
+| Staff login | Fake OIDC state/nonce/PKCE, invitation match, replay, wrong tenant, revoked member, multiple offices |
+| Provisioning | Failure after each side effect/checkpoint; retry, double submit, cancellation with user-added files, lease expiry |
+| Drive capabilities | Reader sees external upload but writer denied; shared-drive flags; reconnect; both paths disabled on disconnect |
+| Sync | Baseline race, pagination, cursor replay, partial scan, move/rename/delete, shortcut escape, daily repair |
+| Versions | Explicit upload revision, external grouping suggestion, duplicate names, old bytes unavailable, current pointer and concurrent edits |
+| Preview/download | Range requests, large streams, client disconnect, unsafe MIME, upstream timeout, unavailable preview and authorized fallback |
+| Notifications | Virtual-hour batching, dedupe, withdrawn file, unsubscribe before retry, ambiguous provider response, bounce, import suppression |
+| UI | Two different brands/locales, mobile 320px+, keyboard, upload progress/errors, reconnect banner, public/password forms |
+| Recovery | DB restore to isolated environment, job replay, kill worker, retry without duplicate published project/mail |
+| Operations | Spending/usage metrics, failure redaction, no real credentials/recipients in test mode |
+
+Keep generator scripts as the source of fictional defaults. Add two visibly
+different offices and edge-case projects as the architecture is introduced.
+Update generator, exporter, regeneration version inputs, folder adapter and tests
+when required. Do not copy real customer documents into fixtures or recorded HTTP
+responses. Contract fixtures derived from real sandbox tests must be sanitized.
+
+## 19. Build, review and release process
+
+Recommended flow:
+
+```text
+feature branch → reviewed pull request → protected main
+             → immutable build → isolated staging verification
+             → Fabio approval → promote same build to production
+```
+
+Use `codex/` branches for implementation. Require PR approval from Fabio for
+changes authored by his friend or an AI agent, and required status checks before
+merge. Add CODEOWNERS for tenancy, identity, migrations, storage and deployment.
+Verify that the repository's GitHub plan actually supports the required private
+repository/environment approval features. A label saying “protected” is not a
+substitute for configured protections and permissions.
+
+Permanent beta/release branches are optional, not necessary for beta and live
+websites. Prefer a production tag or release record pointing to the approved
+artifact. If a separate release branch is useful organizationally, it should
+point to the already-tested commit; avoid merging new changes during promotion.
+Staging fixes return through main. Never build a different artifact for release
+and assume staging's test result applies to it.
+
+CI for every PR: dependency install from reviewed lockfiles, Python tests,
+Chromium tests, target PostgreSQL integration tests, migration checks and a
+production-image build/start smoke test. Pin Python to the production 3.13 line
+and use a supported Node LTS for test tooling. Introduce a Python dependency lock
+as the new backend is scaffolded; the current broad requirements are not yet a
+fully reproducible production dependency set. Node is needed for tests, not for
+serving this Flask UI.
+
+Staging is a distinct service, database, Google connection and email sink.
+It must not share production refresh tokens, Drive roots or job queues.
+Use explicit environment identifiers in configuration and visible staff banners.
+Database migrations run once in a release step, never opportunistically in every
+web process. Use additive expand/migrate/contract changes and keep the previous
+application version compatible during the rollback window. Destructive migration
+steps require separate review and a verified recovery plan.
+
+Tests, approvals and staging verification can be automated. Deploying, merging
+and pushing still require the user's explicit authorization under `AGENTS.md`.
+No direct ad-hoc Google Cloud deployment from a development session.
+
+## 20. Migration of the existing office
+
+1. Inventory legacy folders, `_project` metadata, stage notes, meeting fields,
+   public URLs, file IDs and current visibility. Produce a read-only dry-run report.
+2. Resolve duplicate slugs, missing configuration, broken shortcuts and incomplete
+   stage definitions with the office. Do not guess away meaningful data.
+3. Create the tenant and bind its existing Drive folders. Import metadata and
+   explicit legacy URL aliases. Keep original files in place for the first migration.
+4. Import filename-based grouping as proposed document associations; review
+   ambiguities. Preserve old labels but do not fabricate historical file contents.
+5. Run initial indexing with all historical notifications suppressed. Compare
+   project/file counts and a sample of actual authorized downloads/previews.
+6. Run new backend as a shadow/staging view, with its own DB and no customer email.
+   For real data, obtain an explicitly approved read-only test connection.
+7. Agree a short metadata-edit freeze; import final changes and check parity.
+   Do not dual-write `_project` files and SQL indefinitely.
+8. Switch the office only after owner review. Preserve/redirect old URLs, keep a
+   snapshot of imported metadata and retain the old deployment temporarily.
+9. Observe sync/download/auth/notification health; enable real notifications only
+   after baseline is established and recipients confirmed.
+
+Rollback has two cases. Before any new-backend writes, reverting traffic to the
+old deployment is relatively simple. After SQL-only metadata or new revision
+associations have changed, the old app is no longer a lossless representation.
+Freeze mutations, export/reconcile those changes or roll back to a compatible
+new-backend build; do not blindly point customers to stale metadata. Raw Drive
+files remaining intact does not mean the whole product is safely rolled back.
+
+## 21. Operations, privacy and recovery
+
+Expose office-facing read/write connection health, last successful sync, pending
+creation operations, notification failures, and storage/quota information when
+Google supplies it. Missing quota data means “unavailable”, not zero or unlimited.
+A 403 may be permissions, policy or quota; show a useful action without claiming
+every failure is an expired login. Office owners can reconnect, pause notifications
+or request support. Platform operators can inspect redacted operational state.
+
+Track request/operation IDs, tenant IDs, job age/retries, sync lag, downloads,
+email acceptance/bounce, errors and bandwidth. Do not log file bytes, passwords,
+OAuth/session tokens, entire provider responses or unnecessary client names.
+Audit sensitive actions and explicit support access. Start with short documented
+log retention and review it before paid onboarding.
+
+Managed DB backups and point-in-time recovery must be enabled on a suitable plan.
+Initial proposed objectives: recover at most 24 hours of metadata loss for the
+friendly pilot and restore within one working day; tighten to at most one hour
+of metadata loss and four hours recovery before paid rollout if the chosen
+provider/configuration and staffing can support it. These are internal targets,
+not customer SLA promises. Prove restoration into an isolated environment before
+first customer migration. Encrypt backups and include project/access/version data,
+not just the rebuildable file index.
+
+Drive is the office's file store, not an application-controlled backup guarantee.
+Document what an office should retain and what happens if it deletes files,
+loses its Google account or removes sharing. Export project metadata and folder
+bindings in a usable format so an office can leave without losing product-owned
+information. Avoid claims that we “never process customer files”: streaming and
+previewing still process their content.
+
+Disconnect immediately blocks our application access and cancels queued work;
+revoking OAuth and removing the reader's sharing grant are distinct cleanup
+steps. Offboarding must not delete office-owned originals by default. Define
+retention and removal of metadata, previews, logs, tokens and backup copies;
+explain delayed backup expiry. Have a human-reviewed privacy/data-processing
+agreement suitable for the actual customers and jurisdictions, including Brazil.
+
+Operational runbooks should cover: revoked writer, unshared reader, missing root,
+quota full, sync lag, stuck provisioning, duplicate-send investigation, provider
+outage, compromised token, restore, tenant suspension and migration rollback.
+Include a system-wide and per-tenant pause for notifications/writes while preserving
+safe reading where possible. Make those operational controls audited and explicit.
+
+## 22. Pricing and pilot feedback
+
+Start with a small number of understandable project-count tiers. Define an active
+project as one that accepts new work and updates; archived projects remain
+viewable under their existing access policy but cannot upload/send updates until
+reactivated. Confirm this definition with pilot offices before tying it to billing.
+Archive is not deletion, and it should not surprise clients with broken links.
+
+Store plan entitlements centrally and enforce them in services, not scattered
+UI conditions. Keep manual plan assignment and invoicing for the pilot. Track
+responsible professionals from the start if useful, but defer charging separately
+for that dimension until demand makes it worthwhile. Do not build billing,
+seat management and a complex permission product merely to support hypothetical
+tiers. Bandwidth/support may influence margins even if project count remains the
+customer-facing price axis.
+
+Measure time to onboard, reconnect incidents, weekly active staff, client visits,
+repeat project use, uploads from website versus Drive, support minutes, download
+volume and willingness to pay. Friendly free users are useful for usability and
+reliability; they do not alone validate pricing. The 10–20 paid early users provide
+that next experiment. Ask what caused confusion, what work the portal replaced,
+and whether the office would be disappointed to lose it.
+
+## 23. Implementation slices and rollout gates
+
+Use small end-to-end slices with reviewable PRs. Effort ranges below are planning
+hypotheses for AI-assisted work, not a promise about calendar availability.
+Several steps can happen in one focused session; permission setup, observation
+and external failures do not shrink simply because code generation is fast.
+
+| Slice | Concrete deliverable | Exit evidence | Rough focused effort |
+| --- | --- | --- | --- |
+| 0. Baseline | This decision doc and repeatable current local tests | Python/browser suite runs without Google; open issues recorded | Current work |
+| 1. New foundation | New Flask factory, local PostgreSQL, migrations, tenant routing, fake identity, two offices | Wrong-host/ID tests; runtime-role isolation; production image boots locally | 1–2 days |
+| 2. First useful vertical slice | Public/password project page, DB metadata, reused UI, read adapter and legacy import | Two branded offices; password protects every content endpoint; migration dry run | 2–3 days |
+| 3. Project creation + files | Durable provisioning, form, folders, resumable upload, capability-aware listing | Crash/retry matrix; progress UI; no duplicate creation | 2–3 days |
+| 4. Sync + revisions | Incremental index, repair, explicit versioning, preview fallback | External upload/overwrite/move scenarios; old-content honesty | 2–3 days |
+| 5. Notifications + operations | Outbox, batching, recipients, email sink, health panel, restore runbook | Virtual-clock/retry tests; restore exercise; no historical spam | 1–2 days |
+| 6. Live Google + staging | Real OIDC/OAuth, read/write matrix, sandbox files, build promotion | Documented pass per supported account type; correct degraded modes | 1–3 days plus account wait |
+| 7. First office then five | Migration, monitored first office, sequential friendly onboarding | Owner approval, stable behavior, feedback addressed before broadening | Observation-dependent |
+
+These total roughly 9–16 focused engineering days after the baseline if most
+assumptions hold. They can compress with effective AI and overlap where safe;
+re-estimate after slices 1–2 using actual progress. At variable part-time capacity,
+calendar duration may differ substantially. Prefer an earlier read-first pilot
+if the useful client experience is ready before website editing of external
+Drive files. That is a conscious scope choice, not hiding unfinished management.
+
+Immediate implementation order while Google access is blocked:
+
+1. Review this decision register and choose any changes to product defaults.
+2. Scaffold new backend and real local PostgreSQL; establish two-tenant tests.
+3. Port a single client project page using DB metadata and the fake storage adapter.
+4. Add optional-password access across every resource path.
+5. Implement project provisioning with fault injection, then explicit revisions.
+6. Add sync/publication and the virtual-clock email pipeline.
+7. Once Google access returns, run the live matrix and adjust only the adapter or
+   unsupported UI capabilities where possible.
+
+Release gates:
+
+- **Local foundation:** both offices isolated under realistic DB roles; no hidden
+  production credentials; current UI parity and happy/failure paths automated.
+- **First office:** one supported real Google configuration, verified client
+  download flow, approved migration, backups/restoration, notification sink,
+  clean build and reviewed release.
+- **Five friendly offices:** demonstrated stable sync/reconnect, usable support
+  diagnostics, correct digest behavior and known download cost per office.
+- **Paid early users:** measured usage/pricing, repeatable onboarding, retention
+  terms, stronger recovery target proven, billing process, release protections,
+  support ownership and no unresolved tenant-boundary defects.
+
+## 24. Remaining decisions that should stay explicit
+
+The architecture can proceed without reopening the agreed core. These smaller
+choices need an owner before their corresponding feature ships:
+
+| Question | Proposed default | Needed by |
+| --- | --- | --- |
+| Product name/domain and first hosting region | Choose once office URL examples and latency are reviewed | Real DNS/OAuth registration |
+| Database provider/plan/backup retention | Managed PostgreSQL; evaluate Neon against budget and restore needs | Infrastructure purchase |
+| Password setter | Office owner/member; viewers cannot change it | Access UI implementation |
+| Digest semantics | Fixed 60-minute window, configurable 5–120 minutes | Notification acceptance tests |
+| External file write limitations | Disable unsupported actions + Open in Drive / explicit authorization | Live Google acceptance |
+| Revision retention promise | Separate files for website revisions; no guarantee for overwritten Drive history | Versioning UI copy |
+| Download model | Streaming proxy by default, optional authorized Drive link | Hosting/load test |
+| Initial upload cap / large-file target | Establish using the pilot offices' actual files and deployment limits | Upload beta |
+| Cloud identity operations | Reader per office via managed credentials where practical | White-glove onboarding |
+| Account configurations officially supported | Personal My Drive first, add each Workspace type after proof | Each office onboarded |
+| Paid tier limits and archive behavior | Active projects primary; manual billing initially | Paid rollout |
+
+A completed plan is not proof of these features. Keep a release checklist with
+links to test results, live sandbox evidence, migration reports and approval for
+the exact build being promoted.
+
+## 25. Verification of this planning/local-test change
+
+Completed locally on 13 October 2026:
+
+- Combined runner: **80 Python tests passed; eight Chromium browser tests passed**.
+- After replacing fixed Python fixture ports with available ports, the 80 Python
+  tests passed again. Temporary servers were stopped; manual datasets preserved.
+- Gunicorn configuration check and startup/project-page smoke check passed using
+  fictional Drive data. No real Google request was required for these checks.
+- Browser checks exposed and verified a small CSS correction for custom office
+  logos overflowing the header at 320px. Existing fictional logo data was
+  sufficient; default dataset generation did not need to change for that fix.
+- GitHub `main` remained at `8a21b5b` at the end of this work; no incoming change
+  or merge conflict was detected. Work remains uncommitted for review.
+
+Verification used the existing Python **3.11.6** environment and Node **21.5.0**
+with pinned Playwright **1.64.0**. The repository's production target is Python
+**3.13**. That interpreter and a local container builder were not available in
+this session, so a target-runtime/container production build was **not** performed.
+There is no frontend bundle build in the current Flask application. Use the
+production Python target and a supported Node LTS in the planned CI setup.
+
+No real OAuth-write integration, live Google account-policy matrix, customer
+email delivery, migration, deployment or infrastructure change was performed.
+Those are named rollout gates, not results implied by the local test pass.

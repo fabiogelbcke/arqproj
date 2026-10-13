@@ -1,0 +1,12 @@
+{
+  "name": "arqproj-browser-tests",
+  "private": true,
+  "description": "Local browser tests for the Flask portal; no frontend build step.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": ".venv/bin/python -m tools.test_local",
+    "test:browser": ".venv/bin/python -m tools.test_local --browser-only",
+    "browsers:install": "playwright install chromium"
+  },
+  "devDependencies": { "playwright": "1.64.0" }
+}

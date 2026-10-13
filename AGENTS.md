@@ -33,6 +33,15 @@ Before finishing:
 - Run the production build and check for errors.
 - Fix any test failures introduced by the changes.
 - If tests cannot run, explain why.
+- Run the complete existing local suite with `.venv/bin/python -m tools.test_local`.
+  Install both Python requirements files, then `npm ci` and
+  `npm run browsers:install` if needed. The runner uses isolated fictional data,
+  ignores `.env`, and cleans up its temporary servers. It does not require the
+  manual dataset reuse/regeneration question. Integration and browser servers
+  use available ports rather than taking over a manually running server.
+- Keep the browser fixture in `tools/test_local.py` consistent with generator
+  changes. Browser tests must not silently default to a real-data server.
+  Distinguish simulated behavior from live Google integration verification.
 
 ## Local development
 

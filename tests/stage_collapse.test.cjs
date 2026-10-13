@@ -7,7 +7,7 @@ test('completed stages collapse and reopen by keyboard, timeline and search', as
   try {
     const page = await browser.newPage();
     await page.route('https://fonts.googleapis.com/**', route => route.abort());
-    await page.goto(process.env.PROJECT_TEST_URL, { waitUntil: 'domcontentloaded' });
+    await page.goto(process.env.STANDARD_PROJECT_TEST_URL || process.env.PROJECT_TEST_URL, { waitUntil: 'domcontentloaded' });
     const stage = page.locator('#stage-02');
     const button = stage.locator('.stage-toggle');
     assert.equal(await stage.locator('.stage__content').isVisible(), false);
