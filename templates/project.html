@@ -55,6 +55,31 @@
   {% endif %}
 {%- endmacro %}
 
+{% block header_notifications %}
+<details class="notifications">
+  <summary aria-label="{{ t('updates.heading') }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg>
+  </summary>
+<section class="project-updates" aria-labelledby="updates-heading">
+  <h2 id="updates-heading">{{ t('updates.heading') }}</h2>
+  {% if project.recent_files %}
+  <ul>
+    {% for file, stage in project.recent_files %}
+    <li>
+      <div>
+        <p class="project-updates__context">{{ site_name }} · <a href="#{{ stage.anchor }}">{{ stage.label }}</a></p>
+        <p class="project-updates__name">{{ file.name }}</p>
+        <p class="project-updates__date">{{ t('updated', date=file.modified|date) }}</p>
+      </div>
+      <a class="project-updates__link" href="#{{ stage.anchor }}">{{ t('updates.open') }} <span aria-hidden="true">→</span></a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p>{{ t('updates.none') }}</p>{% endif %}
+</section>
+</details>
+{% endblock %}
+
 {% block content %}
 <section class="hero">
   <div class="hero__main">
@@ -102,6 +127,7 @@
 </section>
 
 {% if project.stages %}
+
 <nav class="timeline" aria-label="{{ t('stages') }}">
   <ol class="timeline__list" style="--n: {{ project.stages|length }}">
     {% for stage in project.stages %}
@@ -110,7 +136,7 @@
         <span class="step__dot" aria-hidden="true"></span>
         <span class="step__num">{{ '%02d'|format(stage.number) if stage.number is not none else '·' }}</span>
         <span class="step__label">{{ stage.label }}</span>
-        {% if stage.status %}<span class="step__status">{{ t('status.' ~ stage.status) }}</span>{% endif %}
+        {% if stage.status in ('done', 'current') or (stage.status == 'upcoming' and not loop.first and loop.previtem.status == 'current') %}<span class="step__status">{{ t('status.' ~ stage.status) }}</span>{% endif %}
       </a>
     </li>
     {% endfor %}
@@ -193,6 +219,7 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+<script src="{{ url_for('static', filename='notifications.js') }}" defer></script>
 <script src="{{ url_for('static', filename='project-title.js') }}" defer></script>
 <script src="{{ url_for('static', filename='file-search.js') }}" defer></script>
 <script src="{{ url_for('static', filename='stage-info.js') }}" defer></script>

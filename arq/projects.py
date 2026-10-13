@@ -213,6 +213,12 @@ class Project:
         return next((s for s in self.stages if s.status == "current"), None)
 
     @property
+    def recent_files(self):
+        items = [(entry.file, stage) for stage in self.stages for entry in stage.entries
+                 if entry.file.modified]
+        return sorted(items, key=lambda item: item[0].modified, reverse=True)[:3]
+
+    @property
     def entry_count(self) -> int:
         return sum(len(s.entries) for s in self.stages)
 

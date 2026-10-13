@@ -170,6 +170,16 @@ class EndToEnd(unittest.TestCase):
                 self.assertNotIn("BRUMA", html.upper())
         self.assertIn("Test Studio", self.client.get("/casa-jardim").get_data(as_text=True))
 
+    def test_timeline_labels_only_the_immediate_next_stage(self):
+        import re
+        html = self.client.get('/casa-jardim').get_data(as_text=True)
+        timeline = html.split('<nav class="timeline"', 1)[1].split('</nav>', 1)[0]
+        upcoming = re.findall(r'<li class="step step--upcoming">(.*?)</li>', timeline, re.S)
+        self.assertGreater(len(upcoming), 1)
+        self.assertIn('step__status', upcoming[0])
+        for item in upcoming[1:]:
+            self.assertNotIn('step__status', item)
+
     def test_previous_firm_setting_uses_new_brand(self):
         from unittest.mock import patch
         from app import create_app
