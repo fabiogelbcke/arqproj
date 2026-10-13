@@ -27,9 +27,9 @@ class LocalDataset(unittest.TestCase):
         self.assertEqual(custom.read_bytes(), b'manual document')
         backup = regenerate(self.folder)
         self.assertEqual((backup / 'Projects/custom.pdf').read_bytes(), b'manual document')
-        self.assertIn('My manual edits', (backup / 'Projects/Casa Jardim/_project.txt').read_text())
+        self.assertIn('My manual edits', (backup / 'Projects/Casa Jardim/_project.txt').read_text(encoding='utf-8'))
         self.assertFalse((self.folder / 'Projects/custom.pdf').exists())
-        self.assertIn('Casa Jardim', config.read_text())
+        self.assertIn('Casa Jardim', config.read_text(encoding='utf-8'))
         second_backup = regenerate(self.folder)
         self.assertNotEqual(backup, second_backup)
         self.assertTrue(backup.is_dir())
@@ -51,7 +51,7 @@ class LocalDataset(unittest.TestCase):
         with patch('tools.export_sample.write', side_effect=OSError('disk full')):
             with self.assertRaises(OSError):
                 regenerate(self.folder)
-        self.assertEqual((self.folder / 'keep.txt').read_text(), 'keep me')
+        self.assertEqual((self.folder / 'keep.txt').read_text(encoding='utf-8'), 'keep me')
         self.assertFalse(list(self.folder.parent.glob('dataset-backup-*')))
 
     def test_backup_failure_does_not_replace_dataset(self):
@@ -60,7 +60,7 @@ class LocalDataset(unittest.TestCase):
         with patch.object(Path, 'rename', side_effect=OSError('backup blocked')):
             with self.assertRaises(OSError):
                 regenerate(self.folder)
-        self.assertEqual((self.folder / 'keep.txt').read_text(), 'keep me')
+        self.assertEqual((self.folder / 'keep.txt').read_text(encoding='utf-8'), 'keep me')
 
     def test_failed_install_restores_original(self):
         self.folder.mkdir()
@@ -72,7 +72,7 @@ class LocalDataset(unittest.TestCase):
             return original(path, target)
         with patch.object(Path, 'rename', rename), self.assertRaises(OSError):
             regenerate(self.folder)
-        self.assertEqual((self.folder / 'keep.txt').read_text(), 'keep me')
+        self.assertEqual((self.folder / 'keep.txt').read_text(encoding='utf-8'), 'keep me')
 
     def test_folder_api_reads_real_bytes_and_stable_ids(self):
         projects = self.folder / 'Projects'
@@ -114,8 +114,8 @@ class LocalDataset(unittest.TestCase):
 
         projects = prepare(self.folder)
         config = projects / 'Casa Jardim/_project.txt'
-        config.write_text(config.read_text().replace('Title: Casa Jardim', 'Title: Edited locally'))
-        stage = projects / 'Casa Jardim/03 - Schematic Design'
+        config.write_text(config.read_text(encoding='utf-8').replace('Título: Casa Jardim', 'Título: Editado localmente'), encoding='utf-8')
+        stage = projects / 'Casa Jardim/03 - Anteprojeto'
         (stage / 'Manual.pdf').write_bytes(b'%PDF-custom-document')
         fake = FolderDrive('http://127.0.0.1', projects)
         server = make_server('127.0.0.1', 0, fake.app(), threaded=True)
@@ -129,7 +129,7 @@ class LocalDataset(unittest.TestCase):
             response = client.get('/casa-jardim')
             self.assertEqual(response.status_code, 200)
             html = response.get_data(as_text=True)
-            for expected in ('Edited locally', 'Manual.pdf', 'Floor plans – rev B.pdf', 'Previous versions'):
+            for expected in ('Editado localmente', 'Manual.pdf', 'Plantas – rev B.pdf'):
                 self.assertIn(expected, html)
             self.assertNotIn('Fees.xlsx', html)
             node = next(n for n in fake.nodes.values() if n.name == 'Manual.pdf')

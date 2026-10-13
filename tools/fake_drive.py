@@ -81,8 +81,9 @@ class Node:
 
 
 class FakeDrive:
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, example_language: str = 'pt'):
         self.base_url = base_url.rstrip("/")
+        self.example_language = example_language
         self.nodes: dict[str, Node] = {}
         self._n = 0
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -208,6 +209,8 @@ class FakeDrive:
             if number == 1:
                 self._pdf("Proposta de serviços.pdf", folder, 1)
 
+        if self.example_language == 'pt':
+            translate_examples(self.nodes.values())
         return root.id
 
     # -- HTTP --------------------------------------------------------------------
@@ -276,6 +279,8 @@ class FakeDrive:
             file_id, _, size = spec.partition("=s")
             n = self.nodes.get(file_id) or abort(404)
             s = int(size or 220)
+            if hasattr(self, 'actual_thumbnails') and file_id in self.actual_thumbnails:
+                return Response(self.actual_thumbnails[file_id], content_type='image/png')
             if n.mime == "application/pdf" or n.mime == SLIDES:
                 img = _sheet(n.name, s, int(s * 0.72) if n.mime == SLIDES else int(s * 0.75))
             else:
@@ -283,6 +288,48 @@ class FakeDrive:
             return Response(img, content_type="image/jpeg")
 
         return app
+
+
+def translate_examples(nodes):
+    """Portuguese manual/demo examples; English fixtures require an explicit opt-in."""
+    names = {
+        '01 - Briefing': '01 - Briefing', '02 - Concept': '02 - Conceito',
+        '03 - Schematic Design': '03 - Anteprojeto', '04 - Design Development': '04 - Desenvolvimento',
+        '05 - Construction Documents': '05 - Projeto Executivo',
+        'Program of needs.pdf': 'Programa de necessidades.pdf', 'Topographic survey.pdf': 'Levantamento topográfico.pdf',
+        'Site photos': 'Fotos do local', 'Concept presentation': 'Apresentação do conceito',
+        'Massing study A.jpg': 'Estudo de volumetria A.jpg', 'Massing study B.jpg': 'Estudo de volumetria B.jpg',
+        'Floor plans – rev A.pdf': 'Plantas – rev A.pdf', 'Floor plans – rev B.pdf': 'Plantas – rev B.pdf',
+        'Sections and elevations.pdf': 'Cortes e elevações.pdf', 'Site plan.dwg': 'Implantação.dwg',
+        'Model.skp': 'Modelo.skp', 'Model.jpg': 'Modelo.jpg', 'Renders': 'Perspectivas',
+        'Living room.jpg': 'Sala de estar.jpg', 'Courtyard.jpg': 'Pátio.jpg', 'Façade at dusk.jpg': 'Fachada ao entardecer.jpg',
+        'Fees.xlsx': 'Honorários.xlsx',
+        **{f'Site {i:02d}.jpg': f'Local {i:02d}.jpg' for i in range(1, 4)},
+    }
+    replacements = {
+        'Title:': 'Título:', 'Client:': 'Cliente:', 'Location:': 'Localização:',
+        'Site area:': 'Área do terreno:', 'Built area:': 'Área construída:', 'Current stage:': 'Etapa atual:',
+        'Review meeting:': 'Reunião de revisão:', 'Status: Awaiting client feedback': 'Situação: Aguardando avaliação do cliente',
+        'A single-family house on a sloped lot overlooking the Lagoa da Conceição.': 'Residência em um terreno inclinado com vista para a Lagoa da Conceição.',
+        'The design organizes the living spaces around a planted central courtyard, with the bedroom wing stepping down the terrain to keep views open from every room.': 'O projeto organiza os ambientes ao redor de um pátio central com vegetação, aproveitando o terreno e as vistas.',
+        'Exposed concrete structure with timber screens on the west façade': 'Estrutura de concreto aparente com brises de madeira na fachada oeste',
+        'Cross-ventilation and deep eaves instead of mechanical cooling where possible': 'Ventilação cruzada e beirais amplos para melhorar o conforto térmico',
+        'Rainwater collection feeding the courtyard garden': 'Captação de água da chuva para o jardim do pátio',
+        'Rev B of the floor plans incorporates the comments from the concept review.': 'A revisão B das plantas incorpora os comentários da apresentação do conceito.',
+        'Please review the plans and the renders, and send feedback before the meeting.': 'Confira as plantas e as perspectivas e envie suas observações antes da reunião.',
+        'Interior fit-out for a 90 m² café in the historic center.': 'Projeto de interiores para um café de 90 m² no centro histórico.',
+        'A new house.': 'Uma nova residência.',
+    }
+    for node in nodes:
+        old_name = node.name
+        node.name = names.get(node.name, node.name)
+        if node.text:
+            for old, new in replacements.items():
+                node.text = node.text.replace(old, new)
+        if node.name != old_name and node.mime == 'application/pdf':
+            node.content = _tiny_pdf(node.name)
+        elif node.name != old_name and node.mime == 'image/jpeg':
+            node.content = _image(node.name, 1600, 1100)
 
 
 # -- sample content -----------------------------------------------------------

@@ -9,10 +9,13 @@ test('file search filters names and restores stages when cleared', async () => {
     await page.route('https://fonts.googleapis.com/**', route => route.abort());
     await page.goto(process.env.PROJECT_TEST_URL, { waitUntil: 'domcontentloaded' });
     const search = page.locator('#file-search');
+    for (const button of await page.locator('.stage-toggle').all()) {
+      if (await button.getAttribute('aria-expanded') === 'false') await button.click();
+    }
     await page.setViewportSize({ width: 1440, height: 900 });
     const searchBox = await search.boundingBox();
     const headerBox = await page.locator('.stage__header').first().boundingBox();
-    assert.ok(Math.abs(searchBox.y - headerBox.y) <= 1);
+    assert.ok(searchBox.y + searchBox.height < headerBox.y);
     const total = await page.locator('.file').count();
     assert.ok(total > 1);
     const name = await page.locator('.file__name').first().textContent();

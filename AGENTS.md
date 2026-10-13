@@ -74,6 +74,13 @@ Before finishing:
 
 ### Maintaining test data
 
+- All newly generated demo and manual test examples must be in Brazilian
+  Portuguese, including project descriptions, visible labels, stage notes,
+  folder names, and document/image filenames. Use `SITE_LANG=pt` for previews.
+- Keep generated examples fictional and preserve existing manual edits.
+  Dedicated automated fixtures may explicitly use English only to test
+  English-language support; manual/demo exports must always use Portuguese.
+
 - Keep `tools/fake_drive.py`, `tools/export_sample.py`, `tools/local_data.py`,
   `tools/folder_drive.py`, `demo.py`, and `run_local.py` tracked in Git.
   Generated documents and screenshots remain ignored.

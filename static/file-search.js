@@ -22,6 +22,7 @@
         stageCount += groupCount;
       });
       stage.hidden = query !== '' && stageCount === 0;
+      if (query && stageCount > 0) stage.dispatchEvent(new Event('stage:reveal'));
       count += stageCount;
     });
     empty.hidden = query === '' || count > 0;

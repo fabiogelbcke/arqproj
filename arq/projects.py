@@ -126,7 +126,8 @@ class FileEntry:
     def thumb(self) -> DriveFile | None:
         if self.preview is not None:
             return self.preview
-        return self.file if self.file.thumbnail_link else None
+        direct_image = self.file.mime_type in ('image/jpeg', 'image/png', 'image/webp') and (self.file.size or 0) <= 8 * 1024 * 1024
+        return self.file if self.file.thumbnail_link or direct_image else None
 
     @property
     def all_files(self) -> list[DriveFile]:

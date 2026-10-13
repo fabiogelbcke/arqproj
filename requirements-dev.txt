@@ -1,2 +1,3 @@
 # Only needed for demo.py / tests (fake Drive renders sample images)
 pillow>=10.0
+pymupdf>=1.24

@@ -15,7 +15,10 @@ STRINGS = {
         "theme.light": "Light mode",
         "theme.dark": "Dark mode",
         "stages": "Stages",
+        "stage.expand": "Expand {stage}",
+        "stage.collapse": "Collapse {stage}",
         "updates.heading": "Latest updates",
+        "updates.unread": "{n} new updates",
         "updates.open": "View file",
         "updates.none": "Updates will appear here when files are available.",
         "stage.info": "About {stage}",
@@ -104,7 +107,10 @@ STRINGS = {
         "theme.light": "Modo claro",
         "theme.dark": "Modo escuro",
         "stages": "Etapas",
+        "stage.expand": "Expandir {stage}",
+        "stage.collapse": "Recolher {stage}",
         "updates.heading": "Últimas atualizações",
+        "updates.unread": "{n} novas atualizações",
         "updates.open": "Ver arquivo",
         "updates.none": "As atualizações aparecerão aqui quando houver arquivos disponíveis.",
         "stage.info": "Sobre {stage}",
@@ -222,7 +228,7 @@ NATIVE_CATEGORIES = {
 
 
 def lang() -> str:
-    value = os.environ.get("SITE_LANG", "en").lower()
+    value = os.environ.get("SITE_LANG", "pt").lower()
     return "pt" if value.startswith("pt") else "en"
 
 

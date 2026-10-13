@@ -29,7 +29,7 @@
         <span class="file__type">{{ f|type_label }}</span>
       </span>
       {% if entry.thumb %}
-      <img src="{{ url_for('thumbnail', slug=slug, file_id=entry.thumb.id) }}" alt="" loading="lazy" onerror="this.remove()">
+      <img{% if f.mime_type == 'application/pdf' %} class="file__preview--document"{% endif %} src="{{ url_for('thumbnail', slug=slug, file_id=entry.thumb.id) }}" alt="" loading="lazy" onerror="this.remove()">
       {% endif %}
       {% if f|is_new %}<span class="badge-new">{{ t('new') }}</span>{% endif %}
     </span>
@@ -56,16 +56,17 @@
 {%- endmacro %}
 
 {% block header_notifications %}
-<details class="notifications">
+<details class="notifications" data-unread-label="{{ t('updates.unread', n='{n}') }}">
   <summary aria-label="{{ t('updates.heading') }}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg>
+    <span class="notifications__badge" aria-hidden="true" hidden></span>
   </summary>
 <section class="project-updates" aria-labelledby="updates-heading">
   <h2 id="updates-heading">{{ t('updates.heading') }}</h2>
   {% if project.recent_files %}
   <ul>
     {% for file, stage in project.recent_files %}
-    <li>
+    <li data-update-key="{{ file.id }}:{{ file.modified.isoformat() }}">
       <div>
         <p class="project-updates__context">{{ site_name }} · <a href="#{{ stage.anchor }}">{{ stage.label }}</a></p>
         <p class="project-updates__name">{{ file.name }}</p>
@@ -159,6 +160,7 @@
     <div class="stage__heading">
       <div class="stage__title-row">
         <h2>{{ stage.label }}</h2>
+
         {% if stage.explanation %}
         <details class="stage-info" name="stage-info">
           <summary aria-label="{{ t('stage.info', stage=stage.label) }}">{{ t('stage.about') }}</summary>
@@ -184,8 +186,13 @@
         {% if stage.last_modified %}<span>{{ t('updated', date=stage.last_modified|date) }}</span>{% endif %}
       </p>
     </div>
+
+        {% if stage.status in ('done', 'current') %}
+        <button class="stage-toggle" type="button" hidden aria-expanded="true" aria-controls="{{ stage.anchor }}-content" aria-label="{{ t('stage.collapse', stage=stage.label) }}" data-expand-label="{{ t('stage.expand', stage=stage.label) }}" data-collapse-label="{{ t('stage.collapse', stage=stage.label) }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        {% endif %}
   </header>
 
+  <div class="stage__content" id="{{ stage.anchor }}-content">
   {% if stage.notes and (stage.notes.description or stage.notes.details) %}
   <div class="stage__notes">
     {{ description(stage.notes.description, 'stage__notes-text') }}
@@ -213,6 +220,7 @@
     </div>
     {% endfor %}
   {% endif %}
+  </div>
 </section>
 {% endfor %}
 </div>
@@ -223,4 +231,5 @@
 <script src="{{ url_for('static', filename='project-title.js') }}" defer></script>
 <script src="{{ url_for('static', filename='file-search.js') }}" defer></script>
 <script src="{{ url_for('static', filename='stage-info.js') }}" defer></script>
+<script src="{{ url_for('static', filename='stage-collapse.js') }}" defer></script>
 {% endblock %}

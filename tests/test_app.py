@@ -62,7 +62,7 @@ class ConfigParsing(unittest.TestCase):
 class EndToEnd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.fake = FakeDrive(f"http://127.0.0.1:{PORT}")
+        cls.fake = FakeDrive(f"http://127.0.0.1:{PORT}", example_language='en')
         cls.server = make_server("127.0.0.1", PORT, cls.fake.app(), threaded=True)
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
         os.environ.update(
@@ -70,6 +70,7 @@ class EndToEnd(unittest.TestCase):
             DRIVE_API_BASE=f"http://127.0.0.1:{PORT}/drive/v3",
             DRIVE_ROOT_FOLDER_ID=cls.fake.root_id,
             SITE_NAME="Test Studio",
+            SITE_LANG="en",
         )
         os.environ.pop("SHOW_PROJECT_INDEX", None)
         from app import create_app
@@ -286,7 +287,7 @@ PORT2 = 8798
 class Features(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.fake = FakeDrive(f"http://127.0.0.1:{PORT2}")
+        cls.fake = FakeDrive(f"http://127.0.0.1:{PORT2}", example_language='en')
         cls.server = make_server("127.0.0.1", PORT2, cls.fake.app(), threaded=True)
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
         os.environ.update(
@@ -419,7 +420,7 @@ class FailLoudly(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.fake = FakeDrive(f"http://127.0.0.1:{PORT3}")
+        cls.fake = FakeDrive(f"http://127.0.0.1:{PORT3}", example_language='en')
         cls.server = make_server("127.0.0.1", PORT3, cls.fake.app(), threaded=True)
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
         os.environ.update(

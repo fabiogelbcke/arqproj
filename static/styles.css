@@ -67,12 +67,20 @@ a { color: inherit; }
 .project-updates h2 { margin: 0 0 16px; font-size: 16px; font-weight: 500; }
 .notifications { position: relative; }
 .notifications > summary {
+  position: relative;
   display: flex; align-items: center; justify-content: center; width: 38px; height: 38px;
   border: 1px solid var(--line); border-radius: 50%; cursor: pointer; list-style: none;
   background: rgb(255 255 255 / 12%); color: var(--ink);
 }
 .notifications > summary::-webkit-details-marker { display: none; }
 .notifications > summary svg { width: 20px; height: 20px; }
+.notifications__badge {
+  position: absolute; top: -5px; right: -5px; min-width: 19px; height: 19px; padding: 0 4px;
+  display: flex; align-items: center; justify-content: center; border-radius: 999px;
+  background: var(--accent); color: var(--on-accent); border: 2px solid var(--bg);
+  font-size: 10px; font-weight: 600; line-height: 1;
+}
+.file__thumb img.file__preview--document { object-fit: contain; }
 .notifications > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .notifications .project-updates {
   position: absolute; top: calc(100% + 12px); right: 0; z-index: 30;
@@ -317,6 +325,7 @@ a { color: inherit; }
 .stage + .stage { border-top: 1px solid var(--line); }
 
 .stage__header {
+  position: relative;
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
   gap: 12px;
@@ -356,6 +365,11 @@ a { color: inherit; }
   line-height: 1.2;
 }
 .stage__title-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 12px; position: relative; }
+.stage-toggle { position: absolute; right: 0; top: 0; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--line); cursor: pointer; }
+.stage-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; transition: transform .15s; }
+.stage-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.stage--done .stage__heading, .stage--current .stage__heading { padding-right: 44px; }
+.stage-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .stage-info { flex: 0 0 auto; padding-top: 2px; }
 .stage-info summary {
   display: flex; align-items: center; justify-content: center; padding: 5px 10px;
@@ -551,8 +565,8 @@ a { color: inherit; }
 .file-search { display: flex; justify-content: flex-end; margin-top: 24px; }
 .project-files { position: relative; }
 @media (min-width: 720px) {
-  .file-search { position: absolute; top: 48px; right: 0; margin-top: 0; }
-  .stage--first .stage__header { padding-right: 284px; }
+  .file-search { position: static; margin-top: 24px; }
+  .stage--first .stage__header { padding-right: 0; }
   .file-search__empty { padding-top: 104px; }
 }
 .file-search label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
