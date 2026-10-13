@@ -3,10 +3,11 @@
     const button = stage.querySelector('.stage-toggle');
     if (!button) return;
     stage.querySelector('.stage__content').hidden = !expanded;
+    stage.classList.toggle('stage--collapsed', !expanded);
     button.setAttribute('aria-expanded', String(expanded));
     button.setAttribute('aria-label', expanded ? button.dataset.collapseLabel : button.dataset.expandLabel);
   };
-  document.querySelectorAll('.stage--done, .stage--current').forEach(stage => {
+  document.querySelectorAll('.stage--done, .stage--current, .stage--upcoming').forEach(stage => {
     const button = stage.querySelector('.stage-toggle');
     button.hidden = false;
     setExpanded(stage, stage.classList.contains('stage--current'));

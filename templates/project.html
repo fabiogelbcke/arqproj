@@ -180,14 +180,14 @@
         {% endif %}
       </div>
       <p class="stage__meta">
-        {{ status_pill(stage.status) }}
+        {% if stage.status != 'upcoming' or (not loop.first and loop.previtem.status == 'current') %}{{ status_pill(stage.status) }}{% endif %}
         {% if entries %}<span>{{ entries|length|files }}</span>{% endif %}
         {% if new_count %}<span class="stage__new">{{ t('new_files', n=new_count) }}</span>{% endif %}
         {% if stage.last_modified %}<span>{{ t('updated', date=stage.last_modified|date) }}</span>{% endif %}
       </p>
     </div>
 
-        {% if stage.status in ('done', 'current') %}
+        {% if stage.status in ('done', 'current', 'upcoming') %}
         <button class="stage-toggle" type="button" hidden aria-expanded="true" aria-controls="{{ stage.anchor }}-content" aria-label="{{ t('stage.collapse', stage=stage.label) }}" data-expand-label="{{ t('stage.expand', stage=stage.label) }}" data-collapse-label="{{ t('stage.collapse', stage=stage.label) }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
         {% endif %}
   </header>

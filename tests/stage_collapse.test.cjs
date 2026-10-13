@@ -20,6 +20,13 @@ test('completed stages collapse and reopen by keyboard, timeline and search', as
     assert.equal(await current.locator('.stage__content').isVisible(), true);
     await page.reload({ waitUntil: 'domcontentloaded' });
     assert.equal(await currentButton.getAttribute('aria-expanded'), 'true');
+    const future = page.locator('#stage-04');
+    assert.equal(await future.locator('.stage__content').isVisible(), false);
+    assert.equal(await future.locator('.stage-info').isVisible(), false);
+    await future.locator('.stage-toggle').click();
+    assert.equal(await future.locator('.stage__content').isVisible(), true);
+    assert.equal(await future.locator('.stage-info').isVisible(), true);
+    await future.locator('.stage-toggle').click();
     await button.focus();
     await page.keyboard.press('Enter');
     assert.equal(await stage.locator('.stage__content').isVisible(), true);
