@@ -1,0 +1,171 @@
+{# Modals for the painel. Opened by [data-open-dialog] buttons; see static/painel-dialogs.js. #}
+
+{% if drive_configured and (not drive_connected or drive_needs_reconnect) %}
+<dialog class="modal" id="connect-dialog" aria-labelledby="connect-dialog-title">
+  <form class="modal__body" method="post" action="{{ url_for('drive_connect') }}">
+    <h2 id="connect-dialog-title">{{ t('drive.reconnect') if drive_needs_reconnect else t('drive.intro_title') }}</h2>
+    {% if not drive_state.delivery_folder_id %}
+    <p>{{ t('drive.connect_body') }}</p>
+    <div class="field">
+      <label for="connect-folder-name">{{ t('drive.folder_name') }}</label>
+      <input id="connect-folder-name" name="folder_name" value="{{ t('drive.folder_default') }}" maxlength="100" required aria-describedby="connect-folder-hint">
+      <p class="field__hint" id="connect-folder-hint">{{ t('drive.folder_hint') }}</p>
+    </div>
+    {% else %}
+    <p>{{ t('drive.reconnect_dialog') }}</p>
+    {% endif %}
+    <div class="modal__actions">
+      <button type="button" class="btn btn--quiet" data-close-dialog>{{ t('drive.cancel') }}</button>
+      <button type="submit" class="btn">{{ t('drive.connect_continue') }}</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+{% if drive_connected and not drive_needs_reconnect and not drive_state.delivery_folder_id %}
+{# Required: there is no way to add projects without it, so this one cannot be dismissed. #}
+<dialog class="modal" id="folder-dialog" aria-labelledby="folder-dialog-title" data-required data-open-on-load>
+  <form class="modal__body" method="post" action="{{ url_for('drive_setup') }}">
+    <h2 id="folder-dialog-title">{{ t('drive.folder_required_title') }}</h2>
+    <p>{{ t('drive.folder_required_body') }}</p>
+    <div class="field">
+      <label for="setup-folder-name">{{ t('drive.folder_name') }}</label>
+      <input id="setup-folder-name" name="name" value="{{ t('drive.folder_default') }}" maxlength="100" required aria-describedby="setup-folder-hint">
+      <p class="field__hint" id="setup-folder-hint">{{ t('drive.folder_hint') }}</p>
+    </div>
+    <div class="modal__actions">
+      <button type="submit" class="btn">{{ t('drive.folder_create') }}</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+{% if drive_ready %}
+{% set form = project_form if project_form is defined else {} %}
+<dialog class="modal" id="project-dialog" aria-labelledby="project-dialog-title"{% if project_error %} data-open-on-load{% endif %}>
+  <form class="modal__body" method="post" action="{{ url_for('drive_create_project') }}"
+        data-taken-names="{{ taken_projects.names|list|tojson|forceescape }}"
+        data-taken-slugs="{{ taken_projects.slugs|list|tojson|forceescape }}"
+        data-name-taken="{{ t('drive.name_taken_short') }}"
+        data-slug-taken="{{ t('drive.slug_taken_short') }}">
+    <h2 id="project-dialog-title">{{ t('drive.new_project') }}</h2>
+    {% if project_error %}<p class="field__error" role="alert">{{ project_error }}</p>{% endif %}
+    <div class="field">
+      <label for="project-title">{{ t('drive.project_title') }}</label>
+      <input id="project-title" name="title" required maxlength="120" autocomplete="off" value="{{ form.title or '' }}">
+    </div>
+    <div class="field">
+      <label for="project-slug">{{ t('drive.project_slug') }}</label>
+      <div class="field__prefixed">
+        <span aria-hidden="true">/</span>
+        <input id="project-slug" name="slug" maxlength="80" autocomplete="off" spellcheck="false"
+               pattern="[a-z0-9\-]*" title="{{ t('drive.project_slug_hint') }}"
+               data-slug-from="project-title" aria-describedby="project-slug-hint" value="{{ form.slug or '' }}">
+      </div>
+      <p class="field__hint" id="project-slug-hint">{{ t('drive.project_slug_hint') }}</p>
+    </div>
+    <fieldset class="field stages-editor">
+      <legend>{{ t('drive.stages') }}</legend>
+      <ol class="stages-editor__list" data-stage-list data-last-stage-label="{{ t('drive.stages_last') }}">
+        {% for s in (form.stages or default_stages) %}
+        <li>
+          <input name="stage" value="{{ s }}" aria-label="{{ t('drive.stages') }} {{ loop.index }}">
+          <button type="button" class="stages-editor__remove" data-remove-stage aria-label="{{ t('drive.stage_remove') }}" title="{{ t('drive.stage_remove') }}">×</button>
+        </li>
+        {% endfor %}
+      </ol>
+      <template data-stage-template>
+        <li>
+          <input name="stage" aria-label="{{ t('drive.stages') }}">
+          <button type="button" class="stages-editor__remove" data-remove-stage aria-label="{{ t('drive.stage_remove') }}" title="{{ t('drive.stage_remove') }}">×</button>
+        </li>
+      </template>
+      <button type="button" class="btn btn--small" data-add-stage>+ {{ t('drive.stage_add') }}</button>
+    </fieldset>
+    <p class="field__hint">{{ t('drive.projects_hint') }}</p>
+    <div class="modal__actions">
+      <button type="button" class="btn btn--quiet" data-close-dialog>{{ t('drive.cancel') }}</button>
+      <button type="submit" class="btn">{{ t('drive.create') }}</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+{% if settings_editable %}
+<dialog class="modal" id="settings-dialog" aria-labelledby="settings-dialog-title"{% if settings_error %} data-open-on-load{% endif %}>
+  <div class="modal__body">
+    <div class="modal__head">
+      <h2 id="settings-dialog-title">{{ t('settings.title') }}</h2>
+      <button type="button" class="modal__close" data-close-dialog aria-label="{{ t('drive.close') }}" title="{{ t('drive.close') }}">×</button>
+    </div>
+
+    <form method="post" action="{{ url_for('settings_save') }}" enctype="multipart/form-data" class="modal__section" aria-labelledby="settings-office-title">
+      <h3 id="settings-office-title">{{ t('settings.office') }}</h3>
+      {% if settings_error %}<p class="field__error" role="alert">{{ settings_error }}</p>{% endif %}
+      <div class="field">
+        <label for="settings-name">{{ t('settings.name') }}</label>
+        <input id="settings-name" name="name" value="{{ settings_name if settings_name is defined else site_name }}" maxlength="80" required aria-describedby="settings-name-hint">
+        <p class="field__hint" id="settings-name-hint">{{ t('settings.name_hint') }}</p>
+      </div>
+      <div class="field">
+        <span class="field__label" id="settings-logo-label">{{ t('settings.logo') }}</span>
+        {% if uploaded_logo %}
+        <div class="logo-preview"><img src="{{ url_for('site_logo', u=uploaded_logo) }}" alt=""></div>
+        <label class="check"><input type="checkbox" name="remove_logo" value="1"> {{ t('settings.logo_remove') }}</label>
+        {% endif %}
+        <div class="file-pick">
+          <input id="settings-logo" class="file-pick__input" name="logo" type="file"
+                 accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                 aria-labelledby="settings-logo-label settings-logo-button" aria-describedby="settings-logo-hint">
+          <label for="settings-logo" class="btn btn--small" id="settings-logo-button">{{ t('settings.choose_logo') }}</label>
+          <span class="file-pick__name" data-file-name>{{ t('settings.no_logo_file') }}</span>
+        </div>
+        <p class="field__hint" id="settings-logo-hint">{{ t('settings.logo_hint') }}</p>
+      </div>
+      <div class="modal__actions">
+        <button type="submit" class="btn">{{ t('settings.save') }}</button>
+      </div>
+    </form>
+
+    {% if drive_configured and drive_connected and not drive_needs_reconnect %}
+    <section class="modal__section modal__section--divided" aria-labelledby="settings-drive-title">
+      <h3 id="settings-drive-title">{{ t('drive.section') }}</h3>
+      <dl class="modal-facts">
+        <div><dt>{{ t('drive.account') }}</dt><dd>{{ drive_account or '—' }}</dd></div>
+        {% if drive_quota %}
+        <div><dt>{{ t('drive.storage') }}</dt><dd>
+          {% if drive_quota.percent is not none %}{{ t('drive.quota', used=drive_quota.usage|filesize, total=drive_quota.limit|filesize, percent=drive_quota.percent) }}
+          {% else %}{{ t('drive.quota_unlimited') }}{% endif %}
+        </dd></div>
+        {% endif %}
+        {% if drive_state.delivery_folder_id %}
+        <div><dt>{{ t('drive.delivery_folder') }}</dt><dd>
+          <a href="https://drive.google.com/drive/folders/{{ drive_state.delivery_folder_id }}" target="_blank" rel="noopener">{{ drive_state.delivery_folder_name }} ↗</a>
+        </dd></div>
+        {% endif %}
+      </dl>
+      {% if drive_quota and drive_quota.percent is not none and drive_quota.percent >= 80 %}
+      <p class="flash flash--error">{{ t('drive.quota_warn') }}</p>
+      {% endif %}
+      <div>
+        <button type="button" class="btn btn--quiet" data-open-dialog="disconnect-dialog">{{ t('drive.disconnect') }}</button>
+      </div>
+    </section>
+    {% endif %}
+  </div>
+</dialog>
+
+{% endif %}
+
+{% if drive_configured and drive_connected %}
+<dialog class="modal modal--small" id="disconnect-dialog" aria-labelledby="disconnect-dialog-title">
+  <form class="modal__body" method="post" action="{{ url_for('drive_disconnect') }}">
+    <h2 id="disconnect-dialog-title">{{ t('drive.disconnect_title') }}</h2>
+    <p>{{ t('drive.disconnect_body') }}</p>
+    <div class="modal__actions">
+      <button type="button" class="btn btn--quiet" data-close-dialog>{{ t('drive.cancel') }}</button>
+      <button type="submit" class="btn">{{ t('drive.disconnect') }}</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}

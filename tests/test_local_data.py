@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -7,6 +8,11 @@ from unittest.mock import patch
 from tools.folder_drive import FolderDrive
 from tools.fake_drive import TOKEN
 from tools.local_data import MARKER, outdated, prepare, regenerate
+
+# Keep the painel's saved settings and Drive connection out of the developer's files.
+_STATE_DIR = tempfile.mkdtemp(prefix="arq-tests-")
+os.environ["PORTAL_SETTINGS_FILE"] = os.path.join(_STATE_DIR, "settings.json")
+os.environ["PORTAL_STATE_FILE"] = os.path.join(_STATE_DIR, "drive-connection.json")
 
 
 class LocalDataset(unittest.TestCase):

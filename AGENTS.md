@@ -70,6 +70,12 @@ Before finishing:
 - Treat “run the website with Google Drive data” as a request to run
   `.venv/bin/python run_local.py drive`. This still runs locally and reads
   the developer's private `.env`. Never deploy to satisfy this request.
+- Requests such as “roda com a conexão do Google Drive”, “testa o OAuth de
+  verdade”, or “run with the Drive connection” select Drive OAuth mode:
+  `.venv/bin/python run_local.py drive-oauth`. The site reads the projects
+  folder created by connecting Google Drive in `/painel`, so the user signs in
+  with Google themselves; before that the project list is empty. Requires the
+  `OAUTH_*` settings in `.env` (README.md, “Google Drive connection (OAuth)”).
 - If the data source is unspecified, use test data and say so.
 - Prepare `.venv` and install `requirements.txt` and `requirements-dev.txt`
   if needed, following README.md. Each developer supplies their own `.env`

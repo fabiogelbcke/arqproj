@@ -3,6 +3,11 @@
 Implements only what the app uses: the JWT-bearer token exchange (with real
 signature verification), files.list by parent, alt=media, export, and
 thumbnail links. Serves a small sample architecture project.
+
+Also a fake Google sign-in for the painel's "Connect Google Drive" flow: a consent
+page, the authorization-code and refresh-token exchanges, and the few write calls
+the app makes with that grant. Like the real `drive.file` scope, the grant only
+sees folders and files it created. Writes live in memory until restart.
 """
 
 from __future__ import annotations
@@ -11,6 +16,9 @@ import io
 import json
 import random
 import re
+import uuid
+from html import escape
+from urllib.parse import urlencode
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
@@ -24,6 +32,10 @@ DOC = "application/vnd.google-apps.document"
 SLIDES = "application/vnd.google-apps.presentation"
 SHORTCUT = "application/vnd.google-apps.shortcut"
 TOKEN = "fake-access-token"
+OAUTH_TOKEN = "fake-oauth-access-token"
+OAUTH_CODE = "fake-authorization-code"
+OAUTH_REFRESH = "fake-refresh-token"
+OAUTH_ACCOUNT = "arquiteta@exemplo.com.br"
 # Sample dates are relative to startup so "New" badges always show up in the demo.
 NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
@@ -66,6 +78,28 @@ Etapa atual: 2
 """
 
 
+CONSENT_PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fake Google sign-in</title>
+<style>
+  body {{ font: 15px/1.5 system-ui, sans-serif; background: #f1f3f4; color: #202124; margin: 0;
+         display: grid; place-items: center; min-height: 100vh; padding: 16px; box-sizing: border-box; }}
+  main {{ background: #fff; border-radius: 8px; padding: 32px; max-width: 420px; box-shadow: 0 1px 3px #0003; }}
+  .tag {{ display: inline-block; font-size: 12px; background: #fde293; padding: 2px 8px; border-radius: 4px; }}
+  .actions {{ display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }}
+  a {{ padding: 8px 16px; border-radius: 4px; text-decoration: none; color: #1a73e8; }}
+  a.allow {{ background: #1a73e8; color: #fff; }}
+</style></head>
+<body><main>
+  <span class="tag">Local test mode: not the real Google</span>
+  <h1>The portal wants to access your Google Drive</h1>
+  <p>Signed in as <strong>{account}</strong>.</p>
+  <p>It can see and change only the files and folders it creates.</p>
+  <div class="actions"><a href="{deny}">Cancel</a><a class="allow" href="{allow}">Allow</a></div>
+</main></body></html>
+"""
+
+
 @dataclass
 class Node:
     id: str
@@ -78,6 +112,8 @@ class Node:
     thumb: bool = False
     target: tuple[str, str] | None = None  # shortcut: (target id, target mime)
     children: list["Node"] = field(default_factory=list)
+    app_created: bool = False  # made through the OAuth grant, so visible to it
+    app_properties: dict = field(default_factory=dict)
 
 
 class FakeDrive:
@@ -118,6 +154,16 @@ class FakeDrive:
         self.nodes[node.id] = node
         if parent:
             parent.children.append(node)
+        return node
+
+    def _created(self, name, mime, parent_id, content=b"") -> Node:
+        """A file or folder made through the OAuth grant."""
+        node = Node(f"oauth-{uuid.uuid4().hex[:24]}", name, mime, parent_id,
+                    datetime.now(timezone.utc).replace(microsecond=0),
+                    content=content, app_created=True)
+        self.nodes[node.id] = node
+        if parent_id:
+            self.nodes[parent_id].children.append(node)
         return node
 
     def _folder(self, name, parent=None) -> Node:
@@ -224,18 +270,33 @@ class FakeDrive:
             d["thumbnailLink"] = f"{self.base_url}/thumb/{n.id}=s220"
         if n.target:
             d["shortcutDetails"] = {"targetId": n.target[0], "targetMimeType": n.target[1]}
+        if n.app_properties:
+            d["appProperties"] = n.app_properties
         return d
 
     def app(self) -> Flask:
         app = Flask("fake_drive")
 
         def require_auth():
-            if request.headers.get("Authorization") != f"Bearer {TOKEN}":
+            if request.headers.get("Authorization") not in (f"Bearer {TOKEN}", f"Bearer {OAUTH_TOKEN}"):
                 abort(401)
+
+        def via_oauth() -> bool:
+            return request.headers.get("Authorization") == f"Bearer {OAUTH_TOKEN}"
 
         @app.post("/token")
         def token():
-            assert request.form["grant_type"] == "urn:ietf:params:oauth:grant-type:jwt-bearer"
+            grant = request.form["grant_type"]
+            if grant == "authorization_code":
+                if request.form.get("code") != OAUTH_CODE:
+                    return jsonify(error="invalid_grant"), 400
+                return jsonify(access_token=OAUTH_TOKEN, refresh_token=OAUTH_REFRESH,
+                               expires_in=3600, token_type="Bearer")
+            if grant == "refresh_token":
+                if request.form.get("refresh_token") != OAUTH_REFRESH:
+                    return jsonify(error="invalid_grant"), 400
+                return jsonify(access_token=OAUTH_TOKEN, expires_in=3600, token_type="Bearer")
+            assert grant == "urn:ietf:params:oauth:grant-type:jwt-bearer"
             claims = jwt.decode(request.form["assertion"], self.public_key, algorithms=["RS256"],
                                 audience=f"{self.base_url}/token")
             assert claims["scope"] == "https://www.googleapis.com/auth/drive.readonly"
@@ -248,13 +309,76 @@ class FakeDrive:
             assert request.args.get("scopes") == "https://www.googleapis.com/auth/drive.readonly"
             return jsonify(access_token=TOKEN, expires_in=3599, token_type="Bearer")
 
+        @app.get("/o/oauth2/v2/auth")
+        def consent():
+            back = request.args["redirect_uri"]
+            state = request.args.get("state", "")
+            allow = f"{back}?{urlencode({'code': OAUTH_CODE, 'state': state})}"
+            deny = f"{back}?{urlencode({'error': 'access_denied', 'state': state})}"
+            return Response(CONSENT_PAGE.format(account=escape(OAUTH_ACCOUNT),
+                                                allow=escape(allow), deny=escape(deny)),
+                            content_type="text/html; charset=utf-8")
+
+        @app.get("/drive/v3/about")
+        def about():
+            require_auth()
+            return jsonify(user={"emailAddress": OAUTH_ACCOUNT},
+                           storageQuota={"limit": str(15 * 1024 ** 3), "usage": str(2 * 1024 ** 3)})
+
+        @app.post("/drive/v3/files")
+        def create_file():
+            require_auth()
+            body = request.get_json()
+            parents = body.get("parents") or []
+            if parents and parents[0] not in self.nodes:
+                abort(404)
+            node = self._created(body["name"], body.get("mimeType", "application/octet-stream"),
+                                 parents[0] if parents else None)
+            node.app_properties = dict(body.get("appProperties") or {})
+            return jsonify(id=node.id, name=node.name)
+
+        @app.post("/upload/drive/v3/files")
+        def upload_file():
+            require_auth()
+            node = self._created("Untitled", request.content_type.split(";")[0], None,
+                                 content=request.get_data())
+            node.text = node.content.decode("utf-8", "replace")
+            return jsonify(id=node.id)
+
+        @app.patch("/drive/v3/files/<file_id>")
+        def update_file(file_id):
+            require_auth()
+            n = self.nodes.get(file_id) or abort(404)
+            if via_oauth() and not n.app_created:
+                abort(404)
+            n.name = (request.get_json(silent=True) or {}).get("name", n.name)
+            new_parent = request.args.get("addParents")
+            if new_parent:
+                if n.parent:
+                    self.nodes[n.parent].children.remove(n)
+                n.parent = new_parent
+                self.nodes[new_parent].children.append(n)
+            return jsonify(id=n.id, name=n.name)
+
+        @app.post("/drive/v3/files/<file_id>/permissions")
+        def share(file_id):
+            require_auth()
+            n = self.nodes.get(file_id) or abort(404)
+            # The real rule this mirrors: sharing fails once the folder holds a file
+            # the app did not create (see arq/oauth_drive.py).
+            if any(not c.app_created for c in n.children):
+                return jsonify(error={"code": 403, "reason": "appNotAuthorizedToChild"}), 403
+            return jsonify(id="perm-1", role=request.get_json()["role"])
+
         @app.get("/drive/v3/files")
         def list_files():
             require_auth()
-            m = re.match(r"^'([^']+)' in parents and trashed = false$", request.args.get("q", ""))
+            m = re.match(r"^'([^']+)' in parents and trashed ?= ?false$", request.args.get("q", ""))
             if not m or m.group(1) not in self.nodes:
                 abort(404)
             kids = sorted(self.nodes[m.group(1)].children, key=lambda n: n.name.lower())
+            if via_oauth():
+                kids = [n for n in kids if n.app_created]
             return jsonify(files=[self._file_json(n) for n in kids])
 
         @app.get("/drive/v3/files/<file_id>")

@@ -14,6 +14,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -84,6 +85,13 @@ def token_ok(access="at-1", refresh="rt-1"):
 
 class Base(unittest.TestCase):
     def setUp(self):
+        # Other test modules point DRIVE_API_BASE at a fake server; these tests
+        # check the real Google endpoints.
+        env = mock.patch.dict(os.environ)
+        env.start()
+        self.addCleanup(env.stop)
+        for key in ("DRIVE_API_BASE", "OAUTH_TOKEN_URI", "OAUTH_AUTH_URI"):
+            os.environ.pop(key, None)
         self.tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
         self.tmp.close()
         os.unlink(self.tmp.name)
@@ -101,6 +109,7 @@ class Base(unittest.TestCase):
 
 
 class AuthorizeUrl(unittest.TestCase):
+    @mock.patch.dict(os.environ, {"OAUTH_AUTH_URI": ""})
     def test_asks_for_drive_file_and_a_refresh_token(self):
         cfg = oauth_drive.OAuthConfig("cid", "csec", "https://example.com/cb")
         url = oauth_drive.authorize_url(cfg, "st8")

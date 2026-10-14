@@ -314,7 +314,19 @@ def build_entries(files: list[DriveFile]) -> list[FileEntry]:
 
 
 class ProjectStore:
-    def __init__(self, drive: Drive, root_folder_id: str, ttl_seconds: float = 60, cache: TTLCache | None = None):
+    def __init__(self, drive: Drive, root_folder_id: str, ttl_seconds: float = 60, cache: TTLCache | None = None,
+                 root_provider=None):
+        """`root_provider`, when given, is asked for the root folder ID on each use
+        instead of a fixed `root_folder_id`: the folder can change at runtime (for
+        example the projects folder of a Google Drive connection), and may be empty
+        until there is one."""
+        self.drive = drive
+        self.ttl = ttl_seconds
+        self.cache = cache or TTLCache()
+        self._root_provider = root_provider
+        if root_provider is not None:
+            self._root_id = ""
+            return
         root_folder_id = (root_folder_id or "").strip()
         # Accept a pasted folder URL: https://drive.google.com/drive/folders/<id>?usp=...
         m = re.search(r"/folders/([A-Za-z0-9_-]+)", root_folder_id)
@@ -325,10 +337,11 @@ class ProjectStore:
                 f"DRIVE_ROOT_FOLDER_ID={root_folder_id!r} doesn't look like a Drive folder ID. "
                 "Use the ID from the folder's URL (drive.google.com/drive/folders/<ID>), not its name."
             )
-        self.drive = drive
-        self.root_id = root_folder_id
-        self.ttl = ttl_seconds
-        self.cache = cache or TTLCache()
+        self._root_id = root_folder_id
+
+    @property
+    def root_id(self) -> str:
+        return self._root_provider() if self._root_provider is not None else self._root_id
 
     # -- Drive access (cached) --------------------------------------------
 
@@ -349,8 +362,11 @@ class ProjectStore:
         """`_site/logo.(png|jpg|webp|svg)` in the root folder, if present.
         `_site/logo-dark.*` is an optional variant for dark mode."""
         pattern = _LOGO_DARK_RE if dark else _LOGO_RE
+        root = self.root_id
+        if not root:
+            return None
         try:
-            site = next((f for f in self._children(self.root_id) if f.is_folder and f.name.lower() == "_site"), None)
+            site = next((f for f in self._children(root) if f.is_folder and f.name.lower() == "_site"), None)
             if site is None:
                 return None
             return next((f for f in self._children(site.id) if not f.is_folder and pattern.match(f.name)), None)
@@ -416,7 +432,10 @@ class ProjectStore:
         When two folders ask for the same slug, the first (alphabetically) keeps it
         and the other is still listed, reachable only by its folder ID, and flagged.
         """
-        folders = [f for f in self._children(self.root_id) if f.is_folder and not is_hidden(f.name)]
+        root = self.root_id
+        if not root:
+            return {}, []  # no projects folder yet
+        folders = [f for f in self._children(root) if f.is_folder and not is_hidden(f.name)]
         summaries = list(_pool.map(self._summarize, folders))
         name_counts: dict[str, int] = {}
         for summary in summaries:

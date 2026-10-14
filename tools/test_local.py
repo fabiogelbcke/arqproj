@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import threading
+from tempfile import TemporaryDirectory
 from urllib.request import urlopen
 from unittest.mock import patch
 
@@ -63,12 +64,23 @@ def browser_tests(env):
                    DRIVE_API_BASE=f"{drive_url}/drive/v3", DRIVE_ROOT_FOLDER_ID=fake.root_id,
                    SITE_LANG="pt", SITE_NAME="Escritório de Teste", DASHBOARD_PASSWORD="demo",
                    SHOW_PROJECT_INDEX="1", CACHE_TTL_SECONDS="60")
+        # The site's own address is part of its OAuth settings, so bind first and
+        # build the app once the port is known.
+        site = {}
+        site_url = stack.enter_context(serve(lambda environ, start: site["app"](environ, start)))
+        state_dir = stack.enter_context(TemporaryDirectory(prefix="arq-browser-"))
+        env.update(OAUTH_CLIENT_ID="fake-client-id", OAUTH_CLIENT_SECRET="fake-secret",
+                   OAUTH_REDIRECT_URI=f"{site_url}/painel/drive/callback",
+                   OAUTH_AUTH_URI=f"{drive_url}/o/oauth2/v2/auth", OAUTH_TOKEN_URI=f"{drive_url}/token",
+                   PORTAL_STATE_FILE=f"{state_dir}/drive-connection.json",
+                   PORTAL_SETTINGS_FILE=f"{state_dir}/portal-settings.json")
         stack.enter_context(patch.dict(os.environ, env, clear=True))
         from app import create_app
 
-        site_url = stack.enter_context(serve(create_app()))
+        site["app"] = create_app()
         env.update(PROJECT_TEST_URL=f"{site_url}/casa-jardim",
-                   STANDARD_PROJECT_TEST_URL=f"{site_url}/projeto-padrao")
+                   STANDARD_PROJECT_TEST_URL=f"{site_url}/projeto-padrao",
+                   PAINEL_TEST_URL=f"{site_url}/painel")
         for url in (env["PROJECT_TEST_URL"], env["STANDARD_PROJECT_TEST_URL"]):
             with urlopen(url, timeout=30) as response:
                 if response.status != 200:

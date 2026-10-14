@@ -4,6 +4,7 @@
 """
 
 import os
+import tempfile
 import threading
 
 from werkzeug.serving import make_server
@@ -32,6 +33,21 @@ if __name__ == "__main__":
         DRIVE_API_BASE=f"http://127.0.0.1:{FAKE_PORT}/drive/v3",
         DRIVE_ROOT_FOLDER_ID=fake.root_id,
     )
+    # The painel's "Connect Google Drive" goes to the fake consent page instead of
+    # Google. Connection state and office settings start fresh on every launch, so
+    # test mode never touches the files real Drive mode keeps in the project root.
+    state_dir = tempfile.mkdtemp(prefix="arq-test-mode-")
+    os.environ.update(
+        OAUTH_CLIENT_ID="fake-client-id.apps.googleusercontent.com",
+        OAUTH_CLIENT_SECRET="fake-client-secret",
+        OAUTH_REDIRECT_URI=f"http://127.0.0.1:{PORT}/painel/drive/callback",
+        OAUTH_AUTH_URI=f"http://127.0.0.1:{FAKE_PORT}/o/oauth2/v2/auth",
+        OAUTH_TOKEN_URI=f"http://127.0.0.1:{FAKE_PORT}/token",
+        PORTAL_STATE_FILE=os.path.join(state_dir, "drive-connection.json"),
+        PORTAL_SETTINGS_FILE=os.path.join(state_dir, "portal-settings.json"),
+    )
+    for key in ("PORTAL_STATE_BUCKET", "SERVICE_ACCOUNT_EMAIL"):
+        os.environ.pop(key, None)
     os.environ.setdefault("SITE_NAME", "ALINEA ARQUITETOS")
     os.environ.setdefault("SHOW_PROJECT_INDEX", "1")
     os.environ.setdefault("DASHBOARD_PASSWORD", "demo")

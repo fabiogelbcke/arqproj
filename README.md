@@ -146,10 +146,11 @@ python -m unittest discover -s tests -v
 
 The demo runs a fake Drive API locally, with real JWT signing and verification, loaded with sample data.
 
-### Two local testing modes (including Codex)
+### Three local testing modes (including Codex)
 
 Ask Codex **“run the website locally with test data”** or
-**“run the website with Google Drive data”**. The root `AGENTS.md` maps these
+**“run the website with Google Drive data”**, or
+**“run the website with the Google Drive connection (OAuth)”**. The root `AGENTS.md` maps these
 requests to the commands below, checks startup, and provides the local URL.
 You can also ask naturally in Portuguese, for example **“roda o site com dados
 de teste”** or **“roda localmente com os dados do Google Drive”**. Codex follows
@@ -159,9 +160,21 @@ the intended data source, not an exact phrase, and replies in your language.
 | --- | --- | --- |
 | Generated fictional data | `.venv/bin/python run_local.py test` | No Google credentials; ignores `.env` |
 | Actual Google Drive | `.venv/bin/python run_local.py drive` | Your own `.env`, service-account credentials, and folder access |
+| Google Drive connected in the painel | `.venv/bin/python run_local.py drive-oauth` | As `drive`, plus the OAuth client (see [below](#google-drive-connection-oauth)) |
 
-Both run only on your computer. Drive mode uses read-only access and does not
-deploy. Use `--port 5001` if port 5000 is already occupied; a second test-data
+- **test**: editable local files. The painel's “Connect Google Drive” goes to a
+  fake Google sign-in, so the connect/new-project/publish flow can be tried
+  without an account; that connection resets on every restart.
+- **drive**: projects come from `DRIVE_ROOT_FOLDER_ID`, read with the service
+  account. The painel has no Drive connection in this mode.
+- **drive-oauth**: no fixed folder. Sign in with Google from the painel; the
+  site creates a projects folder in that account's Drive, shares it with the
+  service account, and shows the projects inside it. New projects start as
+  drafts until published. The connection is kept in `.drive-connection.json`
+  (ignored by Git) across restarts.
+
+All three run only on your computer and never deploy. The Drive modes never
+use `PORTAL_STATE_BUCKET`, so they cannot touch a deployed site's connection. Use `--port 5001` if port 5000 is already occupied; a second test-data
 instance also needs `--fake-drive-port 8766`.
 
 The generator `tools/fake_drive.py` and demo code are committed; generated
@@ -292,6 +305,28 @@ The root folder should contain project folders following the conventions above.
 The launcher reads literal `KEY=value` lines, optional `export`, quotes, and
 comments; it does not execute shell commands or expand variables such as `$HOME`.
 Use an absolute credentials path. Never commit `.env` or credential files.
+
+### Google Drive connection (OAuth)
+
+For `drive-oauth`, first do the steps above (a service account and its key),
+then:
+
+1. Under **APIs & Services → OAuth consent screen**, configure an External app
+   and add your Google account as a test user. While the app is in *Testing*,
+   Google can expire the connection after seven days; reconnect when asked.
+2. Under **APIs & Services → Credentials → Create credentials → OAuth client ID**,
+   choose **Web application** and add the redirect URI
+   `http://127.0.0.1:5000/painel/drive/callback` (`127.0.0.1`, not `localhost`).
+3. Add to `.env`, copying the ID and secret from the same client:
+
+```dotenv
+OAUTH_CLIENT_ID=….apps.googleusercontent.com
+OAUTH_CLIENT_SECRET=GOCSPX-…
+OAUTH_REDIRECT_URI=http://127.0.0.1:5000/painel/drive/callback
+```
+
+`DRIVE_ROOT_FOLDER_ID` is ignored in this mode. With `--port`, the redirect URI
+must use that port and be registered on the client too; the launcher checks it.
 
 ## Cloud Run
 

@@ -5,16 +5,77 @@
 <section class="dash">
   <header class="dash__header">
     <h1>{{ t('dash.title') }}</h1>
+    {% set drive_ready = drive_connected and not drive_needs_reconnect and drive_state.delivery_folder_id %}
     <div class="dash__actions">
-      <a class="btn btn--quiet" href="{{ url_for('drive_panel') }}">{{ t('drive.link') }}</a>
-      <form method="post" action="{{ url_for('dashboard_refresh') }}"><button type="submit" class="btn">{{ t('dash.refresh') }}</button></form>
+      {% if drive_ready %}
+      <button type="button" class="btn dash__primary" data-open-dialog="project-dialog">{{ t('drive.new_project') }}</button>
+      {% endif %}
+      {% if settings_editable %}
+      <button type="button" class="btn btn--quiet" data-open-dialog="settings-dialog">{{ t('settings.open') }}</button>
+      {% endif %}
+      <form method="post" action="{{ url_for('dashboard_refresh') }}"><button type="submit" class="btn btn--quiet">{{ t('dash.refresh') }}</button></form>
       <form method="post" action="{{ url_for('dashboard_logout') }}"><button type="submit" class="btn btn--quiet">{{ t('dash.logout') }}</button></form>
     </div>
   </header>
 
-  {% with messages = get_flashed_messages() %}
-    {% for m in messages %}<p class="flash">{{ m }}</p>{% endfor %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, m in messages %}
+    <p class="flash{% if category == 'error' %} flash--error{% endif %}"{% if category == 'error' %} role="alert"{% endif %}>{{ m }}</p>
+    {% endfor %}
   {% endwith %}
+  {% if drive_error %}<p class="flash flash--error">{{ drive_error }}</p>{% endif %}
+
+  {% if drive_configured %}
+    {% if drive_needs_reconnect %}
+    <div class="drive-banner drive-banner--warn">
+      <div>
+        <h2>{{ t('drive.reconnect') }}</h2>
+        <p>{{ t('drive.reconnect_body') }}</p>
+      </div>
+      <button type="button" class="btn" data-open-dialog="connect-dialog">{{ t('drive.connect') }}</button>
+    </div>
+    {% elif not drive_connected %}
+    <div class="drive-banner">
+      <div>
+        <h2>{{ t('drive.intro_title') }}</h2>
+        <p>{{ t('drive.intro') }}</p>
+      </div>
+      <button type="button" class="btn" data-open-dialog="connect-dialog">{{ t('drive.connect') }}</button>
+    </div>
+    {% elif drive_ready %}
+    {# When the site reads from the connected folder, published projects are already
+       in the list below; only the drafts (hidden from clients) need their own place. #}
+    {% set listed = drive_projects|selectattr('draft')|list if projects_from_connection else drive_projects %}
+    <section class="drive-projects" aria-labelledby="drive-projects-title">
+      <div class="drive-projects__head">
+        <h2 id="drive-projects-title">{{ t('drive.drafts') if projects_from_connection else t('drive.projects') }}</h2>
+        <a class="drive-projects__folder" href="https://drive.google.com/drive/folders/{{ drive_state.delivery_folder_id }}" target="_blank" rel="noopener">{{ drive_state.delivery_folder_name }} ↗</a>
+      </div>
+      {% if not listed %}
+      <p class="muted">{{ t('drive.no_drafts') if projects_from_connection else t('drive.no_projects') }} {{ t('drive.projects_hint') }}</p>
+      {% else %}
+      <ul class="drive-projects__list">
+        {% for p in listed %}
+        <li>
+          <span class="drive-projects__title">{{ p.title }}</span>
+          {% if p.draft %}<span class="pill pill--hidden">{{ t('drive.draft') }}</span>{% endif %}
+          <span class="drive-projects__actions">
+            {% if p.draft %}
+            <form method="post" action="{{ url_for('drive_publish') }}">
+              <input type="hidden" name="folder_id" value="{{ p.id }}">
+              <input type="hidden" name="title" value="{{ p.title }}">
+              <button type="submit" class="btn btn--small">{{ t('drive.publish') }}</button>
+            </form>
+            {% endif %}
+            <a class="btn btn--small" href="https://drive.google.com/drive/folders/{{ p.id }}" target="_blank" rel="noopener">{{ t('drive.open_drive') }}</a>
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+    {% endif %}
+  {% endif %}
 
   {% set needing = projects|selectattr('warnings')|list|length %}
   {% if root_error %}
@@ -87,9 +148,11 @@
   </ul>
   {% endif %}
 </section>
+{% include "painel_dialogs.html" %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='painel-dialogs.js') }}"></script>
 <script>
   document.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-copy]");

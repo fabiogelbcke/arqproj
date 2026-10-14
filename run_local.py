@@ -1,9 +1,16 @@
-"""Run locally with generated test data or private .env Drive settings."""
+"""Run locally with test data, or against Google Drive with your private .env.
+
+  test        editable local files, plus a fake Google sign-in for the painel
+  drive       projects from DRIVE_ROOT_FOLDER_ID, read with the service account
+  drive-oauth projects from the folder created when you connect Google Drive in
+              the painel (real Google sign-in), still read with the service account
+"""
 import argparse
 import os
 from pathlib import Path
 import re
 import shlex
+from urllib.parse import urlparse
 import subprocess
 import sys
 
@@ -14,7 +21,11 @@ APP_SETTINGS = {
     'SITE_TIMEZONE', 'CACHE_TTL_SECONDS', 'SHOW_PROJECT_INDEX', 'NEW_BADGE_DAYS',
     'DASHBOARD_PASSWORD', 'USE_METADATA_SERVER', 'METADATA_TOKEN_URL',
     'K_SERVICE', 'DEBUG', 'PORT', 'FAKE_DRIVE_PORT', 'LOCAL_TEST_PROJECTS',
+    'OAUTH_CLIENT_ID', 'OAUTH_CLIENT_SECRET', 'OAUTH_REDIRECT_URI', 'OAUTH_AUTH_URI',
+    'OAUTH_TOKEN_URI', 'SERVICE_ACCOUNT_EMAIL', 'PORTAL_STATE_BUCKET', 'PORTAL_STATE_FILE',
+    'PORTAL_SETTINGS_FILE', 'PROJECTS_SOURCE',
 }
+OAUTH_SETTINGS = ('OAUTH_CLIENT_ID', 'OAUTH_CLIENT_SECRET', 'OAUTH_REDIRECT_URI')
 
 
 def read_env(path):
@@ -38,20 +49,37 @@ def read_env(path):
     return result
 
 
-def local_environment(mode, env_path):
+def local_environment(mode, env_path, port=5000):
     env = {k: v for k, v in os.environ.items() if k not in APP_SETTINGS}
-    if mode == 'drive':
+    if mode in ('drive', 'drive-oauth'):
         if not env_path.is_file():
             raise ValueError('Missing .env. See README.md for the local Google Drive setup.')
         settings = read_env(env_path)
         env.update({k: v for k, v in settings.items() if k in APP_SETTINGS})
-        if not env.get('DRIVE_ROOT_FOLDER_ID'):
-            raise ValueError('Set DRIVE_ROOT_FOLDER_ID in .env.')
         if not (env.get('GOOGLE_APPLICATION_CREDENTIALS') or env.get('GOOGLE_SERVICE_ACCOUNT_KEY')):
             raise ValueError('Set GOOGLE_APPLICATION_CREDENTIALS in .env to your credentials file.')
-        # Local Drive mode always uses Google and explicit local credentials.
-        for key in ('DRIVE_API_BASE', 'USE_METADATA_SERVER', 'METADATA_TOKEN_URL', 'K_SERVICE'):
+        # Local Drive modes always use Google and explicit local credentials.
+        for key in ('DRIVE_API_BASE', 'USE_METADATA_SERVER', 'METADATA_TOKEN_URL', 'K_SERVICE',
+                    'OAUTH_AUTH_URI', 'OAUTH_TOKEN_URI', 'PROJECTS_SOURCE'):
             env.pop(key, None)
+        # Keep the connection and settings in local files, never a shared bucket.
+        env.pop('PORTAL_STATE_BUCKET', None)
+    if mode == 'drive':
+        if not env.get('DRIVE_ROOT_FOLDER_ID'):
+            raise ValueError('Set DRIVE_ROOT_FOLDER_ID in .env.')
+        # Read-only: no "Connect Google Drive" in the painel in this mode.
+        for key in OAUTH_SETTINGS:
+            env.pop(key, None)
+    if mode == 'drive-oauth':
+        missing = [k for k in OAUTH_SETTINGS if not env.get(k)]
+        if missing:
+            raise ValueError(f'Set {", ".join(missing)} in .env. See README.md, "Google Drive connection".')
+        redirect = urlparse(env['OAUTH_REDIRECT_URI'])
+        if redirect.hostname != '127.0.0.1' or redirect.port != port:
+            raise ValueError(f'OAUTH_REDIRECT_URI in .env must be http://127.0.0.1:{port}/painel/drive/callback '
+                             'for this port, and registered on the OAuth client in Google Cloud.')
+        env['PROJECTS_SOURCE'] = 'connection'
+        env.pop('DRIVE_ROOT_FOLDER_ID', None)
     env['DEBUG'] = '0'
     env['FLASK_SKIP_DOTENV'] = '1'
     return env
@@ -59,7 +87,7 @@ def local_environment(mode, env_path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=['test', 'drive'])
+    parser.add_argument('mode', choices=['test', 'drive', 'drive-oauth'])
     parser.add_argument('--port', type=int, default=5000)
     parser.add_argument('--fake-drive-port', type=int, default=8765)
     parser.add_argument('--data-dir', type=Path, default=ROOT / 'local-test-data')
@@ -68,8 +96,8 @@ def main():
     selection.add_argument('--regenerate-data', action='store_true')
     args = parser.parse_args()
     try:
-        env = local_environment(args.mode, ROOT / '.env')
-        if args.mode == 'drive' and (args.reuse_data or args.regenerate_data):
+        env = local_environment(args.mode, ROOT / '.env', args.port)
+        if args.mode != 'test' and (args.reuse_data or args.regenerate_data):
             raise ValueError('Dataset flags apply only to test mode.')
         if args.mode == 'test':
             from tools.local_data import prepare

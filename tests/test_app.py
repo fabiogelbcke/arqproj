@@ -12,6 +12,13 @@ from werkzeug.serving import make_server
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Keep the painel's saved settings and Drive connection out of the developer's files.
+import tempfile  # noqa: E402
+
+_STATE_DIR = tempfile.mkdtemp(prefix="arq-tests-")
+os.environ["PORTAL_SETTINGS_FILE"] = os.path.join(_STATE_DIR, "settings.json")
+os.environ["PORTAL_STATE_FILE"] = os.path.join(_STATE_DIR, "drive-connection.json")
+
 from arq.config import parse_config  # noqa: E402
 from arq.projects import parse_stage_name  # noqa: E402
 from tools.fake_drive import FakeDrive, service_account_json  # noqa: E402

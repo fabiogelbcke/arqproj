@@ -679,3 +679,119 @@ a { color: inherit; }
 .dash__summary { margin: 0 0 16px; font-size: 14px; color: var(--ink); font-weight: 500; }
 .dash-card--hidden { background: var(--accent-soft); }
 .pill--hidden { margin-left: 8px; vertical-align: middle; border-color: var(--ink); color: var(--ink); }
+
+/* Painel: Drive banner, new projects and modals ---------------------------- */
+
+/* Errors look different from confirmations: outlined, with a marker, not the soft fill. */
+.flash.flash--error { background: transparent; border: 1px solid var(--line); border-left: 3px solid var(--ink); }
+.flash + .flash { margin-top: 8px; }
+
+/* One visible focus style for the painel, readable in both themes. */
+.dash .btn:focus-visible, .modal .btn:focus-visible, .modal__close:focus-visible,
+.stages-editor__remove:focus-visible, .modal a:focus-visible, .drive-projects a:focus-visible,
+.check input:focus-visible {
+  outline: 2px solid var(--ink); outline-offset: 2px;
+}
+
+.dash__actions { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .dash__actions { width: 100%; }
+  .dash__actions > * { flex: 1 1 0; }
+  .dash__actions > form .btn, .dash__actions > .btn { width: 100%; justify-content: center; }
+  .dash__actions > .dash__primary { flex-basis: 100%; }
+}
+
+.drive-banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+  margin: 0 0 24px; padding: 20px;
+  background: var(--accent-soft); border-radius: var(--radius);
+}
+.drive-banner--warn { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); }
+.drive-banner h2 { margin: 0 0 4px; font-size: 17px; font-weight: 500; }
+.drive-banner p { margin: 0; font-size: 14px; max-width: 60ch; }
+
+.drive-projects { margin: 0 0 24px; }
+.drive-projects__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.drive-projects__head h2 { margin: 0; font-size: 17px; font-weight: 500; }
+.drive-projects__folder { font-size: 13px; color: var(--muted); }
+.drive-projects > p { margin: 0; font-size: 14px; }
+.drive-projects__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.drive-projects__list li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding: 14px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.drive-projects__title { font-size: 15px; font-weight: 500; }
+.drive-projects__actions { margin-left: auto; display: flex; gap: 8px; }
+.drive-projects__actions a { text-decoration: none; }
+.drive-projects .pill--hidden { margin-left: 0; }
+
+.modal {
+  width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 48px);
+  padding: 0; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--bg); color: var(--ink);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.modal--small { width: min(420px, calc(100vw - 32px)); }
+.modal::backdrop { background: rgba(16, 17, 17, 0.55); }
+.modal__body { display: grid; gap: 16px; padding: 24px; }
+.modal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.modal h2 { margin: 0; font-size: 22px; font-weight: 400; letter-spacing: -0.01em; }
+.modal h3 { margin: 0; font-size: 15px; font-weight: 500; }
+.modal p { margin: 0; font-size: 14px; }
+.modal__close {
+  flex: none; width: 32px; height: 32px; margin: -4px -8px 0 0; padding: 0;
+  border: 1px solid transparent; border-radius: var(--radius);
+  background: transparent; color: var(--muted); font: inherit; font-size: 22px; line-height: 1; cursor: pointer;
+}
+.modal__close:hover { color: var(--ink); border-color: var(--line); }
+.modal__section { display: grid; gap: 16px; }
+.modal__section--divided { padding-top: 20px; border-top: 1px solid var(--line); }
+.modal__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+/* Form labels in sentence case: easier to read than the tracked capitals used for data labels. */
+.field { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.field > label:not(.check), .field > legend, .field__label { padding: 0; font-size: 13px; font-weight: 500; color: var(--ink); }
+.field input:not([type="checkbox"]):not([type="file"]) {
+  width: 100%; box-sizing: border-box; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--ink); font: inherit;
+}
+.field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+:root[data-theme="light"] .field input:focus-visible { outline-color: var(--ink); }
+.field__hint { font-size: 12px !important; color: var(--muted); }
+.field__error { padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--ink); border-radius: var(--radius); }
+.field__prefixed { display: flex; align-items: center; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.field__prefixed span { padding-left: 12px; color: var(--muted); }
+.field .field__prefixed input:not([type="checkbox"]):not([type="file"]) { border: 0; padding-left: 2px; background: transparent; }
+.field__prefixed:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+:root[data-theme="light"] .field__prefixed:focus-within { outline-color: var(--ink); }
+.field__prefixed input:focus-visible { outline: none; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
+/* The native file input can't be translated; a label styled as a button stands in for it. */
+.file-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.file-pick__input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.file-pick__input:focus-visible + .btn { outline: 2px solid var(--ink); outline-offset: 2px; }
+.file-pick .btn { cursor: pointer; }
+.file-pick__name { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+
+.stages-editor__list { margin: 0; padding: 0 0 0 22px; display: grid; gap: 6px; }
+.stages-editor__list li { display: list-item; padding-left: 4px; color: var(--muted); font-size: 13px; }
+.stages-editor__list li > * { vertical-align: middle; }
+.stages-editor__list li input { width: calc(100% - 40px) !important; }
+.stages-editor__remove {
+  width: 32px; height: 32px; margin-left: 4px; padding: 0;
+  border: 1px solid transparent; border-radius: var(--radius);
+  background: transparent; color: var(--muted); font: inherit; font-size: 18px; line-height: 1; cursor: pointer;
+}
+.stages-editor__remove:hover:not(:disabled) { border-color: var(--line); color: var(--ink); }
+.stages-editor__remove:disabled { opacity: 0.35; cursor: not-allowed; }
+.stages-editor [data-add-stage] { justify-self: start; }
+
+/* Show uploaded logos as they are: colour logos must not be recoloured for dark mode. */
+.logo-preview { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.logo-preview img { display: block; max-height: 48px; max-width: 100%; }
+
+.modal-facts { margin: 0; display: grid; gap: 12px; }
+.modal-facts dt { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.modal-facts dd { margin: 2px 0 0; font-size: 14px; overflow-wrap: anywhere; }

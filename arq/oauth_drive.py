@@ -34,6 +34,7 @@ from dataclasses import dataclass
 
 import requests
 
+from .config import slugify
 from .google_auth import GCS_SCOPE, get_auth
 
 SCOPE = "https://www.googleapis.com/auth/drive.file"
@@ -92,7 +93,7 @@ def authorize_url(cfg: OAuthConfig, state: str) -> str:
         "include_granted_scopes": "true",
         "state": state,
     }
-    return f"{AUTH_URI}?{urllib.parse.urlencode(params)}"
+    return f"{os.environ.get('OAUTH_AUTH_URI') or AUTH_URI}?{urllib.parse.urlencode(params)}"
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +210,7 @@ class DriveWriter:
     def list_children(self, folder_id: str) -> list[dict]:
         out = self._call("GET", "/files", params={
             "q": f"'{folder_id}' in parents and trashed=false",
-            "fields": "files(id,name,mimeType,modifiedTime)",
+            "fields": "files(id,name,mimeType,modifiedTime,appProperties)",
             "orderBy": "folder,name",
             "includeItemsFromAllDrives": "true",
         })
@@ -241,6 +242,10 @@ class Connection:
         self.store = store or default_state_store()
         self.service_account_email = service_account_email
         self._session = session or requests
+        # Overridable so local test mode can point at the fake Google in tools/fake_drive.py.
+        self.token_uri = os.environ.get("OAUTH_TOKEN_URI") or TOKEN_URI
+        self.api_base = os.environ.get("DRIVE_API_BASE") or DRIVE_API
+        self.upload_base = self.api_base.replace("/drive/v3", "/upload/drive/v3")
         self._access: str | None = None
         self._expires_at = 0.0
         self._lock = threading.Lock()
@@ -260,7 +265,7 @@ class Connection:
 
     # -- tokens -----------------------------------------------------------
     def complete_login(self, code: str) -> dict:
-        r = self._session.post(TOKEN_URI, data={
+        r = self._session.post(self.token_uri, data={
             "code": code,
             "client_id": self.cfg.client_id,
             "client_secret": self.cfg.client_secret,
@@ -288,7 +293,7 @@ class Connection:
         refresh = self.state().get("refresh_token")
         if not refresh:
             raise NotConnected("no refresh token stored")
-        r = self._session.post(TOKEN_URI, data={
+        r = self._session.post(self.token_uri, data={
             "client_id": self.cfg.client_id,
             "client_secret": self.cfg.client_secret,
             "refresh_token": refresh,
@@ -307,7 +312,8 @@ class Connection:
             return self._access
 
     def writer(self) -> DriveWriter:
-        return DriveWriter(self.access_token(), session=self._session)
+        return DriveWriter(self.access_token(), session=self._session,
+                           base_url=self.api_base, upload_url=self.upload_base)
 
     # -- operations -------------------------------------------------------
     def setup_delivery_folder(self, name: str) -> dict:
@@ -339,8 +345,11 @@ class Connection:
         if not root:
             raise DriveWriteError(400, "no delivery folder yet")
         w = self.writer()
+        # The link is also kept on the folder, so duplicates can be checked without
+        # reading every draft's `_project` doc.
         project = w.create_folder(DRAFT_PREFIX + title, parent=root,
-                                  app_properties={"portal": "project"})
+                                  app_properties={"portal": "project",
+                                                  "slug": slug or slugify(title)})
         lines = [f"Title: {title}"]
         if slug:
             lines.append(f"Slug: {slug}")
@@ -363,8 +372,9 @@ class Connection:
             if f.get("mimeType") != FOLDER_MIME:
                 continue
             name = f["name"]
-            out.append({**f, "draft": name.startswith(DRAFT_PREFIX),
-                        "title": name.lstrip(DRAFT_PREFIX)})
+            title = name.lstrip(DRAFT_PREFIX)
+            out.append({**f, "draft": name.startswith(DRAFT_PREFIX), "title": title,
+                        "slug": (f.get("appProperties") or {}).get("slug") or slugify(title)})
         return out
 
 

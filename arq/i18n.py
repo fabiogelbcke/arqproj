@@ -325,24 +325,35 @@ def is_new(f: DriveFile) -> bool:
     return bool(days > 0 and f.modified and f.modified >= now() - timedelta(days=days))
 
 
-# --- Drive connection panel (OAuth) ----------------------------------------
+# --- Drive connection and office settings (painel) -------------------------
 # Kept in one block, apart from the main table, so the whole feature can be
 # removed in a single edit if the rewrite takes a different shape.
 STRINGS["en"].update({
-    "drive.title": "Google Drive connection",
-    "drive.intro": "Connect the office's Google Drive. The files stay yours, in your "
-                   "Drive — we only organise them and show them to your clients.",
-    "drive.not_configured": "OAuth is not configured on this deployment "
-                            "(OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REDIRECT_URI).",
+    "drive.section": "Google Drive",
+    "drive.intro_title": "Connect your Google Drive",
+    "drive.intro": "Create and publish projects from here. The files stay in your Drive.",
+    "drive.connect_body": "Choose a name for the folder we'll create in your Drive. "
+                          "Next, Google will ask you to allow access.",
+    "drive.reconnect_dialog": "Google will ask you to sign in and allow access again.",
     "drive.connect": "Connect Google Drive",
+    "drive.connect_continue": "Continue to Google",
     "drive.connected": "Google Drive connected.",
+    "drive.connected_with_folder": "Google Drive connected. We created the folder “{name}”.",
     "drive.disconnect": "Disconnect",
-    "drive.disconnected": "Disconnected.",
+    "drive.disconnected": "Google Drive disconnected.",
+    "drive.disconnect_title": "Disconnect Google Drive?",
+    "drive.disconnect_body": "Projects stay visible to clients. You won't be able to create "
+                             "or publish projects until you connect again.",
     "drive.denied": "Authorisation was cancelled.",
     "drive.bad_state": "That sign-in attempt expired. Please try again.",
-    "drive.connect_failed": "Could not complete the connection: {detail}",
-    "drive.failed": "That didn't work: {detail}",
+    "drive.connect_failed": "We couldn't connect to Google Drive. Please try again in a "
+                            "moment. If it keeps happening, send us this code: {ref}.",
+    "drive.failed": "That didn't work. Please try again. If it keeps happening, send us "
+                    "this code: {ref}.",
+    "drive.unavailable": "We couldn't reach your Google Drive just now. Client pages are "
+                         "not affected. If it keeps happening, send us this code: {ref}.",
     "drive.account": "Connected as",
+    "drive.storage": "Storage",
     "drive.quota": "{used} of {total} used ({percent}%)",
     "drive.quota_unlimited": "Pooled storage (Workspace)",
     "drive.quota_warn": "Running low on space. We recommend a Google Workspace "
@@ -350,49 +361,93 @@ STRINGS["en"].update({
     "drive.reconnect": "The connection to Google Drive has lapsed.",
     "drive.reconnect_body": "Client pages keep working — only creating new projects "
                             "needs the connection. Reconnect to continue.",
-    "drive.delivery_folder": "Delivery folder",
+    "drive.delivery_folder": "Projects folder",
     "drive.folder_default": "Portal Clientes",
     "drive.folder_name": "Folder name in your Drive",
-    "drive.folder_create": "Create the delivery folder",
+    "drive.folder_hint": "Everything your clients see goes inside it. Your working files "
+                         "stay where they are.",
+    "drive.folder_required_title": "Name your projects folder",
+    "drive.folder_required_body": "Google Drive is connected, but the projects folder "
+                                  "hasn't been created yet. It's needed before you can "
+                                  "add projects.",
+    "drive.folder_create": "Create folder",
     "drive.folder_created": "Created “{name}” in your Drive.",
-    "drive.folder_intro": "We create one folder for everything the client sees. "
-                          "Your working files stay where they are.",
-    "drive.shared_with": "Shared for reading with {email}",
+    "drive.need_folder": "Create the projects folder first.",
     "drive.new_project": "New project",
     "drive.project_title": "Project name",
     "drive.project_slug": "Link (optional)",
+    "drive.project_slug_hint": "Lowercase letters, numbers and hyphens. Leave empty to use "
+                               "the project name.",
+    "drive.stages_last": "A project needs at least one stage.",
     "drive.stages": "Stages",
+    "drive.stage_add": "Add stage",
+    "drive.stage_remove": "Remove stage",
     "drive.create": "Create project",
+    "drive.cancel": "Cancel",
+    "drive.close": "Close",
     "drive.project_created": "Created “{title}” as a draft.",
     "drive.need_title": "Give the project a name.",
-    "drive.projects": "Projects created here",
+    "drive.need_slug": "Use at least one letter or number in the name or the link.",
+    "drive.name_taken": "There is already a project called “{title}”. Choose another name.",
+    "drive.slug_taken": "The link /{slug} is already used by “{title}”. Choose another link.",
+    "drive.name_taken_short": "There is already a project with this name.",
+    "drive.slug_taken_short": "This link is already used by another project.",
+    "drive.projects": "New projects",
+    "drive.projects_hint": "New projects start as drafts, hidden from clients until you "
+                           "publish them.",
     "drive.no_projects": "No projects yet.",
+    "drive.drafts": "Drafts",
+    "drive.no_drafts": "No drafts.",
     "drive.draft": "Draft",
     "drive.publish": "Publish",
     "drive.published": "Published. It is now visible to clients.",
     "drive.open_drive": "Open in Drive",
-    "drive.seen_by_sa": "Visible to the site",
-    "drive.seen_intro": "What the site itself can read inside that folder. Drop a file "
-                        "into it from Finder and it should appear here.",
-    "drive.seen_none": "Nothing readable yet.",
-    "drive.back": "Back to the dashboard",
-    "drive.link": "Drive connection",
+    "settings.open": "Settings",
+    "settings.office": "Office",
+    "settings.choose_logo": "Choose file",
+    "settings.no_logo_file": "No file chosen",
+    "settings.title": "Office settings",
+    "settings.name": "Office name",
+    "settings.name_hint": "Shown in the header and the browser tab.",
+    "settings.logo": "Logo",
+    "settings.logo_hint": "PNG, JPG, WebP or SVG, up to 512 KB. Shown in the header "
+                          "instead of the name.",
+    "settings.logo_remove": "Remove the logo",
+    "settings.save": "Save",
+    "settings.saved": "Settings saved.",
+    "settings.need_name": "Give the office a name.",
+    "settings.logo_too_big": "That logo is too large. Use an image under 512 KB.",
+    "settings.logo_bad_type": "That file isn't a supported image. Use PNG, JPG, WebP or SVG.",
+    "settings.failed": "We couldn't save the settings. Please try again. If it keeps "
+                       "happening, send us this code: {ref}.",
 })
 STRINGS["pt"].update({
-    "drive.title": "Conexão com o Google Drive",
-    "drive.intro": "Conecte o Google Drive do escritório. Os arquivos continuam sendo "
-                   "seus, no seu Drive — nós só organizamos e mostramos para o cliente.",
-    "drive.not_configured": "O OAuth não está configurado nesta instalação "
-                            "(OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REDIRECT_URI).",
+    "drive.section": "Google Drive",
+    "drive.intro_title": "Conecte seu Google Drive",
+    "drive.intro": "Crie e publique projetos daqui. Os arquivos continuam no seu Drive.",
+    "drive.connect_body": "Escolha o nome da pasta que vamos criar no seu Drive. "
+                          "Em seguida, o Google vai pedir sua autorização.",
+    "drive.reconnect_dialog": "O Google vai pedir para você entrar e autorizar o acesso de novo.",
     "drive.connect": "Conectar o Google Drive",
+    "drive.connect_continue": "Continuar no Google",
     "drive.connected": "Google Drive conectado.",
+    "drive.connected_with_folder": "Google Drive conectado. Criamos a pasta “{name}”.",
     "drive.disconnect": "Desconectar",
-    "drive.disconnected": "Desconectado.",
+    "drive.disconnected": "Google Drive desconectado.",
+    "drive.disconnect_title": "Desconectar o Google Drive?",
+    "drive.disconnect_body": "Os projetos continuam visíveis para os clientes. Você só poderá "
+                             "criar ou publicar projetos depois de conectar de novo.",
     "drive.denied": "A autorização foi cancelada.",
     "drive.bad_state": "A tentativa de login expirou. Tente novamente.",
-    "drive.connect_failed": "Não foi possível concluir a conexão: {detail}",
-    "drive.failed": "Não funcionou: {detail}",
+    "drive.connect_failed": "Não foi possível conectar ao Google Drive. Tente novamente em "
+                            "instantes. Se continuar acontecendo, envie-nos este código: {ref}.",
+    "drive.failed": "Não deu certo. Tente novamente. Se continuar acontecendo, envie-nos "
+                    "este código: {ref}.",
+    "drive.unavailable": "Não conseguimos acessar seu Google Drive agora. As páginas dos "
+                         "clientes não foram afetadas. Se continuar acontecendo, envie-nos "
+                         "este código: {ref}.",
     "drive.account": "Conectado como",
+    "drive.storage": "Armazenamento",
     "drive.quota": "{used} de {total} usados ({percent}%)",
     "drive.quota_unlimited": "Armazenamento compartilhado (Workspace)",
     "drive.quota_warn": "Pouco espaço livre. Recomendamos uma conta Google Workspace "
@@ -401,31 +456,63 @@ STRINGS["pt"].update({
     "drive.reconnect_body": "As páginas dos clientes continuam funcionando — só a "
                             "criação de novos projetos depende da conexão. "
                             "Reconecte para continuar.",
-    "drive.delivery_folder": "Pasta de entrega",
+    "drive.delivery_folder": "Pasta de projetos",
     "drive.folder_default": "Portal Clientes",
     "drive.folder_name": "Nome da pasta no seu Drive",
-    "drive.folder_create": "Criar a pasta de entrega",
+    "drive.folder_hint": "Tudo o que seus clientes veem fica dentro dela. Seus arquivos de "
+                         "trabalho continuam onde estão.",
+    "drive.folder_required_title": "Dê um nome à pasta de projetos",
+    "drive.folder_required_body": "O Google Drive está conectado, mas a pasta de projetos "
+                                  "ainda não foi criada. Ela é necessária para adicionar "
+                                  "projetos.",
+    "drive.folder_create": "Criar pasta",
     "drive.folder_created": "Criamos “{name}” no seu Drive.",
-    "drive.folder_intro": "Criamos uma pasta só para o que o cliente vê. Seus arquivos "
-                          "de trabalho continuam onde estão.",
-    "drive.shared_with": "Compartilhada para leitura com {email}",
+    "drive.need_folder": "Crie a pasta de projetos primeiro.",
     "drive.new_project": "Novo projeto",
     "drive.project_title": "Nome do projeto",
     "drive.project_slug": "Link (opcional)",
+    "drive.project_slug_hint": "Letras minúsculas, números e hífens. Deixe em branco para "
+                               "usar o nome do projeto.",
+    "drive.stages_last": "O projeto precisa de pelo menos uma etapa.",
     "drive.stages": "Etapas",
+    "drive.stage_add": "Adicionar etapa",
+    "drive.stage_remove": "Remover etapa",
     "drive.create": "Criar projeto",
+    "drive.cancel": "Cancelar",
+    "drive.close": "Fechar",
     "drive.project_created": "“{title}” criado como rascunho.",
     "drive.need_title": "Dê um nome ao projeto.",
-    "drive.projects": "Projetos criados aqui",
+    "drive.need_slug": "Use pelo menos uma letra ou número no nome ou no link.",
+    "drive.name_taken": "Já existe um projeto chamado “{title}”. Escolha outro nome.",
+    "drive.slug_taken": "O link /{slug} já é usado por “{title}”. Escolha outro link.",
+    "drive.name_taken_short": "Já existe um projeto com esse nome.",
+    "drive.slug_taken_short": "Esse link já é usado por outro projeto.",
+    "drive.projects": "Projetos novos",
+    "drive.projects_hint": "Projetos novos começam como rascunho, ocultos para os clientes "
+                           "até você publicar.",
     "drive.no_projects": "Nenhum projeto ainda.",
+    "drive.drafts": "Rascunhos",
+    "drive.no_drafts": "Nenhum rascunho.",
     "drive.draft": "Rascunho",
     "drive.publish": "Publicar",
     "drive.published": "Publicado. Já está visível para os clientes.",
     "drive.open_drive": "Abrir no Drive",
-    "drive.seen_by_sa": "Visível para o site",
-    "drive.seen_intro": "O que o próprio site consegue ler dentro dessa pasta. Arraste "
-                        "um arquivo para ela pelo Finder e ele deve aparecer aqui.",
-    "drive.seen_none": "Nada legível ainda.",
-    "drive.back": "Voltar ao painel",
-    "drive.link": "Conexão com o Drive",
+    "settings.open": "Configurações",
+    "settings.office": "Escritório",
+    "settings.choose_logo": "Escolher arquivo",
+    "settings.no_logo_file": "Nenhum arquivo escolhido",
+    "settings.title": "Configurações do escritório",
+    "settings.name": "Nome do escritório",
+    "settings.name_hint": "Aparece no cabeçalho e na aba do navegador.",
+    "settings.logo": "Logo",
+    "settings.logo_hint": "PNG, JPG, WebP ou SVG, até 512 KB. Aparece no cabeçalho no "
+                          "lugar do nome.",
+    "settings.logo_remove": "Remover o logo",
+    "settings.save": "Salvar",
+    "settings.saved": "Configurações salvas.",
+    "settings.need_name": "Dê um nome ao escritório.",
+    "settings.logo_too_big": "Esse logo é grande demais. Use uma imagem com menos de 512 KB.",
+    "settings.logo_bad_type": "Esse arquivo não é uma imagem aceita. Use PNG, JPG, WebP ou SVG.",
+    "settings.failed": "Não foi possível salvar as configurações. Tente novamente. Se "
+                       "continuar acontecendo, envie-nos este código: {ref}.",
 })
