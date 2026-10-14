@@ -19,6 +19,63 @@ a new entry too.
 
 ---
 
+## 2026-10-14 — A25 (revises A08): explicit revisions only → `vN` naming, automatic grouping kept
+
+**Was:** A08 and section 12 replaced filename-based versioning with explicit
+document/revision records. Files added through Drive would only be *suggested*
+as versions of each other; staff confirm, otherwise each file is its own document.
+
+**Now:** the office convention is `v1, v2, v3`. Each file has "Enviar nova
+versão", and uploading a file whose name already exists in the stage asks whether
+it is a new version; if so it is stored as the next `vN`. Clear version tokens in
+names added through Drive still group automatically, as the current site does.
+The database records of A08 remain the underlying model.
+
+**What changed the answer:** the office asked for it. Architects should not type
+version numbers, and automatic grouping is how the current site already behaves,
+so taking it away would be a regression they notice. Explicit records still
+matter for ambiguous names, which stay separate unless staff group them.
+
+**Rejected:** renaming the existing file to `v1` when a second version arrives.
+The `drive.file` grant cannot rename files the office added through Drive, so it
+would only work sometimes. The unnumbered original is *shown* as v1 instead.
+
+---
+
+## 2026-10-14 — A23: custom domains deferred → first office keeps alineaarquitetos.com
+
+**Was:** custom customer domains explicitly deferred; every office on the product
+domain (`{office}.{product-domain}`, A21).
+
+**Now:** the first office is served at `alineaarquitetos.com` by the shared
+deployment, through a `tenant_domains` row. Other offices still wait for the
+product domain, and A21 can be decided then.
+
+**What changed the answer:** there is no product domain yet, the first office's
+clients already use links on that domain, and for the next weeks it is the only
+office. The tenant-by-hostname design already supports it, so it costs no
+separate deployment.
+
+---
+
+## 2026-10-14 — A22: `/p/{random token}/{slug}` → `/{slug}`
+
+**Was:** section 6 recommended `https://office.product/p/{public_token}/{optional-slug}`:
+a stable random token so URLs are harder to guess, with old URLs aliased.
+
+**Now:** `/{project-slug}` on the office's address, exactly like the current site.
+Slugs are unique per office and stable once shared; a deliberate slug change
+keeps the old one redirecting. Privacy for a project comes from the optional
+password (A06), not from an unguessable link. Also dropped from the current
+site: the painel warning that a link taken from the folder name is easy to guess.
+
+**What changed the answer:** readable links are part of the product the office
+shares with clients, and the existing links must keep working. The token never
+made a public page secret anyway; the plan already said public mode "does not
+turn into a secrecy promise". Offices that need privacy have passwords.
+
+---
+
 ## 2026-10-14 — A21: office subdomains (agreed) → reopened as an explicit choice
 
 **Was:** office URLs use `{office-slug}.{product-domain}`, listed as a confirmed
