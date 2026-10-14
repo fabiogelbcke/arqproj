@@ -35,6 +35,7 @@ from dataclasses import dataclass
 import requests
 
 from .config import slugify
+from .stages import STANDARD_STAGES
 from .google_auth import GCS_SCOPE, get_auth
 
 SCOPE = "https://www.googleapis.com/auth/drive.file"
@@ -355,7 +356,7 @@ class Connection:
             lines.append(f"Slug: {slug}")
         w.create_text_file("_project.txt", project["id"], "\n".join(lines) + "\n")
         for position, stage in enumerate(stages, start=1):
-            w.create_folder(f"{position:02d} {stage}", parent=project["id"],
+            w.create_folder(f"{position:02d} - {stage}", parent=project["id"],
                             app_properties={"portal": "stage", "position": str(position)})
         return project
 
@@ -378,14 +379,9 @@ class Connection:
         return out
 
 
-# Editable defaults offered in the panel. Confirm these against a real office.
-DEFAULT_STAGES = [
-    "Estudo Preliminar",
-    "Anteprojeto",
-    "Projeto Executivo",
-    "Detalhamento",
-    "Obra",
-]
+# Editable defaults offered in the painel: the office's standard workflow, so new
+# projects get the stage explanations shown on the client page.
+DEFAULT_STAGES = list(STANDARD_STAGES)
 
 
 def service_account_email(default: str = "") -> str:

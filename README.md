@@ -85,7 +85,7 @@ Free-form description. Each line is a paragraph.
 - Add `Tipo de projeto: Projeto Arquitetônico` or `Tipo de projeto: Projeto de Interiores` to the `_project` header to show the project type in the side panel. Existing projects need this line added to their Drive document; the site does not guess a type when it is absent.
 - `Current stage` takes a number (`3`) or a stage name, and overrides the automatic status. `done` / `concluído` marks everything complete.
 - **`Slug` must be lowercase letters, numbers and hyphens only**, e.g. `casa-nova-7k2p`. An invalid slug is never rewritten: the project is hidden from clients and flagged in the dashboard until it's fixed.
-- If `Slug` is missing, the URL comes from the folder name, which is easy to guess. The folder ID also always works as a URL.
+- If `Slug` is missing, the URL comes from the folder name. The folder ID also always works as a URL.
 - Without a `_project` doc, the page still works and uses the folder name as the title.
 
 ### `_stage` notes (optional, one per stage folder)
@@ -114,7 +114,6 @@ Rev B incorporates the comments from the concept review.
 This page is for the architects, not clients. It lists every project with its current stage, a progress bar, the file count and how many files are new, and the last update. It has a **Copy** button for each client link and a **Refresh from Drive** button that skips the cache. It also flags problems:
 
 - a missing `_project` doc;
-- a link that's easy to guess (no `Slug:`);
 - a `Current stage` that matches no stage folder;
 - a project with no stage folders;
 - loose files in a project folder, which aren't shown;

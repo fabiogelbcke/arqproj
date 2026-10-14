@@ -540,8 +540,6 @@ class ProjectStore:
         if not summary.has_config:
             warnings.append(("warn.no_config", {}))
         warnings.extend(summary.issues)
-        if not summary.explicit_slug and not summary.duplicate_of and not summary.invalid_slug:
-            warnings.append(("warn.guessable_link", {}))
         if matched == "unmatched":
             warnings.append(("warn.stage_unmatched", {"value": summary.config.current_stage}))
         elif matched == "ambiguous":

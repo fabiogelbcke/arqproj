@@ -123,6 +123,9 @@ class PainelDrive(PainelBase):
         self.assertEqual(html.count('class="flash'), 1)  # one message, not two
         self.assertIn('data-open-dialog="project-dialog"', html)
         self.assertIn('id="project-dialog"', html)
+        # New projects start from the office's seven standard stages.
+        self.assertIn('value="Briefing e Levantamento"', html)
+        self.assertIn('value="Serviços extras"', html)
         self.assertNotIn('id="connect-dialog"', html)
         self.assertNotIn('id="folder-dialog"', html)
         self.assertIn(OAUTH_ACCOUNT, html)  # in the settings modal
@@ -182,7 +185,7 @@ class PainelDrive(PainelBase):
         })
         self.assertEqual(r.status_code, 302)
         draft = self.node("_Casa Lago")
-        self.assertEqual(sorted(c.name for c in draft.children), ["01 Estudo", "02 Obra", "_project.txt"])
+        self.assertEqual(sorted(c.name for c in draft.children), ["01 - Estudo", "02 - Obra", "_project.txt"])
         config = next(c for c in draft.children if c.name == "_project.txt")
         self.assertIn("Slug: casa-lago", config.text)
 

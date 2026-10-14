@@ -206,7 +206,7 @@ class Projects(Base):
         names = [c[2]["json"]["name"] for c in s.drive_calls()
                  if c[0] == "POST" and c[1].endswith("/files") and c[2]["json"]]
         self.assertEqual(names[0], "_Casa Jardim")  # hidden from clients until published
-        self.assertEqual(names[1:], ["01 Estudo", "02 Obra"])
+        self.assertEqual(names[1:], ["01 - Estudo", "02 - Obra"])
 
         uploaded = [c for c in s.drive_calls() if c[1].startswith(oauth_drive.DRIVE_UPLOAD)]
         self.assertEqual(len(uploaded), 1)

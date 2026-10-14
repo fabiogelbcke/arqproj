@@ -377,6 +377,7 @@ class Features(unittest.TestCase):
                 self.assertIn(text, html)
             # warnings
             self.assertIn("No _project doc", html)                       # Apartamento
+            self.assertNotIn("easy to guess", html)  # links from folder names are fine
             self.assertIn("1 file(s) directly in the project folder", html)  # Apartamento/Contrato.pdf
             self.assertIn("“Current stage: Executivo” doesn&#39;t match", html)  # Loja Centro
             self.assertEqual(c.post("/painel/refresh").status_code, 302)
