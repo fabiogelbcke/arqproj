@@ -133,7 +133,7 @@ Mistakes never make a project vanish silently. **Every project folder is listed,
 
 One bad folder never breaks the others.
 
-The dashboard is enabled by setting `DASHBOARD_PASSWORD`. Without it, `/painel` returns 404. Sessions last 30 days, and changing the password signs everyone out. `deploy.sh` stores the password in Secret Manager, not as a plain env var.
+The dashboard is enabled by setting `DASHBOARD_PASSWORD`. Without it, `/painel` returns 404. Sessions last 30 days, and changing the password signs everyone out. On Cloud Run the password comes from Secret Manager (`portal-dashboard-password`), not a plain env var.
 
 ## Try it without Google (demo)
 
@@ -329,6 +329,22 @@ OAUTH_REDIRECT_URI=http://127.0.0.1:5000/painel/drive/callback
 must use that port and be registered on the client too; the launcher checks it.
 
 ## Cloud Run
+
+**Deploying:** every push or merge to `main` on GitHub deploys automatically: a
+Cloud Build trigger builds the code and updates the Cloud Run service `portal`
+(us-east1), which serves alineaarquitetos.com. There is no manual deploy step;
+the old local `deploy.sh` is retired. Treat a push to `main` as a production
+release.
+
+The trigger only rebuilds code; the service keeps its settings between deploys.
+Change settings on the service itself (`gcloud run services update portal
+--region us-east1 --update-env-vars …`), keep secrets in Secret Manager, and
+never replace the whole set at once. Current production settings include the
+fixed-folder ones below plus the Drive connection: `OAUTH_CLIENT_ID`,
+`OAUTH_REDIRECT_URI=https://alineaarquitetos.com/painel/drive/callback`,
+`OAUTH_CLIENT_SECRET` (secret `portal-oauth-client-secret`),
+`PORTAL_STATE_BUCKET=arq-proj-portal-state`, `SERVICE_ACCOUNT_EMAIL` and
+`PROJECTS_SOURCE=connection`.
 
 The app is set up for Cloud Run source deploys:
 
