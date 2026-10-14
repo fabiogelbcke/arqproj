@@ -10,9 +10,13 @@ deployment. It separates chosen product behavior, recommended implementation,
 verified behavior, and work that still needs external verification.
 
 Framework decision updated after discussion: the new backend will use FastAPI
-and Pydantic, while retaining Python and the existing Jinja/HTML/CSS/JavaScript
-UI where useful. References to Flask/Gunicorn in the current-state inventory and
-verification history describe the existing application, not the target backend.
+and Pydantic, while retaining Python. Updated 14 October 2026 (A20): client-facing
+pages stay server-rendered with Jinja and reuse the existing HTML/CSS/JavaScript;
+the staff administration becomes a React + TypeScript app served by the same
+service on the same origin. The office address scheme is reopened as an explicit
+choice between two options (A21, section 4). References to Flask/Gunicorn in the
+current-state inventory and verification history describe the existing
+application, not the target backend.
 
 Companion: [infrastructure cost comparison and POC options](infrastructure-cost-comparison.md),
 including free-tier assumptions and Cloud Scheduler versus local cron.
@@ -32,12 +36,16 @@ release readiness is determined by evidence rather than an assumed coding speed.
 
 Confirmed choices:
 
-- Keep Python, Jinja, and the useful existing HTML/CSS/JavaScript UI; use FastAPI
-  and Pydantic for the new backend.
+- Keep Python; use FastAPI and Pydantic for the new backend. Client-facing pages
+  stay server-rendered with Jinja and reuse the existing HTML/CSS/JavaScript; the
+  staff administration becomes a React app on the same origin (A20).
 - Build a clean multi-tenant backend instead of threading tenant parameters
   through the prototype's single-office backend.
-- Office URLs use `{office-slug}.{product-domain}`. Display-name changes do not
-  silently change URLs. Product/domain naming is still open.
+- Office URLs: `{office-slug}.{product-domain}` was agreed, and is reopened as of
+  14 October 2026 against a single-domain alternative for cost reasons (A21,
+  section 4). Either way, display-name changes do not silently change URLs, and
+  the choice is made before any client link is shared. Product/domain naming is
+  still open.
 - PostgreSQL owns project metadata. Drive owns file bytes and physical folders.
 - Use office-user OAuth with `drive.file` for writes, and an explicitly shared
   service account for reads. Fabio has tested the essential split successfully.
@@ -65,7 +73,7 @@ its affected tests before coding proceeds.
 
 | ID | Decision | Status and reason |
 | --- | --- | --- |
-| A01 | New backend in the same repository, retaining Python and the UI | Agreed direction; replace the Flask backend with FastAPI rather than preserve the prototype's architecture |
+| A01 | New backend in the same repository, retaining Python and the client-page UI | Agreed direction; replace the Flask backend with FastAPI rather than preserve the prototype's architecture. Staff UI direction revised by A20 |
 | A02 | Modular application, one database, shared web deployment | Recommended; independent web/worker processes can use the same code and image |
 | A03 | PostgreSQL + SQLAlchemy 2 + Alembic + psycopg 3 | Recommended; relationships, transactions, migrations and local parity |
 | A04 | OAuth writes + service-account reads | Product choice, core flow reported tested by Fabio; remaining capability matrix below. **Hard ordering constraint on provisioning** — see section 9 |
@@ -84,6 +92,8 @@ its affected tests before coding proceeds.
 | A17 | Resend behind an email adapter | Proposed first provider; choose a plan based on actual volumes and delivery limits |
 | A18 | FastAPI + Pydantic + Uvicorn for the new web backend | Agreed framework switch; validated request/response contracts, dependency injection and native async support; Cloud Run remains compatible |
 | A19 | Cloud Scheduler preferred within its free allowance; local cron retained as an alternative | User accepts managed scheduling when free. Both call the same protected maintenance endpoint; cadence and deployment shape remain separate decisions. See the [cost comparison](infrastructure-cost-comparison.md). |
+| A20 | Client pages server-rendered with Jinja; staff administration as a React + TypeScript app built with Vite, served by the same FastAPI service on the same origin | Agreed direction 14 Oct 2026, replacing "Jinja for all UI, no separate frontend application". Staff screens (file manager, uploads, invitations, settings, connection health) are stateful enough to justify a component framework; client pages stay fast, simple and link-preview friendly. One image, one Cloud Run service, no Node at runtime. See sections 4 and 17 and the [changelog](decision-changelog.md) |
+| A21 | Office address scheme | **Open, two options recorded.** A: office subdomains behind a global load balancer (agreed requirement; ~$18.25/month fixed plus processing). B: one domain with office paths (no load-balancer fee, but every no-load-balancer front door has a production caveat). Options and consequences in section 4; decide before DNS/OAuth registration and before any client link is shared |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains, multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -145,6 +155,9 @@ portal/
   web/                   FastAPI routers, forms, Pydantic request/response models
   db/                    models and repository implementations
 migrations/              reviewed Alembic migrations
+staff-app/               React + TypeScript staff administration (A20), built by Vite
+  src/                   screens, components, API client generated from OpenAPI
+  package.json           own lockfile; Node is used to build, never at runtime
 ```
 
 Modules call explicit services; templates do not call Google or construct SQL.
@@ -157,8 +170,9 @@ handlers; services still enforce authorization and database constraints. Pydanti
 validates input and controls response fields. Keep input/output schemas separate
 from SQLAlchemy persistence models, especially for credentials, password hashes
 and internal IDs. Alembic still manages database schema changes. OpenAPI provides
-an API contract; generating frontend types from it is optional future tooling,
-not a requirement to replace Jinja with a separate frontend application.
+the API contract for the staff app (A20): generate its TypeScript types from the
+schema in CI, so a backend change that breaks the staff app fails the build
+instead of failing in a browser. Client pages remain Jinja and do not use it.
 
 Use asynchronous HTTP calls for Drive streaming and an async SQLAlchemy/psycopg
 database path in the new request handlers. Initialize reusable clients/pools
@@ -172,14 +186,22 @@ protection explicitly. FastAPI does not supply the application's complete browse
 authentication/access policy just by declaring API models. Retain tests for both
 server-rendered pages and JSON routes as these integrations change.
 
+Staff app boundaries (A20): it talks only to the JSON API, never to Google or the
+database directly, and holds no credentials in browser storage. Authentication is
+the same host-only session cookie as the rest of the site; the app reads a CSRF
+token from the session and sends it on every state-changing request. The current
+prototype's painel (Jinja templates plus small modal scripts) is the behavioral
+reference for its first screens.
+
 ## 4. Deployment shape and data flow
 
 **POC simplification under discussion:** following the cost review, first evaluate
 one web deployment with an authenticated maintenance endpoint called hourly. The
 worker below is a logical function and need not be a separate deployed service.
 The fuller queue and wildcard load-balancer design remains an alternative, not
-a prerequisite for the POC. Domain routing and slower refresh timing still need
-agreement; the cost comparison records those tradeoffs explicitly.
+a prerequisite for the POC. Domain routing is now an explicit open decision with
+two recorded options (A21, below); slower refresh timing still needs agreement.
+The cost comparison records those tradeoffs explicitly.
 
 ```mermaid
 flowchart LR
@@ -201,6 +223,108 @@ the logical recurring-work path, not a settled choice of queue technology.
 Workers process bounded durable work, checkpoint long tasks, and exit before
 their request deadline. Never start untracked in-process tasks and assume Cloud
 Run will keep them alive.
+
+### One origin per office: pages, staff app and API (A20)
+
+Each office is served by the one FastAPI service, from one origin. Under option A
+of A21 the layout is:
+
+```text
+{office}.{product-domain}/p/{token}/{slug}   client pages: Jinja, server-rendered
+{office}.{product-domain}/painel/...         staff app: React, static files
+{office}.{product-domain}/api/...            JSON API used by the staff app
+auth.{product-domain}/...                    shared Google login (section 5)
+```
+
+Under option B the office moves from the hostname into the first path segment
+(`{product-domain}/{office}/p/...`, `/{office}/painel/...`, `/{office}/api/...`);
+everything else in this subsection is the same.
+
+Because pages, staff app and API share an origin, the session cookie works
+without CORS, cross-site cookies or tokens in browser storage. State-changing
+API calls carry a CSRF token (section 17).
+
+How the staff app is served:
+
+1. `vite build` produces one `index.html` plus JavaScript/CSS files whose names
+   contain a content hash.
+2. FastAPI serves those files under `/painel`. Any other `/painel/...` path
+   returns `index.html` and the app's router shows the screen. Unknown `/api/...`
+   paths still return JSON 404s, never the app shell.
+3. Hashed files are cached for a year (`immutable`); `index.html` is never cached,
+   so a deploy reaches staff on their next navigation.
+4. Content Security Policy for the staff app: scripts and styles from `self` only.
+
+The image is built in two stages, so Node exists only at build time:
+
+```dockerfile
+FROM node:22-slim AS staff-app          # supported Node LTS; pin exact version
+WORKDIR /staff-app
+COPY staff-app/package*.json ./
+RUN npm ci
+COPY staff-app/ .
+RUN npm run build                        # → /staff-app/dist
+
+FROM python:3.13-slim                    # production Python target
+WORKDIR /app
+COPY requirements.lock .
+RUN pip install --no-cache-dir -r requirements.lock
+COPY portal/ portal/
+COPY --from=staff-app /staff-app/dist portal/static/painel
+CMD ["sh", "-c", "uvicorn portal.app:create_app --factory --host 0.0.0.0 --port $PORT"]
+```
+
+Client pages, API and staff app always ship together in one revision, so the
+staff app can never run against an API version it was not built for, and a Cloud
+Run rollback reverts all three at once. `gcloud run deploy --source` builds from
+a root `Dockerfile` when one exists. **Adding that file therefore changes how the
+current Flask site deploys**: introduce it with the new entry point at cutover,
+or keep it outside the source-deploy path until then (section 19).
+
+Local development: Vite's dev server serves the staff app with hot reload and
+proxies `/api` to the local FastAPI process. The release check builds the bundle
+and serves it through FastAPI, as production does. Only staff-app work needs Node
+locally; client pages and backend work do not.
+
+### Office address: two options, decision open (A21)
+
+`{office}.{product-domain}` was the agreed format. It needs a load balancer in
+front of Cloud Run, a fixed monthly cost the pilot may not justify. A21 records
+both options so the choice is made deliberately, before DNS/OAuth registration
+and before any client link is shared. Moving from B to A later means redirecting
+every shared link forever.
+
+| | A: office subdomains | B: one domain, office paths |
+| --- | --- | --- |
+| Example client link | `alinea.{product-domain}/p/…` | `{product-domain}/alinea/p/…` |
+| Front door | Global external Application Load Balancer with serverless backend, wildcard DNS and Certificate Manager certificate (DNS authorization). Restrict direct Cloud Run ingress | See "B front doors" below; each has a caveat |
+| Fixed cost | ~$18.25/month forwarding rule plus data processing, before traffic | None for the front door itself |
+| Tenant resolution | From hostname (`tenant_domains`, section 5) | From the first path segment; every route, link builder and test carries it |
+| Browser isolation between offices | Each office is its own origin: cookies, storage and any script bug stay inside one office | All offices share one origin. Cookies need tenant-bound sessions; browser storage is shared; a script bug could affect every office |
+| Staff login | Shared `auth.` callback plus single-use handoff to the office host (section 5) | One callback on the one domain; simpler |
+| Product feel | Each office has "its own" address; custom domains later fit naturally | Reads as a shared platform; custom domains later still need a load balancer |
+| Later change | — | B → A needs permanent redirects for every shared link |
+
+B front doors, as documented by Google
+([Cloud Run domain options](https://docs.cloud.google.com/run/docs/mapping-custom-domains)):
+
+- **Cloud Run domain mapping:** no extra charge, but Preview, "not recommended
+  for production services" because of latency, limited to some regions (including
+  `us-east1`), no wildcard certificates, and maps a hostname to the service root.
+- **Firebase Hosting rewrite to Cloud Run:** low cost and GA, but every request
+  is cut at **60 seconds**, so long file streams (A11) and slow uploads fail with
+  504. Only a cookie named `__session` reaches the app, and it becomes part of the
+  CDN cache key. It also needs the Blaze plan.
+  ([Hosting serverless limits](https://firebase.google.com/docs/hosting/serverless-overview),
+  [cookie handling](https://firebase.google.com/docs/hosting/manage-cache))
+- **Default `run.app` URL with office paths:** free and GA, but a Google-branded
+  address; acceptable only for an internal POC that shares no client links.
+
+Recommended default if no other information arrives: **A for anything clients
+see**, since every B front door either is not production-ready or breaks large
+file delivery, and B's main saving is about $18/month. Use the `run.app` URL
+with paths for internal testing until real offices are onboarded. This is a
+recommendation; the decision stays open until Fabio chooses.
 
 ### Scheduling and queue technology: proposal under discussion
 
@@ -334,7 +458,9 @@ uvicorn portal.app:create_app --factory --host 0.0.0.0 --port "$PORT"
 Declare and pin the server dependency. Start with one server process per
 container and tune Cloud Run concurrency/max instances and database pools from
 measurements. Keep the legacy `Procfile` unchanged until the new entry point is
-implemented and release-ready. Maintain streaming rather than buffering file
+implemented and release-ready. With the staff app (A20) the new service builds
+from the two-stage Dockerfile above rather than buildpacks; the same caveat
+applies: a root `Dockerfile` takes over source deploys of the legacy site. Maintain streaming rather than buffering file
 responses; test large transfers, timeout and client-disconnect behavior through
 the actual deployment path before migration.
 
@@ -350,10 +476,16 @@ database, wildcard-domain infrastructure and scheduled work need their own budge
 No promise that the complete multi-tenant product stays free follows from keeping
 the web service within its allowance. The framework switch itself does not
 require abandoning Cloud Run, purchasing a higher hosting tier or introducing a
-separate frontend deployment. These are planning decisions only; no live billing
+separate frontend deployment; neither does the React staff app (A20), which is
+static files inside the same image. These are planning decisions only; no live billing
 settings, deployment configuration or cloud resources were changed for this update.
 
 ## 5. Tenant routing and staff identity
+
+This section assumes option A of A21 (office subdomains). Under option B the
+tenant comes from the first path segment instead, the shared `auth.` handoff
+becomes unnecessary, and sessions must be bound to a tenant explicitly because
+all offices share one origin; revise this section if B is chosen.
 
 Resolve the normalized hostname against a `tenant_domains` table. Accept only
 configured product suffixes or explicitly verified custom domains. Reject unknown
@@ -714,12 +846,21 @@ are withdrawn on detection. Downloads also validate current access/boundary,
 so a stale listing does not authorize arbitrary files. Withdrawal cannot erase
 copies someone previously downloaded; avoid promising that it can.
 
-Pilot file manager: breadcrumbs, folders, filename/type/size/updated columns,
-preview, upload progress, create folder, and capability-dependent rename/move/trash.
+Pilot file manager, a screen of the staff app (A20): breadcrumbs, folders,
+filename/type/size/updated columns, preview, upload progress, create folder, and
+capability-dependent rename/move/trash.
 Show an obvious “Open in Google Drive” link. No attempt at copying every Drive
 feature or matching its branding. Do not offer hard delete. Cross-project moves
 are explicit operations with publication consequences, not casual drag/drop in
 v1. Within-project moves preserve the logical document unless staff split it.
+
+Build on existing components where they fit rather than from scratch. Candidates
+to evaluate in the staff app: SVAR React File Manager (MIT) for the browser view,
+Uppy (MIT) for drag-and-drop uploads with progress, and the Google Picker for
+adding existing Drive files, which also grants `drive.file` access to the files
+the user picks. Uppy's own Google Drive plugins need its Companion server; use
+the Picker directly instead. Check maintenance status and licence of each before
+adopting it. The prototype's `drive` branch explores the same screen in Jinja.
 
 UI may show cached data with its last-sync time in administration. A public
 project should show unavailable content honestly; a missing preview does not
@@ -973,10 +1114,13 @@ versioned: updating defaults does not overwrite an office's edited project stage
 
 ## 17. API and error conventions
 
-Use FastAPI routers and Jinja server-rendered forms with progressive JavaScript.
-JSON endpoints support file uploads, operation progress and directory browsing;
-a wholesale SPA rewrite is unnecessary. Administrative paths require staff
-sessions and CSRF protection even when a project is public.
+Client-facing routes render Jinja pages with progressive JavaScript, as today.
+Staff administration is the React staff app (A20), which uses JSON endpoints under
+`/api/` for everything: project editing, file browsing, uploads, operation
+progress and settings. Administrative endpoints require a staff session and a
+CSRF token on every state-changing request, even when a project is public.
+Staff-app routes under `/painel` only return the app shell; they never carry data
+or authorization decisions of their own.
 
 Representative contract:
 
@@ -986,21 +1130,23 @@ Representative contract:
 | `POST /p/{token}/unlock` | Verify project password; issue project-scoped grant |
 | `GET /p/{token}/documents/{id}/revisions/{revision}/download` | Check membership in project, access, availability and stream |
 | `GET /p/{token}/documents/{id}/preview` | Same boundary checks; safe thumbnail/fallback |
-| `POST /admin/projects` | Validate + create durable provisioning operation |
-| `PATCH /admin/projects/{id}` | Tenant-bound edit with row-version conflict detection |
-| `GET /admin/projects/{id}/folders/{id}` | Indexed listing and current capabilities |
-| `POST /admin/projects/{id}/uploads` | Create scoped resumable upload operation |
-| `POST /admin/projects/{id}/sync` | Deduplicated, rate-limited sync request |
-| `POST /admin/documents/{id}/revisions` | Explicit version association / upload |
-| `POST /admin/connections/{id}/disconnect` | Disable both application access paths; cancel stale work |
-| `GET /admin/operations/{id}` | Progress or actionable failure |
+| `POST /api/admin/projects` | Validate + create durable provisioning operation |
+| `PATCH /api/admin/projects/{id}` | Tenant-bound edit with row-version conflict detection |
+| `GET /api/admin/projects/{id}/folders/{id}` | Indexed listing and current capabilities |
+| `POST /api/admin/projects/{id}/uploads` | Create scoped resumable upload operation |
+| `POST /api/admin/projects/{id}/sync` | Deduplicated, rate-limited sync request |
+| `POST /api/admin/documents/{id}/revisions` | Explicit version association / upload |
+| `POST /api/admin/connections/{id}/disconnect` | Disable both application access paths; cancel stale work |
+| `GET /api/admin/operations/{id}` | Progress or actionable failure |
 | `POST /integrations/drive/events` | Validate registered channel; enqueue sync only |
 | `POST /integrations/email/events` | Validate signature; deduplicate delivery update |
 
 Never accept a caller-supplied tenant as authority. Resolve it from the host/session
 and verify every resource. Use consistent error codes: validation, conflict,
 connection needs attention, quota exceeded, provider unavailable, file unavailable.
-Show clear Portuguese messages and a support/request ID. Redact provider details
+Show clear Portuguese messages and a support/request ID. The API returns the
+error code and a translated message; the staff app displays the message and never
+builds its own text from provider details. Redact provider details
 that contain credentials or private filenames from shared logs.
 
 ## 18. Local testing now and in the new architecture
@@ -1045,6 +1191,10 @@ that proposed command exists until implemented. Local environments have unique
 DB names/volumes; a test safety check refuses a production URL or a nonlocal DB
 unless an explicitly designated disposable-test configuration is provided.
 
+Staff app (A20): component tests with Vitest, type checks against the generated
+OpenAPI client, and Playwright tests against the **built** bundle served by
+FastAPI, not only Vite's dev server. The local orchestration command starts both.
+
 Run the actual FastAPI services, SQL repositories and worker code against those
 local components. Mock at provider boundaries, not every internal service call.
 The fake should implement both read and write identities and deliberately deny
@@ -1072,7 +1222,7 @@ Required acceptance matrix for the new backend:
 | Versions | Explicit upload revision, external grouping suggestion, duplicate names, old bytes unavailable, current pointer and concurrent edits |
 | Preview/download | Range requests, large streams, client disconnect, unsafe MIME, upstream timeout, unavailable preview and authorized fallback |
 | Notifications | Virtual-hour batching, dedupe, withdrawn file, unsubscribe before retry, ambiguous provider response, bounce, import suppression |
-| UI | Two different brands/locales, mobile 320px+, keyboard, upload progress/errors, reconnect banner, public/password forms |
+| UI | Two different brands/locales, mobile 320px+, keyboard, upload progress/errors, reconnect banner, public/password forms; staff app deep links and reload on any `/painel` path, stale-bundle behavior after a deploy |
 | Recovery | DB restore to isolated environment, job replay, kill worker, retry without duplicate published project/mail |
 | Operations | Spending/usage metrics, failure redaction, no real credentials/recipients in test mode |
 
@@ -1111,10 +1261,14 @@ Chromium tests, target PostgreSQL integration tests, migration checks and a
 production-image build/start smoke test. Pin Python to the production 3.13 line
 and use a supported Node LTS for test tooling. Introduce a Python dependency lock
 as the new backend is scaffolded; the current broad requirements are not yet a
-fully reproducible production dependency set. Node is needed for tests, not for
-serving this Jinja-rendered UI. Build/start checks must exercise the new Uvicorn
-entry point and streaming behavior rather than reuse a passing legacy Gunicorn
-check as evidence for the FastAPI deployment.
+fully reproducible production dependency set. Node builds the staff app (A20)
+and runs browser tests; it is never part of the production image. CI also runs
+the staff app's lockfile install, type check, unit tests and production build,
+and fails when the generated API client is out of date. Build/start checks must
+exercise the new Uvicorn entry point, the served staff-app bundle and streaming
+behavior rather than reuse a passing legacy Gunicorn check as evidence for the
+FastAPI deployment. The new service's `Dockerfile` must not change how the legacy
+site deploys before cutover (section 4).
 
 Staging is a distinct service, database, Google connection and email sink.
 It must not share production refresh tokens, Drive roots or job queues.
@@ -1233,9 +1387,9 @@ and external failures do not shrink simply because code generation is fast.
 | Slice | Concrete deliverable | Exit evidence | Rough focused effort |
 | --- | --- | --- | --- |
 | 0. Baseline | This decision doc and repeatable current local tests | Python/browser suite runs without Google; open issues recorded | Current work |
-| 1. New foundation | New FastAPI factory and Uvicorn entry point, local PostgreSQL, migrations, tenant routing, fake identity, two offices | Wrong-host/ID tests; runtime-role isolation; production image boots locally | 1–2 days |
+| 1. New foundation | New FastAPI factory and Uvicorn entry point, local PostgreSQL, migrations, tenant routing, fake identity, two offices; staff-app skeleton (Vite + React + TypeScript) served at `/painel` from the two-stage image | Wrong-host/ID tests; runtime-role isolation; production image boots locally and serves the staff-app shell | 1–2 days |
 | 2. First useful vertical slice | Public/password project page, DB metadata, reused UI, read adapter and legacy import | Two branded offices; password protects every content endpoint; migration dry run | 2–3 days |
-| 3. Project creation + files | Durable provisioning, form, folders, resumable upload, capability-aware listing | Crash/retry matrix; progress UI; no duplicate creation | 2–3 days |
+| 3. Project creation + files | Durable provisioning, staff-app project form and file manager, folders, resumable upload, capability-aware listing | Crash/retry matrix; progress UI; no duplicate creation | 2–3 days |
 | 4. Sync + revisions | Incremental index, repair, explicit versioning, preview fallback | External upload/overwrite/move scenarios; old-content honesty | 2–3 days |
 | 5. Notifications + operations | Outbox, batching, recipients, email sink, health panel, restore runbook | Virtual-clock/retry tests; restore exercise; no historical spam | 1–2 days |
 | 6. Live Google + staging | Real OIDC/OAuth, read/write matrix, sandbox files, build promotion | Documented pass per supported account type; correct degraded modes | 1–3 days plus account wait |
@@ -1283,7 +1437,8 @@ choices need an owner before their corresponding feature ships:
 | Database provider/plan/backup retention | Managed PostgreSQL; evaluate Neon against budget and restore needs | Infrastructure purchase |
 | Background dispatch technology and refresh interval | Evaluate hourly in-app maintenance first for POC; add a queue/worker when needed | Maintenance implementation |
 | Timer setup | Prefer Cloud Scheduler within account-wide free allowance; local cron is the alternative | Confirm allowance and cadence before setup |
-| POC domain routing | Review cheaper temporary routing against the agreed office-subdomain requirement | Hosting setup |
+| Office address scheme (A21) | Two options in section 4: A, office subdomains behind a load balancer; B, one domain with office paths. Recommended default: A for anything clients see, `run.app` paths for internal testing | Before DNS/OAuth registration and before any client link is shared |
+| Staff app building blocks | Evaluate SVAR React File Manager, Uppy and the Google Picker (section 11) against a custom screen | Slice 3 |
 | Password setter | Office owner/member; viewers cannot change it | Access UI implementation |
 | Digest semantics | Trailing 45-minute quiet period with a 2-hour maximum hold; quiet period configurable 5–120 minutes | Notification acceptance tests; confirm both figures with a pilot office |
 | External file write limitations | Disable unsupported actions + Open in Drive / explicit authorization | Live Google acceptance |

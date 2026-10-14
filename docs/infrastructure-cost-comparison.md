@@ -72,14 +72,20 @@ before it contains irreplaceable metadata. Watch quotas: exhaustion can suspend
 compute, rather than automatically providing free excess capacity.
 [Neon limits](https://neon.com/docs/introduction/plans)
 
-**Domain routing is a separate cost decision.** Avoiding the ~$18.25 fixed load
+**Domain routing is a separate cost decision**, now recorded as open decision
+A21 with two options (plan section 4): A, office subdomains behind the load
+balancer; B, one domain with office paths. Avoiding the ~$18.25 fixed load
 balancer charge requires an alternative, not merely removing the queue. For an
 internal POC, a default `run.app` URL with explicit tenant paths is possible, but
 temporarily changes the agreed office-subdomain requirement and needs agreement.
 Individual subdomain mappings preserve the URL format without that load balancer,
 but Google's mapping feature is regional, Preview and explicitly not recommended
-for production due to latency issues. Do not silently substitute it for the
-production design. A DNS wildcard alone does not solve HTTPS routing.
+for production due to latency issues. Firebase Hosting in front of Cloud Run is
+the other low-cost front door, but it cuts requests at 60 seconds, which breaks
+large file streams, and forwards only a `__session` cookie. Do not silently
+substitute either for the production design. A DNS wildcard alone does not solve
+HTTPS routing. The React staff app (A20) adds no hosting cost: it is static files
+inside the same Cloud Run image.
 [Cloud Run domain options](https://docs.cloud.google.com/run/docs/mapping-custom-domains)
 
 With free database/email allowances, low compute use and **1–10 GiB/month** of

@@ -19,6 +19,68 @@ a new entry too.
 
 ---
 
+## 2026-10-14 — A21: office subdomains (agreed) → reopened as an explicit choice
+
+**Was:** office URLs use `{office-slug}.{product-domain}`, listed as a confirmed
+choice in section 1. The cost comparison already noted that this needs a load
+balancer and that a cheaper POC route "needs agreement", but no decision existed.
+
+**Now:** open, with two options recorded in section 4: A, office subdomains behind
+a global load balancer; B, one domain with the office in the path. The plan
+recommends A for anything clients see and the `run.app` URL with paths for
+internal testing, pending Fabio's decision. Section 1, register row A21, section 5
+(which assumes A) and section 24 updated.
+
+**What changed the answer:** cost visibility, and a correction. The load balancer
+is a fixed ~$18.25/month before traffic, which is most of the pilot's hosting
+bill. B looked free because Cloud Run has its own domain mapping, but Google marks
+that feature Preview and "not recommended for production services". The other
+cheap front door, Firebase Hosting, cuts every request at 60 seconds, which
+breaks streaming large files to clients (A11), and forwards only one cookie named
+`__session`. So B's saving comes with a production caveat whichever way it is
+done, and that tradeoff deserves an explicit choice rather than a silent default.
+
+**What it costs to defer:** nothing until a client link is shared. After that,
+changing scheme means redirecting every shared link permanently.
+
+---
+
+## 2026-10-14 — A20: Jinja for all UI → Jinja client pages + React staff app
+
+**Was:** keep Jinja, HTML, CSS and small JavaScript for the whole UI (A01, section 1),
+with "a wholesale SPA rewrite is unnecessary" (section 17) and OpenAPI-generated
+frontend types as optional tooling, "not a requirement to replace Jinja with a
+separate frontend application" (section 3).
+
+**Now:** client-facing pages stay server-rendered with Jinja. Staff administration
+becomes a React + TypeScript app built with Vite, served as static files by the
+same FastAPI service on the same origin, talking to a JSON API under `/api/`. One
+two-stage image (Node only at build time), one Cloud Run service, one deploy.
+Sections 1, 3, 4, 11, 17, 18, 19, 23 and 24 updated; register row A20 added and
+A01 narrowed to client pages.
+
+**What changed the answer:** the staff side outgrew forms. Building the prototype's
+Drive panel on the `drive` branch (connect flow, new-project modal, settings,
+duplicate checks) showed how quickly modal state, validation and live feedback
+pile up in hand-written JavaScript, and the next screen, a file manager with
+drag-and-drop uploads, progress and multi-select, is exactly what component
+frameworks and their ready-made components exist for. The best open-source file
+manager found (SVAR, MIT) is React-only. Multi-tenancy itself did not force this;
+the planned staff features did.
+
+**Why not React everywhere:** client pages are read-only, opened from a shared link,
+usually on a phone. Server-rendered HTML is faster there, simpler to brand per
+office and straightforward for link previews. **Why not Next.js:** it adds a Node
+server runtime next to Python for little benefit to this app. **Rejected for now,
+not forever:** htmx/Alpine on Jinja; reconsider only if the staff app turns out
+to need little more than forms.
+
+**What it costs:** a JSON API with CSRF protection for every staff action (largely
+needed anyway for uploads and progress), a build step, a second test toolchain,
+and npm dependencies to keep updated.
+
+---
+
 ## 2026-10-14 — A12: fixed batching window → trailing settle window
 
 **Was:** a fixed 60-minute window starting with the first eligible publication.
