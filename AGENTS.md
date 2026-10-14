@@ -151,6 +151,67 @@ that version calculation if generation gains additional source files. Keep gener
 out of Git. Automated tests must not prompt or modify the user's manual
 dataset; they should create their own isolated fixtures.
 
+## Decisions and shared context
+
+Several people and several agents work on this repository: Claude Code, Cowork,
+Codex, and chat sessions with no repository attached. **The repository is the
+only thing all of them can see.** A decision discussed in a chat is not recorded
+until it is committed here.
+
+- **Before starting**, read `docs/decisions/README.md`. It is a one-line index of
+  every decision. Open the individual entries that bear on your task. Do not
+  re-litigate a decision recorded there; if you think one is wrong, say so and
+  propose superseding it.
+- `docs/multi-tenant-plan.md` is the working product plan and holds the detail
+  behind these decisions. It is the canonical copy. Any copy elsewhere
+  (for example in a claude.ai project) is a mirror and may be stale.
+- **Before finishing**, if a decision was made, add an entry to
+  `docs/decisions/` and a row to its README index. One file per decision, named
+  `YYYY-MM-DD-short-slug.md`, using `docs/decisions/TEMPLATE.md`. If no decision
+  was made, say so explicitly rather than leaving it ambiguous.
+- **Never edit or delete a past entry** to change what it says. Reverse a
+  decision by writing a new entry with `supersedes:` pointing at the old file,
+  and setting the old entry's `status: superseded`. The history of reversals is
+  the useful part.
+- Dates, not sequence numbers. Two people creating `0007-...` independently
+  collide; two people creating dated files do not.
+
+## User-facing errors
+
+Never surface backend or upstream error detail in the UI. No HTTP status codes,
+no API response bodies, no exception text, no stack traces, no provider names —
+not in a flash message, not on an error page, not in form validation. This
+applies to the architect's panel exactly as much as to client-facing pages.
+
+Two reasons, and both matter:
+
+- Upstream bodies leak implementation detail, and sometimes identifiers or
+  fragments of credentials, to whoever is looking at the screen.
+- They are meaningless to the reader. See Communication: the user may not be a
+  software engineer.
+
+Instead:
+
+- Show a short message in the user's language saying what failed and what to do
+  next — e.g. "Não foi possível conectar ao Google Drive. Tente novamente ou
+  entre em contato com o suporte."
+- Where the user can actually fix it, say what to fix in their terms, not the
+  API's.
+- Log the full detail server-side at ERROR with enough context to diagnose
+  (route, operation, tenant). Logs are the right place for status codes and
+  response bodies.
+- Optionally show a short opaque reference ID in the UI and log the same ID, so
+  a support message can be matched to a log line without the user reading a
+  stack trace.
+
+Keep the detail on the exception for logging; translate at the boundary where it
+becomes user-visible.
+
+Known violation to fix: the Drive connect flow under `/painel/drive` flashes the
+raw upstream body, e.g. `Drive API error 401: {"error": "invalid_client", ...}`.
+`DriveWriteError` should keep that detail for the log, and the route should flash
+a generic translated string.
+
 ## Safety
 
 - Never deploy directly to Google Cloud.
