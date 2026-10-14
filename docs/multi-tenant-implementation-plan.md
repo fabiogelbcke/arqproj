@@ -68,7 +68,7 @@ its affected tests before coding proceeds.
 | A01 | New backend in the same repository, retaining Python and the UI | Agreed direction; replace the Flask backend with FastAPI rather than preserve the prototype's architecture |
 | A02 | Modular application, one database, shared web deployment | Recommended; independent web/worker processes can use the same code and image |
 | A03 | PostgreSQL + SQLAlchemy 2 + Alembic + psycopg 3 | Recommended; relationships, transactions, migrations and local parity |
-| A04 | OAuth writes + service-account reads | Product choice, core flow reported tested by Fabio; remaining capability matrix below |
+| A04 | OAuth writes + service-account reads | Product choice, core flow reported tested by Fabio; remaining capability matrix below. **Hard ordering constraint on provisioning** — see section 9 |
 | A05 | Tenant and project checks on every resource path | Required even for public projects; public within one office does not mean cross-office access |
 | A06 | Public or password-protected project access | Agreed; no mandatory client account for the pilot |
 | A07 | Atomic DB creation plus recoverable Drive provisioning | Recommended implementation of an all-or-nothing customer experience |
@@ -76,7 +76,7 @@ its affected tests before coding proceeds.
 | A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: hourly authenticated endpoint in the web service, with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
 | A10 | Incremental Drive sync, initially polled; reconciliation as repair | Recommended; webhooks can accelerate later without becoming a correctness dependency |
 | A11 | Streaming proxy for private Drive content; optional Drive links | Recommended; clients need not have Google accounts or Drive sharing permissions |
-| A12 | Email first, 60-minute fixed batching window | Recommended default; configurable per office |
+| A12 | Email first, trailing "settle" window: send once uploads stop | Revised 14 Oct 2026 from a fixed 60-minute window. 45-minute quiet period, 2-hour maximum hold, configurable per office. See section 14 and the [changelog](decision-changelog.md) |
 | A13 | Protected main, staging and approved promotion of one build | Recommended; environments are separate without requiring permanent divergent code branches |
 | A14 | Same PostgreSQL engine locally and in production | Recommended; SQLite cannot validate the intended constraints, queue locks or row policies |
 | A15 | Cloud Run web with bounded maintenance execution | Proposed hosting continuation; POC can run maintenance in the same service. Actual infrastructure requires separate approval |
@@ -530,6 +530,26 @@ files while the service account reads files uploaded through Drive. Build around
 that result. The remaining live checks refine exactly which operations to expose;
 they are not a prerequisite for coding the database, UI and workflow logic.
 
+### Hard ordering constraint: share the folder while it is empty
+
+Establishing the reader's access is **only possible while the folder contains
+nothing the writer cannot see.** `permissions.create` on an app-created folder
+succeeds normally, but once a Drive-uploaded file the writer did not create is
+inside it, the same call fails with `appNotAuthorizedToChild`. Verified by
+experiment: sharing a fresh empty folder returned 200; the same folder with a
+user-dropped file inside returned 403.
+
+Therefore the share is part of folder creation, not a later step: create the
+folder, grant the reader, and only then expose the folder to the office. A
+provisioning sequence that creates folders, reports success, and reconciles
+reader access afterwards will pass every test where nobody uploads in between
+and fail on the first real office that does.
+
+This also sets the recovery behaviour. If a folder exists without reader access
+and already has foreign content, the share cannot be repaired in place: create a
+new folder, share it while empty, and rebind. Record this as a
+`needs_attention` outcome rather than retrying the failing call.
+
 The reader has read-only scope and explicit sharing permission on the office's
 designated root. The writer uses the office user's refresh token with
 `drive.file`. A read permission does not confer write authorization on the other
@@ -623,6 +643,9 @@ submitted → provisioning → ready
    key and body returns the same operation. Same key with different body: conflict.
 3. A worker claims the operation with a lease and creates the project folder,
    deliverables folder and stage folders, checkpointing every completed step.
+   **Grant the reader on each folder as part of creating it**, before anything
+   can be uploaded into it — see the ordering constraint in section 9. Reader
+   access is not a step that can be deferred to reconciliation.
 4. Tag app-created resources with opaque operation/step identifiers in Drive
    properties as recovery hints. Keep substantive project metadata in SQL.
    Use pre-generated provider IDs where supported and tested; otherwise look up
@@ -817,17 +840,33 @@ logic. Configure SPF/DKIM/DMARC, suppression and bounce handling before sending
 to customers. Provider quotas count recipients, so a digest to ten people is not
 necessarily one billable message. [Resend limits and plans](https://resend.com/pricing)
 
-Default batching: a **fixed 60-minute window starting with the first eligible
-publication** for a project. Additional publications join that window without
-pushing its due time indefinitely. Example: uploads at 10:00, 10:20 and 10:50
-produce one batch due at 11:00; an 11:05 upload starts the next window. Offer an
-office setting with a bounded range, initially 5–120 minutes. A send-now action
-can close a pending batch; it does not create duplicate deliveries.
+Default batching: a **trailing "settle" window**. A publication starts a pending
+batch; the batch becomes due once **nothing new has been published for 45
+minutes**, subject to a **maximum hold of 2 hours** from the first event in the
+batch. Example: uploads at 10:00, 10:20 and 10:50 send at 11:35, as one batch;
+an upload at 11:40 starts a new one. An office that uploads continuously all
+afternoon still gets mail, because the maximum hold closes the batch regardless.
 
-This is a deliberate interpretation of “within about an hour”. If offices prefer
-“one hour after the last upload”, add a trailing window with a maximum wait cap;
-do not silently change the behavior. Initial recipients share a project batch,
-but delivery and subscription state are individual.
+Offer an office setting with a bounded range, initially 5–120 minutes for the
+quiet period, and a maximum hold bounded separately. A send-now action can close
+a pending batch; it does not create duplicate deliveries.
+
+Why trailing rather than a fixed window from the first event: a drawing set is
+uploaded over tens of minutes, and a fixed window splits one delivery session
+across two emails whenever the upload straddles the boundary. The architect made
+one delivery and the client should get one mail. The cost is unbounded latency
+without the hold cap, which is why the cap is not optional.
+
+The window also functions as an **undo window**, which is worth stating because
+it changes the risk of automatic notification: an upload into the wrong project,
+noticed and removed within the quiet period, never reaches the client. That
+argues for erring longer rather than shorter, and against letting an office
+configure the quiet period down to 5 minutes without warning them what they are
+giving up.
+
+45 minutes and 2 hours are both guesses. Ask a pilot office how long a typical
+upload session runs before treating them as settled. Initial recipients share a
+project batch, but delivery and subscription state are individual.
 
 Pipeline:
 
@@ -1246,7 +1285,7 @@ choices need an owner before their corresponding feature ships:
 | Timer setup | Prefer Cloud Scheduler within account-wide free allowance; local cron is the alternative | Confirm allowance and cadence before setup |
 | POC domain routing | Review cheaper temporary routing against the agreed office-subdomain requirement | Hosting setup |
 | Password setter | Office owner/member; viewers cannot change it | Access UI implementation |
-| Digest semantics | Fixed 60-minute window, configurable 5–120 minutes | Notification acceptance tests |
+| Digest semantics | Trailing 45-minute quiet period with a 2-hour maximum hold; quiet period configurable 5–120 minutes | Notification acceptance tests; confirm both figures with a pilot office |
 | External file write limitations | Disable unsupported actions + Open in Drive / explicit authorization | Live Google acceptance |
 | Revision retention promise | Separate files for website revisions; no guarantee for overwritten Drive history | Versioning UI copy |
 | Download model | Streaming proxy by default, optional authorized Drive link | Hosting/load test |
