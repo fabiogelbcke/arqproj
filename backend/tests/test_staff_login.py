@@ -174,3 +174,30 @@ async def test_only_a_hash_of_the_token_is_stored(client, db_session, staff):
     stored = await db_session.scalar(select(LoginSession.token_hash))
     assert token not in stored
     assert stored == hashlib.sha256(token.encode()).hexdigest()
+
+
+async def test_failed_sign_ins_wait_without_holding_a_database_connection(
+    client, staff, monkeypatch
+):
+    """The pool is small: queued password checks and the delay must not keep
+    a connection, or a burst of bad attempts would stall every other request."""
+    sessions_used, holding = [], []
+    real_find_user, real_verify = accounts.find_user, auth.verify_password
+
+    async def find_user(db, email):
+        sessions_used.append(db)
+        return await real_find_user(db, email)
+
+    async def verify_password(password_hash, password):
+        holding.append(sessions_used[-1].in_transaction())
+        return await real_verify(password_hash, password)
+
+    async def delay(_seconds):
+        holding.append(sessions_used[-1].in_transaction())
+
+    monkeypatch.setattr(accounts, "find_user", find_user)
+    monkeypatch.setattr(auth, "verify_password", verify_password)
+    monkeypatch.setattr(auth.anyio, "sleep", delay)
+    assert (await sign_in(client, password="not the password")).status_code == 401
+    assert holding == [False, False]
+    assert (await sign_in(client)).status_code == 200  # signing in still works

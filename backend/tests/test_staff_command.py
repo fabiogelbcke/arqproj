@@ -110,3 +110,28 @@ async def test_mistakes_are_refused_and_change_nothing(database, argv, password,
     with pytest.raises(SystemExit, match=error):
         await run(database, *argv, password=password)
     assert accounts_in(database) == []
+
+
+async def test_a_new_password_ends_existing_sign_ins(database):
+    await run(database, "add", "--tenant", "alinea", "--email", "ana@example.com", "--name", "A")
+    engine = create_engine(database)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO sessions (tenant_id, user_id, token_hash, csrf_token, expires_at) "
+                "SELECT tenant_id, id, 'h', 'c', now() + interval '1 day' FROM users"
+            )
+        )
+    await run(
+        database,
+        "set-password",
+        "--tenant",
+        "alinea",
+        "--email",
+        "ana@example.com",
+        password="a brand new password",
+    )
+    with engine.connect() as connection:
+        revoked = connection.scalar(text("SELECT revoked_at IS NOT NULL FROM sessions"))
+    engine.dispose()
+    assert revoked

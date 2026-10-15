@@ -7,10 +7,10 @@ session is scoped to (`scope_to_tenant`); other tenants' accounts are invisible.
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.identity.models import ROLES, User
+from backend.identity.models import ROLES, LoginSession, User
 from backend.identity.passwords import hash_password
 
 MIN_PASSWORD_LENGTH = 10
@@ -64,5 +64,11 @@ async def set_password(session: AsyncSession, email: str, password: str) -> User
         raise AccountError(f"No account for {normalize_email(email)}")
     _check_password(password)
     user.password_hash = hash_password(password)
+    # A new password ends every existing sign-in (e.g. after a stolen cookie).
+    await session.execute(
+        update(LoginSession)
+        .where(LoginSession.user_id == user.id, LoginSession.revoked_at.is_(None))
+        .values(revoked_at=func.now())
+    )
     await session.flush()
     return user

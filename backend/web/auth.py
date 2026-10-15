@@ -121,6 +121,9 @@ async def sign_in(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
     user = await accounts.find_user(db, body.email)
+    # Hand the database connection back before the slow part (a queued password
+    # check, then the delay), so failed attempts cannot hold the whole pool.
+    await db.commit()
     # Same work and the same answer whether the email or the password is wrong.
     if not await verify_password(user.password_hash if user else None, body.password):
         await anyio.sleep(FAILED_LOGIN_DELAY)
