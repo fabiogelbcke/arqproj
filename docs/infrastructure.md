@@ -69,6 +69,15 @@ Proxy 2.26.2, `--auto-iam-authn`), which the app waits for. Public (no IAM
 check), 0–2 instances, 1 CPU / 512 MiB for the app. Address:
 `https://portal-staging-496714293251.us-east1.run.app`, mapped to office `alinea`.
 
+## Google Drive on staging
+
+No special logic: the Drive connection is made in staging's painel, choosing the
+account and folder, as in production (plan section 9, "Staging and production").
+Staging gets **its own OAuth client** ("Portal ALINEA (staging)", created in the
+Cloud Console, redirect `https://portal-staging-496714293251.us-east1.run.app/…`)
+so its write access never overlaps production's, and reads as `portal-staging@`.
+Not set up yet: it arrives with the Drive connection screen (slice 3).
+
 ## Images: Artifact Registry `portal`
 
 `us-east1-docker.pkg.dev/arq-proj/portal/app:<commit>`. Cleanup policy keeps the
