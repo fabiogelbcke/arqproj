@@ -210,7 +210,7 @@ def upgrade() -> None:
             "tenant_id", sa.Uuid(), server_default=sa.text("current_tenant_id()"), nullable=False
         ),
         sa.CheckConstraint(
-            "slug NOT IN ('painel', 'api', 'static', 'assets', 'health')",
+            "slug NOT IN ('painel', 'api', 'static', 'assets', 'health', 'healthz', 'statusz')",
             name=op.f("ck_project_slugs_slug_not_reserved"),
         ),
         sa.CheckConstraint(

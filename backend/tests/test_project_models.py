@@ -86,7 +86,12 @@ async def test_a_project_has_one_current_slug(db_session, alinea):
 
 @pytest.mark.parametrize(
     ("slug", "constraint"),
-    [("painel", "slug_not_reserved"), ("api", "slug_not_reserved"), ("Casa Jardim", "slug_format")],
+    [
+        ("painel", "slug_not_reserved"),
+        ("api", "slug_not_reserved"),
+        ("healthz", "slug_not_reserved"),  # answered by Cloud Run, never the app
+        ("Casa Jardim", "slug_format"),
+    ],
 )
 async def test_slugs_are_clean_and_never_a_reserved_path(db_session, alinea, slug, constraint):
     await assert_refused(db_session, add_project(db_session, alinea, slug=slug), constraint)

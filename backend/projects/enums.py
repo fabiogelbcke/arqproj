@@ -103,5 +103,7 @@ DETAIL_TYPES: dict[DetailKey, DetailType] = {
     DetailKey.RESPONSIBLE: DetailType.TEXT,
 }
 
-# Paths of the office's address that can never be a project's slug.
-RESERVED_SLUGS = ("painel", "api", "static", "assets", "health")
+# Paths of the office's address that can never be a project's slug: the app's own,
+# and those Cloud Run's front end answers itself (checked on staging 15 Oct 2026:
+# /healthz and /statusz never reach the app; /readyz, /livez, /casa-da-luz do).
+RESERVED_SLUGS = ("painel", "api", "static", "assets", "health", "healthz", "statusz")
