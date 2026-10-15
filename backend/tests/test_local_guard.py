@@ -83,7 +83,7 @@ def test_the_admin_connection_ignores_a_hostile_environment(monkeypatch, test_da
     monkeypatch.setenv("PGHOSTADDR", "203.0.113.7")
     monkeypatch.setenv("PGHOST", "db.example.com")
     with local._admin_connection() as conn:
-        assert conn.info.hostaddr == "127.0.0.1"
+        assert conn.info.hostaddr in ("127.0.0.1", "::1")  # IPv6-only servers too
 
 
 async def test_the_connected_server_is_checked_too(db_connection):
