@@ -2,6 +2,14 @@ import { execFileSync } from "node:child_process";
 
 import { expect, test } from "@playwright/test";
 
+// The staff app runs under a strict Content Security Policy (plan section 4).
+// Anything the build needs that the policy blocks shows up as a console error.
+test.beforeEach(({ page }) => {
+  page.on("console", (message) => {
+    if (/Content Security Policy/i.test(message.text())) throw new Error(message.text());
+  });
+});
+
 import { E2E_ENV, PORT } from "../playwright.config";
 
 /** An account made the real way, with the staff command; returns its invite link. */

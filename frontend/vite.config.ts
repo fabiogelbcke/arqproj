@@ -21,7 +21,9 @@ export default defineConfig({
     // The translation catalogs live in backend/i18n, shared with the server.
     fs: { allow: [".", "../backend/i18n"] },
   },
-  build: { outDir: "dist", assetsDir: "assets" },
+  // Never inline files as data: URLs: the Content Security Policy allows fonts and
+  // images only from this site (backend/web/painel.py).
+  build: { outDir: "dist", assetsDir: "assets", assetsInlineLimit: 0 },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],

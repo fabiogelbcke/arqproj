@@ -20,6 +20,25 @@ PREFIX = "/painel"
 ASSETS = f"{PREFIX}/assets/"
 SHELL_CACHE = "no-cache"
 ASSET_CACHE = "public, max-age=31536000, immutable"
+# Plan section 4: scripts and styles only from this site. Everything the app loads
+# is its own build and its own API; it is never framed (clickjacking).
+CONTENT_SECURITY_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self'",
+        # Plus exactly one inline style: React Aria's fixed touch-action rule for
+        # pressable elements (usePress). Any other inline style stays blocked; if
+        # a library update changes that rule, `make e2e` fails on the violation.
+        "style-src 'self' 'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='",
+        "img-src 'self' data:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    ]
+)
 
 router = APIRouter(include_in_schema=False)
 
@@ -49,4 +68,7 @@ async def shell(request: Request, page: str = "") -> Response:
             "The staff app is not built. Run `make build` (or `make dev` for development).",
             status_code=503,
         )
-    return FileResponse(index, headers={"Cache-Control": SHELL_CACHE})
+    return FileResponse(
+        index,
+        headers={"Cache-Control": SHELL_CACHE, "Content-Security-Policy": CONTENT_SECURITY_POLICY},
+    )

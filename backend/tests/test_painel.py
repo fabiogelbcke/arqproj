@@ -43,6 +43,9 @@ async def test_every_painel_address_gets_the_uncached_shell(client, dist, tenant
     response = await client.get(path, headers=ALINEA)
     assert (response.status_code, response.text) == (200, "<html>shell</html>")
     assert response.headers["cache-control"] == painel.SHELL_CACHE
+    # Plan section 4; that the real build runs under it is checked by `make e2e`.
+    policy = response.headers["content-security-policy"]
+    assert "script-src 'self'" in policy and "frame-ancestors 'none'" in policy
 
 
 async def test_built_files_are_cached_for_a_long_time(client, dist):
