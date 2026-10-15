@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from backend.tenancy.models import Tenant, TenantDomain
+from backend.tenancy.models import Locale, Tenant, TenantDomain, TenantStatus
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class CurrentTenant:
     id: uuid.UUID
     slug: str
     name: str
-    locale: str
+    locale: Locale
     timezone: str
     primary_host: str
 
@@ -62,7 +62,7 @@ async def _lookup(session: AsyncSession, hostname: str) -> tuple[Tenant, str | N
             select(Tenant, primary.hostname)
             .join(TenantDomain, TenantDomain.tenant_id == Tenant.id)
             .outerjoin(primary, (primary.tenant_id == Tenant.id) & primary.is_primary)
-            .where(TenantDomain.hostname == hostname, Tenant.status == "active")
+            .where(TenantDomain.hostname == hostname, Tenant.status == TenantStatus.ACTIVE)
         )
     ).first()
     return (row[0], row[1]) if row else None

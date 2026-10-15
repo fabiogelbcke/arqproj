@@ -12,13 +12,15 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy import text
 
 from backend.db import runtime_role
 from backend.db.engine import create_engine, create_sessionmaker
 from backend.settings import Settings
 from backend.tenancy.middleware import TenantMiddleware
-from backend.web import health
+from backend.web import auth, health
+from backend.web.errors import ApiError, handle_api_error, handle_invalid_request
 from backend.web.request_id import RequestIdLogFilter, RequestIdMiddleware
 
 
@@ -123,6 +125,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.include_router(health.router)
+    app.include_router(auth.router)
+    app.add_exception_handler(ApiError, handle_api_error)
+    app.add_exception_handler(RequestValidationError, handle_invalid_request)
     # Added innermost first: request IDs wrap everything, so even a 404 for an
     # unknown host or a redirect carries an ID and logs with it.
     app.add_middleware(TenantMiddleware)

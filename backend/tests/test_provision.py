@@ -44,11 +44,19 @@ def _members(url: str, group: str) -> set[str]:
     return members
 
 
-def test_the_app_group_role_only_reads_the_registry(migrated_url):
-    """Privileges belong to the database's group role; the login holds none itself."""
+def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
+    """Privileges belong to the database's group role; the login holds none itself.
+    Any new grant must be added here on purpose."""
     command.upgrade(alembic_config(migrated_url), "head")
     group = app_role_for(make_url(migrated_url).database)
-    assert _grants(migrated_url, group) == {("tenants", "SELECT"), ("tenant_domains", "SELECT")}
+    assert _grants(migrated_url, group) == {
+        ("tenants", "SELECT"),
+        ("tenant_domains", "SELECT"),
+        ("users", "SELECT"),
+        ("sessions", "SELECT"),
+        ("sessions", "INSERT"),
+        ("sessions", "UPDATE"),
+    }
     assert _grants(migrated_url, RUNTIME_ROLE) == set()
 
 

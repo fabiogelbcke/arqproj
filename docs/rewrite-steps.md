@@ -146,6 +146,31 @@ React painel. No client-visible features yet.
   after repeated wrong passwords.
 - **Review:** cookie settings, session lifetime, what's stored (only a hash of
   the session token).
+- **As built:** each person belongs to exactly one office, so there is no
+  `memberships` table: `users` carries `tenant_id` and `role` (owner/member),
+  unique per (office, email); the same email in two offices is two separate
+  accounts. `users` and `sessions` are tenant-isolated like any office data
+  (the app may only read users and manage sessions). Sessions are database rows:
+  the cookie `portal_session` (HttpOnly, SameSite=Lax, Secure when deployed,
+  host-only) holds a random token, the table stores only its SHA-256 hash; 30 days
+  since last use, `last_seen_at` updated at most hourly; sign-out revokes the row.
+  API: `POST /api/session` (sign in), `DELETE /api/session` (sign out),
+  `GET /api/me`; dependencies `current_staff` and `require_csrf` (token per
+  session, sent back in `X-CSRF-Token`). A wrong email and a wrong password get
+  the same answer after the same work (a dummy hash) plus a fixed 1-second delay,
+  and at most 4 password checks run at once per instance (each takes 64 MiB).
+  The cookie is re-sent with the session's current expiry on each signed-in
+  request. Errors return only a code (`{"error": "invalid_credentials"}`,
+  listed in `ErrorCode`); the screens translate it. Values from a fixed set are
+  Python `StrEnum`s (`Role`, `TenantStatus`, `Locale`, `ErrorCode`), stored as text
+  with a CHECK constraint (`backend/db/types.py`) because PostgreSQL enum types
+  are hard to change; the API schema lists them, so the screens' generated types
+  do too. `/api/me` includes the office's language. Passwords: at least 8
+  characters. **Still open:** limits on attempts per account and per source
+  (plan section 5), deliberately deferred; needed before offices other than the
+  first can sign in. Accounts are created with
+  `backend.commands.staff` (`add`, `set-password`; prompts for the password)
+  through `backend.identity.accounts`, which a sign-up page can reuse later.
 
 ### Step 1.6: React staff app skeleton
 

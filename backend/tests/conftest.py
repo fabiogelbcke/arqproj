@@ -104,12 +104,34 @@ async def db_session(db_connection: AsyncConnection) -> AsyncIterator[AsyncSessi
         await session.close()
 
 
+class _AsAppLogin:
+    """A database session for the app under test, as the app's restricted login.
+
+    The test connection belongs to the owner (a superuser locally, which row-level
+    security does not bind), so test data can be set up freely. Requests switch to
+    the app's login for their own work, so tenant isolation applies to them exactly
+    as in production, and switch back afterwards.
+    """
+
+    def __init__(self, connection: AsyncConnection):
+        self.connection = connection
+        self.session = _session_on(connection)
+
+    async def __aenter__(self) -> AsyncSession:
+        await self.connection.exec_driver_sql(f'SET ROLE "{RUNTIME_ROLE}"')
+        return self.session
+
+    async def __aexit__(self, *exc) -> None:
+        await self.session.close()
+        await self.connection.exec_driver_sql("RESET ROLE")
+
+
 @pytest.fixture
 def app(db_connection: AsyncConnection) -> FastAPI:
     """The app, with its database sessions on the test's rolled-back connection, so
-    requests see exactly the rows the test created."""
+    requests see exactly the rows the test created, and run as the app's login."""
     application = create_app(Settings(environment="test", database_url=TEST_DATABASE_URL))
-    application.state.sessionmaker = lambda: _session_on(db_connection)
+    application.state.sessionmaker = lambda: _AsAppLogin(db_connection)
     return application
 
 

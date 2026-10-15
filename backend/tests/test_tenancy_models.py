@@ -84,13 +84,28 @@ async def test_hostnames_are_stored_normalised(db_session, hostname, constraint)
         ({"slug": "Alinea Arquitetos"}, "ck_tenants_slug_format"),
         ({"slug": "-alinea"}, "ck_tenants_slug_format"),
         ({"name": "   "}, "ck_tenants_name_not_blank"),
-        ({"status": "deleted"}, "ck_tenants_status_known"),
     ],
 )
 async def test_tenant_values_are_checked(db_session, values, constraint):
     fields = {"slug": "alinea", "name": "ALINEA ARQUITETOS"} | values
     db_session.add(Tenant(**fields))
     await assert_refused(db_session, db_session.flush(), constraint)
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "constraint"),
+    [
+        ("status", "deleted", "ck_tenants_status_known"),
+        ("locale", "pt-br", "ck_tenants_locale_known"),  # not exactly a supported language
+    ],
+)
+async def test_unknown_enum_values_are_refused_even_outside_the_app(
+    db_session, column, value, constraint
+):
+    """The code only writes enum members; the database refuses anything else too,
+    e.g. a manual fix in SQL."""
+    insert = text(f"INSERT INTO tenants (slug, name, {column}) VALUES ('alinea', 'ALINEA', :value)")
+    await assert_refused(db_session, db_session.execute(insert, {"value": value}), constraint)
 
 
 async def test_slugs_are_unique(db_session):
