@@ -166,8 +166,13 @@ def test_every_updated_at_has_its_trigger(migrated_url):
                 )
             ).all()
         )
+        # The whole body, whitespace-normalised: an assignment made conditional,
+        # unreachable or overwritten would change it.
         function = connection.scalar(
-            text("SELECT prosrc FROM pg_proc WHERE proname = 'set_updated_at'")
+            text(
+                "SELECT btrim(regexp_replace(prosrc, '\\s+', ' ', 'g')) "
+                "FROM pg_proc WHERE proname = 'set_updated_at'"
+            )
         )
     engine.dispose()
     assert with_updated_at  # the rule is not vacuous
@@ -179,7 +184,7 @@ def test_every_updated_at_has_its_trigger(migrated_url):
         )
         for table in with_updated_at
     }
-    assert "NEW.updated_at = clock_timestamp();" in function
+    assert function == "BEGIN NEW.updated_at = clock_timestamp(); RETURN NEW; END;"
 
 
 def test_the_comparison_catches_model_drift(migrated_url, from_models_url):
