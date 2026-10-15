@@ -169,14 +169,14 @@ backend/
   web/                   FastAPI routers, forms, Pydantic request/response models
   db/                    models and repository implementations
 migrations/              reviewed Alembic migrations
-painel/               React + TypeScript staff administration (A20), built by Vite
+frontend/             React + TypeScript staff administration (A20), built by Vite
   src/                   screens, components, API client generated from OpenAPI
   package.json           own lockfile; Node is used to build, never at runtime
 ```
 
 `backend/` serves both audiences: the client project pages (Jinja templates under
 `web/`) and the JSON API the staff app uses, over one shared set of services, so
-there is a single copy of rules such as "who may see this file". `painel/` holds
+there is a single copy of rules such as "who may see this file". `frontend/` holds
 only the staff app's source and never runs as a server.
 
 Modules call explicit services; templates do not call Google or construct SQL.
@@ -277,19 +277,19 @@ How the staff app is served:
 The image is built in two stages, so Node exists only at build time:
 
 ```dockerfile
-FROM node:22-slim AS painel              # supported Node LTS; pin exact version
-WORKDIR /painel
-COPY painel/package*.json ./
+FROM node:22-slim AS frontend            # supported Node LTS; pin exact version
+WORKDIR /frontend
+COPY frontend/package*.json ./
 RUN npm ci
-COPY painel/ .
-RUN npm run build                        # → /painel/dist
+COPY frontend/ .
+RUN npm run build                        # → /frontend/dist
 
 FROM python:3.13-slim                    # production Python target
 WORKDIR /app
 COPY requirements.lock .
 RUN pip install --no-cache-dir -r requirements.lock
 COPY backend/ backend/
-COPY --from=painel /painel/dist backend/static/painel
+COPY --from=frontend /frontend/dist backend/static/frontend
 CMD ["sh", "-c", "uvicorn backend.app:create_app --factory --host 0.0.0.0 --port $PORT"]
 ```
 
