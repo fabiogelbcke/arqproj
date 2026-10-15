@@ -26,7 +26,7 @@ define on_database
 	    --port $(REMOTE_PORT) $(INSTANCE) >"$$log" 2>&1 & proxy=$$!; \
 	  trap "kill $$proxy 2>/dev/null" EXIT; \
 	  for i in $$(seq 40); do nc -z 127.0.0.1 $(REMOTE_PORT) 2>/dev/null && break; sleep 0.25; done; \
-	  nc -z 127.0.0.1 $(REMOTE_PORT) || { echo "Could not reach the $(ENV) database:"; cat "$$log"; exit 1; }; \
+	  nc -z 127.0.0.1 $(REMOTE_PORT) >/dev/null 2>&1 || { echo "Could not reach the $(ENV) database:"; cat "$$log"; exit 1; }; \
 	  MIGRATION_DATABASE_URL="$(REMOTE_URL)" $(1); \
 	else echo "ENV must be local or staging"; exit 2; fi
 endef
