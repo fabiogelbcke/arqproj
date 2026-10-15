@@ -1495,7 +1495,9 @@ and whether the office would be disappointed to lose it.
 
 ## 23. Implementation slices and rollout gates
 
-Use small end-to-end slices with reviewable PRs. Effort ranges below are planning
+Use small end-to-end slices with reviewable PRs. The step-by-step breakdown of
+these slices, with each step's engineering decisions, is
+[`rewrite-steps.md`](rewrite-steps.md); product decisions stay in section 2. Effort ranges below are planning
 hypotheses for AI-assisted work, not a promise about calendar availability.
 Several steps can happen in one focused session; permission setup, observation
 and external failures do not shrink simply because code generation is fast.

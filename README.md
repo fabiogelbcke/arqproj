@@ -137,11 +137,15 @@ The dashboard is enabled by setting `DASHBOARD_PASSWORD`. Without it, `/painel` 
 ## Try it without Google (demo)
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
-python run_local.py test  # → http://127.0.0.1:5000/casa-jardim and /painel (password: demo)
-python -m unittest discover -s tests -v
+brew install uv           # once; or see https://docs.astral.sh/uv/
+uv sync                   # creates .venv (Python 3.13) for the current app and backend/
+.venv/bin/python run_local.py test  # → http://127.0.0.1:5000/casa-jardim and /painel (password: demo)
+.venv/bin/python -m unittest discover -s tests -v
 ```
+
+`uv sync` installs exact versions from `uv.lock`: the current app's libraries
+(the `legacy` group, mirroring `requirements.txt`, which production still
+deploys from) and the new backend's. Keep both in step when changing either.
 
 The demo runs a fake Drive API locally, with real JWT signing and verification, loaded with sample data.
 
@@ -226,6 +230,18 @@ Use real Drive mode to verify actual Google-native exports and permissions.
 `python demo.py` still runs the original in-memory demo when
 `LOCAL_TEST_PROJECTS` is unset; automated tests do not use your editable dataset.
 
+## New backend (`backend/`)
+
+The multi-tenant rewrite lives in `backend/` (Python, FastAPI) and, later,
+`frontend/` (the React staff app). See `docs/rewrite-steps.md`. It runs alongside
+the current app and does not change what production serves.
+
+```bash
+uv run uvicorn backend.app:create_app --factory --reload   # → http://127.0.0.1:8000/health
+uv run pytest                                              # backend tests
+uv run ruff check backend && uv run ruff format --check backend
+```
+
 ## Run all automated tests locally
 
 No Google account, `.env`, or manually started website is required. Install the
@@ -233,7 +249,7 @@ test dependencies once (Python 3.13 is the production target; use a supported
 Node.js LTS release, version 20 or newer):
 
 ```bash
-.venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+uv sync
 npm ci
 npm run browsers:install
 ```
