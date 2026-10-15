@@ -6,7 +6,8 @@
   "nav": {
     "projects": "Projects",
     "signOut": "Sign out",
-    "signedInAs": "Signed in as {{name}}"
+    "signedInAs": "Signed in as {{name}}",
+    "settings": "Settings"
   },
   "theme": {
     "useLight": "Use light theme",
@@ -63,7 +64,14 @@
     "password_too_short": "The password must be at least {{min}} characters.",
     "unexpected": "Something went wrong. Please try again shortly.",
     "network": "No connection to the server. Check your internet and try again.",
-    "reference": "Support code: {{id}}"
+    "reference": "Support code: {{id}}",
+    "owner_only": "Only the office's owner can do this.",
+    "drive_not_configured": "Connecting Google Drive is not available in this environment yet.",
+    "drive_denied": "The connection was cancelled at Google. Try again whenever you like.",
+    "drive_link_invalid": "This connection request has expired. Start again with Connect.",
+    "drive_connect_failed": "Google Drive could not be connected. Please try again shortly.",
+    "drive_share_failed": "The folder in your Drive could not be prepared. Nothing was changed; try again.",
+    "drive_other_account": "This Google account cannot reach the office's folder. Reconnect with the account used before; nothing was changed."
   },
   "projectStatus": {
     "draft": "Draft",
@@ -74,5 +82,40 @@
   "accessMode": {
     "public": "Public",
     "password": "Password protected"
+  },
+  "settings": {
+    "title": "Settings",
+    "drive": "Google Drive",
+    "office": "Office"
+  },
+  "drive": {
+    "intro": "Project files live in the office's Google Drive. The portal only reaches files and folders it creates itself.",
+    "notConnected": "Not connected",
+    "notConnectedBody": "Connecting creates a “Portal Clientes” folder in your Drive. Your files stay yours.",
+    "connected": "Connected",
+    "connectedAs": "Connected as {{email}}",
+    "openFolder": "Open the folder in Google Drive",
+    "expired": "Connection expired",
+    "expiredBody": "Client pages stay up; uploads and new projects wait until you reconnect.",
+    "readerProblem": "The portal cannot read the folder. Check it was not moved or unshared.",
+    "local": "Local folders (development)",
+    "localBody": "On this computer, projects use the local example folders.",
+    "connect": "Connect Google Drive",
+    "reconnect": "Reconnect",
+    "disconnect": "Disconnect",
+    "disconnectConfirm": "The portal stops reaching your Drive now. Files stay in the folder.",
+    "connectedNow": "Google Drive connected.",
+    "disconnectedNow": "Google Drive disconnected.",
+    "ownerOnly": "Only the office's owner can connect or disconnect.",
+    "noticeNone": "Connect Google Drive to create projects and upload files from here.",
+    "noticeExpired": "The Google Drive connection expired. Client pages stay up; uploads and new projects wait until you reconnect."
+  },
+  "firstSteps": {
+    "title": "First steps",
+    "storage": "Connect where project files live (Google Drive)",
+    "firstProject": "Create the first project",
+    "firstProjectSoon": "Coming soon",
+    "done": "Done",
+    "membersNote": "The office's owner needs to complete these steps."
   }
 }

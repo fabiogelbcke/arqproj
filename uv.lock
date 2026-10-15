@@ -89,6 +89,7 @@ default-groups = ["dev", "legacy"]
 dependencies = [
     { name = "alembic" },
     { name = "argon2-cffi" },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "google-auth", extra = ["requests"] },
     { name = "httpx2" },
@@ -117,6 +118,7 @@ legacy = [
 requires-dist = [
     { name = "alembic", specifier = "~=1.20.0" },
     { name = "argon2-cffi", specifier = "~=25.1.0" },
+    { name = "cryptography", specifier = "~=50.0.2" },
     { name = "fastapi", specifier = "~=0.143.1" },
     { name = "google-auth", extras = ["requests"], specifier = "~=2.62.0" },
     { name = "httpx2", specifier = "~=2.13.1" },

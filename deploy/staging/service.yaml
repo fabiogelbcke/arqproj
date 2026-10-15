@@ -38,6 +38,24 @@ spec:
               value: postgresql+psycopg://portal-staging%40arq-proj.iam@127.0.0.1:5432/arqproj_staging
             - name: DATABASE_RUNTIME_ROLE
               value: portal-staging@arq-proj.iam
+            # Google Drive connection (docs/infrastructure.md, "Google Drive on staging").
+            - name: GOOGLE_OAUTH_CLIENT_ID
+              value: 496714293251-do3f1dtjsv5ae4l7559h3ghhg2ng34u5.apps.googleusercontent.com
+            - name: GOOGLE_OAUTH_REDIRECT_URI
+              value: https://portal-staging-496714293251.us-east1.run.app/api/drive/callback
+            - name: DRIVE_READER_IDENTITY
+              value: portal-staging@arq-proj.iam.gserviceaccount.com
+            # Secrets, read from Secret Manager by name; values never in the repo.
+            - name: GOOGLE_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: portal-staging-oauth-client-secret
+                  key: latest
+            - name: APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: portal-staging-app-secret
+                  key: latest
           resources:
             limits:
               cpu: "1"

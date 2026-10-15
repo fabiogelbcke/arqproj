@@ -11,6 +11,7 @@ import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx2
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy import text
@@ -18,8 +19,9 @@ from sqlalchemy import text
 from backend.db import runtime_role
 from backend.db.engine import create_engine, create_sessionmaker
 from backend.settings import Settings
+from backend.storage.google import GoogleDriveStorage, ServerIdentity
 from backend.tenancy.middleware import TenantMiddleware
-from backend.web import auth, health, painel, tenant
+from backend.web import auth, drive, health, onboarding, painel, tenant
 from backend.web.build import BuildIdMiddleware
 from backend.web.errors import ApiError, handle_api_error, handle_invalid_request
 from backend.web.request_id import RequestIdLogFilter, RequestIdMiddleware
@@ -108,8 +110,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         await verify_runtime_login(engine, app.state.settings)
         app.state.sessionmaker = create_sessionmaker(engine)
+        # One HTTP client for Google, and the server's own Drive identity.
+        app.state.http = httpx2.AsyncClient(timeout=30)
+        app.state.google = GoogleDriveStorage(ServerIdentity(), app.state.http)
         yield
     finally:
+        if getattr(app.state, "http", None) is not None:
+            await app.state.http.aclose()
         await engine.dispose()
 
 
@@ -128,6 +135,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(tenant.router)
+    app.include_router(drive.router)
+    app.include_router(onboarding.router)
     app.include_router(painel.router)
     app.add_exception_handler(ApiError, handle_api_error)
     app.add_exception_handler(RequestValidationError, handle_invalid_request)

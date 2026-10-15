@@ -26,3 +26,22 @@
 }
 .empty h2 { font-size: 20px; font-weight: 500; }
 .empty p { color: var(--muted); }
+
+.notice {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 14px 18px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--raise);
+}
+.noticeAction { font-weight: 500; }
+.steps { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 24px; display: grid; gap: 12px; background: var(--raise); }
+.steps h2 { font-size: 18px; font-weight: 500; }
+.steps ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.steps li { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.steps li[data-done] > :first-child { color: var(--muted); text-decoration: line-through; }
+.stepDone { font-size: 13px; color: var(--muted); }
+.panel { display: grid; gap: 16px; max-width: 640px; }
+.panel h2 { font-size: 22px; font-weight: 500; }
+.conn { border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; display: grid; gap: 6px; background: var(--raise); }
+.conn[data-state="ok"] { border-left: 3px solid var(--accent); }
+.conn[data-state="expired"] { border-left: 3px solid var(--danger); }
+.conn p { color: var(--muted); }
+.actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

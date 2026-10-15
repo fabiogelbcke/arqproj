@@ -39,6 +39,7 @@ export function SignedInLayout() {
             <NavLink to="/" end>
               {t("nav.projects")}
             </NavLink>
+            <NavLink to="/configuracoes">{t("nav.settings")}</NavLink>
           </nav>
           <span className={styles.spacer} />
           <span className={styles.who}>{t("nav.signedInAs", { name: me.data.name })}</span>

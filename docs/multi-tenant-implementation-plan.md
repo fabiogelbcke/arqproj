@@ -784,7 +784,10 @@ but must not weaken tenant/path checks. Store the reader identity per connection
 so this choice does not change domain code.
 
 Encrypt refresh tokens using a managed envelope key, record key version, and
-keep tokens/resumable-session URLs out of logs and browser storage. For local
+keep tokens/resumable-session URLs out of logs and browser storage. As built
+(P1, 15 Oct 2026): AES-GCM with a key derived from each environment's
+`APP_SECRET` (Secret Manager), ciphertexts versioned so Cloud KMS can replace it
+without re-connecting offices. For local
 simulation use non-secret dummy credentials. Local live testing uses dedicated
 credentials from ignored files, never committed samples.
 

@@ -6,14 +6,32 @@ health) arrives with the Drive connection screen in slice 3.
 
 from __future__ import annotations
 
+import uuid
+from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, Index, Text, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, DateTime, Index, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.base import Base, IdMixin, TimestampsMixin
 from backend.db.isolation import TenantOwned
 from backend.db.types import TextEnum, enum_check
+
+
+class WriterStatus(StrEnum):
+    """The office's own grant, used to create folders and upload."""
+
+    NONE = "none"  # never connected, or disconnected
+    CONNECTED = "connected"
+    EXPIRED = "expired"  # Google refused the stored grant: reconnect
+
+
+class ReaderStatus(StrEnum):
+    """The reader identity's access to the office's folder (pages, downloads)."""
+
+    UNKNOWN = "unknown"
+    OK = "ok"
+    NO_ACCESS = "no_access"
 
 
 class StorageKind(StrEnum):
@@ -41,6 +59,11 @@ class StorageConnection(IdMixin, TimestampsMixin, TenantOwned, Base):
             "kind <> 'google' OR reader_identity IS NOT NULL", name="google_has_reader"
         ),
         CheckConstraint("kind <> 'google' OR root_id <> ''", name="google_has_root"),
+        enum_check("writer_status", WriterStatus),
+        enum_check("reader_status", ReaderStatus),
+        CheckConstraint(
+            "writer_status <> 'connected' OR writer_token IS NOT NULL", name="connected_has_token"
+        ),
     )
 
     kind: Mapped[StorageKind] = mapped_column(TextEnum(StorageKind))
@@ -48,3 +71,15 @@ class StorageConnection(IdMixin, TimestampsMixin, TenantOwned, Base):
     root_id: Mapped[str] = mapped_column(Text, server_default=text("''"))
     # The Google identity the folder is shared with for reading (plan section 9).
     reader_identity: Mapped[str | None] = mapped_column(Text)
+    # The Google account that connected, shown in the painel.
+    account_email: Mapped[str | None] = mapped_column(Text)
+    # The office's refresh token, encrypted (backend.security.keys); never logged.
+    writer_token: Mapped[str | None] = mapped_column(Text)
+    writer_status: Mapped[WriterStatus] = mapped_column(
+        TextEnum(WriterStatus), server_default=text("'none'")
+    )
+    reader_status: Mapped[ReaderStatus] = mapped_column(
+        TextEnum(ReaderStatus), server_default=text("'unknown'")
+    )
+    connected_by: Mapped[uuid.UUID | None] = mapped_column()
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

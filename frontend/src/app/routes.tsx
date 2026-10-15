@@ -1,11 +1,12 @@
 import { I18nProvider } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { Outlet, type RouteObject } from "react-router";
+import { Navigate, Outlet, type RouteObject } from "react-router";
 
 import { type Locale, useOfficeLocale } from "../i18n";
 import { ChoosePasswordPage } from "../pages/ChoosePasswordPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
+import { SettingsDrivePage } from "../pages/SettingsDrivePage";
 import { SignInPage } from "../pages/SignInPage";
 import { useMe, useTenant } from "../session/session";
 import { UpdateBanner } from "../ui/UpdateBanner";
@@ -35,6 +36,8 @@ export const routes: RouteObject[] = [
         element: <SignedInLayout />,
         children: [
           { index: true, element: <ProjectsPage /> },
+          { path: "configuracoes", element: <Navigate to="/configuracoes/drive" replace /> },
+          { path: "configuracoes/drive", element: <SettingsDrivePage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

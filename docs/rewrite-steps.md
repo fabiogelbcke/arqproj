@@ -255,17 +255,30 @@ in [arqprojprototypes](https://github.com/fabiogelbcke/arqprojprototypes)) while
 the client page's is still changing, and there is no rush to move the first
 office. So the painel comes next, then the client page once its design settles:
 
-1. **P1 Painel project list**: groups (in progress, drafts, completed), search,
+1. **P1 Drive connection** (moved first, 15 Oct 2026: creation needs Drive,
+   so it is built once with folders) and the painel's **first steps** checklist.
+   **As built:** Configurações → Google Drive (owners connect and disconnect;
+   members see), `drive.file` sign-in through **one shared return address**
+   that forwards to the office that started (signed `state`, a one-time nonce
+   cookie, only to addresses registered to that office); the "Portal Clientes"
+   folder is shared with the reader **before** anything else, and trashed if
+   sharing fails; reconnecting keeps the folder; the refresh token is stored
+   encrypted with a key derived from `APP_SECRET` (Cloud KMS can replace it).
+   `storage_connections` gains account, encrypted token, writer and reader
+   health (migration 0009; the app may now change its own office's row).
+   `/api/onboarding` and the "Primeiros passos" list; the painel notice when
+   Drive is missing or expired.
+2. **P1 Painel project list** (now after creation): groups (in progress, drafts, completed), search,
    sorting, progress, next meeting, last update, placeholder covers. Read-only.
-2. **P2 Creating a project**: name, client, template (stages and default type
+3. **P2 Creating a project**: name, client, template (stages and default type
    from the reference tables), suggested slug; starts as a draft. Database only.
    The app gets write access to the project tables.
-3. **P3 Editing in the painel**: what exactly is editable here is to be
+4. **P3 Editing in the painel**: what exactly is editable here is to be
    discussed before this step (Fabio); row-version conflicts handled.
-4. **P4 Drive connection and folders**: "Connect Google Drive" (staging's own
+5. **P4 Folders for projects, covers**: "Connect Google Drive" (staging's own
    OAuth client), folder creation with share-while-empty, folders for projects
    made in P2–P3, covers.
-5. Then **slice 2** below (client page, password, downloads, import), whose edit
+6. Then **slice 2** below (client page, password, downloads, import), whose edit
    mode reuses the painel's editing pieces (plan section 24), then slices 3b–7.
 
 Steps 2.1, 2.2 and 2.2b (tables, storage, reference tables) are done and stay
