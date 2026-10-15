@@ -25,6 +25,31 @@ def app_role_for(database: str) -> str:
     return f"{database}_app"
 
 
+def _refuse_unsafe_login(conn: psycopg.Connection, login: str) -> None:
+    """The app's login must be subject to row-level security, or isolation is void."""
+    role = conn.execute(
+        "SELECT rolsuper, rolbypassrls, rolname = current_user FROM pg_roles WHERE rolname = %s",
+        (login,),
+    ).fetchone()
+    if role is None:
+        raise SystemExit(f"Login {login} does not exist: create it first")
+    superuser, bypassrls, is_runner = role
+    if superuser or bypassrls:
+        # Exempt from row-level security even when it is FORCEd.
+        raise SystemExit(f"Login {login} is a superuser or can bypass row-level security")
+    if is_runner:
+        raise SystemExit(f"Login {login} is the login running migrations and provisioning")
+    # Owners can ALTER or DROP the policies on their tables. Cloud SQL has no true
+    # superuser, so its migration login passes the check above yet owns everything.
+    owned = conn.execute(
+        "SELECT c.relname FROM pg_class c JOIN pg_roles r ON r.oid = c.relowner "
+        "WHERE c.relnamespace = 'public'::regnamespace AND r.rolname = %s LIMIT 1",
+        (login,),
+    ).fetchone()
+    if owned:
+        raise SystemExit(f"Login {login} owns application tables (e.g. {owned[0]})")
+
+
 def provision(conn: psycopg.Connection, login: str) -> list[str]:
     """Make `login` the only member of this database's app role. Returns changes.
 
@@ -35,15 +60,7 @@ def provision(conn: psycopg.Connection, login: str) -> list[str]:
     group = app_role_for(database)
     if not conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (group,)).fetchone():
         raise SystemExit(f"Role {group} does not exist: run migrations first")
-    login_role = conn.execute(
-        "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = %s", (login,)
-    ).fetchone()
-    if login_role is None:
-        raise SystemExit(f"Login {login} does not exist: create it first")
-    if any(login_role):
-        # PostgreSQL exempts these from row-level security even when it is FORCEd:
-        # the app would see every office's rows (e.g. the owner login reused by mistake).
-        raise SystemExit(f"Login {login} is a superuser or can bypass row-level security")
+    _refuse_unsafe_login(conn, login)
 
     # Ordinary members only: since PostgreSQL 16 a non-superuser who creates a role
     # (the migration login on Cloud SQL) is made an admin member of it; that link
@@ -58,8 +75,21 @@ def provision(conn: psycopg.Connection, login: str) -> list[str]:
         )
     }
     changes = []
-    if login not in members:
-        conn.execute(sql.SQL("GRANT {} TO {}").format(sql.Identifier(group), sql.Identifier(login)))
+    # Inheritance stated explicitly: otherwise it follows the login's own setting,
+    # and a NOINHERIT login would be "added" yet unable to use the privileges
+    # (the app never runs SET ROLE). Re-granting also fixes an existing membership.
+    inherits = conn.execute(
+        "SELECT a.inherit_option FROM pg_auth_members a "
+        "JOIN pg_roles g ON g.oid = a.roleid JOIN pg_roles m ON m.oid = a.member "
+        "WHERE g.rolname = %s AND m.rolname = %s AND NOT a.admin_option",
+        (group, login),
+    ).fetchone()
+    if inherits is None or not inherits[0]:
+        conn.execute(
+            sql.SQL("GRANT {} TO {} WITH INHERIT TRUE").format(
+                sql.Identifier(group), sql.Identifier(login)
+            )
+        )
         changes.append(f"{login} added to {group}")
     for former in sorted(members - {login}):
         conn.execute(

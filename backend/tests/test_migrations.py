@@ -445,3 +445,35 @@ def test_a_failed_rotation_changes_nothing(migrated_url, monkeypatch):
         provision_url(migrated_url, rotated)
     monkeypatch.undo()
     assert _members(migrated_url, group) == {RUNTIME_ROLE}  # the grant was rolled back
+
+
+def test_provisioning_refuses_a_login_that_owns_tables(migrated_url):
+    """Like Cloud SQL's migration login: not a superuser, but owner of the tables,
+    so it could alter or drop the isolation policies."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    owner_like = RUNTIME_ROLE + "_owner"
+    local.create_runtime_role(owner_like)
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE owned_by_login (id int)"))
+        connection.execute(text(f'ALTER TABLE owned_by_login OWNER TO "{owner_like}"'))
+    engine.dispose()
+    with pytest.raises(SystemExit, match="owns application tables"):
+        provision_url(migrated_url, owner_like)
+
+
+def test_a_noinherit_login_still_gets_working_access(migrated_url):
+    """Membership is granted WITH INHERIT TRUE, whatever the login's own setting."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    login = RUNTIME_ROLE + "_noinherit"
+    local.create_runtime_role(login)
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        connection.execute(text(f'ALTER ROLE "{login}" NOINHERIT'))
+    engine.dispose()
+    provision_url(migrated_url, login)
+
+    as_login = create_engine(make_url(migrated_url).set(username=login))
+    with as_login.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM tenants")) == 0  # readable
+    as_login.dispose()
