@@ -123,6 +123,14 @@ def drive_file(file_id, name, mime="application/pdf", size="10"):
     return data
 
 
+FOLDER1 = {
+    "id": "folder1",
+    "name": "01 - Briefing",
+    "mimeType": "application/vnd.google-apps.folder",
+    "modifiedTime": "2026-10-15T12:00:00Z",
+}
+
+
 def drive_error(status, reason, message="secret detail from Google"):
     return status, {"error": {"code": status, "message": message, "errors": [{"reason": reason}]}}
 
@@ -147,11 +155,12 @@ def drive():
 async def test_a_long_folder_is_read_page_by_page(drive):
     storage, fake = drive
     fake.answers = [
+        (200, FOLDER1),
         (200, {"files": [drive_file("b", "B.pdf")], "nextPageToken": "p2"}),
         (200, {"files": [drive_file("a", "A.pdf")]}),
     ]
     assert [i.name for i in await storage.list_folder("folder1")] == ["A.pdf", "B.pdf"]
-    first, second = fake.requests
+    _, first, second = fake.requests
     assert first.url.params["q"] == "'folder1' in parents and trashed = false"
     assert "pageToken" not in first.url.params and second.url.params["pageToken"] == "p2"
     assert first.headers["Authorization"] == "Bearer test-token"
@@ -211,12 +220,15 @@ async def test_a_shortcut_is_recognised_and_not_downloaded(drive):
     (step 2.5); until then a shortcut is never fetched."""
     storage, fake = drive
     shortcut = drive_file("s1", "Planta (atalho)", "application/vnd.google-apps.shortcut", None)
-    fake.answers = [(200, {"files": [shortcut | {"shortcutDetails": {"targetId": "elsewhere"}}]})]
+    fake.answers = [
+        (200, FOLDER1),
+        (200, {"files": [shortcut | {"shortcutDetails": {"targetId": "elsewhere"}}]}),
+    ]
     [item] = await storage.list_folder("folder1")
     assert (item.is_shortcut, item.is_native, item.shortcut_target) == (True, False, "elsewhere")
     with pytest.raises(StorageError):
         await storage.download(item)
-    assert len(fake.requests) == 1  # no export or download attempted
+    assert len(fake.requests) == 2  # no export or download attempted
 
 
 async def test_a_failed_login_to_google_is_a_storage_problem_too(drive):
@@ -231,6 +243,41 @@ async def test_a_failed_login_to_google_is_a_storage_problem_too(drive):
     assert error.value.problem is StorageProblem.UNAVAILABLE
     assert "default credentials" in error.value.detail  # for the server log only
     assert "default credentials" not in str(error.value) and fake.requests == []
+
+
+@pytest.mark.parametrize(
+    "folder_answer",
+    [(200, FOLDER1 | {"trashed": True}), (404, {}), (200, drive_file("folder1", "a file"))],
+    ids=["trashed", "deleted", "a-file"],
+)
+async def test_a_broken_folder_binding_is_not_found_rather_than_empty(drive, folder_answer):
+    storage, fake = drive
+    fake.answers = [folder_answer]
+    with pytest.raises(StorageError) as error:
+        await storage.list_folder("folder1")
+    assert error.value.problem is StorageProblem.NOT_FOUND
+    assert len(fake.requests) == 1  # never searched for children
+
+
+async def test_a_connection_dropping_mid_download_is_a_storage_problem(drive):
+    storage, fake = drive
+
+    class Broken(httpx2.AsyncByteStream):
+        async def __aiter__(self):
+            yield b"%PDF first part"
+            raise httpx2.ReadError("connection reset")
+
+    def answer(request):
+        fake.requests.append(request)
+        return httpx2.Response(200, stream=Broken())
+
+    storage._client = httpx2.AsyncClient(transport=httpx2.MockTransport(answer))
+    item = StorageItem("f1", "Planta.pdf", "application/pdf", 100, None)
+    download = await storage.download(item)
+    with pytest.raises(StorageError) as error:
+        _ = [chunk async for chunk in download.chunks]
+    assert error.value.problem is StorageProblem.UNAVAILABLE
+    assert "connection reset" in error.value.detail
 
 
 async def test_a_trashed_file_is_not_found(drive):

@@ -79,7 +79,11 @@ class GoogleDriveStorage:
         self._sleep = sleep
 
     async def list_folder(self, folder_id: str) -> list[StorageItem]:
-        _check(folder_id)
+        # Drive's "in parents" search answers a deleted, trashed or unshared folder
+        # with an empty list; check the folder itself so a broken binding is "not
+        # found", not an empty stage (plan section 8).
+        if not (await self.get(folder_id)).is_folder:
+            raise StorageError(StorageProblem.NOT_FOUND)
         items, page = [], None
         while True:
             params = {
@@ -127,6 +131,8 @@ class GoogleDriveStorage:
             try:
                 async for block in response.aiter_bytes():
                     yield block
+            except httpx2.TransportError as error:  # the connection dropped mid-file
+                raise StorageError(StorageProblem.UNAVAILABLE, f"{url}: {error!r}") from error
             finally:
                 await response.aclose()
 
