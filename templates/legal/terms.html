@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% macro v(key) %}{{ legal[key] or "[a preencher]" }}{% endmacro %}
+{% block title %}Termos de Uso · {{ site_name }}{% endblock %}
+{% block content %}
+<article class="message legal" lang="pt-BR">
+  <h1>Termos de Uso</h1>
+  <p><small>Última atualização: {{ legal.updated }}</small></p>
+
+  <h2>O serviço</h2>
+  <p>O portal de projetos de {{ legal.name }} ({{ v('legal_name') }}, CNPJ {{ v('cnpj') }}) permite
+  que o escritório compartilhe com seus clientes o andamento dos projetos, reuniões e arquivos, e
+  que a equipe do escritório gerencie esse conteúdo. Ao usar o portal, você concorda com estes
+  termos e com a <a href="/privacidade">Política de Privacidade</a>.</p>
+
+  <h2>Acesso</h2>
+  <p>As páginas de projeto são destinadas ao cliente do projeto e a quem ele escolher. Trate o
+  endereço e a senha de um projeto como informação confidencial. O painel é de uso exclusivo da
+  equipe do escritório; cada pessoa é responsável pela própria senha.</p>
+
+  <h2>Conteúdo</h2>
+  <p>Os desenhos, documentos e demais conteúdos dos projetos pertencem ao escritório ou ao cliente,
+  conforme o contrato entre eles. O portal apenas os apresenta. Os arquivos continuam no Google
+  Drive do escritório.</p>
+
+  <h2>Uso adequado</h2>
+  <p>Não é permitido tentar acessar projetos ou contas de terceiros, interferir no funcionamento do
+  portal, nem usá-lo para fins ilegais.</p>
+
+  <h2>Disponibilidade e responsabilidade</h2>
+  <p>Trabalhamos para manter o portal disponível e correto, mas ele pode passar por interrupções.
+  As informações oficiais de cada projeto são as acordadas entre o escritório e o cliente. Na
+  medida permitida pela lei, não respondemos por danos indiretos decorrentes do uso do portal.</p>
+
+  <h2>Mudanças</h2>
+  <p>Estes termos podem ser atualizados; a nova versão será publicada nesta página com a data.</p>
+
+  <h2>Lei e foro</h2>
+  <p>Aplica-se a lei brasileira. Fica eleito o foro de {{ v('city') }}, salvo disposição legal em
+  contrário, como os direitos do consumidor. Contato: {{ v('email') }}.</p>
+</article>
+
+<article class="message legal" lang="en">
+  <h1>Terms of Use (English)</h1>
+  <p><small>Last updated: {{ legal.updated_en }}. The Portuguese version above prevails.</small></p>
+
+  <h2>The service</h2>
+  <p>The {{ legal.name }} project portal ({{ v('legal_name') }}, CNPJ {{ v('cnpj') }}) lets the
+  office share project progress, meetings and files with its clients, and lets the office's staff
+  manage that content. By using the portal you agree to these terms and to the
+  <a href="/privacidade">Privacy Policy</a>.</p>
+
+  <h2>Access</h2>
+  <p>Project pages are meant for the project's client and whoever they choose. Treat a project's
+  address and password as confidential. The dashboard is for the office's staff only; each person
+  is responsible for their own password.</p>
+
+  <h2>Content</h2>
+  <p>Drawings, documents and other project content belong to the office or the client, as their
+  contract provides. The portal only presents them. Files stay in the office's Google Drive.</p>
+
+  <h2>Acceptable use</h2>
+  <p>Do not try to access other people's projects or accounts, interfere with the portal, or use it
+  for unlawful purposes.</p>
+
+  <h2>Availability and liability</h2>
+  <p>We work to keep the portal available and accurate, but it may be interrupted. The official
+  information about each project is what the office and the client agree. To the extent the law
+  allows, we are not liable for indirect damages arising from use of the portal.</p>
+
+  <h2>Changes</h2>
+  <p>These terms may be updated; the new version will be published on this page with its date.</p>
+
+  <h2>Law and venue</h2>
+  <p>Brazilian law applies. The courts of {{ v('city') }} have jurisdiction, except where the law
+  provides otherwise, such as consumer rights. Contact: {{ v('email') }}.</p>
+</article>
+{% endblock %}

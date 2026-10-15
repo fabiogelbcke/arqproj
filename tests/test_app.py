@@ -204,6 +204,19 @@ class EndToEnd(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertNotIn("casa-jardim", r.get_data(as_text=True))
 
+    def test_privacy_policy_and_terms_are_published_and_linked(self):
+        # Google's OAuth consent screen links both pages; the policy must state the
+        # Limited Use commitment for Google user data.
+        privacy = self.client.get("/privacidade")
+        self.assertEqual(privacy.status_code, 200)
+        html = privacy.get_data(as_text=True)
+        self.assertIn("including the Limited Use requirements", html)
+        self.assertIn("drive.file", html)
+        self.assertEqual(self.client.get("/termos").status_code, 200)
+        landing = self.client.get("/").get_data(as_text=True)
+        self.assertIn('href="/privacidade"', landing)
+        self.assertIn('href="/termos"', landing)
+
     def test_unknown_and_hidden_projects_404(self):
         self.assertEqual(self.client.get("/nope").status_code, 404)
         self.assertEqual(self.client.get("/templates").status_code, 404)
