@@ -21,6 +21,10 @@ application, not the target backend.
 Companion: [infrastructure cost comparison and POC options](infrastructure-cost-comparison.md),
 including free-tier assumptions and Cloud Scheduler versus local cron.
 
+[Future ideas](future-ideas.md) collects possibilities outside committed scope,
+including templates, finer-grained team permissions, project organization and
+WhatsApp updates. This plan remains the source of implementation decisions.
+
 ## 1. Product agreement and scope
 
 The product is an architecture office's client portal. Each office keeps its

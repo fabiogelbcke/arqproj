@@ -225,6 +225,9 @@ committed here.
   register row, add one. Newest at the top, never edit a past entry.
 - `docs/infrastructure-cost-comparison.md` holds the hosting and provider cost
   analysis.
+- `docs/future-ideas.md` is the user-requested collection of uncommitted product
+  ideas. Add possibilities there; promote agreed scope into the existing plan
+  and record changed decisions in the changelog before implementing them.
 - Don't start a parallel planning or decision document. If something doesn't fit
   the plan's structure, say so rather than creating a second source of truth.
 - Any copy of these documents outside the repository — for example in a claude.ai
