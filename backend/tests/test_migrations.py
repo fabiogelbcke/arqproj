@@ -26,8 +26,9 @@ from sqlalchemy import CheckConstraint, MetaData, create_engine, inspect, text
 from sqlalchemy.engine import make_url
 
 from backend.db import local
+from backend.db.isolation import POLICY, REGISTRY_TABLES
 from backend.db.registry import metadata
-from backend.tests.conftest import TEST_DATABASE_URL, alembic_config
+from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL, alembic_config
 
 
 def _scratch(name: str) -> Iterator[str]:
@@ -205,3 +206,61 @@ def test_the_comparison_catches_model_drift(migrated_url, from_models_url):
     assert set(differences) == {"columns", "constraints"}
     assert any("'en'" in str(row) for row in differences["columns"]["only_in_models"])
     assert any("archived" in str(row) for row in differences["constraints"]["only_in_models"])
+
+
+def _unisolated_office_tables(url: str) -> set[str]:
+    """Tables with a tenant_id that lack enforced row-level security or the policy."""
+    engine = create_engine(url)
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text(
+                """
+                SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity,
+                       EXISTS (SELECT 1 FROM pg_policies p
+                               WHERE p.tablename = c.relname AND p.policyname = :policy)
+                FROM pg_class c
+                JOIN information_schema.columns col
+                  ON col.table_name = c.relname AND col.column_name = 'tenant_id'
+                WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r'
+                """
+            ),
+            {"policy": POLICY},
+        ).all()
+    engine.dispose()
+    return {
+        name
+        for name, enabled, forced, has_policy in rows
+        if name not in REGISTRY_TABLES and not (enabled and forced and has_policy)
+    }
+
+
+def test_every_office_table_is_isolated(migrated_url):
+    """Any future table holding office data must turn on row-level security."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    assert _unisolated_office_tables(migrated_url) == set()
+
+
+def test_the_isolation_rule_catches_a_forgotten_table(migrated_url):
+    command.upgrade(alembic_config(migrated_url), "head")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE forgotten (id int, tenant_id uuid)"))
+    engine.dispose()
+    assert _unisolated_office_tables(migrated_url) == {"forgotten"}
+
+
+def test_the_app_role_only_reads_the_registry(migrated_url):
+    command.upgrade(alembic_config(migrated_url), "head")
+    engine = create_engine(migrated_url)
+    with engine.connect() as connection:
+        privileges = set(
+            connection.execute(
+                text(
+                    "SELECT table_name, privilege_type FROM information_schema.role_table_grants "
+                    "WHERE grantee = :role"
+                ),
+                {"role": RUNTIME_ROLE},
+            ).all()
+        )
+    engine.dispose()
+    assert privileges == {("tenants", "SELECT"), ("tenant_domains", "SELECT")}

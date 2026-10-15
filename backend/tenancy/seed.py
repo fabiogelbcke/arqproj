@@ -54,7 +54,8 @@ async def seed(session: AsyncSession) -> list[str]:
 
 
 async def main() -> None:
-    url = Settings().database_url
+    # Offices are created by the owner: the app's own login can only read them.
+    url = Settings().migration_database_url
     local.require_local(url)
     engine = create_async_engine(url)
     async with AsyncSession(engine, expire_on_commit=False) as session:

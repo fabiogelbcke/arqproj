@@ -118,6 +118,16 @@ React painel. No client-visible features yet.
   never keeps the previous request's office.
 - **Review:** the RLS policies and the test cases. This is the step most worth
   reading closely.
+- **As built:** settings `DATABASE_URL` (the app's login), `MIGRATION_DATABASE_URL`
+  (the owner) and `DATABASE_RUNTIME_ROLE`. Policy `office_isolation` compares
+  `tenant_id` with `current_tenant_id()`, which reads a per-transaction setting
+  (NULL when unset, so no rows). RLS is FORCEd. Sessions opened with
+  `get_office_session` set the office at the start of every transaction.
+  `tenants`/`tenant_domains` are the routing registry: protected by grants
+  (read-only for the app), not by the policy, because they are read before an
+  office is known. No office-data table exists yet: projects (step 2.1) is the
+  first; tests use a stand-in table set up the same way, and a schema test
+  makes every future `tenant_id` table enable isolation.
 
 ### Step 1.5: Staff accounts and sessions
 

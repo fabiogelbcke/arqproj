@@ -8,12 +8,18 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from enum import StrEnum
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-LOCAL_DATABASE_URL = "postgresql+psycopg://localhost:5432/arqproj_dev"
+# The app connects as a restricted role that row-level security applies to; only
+# migrations (and local admin commands) use the owner role. Locally the owner is
+# the developer's own PostgreSQL user.
+LOCAL_DATABASE_URL = "postgresql+psycopg://arqproj_app@localhost:5432/arqproj_dev"
+LOCAL_MIGRATION_DATABASE_URL = "postgresql+psycopg://localhost:5432/arqproj_dev"
+LOCAL_RUNTIME_ROLE = "arqproj_app"
 
 
 class Environment(StrEnum):
@@ -28,8 +34,13 @@ class Settings(BaseSettings):
 
     environment: Environment = Environment.LOCAL
     log_level: str = "INFO"
-    # Local default: the developer's own PostgreSQL. Required when deployed.
+    # The app's restricted login. Local default: arqproj_app on this machine.
+    # Required when deployed.
     database_url: str = LOCAL_DATABASE_URL
+    # The owner login, used only by migrations and local admin commands.
+    migration_database_url: str = LOCAL_MIGRATION_DATABASE_URL
+    # The role migrations grant table access to: the login database_url uses.
+    database_runtime_role: str = LOCAL_RUNTIME_ROLE
     # Lets Cloud Logging group a request's log lines by trace. Optional.
     google_cloud_project: str | None = None
 
@@ -41,11 +52,19 @@ class Settings(BaseSettings):
             raise ValueError(f"unknown log level {value!r}")
         return level
 
-    @field_validator("database_url")
+    @field_validator("database_runtime_role")
+    @classmethod
+    def _plain_role_name(cls, value: str) -> str:
+        # Interpolated into GRANT statements by migrations, so only plain names.
+        if not re.fullmatch(r"[a-z_][a-z0-9_.@-]{0,62}", value):
+            raise ValueError(f"unexpected database role name {value!r}")
+        return value
+
+    @field_validator("database_url", "migration_database_url")
     @classmethod
     def _postgres_with_psycopg(cls, value: str) -> str:
         if not value.startswith("postgresql+psycopg://"):
-            raise ValueError("DATABASE_URL must start with postgresql+psycopg://")
+            raise ValueError("database URLs must start with postgresql+psycopg://")
         return value
 
     @model_validator(mode="after")
