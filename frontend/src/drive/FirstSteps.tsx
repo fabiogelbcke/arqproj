@@ -11,7 +11,7 @@ export function FirstSteps() {
   const onboarding = useOnboarding();
   const me = useMe();
   const steps = onboarding.data;
-  if (!steps || (steps.storage_connected && steps.has_project)) return null;
+  if (!steps || (steps.storage_connected && steps.office_details && steps.has_project)) return null;
   const owner = me.data?.role === "owner";
   return (
     <section className={styles.steps} aria-labelledby="first-steps">
@@ -24,6 +24,14 @@ export function FirstSteps() {
             <Link to="/configuracoes/drive">{t("firstSteps.storage")}</Link>
           )}
           {steps.storage_connected && <span className={styles.stepDone}>{t("firstSteps.done")}</span>}
+        </li>
+        <li data-done={steps.office_details || undefined}>
+          {steps.office_details || !owner ? (
+            <span>{t("firstSteps.office")}</span>
+          ) : (
+            <Link to="/configuracoes/escritorio">{t("firstSteps.office")}</Link>
+          )}
+          {steps.office_details && <span className={styles.stepDone}>{t("firstSteps.done")}</span>}
         </li>
         <li data-done={steps.has_project || undefined}>
           <span>{t("firstSteps.firstProject")}</span>

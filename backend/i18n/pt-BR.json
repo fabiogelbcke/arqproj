@@ -71,7 +71,13 @@
     "drive_link_invalid": "Este pedido de conexão expirou. Comece de novo em Conectar.",
     "drive_connect_failed": "Não foi possível conectar o Google Drive. Tente de novo em instantes.",
     "drive_share_failed": "Não foi possível preparar a pasta no seu Drive. Nada foi alterado; tente de novo.",
-    "drive_other_account": "Esta conta Google não acessa a pasta do escritório. Reconecte com a mesma conta usada antes; nada foi alterado."
+    "drive_other_account": "Esta conta Google não acessa a pasta do escritório. Reconecte com a mesma conta usada antes; nada foi alterado.",
+    "drive_not_connected": "Conecte o Google Drive do escritório antes de fazer isso.",
+    "drive_expired": "A conexão com o Google Drive expirou. Reconecte em Configurações → Google Drive.",
+    "invalid_office_name": "Informe um nome de até 80 caracteres.",
+    "invalid_email": "Informe um e-mail válido, como contato@escritorio.com.br.",
+    "logo_wrong_type": "Use uma imagem PNG, JPG, WebP ou SVG.",
+    "logo_too_large": "Use uma imagem de até 512 KB."
   },
   "projectStatus": {
     "draft": "Rascunho",
@@ -116,6 +122,23 @@
     "firstProject": "Criar o primeiro projeto",
     "firstProjectSoon": "Disponível em breve",
     "done": "Feito",
-    "membersNote": "O responsável pelo escritório precisa concluir estes passos."
+    "membersNote": "O responsável pelo escritório precisa concluir estes passos.",
+    "office": "Preencher os dados do escritório (e-mail de contato e logo)"
+  },
+  "office": {
+    "name": "Nome do escritório",
+    "nameHint": "Aparece no topo das páginas dos clientes e na aba do navegador.",
+    "email": "E-mail de contato",
+    "emailHint": "Usado como endereço de resposta nos e-mails aos clientes.",
+    "save": "Salvar",
+    "saved": "Salvo.",
+    "logo": "Logo",
+    "logoHint": "PNG, JPG, WebP ou SVG, até 512 KB.",
+    "logoNone": "Nenhum logo ainda.",
+    "chooseLogo": "Escolher imagem",
+    "logoSaved": "Logo atualizado.",
+    "logoNeedsDrive": "Conecte o Google Drive para enviar o logo; ele fica guardado no Drive do escritório.",
+    "logoAlt": "Logo de {{name}}",
+    "ownerOnly": "Só o responsável pelo escritório pode alterar estes dados."
   }
 }

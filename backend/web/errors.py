@@ -30,6 +30,12 @@ class ErrorCode(StrEnum):
     DRIVE_CONNECT_FAILED = "drive_connect_failed"
     DRIVE_SHARE_FAILED = "drive_share_failed"  # the folder could not be shared with the reader
     DRIVE_OTHER_ACCOUNT = "drive_other_account"  # reconnect with the account that has the folder
+    DRIVE_NOT_CONNECTED = "drive_not_connected"  # this needs the office's Drive connected first
+    DRIVE_EXPIRED = "drive_expired"  # Google refused the stored grant: reconnect
+    INVALID_OFFICE_NAME = "invalid_office_name"
+    INVALID_EMAIL = "invalid_email"
+    LOGO_WRONG_TYPE = "logo_wrong_type"
+    LOGO_TOO_LARGE = "logo_too_large"
 
 
 class ErrorOut(BaseModel):

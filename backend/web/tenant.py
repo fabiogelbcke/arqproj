@@ -7,7 +7,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.db.engine import get_tenant_session
+from backend.office.profile import display_name
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 
@@ -20,5 +23,7 @@ class TenantOut(BaseModel):
 
 
 @router.get("/tenant")
-async def tenant(tenant: CurrentTenant = Depends(current_tenant)) -> TenantOut:
-    return TenantOut(name=tenant.name, locale=tenant.locale)
+async def tenant(
+    tenant: CurrentTenant = Depends(current_tenant), db: AsyncSession = Depends(get_tenant_session)
+) -> TenantOut:
+    return TenantOut(name=await display_name(db, tenant), locale=tenant.locale)

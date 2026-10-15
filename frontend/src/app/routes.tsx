@@ -7,6 +7,8 @@ import { ChoosePasswordPage } from "../pages/ChoosePasswordPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { SettingsDrivePage } from "../pages/SettingsDrivePage";
+import { SettingsLayout } from "../pages/SettingsLayout";
+import { SettingsOfficePage } from "../pages/SettingsOfficePage";
 import { SignInPage } from "../pages/SignInPage";
 import { useMe, useTenant } from "../session/session";
 import { UpdateBanner } from "../ui/UpdateBanner";
@@ -36,8 +38,15 @@ export const routes: RouteObject[] = [
         element: <SignedInLayout />,
         children: [
           { index: true, element: <ProjectsPage /> },
-          { path: "configuracoes", element: <Navigate to="/configuracoes/drive" replace /> },
-          { path: "configuracoes/drive", element: <SettingsDrivePage /> },
+          {
+            path: "configuracoes",
+            element: <SettingsLayout />,
+            children: [
+              { index: true, element: <Navigate to="/configuracoes/escritorio" replace /> },
+              { path: "escritorio", element: <SettingsOfficePage /> },
+              { path: "drive", element: <SettingsDrivePage /> },
+            ],
+          },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

@@ -354,7 +354,11 @@ async def test_without_a_google_app_this_deployment_says_so(app, client, owner):
 
 async def test_first_steps_follow_the_real_state(client, db_session, owner, google):
     before = (await client.get("/api/onboarding", headers=ALINEA)).json()
-    assert before == {"storage_connected": False, "has_project": True}  # the seed's projects
+    assert before == {
+        "storage_connected": False,
+        "office_details": False,
+        "has_project": True,  # the seed's projects
+    }
     await come_back(client, await start(client, owner))
     after = (await client.get("/api/onboarding", headers=ALINEA)).json()
     assert after["storage_connected"] is True

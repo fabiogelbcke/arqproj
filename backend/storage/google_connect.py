@@ -9,6 +9,7 @@ is inside, sharing fails). Google's error text is logged, never shown.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
@@ -22,6 +23,7 @@ AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 DRIVE = "https://www.googleapis.com/drive/v3"
+UPLOAD = "https://www.googleapis.com/upload/drive/v3"
 SCOPE = "https://www.googleapis.com/auth/drive.file"
 FOLDER = "application/vnd.google-apps.folder"
 ROOT_FOLDER_NAME = "Portal Clientes"
@@ -112,8 +114,9 @@ class DriveWriter:
         self._headers = {"Authorization": f"Bearer {access_token}"}
 
     async def _call(self, method: str, url: str, problem: ConnectProblem, **kwargs):
+        headers = kwargs.pop("headers", self._headers)
         try:
-            response = await self._http.request(method, url, headers=self._headers, **kwargs)
+            response = await self._http.request(method, url, headers=headers, **kwargs)
         except httpx2.TransportError as error:
             raise ConnectError(problem, f"{url}: {error!r}") from error
         if response.status_code >= 400:
@@ -172,6 +175,28 @@ class DriveWriter:
             params={"sendNotificationEmail": "false", "supportsAllDrives": "true"},
             json={"type": "user", "role": "reader", "emailAddress": reader},
         )
+
+    async def upload(self, name: str, parent: str, content: bytes, mime_type: str) -> str:
+        """A small file (a logo), in one request; returns its id."""
+        boundary = "portal-upload-boundary"
+        metadata = json.dumps({"name": name, "parents": [parent]})
+        body = (
+            (
+                f"--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"
+                f"{metadata}\r\n--{boundary}\r\nContent-Type: {mime_type}\r\n\r\n"
+            ).encode()
+            + content
+            + f"\r\n--{boundary}--".encode()
+        )
+        response = await self._call(
+            "POST",
+            f"{UPLOAD}/files",
+            ConnectProblem.FOLDER_FAILED,
+            params={"uploadType": "multipart", "fields": "id", "supportsAllDrives": "true"},
+            content=body,
+            headers=self._headers | {"Content-Type": f"multipart/related; boundary={boundary}"},
+        )
+        return response.json()["id"]
 
     async def trash(self, item_id: str) -> None:
         try:

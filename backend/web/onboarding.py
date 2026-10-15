@@ -11,6 +11,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.office.profile import profile
 from backend.projects.models import Project
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind, WriterStatus
 from backend.web.auth import CurrentStaff, current_staff
@@ -20,6 +21,7 @@ router = APIRouter(prefix="/api")
 
 class OnboardingOut(BaseModel):
     storage_connected: bool  # where project files live (Google Drive for now)
+    office_details: bool  # contact email and logo set (the name always has one)
     has_project: bool
 
 
@@ -38,4 +40,8 @@ async def onboarding(
         )
     )
     has_project = await db.scalar(select(exists().where(Project.deleted_at.is_(None))))
-    return OnboardingOut(storage_connected=connected, has_project=bool(has_project))
+    office = await profile(db)
+    details = office is not None and bool(office.contact_email and office.logo_file_id)
+    return OnboardingOut(
+        storage_connected=connected, office_details=details, has_project=bool(has_project)
+    )

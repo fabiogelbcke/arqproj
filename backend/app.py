@@ -21,7 +21,7 @@ from backend.db.engine import create_engine, create_sessionmaker
 from backend.settings import Settings
 from backend.storage.google import GoogleDriveStorage, ServerIdentity
 from backend.tenancy.middleware import TenantMiddleware
-from backend.web import auth, drive, health, onboarding, painel, tenant
+from backend.web import auth, drive, health, office, onboarding, painel, tenant
 from backend.web.build import BuildIdMiddleware
 from backend.web.errors import ApiError, handle_api_error, handle_invalid_request
 from backend.web.request_id import RequestIdLogFilter, RequestIdMiddleware
@@ -138,6 +138,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(tenant.router)
     app.include_router(drive.router)
     app.include_router(onboarding.router)
+    app.include_router(office.router)
     app.include_router(painel.router)
     app.add_exception_handler(ApiError, handle_api_error)
     app.add_exception_handler(RequestValidationError, handle_invalid_request)
