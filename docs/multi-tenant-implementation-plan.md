@@ -866,11 +866,18 @@ Where it is edited:
 Without a cover, the painel shows a generated one instead of an empty
 placeholder: the client's name set over a blurred, darkened architecture photo,
 chosen deterministically per project from a small bundled set so it stays the
-same between visits. The client page shows no hero when there is no real cover.
-The bundled photos must be licensed for this use (for example under the Unsplash
-licence) and their sources recorded next to them in the repository. Cover images
-follow the brand-asset limits in section 16 and are stored like other office
-assets, outside the client-visible stage folders.
+same between visits. **Clients only ever see a cover the architect uploaded:** the generated fallback
+is a painel-only device, and the client page shows no hero without a real cover.
+The bundled photos must be licensed for this use and their sources recorded next
+to them in the repository; the prototype's set is ten CC0 photos from StockSnap,
+found through Openverse. Cover images follow the brand-asset limits in section 16.
+
+The cover is stored in Drive, in the project's root folder as a hidden `_capa`
+file (outside the client-visible stage folders). The app creates it through the
+`drive.file` grant, so it can replace or remove it later; the reader identity
+serves it like any other file. "Set as cover" from an image the office added
+through Drive copies its bytes (read by the reader identity) into a new `_capa`
+file, because the grant cannot move or rename the original.
 
 Changing a stage title or order renames/moves its Drive folder only where the
 write capability allows; otherwise the change is presentation-only and staff are
