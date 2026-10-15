@@ -1,15 +1,13 @@
-"""Facts the privacy policy and terms of use state about the office.
+"""Facts the privacy policy and terms of use state about whoever runs the portal.
 
-Fill these in before publishing; the pages show "[a preencher]" for any left
-empty, so a gap is visible rather than silently wrong.
+Run informally for now (no registered company, so no razão social or CNPJ); add
+them here and to both pages if that changes.
 """
 
 LEGAL = {
     "name": "ALINEA ARQUITETOS",
-    "legal_name": "",  # razão social, as registered
-    "cnpj": "",
-    "email": "",  # where people send privacy requests
-    "city": "",  # foro: the city for legal disputes, e.g. "Florianópolis/SC"
+    "email": "alineaarquitetos@gmail.com",  # where people send privacy requests
+    "city": "Joinville/SC",  # foro: the city for legal disputes
     "updated": "15 de outubro de 2026",
     "updated_en": "October 15, 2026",
 }

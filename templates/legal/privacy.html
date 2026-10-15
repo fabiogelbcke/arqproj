@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% macro v(key) %}{{ legal[key] or "[a preencher]" }}{% endmacro %}
 {% block title %}Política de Privacidade · {{ site_name }}{% endblock %}
 {% block content %}
 <article class="message legal" lang="pt-BR">
@@ -11,8 +10,8 @@
   arquivos) e oferece à equipe do escritório um painel para gerenciá-las.</p>
 
   <h2>Quem é responsável</h2>
-  <p>O controlador dos dados é {{ v('legal_name') }} ({{ legal.name }}), CNPJ {{ v('cnpj') }}.
-  Para qualquer assunto de privacidade, escreva para {{ v('email') }}.</p>
+  <p>O controlador dos dados é {{ legal.name }}. Para qualquer assunto de privacidade, escreva
+  para <a href="mailto:{{ legal.email }}">{{ legal.email }}</a>.</p>
 
   <h2>Quais dados tratamos</h2>
   <ul>
@@ -58,7 +57,7 @@
   <h2>Seus direitos</h2>
   <p>Pela LGPD, você pode pedir a confirmação de que tratamos seus dados, acesso, correção,
   anonimização, bloqueio ou eliminação, portabilidade, informação sobre com quem compartilhamos e
-  a revogação de consentimento. Escreva para {{ v('email') }}; responderemos em até 15 dias. Você
+  a revogação de consentimento. Escreva para {{ legal.email }}; responderemos em até 15 dias. Você
   também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).</p>
 
   <h2>Segurança</h2>
@@ -78,8 +77,8 @@
   office's staff a dashboard to manage them.</p>
 
   <h2>Who is responsible</h2>
-  <p>The controller is {{ v('legal_name') }} ({{ legal.name }}), CNPJ {{ v('cnpj') }}. For any
-  privacy matter, write to {{ v('email') }}.</p>
+  <p>The controller is {{ legal.name }}. For any privacy matter, write to
+  <a href="mailto:{{ legal.email }}">{{ legal.email }}</a>.</p>
 
   <h2>What we process</h2>
   <ul>
@@ -124,7 +123,7 @@
   <h2>Your rights</h2>
   <p>Under the LGPD you may ask for confirmation of processing, access, correction, anonymization,
   blocking or deletion, portability, information about sharing, and withdrawal of consent. Write
-  to {{ v('email') }}; we answer within 15 days. You may also complain to Brazil's data
+  to {{ legal.email }}; we answer within 15 days. You may also complain to Brazil's data
   protection authority (ANPD).</p>
 
   <h2>Security</h2>

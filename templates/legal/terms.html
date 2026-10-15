@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% macro v(key) %}{{ legal[key] or "[a preencher]" }}{% endmacro %}
 {% block title %}Termos de Uso · {{ site_name }}{% endblock %}
 {% block content %}
 <article class="message legal" lang="pt-BR">
@@ -7,7 +6,7 @@
   <p><small>Última atualização: {{ legal.updated }}</small></p>
 
   <h2>O serviço</h2>
-  <p>O portal de projetos de {{ legal.name }} ({{ v('legal_name') }}, CNPJ {{ v('cnpj') }}) permite
+  <p>O portal de projetos de {{ legal.name }} permite
   que o escritório compartilhe com seus clientes o andamento dos projetos, reuniões e arquivos, e
   que a equipe do escritório gerencie esse conteúdo. Ao usar o portal, você concorda com estes
   termos e com a <a href="/privacidade">Política de Privacidade</a>.</p>
@@ -35,8 +34,8 @@
   <p>Estes termos podem ser atualizados; a nova versão será publicada nesta página com a data.</p>
 
   <h2>Lei e foro</h2>
-  <p>Aplica-se a lei brasileira. Fica eleito o foro de {{ v('city') }}, salvo disposição legal em
-  contrário, como os direitos do consumidor. Contato: {{ v('email') }}.</p>
+  <p>Aplica-se a lei brasileira. Fica eleito o foro de {{ legal.city }}, salvo disposição legal em
+  contrário, como os direitos do consumidor. Contato: {{ legal.email }}.</p>
 </article>
 
 <article class="message legal" lang="en">
@@ -44,7 +43,7 @@
   <p><small>Last updated: {{ legal.updated_en }}. The Portuguese version above prevails.</small></p>
 
   <h2>The service</h2>
-  <p>The {{ legal.name }} project portal ({{ v('legal_name') }}, CNPJ {{ v('cnpj') }}) lets the
+  <p>The {{ legal.name }} project portal lets the
   office share project progress, meetings and files with its clients, and lets the office's staff
   manage that content. By using the portal you agree to these terms and to the
   <a href="/privacidade">Privacy Policy</a>.</p>
@@ -71,7 +70,7 @@
   <p>These terms may be updated; the new version will be published on this page with its date.</p>
 
   <h2>Law and venue</h2>
-  <p>Brazilian law applies. The courts of {{ v('city') }} have jurisdiction, except where the law
-  provides otherwise, such as consumer rights. Contact: {{ v('email') }}.</p>
+  <p>Brazilian law applies. The courts of {{ legal.city }} have jurisdiction, except where the law
+  provides otherwise, such as consumer rights. Contact: {{ legal.email }}.</p>
 </article>
 {% endblock %}
