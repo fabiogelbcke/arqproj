@@ -71,6 +71,11 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("sessions", "INSERT"),
         ("sessions", "UPDATE"),
         ("password_links", "SELECT"),
+        ("projects", "SELECT"),
+        ("project_slugs", "SELECT"),
+        ("project_stages", "SELECT"),
+        ("project_details", "SELECT"),
+        ("meetings", "SELECT"),
     }
     assert _column_grants(migrated_url, group) == {
         ("users", "password_hash", "UPDATE"),

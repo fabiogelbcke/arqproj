@@ -64,5 +64,87 @@
     "unexpected": "Algo deu errado. Tente de novo em instantes.",
     "network": "Sem conexão com o servidor. Verifique sua internet e tente de novo.",
     "reference": "Código de suporte: {{id}}"
+  },
+  "projectStatus": {
+    "draft": "Rascunho",
+    "active": "Em andamento",
+    "completed": "Concluído",
+    "archived": "Arquivado"
+  },
+  "projectType": {
+    "architecture": "Projeto Arquitetônico",
+    "interiors": "Projeto de Interiores",
+    "renovation": "Reforma",
+    "landscaping": "Paisagismo"
+  },
+  "accessMode": {
+    "public": "Pública",
+    "password": "Com senha"
+  },
+  "stageTemplate": {
+    "standard": "Padrão",
+    "interiors": "Interiores",
+    "empty": "Sem etapas"
+  },
+  "detail": {
+    "client": "Cliente",
+    "location": "Localização",
+    "site_area": "Área do terreno",
+    "built_area": "Área construída",
+    "start_date": "Início",
+    "expected_delivery": "Previsão de entrega",
+    "responsible": "Responsável"
+  },
+  "stage": {
+    "proposal": {
+      "title": "Proposta",
+      "about": "Escopo, condições e planejamento do projeto.",
+      "deliverables": "Proposta de serviços, etapas, prazos e valores previstos."
+    },
+    "briefing_survey": {
+      "title": "Briefing e Levantamento",
+      "about": "Entendimento das necessidades e das características do espaço.",
+      "deliverables": "Programa de necessidades, levantamento e registros do local."
+    },
+    "preliminary_studies": {
+      "title": "Estudos Preliminares / Anteprojeto",
+      "about": "Organização dos ambientes e definição do conceito.",
+      "deliverables": "Plantas, estudos de implantação e soluções preliminares."
+    },
+    "model_3d": {
+      "title": "Projeto 3D",
+      "about": "Visualização dos espaços, materiais e volumes.",
+      "deliverables": "Perspectivas e imagens do projeto."
+    },
+    "construction_documents": {
+      "title": "Projeto Executivo",
+      "about": "Detalhamento técnico das soluções aprovadas.",
+      "deliverables": "Desenhos e especificações para orientar a execução."
+    },
+    "final_delivery": {
+      "title": "Entrega Final",
+      "about": "Organização da documentação final do projeto.",
+      "deliverables": "Conjunto final de desenhos e arquivos."
+    },
+    "extra_services": {
+      "title": "Serviços extras",
+      "about": "Acompanhamento dos serviços complementares contratados.",
+      "deliverables": "Documentos e orientações conforme o escopo combinado."
+    },
+    "briefing": {
+      "title": "Briefing",
+      "about": "Conversamos sobre usos, prioridades e expectativas.",
+      "deliverables": "Programa de necessidades e referências."
+    },
+    "layout": {
+      "title": "Layout",
+      "about": "Distribuição dos ambientes, mobiliário e circulação.",
+      "deliverables": "Plantas de layout para análise e alinhamento."
+    },
+    "detailing": {
+      "title": "Detalhamento",
+      "about": "Definição dos elementos e soluções de interiores.",
+      "deliverables": "Detalhes de marcenaria, acabamentos e instalações previstas."
+    }
   }
 }

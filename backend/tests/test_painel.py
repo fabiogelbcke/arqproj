@@ -10,6 +10,14 @@ import pytest
 from backend.commands import openapi
 from backend.commands.seed import seed
 from backend.identity.models import Role
+from backend.projects.enums import (
+    AccessMode,
+    BuiltinStage,
+    DetailKey,
+    ProjectStatus,
+    ProjectType,
+    StageTemplate,
+)
 from backend.tenancy.models import Locale
 from backend.web import painel
 from backend.web.errors import ErrorCode
@@ -114,13 +122,33 @@ def test_every_language_has_every_text():
 
 
 @pytest.mark.parametrize(
-    ("group", "enum"), [("errors", ErrorCode), ("role", Role), ("locale", Locale)]
+    ("group", "enum"),
+    [
+        ("errors", ErrorCode),
+        ("role", Role),
+        ("locale", Locale),
+        ("projectStatus", ProjectStatus),
+        ("projectType", ProjectType),
+        ("accessMode", AccessMode),
+        ("stageTemplate", StageTemplate),
+        ("detail", DetailKey),
+        ("stage", BuiltinStage),
+    ],
 )
 def test_every_built_in_value_the_screens_show_is_translated(group, enum: type[StrEnum]):
     for locale in Locale:
         texts = catalog(locale)[group]
         missing = {member.value for member in enum} - set(texts)
         assert not missing, f"{locale}: no {group} text for {missing}"
+
+
+def test_every_built_in_stage_has_its_title_and_explanations():
+    for locale in Locale:
+        for stage in BuiltinStage:
+            texts = catalog(locale)["stage"][stage.value]
+            assert all(texts.get(part) for part in ("title", "about", "deliverables")), (
+                f"{locale}: {stage} lacks a title or explanation"
+            )
 
 
 def test_the_translation_check_catches_a_gap(monkeypatch):

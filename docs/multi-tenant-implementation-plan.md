@@ -604,8 +604,8 @@ a project does not change its slug. Reserved paths (`painel`, `api`, `static`,
 mode is not a secrecy promise, and projects that need privacy use a password.
 Office staff can change a slug deliberately; the old one keeps redirecting so
 links already sent to clients do not break. **A slug, once used, stays reserved
-for its project (A29):** current slugs and old ones (`project_slug_aliases`)
-share one namespace per office, so another project can never take an old slug
+for its project (A29):** current and old slugs live in one table (`project_slugs`,
+exactly one current per project) and share one namespace per office, so another project can never take an old slug
 and receive a client's old link. This holds after a project is deleted too:
 projects are soft-deleted and keep their slugs, so an old link shows "this
 project is no longer available" instead of someone else's project.
@@ -649,12 +649,12 @@ The following is a logical schema specification, not a migration:
 | `password_links` | tenant, user (same tenant), kind (invite/reset), token hash, expiry, used time; one-time links for people to choose their own password (step 1.5b) |
 | `sessions` | tenant, user (same tenant), token hash, CSRF token, last seen, expiry, revoked |
 | `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
-| `projects` | tenant, title, client name (≤ 48 characters), cover image reference, slug (unique per tenant, shared namespace with aliases), status, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), stage template used, optional professional, access mode/hash/version, current stage, last client-visible activity time (A28), row version |
-| `project_slug_aliases` | tenant, old slug, project; redirects links shared before a slug change or migration; reserved for that project (A29) |
+| `projects` | tenant, title, client name (≤ 48 characters), cover image reference, status (`draft` until published, `active`, `completed`, `archived`; see section 10), slugs in `project_slugs`, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), stage template used, optional professional, access mode/hash/version, current stage, last client-visible activity time (A28), row version |
+| `project_slugs` | tenant, project, slug, is current, created; every address a project has had, exactly one current. Unique per tenant across current and old, so a used slug stays with its project (A29); old ones redirect. Reserved paths (`painel`, `api`, …) refused |
 | `stage_templates` | tenant, name, ordered stages, each a built-in stage key or office-written title with optional explanation (what happens) and deliverables (what the client receives). Built-in templates come from code: Padrão (7 stages) and Interiores (6); offices may add their own |
 | `project_details` | tenant, project, built-in detail key (enum, A27), order, value stored by the detail's type (text, choice key, number in m², date). Built-in details and their types come from code: Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável. Pilot: built-ins only; custom details later add an optional label column (A26) |
 | `project_stages` | tenant, project, stable stage key, **either** a built-in stage key (title and explanations translated) **or** office-written title and explanations, order, status, notes and when they last changed, bound folder ID |
-| `meetings` | tenant, project, title (≤ 40), start/end (end after start), timezone, location (≤ 60), link (`http`/`https` only); supports current single meeting first |
+| `meetings` | tenant, project, title (≤ 40), start/end (end after start), timezone, location (≤ 60), link (`http`/`https` only); several per project: the client page shows the next one by date, so a past meeting stops showing on its own (agreed 15 Oct 2026) |
 | `folder_bindings` | tenant, project, connection, provider folder ID, parent ID, path display, classification |
 | `storage_items` | tenant, connection, provider file ID, parent, MIME, name, size, checksum/revision metadata, observed capabilities, present/trashed state, last seen |
 | `documents` | tenant, project, logical title, stage, current revision ID, publication state |
@@ -898,6 +898,11 @@ stage template (the office's standard workflow is preselected). The client name
 sets the default project type (A27). The slug is derived from the name and editable; duplicates of an
 existing name or slug in the office are refused with the conflicting project
 named. Everything else starts empty or from office defaults and is edited later.
+
+A new project starts as a **draft** ("Rascunho"): staff see and edit it in the
+painel, while its client page answers "not found" (like an unknown address)
+until staff publish it, which makes it `active`. Later `completed` (all stages
+done) and `archived` (still viewable; no new uploads or emails, section 22).
 
 Editable after creation, by office staff:
 
