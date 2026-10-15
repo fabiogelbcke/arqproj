@@ -1,0 +1,53 @@
+"""Alembic environment: runs migrations against DATABASE_URL.
+
+Migrations are run as a release step, never at app startup (several instances
+starting together must not race to change the schema). Tests pass the URL in
+`config.attributes["database_url"]` to point at their own database.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from logging.config import fileConfig
+
+from alembic import context
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
+
+from backend.db.registry import metadata
+from backend.settings import Settings
+
+config = context.config
+if config.config_file_name and not config.attributes.get("skip_logging_config"):
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
+
+
+def _database_url() -> str:
+    return config.attributes.get("database_url") or Settings().database_url
+
+
+def _configure(connection: Connection) -> None:
+    context.configure(
+        connection=connection,
+        target_metadata=metadata,
+        compare_type=True,
+        transaction_per_migration=True,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def _run_online() -> None:
+    engine = create_async_engine(_database_url(), poolclass=NullPool)
+    async with engine.connect() as connection:
+        await connection.run_sync(_configure)
+    await engine.dispose()
+
+
+if context.is_offline_mode():
+    context.configure(url=_database_url(), target_metadata=metadata, literal_binds=True)
+    with context.begin_transaction():
+        context.run_migrations()
+else:
+    asyncio.run(_run_online())

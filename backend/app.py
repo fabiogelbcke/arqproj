@@ -8,9 +8,12 @@ from __future__ import annotations
 import json
 import logging
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from backend.db.engine import create_engine, create_sessionmaker
 from backend.settings import Settings
 from backend.web import health
 
@@ -41,12 +44,25 @@ def configure_logging(settings: Settings) -> None:
     root.setLevel(settings.log_level)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # One connection pool per process, closed on shutdown. Creating the engine
+    # does not connect; the first query does, so startup never waits on the database.
+    engine = create_engine(app.state.settings)
+    app.state.sessionmaker = create_sessionmaker(engine)
+    try:
+        yield
+    finally:
+        await engine.dispose()
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
     configure_logging(settings)
     docs = settings.show_api_docs
     app = FastAPI(
         title="Portal",
+        lifespan=lifespan,
         docs_url="/api/docs" if docs else None,
         redoc_url=None,
         openapi_url="/api/openapi.json" if docs else None,
