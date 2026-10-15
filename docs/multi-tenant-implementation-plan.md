@@ -521,13 +521,16 @@ header. Construct external links from stored canonical domains.
 Recommended staff login: Google OpenID Connect, separate from Drive connection
 consent. Someone may administer a portal without being the Google account that
 owns its files. Identify users by verified provider subject, not mutable display
-names. Invitations bind a verified email to an office membership; never grant
-membership merely because a user's email has the office's domain.
+names. Invitations bind a verified email to an office's account; never grant
+access merely because a user's email has the office's domain.
 
 **Several staff per office, with roles: foundations now, features later.** From
-the first version, people (`users`) are separate from offices, a `membership`
-links them with a role, every staff action goes through one central permission
-check, and audit events record who acted. Each person has their own login; there
+the first version, an office has any number of staff accounts (`users`, each
+belonging to one office, with a role), every staff action goes through one central
+permission check, and audit events record who acted. A person working for two
+offices has an account in each (decided 14 Oct 2026, see the changelog); a shared
+identity across offices (users plus memberships) is a later migration if a real
+need appears. Each person has their own login; there
 is no shared office password. The pilot uses only the `owner` role, and accounts
 for additional staff can be created by hand. Deliberately deferred as an add-on
 for larger offices: invitation and role-management screens, finer roles (for
@@ -618,10 +621,9 @@ The following is a logical schema specification, not a migration:
 | --- | --- |
 | `tenants` | ID, display name, slug, locale, timezone, lifecycle, plan/feature settings |
 | `tenant_domains` | hostname unique, tenant ID, canonical/alias status |
-| `users` | identity provider + subject unique, verified email, display name |
-| `memberships` | tenant + user unique, owner/member role, active/revoked |
+| `users` | tenant, email (unique per tenant), display name, role (owner/member), password hash (none for Google-only accounts), later identity provider + subject |
 | `invitations` | tenant, intended email, role, token hash, expiry, accepted/revoked |
-| `sessions` | opaque token hash, user, tenant, expiry, revocation/version |
+| `sessions` | tenant, user (same tenant), token hash, CSRF token, last seen, expiry, revoked |
 | `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
 | `projects` | tenant, title, client name, cover image reference, slug (unique per tenant), status, connection, root/deliverables folder IDs, description, client display name, project type, optional professional, access mode/hash/version, current stage, row version |
 | `project_slug_aliases` | tenant, old slug, project; redirects links shared before a slug change or migration |

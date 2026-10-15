@@ -242,6 +242,7 @@ uv run python -m backend.commands.local_db setup                    # arqproj_de
 uv run alembic -c backend/alembic.ini upgrade head          # apply migrations to arqproj_dev
 uv run python -m backend.commands.provision                      # give the app login its access
 uv run python -m backend.commands.seed                      # two fictional offices (see below)
+uv run python -m backend.commands.staff add --tenant alinea --email you@example.com --name You --role owner
 uv run uvicorn backend.app:create_app --factory --reload   # → http://127.0.0.1:8000/health
 uv run pytest                                              # backend tests (migrate arqproj_test themselves)
 uv run ruff check backend && uv run ruff format --check backend
@@ -253,6 +254,11 @@ Locally, every `*.localhost` address reaches this machine: the seed creates
 `norte.localhost`, e.g. `http://alinea.localhost:8000/`. Unknown hosts get 404;
 `/health` works on any host. Every response has an `X-Request-ID` header, also
 printed on each log line.
+
+Staff accounts belong to one office each. `backend.commands.staff add` creates
+one and `set-password` changes a password (both prompt for it). Sign in with
+`POST /api/session` on that office's address (e.g. `alinea.localhost:8000`);
+the screens arrive in step 1.6.
 
 Two logins: the app connects as `arqproj_app` (`DATABASE_URL`), a restricted role
 that PostgreSQL row-level security applies to; migrations and the seed command use

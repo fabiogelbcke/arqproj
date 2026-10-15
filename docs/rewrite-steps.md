@@ -146,6 +146,21 @@ React painel. No client-visible features yet.
   after repeated wrong passwords.
 - **Review:** cookie settings, session lifetime, what's stored (only a hash of
   the session token).
+- **As built:** each person belongs to exactly one office, so there is no
+  `memberships` table: `users` carries `tenant_id` and `role` (owner/member),
+  unique per (office, email); the same email in two offices is two separate
+  accounts. `users` and `sessions` are tenant-isolated like any office data
+  (the app may only read users and manage sessions). Sessions are database rows:
+  the cookie `portal_session` (HttpOnly, SameSite=Lax, Secure when deployed,
+  host-only) holds a random token, the table stores only its SHA-256 hash; 30 days
+  since last use, `last_seen_at` updated at most hourly; sign-out revokes the row.
+  API: `POST /api/session` (sign in), `DELETE /api/session` (sign out),
+  `GET /api/me`; dependencies `current_staff` and `require_csrf` (token per
+  session, sent back in `X-CSRF-Token`). A wrong email and a wrong password get
+  the same answer after the same work (a dummy hash) plus a fixed 1-second delay;
+  real rate limiting is deferred. Accounts are created with
+  `backend.commands.staff` (`add`, `set-password`; prompts for the password)
+  through `backend.identity.accounts`, which a sign-up page can reuse later.
 
 ### Step 1.6: React staff app skeleton
 

@@ -19,6 +19,28 @@ a new entry too.
 
 ---
 
+## 2026-10-15 — staff accounts: users + memberships → one account per office
+
+**Was:** people (`users`) separate from offices, linked by `memberships` carrying
+the role (plan sections 5 and 7), so one account could work in several offices.
+
+**Now:** each staff account belongs to one office (`users.tenant_id`, with the
+role on the user); an email is unique within an office. Someone working for two
+offices has two accounts.
+
+**What changed the answer:** for the pilot nobody belongs to two offices, and the
+cases that might (freelance consultants, our own support access) are better served
+by project collaboration and a separate admin mechanism. Without memberships,
+`users` is an ordinary office table under the same isolation rule as every other,
+instead of needing its own "visible through a membership" policy, and managing an
+office's staff is one list in one table.
+
+**What it costs:** a person in two offices has two logins. Moving to users +
+memberships later is a routine migration; merging duplicate accounts of the same
+person is the only awkward part.
+
+---
+
 ## 2026-10-14 — A16: Neon (candidate) → Cloud SQL for PostgreSQL
 
 **Was:** managed PostgreSQL with Neon as the initial candidate, mainly for its
