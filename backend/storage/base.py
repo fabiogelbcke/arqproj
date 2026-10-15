@@ -8,7 +8,7 @@ stays in the log and never reaches a screen (AGENTS.md, "User-facing errors").
 from __future__ import annotations
 
 import unicodedata
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -75,13 +75,23 @@ class StorageItem:
         return self.mime_type in PDF_EXPORTABLE
 
 
+async def _nothing_to_close() -> None:
+    pass
+
+
 @dataclass(frozen=True)
 class Download:
-    """A file's bytes, streamed. For a native document: its PDF export."""
+    """A file's bytes, streamed. For a native document: its PDF export.
+
+    Whoever receives one must always `await download.aclose()` when done, even if
+    the client went away before the first chunk: the upstream connection stays
+    open until then.
+    """
 
     media_type: str
     size: int | None
     chunks: AsyncIterator[bytes]
+    aclose: Callable[[], Awaitable[None]] = _nothing_to_close
 
 
 class Storage(Protocol):

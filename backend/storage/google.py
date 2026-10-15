@@ -136,7 +136,7 @@ class GoogleDriveStorage:
             finally:
                 await response.aclose()
 
-        return Download(media_type, size, chunks())
+        return Download(media_type, size, chunks(), aclose=response.aclose)
 
     async def thumbnail(self, item: StorageItem, size: int = 640) -> bytes | None:
         _check(item.id)

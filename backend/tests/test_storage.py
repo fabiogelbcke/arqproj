@@ -349,3 +349,23 @@ def test_an_office_on_google_gets_a_view_limited_to_its_folder():
         kind=StorageKind.GOOGLE, root_id="rootA", reader_identity="r@x.iam"
     )
     assert isinstance(storage_for(connection, Settings(), google=object()), OfficeDrive)
+
+
+async def test_a_download_abandoned_before_reading_can_still_be_closed(drive):
+    storage, fake = drive
+    closed = []
+
+    class Body(httpx2.AsyncByteStream):
+        async def __aiter__(self):
+            yield b"%PDF"
+
+        async def aclose(self):
+            closed.append(True)
+
+    def answer(request):
+        return httpx2.Response(200, stream=Body())
+
+    storage._client = httpx2.AsyncClient(transport=httpx2.MockTransport(answer))
+    download = await storage.download(StorageItem("f1", "P.pdf", "application/pdf", 4, None))
+    await download.aclose()  # the client went away before the first chunk
+    assert closed
