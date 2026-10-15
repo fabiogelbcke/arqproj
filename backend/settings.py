@@ -104,13 +104,14 @@ class Settings(BaseSettings):
             raise ValueError("DATABASE_URL must be set in staging and production")
         return self
 
-    @model_validator(mode="after")
-    def _real_secret_when_deployed(self) -> Settings:
+    def require_real_app_secret(self) -> None:
+        """The web app signs and encrypts with APP_SECRET, so a deployed app refuses
+        to start without a real one. Checked at app start, not whenever settings
+        load: migrations and admin commands never use it."""
         if self.deployed and (
             "app_secret" not in self.model_fields_set or len(self.app_secret) < 32
         ):
             raise ValueError("APP_SECRET (32+ characters) must be set in staging and production")
-        return self
 
     @property
     def drive_configured(self) -> bool:

@@ -122,6 +122,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
+    settings.require_real_app_secret()
     configure_logging(settings)
     docs = settings.show_api_docs
     app = FastAPI(
