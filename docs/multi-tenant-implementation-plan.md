@@ -97,7 +97,7 @@ its affected tests before coding proceeds.
 | A13 | Protected main, staging and approved promotion of one build | Recommended; environments are separate without requiring permanent divergent code branches |
 | A14 | Same PostgreSQL engine locally and in production | Recommended; SQLite cannot validate the intended constraints, queue locks or row policies |
 | A15 | Cloud Run web with bounded maintenance execution | Proposed hosting continuation; POC can run maintenance in the same service. Actual infrastructure requires separate approval |
-| A16 | Managed PostgreSQL; Neon as initial provider candidate | Provider purchase/region/backup plan pending; SQL design remains portable |
+| A16 | Managed PostgreSQL: Cloud SQL for PostgreSQL, one small instance in us-east1 holding separate staging and production databases | Agreed 14 Oct 2026, replacing Neon as the candidate. Same region as Cloud Run, so about 1 ms per query instead of roughly 10–15 ms to another cloud; Cloud Run's built-in connector and IAM login instead of a stored database password; daily backups kept 7 days. About $9–10/month for the smallest shared-core instance (verify at creation). Split staging onto its own instance, or upgrade the machine, when load or the number of offices calls for it. See the [changelog](decision-changelog.md) |
 | A17 | Resend behind an email adapter | Proposed first provider; choose a plan based on actual volumes and delivery limits |
 | A18 | FastAPI + Pydantic + Uvicorn for the new web backend | Agreed framework switch; validated request/response contracts, dependency injection and native async support; Cloud Run remains compatible |
 | A19 | Cloud Scheduler preferred within its free allowance; local cron retained as an alternative | User accepts managed scheduling when free. Both call the same protected maintenance endpoint; cadence and deployment shape remain separate decisions. See the [cost comparison](infrastructure-cost-comparison.md). |
@@ -416,16 +416,18 @@ for its jobs. Preview processing has explicit byte/time limits so a large file
 cannot monopolize synchronization or email.
 
 Cloud Run is a proposed continuation of current hosting. Managed PostgreSQL avoids
-making database maintenance a nights-and-weekends responsibility. Neon is an
-initial candidate; confirm backup retention, restore capabilities, region,
-connection limits and a spending cap before selecting a plan. Do not depend on a
-free tier as the recovery strategy for offices' only project metadata. Keep web,
-worker and database geographically close where practical and measure latency
-from Brazil. Region and jurisdiction commitments remain an explicit choice.
-Compare the provider's actual [plan and recovery options](https://github.com/neondatabase/website/blob/main/content/docs/introduction/plans.md)
-before committing to it. Minute-by-minute database polling may keep a serverless
-database awake continuously; budget that behavior instead of assuming it sleeps
-whenever nobody views a page. Later wake-up optimization is possible without
+making database maintenance a nights-and-weekends responsibility. The provider is
+Cloud SQL for PostgreSQL (A16): one small instance in us-east1, next to the Cloud
+Run services, with a separate database and database user each for staging and
+production. The app connects through Cloud Run's Cloud SQL connector with IAM
+database login, so no database password is stored. Confirm the instance price,
+backup retention (daily, 7 days by default), point-in-time recovery and
+connection limits when creating it, and prove a restore before it holds an
+office's only project metadata. The smallest shared-core machines have no uptime
+SLA and few connections: keep pools small and upgrade when the pilot grows.
+Region and jurisdiction commitments remain an explicit choice; measure latency
+from Brazil. A shared-core instance is always on, so frequent polling does not
+change its cost the way it would for a serverless database. Later wake-up optimization is possible without
 changing the durable-job model.
 
 For the fuller Cloud Run office-subdomain design, use a global external Application Load Balancer
@@ -1535,7 +1537,7 @@ choices need an owner before their corresponding feature ships:
 | Question | Proposed default | Needed by |
 | --- | --- | --- |
 | Product name/domain and first hosting region | Choose once office URL examples and latency are reviewed | Real DNS/OAuth registration |
-| Database provider/plan/backup retention | Managed PostgreSQL; evaluate Neon against budget and restore needs | Infrastructure purchase |
+| Database instance size/backup retention | Cloud SQL, smallest shared-core instance (A16); confirm price, backups and point-in-time recovery at creation, then prove a restore | Infrastructure purchase |
 | Background dispatch technology and refresh interval | Evaluate hourly in-app maintenance first for POC; add a queue/worker when needed | Maintenance implementation |
 | Timer setup | Prefer Cloud Scheduler within account-wide free allowance; local cron is the alternative | Confirm allowance and cadence before setup |
 | Detail presets and stage templates | Seed from the first office: Cliente, Tipo de projeto, Localização, Área do terreno, Área construída; the seven standard stages | Slice 3 |

@@ -61,6 +61,10 @@ retained email batching window and scheduling delay. If this is too slow, evalua
 metadata immediately. Confirm the notification timing rather than silently
 redefining the agreed batching behavior.
 
+*Superseded 14 Oct 2026: the database is Cloud SQL for PostgreSQL (plan A16),
+about $9–10/month for one small instance holding staging and production. The
+Neon analysis below is kept as the record of the alternative.*
+
 **Try Neon Free for POC metadata**, subject to usage and recovery needs. Current
 limits include 100 CU-hours/month, 1 GB storage and 5 GB outbound transfer per
 project, with five-minute idle suspension. Hourly short wakes at 0.25 CU consume
@@ -186,6 +190,7 @@ limit. A burst of notifications can therefore require the paid plan before
 monthly volume does. Assume a shared product sending domain; customer-owned
 sender domains are a separate feature. [Resend pricing](https://resend.com/pricing)
 
+(Decision since: Cloud SQL, plan A16. The Neon figures remain for comparison.)
 Using Neon makes the hosting comparison consistent. Cloud SQL, Amazon RDS and
 Azure Database for PostgreSQL are alternatives, but require separate quotes for
 region, instance, backups and availability. Cloud credits may make a native

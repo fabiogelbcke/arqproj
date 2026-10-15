@@ -19,6 +19,29 @@ a new entry too.
 
 ---
 
+## 2026-10-14 — A16: Neon (candidate) → Cloud SQL for PostgreSQL
+
+**Was:** managed PostgreSQL with Neon as the initial candidate, mainly for its
+free tier and scale-to-zero; the cost comparison budgeted the POC on Neon Free.
+
+**Now:** Cloud SQL for PostgreSQL, one smallest shared-core instance in us-east1,
+with separate databases and users for staging and production.
+
+**What changed the answer:** the money involved is small (about $9–10/month)
+next to what it buys for an app holding a paying office's data. Neon runs on
+AWS or Azure, so from Cloud Run in us-east1 every query would cross clouds,
+adding roughly 10–15 ms each; a page with ten sequential queries loads
+noticeably slower. Cloud SQL sits in the same region, connects through Cloud
+Run's built-in connector with IAM login (no stored password), keeps 7 days of
+daily backups, never sleeps, and keeps hosting on one bill and one permission
+system.
+
+**What it costs:** the monthly fee instead of free; the smallest machines have
+no uptime SLA and few connections. **Lost:** Neon's instant database branching,
+convenient for testing but not required.
+
+---
+
 ## 2026-10-14 — A25 (revises A08): explicit revisions only → `vN` naming, automatic grouping kept
 
 **Was:** A08 and section 12 replaced filename-based versioning with explicit
