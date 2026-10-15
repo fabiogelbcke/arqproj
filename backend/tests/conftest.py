@@ -57,6 +57,7 @@ async def db_connection(test_database_url: str) -> AsyncIterator[AsyncConnection
     engine = create_async_engine(test_database_url, poolclass=NullPool)
     async with engine.connect() as connection:
         transaction = await connection.begin()
+        await local.require_local_server(connection)
         try:
             yield connection
         finally:
