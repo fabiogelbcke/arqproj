@@ -339,10 +339,15 @@ def upgrade() -> None:
         op.f("ck_project_details_value_matches_type"), "project_details", type_="check"
     )
     op.add_column("project_details", sa.Column("value_type", sa.Text(), nullable=True))
+    # Existing rows of every office: on Cloud SQL the migration login owns the
+    # table but is no superuser, so the forced tenant policy would hide them all.
+    # Lifted for this one update, inside this transaction, then restored.
+    op.execute("ALTER TABLE project_details NO FORCE ROW LEVEL SECURITY")
     op.execute(
         "UPDATE project_details d SET value_type = t.value_type "
         "FROM detail_types t WHERE t.key = d.key"
     )
+    op.execute("ALTER TABLE project_details FORCE ROW LEVEL SECURITY")
     op.alter_column("project_details", "value_type", nullable=False)
     op.create_check_constraint(
         op.f("ck_project_details_value_type_known"),

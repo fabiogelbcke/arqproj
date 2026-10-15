@@ -10,6 +10,13 @@ How a new table holding tenant data (projects onwards) gets isolated:
 The schema tests also use these definitions, to build a database straight from
 the models and to check every `tenant_id` table is isolated.
 
+Updating existing rows of a tenant table in a migration (a backfill): on Cloud
+SQL the migration login owns the tables but is no superuser, so the forced
+policy hides every row from it. Wrap the update in
+`ALTER TABLE <t> NO FORCE ROW LEVEL SECURITY` / `... FORCE ROW LEVEL SECURITY`
+inside the migration (see 0008), and test it as a non-superuser owner
+(`test_data_migrations_run_as_an_owner_that_isolation_binds`).
+
 Background:
 
 - The `tenant_isolation` policy shows or accepts a row only when its `tenant_id`
