@@ -262,6 +262,18 @@ access only. The local seed adds fictional Portuguese projects covering the edge
 cases (draft without stages, completed with a password, changed address,
 office-written stage, past and upcoming meetings).
 2.2 Storage adapter contract plus the fake Drive (reusing `tools/fake_drive.py`).
+**As built:** `backend/storage/`: a read-only `Storage` interface (list a
+folder, get an item, download, thumbnail; failures as `StorageProblem`, never the
+provider's text) with three stores: Google Drive (the server's own Google
+identity, no key files; retries with growing waits on throttling and server
+errors; ids checked before they reach Drive's search), a local folder (`make
+dev`, the fictional dataset; refused when deployed) and in-memory (tests).
+Instead of reusing the Flask fake Drive, tests imitate the Drive endpoints
+in-process (`httpx2.MockTransport`). `storage_connections` (one per office,
+isolated, read-only for the app) and a `folder_id` on projects and stages
+(migration 0007); the seed links its projects to the dataset's folders. Names sort
+ignoring case and accents. Until slice 4's sync, pages will list files live from
+the store.
 2.3 Project page at `/{slug}` rendered with the current Jinja templates, data
 from the database. 2.4 Optional password on every content route. 2.5 File
 streaming and previews through the reader identity. 2.6 Staff bar on the page.
