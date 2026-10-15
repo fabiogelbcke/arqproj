@@ -1,7 +1,7 @@
 """Liveness check for Cloud Run and uptime monitoring.
 
-The path is `/health`, not `/healthz`: Cloud Run's front end intercepts paths
-ending in "z", so `/healthz` never reaches the app there.
+The path is `/health`, not `/healthz`: Cloud Run's front end answers `/healthz`
+(and `/statusz`) itself, so they never reach the app there.
 """
 
 from fastapi import APIRouter

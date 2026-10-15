@@ -251,6 +251,16 @@ staging runs the new app, and you can log in to an empty painel there.
 ### Slice 2: the client project page
 
 2.1 Project tables (projects, stages, details, meeting, slug aliases).
+**As built:** `backend/projects/` with `projects`, `project_slugs` (every slug a
+project has had, one current, one namespace per office), `project_stages`
+(built-in key or office-written title and explanations), `project_details`
+(built-in key, value stored by type), `meetings` (a list; next by date). Enums
+for status (`draft`/`active`/`completed`/`archived`), access mode, project type,
+stage template, built-in stage and detail key, all translated in
+`backend/i18n`. Migration 0006 isolates every table and grants the app read
+access only. The local seed adds fictional Portuguese projects covering the edge
+cases (draft without stages, completed with a password, changed address,
+office-written stage, past and upcoming meetings).
 2.2 Storage adapter contract plus the fake Drive (reusing `tools/fake_drive.py`).
 2.3 Project page at `/{slug}` rendered with the current Jinja templates, data
 from the database. 2.4 Optional password on every content route. 2.5 File

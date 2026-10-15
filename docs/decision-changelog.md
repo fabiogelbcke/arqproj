@@ -19,6 +19,22 @@ a new entry too.
 
 ---
 
+## 2026-10-15 — project status gains "draft"; meetings become a list; one slug table
+
+**Was:** project `status` unspecified beyond a field; one current meeting per
+project ("supports current single meeting first"); old slugs in a separate
+`project_slug_aliases` table next to `projects.slug`.
+
+**Now:** status `draft` (unpublished; the client page is not found until staff
+publish), `active`, `completed`, `archived`. Meetings are a list per project and
+the client page shows the next by date. Every slug a project has had is a row in
+`project_slugs`, exactly one current, one namespace per office (A29).
+
+**Why:** the prototype has a "Rascunhos" group for unpublished projects (Fabio
+confirmed). A list of meetings costs nothing extra and removes stale past
+meetings from client pages by design. One slug table enforces A29 with a single
+unique constraint instead of keeping two places in step.
+
 ## 2026-10-15 — prototype review and Codex review of the plan: A12, A23, A24, A25 refined; A26–A30 added
 
 Two inputs: the staff/client prototype as iterated in

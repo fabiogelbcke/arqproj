@@ -6,6 +6,7 @@ would silently drop out of migration checks.
 
 from backend.db.base import Base
 from backend.identity import models as identity_models  # noqa: F401
+from backend.projects import models as project_models  # noqa: F401
 from backend.tenancy import models as tenancy_models  # noqa: F401
 
 metadata = Base.metadata
