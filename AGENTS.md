@@ -257,6 +257,33 @@ How many rounds:
   explaining why, and list it in the pull request description.
 - Reproduce a finding before fixing it.
 
+### Pull request description
+
+Start every rewrite pull request description with a **Plan** section linking the
+documents that describe the work, so reviewers know what to check against:
+
+- the step in `docs/rewrite-steps.md` (link to its heading), and the plan
+  sections and register entries (A…, D…) it implements;
+- `docs/decision-changelog.md` entries added or relied on;
+- one line each: what the step called for, what was built, and what was
+  deliberately left out or deferred, with the reason.
+
+### Review guidelines
+
+Whoever reviews (Codex, Claude or a person) reads the linked documents first and
+checks the change against them, in addition to bugs:
+
+- It does what its step lists, and nothing that belongs to a later step.
+- It does not contradict a decision in the register (plan section 2) or a
+  `D…` decision in `docs/rewrite-steps.md`. A change of decision must update the
+  register, the changelog and their tests in the same pull request.
+- Anything the plan requires for this area is present, unless the step's notes
+  or the description record it as deferred.
+- The step's notes in `docs/rewrite-steps.md` ("As built") match what the code
+  actually does.
+
+Report a mismatch with the plan as a finding like any other, citing the document.
+
 ## User-facing errors
 
 Never surface backend or upstream error detail in the UI. No HTTP status codes,
