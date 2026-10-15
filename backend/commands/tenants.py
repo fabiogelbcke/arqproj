@@ -24,6 +24,10 @@ from backend.tenancy.resolve import normalize_host
 
 
 def _host(raw: str) -> str:
+    # A bare address only: a pasted URL or port is refused, not silently trimmed
+    # into something that would never match a request.
+    if any(sign in raw for sign in (":", "/")):
+        raise SystemExit(f"Not a usable address: {raw!r} (no scheme, port, path or www.)")
     host = normalize_host(raw)
     if not host or host.startswith("www."):
         raise SystemExit(f"Not a usable address: {raw!r} (no scheme, port or www.)")
