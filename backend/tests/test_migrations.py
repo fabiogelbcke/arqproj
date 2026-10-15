@@ -136,7 +136,7 @@ def test_the_comparison_catches_model_drift(migrated_url, from_models_url):
     assert any("archived" in str(row) for row in differences["constraints"]["only_in_models"])
 
 
-# The only acceptable policy on an office table. Permissive policies combine with
+# The only acceptable policy on a tenant table. Permissive policies combine with
 # OR, so any extra one could widen access; hence exactly this one, nothing else.
 
 

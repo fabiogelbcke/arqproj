@@ -146,7 +146,7 @@ def from_models_url() -> Iterator[str]:
 def build_from_models(url: str, source: MetaData) -> None:
     engine = create_engine(url)
     with engine.begin() as connection:
-        # Office-owned models default tenant_id to this function, so it must exist.
+        # Tenant-owned models default tenant_id to this function, so it must exist.
         connection.execute(text(CURRENT_TENANT_FUNCTION_SQL))
         source.create_all(connection)
     engine.dispose()

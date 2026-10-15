@@ -29,6 +29,14 @@ Before finishing:
   Cloud SQL, a handful of offices, a small team). Prefer one simple check that
   covers the real failure over many checks for unusual configurations.
 
+### Naming: tenant
+
+An office using the product is a **tenant**. Code says "tenant" everywhere:
+classes, functions, variables, database objects, settings, tests and code
+comments (e.g. `Tenant`, `CurrentTenant`, `current_tenant`, `TenantOwned`,
+`tenant_isolation`). Text users see says "escritório". Plans and docs for people
+may say "office", meaning a tenant.
+
 ### Searching code
 
 When Jev is available (for example in Claude Code or the Codex CLI), use it to

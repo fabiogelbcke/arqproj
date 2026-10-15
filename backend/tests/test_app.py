@@ -105,5 +105,5 @@ def test_startup_refuses_a_login_that_could_get_around_isolation(test_database_u
     app = create_app(
         Settings(environment="test", database_url=TEST_DATABASE_URL, database_runtime_role=owner)
     )
-    with pytest.raises(RuntimeError, match="could get around office isolation"), TestClient(app):
+    with pytest.raises(RuntimeError, match="could get around tenant isolation"), TestClient(app):
         pass

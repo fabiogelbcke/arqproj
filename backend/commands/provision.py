@@ -38,7 +38,7 @@ def _refuse_unsafe_login(conn: psycopg.Connection, login: str) -> None:
     problems = conn.execute(runtime_role.PROBLEMS_SQL_PSYCOPG, {"login": login}).fetchall()
     if problems:
         raise SystemExit(
-            f"Login {login} could get around office isolation: {runtime_role.describe(problems)}"
+            f"Login {login} could get around tenant isolation: {runtime_role.describe(problems)}"
         )
 
 

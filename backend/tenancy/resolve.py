@@ -1,4 +1,4 @@
-"""Which office a request is for, decided only by its exact hostname.
+"""Which tenant a request is for, decided only by its exact hostname.
 
 The whole hostname is looked up in `tenant_domains`; nothing is parsed out of it
 (no "slug from the subdomain"). A product subdomain and a custom domain are both
@@ -23,8 +23,8 @@ log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class Office:
-    """The office a request belongs to: a read-only copy, not a database row, so
+class CurrentTenant:
+    """The tenant a request belongs to: a read-only copy, not a database row, so
     code can neither change it by accident nor trigger hidden queries through it."""
 
     id: uuid.UUID
@@ -37,7 +37,7 @@ class Office:
 
 @dataclass(frozen=True)
 class Resolution:
-    office: Office
+    tenant: CurrentTenant
     # Set when the request must move to another host: an alias, or a `www.` form.
     redirect_host: str | None = None
 
@@ -47,7 +47,7 @@ def normalize_host(raw: str | None) -> str | None:
     if not raw:
         return None
     host = raw.strip().lower()
-    if host.startswith("["):  # IPv6 literal; never an office address
+    if host.startswith("["):  # IPv6 literal; never a tenant address
         return None
     host = host.rsplit(":", 1)[0] if ":" in host else host
     host = host.rstrip(".")
@@ -55,7 +55,7 @@ def normalize_host(raw: str | None) -> str | None:
 
 
 async def _lookup(session: AsyncSession, hostname: str) -> tuple[Tenant, str | None] | None:
-    """The active office owning `hostname`, and that office's primary hostname."""
+    """The active tenant owning `hostname`, and that tenant's primary hostname."""
     primary = aliased(TenantDomain)
     row = (
         await session.execute(
@@ -69,7 +69,7 @@ async def _lookup(session: AsyncSession, hostname: str) -> tuple[Tenant, str | N
 
 
 async def resolve(session: AsyncSession, raw_host: str | None) -> Resolution | None:
-    """None means "not found": unknown host, suspended office, or no usable Host."""
+    """None means "not found": unknown host, suspended tenant, or no usable Host."""
     host = normalize_host(raw_host)
     if host is None:
         return None
@@ -77,31 +77,31 @@ async def resolve(session: AsyncSession, raw_host: str | None) -> Resolution | N
     found = await _lookup(session, host.removeprefix("www.") if is_www else host)
     if found is None:
         return None
-    tenant, primary_host = found
+    row, primary_host = found
     if primary_host is None:
-        # Misconfigured office (no primary address): serve where it was asked
+        # Misconfigured tenant (no primary address): serve where it was asked
         # rather than fail, and say so in the logs.
-        log.warning("office %s has no primary address; serving on %s", tenant.slug, host)
+        log.warning("tenant %s has no primary address; serving on %s", row.slug, host)
         primary_host = host.removeprefix("www.")
-    office = Office(
-        id=tenant.id,
-        slug=tenant.slug,
-        name=tenant.name,
-        locale=tenant.locale,
-        timezone=tenant.timezone,
+    tenant = CurrentTenant(
+        id=row.id,
+        slug=row.slug,
+        name=row.name,
+        locale=row.locale,
+        timezone=row.timezone,
         primary_host=primary_host,
     )
-    return Resolution(office=office, redirect_host=None if host == primary_host else primary_host)
+    return Resolution(tenant=tenant, redirect_host=None if host == primary_host else primary_host)
 
 
-def current_office(request: Request) -> Office:
-    """FastAPI dependency for routes that belong to an office.
+def current_tenant(request: Request) -> CurrentTenant:
+    """FastAPI dependency for routes that belong to a tenant.
 
-    The middleware attaches the office before routing. A route reaching here
+    The middleware attaches the tenant before routing. A route reaching here
     without one is a programming error (for example an exempt path that asks for
-    an office), so it fails loudly instead of guessing.
+    a tenant), so it fails loudly instead of guessing.
     """
-    office = getattr(request.state, "office", None)
-    if office is None:
-        raise RuntimeError("this route needs an office, but none was resolved for the request")
-    return office
+    tenant = getattr(request.state, "tenant", None)
+    if tenant is None:
+        raise RuntimeError("this route needs a tenant, but none was resolved for the request")
+    return tenant

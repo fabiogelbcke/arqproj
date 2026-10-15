@@ -1,6 +1,6 @@
 """Is a login safe to run the app as? Used at app startup and by provisioning.
 
-Office isolation (row-level security) only binds a login that cannot get around
+Tenant isolation (row-level security) only binds a login that cannot get around
 it. A login fails this check if it, or any role it can reach (as a member, by
 inheritance, or with SET ROLE, directly or indirectly), is a superuser, has
 BYPASSRLS, or owns application tables (owners can alter or drop the policies;

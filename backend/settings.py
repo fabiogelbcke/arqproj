@@ -1,6 +1,6 @@
 """Deployment settings, read from environment variables and checked at startup.
 
-Only how this deployment runs belongs here. Anything about an office (its name,
+Only how this deployment runs belongs here. Anything about a tenant (its name,
 domains, Drive connection) lives in the database, never in environment variables.
 """
 
