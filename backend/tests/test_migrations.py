@@ -16,8 +16,10 @@ Each test uses its own throwaway databases, so going down and up never disturbs
 other tests.
 """
 
+import getpass
 from collections.abc import Iterator
 
+import psycopg
 import pytest
 from alembic import command
 from alembic.autogenerate import compare_metadata
@@ -28,16 +30,15 @@ from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from backend.db import local
-from backend.db.isolation import (
+from backend.db.isolation import OfficeOwned
+from backend.db.provision import app_role_for, provision_url
+from backend.db.registry import metadata
+from backend.migrations.snippets import (
     CURRENT_TENANT_FUNCTION_SQL,
     POLICY,
     REGISTRY_TABLES,
-    OfficeOwned,
-    app_role_for,
     enable_office_isolation_sql,
 )
-from backend.db.provision import provision_url
-from backend.db.registry import metadata
 from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL, alembic_config
 
 
@@ -391,3 +392,56 @@ def test_the_comparison_catches_a_changed_function(migrated_url, from_models_url
     engine.dispose()
     differences = _differences(schema_snapshot(migrated_url), schema_snapshot(from_models_url))
     assert set(differences) == {"functions"}
+
+
+def _members(url: str, group: str) -> set[str]:
+    engine = create_engine(url)
+    with engine.connect() as connection:
+        rows = connection.scalars(
+            text(
+                "SELECT m.rolname FROM pg_auth_members a JOIN pg_roles g ON g.oid = a.roleid "
+                "JOIN pg_roles m ON m.oid = a.member WHERE g.rolname = :g AND NOT a.admin_option"
+            ),
+            {"g": group},
+        )
+        members = set(rows)
+    engine.dispose()
+    return members
+
+
+def test_provisioning_refuses_logins_that_bypass_isolation(migrated_url):
+    command.upgrade(alembic_config(migrated_url), "head")
+    owner = make_url(migrated_url).username or getpass.getuser()  # a superuser locally
+    bypass = RUNTIME_ROLE + "_bypass"
+    local.create_runtime_role(bypass)
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        connection.execute(text(f'ALTER ROLE "{bypass}" BYPASSRLS'))
+    engine.dispose()
+
+    for login in (owner, bypass):
+        with pytest.raises(SystemExit, match="bypass row-level security"):
+            provision_url(migrated_url, login)
+    assert _members(migrated_url, app_role_for(make_url(migrated_url).database)) == set()
+
+
+def test_a_failed_rotation_changes_nothing(migrated_url, monkeypatch):
+    """The new login is never left with access alongside the old one."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    group = app_role_for(make_url(migrated_url).database)
+    rotated = RUNTIME_ROLE + "_rotated"
+    local.create_runtime_role(rotated)
+    provision_url(migrated_url, RUNTIME_ROLE)
+
+    real_execute = psycopg.Connection.execute
+
+    def fail_on_revoke(self, query, *args, **kwargs):
+        if "REVOKE" in str(getattr(query, "as_string", lambda _c: query)(self)):
+            raise RuntimeError("interrupted before the old login was removed")
+        return real_execute(self, query, *args, **kwargs)
+
+    monkeypatch.setattr(psycopg.Connection, "execute", fail_on_revoke)
+    with pytest.raises(RuntimeError, match="interrupted"):
+        provision_url(migrated_url, rotated)
+    monkeypatch.undo()
+    assert _members(migrated_url, group) == {RUNTIME_ROLE}  # the grant was rolled back

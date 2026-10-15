@@ -16,18 +16,34 @@ import psycopg
 from psycopg import sql
 from sqlalchemy.engine import make_url
 
-from backend.db.isolation import app_role_for
 from backend.settings import Settings
 
 
+def app_role_for(database: str) -> str:
+    """The group role holding the app's privileges in a database (created by
+    migration 0002 as `current_database() || '_app'`)."""
+    return f"{database}_app"
+
+
 def provision(conn: psycopg.Connection, login: str) -> list[str]:
-    """Make `login` the only member of this database's app role. Returns changes."""
+    """Make `login` the only member of this database's app role. Returns changes.
+
+    Runs inside one transaction (see `provision_url`): a rotation either fully
+    happens or not at all, never leaving the old and new logins both with access.
+    """
     database = conn.execute("SELECT current_database()").fetchone()[0]
     group = app_role_for(database)
     if not conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (group,)).fetchone():
         raise SystemExit(f"Role {group} does not exist: run migrations first")
-    if not conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (login,)).fetchone():
+    login_role = conn.execute(
+        "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = %s", (login,)
+    ).fetchone()
+    if login_role is None:
         raise SystemExit(f"Login {login} does not exist: create it first")
+    if any(login_role):
+        # PostgreSQL exempts these from row-level security even when it is FORCEd:
+        # the app would see every office's rows (e.g. the owner login reused by mistake).
+        raise SystemExit(f"Login {login} is a superuser or can bypass row-level security")
 
     # Ordinary members only: since PostgreSQL 16 a non-superuser who creates a role
     # (the migration login on Cloud SQL) is made an admin member of it; that link
@@ -56,8 +72,9 @@ def provision(conn: psycopg.Connection, login: str) -> list[str]:
 def provision_url(owner_url: str, login: str) -> list[str]:
     """`provision` for a SQLAlchemy-style owner URL (as in MIGRATION_DATABASE_URL)."""
     url = make_url(owner_url).set(drivername="postgresql")
-    with psycopg.connect(url.render_as_string(hide_password=False), autocommit=True) as conn:
-        return provision(conn, login)
+    with psycopg.connect(url.render_as_string(hide_password=False)) as conn:
+        with conn.transaction():
+            return provision(conn, login)
 
 
 def main() -> int:

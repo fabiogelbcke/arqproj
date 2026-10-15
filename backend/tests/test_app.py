@@ -71,3 +71,15 @@ def test_startup_opens_a_working_database_pool(test_database_url):
 
     with TestClient(app) as client:  # runs startup and shutdown
         assert client.portal.call(ping) == 1
+
+
+def test_the_app_never_loads_migration_helpers():
+    """Migration-writing SQL lives apart from runtime code; the app must not import it."""
+    import subprocess
+    import sys
+
+    code = "import backend.app, sys; print('backend.migrations.snippets' in sys.modules)"
+    loaded = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=True
+    )
+    assert loaded.stdout.strip() == "False"

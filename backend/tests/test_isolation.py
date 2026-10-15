@@ -19,13 +19,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import QueuePool
 
 from backend.db import local
-from backend.db.isolation import (
-    OFFICE_SETTING,
-    enable_office_isolation_sql,
-    grant_to_app_sql,
-    scope_to_office,
-)
+from backend.db.isolation import OFFICE_SETTING, scope_to_office
 from backend.db.provision import provision_url
+from backend.migrations.snippets import enable_office_isolation_sql, grant_to_app_sql
 from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL, alembic_config
 
 DATABASE = "arqproj_test_isolation"
