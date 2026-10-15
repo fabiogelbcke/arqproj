@@ -24,9 +24,16 @@ from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import CheckConstraint, MetaData, create_engine, inspect, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from backend.db import local
-from backend.db.isolation import POLICY, REGISTRY_TABLES
+from backend.db.isolation import (
+    CURRENT_TENANT_FUNCTION_SQL,
+    POLICY,
+    REGISTRY_TABLES,
+    OfficeOwned,
+    enable_office_isolation_sql,
+)
 from backend.db.registry import metadata
 from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL, alembic_config
 
@@ -54,6 +61,8 @@ def from_models_url() -> Iterator[str]:
 def _build_from_models(url: str, source: MetaData) -> None:
     engine = create_engine(url)
     with engine.begin() as connection:
+        # Office-owned models default tenant_id to this function, so it must exist.
+        connection.execute(text(CURRENT_TENANT_FUNCTION_SQL))
         source.create_all(connection)
     engine.dispose()
 
@@ -209,7 +218,8 @@ def test_the_comparison_catches_model_drift(migrated_url, from_models_url):
 
 
 def _unisolated_office_tables(url: str) -> set[str]:
-    """Tables with a tenant_id that lack enforced row-level security or the policy."""
+    """Tables with a tenant_id that lack enforced row-level security, the policy,
+    or the default that fills tenant_id with the current office."""
     engine = create_engine(url)
     with engine.connect() as connection:
         rows = connection.execute(
@@ -217,7 +227,8 @@ def _unisolated_office_tables(url: str) -> set[str]:
                 """
                 SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity,
                        EXISTS (SELECT 1 FROM pg_policies p
-                               WHERE p.tablename = c.relname AND p.policyname = :policy)
+                               WHERE p.tablename = c.relname AND p.policyname = :policy),
+                       col.column_default = 'current_tenant_id()'
                 FROM pg_class c
                 JOIN information_schema.columns col
                   ON col.table_name = c.relname AND col.column_name = 'tenant_id'
@@ -229,8 +240,8 @@ def _unisolated_office_tables(url: str) -> set[str]:
     engine.dispose()
     return {
         name
-        for name, enabled, forced, has_policy in rows
-        if name not in REGISTRY_TABLES and not (enabled and forced and has_policy)
+        for name, enabled, forced, has_policy, has_default in rows
+        if name not in REGISTRY_TABLES and not (enabled and forced and has_policy and has_default)
     }
 
 
@@ -264,3 +275,42 @@ def test_the_app_role_only_reads_the_registry(migrated_url):
         )
     engine.dispose()
     assert privileges == {("tenants", "SELECT"), ("tenant_domains", "SELECT")}
+
+
+def test_the_isolation_rule_catches_a_missing_default(migrated_url):
+    """Isolated, but tenant_id would have to be set by hand: flagged too."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE no_default (id int, tenant_id uuid)"))
+        for statement in enable_office_isolation_sql("no_default"):
+            connection.execute(text(statement))
+        connection.execute(text("ALTER TABLE no_default ALTER COLUMN tenant_id DROP DEFAULT"))
+    engine.dispose()
+    assert _unisolated_office_tables(migrated_url) == {"no_default"}
+
+
+def test_office_owned_models_default_to_the_current_office(migrated_url):
+    """A model using OfficeOwned builds the same column a migration would."""
+    sample = MetaData(naming_convention=metadata.naming_convention)
+
+    class SampleBase(DeclarativeBase):
+        metadata = sample
+
+    metadata.tables["tenants"].to_metadata(sample)
+
+    class Sample(OfficeOwned, SampleBase):
+        __tablename__ = "sample_office_rows"
+        id: Mapped[int] = mapped_column(primary_key=True)
+
+    _build_from_models(migrated_url, sample)
+    engine = create_engine(migrated_url)
+    with engine.connect() as connection:
+        default, nullable = connection.execute(
+            text(
+                "SELECT column_default, is_nullable FROM information_schema.columns "
+                "WHERE table_name = 'sample_office_rows' AND column_name = 'tenant_id'"
+            )
+        ).one()
+    engine.dispose()
+    assert (default, nullable) == ("current_tenant_id()", "NO")

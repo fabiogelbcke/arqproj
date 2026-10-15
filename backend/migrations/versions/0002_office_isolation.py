@@ -12,7 +12,7 @@ from collections.abc import Sequence
 
 from alembic import context, op
 
-from backend.db.isolation import OFFICE_SETTING, grant_sql
+from backend.db.isolation import CURRENT_TENANT_FUNCTION_SQL, grant_sql
 
 revision: str = "0002"
 down_revision: str | None = "0001"
@@ -25,16 +25,7 @@ def _runtime_role() -> str:
 
 
 def upgrade() -> None:
-    # The office set on the current transaction, or NULL. NULL matches no row, so
-    # a query without an office sees nothing instead of failing on ''::uuid.
-    op.execute(
-        f"""
-        CREATE FUNCTION current_tenant_id() RETURNS uuid
-        LANGUAGE sql STABLE AS $$
-            SELECT NULLIF(current_setting('{OFFICE_SETTING}', true), '')::uuid
-        $$
-        """
-    )
+    op.execute(CURRENT_TENANT_FUNCTION_SQL)
     role = _runtime_role()
     op.execute(f'GRANT USAGE ON SCHEMA public TO "{role}"')
     # The routing registry: read to resolve a request's hostname, never written by

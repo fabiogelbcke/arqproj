@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import event
-from sqlalchemy.orm import Session
+from sqlalchemy import ForeignKey, event, text
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 OFFICE_SETTING = "app.tenant_id"
 POLICY = "office_isolation"
@@ -32,15 +32,45 @@ POLICY = "office_isolation"
 REGISTRY_TABLES = frozenset({"tenant_domains"})
 
 
+# The office set on the current transaction, or NULL. NULL matches no row, so a
+# query without an office sees nothing instead of failing on ''::uuid. Defined
+# here once: migration 0002 creates it, and schema tests build it the same way.
+CURRENT_TENANT_FUNCTION_SQL = f"""
+CREATE FUNCTION current_tenant_id() RETURNS uuid
+LANGUAGE sql STABLE AS $$
+    SELECT NULLIF(current_setting('{OFFICE_SETTING}', true), '')::uuid
+$$
+"""
+
+
 def enable_office_isolation_sql(table: str) -> list[str]:
-    """Statements a migration runs for every new table that holds office data."""
+    """Statements a migration runs for every new table that holds office data.
+
+    The default fills `tenant_id` with the current office when an insert leaves it
+    out; the policy is what enforces it: a different office is refused, and with
+    no office set the default is NULL, which the policy refuses too.
+    """
     return [
+        f"ALTER TABLE {table} ALTER COLUMN tenant_id SET DEFAULT current_tenant_id()",
         f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY",
         f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY",
         f"CREATE POLICY {POLICY} ON {table} "
         f"USING (tenant_id = current_tenant_id()) "
         f"WITH CHECK (tenant_id = current_tenant_id())",
     ]
+
+
+class OfficeOwned:
+    """Model mixin for tables holding office data.
+
+    `tenant_id` defaults to the current transaction's office, so code never sets it.
+    The table's migration must also run `enable_office_isolation_sql` (a schema
+    test fails otherwise).
+    """
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id"), index=True, server_default=text("current_tenant_id()")
+    )
 
 
 def grant_sql(privileges: str, table: str, role: str) -> str:

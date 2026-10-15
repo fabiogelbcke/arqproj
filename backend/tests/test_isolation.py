@@ -145,6 +145,20 @@ def test_writing_another_offices_row_is_refused(offices):
             )
 
 
+def test_inserts_get_the_current_office_without_naming_it(offices):
+    with offices.app.begin() as conn:
+        set_office(conn, offices.norte)
+        conn.execute(text("INSERT INTO office_rows (name) VALUES ('Casa Lago')"))
+        owner = conn.scalar(text("SELECT tenant_id FROM office_rows WHERE name = 'Casa Lago'"))
+    assert owner == offices.norte
+
+
+def test_an_insert_with_no_office_set_fails(offices):
+    # The default is NULL then; the policy refuses the row (before NOT NULL would).
+    with offices.app.connect() as conn, pytest.raises(DBAPIError, match="row-level security"):
+        conn.execute(text("INSERT INTO office_rows (name) VALUES ('Sem escritório')"))
+
+
 def test_moving_a_row_to_another_office_is_refused(offices):
     with offices.app.connect() as conn, conn.begin():
         set_office(conn, offices.alinea)
