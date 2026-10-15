@@ -20,7 +20,7 @@ Background:
   is known (to resolve the request's hostname), so they are protected by grants
   (read-only for the app) rather than by the policy.
 - Privileges go to a per-database group role (`<database>_app`), never to a
-  login; `backend.db.provision` makes the configured login its only member.
+  login; `backend.commands.provision` makes the configured login its only member.
 """
 
 from __future__ import annotations

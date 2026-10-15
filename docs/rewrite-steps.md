@@ -129,7 +129,7 @@ React painel. No client-visible features yet.
   first; tests use a stand-in table set up the same way, and a schema test
   makes every future `tenant_id` table enable isolation. After Codex review:
   privileges go to a per-database group role (`<database>_app`), not a login;
-  `backend.db.provision` (release step after migrations) makes the configured
+  `backend.commands.provision` (release step after migrations) makes the configured
   login its only member, so rotating the login needs no migration. Migrations
   inline their SQL instead of importing app helpers; a schema test compares
   `current_tenant_id()` between the migrated database and the code's definition.

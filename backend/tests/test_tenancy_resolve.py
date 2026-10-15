@@ -8,9 +8,9 @@ from fastapi import Depends, Request
 from sqlalchemy import update
 
 from backend.app import _CloudLoggingFormatter
+from backend.commands.seed import seed
 from backend.tenancy.models import Tenant, TenantDomain
 from backend.tenancy.resolve import Office, current_office, normalize_host
-from backend.tenancy.seed import seed
 
 pytestmark = pytest.mark.anyio
 

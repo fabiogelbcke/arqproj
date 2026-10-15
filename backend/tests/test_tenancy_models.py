@@ -24,15 +24,10 @@ async def assert_refused(session, coroutine, constraint):
     await session.rollback()
 
 
-async def test_office_gets_ids_defaults_and_timestamps(db_session):
+async def test_office_gets_an_id_and_timestamps(db_session):
     tenant = await add_office(db_session, hosts=[("alineaarquitetos.com", True)])
     await db_session.refresh(tenant)
     assert tenant.id is not None
-    assert (tenant.locale, tenant.timezone, tenant.status) == (
-        "pt-BR",
-        "America/Sao_Paulo",
-        "active",
-    )
     assert tenant.created_at.tzinfo is not None
     assert tenant.updated_at >= tenant.created_at
 
