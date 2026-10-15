@@ -29,6 +29,7 @@ from backend.projects.enums import (
 )
 from backend.projects.models import Meeting, Project, ProjectDetail, ProjectSlug, ProjectStage
 from backend.settings import Settings
+from backend.storage.models import StorageConnection, StorageKind
 from backend.tenancy.models import Tenant, TenantDomain
 
 SAO_PAULO = timezone(timedelta(hours=-3))
@@ -58,6 +59,14 @@ PROJECTS = {
                 DetailKey.RESPONSIBLE: "Arq. Marina Carvalho",
             },
             "notes": {2: "Briefing aprovado. Seguimos para os estudos preliminares."},
+            "folder": "Casa Jardim",
+            "stage_folders": [
+                "01 - Briefing",
+                "02 - Conceito",
+                "03 - Anteprojeto",
+                "04 - Desenvolvimento",
+                "05 - Projeto Executivo",
+            ],
             "meetings": [(-14, "Aprovação do briefing"), (6, "Apresentação do layout")],
         },
         {
@@ -75,6 +84,8 @@ PROJECTS = {
                 DetailKey.EXPECTED_DELIVERY: date(2026, 12, 18),
             },
             "custom_stage": ("Aprovação no condomínio", "Envio do projeto à administração."),
+            "folder": "Apartamento Higienópolis",
+            "stage_folders": ["1. Levantamento", "2. Estudo preliminar", "2. Anteprojeto"],
         },
         {
             "slug": "casa-das-oliveiras",
@@ -91,6 +102,16 @@ PROJECTS = {
             "status": ProjectStatus.COMPLETED,
             "current": 7,
             "password": "demo-senha",
+            "folder": "Projeto Padrão",
+            "stage_folders": [
+                "01 - Proposta",
+                "02 - Briefing e Levantamento",
+                "03 - Estudos Preliminares - Anteprojeto",
+                "04 - Projeto 3D",
+                "05 - Projeto Executivo",
+                "06 - Entrega Final",
+                "07 - Serviços extras",
+            ],
         },
     ],
     "norte": [
@@ -102,6 +123,8 @@ PROJECTS = {
             "template": StageTemplate.STANDARD,
             "status": ProjectStatus.ACTIVE,
             "current": 1,
+            "folder": "Casa Nova",
+            "stage_folders": ["01 - Estudo"],
         },
     ],
 }
@@ -137,6 +160,13 @@ async def seed(session: AsyncSession) -> list[str]:
                 session.add(TenantDomain(tenant=tenant, hostname=hostname, is_primary=primary))
                 added.append(f"address {hostname}")
         await session.flush()
+        has_storage = await session.scalar(
+            select(StorageConnection.id).where(StorageConnection.tenant_id == tenant.id)
+        )
+        if not has_storage:
+            # Files from the fictional dataset on this machine (folder storage).
+            session.add(StorageConnection(tenant_id=tenant.id, kind=StorageKind.FOLDER))
+            added.append(f"storage {spec['slug']}")
         for project in PROJECTS.get(spec["slug"], []):
             if await _add_project(session, tenant, project):
                 added.append(f"project {spec['slug']}/{project['slug']}")
@@ -165,6 +195,7 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
         current_position=spec.get("current"),
         access_mode=AccessMode.PASSWORD if password else AccessMode.PUBLIC,
         password_hash=await hash_password(password) if password else None,
+        folder_id=spec.get("folder"),
     )
     session.add(project)
     await session.flush()
@@ -174,8 +205,14 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
     session.add(ProjectSlug(**owned, slug=spec["slug"]))
     stages = list(TEMPLATE_STAGES[spec["template"]])
     notes = spec.get("notes", {})
+    stage_folders = spec.get("stage_folders", [])
     for position, key in enumerate(stages, start=1):
         note = notes.get(position, "")
+        folder = (
+            f"{spec['folder']}/{stage_folders[position - 1]}"
+            if position <= len(stage_folders)
+            else None
+        )
         session.add(
             ProjectStage(
                 **owned,
@@ -183,6 +220,7 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
                 builtin_key=key,
                 notes=note,
                 notes_updated_at=datetime.now(SAO_PAULO) if note else None,
+                folder_id=folder,
             )
         )
     if custom := spec.get("custom_stage"):

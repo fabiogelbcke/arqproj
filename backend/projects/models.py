@@ -96,6 +96,8 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
     # Soft deletion: the project and its slugs stay, so old links never reach
     # another project (A29).
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The project's folder in the office's file store (backend.storage).
+    folder_id: Mapped[str | None] = mapped_column(Text)
 
 
 class ProjectSlug(IdMixin, TenantOwned, Base):
@@ -160,6 +162,8 @@ class ProjectStage(IdMixin, TimestampsMixin, TenantOwned, Base):
     deliverables: Mapped[str | None] = mapped_column(Text)  # what the client receives
     notes: Mapped[str] = mapped_column(Text, server_default=text("''"))
     notes_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The stage's folder, inside the project's.
+    folder_id: Mapped[str | None] = mapped_column(Text)
 
 
 _VALUE_COLUMNS = {
