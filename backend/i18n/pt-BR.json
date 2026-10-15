@@ -6,7 +6,8 @@
   "nav": {
     "projects": "Projetos",
     "signOut": "Sair",
-    "signedInAs": "Conectado como {{name}}"
+    "signedInAs": "Conectado como {{name}}",
+    "settings": "Configurações"
   },
   "theme": {
     "useLight": "Usar tema claro",
@@ -63,7 +64,13 @@
     "password_too_short": "A senha precisa ter pelo menos {{min}} caracteres.",
     "unexpected": "Algo deu errado. Tente de novo em instantes.",
     "network": "Sem conexão com o servidor. Verifique sua internet e tente de novo.",
-    "reference": "Código de suporte: {{id}}"
+    "reference": "Código de suporte: {{id}}",
+    "owner_only": "Só o responsável pelo escritório pode fazer isso.",
+    "drive_not_configured": "A conexão com o Google Drive ainda não está disponível neste ambiente.",
+    "drive_denied": "A conexão foi cancelada no Google. Tente de novo quando quiser.",
+    "drive_link_invalid": "Este pedido de conexão expirou. Comece de novo em Conectar.",
+    "drive_connect_failed": "Não foi possível conectar o Google Drive. Tente de novo em instantes.",
+    "drive_share_failed": "Não foi possível preparar a pasta no seu Drive. Nada foi alterado; tente de novo."
   },
   "projectStatus": {
     "draft": "Rascunho",
@@ -74,5 +81,40 @@
   "accessMode": {
     "public": "Pública",
     "password": "Com senha"
+  },
+  "settings": {
+    "title": "Configurações",
+    "drive": "Google Drive",
+    "office": "Escritório"
+  },
+  "drive": {
+    "intro": "Os arquivos dos projetos ficam no Google Drive do escritório. O portal só acessa os arquivos e pastas que ele mesmo cria.",
+    "notConnected": "Não conectado",
+    "notConnectedBody": "Ao conectar, criamos a pasta “Portal Clientes” no seu Drive. Seus arquivos continuam seus.",
+    "connected": "Conectado",
+    "connectedAs": "Conectado como {{email}}",
+    "openFolder": "Abrir a pasta no Google Drive",
+    "expired": "Conexão expirada",
+    "expiredBody": "As páginas dos clientes continuam no ar; envios e novos projetos ficam parados até reconectar.",
+    "readerProblem": "O portal não consegue ler a pasta. Verifique se ela não foi movida ou se o compartilhamento não foi removido.",
+    "local": "Pastas locais (desenvolvimento)",
+    "localBody": "Neste computador, os projetos usam as pastas de exemplo locais.",
+    "connect": "Conectar Google Drive",
+    "reconnect": "Reconectar",
+    "disconnect": "Desconectar",
+    "disconnectConfirm": "O portal deixa de acessar o Drive agora. Os arquivos continuam na pasta.",
+    "connectedNow": "Google Drive conectado.",
+    "disconnectedNow": "Google Drive desconectado.",
+    "ownerOnly": "Só o responsável pelo escritório pode conectar ou desconectar.",
+    "noticeNone": "Conecte o Google Drive para criar projetos e enviar arquivos daqui.",
+    "noticeExpired": "A conexão com o Google Drive expirou. As páginas dos clientes continuam no ar; envios e novos projetos ficam parados até reconectar."
+  },
+  "firstSteps": {
+    "title": "Primeiros passos",
+    "storage": "Conectar onde ficam os arquivos dos projetos (Google Drive)",
+    "firstProject": "Criar o primeiro projeto",
+    "firstProjectSoon": "Disponível em breve",
+    "done": "Feito",
+    "membersNote": "O responsável pelo escritório precisa concluir estes passos."
   }
 }

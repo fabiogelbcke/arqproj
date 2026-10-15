@@ -65,3 +65,13 @@ def test_deployed_environments_require_a_database_url(environment):
 def test_database_url_must_use_the_psycopg_driver():
     with pytest.raises(ValidationError, match="postgresql\\+psycopg://"):
         Settings(database_url="postgres://localhost/arqproj_dev")
+
+
+@pytest.mark.parametrize("secret", [None, "short"])
+def test_deployed_environments_require_a_real_app_secret(monkeypatch, secret):
+    monkeypatch.delenv("APP_SECRET", raising=False)
+    if secret:
+        monkeypatch.setenv("APP_SECRET", secret)
+    with pytest.raises(ValueError, match="APP_SECRET"):
+        Settings(environment="staging", database_url=DB)
+    assert Settings().app_secret  # local development has a default

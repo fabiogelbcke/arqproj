@@ -48,6 +48,17 @@ class Settings(BaseSettings):
     # Identifies the release; sent as X-Build-Id so open staff-app tabs notice a
     # new deploy. The image build sets it (step 1.7); "dev" locally.
     build_id: str = "dev"
+    # Derives the keys for signing short-lived notes and encrypting stored tokens
+    # (backend.security.keys). Required, at least 32 characters, when deployed.
+    app_secret: str = "local-development-secret-never-used-when-deployed"
+    # Google sign-in for connecting an office's Drive (the app registration).
+    google_oauth_client_id: str | None = None
+    google_oauth_client_secret: str | None = None
+    # The shared return address registered with Google; it forwards to the office
+    # that started the connection (backend/web/drive.py).
+    google_oauth_redirect_uri: str = "http://127.0.0.1:5173/api/drive/callback"
+    # The Google identity office folders are shared with for reading.
+    drive_reader_identity: str | None = None
     # Local development: offices whose storage kind is "folder" read files under
     # this folder (the fictional dataset; README "Local-folder test data").
     local_storage_root: str = str(
@@ -92,6 +103,22 @@ class Settings(BaseSettings):
         if self.deployed and "database_url" not in self.model_fields_set:
             raise ValueError("DATABASE_URL must be set in staging and production")
         return self
+
+    @model_validator(mode="after")
+    def _real_secret_when_deployed(self) -> Settings:
+        if self.deployed and (
+            "app_secret" not in self.model_fields_set or len(self.app_secret) < 32
+        ):
+            raise ValueError("APP_SECRET (32+ characters) must be set in staging and production")
+        return self
+
+    @property
+    def drive_configured(self) -> bool:
+        return bool(
+            self.google_oauth_client_id
+            and self.google_oauth_client_secret
+            and self.drive_reader_identity
+        )
 
     @property
     def deployed(self) -> bool:

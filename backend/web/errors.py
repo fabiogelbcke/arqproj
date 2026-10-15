@@ -23,6 +23,12 @@ class ErrorCode(StrEnum):
     INVALID_REQUEST = "invalid_request"  # malformed body or missing fields: a bug, not the user
     LINK_INVALID = "link_invalid"  # unknown, used, expired, replaced or another office's
     PASSWORD_TOO_SHORT = "password_too_short"
+    OWNER_ONLY = "owner_only"  # only the office's owners may do this
+    DRIVE_NOT_CONFIGURED = "drive_not_configured"  # this deployment has no Google app set up
+    DRIVE_DENIED = "drive_denied"  # the person cancelled at Google
+    DRIVE_LINK_INVALID = "drive_link_invalid"  # expired, tampered or replayed sign-in
+    DRIVE_CONNECT_FAILED = "drive_connect_failed"
+    DRIVE_SHARE_FAILED = "drive_share_failed"  # the folder could not be shared with the reader
 
 
 class ErrorOut(BaseModel):

@@ -76,7 +76,13 @@ account and folder, as in production (plan section 9, "Staging and production").
 Staging gets **its own OAuth client** ("Portal ALINEA (staging)", created in the
 Cloud Console, redirect `https://portal-staging-496714293251.us-east1.run.app/…`)
 so its write access never overlaps production's, and reads as `portal-staging@`.
-Not set up yet: it arrives with the Drive connection screen (slice 3).
+Set up 15 Oct 2026: client `496714293251-do3f1dtjsv5ae4l7559h3ghhg2ng34u5`
+with redirect URIs `https://portal-staging-496714293251.us-east1.run.app/api/drive/callback`
+and `http://127.0.0.1:5173/api/drive/callback` (local development: one shared
+return address that forwards to the office that started, `backend/web/drive.py`).
+Its secret is `portal-staging-oauth-client-secret`; staging's `APP_SECRET`
+(signing and token encryption) is `portal-staging-app-secret`. Both are read
+by `portal-staging@` and named in `deploy/staging/service.yaml`.
 
 ## Images: Artifact Registry `portal`
 

@@ -29,6 +29,10 @@ from backend.commands.provision import provision_url
 from backend.migrations.snippets import CURRENT_TENANT_FUNCTION_SQL
 from backend.settings import LOCAL_RUNTIME_ROLE, Settings
 
+# Settings for staging or production require a real secret; tests that build them
+# get this one (test_settings checks the rule with it removed).
+os.environ.setdefault("APP_SECRET", "test-app-secret-at-least-32-characters-long")
+
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://localhost:5432/arqproj_test"
 )

@@ -20,6 +20,9 @@ from backend.tenancy.resolve import resolve
 EXEMPT_PATHS = frozenset({"/health", "/api/docs", "/api/openapi.json"})
 # The staff app's built files are the same for every tenant: no lookup per file.
 EXEMPT_PREFIXES = ("/painel/assets/",)
+# Google's shared return address is no office's: let it through without a tenant
+# (backend/web/drive.py forwards it to the office that started).
+UNOWNED_PATHS = frozenset({"/api/drive/callback"})
 REDIRECT_MAX_AGE = 86400  # one day
 
 
@@ -39,6 +42,9 @@ class TenantMiddleware:
             resolution = await resolve(session, host)
 
         if resolution is None:
+            if path in UNOWNED_PATHS:
+                await self.app(scope, receive, send)
+                return
             await PlainTextResponse("Not found", status_code=404)(scope, receive, send)
             return
         if resolution.redirect_host:
