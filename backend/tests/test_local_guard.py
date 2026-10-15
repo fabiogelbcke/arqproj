@@ -38,6 +38,10 @@ def test_local_destinations_are_allowed(url):
         "postgresql+psycopg://localhost/arqproj_test?host=localhost,db.example.com",
         # A service entry can point anywhere:
         "postgresql+psycopg:///arqproj_test?service=prod",
+        # A whole connection string smuggled in as one option:
+        "postgresql+psycopg:///arqproj_test?conninfo=host%3Ddb.example.com",
+        # Any option not known to be harmless:
+        "postgresql+psycopg://localhost/arqproj_test?target_session_attrs=any",
     ],
 )
 def test_remote_destinations_are_refused(url):
@@ -94,3 +98,13 @@ async def test_a_remote_server_is_refused_after_connecting():
 
     with pytest.raises(SystemExit, match="203.0.113.7"):
         await local.require_local_server(RemoteServer())
+
+
+def test_harmless_options_are_allowed():
+    local.require_local(
+        "postgresql+psycopg://localhost/arqproj_test?application_name=tests&connect_timeout=5"
+    )
+
+
+def test_the_server_is_checked_before_migrations(test_database_url):
+    local.require_local_server_before_use(test_database_url)  # our local server passes

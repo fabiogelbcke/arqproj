@@ -47,6 +47,7 @@ def test_database_url() -> str:
     """Create the test database if needed and bring it to the latest migration."""
     local.require_local(TEST_DATABASE_URL)
     local.create_database(make_url(TEST_DATABASE_URL).database)
+    local.require_local_server_before_use(TEST_DATABASE_URL)  # before any migration
     command.upgrade(alembic_config(TEST_DATABASE_URL), "head")
     return TEST_DATABASE_URL
 
