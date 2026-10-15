@@ -103,62 +103,76 @@ class OAuthClient:
 
 
 class DriveWriter:
-    """Drive as the office's own grant (drive.file)."""
+    """Drive as the office's own grant (drive.file). A failed call, whether Google
+    answered with an error or the network failed, is a `ConnectError`."""
 
     def __init__(self, http: httpx2.AsyncClient, access_token: str) -> None:
         self._http = http
         self._headers = {"Authorization": f"Bearer {access_token}"}
 
-    async def account_email(self) -> str | None:
-        response = await self._http.get(
-            f"{DRIVE}/about", params={"fields": "user(emailAddress)"}, headers=self._headers
-        )
+    async def _call(self, method: str, url: str, problem: ConnectProblem, **kwargs):
+        try:
+            response = await self._http.request(method, url, headers=self._headers, **kwargs)
+        except httpx2.TransportError as error:
+            raise ConnectError(problem, f"{url}: {error!r}") from error
         if response.status_code >= 400:
-            log.warning("Drive about answered %s", response.status_code)
+            raise ConnectError(problem, f"{response.status_code} {url}: {response.text[:300]}")
+        return response
+
+    async def account_email(self) -> str | None:
+        try:
+            response = await self._call(
+                "GET",
+                f"{DRIVE}/about",
+                ConnectProblem.FOLDER_FAILED,
+                params={"fields": "user(emailAddress)"},
+            )
+        except ConnectError as error:
+            log.warning("Drive account unknown: %s", error.detail)
             return None
         return response.json().get("user", {}).get("emailAddress")
 
     async def can_open(self, folder_id: str) -> bool:
         """Whether this grant still reaches a folder (the app created it before)."""
-        response = await self._http.get(
-            f"{DRIVE}/files/{folder_id}",
-            params={"fields": "id,trashed", "supportsAllDrives": "true"},
-            headers=self._headers,
-        )
-        return response.status_code == 200 and not response.json().get("trashed")
+        try:
+            response = await self._call(
+                "GET",
+                f"{DRIVE}/files/{folder_id}",
+                ConnectProblem.FOLDER_FAILED,
+                params={"fields": "id,trashed", "supportsAllDrives": "true"},
+            )
+        except ConnectError:
+            return False
+        return not response.json().get("trashed")
 
     async def create_folder(self, name: str, parent: str | None = None) -> str:
         metadata = {"name": name, "mimeType": FOLDER} | ({"parents": [parent]} if parent else {})
-        response = await self._http.post(
+        response = await self._call(
+            "POST",
             f"{DRIVE}/files",
+            ConnectProblem.FOLDER_FAILED,
             params={"fields": "id", "supportsAllDrives": "true"},
             json=metadata,
-            headers=self._headers,
         )
-        if response.status_code >= 400:
-            raise ConnectError(
-                ConnectProblem.FOLDER_FAILED, f"{response.status_code}: {response.text[:300]}"
-            )
         return response.json()["id"]
 
     async def share_with_reader(self, folder_id: str, reader: str) -> None:
-        response = await self._http.post(
+        await self._call(
+            "POST",
             f"{DRIVE}/files/{folder_id}/permissions",
+            ConnectProblem.SHARE_FAILED,
             params={"sendNotificationEmail": "false", "supportsAllDrives": "true"},
             json={"type": "user", "role": "reader", "emailAddress": reader},
-            headers=self._headers,
         )
-        if response.status_code >= 400:
-            raise ConnectError(
-                ConnectProblem.SHARE_FAILED, f"{response.status_code}: {response.text[:300]}"
-            )
 
     async def trash(self, item_id: str) -> None:
-        response = await self._http.patch(
-            f"{DRIVE}/files/{item_id}",
-            params={"supportsAllDrives": "true"},
-            json={"trashed": True},
-            headers=self._headers,
-        )
-        if response.status_code >= 400:
-            log.warning("could not trash %s: %s", item_id, response.status_code)
+        try:
+            await self._call(
+                "PATCH",
+                f"{DRIVE}/files/{item_id}",
+                ConnectProblem.FOLDER_FAILED,
+                params={"supportsAllDrives": "true"},
+                json={"trashed": True},
+            )
+        except ConnectError as error:
+            log.warning("could not trash %s: %s", item_id, error.detail)

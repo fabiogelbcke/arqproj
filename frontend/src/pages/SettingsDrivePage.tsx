@@ -19,9 +19,11 @@ export function SettingsDrivePage() {
   const [returned] = useState(() => ({
     connected: params.get("resultado") === "conectado",
     error: params.get("erro"),
+    reference: params.get("ref"),
   }));
   useEffect(() => {
-    if (params.has("resultado") || params.has("erro")) setParams({}, { replace: true });
+    if (params.has("resultado") || params.has("erro") || params.has("ref"))
+      setParams({}, { replace: true });
   }, [params, setParams]);
 
   const status = drive.data;
@@ -37,7 +39,9 @@ export function SettingsDrivePage() {
         <p className={styles.lead}>{t("drive.intro")}</p>
         {returned.connected && <p role="status">{t("drive.connectedNow")}</p>}
         {returned.error && (
-          <ErrorNotice error={new ApiError(returned.error as ErrorCode)} />
+          <ErrorNotice
+            error={new ApiError(returned.error as ErrorCode, undefined, returned.reference)}
+          />
         )}
 
         {status.kind === "folder" ? (

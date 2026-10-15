@@ -67,8 +67,10 @@ describe("Drive settings", () => {
 
   it("explains a failed connection from Google's return, in Portuguese", async () => {
     api(NOT_CONNECTED);
-    renderAt("/configuracoes/drive?erro=drive_share_failed");
-    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível preparar a pasta");
+    renderAt("/configuracoes/drive?erro=drive_share_failed&ref=req42");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Não foi possível preparar a pasta");
+    expect(alert).toHaveTextContent("Código de suporte: req42");
   });
 
   it("lets members see the connection but not change it", async () => {

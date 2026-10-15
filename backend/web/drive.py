@@ -45,6 +45,7 @@ from backend.storage.models import ReaderStatus, StorageConnection, StorageKind,
 from backend.tenancy.resolve import CurrentTenant, current_tenant, normalize_host, resolve
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
+from backend.web.request_id import current_request_id
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -268,4 +269,5 @@ def _back(request: Request, code: ErrorCode) -> Response:
     host = normalize_host(request.headers.get("host"))
     if getattr(request.state, "tenant", None) is None or host is None:
         return Response("Not found", status_code=404, media_type="text/plain")
-    return RedirectResponse(f"{SETTINGS_PAGE}?erro={code.value}", 302)
+    # The request ID the log line carries, so the screen can show the support code.
+    return RedirectResponse(f"{SETTINGS_PAGE}?erro={code.value}&ref={current_request_id()}", 302)

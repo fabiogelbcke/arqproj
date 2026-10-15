@@ -29,6 +29,7 @@ class FakeGoogle:
     def __init__(self):
         self.calls: list[str] = []
         self.share_fails = False
+        self.share_drops_connection = False
         self.writer_reaches = set()  # folders the office's grant can still open
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
@@ -48,6 +49,8 @@ class FakeGoogle:
             self.writer_reaches.add("root1")
             return httpx2.Response(200, json={"id": "root1"})
         if path.endswith("/permissions"):
+            if self.share_drops_connection:
+                raise httpx2.ConnectError("connection reset")
             if self.share_fails:
                 return httpx2.Response(403, json={"error": {"message": "appNotAuthorizedToChild"}})
             return httpx2.Response(200, json={"id": "perm"})
@@ -170,14 +173,50 @@ async def test_a_folder_that_cannot_be_shared_is_trashed_and_not_used(
 ):
     google.share_fails = True
     done = await come_back(client, await start(client, owner))
-    assert done.headers["location"].endswith("erro=drive_share_failed")
+    assert "erro=drive_share_failed" in done.headers["location"]
     assert any(c.startswith("PATCH") for c in google.calls)  # the new folder went to the trash
     assert await connection(db_session) is None
 
 
+async def test_a_network_failure_while_sharing_is_handled_the_same_way(
+    client, db_session, owner, google
+):
+    google.share_drops_connection = True
+    done = await come_back(client, await start(client, owner))
+    assert "erro=drive_share_failed" in done.headers["location"]
+    assert any(c.startswith("PATCH") for c in google.calls)  # no orphan folder left
+    assert await connection(db_session) is None
+
+
+async def test_a_failure_carries_the_support_code_to_the_screen(client, owner, google):
+    google.share_fails = True
+    done = await come_back(client, await start(client, owner))
+    reference = parse_qs(urlsplit(done.headers["location"]).query)["ref"][0]
+    assert reference == done.headers["x-request-id"]  # the ID the log line carries
+
+
+async def test_after_disconnecting_the_app_reads_nothing_either(
+    app, client, db_session, owner, google
+):
+    """Section 9: disconnecting stops both paths; the folder stays for a reconnect."""
+    from backend.storage.base import StorageError
+    from backend.storage.connections import storage_for
+
+    await come_back(client, await start(client, owner))
+    saved = await connection(db_session)
+    assert storage_for(saved, app.state.settings, app.state.google)  # reads while connected
+    await client.delete("/api/drive", headers=owner)
+    await db_session.refresh(saved)
+    with pytest.raises(StorageError):
+        storage_for(saved, app.state.settings, app.state.google)
+    assert (await client.get("/api/onboarding", headers=ALINEA)).json()[
+        "storage_connected"
+    ] is False
+
+
 async def test_a_refused_sign_in_code_connects_nothing(client, db_session, owner, google):
     done = await come_back(client, await start(client, owner), code="bad")
-    assert done.headers["location"].endswith("erro=drive_connect_failed")
+    assert "erro=drive_connect_failed" in done.headers["location"]
     assert await connection(db_session) is None
 
 
@@ -188,7 +227,7 @@ async def test_cancelling_at_google_says_so(client, owner, google):
     )
     target = urlsplit(first.headers["location"])
     done = await client.get(f"{target.path}?{target.query}", headers=ALINEA)
-    assert done.headers["location"].endswith("erro=drive_denied")
+    assert "erro=drive_denied" in done.headers["location"]
 
 
 async def test_a_tampered_return_goes_nowhere(client, owner, google):
@@ -197,7 +236,7 @@ async def test_a_tampered_return_goes_nowhere(client, owner, google):
     shared = await client.get(f"/api/drive/callback?code=x&state={forged}", headers=SHARED)
     assert shared.status_code == 404
     office = await client.get(f"/api/drive/callback?code=x&state={forged}", headers=ALINEA)
-    assert office.headers["location"].endswith("erro=drive_link_invalid")
+    assert "erro=drive_link_invalid" in office.headers["location"]
 
 
 async def test_the_shared_address_only_forwards_to_the_office_that_started(
@@ -222,7 +261,7 @@ async def test_a_return_without_the_starting_browsers_cookie_is_refused(
     first = await client.get(f"/api/drive/callback?code=good&state={state}", headers=SHARED)
     target = urlsplit(first.headers["location"])
     done = await client.get(f"{target.path}?{target.query}", headers=ALINEA)
-    assert done.headers["location"].endswith("erro=drive_link_invalid")
+    assert "erro=drive_link_invalid" in done.headers["location"]
     assert await connection(db_session) is None
 
 
