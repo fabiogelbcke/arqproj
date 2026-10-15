@@ -68,10 +68,18 @@ def test_database_url_must_use_the_psycopg_driver():
 
 
 @pytest.mark.parametrize("secret", [None, "short"])
-def test_deployed_environments_require_a_real_app_secret(monkeypatch, secret):
+def test_a_deployed_app_refuses_to_start_without_a_real_app_secret(monkeypatch, secret):
+    from backend.app import create_app
+
     monkeypatch.delenv("APP_SECRET", raising=False)
     if secret:
         monkeypatch.setenv("APP_SECRET", secret)
+    settings = Settings(environment="staging", database_url=DB)  # loading alone is fine
     with pytest.raises(ValueError, match="APP_SECRET"):
-        Settings(environment="staging", database_url=DB)
-    assert Settings().app_secret  # local development has a default
+        create_app(settings)
+
+
+def test_migrations_and_commands_run_without_the_app_secret(monkeypatch):
+    """The staging deploy migrates with ENVIRONMENT=staging and no APP_SECRET."""
+    monkeypatch.delenv("APP_SECRET", raising=False)
+    assert Settings(environment="staging", database_url=DB).deployed
