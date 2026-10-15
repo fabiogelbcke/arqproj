@@ -269,3 +269,18 @@ async def test_through_the_app_login_each_office_sees_only_its_projects(db_sessi
             await db_session.execute(text("UPDATE projects SET name = 'x'"))
     finally:
         await db_session.rollback()
+
+
+async def test_one_drive_folder_never_serves_two_offices(db_session, alinea, norte):
+    from backend.storage.models import StorageConnection, StorageKind
+
+    for tenant in (alinea, norte):
+        db_session.add(
+            StorageConnection(
+                tenant_id=tenant.id,
+                kind=StorageKind.GOOGLE,
+                root_id="driveFolder123",
+                reader_identity="portal@example.iam",
+            )
+        )
+    await assert_refused(db_session, db_session.flush(), "uq_storage_connections_google_root")

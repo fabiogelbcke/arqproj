@@ -829,6 +829,18 @@ Pending live acceptance matrix:
 The first personal-Drive pass unlocks an appropriately labeled pilot. Unsupported
 account types can wait without redesigning tenant isolation or project metadata.
 
+### Staging and production: same app, separate configuration
+
+Staging runs the same code with no special logic for Drive: as in production,
+whoever connects Drive in the painel chooses the account and folder (real
+Alinea projects are fine for testing; projects created on staging create real
+folders in whatever folder was chosen). Only configuration differs: each
+environment has its own database, its own reader identity (`portal-staging@`
+on staging) and **its own OAuth client**. That last one matters because
+`drive.file` access is per (Google account, OAuth client): with a shared client,
+staging's writer could see files production created for the same account. Emails
+outside production go only to an allowlist of test addresses (section 14).
+
 ## 10. Project creation: atomic experience, recoverable external work
 
 **Yes: project creation should be atomic in the database and appear complete to

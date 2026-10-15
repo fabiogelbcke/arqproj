@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     # Identifies the release; sent as X-Build-Id so open staff-app tabs notice a
     # new deploy. The image build sets it (step 1.7); "dev" locally.
     build_id: str = "dev"
+    # Local development: offices whose storage kind is "folder" read files under
+    # this folder (the fictional dataset; README "Local-folder test data").
+    local_storage_root: str = str(
+        Path(__file__).resolve().parent.parent / "local-test-data" / "Projects"
+    )
     # The staff app's build (`npm run build` in frontend/).
     frontend_dist: str = str(Path(__file__).resolve().parent.parent / "frontend" / "dist")
 
