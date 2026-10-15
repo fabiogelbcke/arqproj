@@ -201,7 +201,36 @@ async def test_failures_become_problems_without_googles_text(drive, answer, prob
         await storage.get("a")
     assert error.value.problem is problem
     assert "secret detail" not in str(error.value)
+    if answer[1]:  # Google's words are kept for the server log
+        assert "secret detail" in error.value.detail
     assert len(fake.requests) == attempts  # only worth retrying is retried
+
+
+async def test_a_shortcut_is_recognised_and_not_downloaded(drive):
+    """Following one needs a check that the target is inside the office's folder
+    (step 2.5); until then a shortcut is never fetched."""
+    storage, fake = drive
+    shortcut = drive_file("s1", "Planta (atalho)", "application/vnd.google-apps.shortcut", None)
+    fake.answers = [(200, {"files": [shortcut | {"shortcutDetails": {"targetId": "elsewhere"}}]})]
+    [item] = await storage.list_folder("folder1")
+    assert (item.is_shortcut, item.is_native, item.shortcut_target) == (True, False, "elsewhere")
+    with pytest.raises(StorageError):
+        await storage.download(item)
+    assert len(fake.requests) == 1  # no export or download attempted
+
+
+async def test_a_failed_login_to_google_is_a_storage_problem_too(drive):
+    storage, fake = drive
+
+    async def broken_token():
+        raise RuntimeError("could not find default credentials")
+
+    storage._token = broken_token
+    with pytest.raises(StorageError) as error:
+        await storage.get("a")
+    assert error.value.problem is StorageProblem.UNAVAILABLE
+    assert "default credentials" in error.value.detail  # for the server log only
+    assert "default credentials" not in str(error.value) and fake.requests == []
 
 
 async def test_a_trashed_file_is_not_found(drive):

@@ -15,6 +15,10 @@ from enum import StrEnum
 from typing import Protocol
 
 FOLDER_TYPE = "application/vnd.google-apps.folder"
+# A link to another item; nothing to download itself. Not followed here: whoever
+# follows one (downloads, step 2.5) must first check the target lies inside the
+# office's own folder, since one reader identity can see several offices' files.
+SHORTCUT_TYPE = "application/vnd.google-apps.shortcut"
 # Google's own formats (Docs, Sheets, Slides…) have no file to download; they are
 # exported as PDF.
 NATIVE_PREFIX = "application/vnd.google-apps."
@@ -28,9 +32,13 @@ class StorageProblem(StrEnum):
 
 
 class StorageError(Exception):
-    def __init__(self, problem: StorageProblem) -> None:
+    """`str()` is only the problem code. `detail` holds the provider's own words
+    for the server log at the request boundary, never for a screen."""
+
+    def __init__(self, problem: StorageProblem, detail: str = "") -> None:
         super().__init__(problem.value)
         self.problem = problem
+        self.detail = detail
 
 
 @dataclass(frozen=True)
@@ -41,14 +49,22 @@ class StorageItem:
     size: int | None  # None for folders and Google-native documents
     modified_at: datetime
     checksum: str | None = None  # MD5 where the provider has one
+    shortcut_target: str | None = None  # the item a shortcut points to
 
     @property
     def is_folder(self) -> bool:
         return self.mime_type == FOLDER_TYPE
 
     @property
+    def is_shortcut(self) -> bool:
+        return self.mime_type == SHORTCUT_TYPE
+
+    @property
     def is_native(self) -> bool:
-        return self.mime_type.startswith(NATIVE_PREFIX) and not self.is_folder
+        """A Google format with no file of its own, exported as PDF to download."""
+        return (
+            self.mime_type.startswith(NATIVE_PREFIX) and not self.is_folder and not self.is_shortcut
+        )
 
 
 @dataclass(frozen=True)

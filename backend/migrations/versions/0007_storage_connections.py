@@ -53,6 +53,13 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_storage_connections_tenant_id"), "storage_connections", ["tenant_id"], unique=False
     )
+    op.create_index(
+        "uq_storage_connections_google_root",
+        "storage_connections",
+        ["root_id"],
+        unique=True,
+        postgresql_where=sa.text("kind = 'google'"),
+    )
     op.add_column("project_stages", sa.Column("folder_id", sa.Text(), nullable=True))
     op.add_column("projects", sa.Column("folder_id", sa.Text(), nullable=True))
 

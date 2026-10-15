@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 API = "https://www.googleapis.com/drive/v3"
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-FIELDS = "id,name,mimeType,size,modifiedTime,md5Checksum,trashed"
+FIELDS = "id,name,mimeType,size,modifiedTime,md5Checksum,trashed,shortcutDetails(targetId)"
 # Drive ids are letters, digits, `-` and `_`. Anything else is refused before it
 # can reach the `q` search expression.
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,200}$")
@@ -112,7 +112,7 @@ class GoogleDriveStorage:
 
     async def download(self, item: StorageItem) -> Download:
         _check(item.id)
-        if item.is_folder:
+        if item.is_folder or item.is_shortcut:
             raise StorageError(StorageProblem.NOT_FOUND)
         if item.is_native:
             url, params = f"{self._api}/files/{item.id}/export", {"mimeType": "application/pdf"}
@@ -150,30 +150,35 @@ class GoogleDriveStorage:
     async def _send(
         self, method: str, url: str, params: dict, *, stream: bool = False
     ) -> httpx2.Response:
-        problem = StorageProblem.UNAVAILABLE
+        problem, detail = StorageProblem.UNAVAILABLE, ""
         for attempt in range(RETRIES + 1):
             if attempt:
                 await self._sleep(0.5 * 2**attempt + random.random() / 2)
-            headers = {"Authorization": f"Bearer {await self._token()}"}
+            try:
+                token = await self._token()
+            except Exception as error:  # e.g. no credentials, or Google's token service down
+                problem, detail = StorageProblem.UNAVAILABLE, f"token: {error!r}"
+                log.warning("Drive token unavailable: %r", error)
+                continue
+            headers = {"Authorization": f"Bearer {token}"}
             request = self._client.build_request(method, url, params=params, headers=headers)
             try:
                 response = await self._client.send(request, stream=stream)
             except httpx2.TransportError as error:
+                problem, detail = StorageProblem.UNAVAILABLE, f"{url}: {error!r}"
                 log.warning("Drive request failed (%s): %s", url, error)
-                problem = StorageProblem.UNAVAILABLE
                 continue
             if response.status_code < 400:
                 return response
             if stream:
                 await response.aread()
             problem, retry = _classify(response)
-            log.warning(
-                "Drive answered %s for %s: %s", response.status_code, url, response.text[:500]
-            )
+            detail = f"{response.status_code} {url}: {response.text[:500]}"
+            log.warning("Drive answered %s", detail)
             await response.aclose()
             if not retry:
                 break
-        raise StorageError(problem)
+        raise StorageError(problem, detail)
 
 
 def _classify(response: httpx2.Response) -> tuple[StorageProblem, bool]:
@@ -207,4 +212,5 @@ def _item(data: dict) -> StorageItem:
         size=int(data["size"]) if data.get("size") is not None else None,
         modified_at=datetime.fromisoformat(data["modifiedTime"].replace("Z", "+00:00")),
         checksum=data.get("md5Checksum"),
+        shortcut_target=(data.get("shortcutDetails") or {}).get("targetId"),
     )

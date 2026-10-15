@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, Text, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, Index, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.base import Base, IdMixin, TimestampsMixin
@@ -25,6 +25,17 @@ class StorageConnection(IdMixin, TimestampsMixin, TenantOwned, Base):
     __tablename__ = "storage_connections"
     __table_args__ = (
         UniqueConstraint("tenant_id", name="uq_storage_connections_tenant_id"),
+        # One Drive folder never serves two offices: isolation of the rows would
+        # not isolate a shared tree (plan section 7). Unique across all offices,
+        # which row-level security does not narrow. Nested roots (one office's
+        # root inside another's) need Drive's folder ancestry, so the connection
+        # screen checks those when an office connects (slice 3).
+        Index(
+            "uq_storage_connections_google_root",
+            "root_id",
+            unique=True,
+            postgresql_where=text("kind = 'google'"),
+        ),
         enum_check("kind", StorageKind),
         CheckConstraint(
             "kind <> 'google' OR reader_identity IS NOT NULL", name="google_has_reader"
