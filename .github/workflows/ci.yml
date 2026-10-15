@@ -14,23 +14,21 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # The tests' local-database guard accepts only this machine's server, like on
-  # a laptop; the service container below is that server here.
+  # The superuser of the PostgreSQL started below (locally, it is you).
   PGUSER: postgres
 
 jobs:
   backend:
     runs-on: ubuntu-24.04
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 2s --health-retries 30
     steps:
       - uses: actions/checkout@v7.0.1
+      # On the runner's own network, so the server really is local: the tests'
+      # guard refuses any database server that is not on this machine, and a
+      # service container would sit behind Docker's network instead.
+      - name: PostgreSQL 17
+        run: |
+          docker run -d --name postgres --network host -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17
+          for i in $(seq 60); do docker exec postgres pg_isready -h 127.0.0.1 -U postgres && break; sleep 1; done
       - uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.13.1"
@@ -58,16 +56,15 @@ jobs:
 
   e2e:
     runs-on: ubuntu-24.04
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 2s --health-retries 30
     steps:
       - uses: actions/checkout@v7.0.1
+      # On the runner's own network, so the server really is local: the tests'
+      # guard refuses any database server that is not on this machine, and a
+      # service container would sit behind Docker's network instead.
+      - name: PostgreSQL 17
+        run: |
+          docker run -d --name postgres --network host -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17
+          for i in $(seq 60); do docker exec postgres pg_isready -h 127.0.0.1 -U postgres && break; sleep 1; done
       - uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.13.1"
