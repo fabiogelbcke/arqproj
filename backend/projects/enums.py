@@ -1,8 +1,15 @@
 """Fixed sets of values for projects (plan A26, A27).
 
-Stored as text with a CHECK built from each enum. Their words live in the
-translation catalogs (backend/i18n): project type, status, built-in stages and
-details are shown translated; text an office writes is shown as typed.
+Two kinds of enum live here:
+
+- Values the code acts on (status, access mode, a detail's value type): stored as
+  text with a CHECK built from the enum.
+- Names of built-in content rows (project types, stage templates, built-in
+  stages, detail types): the rows themselves, with their texts in every language,
+  are reference tables in the database (migration 0008), which columns reference
+  by foreign key. These enums let code name a specific built-in with autocomplete;
+  a test keeps them and the rows in step. Offices' own rows (later) have keys no
+  enum lists.
 """
 
 from __future__ import annotations
@@ -48,35 +55,6 @@ class StageTemplate(StrEnum):
     EMPTY = "empty"
 
 
-TEMPLATE_STAGES: dict[StageTemplate, tuple[BuiltinStage, ...]] = {
-    StageTemplate.STANDARD: (
-        BuiltinStage.PROPOSAL,
-        BuiltinStage.BRIEFING_SURVEY,
-        BuiltinStage.PRELIMINARY_STUDIES,
-        BuiltinStage.MODEL_3D,
-        BuiltinStage.CONSTRUCTION_DOCUMENTS,
-        BuiltinStage.FINAL_DELIVERY,
-        BuiltinStage.EXTRA_SERVICES,
-    ),
-    StageTemplate.INTERIORS: (
-        BuiltinStage.PROPOSAL,
-        BuiltinStage.BRIEFING,
-        BuiltinStage.LAYOUT,
-        BuiltinStage.MODEL_3D,
-        BuiltinStage.DETAILING,
-        BuiltinStage.FINAL_DELIVERY,
-    ),
-    StageTemplate.EMPTY: (),
-}
-
-# The project type a new project gets from its template, until staff change it.
-TEMPLATE_PROJECT_TYPE: dict[StageTemplate, ProjectType] = {
-    StageTemplate.STANDARD: ProjectType.ARCHITECTURE,
-    StageTemplate.INTERIORS: ProjectType.INTERIORS,
-    StageTemplate.EMPTY: ProjectType.ARCHITECTURE,
-}
-
-
 class DetailType(StrEnum):
     TEXT = "text"
     AREA = "area"  # square metres, a number
@@ -92,16 +70,6 @@ class DetailKey(StrEnum):
     EXPECTED_DELIVERY = "expected_delivery"
     RESPONSIBLE = "responsible"
 
-
-DETAIL_TYPES: dict[DetailKey, DetailType] = {
-    DetailKey.CLIENT: DetailType.TEXT,
-    DetailKey.LOCATION: DetailType.TEXT,
-    DetailKey.SITE_AREA: DetailType.AREA,
-    DetailKey.BUILT_AREA: DetailType.AREA,
-    DetailKey.START_DATE: DetailType.DATE,
-    DetailKey.EXPECTED_DELIVERY: DetailType.DATE,
-    DetailKey.RESPONSIBLE: DetailType.TEXT,
-}
 
 # Paths of the office's address that can never be a project's slug: the app's own,
 # and those Cloud Run's front end answers itself (checked on staging 15 Oct 2026:

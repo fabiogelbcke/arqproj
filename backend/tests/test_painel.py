@@ -12,11 +12,7 @@ from backend.commands.seed import seed
 from backend.identity.models import Role
 from backend.projects.enums import (
     AccessMode,
-    BuiltinStage,
-    DetailKey,
     ProjectStatus,
-    ProjectType,
-    StageTemplate,
 )
 from backend.tenancy.models import Locale
 from backend.web import painel
@@ -128,11 +124,7 @@ def test_every_language_has_every_text():
         ("role", Role),
         ("locale", Locale),
         ("projectStatus", ProjectStatus),
-        ("projectType", ProjectType),
         ("accessMode", AccessMode),
-        ("stageTemplate", StageTemplate),
-        ("detail", DetailKey),
-        ("stage", BuiltinStage),
     ],
 )
 def test_every_built_in_value_the_screens_show_is_translated(group, enum: type[StrEnum]):
@@ -140,15 +132,6 @@ def test_every_built_in_value_the_screens_show_is_translated(group, enum: type[S
         texts = catalog(locale)[group]
         missing = {member.value for member in enum} - set(texts)
         assert not missing, f"{locale}: no {group} text for {missing}"
-
-
-def test_every_built_in_stage_has_its_title_and_explanations():
-    for locale in Locale:
-        for stage in BuiltinStage:
-            texts = catalog(locale)["stage"][stage.value]
-            assert all(texts.get(part) for part in ("title", "about", "deliverables")), (
-                f"{locale}: {stage} lacks a title or explanation"
-            )
 
 
 def test_the_translation_check_catches_a_gap(monkeypatch):

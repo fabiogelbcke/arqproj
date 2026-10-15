@@ -19,6 +19,27 @@ a new entry too.
 
 ---
 
+## 2026-10-15 — A26 refined: built-in content moves from code enums to reference tables
+
+**Was:** project types, detail types, built-in stages (with their explanations)
+and stage templates were enums in code; columns stored their keys with a CHECK,
+and their texts lived in the translation files.
+
+**Now:** the code keeps enums only for values it **acts on** (status, access
+mode, roles, a detail's value type…). Content the app **only displays** is rows
+in reference tables (`project_types`, `detail_types`, `stage_definitions`,
+`stage_templates` + `stage_template_stages`), each with its texts per language,
+referenced by foreign keys; a detail row also carries its value type so the
+database alone guarantees an area is a number. The code keeps enums naming the
+built-in rows (Fabio likes them), kept in step with the rows by a test.
+
+**Why:** Fabio questioned the database storing references whose meaning lives
+only in code. CHECKs kept data and code from drifting, but content belongs with
+the data: the database describes itself, foreign keys give real integrity, and
+offices' own details, stages and templates (slice 3 and later) must be rows
+anyway. Cost: translations live in two places (interface text in files, content
+in the database), with tests covering both.
+
 ## 2026-10-15 — project status gains "draft"; meetings become a list; one slug table
 
 **Was:** project `status` unspecified beyond a field; one current meeting per

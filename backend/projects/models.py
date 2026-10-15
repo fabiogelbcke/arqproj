@@ -13,6 +13,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Numeric,
@@ -20,26 +21,101 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.base import Base, IdMixin, TimestampsMixin
 from backend.db.isolation import TenantOwned
 from backend.db.types import TextEnum, enum_check
 from backend.projects.enums import (
-    DETAIL_TYPES,
     RESERVED_SLUGS,
     AccessMode,
-    BuiltinStage,
-    DetailKey,
     DetailType,
     ProjectStatus,
-    ProjectType,
-    StageTemplate,
 )
+from backend.tenancy.models import Locale
 
 CLIENT_NAME_MAX = 48
 MEETING_TITLE_MAX = 40
 MEETING_LOCATION_MAX = 60
+
+
+# -- built-in content: reference tables shared by all offices (migration 0008) ---
+
+_LANGUAGES = "ARRAY[" + ", ".join(f"'{locale.value}'" for locale in Locale) + "]"
+
+
+def _in_every_language(column: str) -> CheckConstraint:
+    """A JSON object of texts with an entry for every supported language."""
+    return CheckConstraint(
+        f"jsonb_typeof({column}) = 'object' AND {column} ?& {_LANGUAGES}",
+        name=f"{column}_in_every_language",
+    )
+
+
+class ProjectTypeDef(Base):
+    __tablename__ = "project_types"
+    __table_args__ = (_in_every_language("labels"),)
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    position: Mapped[int] = mapped_column()
+    labels: Mapped[dict[str, str]] = mapped_column(JSONB)
+
+
+class DetailTypeDef(Base):
+    __tablename__ = "detail_types"
+    __table_args__ = (
+        enum_check("value_type", DetailType),
+        _in_every_language("labels"),
+        UniqueConstraint("key", "value_type", name="uq_detail_types_key_value_type"),
+    )
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    value_type: Mapped[DetailType] = mapped_column(TextEnum(DetailType))
+    position: Mapped[int] = mapped_column()
+    labels: Mapped[dict[str, str]] = mapped_column(JSONB)
+
+
+class StageDef(Base):
+    """A built-in stage: its title, what happens, and what the client receives."""
+
+    __tablename__ = "stage_definitions"
+    __table_args__ = (
+        _in_every_language("titles"),
+        _in_every_language("about"),
+        _in_every_language("deliverables"),
+    )
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    titles: Mapped[dict[str, str]] = mapped_column(JSONB)
+    about: Mapped[dict[str, str]] = mapped_column(JSONB)
+    deliverables: Mapped[dict[str, str]] = mapped_column(JSONB)
+
+
+class StageTemplateDef(Base):
+    __tablename__ = "stage_templates"
+    __table_args__ = (_in_every_language("labels"),)
+
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    position: Mapped[int] = mapped_column()
+    labels: Mapped[dict[str, str]] = mapped_column(JSONB)
+    # The project type a new project gets from this template, until staff change it.
+    default_project_type: Mapped[str] = mapped_column(Text, ForeignKey("project_types.key"))
+
+
+class TemplateStage(Base):
+    """A template's stages, in order."""
+
+    __tablename__ = "stage_template_stages"
+
+    template_key: Mapped[str] = mapped_column(
+        Text, ForeignKey("stage_templates.key", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(primary_key=True)
+    stage_key: Mapped[str] = mapped_column(Text, ForeignKey("stage_definitions.key"))
+
+
+# -- projects -------------------------------------------------------------------
 
 
 def _project_fk(table: str) -> ForeignKeyConstraint:
@@ -62,8 +138,6 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
         ),
         enum_check("status", ProjectStatus),
         enum_check("access_mode", AccessMode),
-        enum_check("project_type", ProjectType),
-        enum_check("stage_template", StageTemplate),
         # A password-protected project always has a password.
         CheckConstraint(
             "access_mode <> 'password' OR password_hash IS NOT NULL", name="password_set"
@@ -75,8 +149,12 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
 
     name: Mapped[str] = mapped_column(Text)
     client_name: Mapped[str] = mapped_column(Text)
-    project_type: Mapped[ProjectType] = mapped_column(TextEnum(ProjectType))
-    stage_template: Mapped[StageTemplate] = mapped_column(TextEnum(StageTemplate))
+    project_type: Mapped[str] = mapped_column(
+        Text, ForeignKey("project_types.key", name="fk_projects_project_type")
+    )
+    stage_template: Mapped[str] = mapped_column(
+        Text, ForeignKey("stage_templates.key", name="fk_projects_stage_template")
+    )
     description: Mapped[str] = mapped_column(Text, server_default=text("''"))
     status: Mapped[ProjectStatus] = mapped_column(
         TextEnum(ProjectStatus), server_default=text("'draft'")
@@ -145,7 +223,6 @@ class ProjectStage(IdMixin, TimestampsMixin, TenantOwned, Base):
             initially="DEFERRED",
         ),
         CheckConstraint("position >= 1", name="position_positive"),
-        enum_check("builtin_key", BuiltinStage),
         CheckConstraint("(builtin_key IS NULL) = (title IS NOT NULL)", name="builtin_or_custom"),
         CheckConstraint(
             "builtin_key IS NULL OR (about IS NULL AND deliverables IS NULL)",
@@ -156,7 +233,9 @@ class ProjectStage(IdMixin, TimestampsMixin, TenantOwned, Base):
 
     project_id: Mapped[uuid.UUID] = mapped_column(index=True)
     position: Mapped[int] = mapped_column()
-    builtin_key: Mapped[BuiltinStage | None] = mapped_column(TextEnum(BuiltinStage))
+    builtin_key: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("stage_definitions.key", name="fk_project_stages_builtin_key")
+    )
     title: Mapped[str | None] = mapped_column(Text)
     about: Mapped[str | None] = mapped_column(Text)  # what happens in this stage
     deliverables: Mapped[str | None] = mapped_column(Text)  # what the client receives
@@ -174,17 +253,16 @@ _VALUE_COLUMNS = {
 
 
 def _value_matches_type() -> str:
-    """Exactly the value column of the detail's type is filled."""
+    """Exactly the value column of the row's value type is filled."""
     cases = []
-    for detail_type, column in _VALUE_COLUMNS.items():
-        keys = ", ".join(f"'{k.value}'" for k, t in DETAIL_TYPES.items() if t is detail_type)
+    for value_type, column in _VALUE_COLUMNS.items():
         filled = [f"{c} IS {'NOT ' if c == column else ''}NULL" for c in _VALUE_COLUMNS.values()]
-        cases.append(f"(key IN ({keys}) AND {' AND '.join(filled)})")
+        cases.append(f"(value_type = '{value_type.value}' AND {' AND '.join(filled)})")
     return " OR ".join(cases)
 
 
 class ProjectDetail(IdMixin, TenantOwned, Base):
-    """A built-in detail (A27) and its value, stored by the detail's type."""
+    """A detail of a project and its value, in the column of its value type."""
 
     __tablename__ = "project_details"
     __table_args__ = (
@@ -197,7 +275,13 @@ class ProjectDetail(IdMixin, TenantOwned, Base):
             deferrable=True,
             initially="DEFERRED",
         ),
-        enum_check("key", DetailKey),
+        # The row's value type is its detail type's (key, value_type).
+        ForeignKeyConstraint(
+            ["key", "value_type"],
+            ["detail_types.key", "detail_types.value_type"],
+            name="fk_project_details_detail_type",
+        ),
+        enum_check("value_type", DetailType),
         CheckConstraint(_value_matches_type(), name="value_matches_type"),
         CheckConstraint(
             "value_text IS NULL OR length(btrim(value_text)) > 0", name="text_not_blank"
@@ -206,7 +290,8 @@ class ProjectDetail(IdMixin, TenantOwned, Base):
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(index=True)
-    key: Mapped[DetailKey] = mapped_column(TextEnum(DetailKey))
+    key: Mapped[str] = mapped_column(Text)
+    value_type: Mapped[DetailType] = mapped_column(TextEnum(DetailType))
     position: Mapped[int] = mapped_column()
     value_text: Mapped[str | None] = mapped_column(Text)
     value_number: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))

@@ -274,7 +274,14 @@ isolated, read-only for the app) and a `folder_id` on projects and stages
 (migration 0007); the seed links its projects to the dataset's folders. Names sort
 ignoring case and accents. Until slice 4's sync, pages will list files live from
 the store.
-2.3 Project page at `/{slug}` rendered with the current Jinja templates, data
+2.2b Built-in content as reference tables (A26 refined). **As built:**
+migration 0008 creates `project_types`, `detail_types`, `stage_definitions`,
+`stage_templates` and `stage_template_stages` with the built-in rows and their
+texts in Portuguese and English (moved out of `backend/i18n`), replaces the
+CHECKs on the columns that use them with foreign keys, and gives each detail row
+its value type (composite foreign key, so its value column is checked by the
+database). The enums stay as names for the built-in rows; `test_reference_content`
+keeps them and the rows in step. 2.3 Project page at `/{slug}` rendered with the current Jinja templates, data
 from the database. 2.4 Optional password on every content route. 2.5 File
 streaming and previews through the reader identity. 2.6 Staff bar on the page.
 2.7 Read-only import of the current `_project` / `_stage` files (dry run first).
