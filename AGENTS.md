@@ -29,6 +29,14 @@ Before finishing:
   Cloud SQL, a handful of offices, a small team). Prefer one simple check that
   covers the real failure over many checks for unusual configurations.
 
+### Searching code
+
+When Jev is available (for example in Claude Code or the Codex CLI), use it to
+locate code by behaviour or to check a property across many files. Scope searches
+to the relevant directories when known, then read the matching sections. Use
+ordinary text search for exact names. Read enough surrounding code to make edits
+safely. If Jev fails, report it.
+
 ### Runtime code vs one-off code (`backend/`)
 
 Code the running app executes lives apart from code that runs once or only by
