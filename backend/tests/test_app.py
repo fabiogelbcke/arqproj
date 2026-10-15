@@ -24,10 +24,6 @@ def test_health_answers():
     assert response.json() == {"status": "ok"}
 
 
-def test_unknown_paths_are_not_found():
-    assert client_for("test").get("/nothing-here").status_code == 404
-
-
 @pytest.mark.parametrize("environment", ["local", "staging"])
 def test_api_docs_outside_production(environment):
     client = client_for(environment)
@@ -49,13 +45,14 @@ def test_deployed_logs_are_one_json_object_per_line(capsys):
         "severity": "WARNING",
         "message": "Olá, escritório",
         "logger": "backend.test",
+        "request_id": "-",  # outside a request
     }
 
 
 def test_local_logs_are_plain_text(capsys):
     create_app(settings_for("local"))
     logging.getLogger("backend.test").info("ready")
-    assert capsys.readouterr().out.strip().endswith("INFO backend.test: ready")
+    assert capsys.readouterr().out.strip().endswith("INFO backend.test [-]: ready")
 
 
 def test_uvicorn_factory_builds_with_defaults(monkeypatch):

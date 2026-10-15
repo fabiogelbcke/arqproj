@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     # Local default: the developer's own PostgreSQL. Required when deployed.
     database_url: str = LOCAL_DATABASE_URL
+    # Lets Cloud Logging group a request's log lines by trace. Optional.
+    google_cloud_project: str | None = None
 
     @field_validator("log_level")
     @classmethod

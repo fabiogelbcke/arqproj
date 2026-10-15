@@ -50,3 +50,7 @@ include = ["backend/**/*.py"]
 [tool.ruff.lint]
 # pyflakes, pycodestyle, import order, common bugs, modern syntax.
 select = ["F", "E", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares dependencies as parameter defaults; that is the intended pattern.
+extend-immutable-calls = ["fastapi.Depends"]

@@ -240,10 +240,18 @@ the current app and does not change what production serves.
 brew install postgresql@17 && brew services start postgresql@17   # once
 uv run python -m backend.db.local setup                    # creates arqproj_dev and arqproj_test
 uv run alembic -c backend/alembic.ini upgrade head          # apply migrations to arqproj_dev
+uv run python -m backend.tenancy.seed                      # two fictional offices (see below)
 uv run uvicorn backend.app:create_app --factory --reload   # → http://127.0.0.1:8000/health
 uv run pytest                                              # backend tests (migrate arqproj_test themselves)
 uv run ruff check backend && uv run ruff format --check backend
 ```
+
+The office is chosen by the exact hostname of each request (`tenant_domains`).
+Locally, every `*.localhost` address reaches this machine: the seed creates
+`alinea.localhost` (alias `alinea-old.localhost`, which redirects) and
+`norte.localhost`, e.g. `http://alinea.localhost:8000/`. Unknown hosts get 404;
+`/health` works on any host. Every response has an `X-Request-ID` header, also
+printed on each log line.
 
 `DATABASE_URL` defaults to `arqproj_dev` on this machine and is required in
 staging and production. Tests only ever use local databases. New migration:

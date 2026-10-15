@@ -98,6 +98,12 @@ React painel. No client-visible features yet.
   and spoofed `X-Forwarded-Host` headers being ignored.
 - **Review:** how the office is resolved and passed around (this pattern is
   used by every later step).
+- **As built:** the whole hostname is matched exactly, never parsed for a slug.
+  Aliases and `www.` get a permanent redirect (301, or 308 for non-GET so a POST
+  stays a POST) cached for one day. Suspended offices get the same 404 as unknown
+  hosts. Plain ASGI middleware (never buffers streamed downloads). Request IDs
+  reuse Cloud Run's trace ID; with `GOOGLE_CLOUD_PROJECT` set, log lines link to
+  the trace. Real hostnames are added to staging/production data in step 1.7.
 
 ### Step 1.4: Isolation enforced by the database
 
