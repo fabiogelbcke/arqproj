@@ -169,7 +169,7 @@ async def sign_out(
     response.delete_cookie(COOKIE, path="/")
 
 
-@router.post("/password-link", responses=documented(404))
+@router.post("/password-link", responses=documented(404, 422))
 async def check_password_link(
     body: LinkIn, db: AsyncSession = Depends(get_tenant_session)
 ) -> LinkOut:
