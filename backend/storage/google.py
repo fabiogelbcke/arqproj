@@ -116,7 +116,7 @@ class GoogleDriveStorage:
 
     async def download(self, item: StorageItem) -> Download:
         _check(item.id)
-        if item.is_folder or item.is_shortcut:
+        if item.is_folder or item.is_shortcut or (item.is_native and not item.exports_as_pdf):
             raise StorageError(StorageProblem.NOT_FOUND)
         if item.is_native:
             url, params = f"{self._api}/files/{item.id}/export", {"mimeType": "application/pdf"}
@@ -185,6 +185,74 @@ class GoogleDriveStorage:
             if not retry:
                 break
         raise StorageError(problem, detail)
+
+    async def parent(self, item_id: str) -> str | None:
+        """The folder an item is in (Drive items have one), or None at the top."""
+        _check(item_id)
+        body = (
+            await self._send(
+                "GET",
+                f"{self._api}/files/{item_id}",
+                {"fields": "parents,trashed", "supportsAllDrives": "true"},
+            )
+        ).json()
+        if body.get("trashed"):
+            raise StorageError(StorageProblem.NOT_FOUND)
+        parents = body.get("parents") or []
+        return parents[0] if parents else None
+
+
+# Deeper than any real project tree; stops a walk that never reaches a root.
+MAX_DEPTH = 25
+
+
+class OfficeDrive:
+    """Google Drive limited to one office's root folder and what is inside it.
+
+    The reader identity may see several offices' folders (one shared reader, plan
+    section 9), so an id alone proves nothing: before reading, the item's parent
+    chain must reach this office's root. Confirmed folders are remembered for the
+    life of this object (one request), and items listed inside a confirmed folder
+    are confirmed with it.
+    """
+
+    def __init__(self, drive: GoogleDriveStorage, root_id: str) -> None:
+        _check(root_id)
+        self._drive = drive
+        self._root = root_id
+        self._inside = {root_id}
+
+    async def _require_inside(self, item_id: str) -> None:
+        _check(item_id)
+        chain, current = [], item_id
+        for _ in range(MAX_DEPTH):
+            if current in self._inside:
+                self._inside.update(chain)
+                return
+            chain.append(current)
+            current = await self._drive.parent(current)
+            if current is None:
+                break
+        log.warning("Drive item %s is outside office root %s", item_id, self._root)
+        raise StorageError(StorageProblem.NOT_FOUND, f"{item_id} outside root {self._root}")
+
+    async def list_folder(self, folder_id: str) -> list[StorageItem]:
+        await self._require_inside(folder_id)
+        children = await self._drive.list_folder(folder_id)
+        self._inside.update(child.id for child in children)
+        return children
+
+    async def get(self, item_id: str) -> StorageItem:
+        await self._require_inside(item_id)
+        return await self._drive.get(item_id)
+
+    async def download(self, item: StorageItem) -> Download:
+        await self._require_inside(item.id)
+        return await self._drive.download(item)
+
+    async def thumbnail(self, item: StorageItem, size: int = 640) -> bytes | None:
+        await self._require_inside(item.id)
+        return await self._drive.thumbnail(item, size)
 
 
 def _classify(response: httpx2.Response) -> tuple[StorageProblem, bool]:

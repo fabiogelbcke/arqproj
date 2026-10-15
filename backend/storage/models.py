@@ -40,6 +40,7 @@ class StorageConnection(IdMixin, TimestampsMixin, TenantOwned, Base):
         CheckConstraint(
             "kind <> 'google' OR reader_identity IS NOT NULL", name="google_has_reader"
         ),
+        CheckConstraint("kind <> 'google' OR root_id <> ''", name="google_has_root"),
     )
 
     kind: Mapped[StorageKind] = mapped_column(TextEnum(StorageKind))

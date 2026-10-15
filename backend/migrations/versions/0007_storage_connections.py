@@ -42,6 +42,9 @@ def upgrade() -> None:
             name=op.f("ck_storage_connections_google_has_reader"),
         ),
         sa.CheckConstraint(
+            "kind <> 'google' OR root_id <> ''", name=op.f("ck_storage_connections_google_has_root")
+        ),
+        sa.CheckConstraint(
             "kind IN ('google', 'folder')", name=op.f("ck_storage_connections_kind_known")
         ),
         sa.ForeignKeyConstraint(

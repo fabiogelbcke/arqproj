@@ -19,9 +19,12 @@ FOLDER_TYPE = "application/vnd.google-apps.folder"
 # follows one (downloads, step 2.5) must first check the target lies inside the
 # office's own folder, since one reader identity can see several offices' files.
 SHORTCUT_TYPE = "application/vnd.google-apps.shortcut"
-# Google's own formats (Docs, Sheets, Slides…) have no file to download; they are
-# exported as PDF.
+# Google's own formats (Docs, Sheets, Slides…) have no file to download; those
+# that can be are exported as PDF.
 NATIVE_PREFIX = "application/vnd.google-apps."
+PDF_EXPORTABLE = frozenset(
+    NATIVE_PREFIX + kind for kind in ("document", "spreadsheet", "presentation", "drawing")
+)
 
 
 class StorageProblem(StrEnum):
@@ -61,10 +64,15 @@ class StorageItem:
 
     @property
     def is_native(self) -> bool:
-        """A Google format with no file of its own, exported as PDF to download."""
+        """A Google format with no file of its own."""
         return (
             self.mime_type.startswith(NATIVE_PREFIX) and not self.is_folder and not self.is_shortcut
         )
+
+    @property
+    def exports_as_pdf(self) -> bool:
+        """The native formats Google can export as PDF (others, e.g. Vids, cannot)."""
+        return self.mime_type in PDF_EXPORTABLE
 
 
 @dataclass(frozen=True)

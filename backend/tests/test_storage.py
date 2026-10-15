@@ -295,3 +295,57 @@ async def test_thumbnails_come_in_the_size_asked(drive):
     assert str(fake.requests[1].url) == "https://thumbs.test/abc=s640"
     fake.answers = [(200, {})]
     assert await storage.thumbnail(item) is None
+
+
+# -- one office's view of a Drive the reader shares with other offices --------------
+
+
+def office_drive(drive, root="rootA"):
+    from backend.storage.google import OfficeDrive
+
+    storage, fake = drive
+    return OfficeDrive(storage, root), fake
+
+
+async def test_an_office_reads_only_inside_its_own_folder(drive):
+    office, fake = office_drive(drive)
+    # planta → stage1 → rootA: inside; reached by walking up the parents.
+    fake.answers = [(200, {"parents": ["stage1"]}), (200, {"parents": ["rootA"]})]
+    fake.answers.append((200, drive_file("planta", "Planta.pdf")))
+    assert (await office.get("planta")).name == "Planta.pdf"
+    # Another office's file: its parents lead elsewhere, and its details are
+    # never fetched.
+    fake.answers = [(200, {"parents": ["rootB"]}), (200, {"parents": []})]
+    asked = len(fake.requests)
+    with pytest.raises(StorageError) as error:
+        await office.get("their-file")
+    assert error.value.problem is StorageProblem.NOT_FOUND
+    assert all("fields=parents" in str(r.url) for r in fake.requests[asked:])
+
+
+async def test_what_is_listed_inside_the_office_needs_no_second_check(drive):
+    office, fake = office_drive(drive)
+    folder = FOLDER1 | {"id": "rootA"}
+    fake.answers = [(200, folder), (200, {"files": [drive_file("f1", "Planta.pdf")]})]
+    await office.list_folder("rootA")  # the root itself: no parent walk
+    fake.answers = [(200, drive_file("f1", "Planta.pdf"))]
+    asked = len(fake.requests)
+    await office.get("f1")  # confirmed by the listing
+    assert len(fake.requests) == asked + 1
+
+
+async def test_a_google_format_without_pdf_export_is_not_downloaded(drive):
+    storage, fake = drive
+    video = StorageItem("v1", "Apresentação", "application/vnd.google-apps.vid", None, None)
+    with pytest.raises(StorageError):
+        await storage.download(video)
+    assert fake.requests == []
+
+
+def test_an_office_on_google_gets_a_view_limited_to_its_folder():
+    from backend.storage.google import OfficeDrive
+
+    connection = StorageConnection(
+        kind=StorageKind.GOOGLE, root_id="rootA", reader_identity="r@x.iam"
+    )
+    assert isinstance(storage_for(connection, Settings(), google=object()), OfficeDrive)
