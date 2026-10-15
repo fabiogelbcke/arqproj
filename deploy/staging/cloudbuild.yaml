@@ -48,12 +48,27 @@ steps:
         for i in 1 2 3 4 5 6 7 8 9 10; do python -c "import socket; socket.create_connection(('cloudsql', 5432), 2)" 2>/dev/null && break; sleep 1; done;
         alembic -c backend/alembic.ini upgrade head && python -m backend.commands.provision
 
+  # Merges close together run as overlapping builds. Only the newest commit on
+  # `staging` may deploy, or a slower older build could roll staging back. (An
+  # older build cannot migrate a database a newer one already moved forward:
+  # Alembic stops on the unknown revision, so it fails before this point.)
+  - id: newest
+    name: gcr.io/cloud-builders/git
+    entrypoint: bash
+    args:
+      - -c
+      - >-
+        newest=$$(git ls-remote https://github.com/fabiogelbcke/arqproj.git refs/heads/staging | cut -f1);
+        if [ "$$newest" != "$COMMIT_SHA" ]; then
+        echo "staging is now at $$newest; that build deploys instead of $COMMIT_SHA" | tee /workspace/superseded; fi
+
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash
     args:
       - -c
       - >-
+        if [ -f /workspace/superseded ]; then cat /workspace/superseded; exit 0; fi;
         sed -e "s|IMAGE_PLACEHOLDER|$_IMAGE:$SHORT_SHA|" -e "s|BUILD_ID_PLACEHOLDER|$SHORT_SHA|"
         deploy/staging/service.yaml > /workspace/service.yaml &&
         gcloud run services replace /workspace/service.yaml --region "$_REGION"

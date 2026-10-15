@@ -89,14 +89,40 @@ jobs:
           path: frontend/test-results/
           retention-days: 7
 
+  # The production image, built and started the way Cloud Run starts it (non-root
+  # user, its CMD and libraries, the bundled staff app) against a migrated
+  # database, before anything reaches staging (plan section 19).
   image:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
+      - name: PostgreSQL 17
+        run: |
+          docker run -d --name postgres --network host -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17
+          for i in $(seq 60); do docker exec postgres pg_isready -h 127.0.0.1 -U postgres && break; sleep 1; done
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: "0.13.1"
+      - run: uv sync --frozen --no-group legacy
+      - run: uv run python -m backend.commands.e2e
       - uses: docker/setup-buildx-action@v4.4.1
       - uses: docker/build-push-action@v7.4.0
         with:
           context: .
           file: deploy/Dockerfile
-          push: false
+          load: true
+          tags: portal:ci
           build-args: BUILD_ID=ci
+      - name: Start the image and check it answers
+        run: |
+          docker run -d --name app --network host -e PORT=8020 \
+            -e DATABASE_URL=postgresql+psycopg://arqproj_app@127.0.0.1:5432/arqproj_e2e portal:ci
+          for i in $(seq 30); do curl -fs http://127.0.0.1:8020/health && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8020/health
+          test "$(curl -fsS -H 'Host: alinea.localhost' -o /dev/null -w '%{http_code}' http://127.0.0.1:8020/api/tenant)" = 200
+          curl -fsS -H 'Host: alinea.localhost' http://127.0.0.1:8020/painel/ | grep -q '/painel/assets/'
+          asset=$(curl -fsS -H 'Host: alinea.localhost' http://127.0.0.1:8020/painel/ | grep -o '/painel/assets/[^"]*\.js' | head -1)
+          curl -fsS -o /dev/null "http://127.0.0.1:8020$asset"
+          test "$(curl -sSI http://127.0.0.1:8020/painel/ -H 'Host: alinea.localhost' | grep -ci x-build-id:\ ci)" = 1
+      - if: failure()
+        run: docker logs app || true

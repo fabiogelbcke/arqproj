@@ -6,7 +6,8 @@
 #
 #   docker build -f deploy/Dockerfile --build-arg BUILD_ID=$(git rev-parse --short HEAD) .
 
-FROM node:22-slim AS frontend
+# Exact versions, so rebuilding a commit gives the same image (plan section 19).
+FROM node:22.23.3-slim AS frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -17,7 +18,7 @@ ARG BUILD_ID=dev
 ENV BUILD_ID=$BUILD_ID
 RUN npm run build
 
-FROM python:3.13-slim
+FROM python:3.13.16-slim
 COPY --from=ghcr.io/astral-sh/uv:0.13.1 /uv /usr/local/bin/uv
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 \
