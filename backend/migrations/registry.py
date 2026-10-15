@@ -9,3 +9,6 @@ from backend.identity import models as identity_models  # noqa: F401
 from backend.tenancy import models as tenancy_models  # noqa: F401
 
 metadata = Base.metadata
+
+# Advisory lock key held while migrations run (env.py).
+MIGRATION_LOCK = 7_202_610

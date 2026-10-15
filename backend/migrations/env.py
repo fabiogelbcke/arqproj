@@ -15,7 +15,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
-from backend.migrations.registry import metadata
+from backend.migrations.registry import MIGRATION_LOCK, metadata
 from backend.settings import Settings
 
 config = context.config
@@ -35,6 +35,12 @@ def _database_url() -> str:
 
 
 def _configure(connection: Connection) -> None:
+    # Overlapping deploys (two merges in quick succession) would otherwise run
+    # migrations at the same time; the second waits here until the first is done.
+    # Session-level, so it outlives the per-migration transactions and is
+    # released when this connection closes.
+    connection.exec_driver_sql(f"SELECT pg_advisory_lock({MIGRATION_LOCK})")
+    connection.commit()
     context.configure(
         connection=connection,
         target_metadata=metadata,
