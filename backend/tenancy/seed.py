@@ -58,6 +58,7 @@ async def main() -> None:
     local.require_local(url)
     engine = create_async_engine(url)
     async with AsyncSession(engine, expire_on_commit=False) as session:
+        await local.require_local_server(session)
         added = await seed(session)
     await engine.dispose()
     print("Added: " + ", ".join(added) if added else "Nothing to add; already seeded.")

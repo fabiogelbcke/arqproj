@@ -32,6 +32,10 @@ def _configure(connection: Connection) -> None:
         connection=connection,
         target_metadata=metadata,
         compare_type=True,
+        # Also compare default values, so autogenerate drafts include default changes.
+        # (Check constraints and triggers are never compared by Alembic; the schema
+        # tests in backend/tests/test_migrations.py cover those.)
+        compare_server_default=True,
         transaction_per_migration=True,
     )
     with context.begin_transaction():

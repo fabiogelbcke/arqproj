@@ -8,26 +8,80 @@ Only ever touches PostgreSQL on this machine.
 
 from __future__ import annotations
 
+import os
 import sys
 
 import psycopg
 from psycopg import sql
+from sqlalchemy import text
 from sqlalchemy.engine import make_url
 
 DEV_DATABASE = "arqproj_dev"
 TEST_DATABASE = "arqproj_test"
-LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", None, ""}
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _is_local(host: str) -> bool:
+    # A path is a Unix socket on this machine.
+    return host in LOCAL_HOSTS or host.startswith("/")
+
+
+def _option(parsed, name: str) -> list[str]:
+    values = parsed.query.get(name) or ()
+    return [
+        part
+        for value in ((values,) if isinstance(values, str) else values)
+        for part in value.split(",")
+    ]
+
+
+def effective_hosts(url: str) -> list[str]:
+    """Every destination libpq could connect to for this URL.
+
+    libpq fills each connection parameter independently: from the connection
+    string (the URL's host, or `?host=`), or else from its environment variable.
+    So `host` falls back to PGHOST only when the URL gives none, while `hostaddr`
+    (the address actually dialled) comes from `?hostaddr=` or else PGHOSTADDR,
+    even when the URL names localhost. A `?service=` or PGSERVICE names an entry in
+    a settings file that can point anywhere, so it is refused outright. An empty
+    list means the default local Unix socket.
+    """
+    parsed = make_url(url)
+    if "service" in parsed.query or os.environ.get("PGSERVICE"):
+        raise SystemExit("Refusing a database service name: it can point to any server")
+    hosts = _option(parsed, "host") + (parsed.host.split(",") if parsed.host else [])
+    if not hosts and os.environ.get("PGHOST"):
+        hosts = os.environ["PGHOST"].split(",")
+    hostaddrs = _option(parsed, "hostaddr")
+    if not hostaddrs and os.environ.get("PGHOSTADDR"):
+        hostaddrs = os.environ["PGHOSTADDR"].split(",")
+    return [host.strip() for host in hosts + hostaddrs if host.strip()]
 
 
 def require_local(url: str) -> None:
-    """Refuse anything that is not a database on this machine."""
-    host = make_url(url).host
-    if host not in LOCAL_HOSTS:
-        raise SystemExit(f"Refusing to use a non-local database host: {host!r}")
+    """Refuse anything that could reach a database not on this machine."""
+    remote = [host for host in effective_hosts(url) if not _is_local(host)]
+    if remote:
+        raise SystemExit(f"Refusing to use a non-local database host: {', '.join(remote)}")
+
+
+async def require_local_server(connection) -> None:
+    """Second check, once connected: ask the server where it actually is.
+
+    `inet_server_addr()` is NULL over a Unix socket, otherwise the address the
+    server answered on; anything but loopback means we reached another machine.
+    """
+    address = await connection.scalar(text("SELECT host(inet_server_addr())"))
+    if address not in (None, "127.0.0.1", "::1"):
+        raise SystemExit(f"Refusing to use a database server at {address}")
 
 
 def _admin_connection() -> psycopg.Connection:
-    return psycopg.connect("host=localhost port=5432 dbname=postgres", autocommit=True)
+    # Every destination parameter given explicitly, so no PG* environment variable
+    # or service file can redirect this connection to another machine.
+    return psycopg.connect(
+        "host=localhost hostaddr=127.0.0.1 port=5432 dbname=postgres", autocommit=True
+    )
 
 
 def create_database(name: str) -> bool:
