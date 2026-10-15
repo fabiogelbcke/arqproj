@@ -13,7 +13,10 @@ import re
 import uuid
 
 from starlette.datastructures import Headers, MutableHeaders
+from starlette.responses import PlainTextResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+log = logging.getLogger(__name__)
 
 _request_id: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="-")
 _TRACE = re.compile(r"^([0-9a-f]{32})(?:/|$)")
@@ -43,12 +46,27 @@ class RequestIdMiddleware:
         request_id = trace.group(1) if trace else uuid.uuid4().hex
         token = _request_id.set(request_id)
 
+        response_started = False
+
         async def send_with_id(message: Message) -> None:
+            nonlocal response_started
             if message["type"] == "http.response.start":
+                response_started = True
                 MutableHeaders(scope=message)["X-Request-ID"] = request_id
             await send(message)
 
         try:
             await self.app(scope, receive, send_with_id)
+        except Exception:
+            # Starlette's own error handler sits outside every middleware, so a 500 it
+            # produced would lose the ID exactly when users need it. Answer here
+            # instead: log the error with the ID, and return it as the reference code.
+            log.exception("unhandled error")
+            if response_started:
+                raise  # too late to send a clean error response
+            body = f"Internal server error. Reference: {request_id}"
+            await PlainTextResponse(body, status_code=500, headers={"X-Request-ID": request_id})(
+                scope, receive, send
+            )
         finally:
             _request_id.reset(token)
