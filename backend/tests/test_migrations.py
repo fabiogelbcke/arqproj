@@ -35,6 +35,7 @@ def _scratch(name: str) -> Iterator[str]:
     local.require_local(url)
     local.drop_database(name)
     local.create_database(name)
+    local.require_local_server_before_use(url)  # before any migration
     yield url
     local.drop_database(name)
 
