@@ -110,8 +110,9 @@ its affected tests before coding proceeds.
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
-accounts, comments/approvals, complex professional-level pricing, and hosted
-original-file storage. These are extension points, not parallel pilot projects.
+accounts, comments/approvals, complex professional-level pricing, hosted
+original-file storage, and staff roles beyond owner/member (see section 5).
+These are extension points, not parallel pilot projects.
 
 ## 3. What to retain and what to replace
 
@@ -517,6 +518,18 @@ consent. Someone may administer a portal without being the Google account that
 owns its files. Identify users by verified provider subject, not mutable display
 names. Invitations bind a verified email to an office membership; never grant
 membership merely because a user's email has the office's domain.
+
+**Several staff per office, with roles: foundations now, features later.** From
+the first version, people (`users`) are separate from offices, a `membership`
+links them with a role, every staff action goes through one central permission
+check, and audit events record who acted. Each person has their own login; there
+is no shared office password. The pilot uses only the `owner` role, and accounts
+for additional staff can be created by hand. Deliberately deferred as an add-on
+for larger offices: invitation and role-management screens, finer roles (for
+example editing projects without access to office settings or the Drive
+connection, or read-only staff), and per-project permissions. Do not build these
+early; when they come, they extend the permission check and the role values
+rather than changing the login or the data model.
 
 Use a maintained OAuth/OIDC library, such as Authlib, with state, nonce, PKCE and
 strict callback validation. Centralize Google callbacks on an auth subdomain so
