@@ -77,6 +77,10 @@ React painel. No client-visible features yet.
   office-owned table has a `tenant_id`.
 - **Safety:** the test setup refuses to run against any database that isn't
   local, so it can never touch staging or production.
+- **As built:** migrations live in `backend/migrations/` (not the repo root) so
+  the whole backend is one folder for the image. `updated_at` is set by a
+  database trigger using `clock_timestamp()`, so it also covers changes made
+  outside the ORM. A test fails if models and migrations ever disagree.
 - **Tests:** migrations apply from empty and roll back; the constraints hold
   (for example, a hostname belongs to one office only).
 - **Review:** the schema, naming conventions, migration style.

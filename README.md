@@ -237,10 +237,19 @@ The multi-tenant rewrite lives in `backend/` (Python, FastAPI) and, later,
 the current app and does not change what production serves.
 
 ```bash
+brew install postgresql@17 && brew services start postgresql@17   # once
+uv run python -m backend.db.local setup                    # creates arqproj_dev and arqproj_test
+uv run alembic -c backend/alembic.ini upgrade head          # apply migrations to arqproj_dev
 uv run uvicorn backend.app:create_app --factory --reload   # → http://127.0.0.1:8000/health
-uv run pytest                                              # backend tests
+uv run pytest                                              # backend tests (migrate arqproj_test themselves)
 uv run ruff check backend && uv run ruff format --check backend
 ```
+
+`DATABASE_URL` defaults to `arqproj_dev` on this machine and is required in
+staging and production. Tests only ever use local databases. New migration:
+`uv run alembic -c backend/alembic.ini revision -m "what changes"`, then edit and
+review it by hand; `backend/tests/test_migrations.py` fails if models and
+migrations disagree.
 
 ## Run all automated tests locally
 
