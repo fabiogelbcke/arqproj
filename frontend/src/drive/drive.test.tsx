@@ -96,6 +96,25 @@ describe("Drive status unavailable", () => {
   });
 });
 
+describe("the painel's Drive banner", () => {
+  it("warns when the portal cannot read the folder", async () => {
+    api({ ...CONNECTED, reader_status: "no_access" });
+    renderAt("/");
+    expect(await screen.findByText(/O portal não consegue ler a pasta/)).toBeInTheDocument();
+  });
+
+  it("shows a status failure with its support code instead of nothing", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+      "GET /api/drive": () => ({ status: 500, body: {}, headers: { "X-Request-ID": "req9" } }),
+      "GET /api/onboarding": () => ({ body: { storage_connected: true, has_project: true } }),
+    });
+    renderAt("/");
+    expect(await screen.findByRole("alert", {}, { timeout: 4000 })).toHaveTextContent("req9");
+  });
+});
+
 describe("the painel's first steps", () => {
   it("points a new office's owner to connecting Drive", async () => {
     api(NOT_CONNECTED);

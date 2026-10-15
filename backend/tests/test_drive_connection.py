@@ -335,6 +335,17 @@ async def test_reconnecting_never_replaces_the_offices_folder(
     assert (saved.root_id, saved.writer_status) == ("root1", WriterStatus.NONE)
 
 
+async def test_setup_is_not_done_while_the_reader_cannot_read(client, db_session, owner, google):
+    await come_back(client, await start(client, owner))
+    saved = await connection(db_session)
+    await db_session.execute(
+        text("UPDATE storage_connections SET reader_status = 'no_access' WHERE id = :i"),
+        {"i": saved.id},
+    )
+    steps = (await client.get("/api/onboarding", headers=ALINEA)).json()
+    assert steps["storage_connected"] is False
+
+
 async def test_without_a_google_app_this_deployment_says_so(app, client, owner):
     app.state.settings = app.state.settings.model_copy(update={"google_oauth_client_id": None})
     response = await client.post("/api/drive/connect", headers=owner)
