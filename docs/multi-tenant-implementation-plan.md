@@ -49,9 +49,10 @@ Confirmed choices:
   custom domain of the same deployment (A23); A21 only matters for later offices.
 - Project links are simple: `/{project-slug}` on the office's address, as today
   (A22). Optional per-project passwords cover projects that need privacy.
-- Creating a project asks only for its name (optionally client and stage
-  template). Details, stages, meeting and files are edited afterwards, in the
-  painel and in a staff edit mode on the project page itself (A24).
+- Creating a project asks only for its name and the client's name (plus an
+  optional stage template). Details, stages, meeting, cover image and files are
+  edited afterwards, in the painel and in a staff edit mode on the project page
+  itself (A24).
 - Files are versioned as `v1, v2, v3`: "send new version" on a file, and an
   upload with an existing name offers to become its next version (A25).
 - PostgreSQL owns project metadata. Drive owns file bytes and physical folders.
@@ -104,7 +105,7 @@ its affected tests before coding proceeds.
 | A21 | Office address scheme | **Open, two options recorded.** A: office subdomains behind a global load balancer (agreed requirement; ~$18.25/month fixed plus processing). B: one domain with office paths (no load-balancer fee, but every no-load-balancer front door has a production caveat). Options and consequences in section 4; decide before DNS/OAuth registration and before any client link is shared |
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain |
-| A24 | Minimal project creation; editing in the painel and in a staff edit mode on the project page | Agreed 14 Oct 2026. Creation asks for a name (optionally client and stage template). Details, stages, stage progress, meeting and files are edited later. Uploads happen per stage on the project page; a full file browser in the painel is optional, not a pilot requirement. See section 10 |
+| A24 | Minimal project creation; editing in the painel and in a staff edit mode on the project page | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus an optional stage template. Details, stages, stage progress, meeting and files are edited later. Uploads happen per stage on the project page; a full file browser in the painel is optional, not a pilot requirement. See section 10 |
 | A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original is shown as v1. See section 12 |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
@@ -602,7 +603,7 @@ The following is a logical schema specification, not a migration:
 | `invitations` | tenant, intended email, role, token hash, expiry, accepted/revoked |
 | `sessions` | opaque token hash, user, tenant, expiry, revocation/version |
 | `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
-| `projects` | tenant, title, slug (unique per tenant), status, connection, root/deliverables folder IDs, description, client display name, project type, optional professional, access mode/hash/version, current stage, row version |
+| `projects` | tenant, title, client name, cover image reference, slug (unique per tenant), status, connection, root/deliverables folder IDs, description, client display name, project type, optional professional, access mode/hash/version, current stage, row version |
 | `project_slug_aliases` | tenant, old slug, project; redirects links shared before a slug change or migration |
 | `detail_presets` | tenant, label, order, default-on flag; the office's predefined project details (Cliente, Tipo de projeto, Localização, Área do terreno, Área construída…) offered when editing a project |
 | `stage_templates` | tenant, name, ordered stage titles with optional explanation/deliverables; the default is the office's standard workflow |
@@ -831,9 +832,10 @@ A fault injected after database commit must not lose the creation job.
 
 ### What creation asks for, and what is edited later (A24)
 
-Creating a project must take seconds. The form asks for the **name** and,
-optionally, the client and a stage template (the office's standard workflow is
-preselected). The slug is derived from the name and editable; duplicates of an
+Creating a project must take seconds. The form asks for the **project name** and
+the **client's name** (both required, both editable later), plus an optional
+stage template (the office's standard workflow is preselected). The client name
+is the main label in the painel, and drives the fallback cover below. The slug is derived from the name and editable; duplicates of an
 existing name or slug in the office are refused with the conflicting project
 named. Everything else starts empty or from office defaults and is edited later.
 
@@ -847,6 +849,7 @@ Editable after creation, by office staff:
 | Progress | "Advance stage" moves the current-stage pointer; "mark complete" finishes the project. Status (done/current/upcoming) derives from the pointer |
 | Meeting | Start, end, subject, location, link; clearing it shows "no meeting scheduled" |
 | Files | Upload into a stage, send a new version of a file (section 12) |
+| Cover image | Upload, replace or remove; or "set as cover" from an image file in the project. Shown on the painel project card and as a hero at the top of the client page |
 | Access | Public or password; change slug (old slug keeps redirecting) |
 
 Where it is edited:
@@ -859,6 +862,15 @@ Where it is edited:
 - **Painel.** Project list with status at a glance, project creation, the same
   project settings in one form (including name, slug and access), office
   settings, Drive connection and stage/detail presets.
+
+Without a cover, the painel shows a generated one instead of an empty
+placeholder: the client's name set over a blurred, darkened architecture photo,
+chosen deterministically per project from a small bundled set so it stays the
+same between visits. The client page shows no hero when there is no real cover.
+The bundled photos must be licensed for this use (for example under the Unsplash
+licence) and their sources recorded next to them in the repository. Cover images
+follow the brand-asset limits in section 16 and are stored like other office
+assets, outside the client-visible stage folders.
 
 Changing a stage title or order renames/moves its Drive folder only where the
 write capability allows; otherwise the change is presentation-only and staff are
