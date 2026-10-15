@@ -37,7 +37,7 @@ class CurrentTenant:
 
 @dataclass(frozen=True)
 class Resolution:
-    tenant: Tenant
+    tenant: CurrentTenant
     # Set when the request must move to another host: an alias, or a `www.` form.
     redirect_host: str | None = None
 

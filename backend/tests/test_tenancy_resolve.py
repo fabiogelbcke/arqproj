@@ -52,7 +52,7 @@ async def get(client, host, path="/whoami", **kwargs):
     return await client.get(path, headers={"host": host, **kwargs.pop("headers", {})}, **kwargs)
 
 
-async def test_each_address_gets_its_own_office(client, tenants, tenant_route):
+async def test_each_address_gets_its_own_tenant(client, tenants, tenant_route):
     alinea = await get(client, "alinea.localhost")
     norte = await get(client, "norte.localhost")
     assert alinea.json() == {"slug": "alinea", "primary_host": "alinea.localhost"}
@@ -110,7 +110,7 @@ async def test_deployed_redirects_use_https_and_no_port(app, client, tenants, te
     assert response.headers["location"] == "https://alinea.localhost/x"
 
 
-async def test_suspended_office_is_not_found(client, db_session, tenants, tenant_route):
+async def test_suspended_tenant_is_not_found(client, db_session, tenants, tenant_route):
     await db_session.execute(
         update(Tenant).where(Tenant.slug == "norte").values(status="suspended")
     )
@@ -132,7 +132,7 @@ async def test_health_works_on_any_address(client):
     assert response.status_code == 200
 
 
-async def test_office_without_primary_is_served_where_asked(
+async def test_tenant_without_primary_is_served_where_asked(
     client, db_session, tenants, tenant_route
 ):
     await db_session.execute(
@@ -145,7 +145,7 @@ async def test_office_without_primary_is_served_where_asked(
     assert response.json()["primary_host"] == "norte.localhost"
 
 
-def test_a_route_needing_an_office_fails_loudly_without_one():
+def test_a_route_needing_an_tenant_fails_loudly_without_one():
     # For example an exempt path (like /health) that asks for a tenant.
     request = Request({"type": "http", "state": {}})
     with pytest.raises(RuntimeError, match="needs a tenant"):

@@ -65,7 +65,7 @@ def _unisolated_tenant_tables(url: str) -> set[str]:
     }
 
 
-def test_every_office_table_is_isolated(migrated_url):
+def test_every_tenant_table_is_isolated(migrated_url):
     """Any future table holding tenant data must turn on row-level security."""
     command.upgrade(alembic_config(migrated_url), "head")
     assert _unisolated_tenant_tables(migrated_url) == set()
@@ -122,7 +122,7 @@ def test_the_isolation_rule_checks_what_the_policy_does(migrated_url, weaken):
     assert _unisolated_tenant_tables(migrated_url) == {"weak"}
 
 
-def test_office_owned_models_default_to_the_current_office(migrated_url):
+def test_tenant_owned_models_default_to_the_current_tenant(migrated_url):
     """A model using TenantOwned builds the same column a migration would."""
     sample = MetaData(naming_convention=metadata.naming_convention)
 

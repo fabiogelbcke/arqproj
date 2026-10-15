@@ -108,7 +108,7 @@ def test_the_app_role_cannot_switch_isolation_off(tenants):
             visible(conn)
 
 
-def test_the_app_role_cannot_change_offices_or_the_schema(tenants):
+def test_the_app_role_cannot_change_tenants_or_the_schema(tenants):
     with tenants.app.connect() as conn:
         assert conn.scalar(text("SELECT count(*) FROM tenants")) == 2  # registry is readable
         with pytest.raises(ProgrammingError, match="permission denied"):
@@ -120,7 +120,7 @@ def test_the_app_role_cannot_change_offices_or_the_schema(tenants):
 # -- reading and writing -------------------------------------------------------
 
 
-def test_each_office_sees_only_its_rows(tenants):
+def test_each_tenant_sees_only_its_rows(tenants):
     with tenants.app.begin() as conn:
         set_tenant(conn, tenants.alinea)
         assert visible(conn) == [tenants.alinea]
@@ -129,12 +129,12 @@ def test_each_office_sees_only_its_rows(tenants):
         assert visible(conn) == [tenants.norte]
 
 
-def test_no_office_means_no_rows(tenants):
+def test_no_tenant_means_no_rows(tenants):
     with tenants.app.connect() as conn:
         assert visible(conn) == []
 
 
-def test_writing_another_offices_row_is_refused(tenants):
+def test_writing_another_tenants_row_is_refused(tenants):
     with tenants.app.connect() as conn, conn.begin():
         set_tenant(conn, tenants.alinea)
         with pytest.raises(ProgrammingError, match="row-level security"):
@@ -144,7 +144,7 @@ def test_writing_another_offices_row_is_refused(tenants):
             )
 
 
-def test_inserts_get_the_current_office_without_naming_it(tenants):
+def test_inserts_get_the_current_tenant_without_naming_it(tenants):
     with tenants.app.begin() as conn:
         set_tenant(conn, tenants.norte)
         conn.execute(text("INSERT INTO tenant_rows (name) VALUES ('Casa Lago')"))
@@ -152,20 +152,20 @@ def test_inserts_get_the_current_office_without_naming_it(tenants):
     assert owner == tenants.norte
 
 
-def test_an_insert_with_no_office_set_fails(tenants):
+def test_an_insert_with_no_tenant_set_fails(tenants):
     # The default is NULL then; the policy refuses the row (before NOT NULL would).
     with tenants.app.connect() as conn, pytest.raises(DBAPIError, match="row-level security"):
         conn.execute(text("INSERT INTO tenant_rows (name) VALUES ('Sem escritório')"))
 
 
-def test_moving_a_row_to_another_office_is_refused(tenants):
+def test_moving_a_row_to_another_tenant_is_refused(tenants):
     with tenants.app.connect() as conn, conn.begin():
         set_tenant(conn, tenants.alinea)
         with pytest.raises(ProgrammingError, match="row-level security"):
             conn.execute(text("UPDATE tenant_rows SET tenant_id = :t"), {"t": tenants.norte})
 
 
-def test_another_offices_rows_cannot_be_changed_or_deleted(tenants):
+def test_another_tenants_rows_cannot_be_changed_or_deleted(tenants):
     with tenants.app.begin() as conn:
         set_tenant(conn, tenants.alinea)
         # Matching zero rows, silently: the other tenant's row is invisible here.
@@ -183,7 +183,7 @@ def test_another_offices_rows_cannot_be_changed_or_deleted(tenants):
 # -- the tenant never leaks between requests -------------------------------------
 
 
-def test_a_reused_connection_forgets_the_previous_office(tenants):
+def test_a_reused_connection_forgets_the_previous_tenant(tenants):
     # Pool of exactly one connection: the second checkout is the same connection.
     with tenants.app.begin() as conn:
         set_tenant(conn, tenants.alinea)
@@ -194,7 +194,7 @@ def test_a_reused_connection_forgets_the_previous_office(tenants):
         assert visible(conn) == []
 
 
-def test_an_office_session_is_scoped_in_every_transaction(tenants):
+def test_an_tenant_session_is_scoped_in_every_transaction(tenants):
     with Session(tenants.app) as session:
         scope_to_tenant(session, tenants.alinea)
         assert visible(session) == [tenants.alinea]

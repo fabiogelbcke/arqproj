@@ -24,7 +24,7 @@ async def assert_refused(session, coroutine, constraint):
     await session.rollback()
 
 
-async def test_office_gets_an_id_and_timestamps(db_session):
+async def test_tenant_gets_an_id_and_timestamps(db_session):
     tenant = await add_tenant(db_session, hosts=[("alineaarquitetos.com", True)])
     await db_session.refresh(tenant)
     assert tenant.id is not None
@@ -45,7 +45,7 @@ async def test_updated_at_moves_on_every_change(db_session):
     assert tenant.updated_at > before
 
 
-async def test_a_hostname_belongs_to_one_office_only(db_session):
+async def test_a_hostname_belongs_to_one_tenant_only(db_session):
     await add_tenant(db_session, "alinea", hosts=[("alineaarquitetos.com", True)])
     await assert_refused(
         db_session,
@@ -54,7 +54,7 @@ async def test_a_hostname_belongs_to_one_office_only(db_session):
     )
 
 
-async def test_one_primary_address_per_office(db_session):
+async def test_one_primary_address_per_tenant(db_session):
     await add_tenant(
         db_session, hosts=[("alineaarquitetos.com", True), ("alinea.example.com", False)]
     )
@@ -87,7 +87,7 @@ async def test_hostnames_are_stored_normalised(db_session, hostname, constraint)
         ({"status": "deleted"}, "ck_tenants_status_known"),
     ],
 )
-async def test_office_values_are_checked(db_session, values, constraint):
+async def test_tenant_values_are_checked(db_session, values, constraint):
     fields = {"slug": "alinea", "name": "ALINEA ARQUITETOS"} | values
     db_session.add(Tenant(**fields))
     await assert_refused(db_session, db_session.flush(), constraint)
@@ -98,7 +98,7 @@ async def test_slugs_are_unique(db_session):
     await assert_refused(db_session, add_tenant(db_session, "alinea", "Outra"), "uq_tenants_slug")
 
 
-async def test_removing_an_office_removes_its_addresses(db_session):
+async def test_removing_an_tenant_removes_its_addresses(db_session):
     tenant = await add_tenant(db_session, hosts=[("alineaarquitetos.com", True)])
     await db_session.execute(text("DELETE FROM tenants WHERE id = :id"), {"id": tenant.id})
     remaining = await db_session.scalar(text("SELECT count(*) FROM tenant_domains"))
