@@ -81,6 +81,21 @@ describe("Drive settings", () => {
   });
 });
 
+describe("Drive status unavailable", () => {
+  it("says so with the support code instead of loading forever", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+      "GET /api/drive": () => ({ status: 500, body: {}, headers: { "X-Request-ID": "req7" } }),
+      "GET /api/onboarding": () => ({ body: { storage_connected: false, has_project: false } }),
+    });
+    renderAt("/configuracoes/drive");
+    const alert = await screen.findByRole("alert", {}, { timeout: 4000 });
+    expect(alert).toHaveTextContent("Algo deu errado");
+    expect(alert).toHaveTextContent("req7");
+  });
+});
+
 describe("the painel's first steps", () => {
   it("points a new office's owner to connecting Drive", async () => {
     api(NOT_CONNECTED);

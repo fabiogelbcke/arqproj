@@ -29,6 +29,7 @@ class ErrorCode(StrEnum):
     DRIVE_LINK_INVALID = "drive_link_invalid"  # expired, tampered or replayed sign-in
     DRIVE_CONNECT_FAILED = "drive_connect_failed"
     DRIVE_SHARE_FAILED = "drive_share_failed"  # the folder could not be shared with the reader
+    DRIVE_OTHER_ACCOUNT = "drive_other_account"  # reconnect with the account that has the folder
 
 
 class ErrorOut(BaseModel):

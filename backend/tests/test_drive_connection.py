@@ -30,6 +30,7 @@ class FakeGoogle:
         self.calls: list[str] = []
         self.share_fails = False
         self.share_drops_connection = False
+        self.writer_check_fails = False
         self.writer_reaches = set()  # folders the office's grant can still open
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
@@ -57,6 +58,8 @@ class FakeGoogle:
         if method == "PATCH":
             return httpx2.Response(200, json={})
         if path.startswith("/drive/v3/files/") and auth_header == "Bearer writer":
+            if self.writer_check_fails:
+                return httpx2.Response(503, json={})
             folder = path.rsplit("/", 1)[1]
             if folder in self.writer_reaches:
                 return httpx2.Response(200, json={"id": folder})
@@ -306,6 +309,30 @@ async def test_reconnecting_keeps_the_same_folder(client, db_session, owner, goo
     await come_back(client, await start(client, owner))
     assert sum(c == "POST www.googleapis.com/drive/v3/files" for c in google.calls) == created
     assert (await connection(db_session)).root_id == "root1"
+
+
+@pytest.mark.parametrize(
+    ("google_says", "error"),
+    [("other_account", "drive_other_account"), ("unavailable", "drive_connect_failed")],
+)
+async def test_reconnecting_never_replaces_the_offices_folder(
+    client, db_session, owner, google, google_says, error
+):
+    """Its projects' files are in it: another account or a passing error changes
+    nothing (plan section 9)."""
+    await come_back(client, await start(client, owner))
+    await client.delete("/api/drive", headers=owner)
+    if google_says == "other_account":
+        google.writer_reaches.clear()  # this grant cannot see the folder
+    else:
+        google.writer_check_fails = True
+    created = sum(c == "POST www.googleapis.com/drive/v3/files" for c in google.calls)
+    done = await come_back(client, await start(client, owner))
+    assert f"erro={error}" in done.headers["location"]
+    assert sum(c == "POST www.googleapis.com/drive/v3/files" for c in google.calls) == created
+    saved = await connection(db_session)
+    await db_session.refresh(saved)
+    assert (saved.root_id, saved.writer_status) == ("root1", WriterStatus.NONE)
 
 
 async def test_without_a_google_app_this_deployment_says_so(app, client, owner):

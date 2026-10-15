@@ -27,6 +27,7 @@ export function SettingsDrivePage() {
   }, [params, setParams]);
 
   const status = drive.data;
+  if (drive.error) return <ErrorNotice error={drive.error} />;
   if (!status) return <p className={styles.lead}>{t("app.loading")}</p>;
   const google = status.kind === "google" && status.writer_status !== "none";
   const expired = google && status.writer_status === "expired";

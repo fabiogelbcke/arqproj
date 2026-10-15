@@ -32,6 +32,7 @@ class ConnectProblem(StrEnum):
     NO_REFRESH_TOKEN = "no_refresh_token"  # nothing to keep: cannot work offline
     FOLDER_FAILED = "folder_failed"
     SHARE_FAILED = "share_failed"
+    OTHER_ACCOUNT = "other_account"  # this grant cannot reach the office's existing folder
     EXPIRED = "expired"  # the stored grant was revoked or expired
 
 
@@ -133,16 +134,23 @@ class DriveWriter:
         return response.json().get("user", {}).get("emailAddress")
 
     async def can_open(self, folder_id: str) -> bool:
-        """Whether this grant still reaches a folder (the app created it before)."""
+        """Whether this grant reaches a folder the app created before: False when
+        Google says it cannot (another account, deleted, trashed). A failure that
+        says nothing about access (network, Google's 5xx) raises `ConnectError`."""
         try:
-            response = await self._call(
-                "GET",
+            response = await self._http.get(
                 f"{DRIVE}/files/{folder_id}",
-                ConnectProblem.FOLDER_FAILED,
                 params={"fields": "id,trashed", "supportsAllDrives": "true"},
+                headers=self._headers,
             )
-        except ConnectError:
+        except httpx2.TransportError as error:
+            raise ConnectError(ConnectProblem.FOLDER_FAILED, repr(error)) from error
+        if response.status_code in (403, 404):
             return False
+        if response.status_code >= 400:
+            raise ConnectError(
+                ConnectProblem.FOLDER_FAILED, f"{response.status_code}: {response.text[:300]}"
+            )
         return not response.json().get("trashed")
 
     async def create_folder(self, name: str, parent: str | None = None) -> str:

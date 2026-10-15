@@ -70,7 +70,8 @@
     "drive_denied": "The connection was cancelled at Google. Try again whenever you like.",
     "drive_link_invalid": "This connection request has expired. Start again with Connect.",
     "drive_connect_failed": "Google Drive could not be connected. Please try again shortly.",
-    "drive_share_failed": "The folder in your Drive could not be prepared. Nothing was changed; try again."
+    "drive_share_failed": "The folder in your Drive could not be prepared. Nothing was changed; try again.",
+    "drive_other_account": "This Google account cannot reach the office's folder. Reconnect with the account used before; nothing was changed."
   },
   "projectStatus": {
     "draft": "Draft",

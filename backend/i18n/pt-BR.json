@@ -70,7 +70,8 @@
     "drive_denied": "A conexão foi cancelada no Google. Tente de novo quando quiser.",
     "drive_link_invalid": "Este pedido de conexão expirou. Comece de novo em Conectar.",
     "drive_connect_failed": "Não foi possível conectar o Google Drive. Tente de novo em instantes.",
-    "drive_share_failed": "Não foi possível preparar a pasta no seu Drive. Nada foi alterado; tente de novo."
+    "drive_share_failed": "Não foi possível preparar a pasta no seu Drive. Nada foi alterado; tente de novo.",
+    "drive_other_account": "Esta conta Google não acessa a pasta do escritório. Reconecte com a mesma conta usada antes; nada foi alterado."
   },
   "projectStatus": {
     "draft": "Rascunho",

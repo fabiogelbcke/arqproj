@@ -453,7 +453,8 @@
           "drive_denied",
           "drive_link_invalid",
           "drive_connect_failed",
-          "drive_share_failed"
+          "drive_share_failed",
+          "drive_other_account"
         ],
         "title": "ErrorCode"
       },

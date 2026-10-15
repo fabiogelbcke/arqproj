@@ -181,11 +181,10 @@ async def callback(request: Request) -> Response:
                 error.problem,
                 error.detail,
             )
-            code = (
-                ErrorCode.DRIVE_SHARE_FAILED
-                if error.problem is ConnectProblem.SHARE_FAILED
-                else ErrorCode.DRIVE_CONNECT_FAILED
-            )
+            code = {
+                ConnectProblem.SHARE_FAILED: ErrorCode.DRIVE_SHARE_FAILED,
+                ConnectProblem.OTHER_ACCOUNT: ErrorCode.DRIVE_OTHER_ACCOUNT,
+            }.get(error.problem, ErrorCode.DRIVE_CONNECT_FAILED)
             return _back(request, code)
     done = RedirectResponse(f"{SETTINGS_PAGE}?resultado=conectado", 302)
     done.delete_cookie(NONCE_COOKIE, path="/api/drive/callback")
@@ -203,9 +202,12 @@ async def _complete(request: Request, db: AsyncSession, staff: CurrentStaff, cod
 
     root = None
     if connection and connection.kind is StorageKind.GOOGLE and connection.root_id:
-        # Reconnecting: keep the folder if this grant still reaches it.
-        if await writer.can_open(connection.root_id):
-            root = connection.root_id
+        # Reconnecting: the office's folder holds its projects' files, so it is
+        # never replaced here (plan section 9). This grant must reach it, i.e. be
+        # the same Google account; otherwise nothing changes and the owner is told.
+        if not await writer.can_open(connection.root_id):
+            raise ConnectError(ConnectProblem.OTHER_ACCOUNT)
+        root = connection.root_id
     if root is None:
         root = await writer.create_folder(ROOT_FOLDER_NAME)
         try:
