@@ -1,4 +1,3 @@
-import getpass
 import json
 import logging
 
@@ -9,7 +8,7 @@ from sqlalchemy.engine import make_url
 
 from backend.app import create_app
 from backend.settings import Settings
-from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL
+from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL, default_login
 
 
 def settings_for(environment: str) -> Settings:
@@ -101,7 +100,7 @@ def test_startup_refuses_a_login_other_than_the_checked_one(test_database_url):
 
 def test_startup_refuses_a_login_that_could_get_around_isolation(test_database_url):
     """Even when both settings name it: the owner (a superuser locally) is refused."""
-    owner = make_url(TEST_DATABASE_URL).username or getpass.getuser()
+    owner = make_url(TEST_DATABASE_URL).username or default_login()
     app = create_app(
         Settings(environment="test", database_url=TEST_DATABASE_URL, database_runtime_role=owner)
     )

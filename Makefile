@@ -5,7 +5,33 @@
 SHELL := /bin/bash
 FRONTEND := frontend
 
-.PHONY: help setup dev serve build api-types test e2e lint format migrate staff
+# Admin commands (staff, reset-link, tenant) take ENV=local (default) or
+# ENV=staging. Staging is reached through the Cloud SQL Auth Proxy, signed in as
+# your Google account (gcloud auth application-default login, once) acting as
+# that environment's deploy identity, the schema's
+# owner (see docs/infrastructure.md). No database password exists anywhere.
+ENV ?= local
+INSTANCE := arq-proj:us-east1:arqproj-db
+REMOTE_PORT := 5433
+DEPLOY_ACCOUNT = portal-$(ENV)-deploy@arq-proj.iam.gserviceaccount.com
+REMOTE_URL = postgresql+psycopg://portal-$(ENV)-deploy%40arq-proj.iam@127.0.0.1:$(REMOTE_PORT)/arqproj_$(ENV)
+
+define on_database
+	@if [ "$(ENV)" = "local" ]; then $(1); \
+	elif [ "$(ENV)" = "staging" ]; then \
+	  command -v cloud-sql-proxy >/dev/null || { echo "Needs the proxy: brew install cloud-sql-proxy"; exit 2; }; \
+	  log="$${TMPDIR:-/tmp}/cloud-sql-proxy-$(ENV).log"; \
+	  test -f ~/.config/gcloud/application_default_credentials.json || { echo "Once per machine: gcloud auth application-default login"; exit 2; }; \
+	  cloud-sql-proxy --auto-iam-authn --impersonate-service-account=$(DEPLOY_ACCOUNT) \
+	    --port $(REMOTE_PORT) $(INSTANCE) >"$$log" 2>&1 & proxy=$$!; \
+	  trap "kill $$proxy 2>/dev/null" EXIT; \
+	  for i in $$(seq 40); do nc -z 127.0.0.1 $(REMOTE_PORT) 2>/dev/null && break; sleep 0.25; done; \
+	  nc -z 127.0.0.1 $(REMOTE_PORT) || { echo "Could not reach the $(ENV) database:"; cat "$$log"; exit 1; }; \
+	  MIGRATION_DATABASE_URL="$(REMOTE_URL)" $(1); \
+	else echo "ENV must be local or staging"; exit 2; fi
+endef
+
+.PHONY: help setup dev serve build api-types test e2e lint format migrate staff reset-link tenant
 
 help: ## List the commands
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -53,6 +79,14 @@ format: ## Fix Python formatting
 migrate: ## Apply new migrations to the local dev database
 	uv run alembic -c backend/alembic.ini upgrade head
 
-staff: ## Create a staff account: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner]
-	@test -n "$(TENANT)" -a -n "$(EMAIL)" -a -n "$(NAME)" || { echo "Usage: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner]"; exit 2; }
-	uv run python -m backend.commands.staff add --tenant "$(TENANT)" --email "$(EMAIL)" --name "$(NAME)" --role "$(or $(ROLE),member)"
+staff: ## Staff account + invite link: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner] [ENV=staging]
+	@test -n "$(TENANT)" -a -n "$(EMAIL)" -a -n "$(NAME)" || { echo "Usage: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner] [ENV=staging]"; exit 2; }
+	$(call on_database,uv run python -m backend.commands.staff add --tenant "$(TENANT)" --email "$(EMAIL)" --name "$(NAME)" --role "$(or $(ROLE),member)")
+
+reset-link: ## New password link: make reset-link TENANT=alinea EMAIL=you@x.com [ENV=staging]
+	@test -n "$(TENANT)" -a -n "$(EMAIL)" || { echo "Usage: make reset-link TENANT=alinea EMAIL=you@x.com [ENV=staging]"; exit 2; }
+	$(call on_database,uv run python -m backend.commands.staff reset-link --tenant "$(TENANT)" --email "$(EMAIL)")
+
+tenant: ## New office: make tenant SLUG=alinea NAME="ALINEA ARQUITETOS" HOST=address [ENV=staging]
+	@test -n "$(SLUG)" -a -n "$(NAME)" -a -n "$(HOST)" || { echo "Usage: make tenant SLUG=alinea NAME=\"Office name\" HOST=address [ENV=staging]"; exit 2; }
+	$(call on_database,uv run python -m backend.commands.tenants add --slug "$(SLUG)" --name "$(NAME)" --host "$(HOST)")

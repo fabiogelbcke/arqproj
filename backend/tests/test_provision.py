@@ -1,8 +1,6 @@
 """Provisioning: the app's login gets access through the database's group role,
 and only a login that is bound by tenant isolation is accepted."""
 
-import getpass
-
 import psycopg
 import pytest
 from alembic import command
@@ -12,7 +10,7 @@ from sqlalchemy.exc import ProgrammingError
 
 from backend.commands import local_db
 from backend.commands.provision import app_role_for, provision_url
-from backend.tests.conftest import RUNTIME_ROLE, alembic_config
+from backend.tests.conftest import RUNTIME_ROLE, alembic_config, default_login
 
 
 def _grants(url: str, grantee: str) -> set[tuple[str, str]]:
@@ -135,7 +133,7 @@ def test_a_failed_rotation_changes_nothing(migrated_url, monkeypatch):
 
 def test_provisioning_refuses_logins_that_bypass_isolation(migrated_url):
     command.upgrade(alembic_config(migrated_url), "head")
-    owner = make_url(migrated_url).username or getpass.getuser()  # a superuser locally
+    owner = make_url(migrated_url).username or default_login()  # a superuser locally
     bypass = RUNTIME_ROLE + "_bypass"
     local_db.create_runtime_role(bypass)
     engine = create_engine(migrated_url)
