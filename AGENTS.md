@@ -257,6 +257,33 @@ How many rounds:
   explaining why, and list it in the pull request description.
 - Reproduce a finding before fixing it.
 
+### Pull request description
+
+Start every pull request description with a **Context** section linking the
+documentation the change is meant to satisfy, so reviewers know what to check it
+against. Link the specific section (heading anchor), not just the file: for
+example a plan section, a decision in the register, a changelog entry, a step or
+milestone, an issue, or a README section the change updates. Then say in one line
+each what that documentation calls for, what was built, and what was deliberately
+left out or deferred, with the reason. If no documentation covers the change,
+say so.
+
+### Review guidelines
+
+Whoever reviews (Codex, Claude or a person) reads the linked sections first and
+checks the change against them, in addition to looking for bugs:
+
+- It does what the linked documentation calls for, and does not take on work it
+  assigns elsewhere or later.
+- It does not contradict a recorded decision. A change of decision updates the
+  decision's record, its changelog entry and its tests in the same pull request.
+- Anything the documentation requires for this area is present, unless the
+  description or the documentation records it as deferred.
+- Documentation that describes the changed behaviour still matches the code.
+
+Report a mismatch with the documentation as a finding like any other, citing
+the section.
+
 ## User-facing errors
 
 Never surface backend or upstream error detail in the UI. No HTTP status codes,
