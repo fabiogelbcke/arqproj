@@ -117,7 +117,7 @@ def _me(staff_email: str, name: str, role: Role, tenant: CurrentTenant, csrf: st
     )
 
 
-@router.post("/session", responses=documented(401))
+@router.post("/session", responses=documented(401, 422))
 async def sign_in(
     body: LoginIn,
     request: Request,

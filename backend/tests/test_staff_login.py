@@ -230,3 +230,15 @@ async def test_the_api_schema_lists_the_allowed_values(app):
     assert values("ErrorCode") == {code.value for code in ErrorCode}
     me = schema["paths"]["/api/me"]["get"]["responses"]
     assert me["401"]["content"]["application/json"]["schema"]["$ref"].endswith("/ErrorOut")
+    sign_in_422 = schema["paths"]["/api/session"]["post"]["responses"]["422"]
+    assert sign_in_422["content"]["application/json"]["schema"]["$ref"].endswith("/ErrorOut")
+
+
+@pytest.mark.parametrize(
+    "body",
+    [{"email": "ana@alinea.example"}, {"email": 1, "password": []}, "not json"],
+)
+async def test_a_malformed_request_gets_an_error_code_too(client, staff, body):
+    send = {"content": body} if isinstance(body, str) else {"json": body}
+    response = await client.post("/api/session", headers={"host": "alinea.localhost"}, **send)
+    assert (response.status_code, response.json()) == (422, {"error": "invalid_request"})

@@ -7,9 +7,11 @@ generated types list every code they must handle.
 
 from __future__ import annotations
 
+import logging
 from enum import StrEnum
 
 from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -18,6 +20,7 @@ class ErrorCode(StrEnum):
     NOT_SIGNED_IN = "not_signed_in"
     CSRF_TOKEN_MISSING_OR_WRONG = "csrf_token_missing_or_wrong"
     INVALID_CREDENTIALS = "invalid_credentials"
+    INVALID_REQUEST = "invalid_request"  # malformed body or missing fields: a bug, not the user
 
 
 class ErrorOut(BaseModel):
@@ -34,6 +37,15 @@ class ApiError(Exception):
 def documented(*status_codes: int) -> dict:
     """For a route's `responses=`: these statuses return an `ErrorOut`."""
     return {status: {"model": ErrorOut} for status in status_codes}
+
+
+log = logging.getLogger(__name__)
+
+
+async def handle_invalid_request(request: Request, error: RequestValidationError) -> JSONResponse:
+    # The details (which field, why) are for us, in the log; never in the response.
+    log.warning("invalid request to %s: %s", request.url.path, error.errors())
+    return JSONResponse({"error": ErrorCode.INVALID_REQUEST.value}, status_code=422)
 
 
 async def handle_api_error(_request: Request, error: ApiError) -> JSONResponse:
