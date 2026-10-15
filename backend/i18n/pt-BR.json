@@ -1,0 +1,68 @@
+{
+  "app": {
+    "name": "Painel",
+    "loading": "Carregando…"
+  },
+  "nav": {
+    "projects": "Projetos",
+    "signOut": "Sair",
+    "signedInAs": "Conectado como {{name}}"
+  },
+  "theme": {
+    "useLight": "Usar tema claro",
+    "useDark": "Usar tema escuro"
+  },
+  "signIn": {
+    "title": "Entrar",
+    "intro": "Painel de projetos de {{office}}.",
+    "email": "E-mail",
+    "password": "Senha",
+    "submit": "Entrar",
+    "forgot": "Esqueceu a senha? Peça um novo link ao responsável pelo escritório."
+  },
+  "choosePassword": {
+    "titleInvite": "Escolha sua senha",
+    "titleReset": "Escolha uma nova senha",
+    "greeting": "Olá, {{name}}. Você entrará como {{email}}.",
+    "password": "Nova senha",
+    "passwordHint": "Pelo menos {{min}} caracteres.",
+    "confirm": "Repita a senha",
+    "mismatch": "As senhas não são iguais.",
+    "submit": "Salvar senha e entrar",
+    "invalidTitle": "Este link não funciona mais",
+    "invalidBody": "Links para escolher a senha funcionam uma única vez e expiram. Peça um novo ao responsável pelo escritório.",
+    "toSignIn": "Ir para a página de entrada"
+  },
+  "projects": {
+    "title": "Projetos",
+    "emptyTitle": "Nenhum projeto por aqui ainda",
+    "emptyBody": "Os projetos do escritório aparecerão aqui."
+  },
+  "notFound": {
+    "title": "Página não encontrada",
+    "back": "Voltar aos projetos"
+  },
+  "update": {
+    "available": "Há uma nova versão do painel.",
+    "reload": "Recarregar"
+  },
+  "role": {
+    "owner": "Responsável",
+    "member": "Membro"
+  },
+  "locale": {
+    "pt-BR": "Português (Brasil)",
+    "en": "English"
+  },
+  "errors": {
+    "not_signed_in": "Sua sessão terminou. Entre novamente.",
+    "csrf_token_missing_or_wrong": "Não foi possível confirmar esta ação. Recarregue a página e tente de novo.",
+    "invalid_credentials": "E-mail ou senha incorretos.",
+    "invalid_request": "Não foi possível enviar estas informações. Recarregue a página e tente de novo.",
+    "link_invalid": "Este link não funciona mais. Peça um novo ao responsável pelo escritório.",
+    "password_too_short": "A senha precisa ter pelo menos {{min}} caracteres.",
+    "unexpected": "Algo deu errado. Tente de novo em instantes.",
+    "network": "Sem conexão com o servidor. Verifique sua internet e tente de novo.",
+    "reference": "Código de suporte: {{id}}"
+  }
+}

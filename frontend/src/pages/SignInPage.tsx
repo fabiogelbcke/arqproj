@@ -1,0 +1,66 @@
+import { useMutation } from "@tanstack/react-query";
+import { Form } from "react-aria-components";
+import { useTranslation } from "react-i18next";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
+
+import { api, call } from "../api/client";
+import { useMe, useSignedIn, useTenant } from "../session/session";
+import { Button } from "../ui/Button";
+import { ErrorNotice } from "../ui/ErrorNotice";
+import { TextField } from "../ui/TextField";
+import styles from "./pages.module.css";
+
+/** Only paths inside the painel, so a crafted link cannot send people elsewhere. */
+export function safeNext(next: string | null): string {
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+}
+
+export function SignInPage() {
+  const { t } = useTranslation();
+  const tenant = useTenant();
+  const me = useMe();
+  const signedIn = useSignedIn();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = safeNext(params.get("next"));
+  const signIn = useMutation({
+    mutationFn: (body: { email: string; password: string }) => call(api.POST("/api/session", { body })),
+    onSuccess: (me) => {
+      signedIn(me);
+      navigate(next, { replace: true });
+    },
+  });
+
+  if (me.data) return <Navigate to={next} replace />;
+  return (
+    <main className={styles.centered}>
+      <div className={styles.card}>
+        <div>
+          <h1 className={styles.title}>{t("signIn.title")}</h1>
+          {tenant.data && <p className={styles.lead}>{t("signIn.intro", { office: tenant.data.name })}</p>}
+        </div>
+        <Form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            signIn.mutate({ email: String(form.get("email")), password: String(form.get("password")) });
+          }}
+        >
+          <TextField name="email" type="email" autoComplete="username" isRequired label={t("signIn.email")} />
+          <TextField
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            isRequired
+            label={t("signIn.password")}
+          />
+          <ErrorNotice error={signIn.error} />
+          <Button type="submit" variant="primary" isDisabled={signIn.isPending}>
+            {t("signIn.submit")}
+          </Button>
+        </Form>
+        <p className={styles.small}>{t("signIn.forgot")}</p>
+      </div>
+    </main>
+  );
+}

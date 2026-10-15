@@ -1,0 +1,68 @@
+{
+  "app": {
+    "name": "Dashboard",
+    "loading": "Loading…"
+  },
+  "nav": {
+    "projects": "Projects",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as {{name}}"
+  },
+  "theme": {
+    "useLight": "Use light theme",
+    "useDark": "Use dark theme"
+  },
+  "signIn": {
+    "title": "Sign in",
+    "intro": "{{office}} project dashboard.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "forgot": "Forgot your password? Ask your office's owner for a new link."
+  },
+  "choosePassword": {
+    "titleInvite": "Choose your password",
+    "titleReset": "Choose a new password",
+    "greeting": "Hi {{name}}. You will sign in as {{email}}.",
+    "password": "New password",
+    "passwordHint": "At least {{min}} characters.",
+    "confirm": "Repeat the password",
+    "mismatch": "The passwords do not match.",
+    "submit": "Save password and sign in",
+    "invalidTitle": "This link no longer works",
+    "invalidBody": "Password links work once and expire. Ask your office's owner for a new one.",
+    "toSignIn": "Go to the sign-in page"
+  },
+  "projects": {
+    "title": "Projects",
+    "emptyTitle": "No projects here yet",
+    "emptyBody": "Your office's projects will appear here."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "back": "Back to projects"
+  },
+  "update": {
+    "available": "A new version of the dashboard is available.",
+    "reload": "Reload"
+  },
+  "role": {
+    "owner": "Owner",
+    "member": "Member"
+  },
+  "locale": {
+    "pt-BR": "Português (Brasil)",
+    "en": "English"
+  },
+  "errors": {
+    "not_signed_in": "Your session has ended. Please sign in again.",
+    "csrf_token_missing_or_wrong": "We could not confirm this action. Reload the page and try again.",
+    "invalid_credentials": "Incorrect email or password.",
+    "invalid_request": "We could not send this information. Reload the page and try again.",
+    "link_invalid": "This link no longer works. Ask your office's owner for a new one.",
+    "password_too_short": "The password must be at least {{min}} characters.",
+    "unexpected": "Something went wrong. Please try again shortly.",
+    "network": "No connection to the server. Check your internet and try again.",
+    "reference": "Support code: {{id}}"
+  }
+}
