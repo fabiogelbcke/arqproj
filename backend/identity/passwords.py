@@ -17,11 +17,11 @@ _hasher = PasswordHasher()
 # password and response times do not reveal which accounts exist.
 _DUMMY_HASH = _hasher.hash("not a real password")
 MAX_CONCURRENT_CHECKS = 4
-_checks = CapacityLimiter(MAX_CONCURRENT_CHECKS)
+_checks = CapacityLimiter(MAX_CONCURRENT_CHECKS)  # hashing new passwords too
 
 
-def hash_password(password: str) -> str:
-    return _hasher.hash(password)
+async def hash_password(password: str) -> str:
+    return await to_thread.run_sync(_hasher.hash, password, limiter=_checks)
 
 
 async def verify_password(password_hash: str | None, password: str) -> bool:

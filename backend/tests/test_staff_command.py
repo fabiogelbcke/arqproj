@@ -1,4 +1,7 @@
-"""The staff command: creating accounts and setting passwords, as the owner login."""
+"""The staff command: creating accounts and password links, as the owner login."""
+
+import hashlib
+import re
 
 import pytest
 from alembic import command
@@ -7,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from backend.commands import staff
 from backend.commands.seed import seed
-from backend.identity.passwords import verify_password
 from backend.tests.conftest import alembic_config
 
 pytestmark = pytest.mark.anyio
@@ -31,38 +33,69 @@ async def database(migrated):
     return migrated_url
 
 
-def accounts_in(url):
+def rows(url, sql):
     engine = create_engine(url)
     with engine.connect() as connection:
-        rows = connection.execute(
-            text(
-                "SELECT t.slug, u.email, u.role, u.password_hash FROM users u "
-                "JOIN tenants t ON t.id = u.tenant_id ORDER BY t.slug"
-            )
-        ).all()
+        found = connection.execute(text(sql)).all()
     engine.dispose()
-    return rows
+    return found
 
 
-async def run(url, *argv, password="a good password"):
-    return await staff.run(list(argv), url, lambda: password)
+def accounts_in(url):
+    return rows(
+        url,
+        "SELECT t.slug, u.email, u.role, u.password_hash FROM users u "
+        "JOIN tenants t ON t.id = u.tenant_id ORDER BY t.slug",
+    )
+
+
+def unused_links(url):
+    return rows(
+        url,
+        "SELECT u.email, l.kind, l.token_hash FROM password_links l "
+        "JOIN users u ON u.id = l.user_id WHERE l.used_at IS NULL",
+    )
+
+
+def token_in(output):
+    return re.search(r"#token=(\S+)", output).group(1)
+
+
+async def run(url, *argv):
+    return await staff.run(list(argv), url)
+
+
+async def test_add_creates_an_account_without_a_password_and_prints_an_invite(database):
+    output = await run(
+        database,
+        "add",
+        "--tenant",
+        "alinea",
+        "--email",
+        "Ana@Example.com",
+        "--name",
+        "Ana",
+        "--role",
+        "owner",
+    )
+    assert output.startswith("Created owner ana@example.com in alinea")
+    # On the office's primary address, with the token in the fragment.
+    assert "http://alinea.localhost:8000/painel/definir-senha#token=" in output
+    assert accounts_in(database) == [("alinea", "ana@example.com", "owner", None)]
+    [(_, kind, stored)] = unused_links(database)
+    assert kind == "invite"
+    assert stored == hashlib.sha256(token_in(output).encode()).hexdigest()
 
 
 async def test_the_same_email_gets_a_separate_account_in_each_tenant(database):
     """The owner login is a superuser locally, so tenant isolation does not hide
     other tenants' accounts from it: the command must still keep them apart."""
-    add = ["add", "--email", "Ana@Example.com", "--name", "Ana"]
-    assert await run(database, *add, "--tenant", "alinea", "--role", "owner") == (
-        "Created owner ana@example.com in alinea"
-    )
-    await run(database, *add, "--tenant", "norte", password="norte's password")
-    rows = accounts_in(database)
-    assert [(slug, email, role) for slug, email, role, _ in rows] == [
-        ("alinea", "ana@example.com", "owner"),
-        ("norte", "ana@example.com", "member"),
+    for tenant in ("alinea", "norte"):
+        await run(database, "add", "--tenant", tenant, "--email", "ana@example.com", "--name", "A")
+    assert [(slug, email) for slug, email, *_ in accounts_in(database)] == [
+        ("alinea", "ana@example.com"),
+        ("norte", "ana@example.com"),
     ]
-    assert await verify_password(rows[0].password_hash, "a good password")
-    assert not await verify_password(rows[1].password_hash, "a good password")
 
 
 async def test_an_email_is_added_only_once_per_tenant(database):
@@ -73,65 +106,30 @@ async def test_an_email_is_added_only_once_per_tenant(database):
     assert len(accounts_in(database)) == 1
 
 
-async def test_set_password_changes_only_that_tenants_account(database):
-    for tenant in ("alinea", "norte"):
-        await run(database, "add", "--tenant", tenant, "--email", "ana@example.com", "--name", "A")
-    await run(
-        database,
-        "set-password",
-        "--tenant",
-        "norte",
-        "--email",
-        "ana@example.com",
-        password="a brand new password",
-    )
-    alinea, norte = accounts_in(database)
-    assert await verify_password(alinea.password_hash, "a good password")
-    assert await verify_password(norte.password_hash, "a brand new password")
+async def test_a_reset_link_replaces_any_earlier_link(database):
+    await run(database, "add", "--tenant", "alinea", "--email", "ana@example.com", "--name", "A")
+    output = await run(database, "reset-link", "--tenant", "alinea", "--email", "ana@example.com")
+    [(_, kind, stored)] = unused_links(database)  # the invite no longer works
+    assert kind == "reset"
+    assert stored == hashlib.sha256(token_in(output).encode()).hexdigest()
+
+
+async def test_a_reset_link_is_for_that_tenants_account_only(database):
+    await run(database, "add", "--tenant", "norte", "--email", "ana@example.com", "--name", "A")
+    with pytest.raises(SystemExit, match="No account"):
+        await run(database, "reset-link", "--tenant", "alinea", "--email", "ana@example.com")
 
 
 @pytest.mark.parametrize(
-    ("argv", "password", "error"),
+    ("argv", "error"),
     [
-        (
-            ["add", "--tenant", "nowhere", "--email", "a@b.c", "--name", "A"],
-            "long enough!",
-            "No tenant",
-        ),
-        (["add", "--tenant", "alinea", "--email", "a@b.c", "--name", "A"], "short", "at least"),
-        (
-            ["set-password", "--tenant", "alinea", "--email", "who@b.c"],
-            "long enough!",
-            "No account",
-        ),
+        (["add", "--tenant", "nowhere", "--email", "a@b.c", "--name", "A"], "No tenant"),
+        (["add", "--tenant", "alinea", "--email", "a@b.c", "--name", "A", "--role", "admin"], "2"),
+        (["reset-link", "--tenant", "alinea", "--email", "who@b.c"], "No account"),
     ],
 )
-async def test_mistakes_are_refused_and_change_nothing(database, argv, password, error):
+async def test_mistakes_are_refused_and_change_nothing(database, argv, error):
     with pytest.raises(SystemExit, match=error):
-        await run(database, *argv, password=password)
+        await run(database, *argv)
     assert accounts_in(database) == []
-
-
-async def test_a_new_password_ends_existing_sign_ins(database):
-    await run(database, "add", "--tenant", "alinea", "--email", "ana@example.com", "--name", "A")
-    engine = create_engine(database)
-    with engine.begin() as connection:
-        connection.execute(
-            text(
-                "INSERT INTO sessions (tenant_id, user_id, token_hash, csrf_token, expires_at) "
-                "SELECT tenant_id, id, 'h', 'c', now() + interval '1 day' FROM users"
-            )
-        )
-    await run(
-        database,
-        "set-password",
-        "--tenant",
-        "alinea",
-        "--email",
-        "ana@example.com",
-        password="a brand new password",
-    )
-    with engine.connect() as connection:
-        revoked = connection.scalar(text("SELECT revoked_at IS NOT NULL FROM sessions"))
-    engine.dispose()
-    assert revoked
+    assert unused_links(database) == []

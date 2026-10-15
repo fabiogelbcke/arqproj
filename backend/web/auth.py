@@ -1,8 +1,10 @@
 """Staff sign-in for the painel: the session API and the `current_staff` dependency.
 
-    POST   /api/session   sign in with email and password
-    DELETE /api/session   sign out (needs the CSRF token)
-    GET    /api/me        who is signed in, or 401
+    POST   /api/session         sign in with email and password
+    DELETE /api/session         sign out (needs the CSRF token)
+    GET    /api/me              who is signed in, or 401
+    POST   /api/password-link   whose invite/reset link is this (before the form)
+    POST   /api/password        choose a password with a link, then signed in
 
 The cookie holds only a random token (see `backend.identity.sessions`). Every
 state-changing staff request must also send the session's CSRF token in the
@@ -22,8 +24,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
-from backend.identity import accounts, sessions
-from backend.identity.models import LoginSession, Role
+from backend.identity import accounts, links, sessions
+from backend.identity.models import LinkKind, LoginSession, Role
 from backend.identity.passwords import verify_password
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
@@ -49,6 +51,21 @@ class CurrentStaff:
 
 class LoginIn(BaseModel):
     email: str
+    password: str
+
+
+class LinkIn(BaseModel):
+    token: str
+
+
+class LinkOut(BaseModel):
+    email: str
+    name: str
+    kind: LinkKind
+
+
+class ChoosePasswordIn(BaseModel):
+    token: str
     password: str
 
 
@@ -150,6 +167,44 @@ async def sign_out(
     await db.commit()
     del response.headers["set-cookie"]  # current_staff's refresh of the same cookie
     response.delete_cookie(COOKIE, path="/")
+
+
+@router.post("/password-link", responses=documented(404))
+async def check_password_link(
+    body: LinkIn, db: AsyncSession = Depends(get_tenant_session)
+) -> LinkOut:
+    """Before showing the "choose your password" form: whose link is it, and does
+    it still work?"""
+    found = await links.find(db, body.token)
+    if found is None:
+        raise ApiError(404, ErrorCode.LINK_INVALID)
+    link, user = found
+    return LinkOut(email=user.email, name=user.name, kind=link.kind)
+
+
+@router.post("/password", responses=documented(404, 422))
+async def choose_password(
+    body: ChoosePasswordIn,
+    request: Request,
+    response: Response,
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> MeOut:
+    """Use an invite or reset link: set the password, end other sessions, sign in."""
+    try:
+        # Before touching the database, so no connection waits on the hashing; a
+        # too-short password leaves the link usable.
+        password_hash = await accounts.new_password_hash(body.password)
+    except accounts.PasswordTooShort:
+        raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT) from None
+    user = await links.use(db, body.token)
+    if user is None:
+        raise ApiError(404, ErrorCode.LINK_INVALID)
+    await accounts.set_password(db, user, password_hash)
+    token, row = await sessions.start(db, user)
+    await db.commit()
+    _set_cookie(request, response, token, row.expires_at)
+    return _me(user.email, user.name, user.role, tenant, row.csrf_token)
 
 
 @router.get("/me", responses=documented(401))
