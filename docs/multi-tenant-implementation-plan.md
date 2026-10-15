@@ -94,7 +94,7 @@ its affected tests before coding proceeds.
 | A06 | Public or password-protected project access | Agreed; no mandatory client account for the pilot |
 | A07 | Atomic DB creation plus recoverable Drive provisioning | Recommended implementation of an all-or-nothing customer experience |
 | A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules. Revised by A25: clear `vN` names still group automatically |
-| A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: hourly authenticated endpoint in the web service, with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
+| A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: an authenticated maintenance endpoint in the web service, called every 10 minutes (15 Oct 2026, was hourly), with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
 | A10 | Incremental Drive sync, initially polled; reconciliation as repair | Recommended; webhooks can accelerate later without becoming a correctness dependency |
 | A11 | Streaming proxy for private Drive content; optional Drive links | Recommended; clients need not have Google accounts or Drive sharing permissions |
 | A12 | Email first, trailing "settle" window: send once uploads stop | Revised 14 Oct 2026 from a fixed 60-minute window. 45-minute quiet period, 2-hour maximum hold from the first publication, configurable per office. Clarified 15 Oct 2026: a batch becomes *due* by these rules and is *sent* by the next maintenance run (every 10 minutes); the delay prevents an email about withdrawn files, it does not hide them. See section 14 and the [changelog](decision-changelog.md) |
@@ -224,7 +224,9 @@ reference for its first screens.
 ## 4. Deployment shape and data flow
 
 **POC simplification under discussion:** following the cost review, first evaluate
-one web deployment with an authenticated maintenance endpoint called hourly. The
+one web deployment with an authenticated maintenance endpoint called every 10
+minutes (A09; Cloud Scheduler charges per job, not per run, and Cloud SQL is
+always on, so a shorter interval costs nothing extra). The
 worker below is a logical function and need not be a separate deployed service.
 The fuller queue and wildcard load-balancer design remains an alternative, not
 a prerequisite for the POC. Domain routing is now an explicit open decision with
@@ -371,7 +373,7 @@ executes it. FastAPI itself does not replace any of these durable responsibiliti
 
 | Option | Technology | Benefit | Main tradeoff |
 | --- | --- | --- | --- |
-| E: revised POC proposal | One hourly Cloud Scheduler job or local cron → authenticated endpoint in the web service | One deployment; no broker/managed task queue; can let the database sleep | Slower Drive discovery; bounded work shares web resources; retain retryable state and overlap protection |
+| E: revised POC proposal | One Cloud Scheduler job (every 10 minutes) or local cron → authenticated endpoint in the web service | One deployment; no broker/managed task queue | Slower Drive discovery; bounded work shares web resources; retain retryable state and overlap protection |
 | A: original proposal | Cloud Scheduler → Cloud Run worker → PostgreSQL jobs | Few services; portable; easy to exercise against local PostgreSQL | We implement leases, retries, recovery and dispatch; minute polling keeps the DB awake and adds dispatch latency |
 | B: managed queue alternative | Cloud Tasks → Cloud Run worker, with Cloud Scheduler for recurring checks/recovery | Managed delivery retries, delayed tasks and dispatch limits; enqueue work promptly | Provider-specific adapter and cloud integration tests; SQL idempotency/outbox still required |
 | C: established Python queue | Celery with Redis/RabbitMQ, dedicated workers and Beat for recurrence | Mature Python task ecosystem; useful for substantial continuous work | Additional broker and always-running processes to operate and fund |
@@ -604,7 +606,9 @@ Office staff can change a slug deliberately; the old one keeps redirecting so
 links already sent to clients do not break. **A slug, once used, stays reserved
 for its project (A29):** current slugs and old ones (`project_slug_aliases`)
 share one namespace per office, so another project can never take an old slug
-and receive a client's old link. Only deleting the project frees its slugs.
+and receive a client's old link. This holds after a project is deleted too:
+projects are soft-deleted and keep their slugs, so an old link shows "this
+project is no longer available" instead of someone else's project.
 
 For password mode, office staff set/reset the password through the panel. This
 interprets “clients can add a password” as the office/customer controlling the
@@ -1100,8 +1104,9 @@ notification events during this baseline. A reconnect establishes a new baseline
 without notifying clients about every old file again.
 
 The fuller design polls active connections approximately every two minutes.
-Option E instead proposes an hourly sweep for the POC, or 15 minutes after checking
-database usage; this freshness tradeoff needs agreement. UI-triggered sync can
+Option E instead runs one maintenance pass every 10 minutes for the POC (A09):
+each pass sends due email batches and polls Drive changes for active connections
+(incremental, so cheap). UI-triggered sync can
 request earlier bounded work with a rate limit. Show the selected freshness expectation
 rather than “instant”. Coalesce repeated poll requests. A scheduled daily
 reconciliation compares the complete in-scope tree with indexed state and repairs
@@ -1636,7 +1641,7 @@ choices need an owner before their corresponding feature ships:
 | --- | --- | --- |
 | Product name/domain and first hosting region | Choose once office URL examples and latency are reviewed | Real DNS/OAuth registration |
 | Database instance size/backup retention | Cloud SQL, smallest shared-core instance (A16); confirm price, backups and point-in-time recovery at creation, then prove a restore | Infrastructure purchase |
-| Background dispatch technology and refresh interval | Evaluate hourly in-app maintenance first for POC; add a queue/worker when needed | Maintenance implementation |
+| Background dispatch technology and refresh interval | In-app maintenance every 10 minutes for the POC (A09); add a queue/worker when needed | Maintenance implementation |
 | Timer setup | Prefer Cloud Scheduler within account-wide free allowance; local cron is the alternative | Confirm allowance and cadence before setup |
 | Detail presets and stage templates | Built in (A26, A27): Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável; templates Padrão (seven stages) and Interiores (six), with explanations | Slice 3 |
 | Custom project details and types | Not in the pilot (A27). Before migrating the first office, list the detail labels its existing `_project` files use; any outside the built-in list becomes a built-in or is mapped, so migration drops nothing | Before migration (section 20); custom details after pilot feedback |

@@ -30,8 +30,9 @@ plan that Fabio relayed.
   in which a mistaken upload "never reaches the client", with an example sending
   at 11:35. *Now:* it prevents an email about withdrawn files, not exposure,
   since files publish as soon as they are found; a batch becomes due by the
-  rules and is sent by the next 10-minute maintenance run; the 2-hour hold counts
-  from the first publication. *Why:* the old wording promised something the
+  rules and is sent by the next maintenance run, now every 10 minutes instead of
+  hourly (A09 updated to match); the 2-hour hold counts from the first
+  publication. *Why:* the old wording promised something the
   design does not do, and the timing ignored when maintenance actually runs.
 - **A23 (first office's domain).** *Was:* hosting of the custom domain left
   implicit. *Now:* it stays on the existing free Cloud Run domain mappings of the
@@ -64,7 +65,8 @@ plan that Fabio relayed.
   updated" date need the same events, including notes and meeting changes.
 - **A29 (new): used slugs stay reserved.** *Was:* old slugs redirect, but nothing
   stopped another project taking one. *Why:* an old client link could land on
-  the wrong project (Codex).
+  the wrong project (Codex). Deleted projects are soft-deleted and keep their
+  slugs too.
 - **A30 (new): staff app/API compatibility across deploys.** *Was:* "one revision,
   so the staff app can never run against another API version". *Why:* false for
   tabs already open during a deploy (Codex).
