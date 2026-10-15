@@ -262,7 +262,7 @@ Migrations grant privileges to a group role named after the database
 `DATABASE_RUNTIME_ROLE` login its only member, so changing the login is a re-run
 of that command, not a migration. Migrations write their SQL out in full rather
 than importing it from app code. Every table
-holding office data must enable `office_isolation` (SQL to paste into its migration: `backend/migrations/snippets.py`; runtime side: `backend/db/isolation.py`);
+holding office data must enable `tenant_isolation` (SQL to paste into its migration: `backend/migrations/snippets.py`; runtime side: `backend/db/isolation.py`);
 a test fails if one does not. `DATABASE_URL` and `MIGRATION_DATABASE_URL` default
 to `arqproj_dev` on this machine and must be set explicitly in staging and
 production. Tests only ever use local databases. New migration:

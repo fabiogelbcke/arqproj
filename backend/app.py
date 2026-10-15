@@ -17,7 +17,7 @@ from sqlalchemy import text
 from backend.db import runtime_role
 from backend.db.engine import create_engine, create_sessionmaker
 from backend.settings import Settings
-from backend.tenancy.middleware import OfficeMiddleware
+from backend.tenancy.middleware import TenantMiddleware
 from backend.web import health
 from backend.web.request_id import RequestIdLogFilter, RequestIdMiddleware
 
@@ -92,7 +92,7 @@ async def verify_runtime_login(engine, settings: Settings) -> None:
         ).all()
     if problems:
         raise RuntimeError(
-            f"refusing to serve as {login!r}, which could get around office isolation: "
+            f"refusing to serve as {login!r}, which could get around tenant isolation: "
             f"{runtime_role.describe(problems)}"
         )
 
@@ -125,6 +125,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     # Added innermost first: request IDs wrap everything, so even a 404 for an
     # unknown host or a redirect carries an ID and logs with it.
-    app.add_middleware(OfficeMiddleware)
+    app.add_middleware(TenantMiddleware)
     app.add_middleware(RequestIdMiddleware)
     return app

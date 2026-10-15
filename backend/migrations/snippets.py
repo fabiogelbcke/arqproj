@@ -1,8 +1,8 @@
-"""SQL for writing migrations that add office-data tables. Never used by the app.
+"""SQL for writing migrations that add tenant-data tables. Never used by the app.
 
-How a new table holding office data (projects onwards) gets isolated:
+How a new table holding tenant data (projects onwards) gets isolated:
 
-1. Generate its statements here, e.g. `enable_office_isolation_sql("projects")`
+1. Generate its statements here, e.g. `enable_tenant_isolation_sql("projects")`
    and `grant_to_app_sql("SELECT, INSERT, UPDATE, DELETE", "projects")`.
 2. **Paste the output into the migration.** Migrations never import this module:
    a migration must replay exactly as it first ran, even if this file changes.
@@ -12,11 +12,11 @@ the models and to check every `tenant_id` table is isolated.
 
 Background:
 
-- The `office_isolation` policy shows or accepts a row only when its `tenant_id`
-  equals `current_tenant_id()`, the office set on the current transaction (see
+- The `tenant_isolation` policy shows or accepts a row only when its `tenant_id`
+  equals `current_tenant_id()`, the tenant set on the current transaction (see
   `backend/db/isolation.py`). It is FORCEd, so even the tables' owner is bound
   unless it is a superuser.
-- `tenants` and `tenant_domains` are the routing registry, read before any office
+- `tenants` and `tenant_domains` are the routing registry, read before any tenant
   is known (to resolve the request's hostname), so they are protected by grants
   (read-only for the app) rather than by the policy.
 - Privileges go to a per-database group role (`<database>_app`), never to a
@@ -25,9 +25,9 @@ Background:
 
 from __future__ import annotations
 
-from backend.db.isolation import OFFICE_SETTING
+from backend.db.isolation import TENANT_SETTING
 
-POLICY = "office_isolation"
+POLICY = "tenant_isolation"
 # Tables with a tenant_id that are deliberately not under the policy; see above.
 REGISTRY_TABLES = frozenset({"tenant_domains"})
 
@@ -37,17 +37,17 @@ REGISTRY_TABLES = frozenset({"tenant_domains"})
 CURRENT_TENANT_FUNCTION_SQL = f"""
 CREATE FUNCTION current_tenant_id() RETURNS uuid
 LANGUAGE sql STABLE AS $$
-    SELECT NULLIF(current_setting('{OFFICE_SETTING}', true), '')::uuid
+    SELECT NULLIF(current_setting('{TENANT_SETTING}', true), '')::uuid
 $$
 """
 
 
-def enable_office_isolation_sql(table: str) -> list[str]:
-    """Statements for every new table that holds office data.
+def enable_tenant_isolation_sql(table: str) -> list[str]:
+    """Statements for every new table that holds tenant data.
 
-    The default fills `tenant_id` with the current office when an insert leaves it
-    out; the policy is what enforces it: a different office is refused, and with
-    no office set the default is NULL, which the policy refuses too.
+    The default fills `tenant_id` with the current tenant when an insert leaves it
+    out; the policy is what enforces it: a different tenant is refused, and with
+    no tenant set the default is NULL, which the policy refuses too.
     """
     return [
         f"ALTER TABLE {table} ALTER COLUMN tenant_id SET DEFAULT current_tenant_id()",

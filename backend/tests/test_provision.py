@@ -1,5 +1,5 @@
 """Provisioning: the app's login gets access through the database's group role,
-and only a login that is bound by office isolation is accepted."""
+and only a login that is bound by tenant isolation is accepted."""
 
 import getpass
 
@@ -154,7 +154,7 @@ def test_provisioning_refuses_a_login_that_can_switch_into_a_powerful_role(migra
         connection.execute(text(f'GRANT "{powerful}" TO "{login}" WITH INHERIT FALSE, SET TRUE'))
     engine.dispose()
     try:
-        with pytest.raises(SystemExit, match=f"could get around office isolation: {powerful}"):
+        with pytest.raises(SystemExit, match=f"could get around tenant isolation: {powerful}"):
             provision_url(migrated_url, login)
     finally:
         engine = create_engine(migrated_url)

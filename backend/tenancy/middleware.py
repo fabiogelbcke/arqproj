@@ -1,6 +1,6 @@
-"""Attach the office to every request, or answer before routing.
+"""Attach the tenant to every request, or answer before routing.
 
-- Unknown host or suspended office: plain 404 (never a default office).
+- Unknown host or suspended tenant: plain 404 (never a default tenant).
 - Alias or `www.`: permanent redirect to the primary host, same path and query,
   remembered by browsers for a day so a later change of primary takes effect.
 - Exempt paths (health check, local API docs) skip this entirely.
@@ -21,7 +21,7 @@ EXEMPT_PATHS = frozenset({"/health", "/api/docs", "/api/openapi.json"})
 REDIRECT_MAX_AGE = 86400  # one day
 
 
-class OfficeMiddleware:
+class TenantMiddleware:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
@@ -50,7 +50,7 @@ class OfficeMiddleware:
             await response(scope, receive, send)
             return
 
-        scope.setdefault("state", {})["office"] = resolution.office
+        scope.setdefault("state", {})["tenant"] = resolution.tenant
         await self.app(scope, receive, send)
 
 

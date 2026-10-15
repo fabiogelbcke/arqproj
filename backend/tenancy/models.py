@@ -1,6 +1,6 @@
-"""Offices (tenants) and the addresses they are reached on.
+"""Tenants (tenants) and the addresses they are reached on.
 
-Each office has exactly one primary address: the one links and emails use. Other
+Each tenant has exactly one primary address: the one links and emails use. Other
 addresses are aliases that redirect to it (an old domain after a rebrand, the
 product subdomain next to a custom domain). `www.` is handled in code, not here.
 """
@@ -41,7 +41,7 @@ class TenantDomain(IdMixin, CreatedAtMixin, Base):
         # hyphens only; no scheme, port or trailing dot.
         CheckConstraint(r"hostname ~ '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'", name="hostname_format"),
         Index("ix_tenant_domains_tenant_id", "tenant_id"),
-        # At most one primary address per office.
+        # At most one primary address per tenant.
         Index(
             "uq_tenant_domains_one_primary",
             "tenant_id",
@@ -51,7 +51,7 @@ class TenantDomain(IdMixin, CreatedAtMixin, Base):
     )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
-    # Unique across all offices: one address can never point at two offices.
+    # Unique across all tenants: one address can never point at two tenants.
     hostname: Mapped[str] = mapped_column(Text, unique=True)
     is_primary: Mapped[bool] = mapped_column(server_default=text("false"))
 

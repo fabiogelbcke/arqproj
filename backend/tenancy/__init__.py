@@ -1,1 +1,1 @@
-"""Offices (tenants), their addresses, and resolving an office from a request."""
+"""Tenants (tenants), their addresses, and resolving a tenant from a request."""

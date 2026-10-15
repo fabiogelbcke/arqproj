@@ -1,4 +1,4 @@
-"""Schema rules that keep every office table isolated, now and in future migrations.
+"""Schema rules that keep every tenant table isolated, now and in future migrations.
 
 Each rule has a self-test showing it catches a violation, so it cannot silently
 stop working.
@@ -9,12 +9,12 @@ from alembic import command
 from sqlalchemy import MetaData, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from backend.db.isolation import OfficeOwned
+from backend.db.isolation import TenantOwned
 from backend.migrations.registry import metadata
 from backend.migrations.snippets import (
     POLICY,
     REGISTRY_TABLES,
-    enable_office_isolation_sql,
+    enable_tenant_isolation_sql,
 )
 from backend.tests.conftest import (
     alembic_config,
@@ -31,9 +31,9 @@ _REQUIRED_POLICY = (
 )
 
 
-def _unisolated_office_tables(url: str) -> set[str]:
+def _unisolated_tenant_tables(url: str) -> set[str]:
     """Tables with a tenant_id that lack enforced row-level security, the exact
-    policy (and no other), or the default that fills tenant_id with the office."""
+    policy (and no other), or the default that fills tenant_id with the tenant."""
     engine = create_engine(url)
     with engine.connect() as connection:
         tables = connection.execute(
@@ -66,9 +66,9 @@ def _unisolated_office_tables(url: str) -> set[str]:
 
 
 def test_every_office_table_is_isolated(migrated_url):
-    """Any future table holding office data must turn on row-level security."""
+    """Any future table holding tenant data must turn on row-level security."""
     command.upgrade(alembic_config(migrated_url), "head")
-    assert _unisolated_office_tables(migrated_url) == set()
+    assert _unisolated_tenant_tables(migrated_url) == set()
 
 
 def test_the_isolation_rule_catches_a_forgotten_table(migrated_url):
@@ -77,7 +77,7 @@ def test_the_isolation_rule_catches_a_forgotten_table(migrated_url):
     with engine.begin() as connection:
         connection.execute(text("CREATE TABLE forgotten (id int, tenant_id uuid)"))
     engine.dispose()
-    assert _unisolated_office_tables(migrated_url) == {"forgotten"}
+    assert _unisolated_tenant_tables(migrated_url) == {"forgotten"}
 
 
 def test_the_isolation_rule_catches_a_missing_default(migrated_url):
@@ -86,22 +86,22 @@ def test_the_isolation_rule_catches_a_missing_default(migrated_url):
     engine = create_engine(migrated_url)
     with engine.begin() as connection:
         connection.execute(text("CREATE TABLE no_default (id int, tenant_id uuid)"))
-        for statement in enable_office_isolation_sql("no_default"):
+        for statement in enable_tenant_isolation_sql("no_default"):
             connection.execute(text(statement))
         connection.execute(text("ALTER TABLE no_default ALTER COLUMN tenant_id DROP DEFAULT"))
     engine.dispose()
-    assert _unisolated_office_tables(migrated_url) == {"no_default"}
+    assert _unisolated_tenant_tables(migrated_url) == {"no_default"}
 
 
 @pytest.mark.parametrize(
     "weaken",
     [
         # The right name, but everything visible:
-        "ALTER POLICY office_isolation ON weak USING (true)",
+        "ALTER POLICY tenant_isolation ON weak USING (true)",
         # The right policy, plus a second one that ORs in more rows:
         "CREATE POLICY extra ON weak USING (true)",
         # Reads isolated, writes not checked:
-        "ALTER POLICY office_isolation ON weak WITH CHECK (true)",
+        "ALTER POLICY tenant_isolation ON weak WITH CHECK (true)",
     ],
 )
 def test_the_isolation_rule_checks_what_the_policy_does(migrated_url, weaken):
@@ -110,20 +110,20 @@ def test_the_isolation_rule_checks_what_the_policy_does(migrated_url, weaken):
     engine = create_engine(migrated_url)
     with engine.begin() as connection:
         connection.execute(text("CREATE TABLE weak (id int, tenant_id uuid)"))
-        for statement in enable_office_isolation_sql("weak"):
+        for statement in enable_tenant_isolation_sql("weak"):
             connection.execute(text(statement))
     engine.dispose()
-    assert _unisolated_office_tables(migrated_url) == set()  # correct as created
+    assert _unisolated_tenant_tables(migrated_url) == set()  # correct as created
 
     engine = create_engine(migrated_url)
     with engine.begin() as connection:
         connection.execute(text(weaken))
     engine.dispose()
-    assert _unisolated_office_tables(migrated_url) == {"weak"}
+    assert _unisolated_tenant_tables(migrated_url) == {"weak"}
 
 
 def test_office_owned_models_default_to_the_current_office(migrated_url):
-    """A model using OfficeOwned builds the same column a migration would."""
+    """A model using TenantOwned builds the same column a migration would."""
     sample = MetaData(naming_convention=metadata.naming_convention)
 
     class SampleBase(DeclarativeBase):
@@ -131,8 +131,8 @@ def test_office_owned_models_default_to_the_current_office(migrated_url):
 
     metadata.tables["tenants"].to_metadata(sample)
 
-    class Sample(OfficeOwned, SampleBase):
-        __tablename__ = "sample_office_rows"
+    class Sample(TenantOwned, SampleBase):
+        __tablename__ = "sample_tenant_rows"
         id: Mapped[int] = mapped_column(primary_key=True)
 
     build_from_models(migrated_url, sample)
@@ -141,7 +141,7 @@ def test_office_owned_models_default_to_the_current_office(migrated_url):
         default, nullable = connection.execute(
             text(
                 "SELECT column_default, is_nullable FROM information_schema.columns "
-                "WHERE table_name = 'sample_office_rows' AND column_name = 'tenant_id'"
+                "WHERE table_name = 'sample_tenant_rows' AND column_name = 'tenant_id'"
             )
         ).one()
     engine.dispose()

@@ -5,7 +5,7 @@
   trigger (`set_updated_at`, created in the first migration), so it also moves
   when rows are changed outside the ORM.
 - Constraint and index names follow NAMING_CONVENTION, so migrations stay stable.
-- Every table owned by an office has a `tenant_id` (row-level security: step 1.4).
+- Every table owned by a tenant has a `tenant_id` (row-level security: step 1.4).
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Two fictional offices for local development.
+"""Two fictional tenants for local development.
 
     uv run python -m backend.commands.seed
 
@@ -19,7 +19,7 @@ from backend.commands import local_db
 from backend.settings import Settings
 from backend.tenancy.models import Tenant, TenantDomain
 
-OFFICES = [
+TENANTS = [
     {
         "slug": "alinea",
         "name": "Alinea (dev)",
@@ -34,14 +34,14 @@ OFFICES = [
 
 
 async def seed(session: AsyncSession) -> list[str]:
-    """Create any missing offices and addresses. Returns what was added."""
+    """Create any missing tenants and addresses. Returns what was added."""
     added = []
-    for spec in OFFICES:
+    for spec in TENANTS:
         tenant = await session.scalar(select(Tenant).where(Tenant.slug == spec["slug"]))
         if tenant is None:
             tenant = Tenant(slug=spec["slug"], name=spec["name"])
             session.add(tenant)
-            added.append(f"office {spec['slug']}")
+            added.append(f"tenant {spec['slug']}")
         for hostname, primary in spec["domains"]:
             exists = await session.scalar(
                 select(TenantDomain.id).where(TenantDomain.hostname == hostname)
@@ -54,7 +54,7 @@ async def seed(session: AsyncSession) -> list[str]:
 
 
 async def main() -> None:
-    # Offices are created by the owner: the app's own login can only read them.
+    # Tenants are created by the owner: the app's own login can only read them.
     url = Settings().migration_database_url
     local_db.require_local_server(url)  # before writing anything
     engine = create_async_engine(url)
