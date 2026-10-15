@@ -15,30 +15,57 @@ from fastapi import FastAPI
 
 from backend.db.engine import create_engine, create_sessionmaker
 from backend.settings import Settings
+from backend.tenancy.middleware import OfficeMiddleware
 from backend.web import health
+from backend.web.request_id import RequestIdLogFilter, RequestIdMiddleware
 
 
 class _CloudLoggingFormatter(logging.Formatter):
     """One JSON object per line, in the shape Google Cloud Logging reads:
-    `severity` and `message` become the entry's level and text."""
+    `severity` and `message` become the entry's level and text; with the project
+    ID known, the trace field groups all lines of one request together."""
+
+    def __init__(self, project: str | None) -> None:
+        super().__init__()
+        self.project = project
 
     def format(self, record: logging.LogRecord) -> str:
+        request_id = getattr(record, "request_id", "-")
         entry = {
             "severity": record.levelname,
             "message": record.getMessage(),
             "logger": record.name,
+            "request_id": request_id,
         }
+        if self.project and request_id != "-":
+            entry["logging.googleapis.com/trace"] = f"projects/{self.project}/traces/{request_id}"
         if record.exc_info:
             entry["exception"] = self.formatException(record.exc_info)
         return json.dumps(entry, ensure_ascii=False)
 
 
+class _StdoutHandler(logging.StreamHandler):
+    """Writes to whatever `sys.stdout` is at the moment, not the one at startup,
+    so tools that swap stdout (like test output capture) never see a stale stream."""
+
+    @property
+    def stream(self):
+        return sys.stdout
+
+    @stream.setter
+    def stream(self, _value) -> None:
+        pass
+
+
 def configure_logging(settings: Settings) -> None:
-    handler = logging.StreamHandler(sys.stdout)
+    handler = _StdoutHandler()
+    handler.addFilter(RequestIdLogFilter())
     if settings.deployed:
-        handler.setFormatter(_CloudLoggingFormatter())
+        handler.setFormatter(_CloudLoggingFormatter(settings.google_cloud_project))
     else:
-        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+        handler.setFormatter(
+            logging.Formatter("%(levelname)s %(name)s [%(request_id)s]: %(message)s")
+        )
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(settings.log_level)
@@ -69,4 +96,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.include_router(health.router)
+    # Added innermost first: request IDs wrap everything, so even a 404 for an
+    # unknown host or a redirect carries an ID and logs with it.
+    app.add_middleware(OfficeMiddleware)
+    app.add_middleware(RequestIdMiddleware)
     return app
