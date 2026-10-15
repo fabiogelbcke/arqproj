@@ -1,6 +1,6 @@
 """Create the local development and test databases.
 
-    uv run python -m backend.db.local setup        # create arqproj_dev and arqproj_test
+    uv run python -m backend.db.local setup        # arqproj_dev, arqproj_test, arqproj_app login
     uv run python -m backend.db.local drop-test    # drop arqproj_test (tests recreate it)
 
 Only ever touches PostgreSQL on this machine.
@@ -16,6 +16,8 @@ from psycopg import sql
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 
+from backend.settings import LOCAL_RUNTIME_ROLE
+
 DEV_DATABASE = "arqproj_dev"
 TEST_DATABASE = "arqproj_test"
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
@@ -24,6 +26,13 @@ LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 def _is_local(host: str) -> bool:
     # A path is a Unix socket on this machine.
     return host in LOCAL_HOSTS or host.startswith("/")
+
+
+# Connection options a local URL may carry. `host` and `hostaddr` are inspected
+# below; the rest cannot change where the connection goes.
+_ALLOWED_OPTIONS = frozenset(
+    {"host", "hostaddr", "application_name", "connect_timeout", "sslmode", "options"}
+)
 
 
 def _option(parsed, name: str) -> list[str]:
@@ -49,6 +58,13 @@ def effective_hosts(url: str) -> list[str]:
     parsed = make_url(url)
     if "service" in parsed.query or os.environ.get("PGSERVICE"):
         raise SystemExit("Refusing a database service name: it can point to any server")
+    # Allowlist, not blocklist: any other option (e.g. `conninfo`, which embeds a
+    # whole connection string) could carry a destination this function cannot see.
+    unknown = set(parsed.query) - _ALLOWED_OPTIONS
+    if unknown:
+        raise SystemExit(
+            f"Refusing connection options that may change the destination: {sorted(unknown)}"
+        )
     hosts = _option(parsed, "host") + (parsed.host.split(",") if parsed.host else [])
     if not hosts and os.environ.get("PGHOST"):
         hosts = os.environ["PGHOST"].split(",")
@@ -76,11 +92,24 @@ async def require_local_server(connection) -> None:
         raise SystemExit(f"Refusing to use a database server at {address}")
 
 
+def require_local_server_before_use(url: str) -> None:
+    """The post-connect check, for code about to run migrations or create data:
+    connect once with exactly this URL and confirm the server is on loopback."""
+    require_local(url)
+    plain = make_url(url).set(drivername="postgresql").render_as_string(hide_password=False)
+    with psycopg.connect(plain, connect_timeout=5) as conn:
+        address = conn.execute("SELECT host(inet_server_addr())").fetchone()[0]
+    if address not in (None, "127.0.0.1", "::1"):
+        raise SystemExit(f"Refusing to use a database server at {address}")
+
+
 def _admin_connection() -> psycopg.Connection:
     # Every destination parameter given explicitly, so no PG* environment variable
-    # or service file can redirect this connection to another machine.
+    # or service file can redirect this connection to another machine. Both loopback
+    # addresses, tried in order, so an IPv6-only local server works too.
     return psycopg.connect(
-        "host=localhost hostaddr=127.0.0.1 port=5432 dbname=postgres", autocommit=True
+        "host=localhost,localhost hostaddr=127.0.0.1,::1 port=5432 dbname=postgres",
+        autocommit=True,
     )
 
 
@@ -91,6 +120,21 @@ def create_database(name: str) -> bool:
         if exists:
             return False
         conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+        return True
+
+
+def create_runtime_role(name: str) -> bool:
+    """The app's restricted login: no superuser, no BYPASSRLS, owns nothing.
+    Locally it needs no password (Homebrew PostgreSQL trusts local connections).
+    Returns True if it was created."""
+    with _admin_connection() as conn:
+        if conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (name,)).fetchone():
+            return False
+        conn.execute(
+            sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE").format(
+                sql.Identifier(name)
+            )
+        )
         return True
 
 
@@ -106,6 +150,8 @@ def main(argv: list[str]) -> int:
     if command == "setup":
         for name in (DEV_DATABASE, TEST_DATABASE):
             print(f"{name}: {'created' if create_database(name) else 'already exists'}")
+        role = LOCAL_RUNTIME_ROLE
+        print(f"role {role}: {'created' if create_runtime_role(role) else 'already exists'}")
         print("Next: uv run alembic -c backend/alembic.ini upgrade head")
         return 0
     if command == "drop-test":

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from fastapi import Request
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -17,7 +17,9 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from backend.db.isolation import scope_to_office
 from backend.settings import Settings
+from backend.tenancy.resolve import Office, current_office
 
 
 def create_engine(settings: Settings) -> AsyncEngine:
@@ -33,6 +35,17 @@ def create_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency: one session per request."""
+    """FastAPI dependency: one session per request, not scoped to any office.
+    Only for the routing registry; office data needs `get_office_session`."""
     async with request.app.state.sessionmaker() as session:
+        yield session
+
+
+async def get_office_session(
+    request: Request, office: Office = Depends(current_office)
+) -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency: a session whose every transaction is for this office, so
+    row-level security shows and accepts only its rows."""
+    async with request.app.state.sessionmaker() as session:
+        scope_to_office(session.sync_session, office.id)
         yield session
