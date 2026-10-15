@@ -248,6 +248,29 @@ staging runs the new app, and you can log in to an empty painel there.
 
 ## Later slices (expanded into steps when we reach them)
 
+### Order changed (15 Oct 2026): painel before the client page
+
+Agreed with Fabio: the painel's design is settled (UI reference: the prototype
+in [arqprojprototypes](https://github.com/fabiogelbcke/arqprojprototypes)) while
+the client page's is still changing, and there is no rush to move the first
+office. So the painel comes next, then the client page once its design settles:
+
+1. **P1 Painel project list**: groups (in progress, drafts, completed), search,
+   sorting, progress, next meeting, last update, placeholder covers. Read-only.
+2. **P2 Creating a project**: name, client, template (stages and default type
+   from the reference tables), suggested slug; starts as a draft. Database only.
+   The app gets write access to the project tables.
+3. **P3 Editing in the painel**: what exactly is editable here is to be
+   discussed before this step (Fabio); row-version conflicts handled.
+4. **P4 Drive connection and folders**: "Connect Google Drive" (staging's own
+   OAuth client), folder creation with share-while-empty, folders for projects
+   made in P2–P3, covers.
+5. Then **slice 2** below (client page, password, downloads, import), whose edit
+   mode reuses the painel's editing pieces (plan section 24), then slices 3b–7.
+
+Steps 2.1, 2.2 and 2.2b (tables, storage, reference tables) are done and stay
+the base for both.
+
 ### Slice 2: the client project page
 
 2.1 Project tables (projects, stages, details, meeting, slug aliases).
@@ -274,7 +297,14 @@ isolated, read-only for the app) and a `folder_id` on projects and stages
 (migration 0007); the seed links its projects to the dataset's folders. Names sort
 ignoring case and accents. Until slice 4's sync, pages will list files live from
 the store.
-2.3 Project page at `/{slug}` rendered with the current Jinja templates, data
+2.2b Built-in content as reference tables (A26 refined). **As built:**
+migration 0008 creates `project_types`, `detail_types`, `stage_definitions`,
+`stage_templates` and `stage_template_stages` with the built-in rows and their
+texts in Portuguese and English (moved out of `backend/i18n`), replaces the
+CHECKs on the columns that use them with foreign keys, and gives each detail row
+its value type (composite foreign key, so its value column is checked by the
+database). The enums stay as names for the built-in rows; `test_reference_content`
+keeps them and the rows in step. 2.3 Project page at `/{slug}` rendered with the current Jinja templates, data
 from the database. 2.4 Optional password on every content route. 2.5 File
 streaming and previews through the reader identity. 2.6 Staff bar on the page.
 2.7 Read-only import of the current `_project` / `_stage` files (dry run first).

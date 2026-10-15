@@ -18,6 +18,7 @@ from backend.migrations.snippets import (
     CURRENT_TENANT_FUNCTION_SQL,
 )
 from backend.tests.conftest import (
+    RUNTIME_ROLE,
     alembic_config,
     build_from_models,
 )
@@ -227,3 +228,63 @@ def test_migrations_wait_for_one_already_running(migrated_url):
         worker.join(30)
     engine.dispose()
     assert done.is_set()
+
+
+def test_data_migrations_run_as_an_owner_that_isolation_binds(migrated_url):
+    """On Cloud SQL the migration login owns the tables but is no superuser, so
+    forced tenant isolation applies to it too. A migration updating existing rows
+    must still reach every office's rows (0008 backfills detail value types)."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0007")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        tenant = connection.scalar(
+            text("INSERT INTO tenants (slug, name) VALUES ('alinea', 'A') RETURNING id")
+        )
+        project = connection.scalar(
+            text(
+                "INSERT INTO projects (tenant_id, name, client_name, project_type, stage_template) "
+                "VALUES (:t, 'Casa', 'Cliente', 'architecture', 'standard') RETURNING id"
+            ),
+            {"t": tenant},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO project_details (tenant_id, project_id, key, position, value_number) "
+                "VALUES (:t, :p, 'site_area', 1, 1240)"
+            ),
+            {"t": tenant, "p": project},
+        )
+        # Hand everything to a login like Cloud SQL's migration login.
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    try:
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0008",
+        )
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT value_type FROM project_details")) == "area"
+    finally:
+        with engine.begin() as connection:
+            # This throwaway database is dropped after the test anyway.
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()

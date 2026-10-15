@@ -19,15 +19,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from backend.commands import local_db
 from backend.identity.passwords import hash_password
-from backend.projects.enums import (
-    TEMPLATE_PROJECT_TYPE,
-    TEMPLATE_STAGES,
-    AccessMode,
-    DetailKey,
-    ProjectStatus,
-    StageTemplate,
+from backend.projects.enums import AccessMode, DetailKey, ProjectStatus, StageTemplate
+from backend.projects.models import (
+    DetailTypeDef,
+    Meeting,
+    Project,
+    ProjectDetail,
+    ProjectSlug,
+    ProjectStage,
+    StageTemplateDef,
+    TemplateStage,
 )
-from backend.projects.models import Meeting, Project, ProjectDetail, ProjectSlug, ProjectStage
 from backend.settings import Settings
 from backend.storage.models import StorageConnection, StorageKind
 from backend.tenancy.models import Tenant, TenantDomain
@@ -184,11 +186,22 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
         return False
     owned = {"tenant_id": tenant.id}
     password = spec.get("password")
+    template = await session.get(StageTemplateDef, spec["template"])
+    stages = list(
+        await session.scalars(
+            select(TemplateStage.stage_key)
+            .where(TemplateStage.template_key == template.key)
+            .order_by(TemplateStage.position)
+        )
+    )
+    value_types = dict(
+        (await session.execute(select(DetailTypeDef.key, DetailTypeDef.value_type))).all()
+    )
     project = Project(
         **owned,
         name=spec["name"],
         client_name=spec["client"],
-        project_type=TEMPLATE_PROJECT_TYPE[spec["template"]],
+        project_type=template.default_project_type,
         stage_template=spec["template"],
         status=spec["status"],
         description=spec.get("description", ""),
@@ -203,7 +216,6 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
     for old in spec.get("old_slugs", []):
         session.add(ProjectSlug(**owned, slug=old, is_current=False))
     session.add(ProjectSlug(**owned, slug=spec["slug"]))
-    stages = list(TEMPLATE_STAGES[spec["template"]])
     notes = spec.get("notes", {})
     stage_folders = spec.get("stage_folders", [])
     for position, key in enumerate(stages, start=1):
@@ -226,15 +238,18 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
     if custom := spec.get("custom_stage"):
         title, about = custom
         session.add(ProjectStage(**owned, position=len(stages) + 1, title=title, about=about))
+    columns = {"text": "value_text", "area": "value_number", "date": "value_date"}
     for position, (key, value) in enumerate(spec.get("details", {}).items(), start=1):
-        column = (
-            "value_number"
-            if isinstance(value, Decimal)
-            else "value_date"
-            if isinstance(value, date)
-            else "value_text"
+        value_type = value_types[key]
+        session.add(
+            ProjectDetail(
+                **owned,
+                key=key,
+                value_type=value_type,
+                position=position,
+                **{columns[value_type]: value},
+            )
         )
-        session.add(ProjectDetail(**owned, key=key, position=position, **{column: value}))
     today = datetime.now(SAO_PAULO).replace(hour=16, minute=0, second=0, microsecond=0)
     for days, title in spec.get("meetings", []):
         start = today + timedelta(days=days)

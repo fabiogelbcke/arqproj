@@ -71,80 +71,8 @@
     "completed": "Completed",
     "archived": "Archived"
   },
-  "projectType": {
-    "architecture": "Architecture",
-    "interiors": "Interior design",
-    "renovation": "Renovation",
-    "landscaping": "Landscaping"
-  },
   "accessMode": {
     "public": "Public",
     "password": "Password protected"
-  },
-  "stageTemplate": {
-    "standard": "Standard",
-    "interiors": "Interiors",
-    "empty": "No stages"
-  },
-  "detail": {
-    "client": "Client",
-    "location": "Location",
-    "site_area": "Site area",
-    "built_area": "Built area",
-    "start_date": "Start",
-    "expected_delivery": "Expected delivery",
-    "responsible": "Lead architect"
-  },
-  "stage": {
-    "proposal": {
-      "title": "Proposal",
-      "about": "Scope, terms and planning of the project.",
-      "deliverables": "Service proposal with stages, timeline and fees."
-    },
-    "briefing_survey": {
-      "title": "Brief and survey",
-      "about": "Understanding your needs and the characteristics of the space.",
-      "deliverables": "Requirements, site survey and records."
-    },
-    "preliminary_studies": {
-      "title": "Preliminary studies / Schematic design",
-      "about": "Arranging the spaces and defining the concept.",
-      "deliverables": "Plans, site studies and preliminary solutions."
-    },
-    "model_3d": {
-      "title": "3D design",
-      "about": "Seeing the spaces, materials and volumes.",
-      "deliverables": "Perspectives and images of the project."
-    },
-    "construction_documents": {
-      "title": "Construction documents",
-      "about": "Technical detailing of the approved solutions.",
-      "deliverables": "Drawings and specifications to guide construction."
-    },
-    "final_delivery": {
-      "title": "Final delivery",
-      "about": "Organizing the project's final documentation.",
-      "deliverables": "Final set of drawings and files."
-    },
-    "extra_services": {
-      "title": "Additional services",
-      "about": "Following up the additional services commissioned.",
-      "deliverables": "Documents and guidance within the agreed scope."
-    },
-    "briefing": {
-      "title": "Brief",
-      "about": "We talk about uses, priorities and expectations.",
-      "deliverables": "Requirements and references."
-    },
-    "layout": {
-      "title": "Layout",
-      "about": "Arranging rooms, furniture and circulation.",
-      "deliverables": "Layout plans to review and agree on."
-    },
-    "detailing": {
-      "title": "Detailing",
-      "about": "Defining the interior elements and solutions.",
-      "deliverables": "Joinery, finishes and planned installations in detail."
-    }
   }
 }

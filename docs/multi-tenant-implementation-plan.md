@@ -111,7 +111,7 @@ its affected tests before coding proceeds.
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
 | A24 | Minimal project creation; editing in the painel and in a staff edit mode on the project page | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus an optional stage template. Details, stages, stage progress, meeting and files are edited later. Uploads happen per stage on the project page; a full file browser in the painel is optional, not a pilot requirement. Extended 15 Oct 2026 (prototype review): the cover can also be changed from the painel project card. See section 10 |
 | A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original is shown as v1. Refined 15 Oct 2026: the client page shows the clean name with a separate version badge, while the copy in Drive carries the version (`Planta v3.pdf`); grouping only within one folder; clashes are flagged, never merged; current = highest version. See section 12 and the [changelog](decision-changelog.md) |
-| A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Built-in project types, detail types, standard details, built-in stages and their explanations are enums whose words live in one translation catalog per language, shared by the server and the staff app; the database stores keys with a CHECK. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
+| A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Refined the same day: values the code **acts on** (status, access mode, roles, a detail's value type, languages, error codes) are enums stored with a CHECK; **content the app only displays** (project types, detail types, built-in stages with their explanations, stage templates) lives in reference tables with its texts per language, referenced by foreign key, and the code keeps enums naming the built-in rows (a test keeps them in step). Interface text lives in one translation catalog per language shared by the server and the staff app. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
 | A27 | Typed project details; project type as its own field; built-in details and types only for the pilot | Agreed 15 Oct 2026 (prototype review). Details are text, choice, area (m²) or date, formatted per language. Project type is a column with four built-in types (architecture, interiors, renovation, landscaping), defaulting from the stage template. The pilot offers only built-in details and types; office-defined ones are a later addition (an optional custom label beside the built-in key; existing rows need no conversion). See sections 7 and 10 |
 | A28 | One feed of client-visible project events | Agreed 15 Oct 2026 (prototype review). New files and versions, stage notes and meeting changes are recorded once as `project_events`; the client page's "latest updates" panel, the project's "last updated" date and email batching (A12) all read it. See sections 7 and 14 |
 | A29 | A project address (slug), once used, stays reserved for that project | Agreed 15 Oct 2026. Old slugs keep redirecting and can never be given to another project in the office, so an old client link cannot land on someone else's project. See section 6 |
@@ -651,8 +651,11 @@ The following is a logical schema specification, not a migration:
 | `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
 | `projects` | tenant, title, client name (≤ 48 characters), cover image reference, status (`draft` until published, `active`, `completed`, `archived`; see section 10), slugs in `project_slugs`, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), stage template used, optional professional, access mode/hash/version, current stage, last client-visible activity time (A28), row version |
 | `project_slugs` | tenant, project, slug, is current, created; every address a project has had, exactly one current. Unique per tenant across current and old, so a used slug stays with its project (A29); old ones redirect. Reserved paths (`painel`, `api`, …) refused |
-| `stage_templates` | tenant, name, ordered stages, each a built-in stage key or office-written title with optional explanation (what happens) and deliverables (what the client receives). Built-in templates come from code: Padrão (7 stages) and Interiores (6); offices may add their own |
-| `project_details` | tenant, project, built-in detail key (enum, A27), order, value stored by the detail's type (text, choice key, number in m², date). Built-in details and their types come from code: Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável. Pilot: built-ins only; custom details later add an optional label column (A26) |
+| `project_types` | key, order, label per language. Built-in rows from a migration (A26) |
+| `detail_types` | key, value type (text/area/date), order, label per language. Built-in rows from a migration; offices' own later (A27) |
+| `stage_definitions` | key, title, what happens and what the client receives, each per language. Built-in rows from a migration |
+| `stage_templates` / `stage_template_stages` | key, label per language, default project type; its stages in order. Built-in: Padrão (7 stages), Interiores (6), empty. Offices may add their own later |
+| `project_details` | tenant, project, detail type (foreign key to `detail_types` by key and value type, so the database knows the value's type), order, the value in the column of its type (text, number in m², date). Pilot: built-in detail types only (A27) |
 | `project_stages` | tenant, project, stable stage key, **either** a built-in stage key (title and explanations translated) **or** office-written title and explanations, order, status, notes and when they last changed, bound folder ID |
 | `meetings` | tenant, project, title (≤ 40), start/end (end after start), timezone, location (≤ 60), link (`http`/`https` only); several per project: the client page shows the next one by date, so a past meeting stops showing on its own (agreed 15 Oct 2026) |
 | `folder_bindings` | tenant, project, connection, provider folder ID, parent ID, path display, classification |
@@ -689,14 +692,17 @@ are separate from request roles. Test policies through the **runtime role**, not
 only an owner connection. PostgreSQL owners/bypass roles otherwise defeat the
 intended test. [PostgreSQL row security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
 
-**Built-in options and office content (A26).** A value from a fixed set is a
-Python `StrEnum` stored as text with a CHECK constraint built from the enum
-(PostgreSQL enum types are hard to change). Built-in options (project types,
-detail types and keys, built-in stages and templates) are such enums; their
-visible words live in the translation catalogs (section 16), so the database
-holds only keys. Office-written content is plain text shown as typed. Where a
-row can be either, it holds exactly one of the two (a built-in key or custom
-text), enforced by a CHECK.
+**Enums, reference tables and office content (A26).** If the code acts on a
+value (status, access mode, role, a detail's value type), it is a Python
+`StrEnum` stored as text with a CHECK built from the enum (PostgreSQL enum types
+are hard to change). If the app only displays it (project types, detail types,
+built-in stages and their explanations, stage templates), it is content: a row in
+a reference table with its texts per language, referenced by foreign key, so the
+database describes its own data and offices' own rows can join later. The code
+keeps enums naming the built-in rows, and a test keeps enums and rows in step.
+Office-written content is plain text shown as typed. Where a row can be either,
+it holds exactly one of the two (a built-in key or custom text), enforced by a
+CHECK.
 
 Use optimistic row versions for simultaneous form edits: a stale update returns
 a conflict with the latest values instead of silently replacing someone else's
@@ -1309,11 +1315,13 @@ office has a language (`tenants.locale`, an enum of the languages the product is
 translated into: `pt-BR`, `en`). **Supporting a language (A26)** means translating
 the product's own text (buttons, headings, messages, error codes) and its built-in
 options (project types, standard details, built-in stages and their
-explanations). What an office writes itself is shown exactly as typed and never
+explanations; their texts are stored per language in the reference tables, see
+section 7). What an office writes itself is shown exactly as typed and never
 translated: an office writes in its own language. One translation catalog per
 language is shared by the server (client pages, emails, calendar files) and the
-staff app; no visible text is written directly into screens, and a test fails if
-any key or built-in option lacks a translation in a supported language. Dates and
+staff app; no visible text is written directly into screens. Tests fail if any
+interface text or built-in row lacks a translation in a supported language, and
+the database refuses a built-in row without every language. Dates and
 numbers format per language (17/10/2026 and 1.240 m² in Portuguese). Before
 launch, audit a fully English test office for leftover Portuguese. Timezone
 is per office. Long Portuguese labels, accents, duplicate filenames and non-Latin

@@ -9,6 +9,7 @@ from sqlalchemy import text
 from backend.projects.enums import (
     BuiltinStage,
     DetailKey,
+    DetailType,
     ProjectStatus,
     ProjectType,
     StageTemplate,
@@ -114,6 +115,25 @@ async def test_a_stage_is_built_in_or_written_by_the_office(db_session, alinea, 
     await assert_refused(db_session, db_session.flush(), constraint)
 
 
+async def test_a_built_in_stage_must_exist(db_session, alinea):
+    project = await add_project(db_session, alinea)
+    db_session.add(
+        ProjectStage(tenant_id=alinea.id, project_id=project.id, position=1, builtin_key="nope")
+    )
+    await assert_refused(db_session, db_session.flush(), "fk_project_stages_builtin_key")
+
+
+@pytest.mark.parametrize(
+    ("values", "constraint"),
+    [
+        ({"project_type": "pools"}, "fk_projects_project_type"),
+        ({"stage_template": "nope"}, "fk_projects_stage_template"),
+    ],
+)
+async def test_a_project_uses_known_types_and_templates(db_session, alinea, values, constraint):
+    await assert_refused(db_session, add_project(db_session, alinea, **values), constraint)
+
+
 async def test_stages_can_swap_positions_in_one_change(db_session, alinea):
     project = await add_project(db_session, alinea)
     for position, key in ((1, BuiltinStage.PROPOSAL), (2, BuiltinStage.LAYOUT)):
@@ -144,29 +164,48 @@ async def test_a_stage_cannot_join_another_offices_project(db_session, alinea, n
 # -- details (A27) ----------------------------------------------------------------
 
 
+TEXT, AREA, DATE = DetailType.TEXT, DetailType.AREA, DetailType.DATE
+
+
 @pytest.mark.parametrize(
-    ("key", "values", "accepted"),
+    ("key", "value_type", "values", "refused_by"),
     [
-        (DetailKey.CLIENT, {"value_text": "Família Oliveira"}, True),
-        (DetailKey.SITE_AREA, {"value_number": Decimal("1240.5")}, True),
-        (DetailKey.START_DATE, {"value_date": date(2026, 5, 12)}, True),
-        (DetailKey.SITE_AREA, {"value_text": "1.240 m²"}, False),  # an area is a number
-        (DetailKey.START_DATE, {"value_text": "maio"}, False),  # a date is a date
-        (DetailKey.CLIENT, {"value_text": "x", "value_date": date(2026, 1, 1)}, False),  # two
-        (DetailKey.CLIENT, {}, False),  # none
+        (DetailKey.CLIENT, TEXT, {"value_text": "Família Oliveira"}, None),
+        (DetailKey.SITE_AREA, AREA, {"value_number": Decimal("1240.5")}, None),
+        (DetailKey.START_DATE, DATE, {"value_date": date(2026, 5, 12)}, None),
+        # An area is a number, a date a date: the value must be in its type's column.
+        (DetailKey.SITE_AREA, AREA, {"value_text": "1.240 m²"}, "value_matches_type"),
+        (DetailKey.START_DATE, DATE, {"value_text": "maio"}, "value_matches_type"),
+        (
+            DetailKey.CLIENT,
+            TEXT,
+            {"value_text": "x", "value_date": date(2026, 1, 1)},
+            "value_matches_type",
+        ),
+        (DetailKey.CLIENT, TEXT, {}, "value_matches_type"),
+        # The row's value type is its detail type's, not the writer's choice.
+        (DetailKey.SITE_AREA, TEXT, {"value_text": "1.240 m²"}, "fk_project_details_detail_type"),
+        ("shoe_size", TEXT, {"value_text": "42"}, "fk_project_details_detail_type"),
     ],
 )
 async def test_a_detail_holds_exactly_a_value_of_its_type(
-    db_session, alinea, key, values, accepted
+    db_session, alinea, key, value_type, values, refused_by
 ):
     project = await add_project(db_session, alinea)
     db_session.add(
-        ProjectDetail(tenant_id=alinea.id, project_id=project.id, key=key, position=1, **values)
+        ProjectDetail(
+            tenant_id=alinea.id,
+            project_id=project.id,
+            key=key,
+            value_type=value_type,
+            position=1,
+            **values,
+        )
     )
-    if accepted:
+    if refused_by is None:
         await db_session.flush()
     else:
-        await assert_refused(db_session, db_session.flush(), "value_matches_type")
+        await assert_refused(db_session, db_session.flush(), refused_by)
 
 
 async def test_a_detail_appears_once_per_project(db_session, alinea):
@@ -177,6 +216,7 @@ async def test_a_detail_appears_once_per_project(db_session, alinea):
                 tenant_id=alinea.id,
                 project_id=project.id,
                 key=DetailKey.LOCATION,
+                value_type=DetailType.TEXT,
                 position=position,
                 value_text="Florianópolis",
             )
