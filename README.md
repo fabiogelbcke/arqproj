@@ -248,8 +248,10 @@ make e2e          # browser tests against the built app on a fresh local databas
 make lint
 ```
 
-Open the invite link (it points to `make dev`'s port, 5173; with `make serve`,
-use 8000) to choose a password; the painel then shows the office's projects (an empty list until step 2).
+Staging deploys itself when a pull request merges into `staging`; the admin
+commands also take `ENV=staging` (see `docs/infrastructure.md`, which records
+everything on Google Cloud). Open the invite link (it points to `make dev`'s
+port, 5173; with `make serve`, use 8000) to choose a password; the painel then shows the office's projects (an empty list until step 2).
 After changing the API, run `make api-types`: the staff app's TypeScript types are
 generated from the backend's OpenAPI description (`frontend/src/api/`), and
 `make test` fails while they are stale. Texts shown to people live in

@@ -206,3 +206,24 @@ def test_downgrade_removes_the_group_role(migrated_url):
         )
     engine.dispose()
     assert exists == 0
+
+
+def test_migrations_wait_for_one_already_running(migrated_url):
+    """Overlapping deploys: a second `upgrade` waits instead of colliding."""
+    import threading
+
+    from backend.migrations.registry import MIGRATION_LOCK
+
+    engine = create_engine(migrated_url)
+    with engine.connect() as holder:
+        holder.execute(text(f"SELECT pg_advisory_lock({MIGRATION_LOCK})"))
+        done = threading.Event()
+        worker = threading.Thread(
+            target=lambda: (command.upgrade(alembic_config(migrated_url), "head"), done.set())
+        )
+        worker.start()
+        assert not done.wait(2), "migrated while another run held the lock"
+        holder.execute(text(f"SELECT pg_advisory_unlock({MIGRATION_LOCK})"))
+        worker.join(30)
+    engine.dispose()
+    assert done.is_set()

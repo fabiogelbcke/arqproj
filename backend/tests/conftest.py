@@ -7,6 +7,7 @@ or production.
 
 from __future__ import annotations
 
+import getpass
 import os
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
@@ -35,6 +36,12 @@ ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 # Tests set up data as the owner (TEST_DATABASE_URL); isolation tests also connect
 # as the app's restricted role, which row-level security applies to.
 RUNTIME_ROLE = LOCAL_RUNTIME_ROLE
+
+
+def default_login() -> str:
+    """The login used when a URL names none: PGUSER, else this machine's user
+    (libpq's own rule). Locally that is you, a superuser; in CI, `postgres`."""
+    return os.environ.get("PGUSER") or getpass.getuser()
 
 
 def alembic_config(database_url: str) -> Config:

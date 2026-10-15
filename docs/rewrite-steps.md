@@ -230,6 +230,18 @@ React painel. No client-visible features yet.
 - **Tests:** the image builds and starts locally; on staging, the staging
   hostname resolves to the first office, an unknown host gets 404, and login works.
 - **Review:** the Dockerfile, the build steps, where secrets come from.
+- **As built:** `deploy/Dockerfile` (two stages; kept out of the repo root so
+  the current site's buildpacks build on `main` is unaffected). Merging into
+  `staging` runs `deploy/staging/cloudbuild.yaml` as `portal-staging-deploy@`:
+  build, push, migrate and provision through the Cloud SQL Auth Proxy, then
+  `gcloud run services replace deploy/staging/service.yaml`. Cloud SQL
+  `arqproj-db` (PostgreSQL 17, `db-f1-micro`, backups 7 days, deletion
+  protection) with IAM database logins: no database passwords anywhere. The app
+  reaches the database through a proxy sidecar. No deploy scripts: admin
+  commands (`make tenant|staff|reset-link ENV=staging`) go through the proxy as
+  the deploy identity. GitHub Actions (`.github/workflows/ci.yml`): backend
+  tests and lint on PostgreSQL 17, frontend checks, Playwright, image build.
+  Everything created is recorded in `docs/infrastructure.md`.
 
 **Slice 1 is done when:** both offices are isolated under the restricted role,
 staging runs the new app, and you can log in to an empty painel there.
