@@ -199,3 +199,20 @@ def test_cloud_logs_link_to_the_trace_when_the_project_is_known():
     assert "logging.googleapis.com/trace" not in json.loads(
         _CloudLoggingFormatter(None).format(record)
     )
+
+
+async def test_server_errors_keep_their_request_id(app, client, offices, capsys):
+    """A crash in a route still returns the reference code, and the log has it."""
+
+    @app.get("/boom")
+    async def boom():
+        raise RuntimeError("simulated database failure")
+
+    response = await get(client, "alinea.localhost", path="/boom")
+    request_id = response.headers["x-request-id"]
+    assert response.status_code == 500
+    assert response.text == f"Internal server error. Reference: {request_id}"
+    logged = capsys.readouterr().out
+    assert f"ERROR backend.web.request_id [{request_id}]: unhandled error" in logged
+    assert "simulated database failure" in logged  # full traceback, for us only
+    assert "simulated database failure" not in response.text  # never shown to users
