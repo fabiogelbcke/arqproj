@@ -28,9 +28,12 @@ def _hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+LOCAL_PORT = 5173  # `make dev`'s staff app; with `make serve` it is 8000
+
+
 def url(host: str, token: str) -> str:
     # Local addresses (*.localhost) are plain http on the dev server's port.
-    base = f"http://{host}:8000" if host.endswith(".localhost") else f"https://{host}"
+    base = f"http://{host}:{LOCAL_PORT}" if host.endswith(".localhost") else f"https://{host}"
     return f"{base}{PATH}#token={token}"
 
 
