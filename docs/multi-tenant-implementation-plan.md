@@ -143,7 +143,7 @@ Replace:
 - Request-time recursive Drive discovery and process-local background work.
 - Bare provider file IDs as the application's only file identity.
 
-Build a separate package such as `portal/` with its own application factory and
+Build a separate package such as `backend/` with its own application factory and
 entry point. Keep `app.py` available for the legacy site until migration. Reuse
 presentation components deliberately; do not maintain two permanently equivalent
 products. Transfer the selected UI into the new entry point, establish parity,
@@ -153,7 +153,7 @@ available to imports for as long as supported.
 Suggested layout:
 
 ```text
-portal/
+backend/
   app.py                 application factory, dependency wiring
   config.py              typed deployment settings; no tenant state in env
   tenancy/               hostname resolution and tenant context
@@ -169,10 +169,15 @@ portal/
   web/                   FastAPI routers, forms, Pydantic request/response models
   db/                    models and repository implementations
 migrations/              reviewed Alembic migrations
-staff-app/               React + TypeScript staff administration (A20), built by Vite
+painel/               React + TypeScript staff administration (A20), built by Vite
   src/                   screens, components, API client generated from OpenAPI
   package.json           own lockfile; Node is used to build, never at runtime
 ```
+
+`backend/` serves both audiences: the client project pages (Jinja templates under
+`web/`) and the JSON API the staff app uses, over one shared set of services, so
+there is a single copy of rules such as "who may see this file". `painel/` holds
+only the staff app's source and never runs as a server.
 
 Modules call explicit services; templates do not call Google or construct SQL.
 A service takes tenant context and dependencies explicitly. A background job
@@ -272,20 +277,20 @@ How the staff app is served:
 The image is built in two stages, so Node exists only at build time:
 
 ```dockerfile
-FROM node:22-slim AS staff-app          # supported Node LTS; pin exact version
-WORKDIR /staff-app
-COPY staff-app/package*.json ./
+FROM node:22-slim AS painel              # supported Node LTS; pin exact version
+WORKDIR /painel
+COPY painel/package*.json ./
 RUN npm ci
-COPY staff-app/ .
-RUN npm run build                        # → /staff-app/dist
+COPY painel/ .
+RUN npm run build                        # → /painel/dist
 
 FROM python:3.13-slim                    # production Python target
 WORKDIR /app
 COPY requirements.lock .
 RUN pip install --no-cache-dir -r requirements.lock
-COPY portal/ portal/
-COPY --from=staff-app /staff-app/dist portal/static/painel
-CMD ["sh", "-c", "uvicorn portal.app:create_app --factory --host 0.0.0.0 --port $PORT"]
+COPY backend/ backend/
+COPY --from=painel /painel/dist backend/static/painel
+CMD ["sh", "-c", "uvicorn backend.app:create_app --factory --host 0.0.0.0 --port $PORT"]
 ```
 
 Client pages, API and staff app always ship together in one revision, so the
@@ -297,7 +302,7 @@ or keep it outside the source-deploy path until then (section 19).
 
 Local development: Vite's dev server serves the staff app with hot reload and
 proxies `/api` to the local FastAPI process. The release check builds the bundle
-and serves it through FastAPI, as production does. Only staff-app work needs Node
+and serves it through FastAPI, as production does. Only staff app work needs Node
 locally; client pages and backend work do not.
 
 ### Office address: two options, decision open (A21)
@@ -465,10 +470,10 @@ workflow; Flask is not a requirement for this hosting path.
 [Cloud Run FastAPI quickstart](https://docs.cloud.google.com/run/docs/quickstarts/build-and-deploy/deploy-python-fastapi-service)
 
 For the new backend, explicitly replace the legacy WSGI startup command with an
-ASGI server. Proposed command, once `portal.app:create_app` exists:
+ASGI server. Proposed command, once `backend.app:create_app` exists:
 
 ```sh
-uvicorn portal.app:create_app --factory --host 0.0.0.0 --port "$PORT"
+uvicorn backend.app:create_app --factory --host 0.0.0.0 --port "$PORT"
 ```
 
 Declare and pin the server dependency. Start with one server process per
@@ -1375,7 +1380,7 @@ fully reproducible production dependency set. Node builds the staff app (A20)
 and runs browser tests; it is never part of the production image. CI also runs
 the staff app's lockfile install, type check, unit tests and production build,
 and fails when the generated API client is out of date. Build/start checks must
-exercise the new Uvicorn entry point, the served staff-app bundle and streaming
+exercise the new Uvicorn entry point, the served staff app bundle and streaming
 behavior rather than reuse a passing legacy Gunicorn check as evidence for the
 FastAPI deployment. The new service's `Dockerfile` must not change how the legacy
 site deploys before cutover (section 4).
@@ -1498,7 +1503,7 @@ and external failures do not shrink simply because code generation is fast.
 | Slice | Concrete deliverable | Exit evidence | Rough focused effort |
 | --- | --- | --- | --- |
 | 0. Baseline | This decision doc and repeatable current local tests | Python/browser suite runs without Google; open issues recorded | Current work |
-| 1. New foundation | New FastAPI factory and Uvicorn entry point, local PostgreSQL, migrations, tenant routing, fake identity, two offices; staff-app skeleton (Vite + React + TypeScript) served at `/painel` from the two-stage image | Wrong-host/ID tests; runtime-role isolation; production image boots locally and serves the staff-app shell | 1–2 days |
+| 1. New foundation | New FastAPI factory and Uvicorn entry point, local PostgreSQL, migrations, tenant routing, fake identity, two offices; staff app skeleton (Vite + React + TypeScript) served at `/painel` from the two-stage image | Wrong-host/ID tests; runtime-role isolation; production image boots locally and serves the staff app shell | 1–2 days |
 | 2. First useful vertical slice | Public/password project page at `/{slug}`, DB metadata, reused UI, read adapter and legacy import; staff bar on the page | Two branded offices; password protects every content endpoint; migration dry run; `alineaarquitetos.com` resolves to its office | 2–3 days |
 | 3. Project creation + editing | Minimal creation with durable provisioning; painel project list/settings and page edit mode for details, stages, progress, meeting (A24) | Crash/retry matrix; no duplicate creation; edits visible on the client page; row-version conflicts handled | 2–3 days |
 | 3b. Uploads + versions | Per-stage upload on the project page, resumable upload, version prompt and "send new version" (A25), capability-aware listing | Same-name upload becomes next `vN`; originals untouched; progress and failure UI | 1–2 days |
