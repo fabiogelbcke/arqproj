@@ -12,7 +12,7 @@ pytestmark = pytest.mark.anyio
 
 
 async def test_a_hash_checks_its_own_password_only():
-    stored = passwords.hash_password("a good password")
+    stored = await passwords.hash_password("a good password")
     assert await passwords.verify_password(stored, "a good password")
     assert not await passwords.verify_password(stored, "a wrong password")
     assert not await passwords.verify_password(None, "a good password")  # unknown email

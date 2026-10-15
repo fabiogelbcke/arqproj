@@ -19,6 +19,62 @@ a new entry too.
 
 ---
 
+## 2026-10-15 — prototype review and Codex review of the plan: A12, A23, A24, A25 refined; A26–A30 added
+
+Two inputs: the staff/client prototype as iterated in
+[`arqprojprototypes`](https://github.com/fabiogelbcke/arqprojprototypes) (its
+functionality, not its layout, which is still in flux), and a Codex review of the
+plan that Fabio relayed.
+
+- **A12 (email batching).** *Was:* the quiet period described as an "undo window"
+  in which a mistaken upload "never reaches the client", with an example sending
+  at 11:35. *Now:* it prevents an email about withdrawn files, not exposure,
+  since files publish as soon as they are found; a batch becomes due by the
+  rules and is sent by the next maintenance run, now every 10 minutes instead of
+  hourly (A09 updated to match); the 2-hour hold counts from the first
+  publication. *Why:* the old wording promised something the
+  design does not do, and the timing ignored when maintenance actually runs.
+- **A23 (first office's domain).** *Was:* hosting of the custom domain left
+  implicit. *Now:* it stays on the existing free Cloud Run domain mappings of the
+  `portal` service; the rewrite deploys as a new revision of that service.
+  *Why:* checked how the domain is served today; this costs nothing extra.
+- **A24 (editing).** *Was:* cover changed on the project page or in project
+  settings; painel fallback cover showed the client's name over a blurred photo.
+  *Now:* also changeable from the painel card; the fallback is a plain
+  placeholder photo. *Why:* prototype review.
+- **A25 (versions).** *Was:* new files named `Planta v3.pdf` everywhere; grouping
+  by "clear version token" without collision rules. *Now:* clean name plus a
+  version badge on the client page, versioned name only for the Drive copy;
+  exact same-name uploads also group; grouping within one folder only; clashes
+  flagged, never merged; current = highest version; staff corrections persist.
+  *Why:* Codex found the grouping rules underspecified; Fabio preferred showing
+  the version separately.
+- **A26 (new): built-in options in code, translated; office text as typed.**
+  *Was:* "preserve English capability" with no rule for what is translated, and
+  detail presets seeded as Portuguese text. *Why:* stored Portuguese labels
+  cannot be translated; Fabio scoped translation to the product's text and its
+  standard options.
+- **A27 (new): typed details and a project type field, built-ins only for the
+  pilot.** *Was:* project type and details were free label/value pairs, with
+  office-defined presets. *Why:* the prototype sorts and labels projects by type,
+  and formats areas and dates. Office-defined details and types were deferred
+  (Fabio): they add a definitions table, a "built-in or custom" rule and an
+  options editor, and can be added later without converting existing rows.
+- **A28 (new): one feed of client-visible events.** *Was:* `publication_events`
+  for email only. *Why:* the prototype's "latest updates" panel and "last
+  updated" date need the same events, including notes and meeting changes.
+- **A29 (new): used slugs stay reserved.** *Was:* old slugs redirect, but nothing
+  stopped another project taking one. *Why:* an old client link could land on
+  the wrong project (Codex). Deleted projects are soft-deleted and keep their
+  slugs too.
+- **A30 (new): staff app/API compatibility across deploys.** *Was:* "one revision,
+  so the staff app can never run against another API version". *Why:* false for
+  tabs already open during a deploy (Codex).
+- **Section 9, unshared folder recovery.** *Was:* always create a new folder and
+  rebind. *Now:* ask the owner to share the existing folder first; new folder only
+  as fallback; to be verified live. *Why:* our writer's limits do not bind the
+  owner, and the original folder may hold client files (Codex).
+
 ## 2026-10-15 — staff accounts: users + memberships → one account per office
 
 **Was:** people (`users`) separate from offices, linked by `memberships` carrying

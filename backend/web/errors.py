@@ -21,6 +21,8 @@ class ErrorCode(StrEnum):
     CSRF_TOKEN_MISSING_OR_WRONG = "csrf_token_missing_or_wrong"
     INVALID_CREDENTIALS = "invalid_credentials"
     INVALID_REQUEST = "invalid_request"  # malformed body or missing fields: a bug, not the user
+    LINK_INVALID = "link_invalid"  # unknown, used, expired, replaced or another office's
+    PASSWORD_TOO_SHORT = "password_too_short"
 
 
 class ErrorOut(BaseModel):

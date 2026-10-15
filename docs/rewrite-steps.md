@@ -169,18 +169,32 @@ React painel. No client-visible features yet.
   characters. **Still open:** limits on attempts per account and per source
   (plan section 5), deliberately deferred; needed before offices other than the
   first can sign in. Accounts are created with
-  `backend.commands.staff` (`add`, `set-password`; prompts for the password)
-  through `backend.identity.accounts`, which a sign-up page can reuse later.
+  `backend.commands.staff add`, without a password: people choose their own
+  through a one-time link (`password_links`, kind `invite` for 7 days or `reset`
+  for 1 day; `reset-link` makes one). Only a hash of the link's token is stored,
+  the token travels in the URL fragment, a new link cancels older ones, and
+  choosing a password ends the account's other sessions. API: `POST
+  /api/password-link` (whose link is this), `POST /api/password` (choose, then
+  signed in). The app may change only `users.password_hash` and
+  `password_links.used_at`. Account rules live in `backend.identity.accounts`
+  and `links`, for the painel and a sign-up page to reuse.
 
 ### Step 1.6: React staff app skeleton
 
 - **What:** `frontend/` (Vite, React, TypeScript) served by FastAPI at
-  `/painel`, with a login screen and an empty project list calling `/api/me`.
+  `/painel`, with a login screen, the "choose your password" screen for invite
+  and reset links (step 1.5b) and an empty project list calling `/api/me`.
   API types are generated from FastAPI's OpenAPI schema. Locally, Vite's dev
-  server forwards `/api` to the Python app.
+  server forwards `/api` to the Python app. Every visible text goes through the
+  translation catalogs from the start (plan A26; Portuguese written first), error
+  codes included. Deploy compatibility (plan A30): fingerprinted assets, the app
+  shell never cached, a build ID on API responses and a reload prompt that keeps
+  unsaved edits.
 - **Decisions:** component approach (proposed: plain React with CSS modules and
   the design prototype's tokens, no UI library yet; revisit if we adopt one for
-  the file browser), routing (React Router), data fetching (TanStack Query).
+  the file browser), routing (React Router), data fetching (TanStack Query),
+  and how editing components are shared with the client page (plan section 24:
+  proposed, build once in React and load them onto the client page for staff).
 - **Tests:** a component test (Vitest) and one Playwright test against the
   **built** app served by FastAPI: log in, see "Projetos", reload a deep link.
 - **Review:** project structure, the generated API client, how the shell is

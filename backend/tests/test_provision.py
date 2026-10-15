@@ -29,6 +29,22 @@ def _grants(url: str, grantee: str) -> set[tuple[str, str]]:
     return set(rows)
 
 
+def _column_grants(url: str, grantee: str) -> set[tuple[str, str, str]]:
+    """Grants on single columns only (not those implied by a table-wide grant)."""
+    engine = create_engine(url)
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text(
+                "SELECT c.relname, a.attname, p.privilege_type FROM pg_attribute a "
+                "JOIN pg_class c ON c.oid = a.attrelid, aclexplode(a.attacl) p "
+                "JOIN pg_roles r ON r.oid = p.grantee WHERE r.rolname = :grantee"
+            ),
+            {"grantee": grantee},
+        ).all()
+    engine.dispose()
+    return set(rows)
+
+
 def _members(url: str, group: str) -> set[str]:
     engine = create_engine(url)
     with engine.connect() as connection:
@@ -56,8 +72,14 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("sessions", "SELECT"),
         ("sessions", "INSERT"),
         ("sessions", "UPDATE"),
+        ("password_links", "SELECT"),
+    }
+    assert _column_grants(migrated_url, group) == {
+        ("users", "password_hash", "UPDATE"),
+        ("password_links", "used_at", "UPDATE"),
     }
     assert _grants(migrated_url, RUNTIME_ROLE) == set()
+    assert _column_grants(migrated_url, RUNTIME_ROLE) == set()
 
 
 def test_rotating_the_app_login_moves_access(migrated_url):

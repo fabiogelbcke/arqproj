@@ -20,13 +20,18 @@ class AccountError(ValueError):
     """Bad input for an account (shown to whoever is creating it)."""
 
 
+class PasswordTooShort(AccountError):
+    def __init__(self) -> None:
+        super().__init__(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+
+
 def normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
 def _check_password(password: str) -> None:
     if len(password) < MIN_PASSWORD_LENGTH:
-        raise AccountError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+        raise PasswordTooShort
 
 
 async def find_user(session: AsyncSession, email: str) -> User | None:
@@ -40,30 +45,40 @@ async def find_user(session: AsyncSession, email: str) -> User | None:
 
 
 async def create_user(
-    session: AsyncSession, *, email: str, name: str, password: str, role: Role = Role.MEMBER
+    session: AsyncSession,
+    *,
+    email: str,
+    name: str,
+    role: Role = Role.MEMBER,
+    password: str | None = None,
 ) -> User:
+    """Without a password, the person chooses one through an invite link (`links`)."""
     if role not in set(Role):
         raise AccountError(f"Role must be one of: {', '.join(Role)}")
-    _check_password(password)
+    password_hash = None if password is None else await new_password_hash(password)
     if await find_user(session, email) is not None:
         raise AccountError(f"There is already an account for {normalize_email(email)}")
     user = User(
         email=normalize_email(email),
         name=name.strip(),
         role=Role(role),
-        password_hash=hash_password(password),
+        password_hash=password_hash,
     )
     session.add(user)
     await session.flush()
     return user
 
 
-async def set_password(session: AsyncSession, email: str, password: str) -> User:
-    user = await find_user(session, email)
-    if user is None:
-        raise AccountError(f"No account for {normalize_email(email)}")
+async def new_password_hash(password: str) -> str:
+    """Check a chosen password and hash it. Slow on purpose: call it before opening
+    a transaction, so no database connection waits on it."""
     _check_password(password)
-    user.password_hash = hash_password(password)
+    return await hash_password(password)
+
+
+async def set_password(session: AsyncSession, user: User, password_hash: str) -> None:
+    """Store a hash from `new_password_hash`."""
+    user.password_hash = password_hash
     # A new password ends every existing sign-in (e.g. after a stolen cookie).
     await session.execute(
         update(LoginSession)
@@ -71,4 +86,3 @@ async def set_password(session: AsyncSession, email: str, password: str) -> User
         .values(revoked_at=func.now())
     )
     await session.flush()
-    return user
