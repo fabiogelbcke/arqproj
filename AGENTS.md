@@ -225,8 +225,23 @@ committed here.
 ## Code review (Codex)
 
 Pull requests for the rewrite go into the `staging` branch. Codex reviews them on
-GitHub (comment `@codex review`): one review, plus one re-review after fixes.
-Then the pull request goes to Fabio, who reviews and merges.
+GitHub (comment `@codex review`; marking a draft ready does not reliably trigger
+it). When the review rounds end, the pull request goes to Fabio, who reviews and
+merges.
+
+How many rounds:
+
+- Request another review after fixes while the last round found something that
+  was fixed because it was serious or realistic for our setup. Declined or
+  marginal findings do not count.
+- Stop when a round brings only declined or marginal findings, or comes back
+  clean (👍).
+- A serious (P1) finding always gets one more round after its fix.
+- Hard stop after 4 rounds. If real issues are still appearing, the pull request
+  is too big or its design is unsettled: pause and discuss it with Fabio.
+- Scale with the risk: security and data-isolation work follows the rules above;
+  documentation-only or file-move pull requests get one review, and a
+  documentation-only change after a clean review needs none.
 
 - Fix serious findings and those realistic for our actual setup.
 - Do not implement findings that are nitpicky, guard against configurations we
