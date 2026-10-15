@@ -1,6 +1,6 @@
 """Create the local development and test databases.
 
-    uv run python -m backend.db.local setup        # create arqproj_dev and arqproj_test
+    uv run python -m backend.db.local setup        # arqproj_dev, arqproj_test, arqproj_app login
     uv run python -m backend.db.local drop-test    # drop arqproj_test (tests recreate it)
 
 Only ever touches PostgreSQL on this machine.
@@ -15,6 +15,8 @@ import psycopg
 from psycopg import sql
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
+
+from backend.settings import LOCAL_RUNTIME_ROLE
 
 DEV_DATABASE = "arqproj_dev"
 TEST_DATABASE = "arqproj_test"
@@ -121,6 +123,21 @@ def create_database(name: str) -> bool:
         return True
 
 
+def create_runtime_role(name: str) -> bool:
+    """The app's restricted login: no superuser, no BYPASSRLS, owns nothing.
+    Locally it needs no password (Homebrew PostgreSQL trusts local connections).
+    Returns True if it was created."""
+    with _admin_connection() as conn:
+        if conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (name,)).fetchone():
+            return False
+        conn.execute(
+            sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE").format(
+                sql.Identifier(name)
+            )
+        )
+        return True
+
+
 def drop_database(name: str) -> None:
     with _admin_connection() as conn:
         conn.execute(
@@ -133,6 +150,8 @@ def main(argv: list[str]) -> int:
     if command == "setup":
         for name in (DEV_DATABASE, TEST_DATABASE):
             print(f"{name}: {'created' if create_database(name) else 'already exists'}")
+        role = LOCAL_RUNTIME_ROLE
+        print(f"role {role}: {'created' if create_runtime_role(role) else 'already exists'}")
         print("Next: uv run alembic -c backend/alembic.ini upgrade head")
         return 0
     if command == "drop-test":

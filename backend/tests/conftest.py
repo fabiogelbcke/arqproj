@@ -22,12 +22,16 @@ from sqlalchemy.pool import NullPool
 
 from backend.app import create_app
 from backend.db import local
-from backend.settings import Settings
+from backend.db.provision import provision_url
+from backend.settings import LOCAL_RUNTIME_ROLE, Settings
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://localhost:5432/arqproj_test"
 )
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
+# Tests set up data as the owner (TEST_DATABASE_URL); isolation tests also connect
+# as the app's restricted role, which row-level security applies to.
+RUNTIME_ROLE = LOCAL_RUNTIME_ROLE
 
 
 def alembic_config(database_url: str) -> Config:
@@ -46,9 +50,11 @@ def anyio_backend() -> str:
 def test_database_url() -> str:
     """Create the test database if needed and bring it to the latest migration."""
     local.require_local(TEST_DATABASE_URL)
+    local.create_runtime_role(RUNTIME_ROLE)
     local.create_database(make_url(TEST_DATABASE_URL).database)
     local.require_local_server_before_use(TEST_DATABASE_URL)  # before any migration
     command.upgrade(alembic_config(TEST_DATABASE_URL), "head")
+    provision_url(TEST_DATABASE_URL, RUNTIME_ROLE)
     return TEST_DATABASE_URL
 
 

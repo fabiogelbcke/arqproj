@@ -238,8 +238,9 @@ the current app and does not change what production serves.
 
 ```bash
 brew install postgresql@17 && brew services start postgresql@17   # once
-uv run python -m backend.db.local setup                    # creates arqproj_dev and arqproj_test
+uv run python -m backend.db.local setup                    # arqproj_dev, arqproj_test and the arqproj_app login
 uv run alembic -c backend/alembic.ini upgrade head          # apply migrations to arqproj_dev
+uv run python -m backend.db.provision                      # give the app login its access
 uv run python -m backend.tenancy.seed                      # two fictional offices (see below)
 uv run uvicorn backend.app:create_app --factory --reload   # → http://127.0.0.1:8000/health
 uv run pytest                                              # backend tests (migrate arqproj_test themselves)
@@ -253,8 +254,18 @@ Locally, every `*.localhost` address reaches this machine: the seed creates
 `/health` works on any host. Every response has an `X-Request-ID` header, also
 printed on each log line.
 
-`DATABASE_URL` defaults to `arqproj_dev` on this machine and is required in
-staging and production. Tests only ever use local databases. New migration:
+Two logins: the app connects as `arqproj_app` (`DATABASE_URL`), a restricted role
+that PostgreSQL row-level security applies to; migrations and the seed command use
+the owner (`MIGRATION_DATABASE_URL`, locally your own PostgreSQL user).
+Migrations grant privileges to a group role named after the database
+(`arqproj_dev_app`); `backend.db.provision` (run after migrations) makes the
+`DATABASE_RUNTIME_ROLE` login its only member, so changing the login is a re-run
+of that command, not a migration. Migrations write their SQL out in full rather
+than importing it from app code. Every table
+holding office data must enable `office_isolation` (SQL to paste into its migration: `backend/migrations/snippets.py`; runtime side: `backend/db/isolation.py`);
+a test fails if one does not. `DATABASE_URL` and `MIGRATION_DATABASE_URL` default
+to `arqproj_dev` on this machine and must be set explicitly in staging and
+production. Tests only ever use local databases. New migration:
 `uv run alembic -c backend/alembic.ini revision -m "what changes"`, then edit and
 review it by hand; `backend/tests/test_migrations.py` fails if models and
 migrations disagree.

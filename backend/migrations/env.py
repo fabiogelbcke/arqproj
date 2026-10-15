@@ -1,4 +1,4 @@
-"""Alembic environment: runs migrations against DATABASE_URL.
+"""Alembic environment: runs migrations against MIGRATION_DATABASE_URL (the owner).
 
 Migrations are run as a release step, never at app startup (several instances
 starting together must not race to change the schema). Tests pass the URL in
@@ -24,7 +24,14 @@ if config.config_file_name and not config.attributes.get("skip_logging_config"):
 
 
 def _database_url() -> str:
-    return config.attributes.get("database_url") or Settings().database_url
+    """Migrations run as the owner role (MIGRATION_DATABASE_URL), never as the app's
+    restricted role. Deployed environments must name it explicitly."""
+    if config.attributes.get("database_url"):
+        return config.attributes["database_url"]
+    settings = Settings()
+    if settings.deployed and "migration_database_url" not in settings.model_fields_set:
+        raise RuntimeError("MIGRATION_DATABASE_URL must be set to run migrations when deployed")
+    return settings.migration_database_url
 
 
 def _configure(connection: Connection) -> None:
