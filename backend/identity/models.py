@@ -47,7 +47,8 @@ class User(IdMixin, TimestampsMixin, TenantOwned, Base):
     email: Mapped[str] = mapped_column(Text)
     name: Mapped[str] = mapped_column(Text)
     role: Mapped[Role] = mapped_column(TextEnum(Role), server_default=text("'member'"))
-    # None for accounts that will sign in only with Google (step 6).
+    # None until the person chooses one through an invite link, and for accounts
+    # that will sign in only with Google (step 6).
     password_hash: Mapped[str | None] = mapped_column(Text)
 
 
@@ -72,3 +73,29 @@ class LoginSession(IdMixin, CreatedAtMixin, TenantOwned, Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LinkKind(StrEnum):
+    INVITE = "invite"  # a new account chooses its first password
+    RESET = "reset"  # an existing account chooses a new one
+
+
+class PasswordLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
+    """A one-time link for choosing a password. Only a hash of its token is here."""
+
+    __tablename__ = "password_links"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "user_id"],
+            ["users.tenant_id", "users.id"],
+            ondelete="CASCADE",
+            name="fk_password_links_user",
+        ),
+        enum_check("kind", LinkKind),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    kind: Mapped[LinkKind] = mapped_column(TextEnum(LinkKind))
+    token_hash: Mapped[str] = mapped_column(Text, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

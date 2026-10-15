@@ -255,10 +255,13 @@ Locally, every `*.localhost` address reaches this machine: the seed creates
 `/health` works on any host. Every response has an `X-Request-ID` header, also
 printed on each log line.
 
-Staff accounts belong to one office each. `backend.commands.staff add` creates
-one and `set-password` changes a password (both prompt for it). Sign in with
-`POST /api/session` on that office's address (e.g. `alinea.localhost:8000`);
-the screens arrive in step 1.6.
+Staff accounts belong to one office each, and people choose their own passwords.
+`backend.commands.staff add` creates an account without a password and prints a
+one-time invite link (7 days); `reset-link` prints a link to choose a new one
+(1 day). Send the link to the person. Until the "choose your password" screen
+arrives in step 1.6, use the API: `POST /api/password` with the token from the
+link and the new password, on that office's address (e.g. `alinea.localhost:8000`);
+then sign in with `POST /api/session`.
 
 Two logins: the app connects as `arqproj_app` (`DATABASE_URL`), a restricted role
 that PostgreSQL row-level security applies to; migrations and the seed command use
