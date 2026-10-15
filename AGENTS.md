@@ -33,8 +33,12 @@ Before finishing:
 - Run the production build and check for errors.
 - Fix any test failures introduced by the changes.
 - If tests cannot run, explain why.
+- For changes under `backend/`, also run `uv run pytest` and
+  `uv run ruff check backend && uv run ruff format --check backend`.
+- When the current app's libraries change, update both `requirements.txt`
+  (production deploys from it) and the `legacy` group in `pyproject.toml`.
 - Run the complete existing local suite with `.venv/bin/python -m tools.test_local`.
-  Install both Python requirements files, then `npm ci` and
+  Prepare the environment with `uv sync`, then `npm ci` and
   `npm run browsers:install` if needed. The runner uses isolated fictional data,
   ignores `.env`, and cleans up its temporary servers. It does not require the
   manual dataset reuse/regeneration question. Integration and browser servers
@@ -77,8 +81,7 @@ Before finishing:
   with Google themselves; before that the project list is empty. Requires the
   `OAUTH_*` settings in `.env` (README.md, “Google Drive connection (OAuth)”).
 - If the data source is unspecified, use test data and say so.
-- Prepare `.venv` and install `requirements.txt` and `requirements-dev.txt`
-  if needed, following README.md. Each developer supplies their own `.env`
+- Prepare `.venv` with `uv sync` if needed, following README.md. Each developer supplies their own `.env`
   and credential file; never print credentials or passwords from those files.
 - If Drive settings are missing, explain the missing setup from README.md.
   Never fall back to fake data while claiming to use Google Drive.
