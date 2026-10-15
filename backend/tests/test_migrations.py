@@ -229,31 +229,49 @@ def test_the_comparison_catches_model_drift(migrated_url, from_models_url):
     assert any("archived" in str(row) for row in differences["constraints"]["only_in_models"])
 
 
+# The only acceptable policy on an office table. Permissive policies combine with
+# OR, so any extra one could widen access; hence exactly this one, nothing else.
+_REQUIRED_POLICY = (
+    POLICY,
+    "PERMISSIVE",
+    "{public}",
+    "ALL",
+    "(tenant_id = current_tenant_id())",
+    "(tenant_id = current_tenant_id())",
+)
+
+
 def _unisolated_office_tables(url: str) -> set[str]:
-    """Tables with a tenant_id that lack enforced row-level security, the policy,
-    or the default that fills tenant_id with the current office."""
+    """Tables with a tenant_id that lack enforced row-level security, the exact
+    policy (and no other), or the default that fills tenant_id with the office."""
     engine = create_engine(url)
     with engine.connect() as connection:
-        rows = connection.execute(
+        tables = connection.execute(
             text(
                 """
                 SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity,
-                       EXISTS (SELECT 1 FROM pg_policies p
-                               WHERE p.tablename = c.relname AND p.policyname = :policy),
                        col.column_default = 'current_tenant_id()'
                 FROM pg_class c
                 JOIN information_schema.columns col
                   ON col.table_name = c.relname AND col.column_name = 'tenant_id'
                 WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r'
                 """
-            ),
-            {"policy": POLICY},
+            )
         ).all()
+        policies: dict[str, list[tuple]] = {}
+        for table, *policy in connection.execute(
+            text(
+                "SELECT tablename, policyname, permissive, roles::text, cmd, qual, with_check "
+                "FROM pg_policies WHERE schemaname = 'public'"
+            )
+        ):
+            policies.setdefault(table, []).append(tuple(policy))
     engine.dispose()
     return {
         name
-        for name, enabled, forced, has_policy, has_default in rows
-        if name not in REGISTRY_TABLES and not (enabled and forced and has_policy and has_default)
+        for name, enabled, forced, has_default in tables
+        if name not in REGISTRY_TABLES
+        and not (enabled and forced and has_default and policies.get(name) == [_REQUIRED_POLICY])
     }
 
 
@@ -507,3 +525,32 @@ def test_provisioning_refuses_a_login_that_can_switch_into_a_powerful_role(migra
             connection.execute(text("DROP TABLE IF EXISTS owned_by_role"))
             connection.execute(text(f'DROP ROLE "{powerful}"'))
         engine.dispose()
+
+
+@pytest.mark.parametrize(
+    "weaken",
+    [
+        # The right name, but everything visible:
+        "ALTER POLICY office_isolation ON weak USING (true)",
+        # The right policy, plus a second one that ORs in more rows:
+        "CREATE POLICY extra ON weak USING (true)",
+        # Reads isolated, writes not checked:
+        "ALTER POLICY office_isolation ON weak WITH CHECK (true)",
+    ],
+)
+def test_the_isolation_rule_checks_what_the_policy_does(migrated_url, weaken):
+    """Self-test: a policy that is named right but weaker is still flagged."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE weak (id int, tenant_id uuid)"))
+        for statement in enable_office_isolation_sql("weak"):
+            connection.execute(text(statement))
+    engine.dispose()
+    assert _unisolated_office_tables(migrated_url) == set()  # correct as created
+
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        connection.execute(text(weaken))
+    engine.dispose()
+    assert _unisolated_office_tables(migrated_url) == {"weak"}
