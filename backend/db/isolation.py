@@ -17,6 +17,13 @@ Two layers (decision D6):
 `tenants` and `tenant_domains` are the routing registry, read before any office
 is known (to resolve the request's hostname), so they are protected by grants
 (read-only for the app) rather than by this policy.
+
+Privileges go to a per-database group role (`<database>_app`), never to a login;
+`backend.db.provision` makes the configured login a member of it.
+
+**Migrations paste SQL, they do not import it.** The helpers below generate the
+statements a new office-data table needs; copy their output into the migration
+so it replays exactly as it first ran, even if these helpers change later.
 """
 
 from __future__ import annotations
@@ -32,9 +39,9 @@ POLICY = "office_isolation"
 REGISTRY_TABLES = frozenset({"tenant_domains"})
 
 
-# The office set on the current transaction, or NULL. NULL matches no row, so a
-# query without an office sees nothing instead of failing on ''::uuid. Defined
-# here once: migration 0002 creates it, and schema tests build it the same way.
+# The current definition of current_tenant_id(), as the latest migration left it.
+# Used to build the models-only database in schema tests; a test compares it with
+# the migrated database, so a change made in only one place fails.
 CURRENT_TENANT_FUNCTION_SQL = f"""
 CREATE FUNCTION current_tenant_id() RETURNS uuid
 LANGUAGE sql STABLE AS $$
@@ -73,9 +80,18 @@ class OfficeOwned:
     )
 
 
-def grant_sql(privileges: str, table: str, role: str) -> str:
-    """GRANT to the app's runtime role (quoted: Cloud SQL IAM users contain '@')."""
-    return f'GRANT {privileges} ON {table} TO "{role}"'
+def app_role_for(database: str) -> str:
+    """The group role holding the app's privileges in this database."""
+    return f"{database}_app"
+
+
+def grant_to_app_sql(privileges: str, table: str) -> str:
+    """GRANT to this database's app group role, resolved inside PostgreSQL."""
+    return (
+        "DO $$ BEGIN EXECUTE format("
+        f"'GRANT {privileges} ON {table} TO %I', current_database() || '_app'"
+        "); END $$"
+    )
 
 
 def scope_to_office(session: Session, office_id: uuid.UUID) -> None:

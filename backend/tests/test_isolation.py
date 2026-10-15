@@ -22,9 +22,10 @@ from backend.db import local
 from backend.db.isolation import (
     OFFICE_SETTING,
     enable_office_isolation_sql,
-    grant_sql,
+    grant_to_app_sql,
     scope_to_office,
 )
+from backend.db.provision import provision_url
 from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL, alembic_config
 
 DATABASE = "arqproj_test_isolation"
@@ -45,7 +46,9 @@ def offices() -> Iterator[Offices]:
     local.create_runtime_role(RUNTIME_ROLE)
     local.drop_database(DATABASE)
     local.create_database(DATABASE)
-    command.upgrade(alembic_config(owner_url.render_as_string(hide_password=False)), "head")
+    owner_dsn = owner_url.render_as_string(hide_password=False)
+    command.upgrade(alembic_config(owner_dsn), "head")
+    provision_url(owner_dsn, RUNTIME_ROLE)
 
     owner = create_engine(owner_url)
     with owner.begin() as conn:
@@ -57,7 +60,7 @@ def offices() -> Iterator[Offices]:
         )
         for statement in enable_office_isolation_sql("office_rows"):
             conn.execute(text(statement))
-        conn.execute(text(grant_sql("SELECT, INSERT, UPDATE, DELETE", "office_rows", RUNTIME_ROLE)))
+        conn.execute(text(grant_to_app_sql("SELECT, INSERT, UPDATE, DELETE", "office_rows")))
         ids = {}
         for slug in ("alinea", "norte"):
             ids[slug] = conn.scalar(

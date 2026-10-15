@@ -34,10 +34,6 @@ def _database_url() -> str:
     return settings.migration_database_url
 
 
-# The role migrations grant table access to (the login DATABASE_URL uses).
-config.attributes.setdefault("runtime_role", Settings().database_runtime_role)
-
-
 def _configure(connection: Connection) -> None:
     context.configure(
         connection=connection,

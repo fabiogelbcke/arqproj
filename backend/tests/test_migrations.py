@@ -24,6 +24,7 @@ from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import CheckConstraint, MetaData, create_engine, inspect, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from backend.db import local
@@ -32,8 +33,10 @@ from backend.db.isolation import (
     POLICY,
     REGISTRY_TABLES,
     OfficeOwned,
+    app_role_for,
     enable_office_isolation_sql,
 )
+from backend.db.provision import provision_url
 from backend.db.registry import metadata
 from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL, alembic_config
 
@@ -93,6 +96,14 @@ def schema_snapshot(url: str) -> dict[str, set[tuple]]:
             SELECT tablename, indexname, indexdef
             FROM pg_indexes
             WHERE schemaname = 'public' AND tablename = ANY(:tables)""",
+        # Functions the code also defines (CURRENT_TENANT_FUNCTION_SQL): a change made
+        # only in a migration, or only in code, shows up here. Whitespace-insensitive.
+        "functions": """
+            SELECT p.proname, pg_get_function_result(p.oid), p.provolatile, l.lanname,
+                   btrim(regexp_replace(p.prosrc, '\\s+', ' ', 'g'))
+            FROM pg_proc p JOIN pg_language l ON l.oid = p.prolang
+            WHERE p.pronamespace = 'public'::regnamespace
+              AND p.proname = 'current_tenant_id'""",
     }
     engine = create_engine(url)
     try:
@@ -260,21 +271,69 @@ def test_the_isolation_rule_catches_a_forgotten_table(migrated_url):
     assert _unisolated_office_tables(migrated_url) == {"forgotten"}
 
 
-def test_the_app_role_only_reads_the_registry(migrated_url):
+def _grants(url: str, grantee: str) -> set[tuple[str, str]]:
+    engine = create_engine(url)
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text(
+                "SELECT table_name, privilege_type FROM information_schema.role_table_grants "
+                "WHERE grantee = :grantee"
+            ),
+            {"grantee": grantee},
+        ).all()
+    engine.dispose()
+    return set(rows)
+
+
+def test_the_app_group_role_only_reads_the_registry(migrated_url):
+    """Privileges belong to the database's group role; the login holds none itself."""
     command.upgrade(alembic_config(migrated_url), "head")
+    group = app_role_for(make_url(migrated_url).database)
+    assert _grants(migrated_url, group) == {("tenants", "SELECT"), ("tenant_domains", "SELECT")}
+    assert _grants(migrated_url, RUNTIME_ROLE) == set()
+
+
+def test_rotating_the_app_login_moves_access(migrated_url):
+    """Changing DATABASE_RUNTIME_ROLE is a re-run of provisioning, not a migration."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    group = app_role_for(make_url(migrated_url).database)
+    rotated = RUNTIME_ROLE + "_rotated"
+    local.create_runtime_role(rotated)
+
+    assert provision_url(migrated_url, RUNTIME_ROLE) == [f"{RUNTIME_ROLE} added to {group}"]
+    assert provision_url(migrated_url, RUNTIME_ROLE) == []  # repeatable
+    assert provision_url(migrated_url, rotated) == [
+        f"{rotated} added to {group}",
+        f"{RUNTIME_ROLE} removed from {group}",
+    ]
+
+    def can_read_registry(login: str) -> bool:
+        engine = create_engine(make_url(migrated_url).set(username=login))
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT count(*) FROM tenants"))
+            return True
+        except ProgrammingError:
+            return False
+        finally:
+            engine.dispose()
+
+    assert can_read_registry(rotated)
+    assert not can_read_registry(RUNTIME_ROLE)
+
+
+def test_downgrade_removes_the_group_role(migrated_url):
+    config = alembic_config(migrated_url)
+    group = app_role_for(make_url(migrated_url).database)
+    command.upgrade(config, "head")
+    command.downgrade(config, "0001")
     engine = create_engine(migrated_url)
     with engine.connect() as connection:
-        privileges = set(
-            connection.execute(
-                text(
-                    "SELECT table_name, privilege_type FROM information_schema.role_table_grants "
-                    "WHERE grantee = :role"
-                ),
-                {"role": RUNTIME_ROLE},
-            ).all()
+        exists = connection.scalar(
+            text("SELECT count(*) FROM pg_roles WHERE rolname = :r"), {"r": group}
         )
     engine.dispose()
-    assert privileges == {("tenants", "SELECT"), ("tenant_domains", "SELECT")}
+    assert exists == 0
 
 
 def test_the_isolation_rule_catches_a_missing_default(migrated_url):
@@ -314,3 +373,21 @@ def test_office_owned_models_default_to_the_current_office(migrated_url):
         ).one()
     engine.dispose()
     assert (default, nullable) == ("current_tenant_id()", "NO")
+
+
+def test_the_comparison_catches_a_changed_function(migrated_url, from_models_url):
+    """Self-test: current_tenant_id() changed only in code (or only in a migration)."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    engine = create_engine(from_models_url)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                CURRENT_TENANT_FUNCTION_SQL.replace("NULLIF(", "NULLIF(btrim(").replace(
+                    ", '')", "), '')"
+                )
+            )
+        )
+        metadata.create_all(connection)
+    engine.dispose()
+    differences = _differences(schema_snapshot(migrated_url), schema_snapshot(from_models_url))
+    assert set(differences) == {"functions"}

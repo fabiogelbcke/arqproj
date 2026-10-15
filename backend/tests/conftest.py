@@ -22,6 +22,7 @@ from sqlalchemy.pool import NullPool
 
 from backend.app import create_app
 from backend.db import local
+from backend.db.provision import provision_url
 from backend.settings import LOCAL_RUNTIME_ROLE, Settings
 
 TEST_DATABASE_URL = os.environ.get(
@@ -36,7 +37,6 @@ RUNTIME_ROLE = LOCAL_RUNTIME_ROLE
 def alembic_config(database_url: str) -> Config:
     config = Config(str(ALEMBIC_INI))
     config.attributes["database_url"] = database_url
-    config.attributes["runtime_role"] = RUNTIME_ROLE
     config.attributes["skip_logging_config"] = True
     return config
 
@@ -54,6 +54,7 @@ def test_database_url() -> str:
     local.create_database(make_url(TEST_DATABASE_URL).database)
     local.require_local_server_before_use(TEST_DATABASE_URL)  # before any migration
     command.upgrade(alembic_config(TEST_DATABASE_URL), "head")
+    provision_url(TEST_DATABASE_URL, RUNTIME_ROLE)
     return TEST_DATABASE_URL
 
 

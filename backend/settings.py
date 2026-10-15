@@ -39,7 +39,8 @@ class Settings(BaseSettings):
     database_url: str = LOCAL_DATABASE_URL
     # The owner login, used only by migrations and local admin commands.
     migration_database_url: str = LOCAL_MIGRATION_DATABASE_URL
-    # The role migrations grant table access to: the login database_url uses.
+    # The login DATABASE_URL uses; `backend.db.provision` makes it a member of the
+    # database's app group role, which holds the privileges migrations grant.
     database_runtime_role: str = LOCAL_RUNTIME_ROLE
     # Lets Cloud Logging group a request's log lines by trace. Optional.
     google_cloud_project: str | None = None
@@ -55,7 +56,7 @@ class Settings(BaseSettings):
     @field_validator("database_runtime_role")
     @classmethod
     def _plain_role_name(cls, value: str) -> str:
-        # Interpolated into GRANT statements by migrations, so only plain names.
+        # A plain role name (Cloud SQL IAM logins also contain '@' and '.').
         if not re.fullmatch(r"[a-z_][a-z0-9_.@-]{0,62}", value):
             raise ValueError(f"unexpected database role name {value!r}")
         return value
