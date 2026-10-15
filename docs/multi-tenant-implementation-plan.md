@@ -1265,9 +1265,10 @@ Representative contract:
 Never accept a caller-supplied tenant as authority. Resolve it from the host/session
 and verify every resource. Use consistent error codes: validation, conflict,
 connection needs attention, quota exceeded, provider unavailable, file unavailable.
-Show clear Portuguese messages and a support/request ID. The API returns the
-error code and a translated message; the staff app displays the message and never
-builds its own text from provider details. Redact provider details
+Show clear messages in the office's language and a support/request ID. The API
+returns only the error code (`{"error": "<code>"}`, every code listed in the
+OpenAPI schema) and the request ID in `X-Request-ID`; the staff app translates the
+code and never builds its own text from provider details. Redact provider details
 that contain credentials or private filenames from shared logs.
 
 ## 18. Local testing now and in the new architecture

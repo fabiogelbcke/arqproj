@@ -11,6 +11,7 @@ from backend.identity import accounts
 from backend.identity.models import LoginSession
 from backend.tenancy.models import Tenant
 from backend.web import auth
+from backend.web.errors import ErrorCode
 
 pytestmark = pytest.mark.anyio
 
@@ -201,3 +202,31 @@ async def test_failed_sign_ins_wait_without_holding_a_database_connection(
     assert (await sign_in(client, password="not the password")).status_code == 401
     assert holding == [False, False]
     assert (await sign_in(client)).status_code == 200  # signing in still works
+
+
+async def test_me_tells_the_screens_which_language_to_use(client, staff):
+    await sign_in(client)
+    me = await client.get("/api/me", headers={"host": "alinea.localhost"})
+    assert me.json()["tenant_locale"] == "pt-BR"
+
+
+async def test_errors_are_a_code_only(client, staff, failed_delays):
+    """No text for people: the screens translate the code (AGENTS.md)."""
+    response = await sign_in(client, password="not the password")
+    assert response.json() == {"error": "invalid_credentials"}
+
+
+async def test_the_api_schema_lists_the_allowed_values(app):
+    """The staff screens' types are generated from this schema, so they know every
+    role, language and error code, and nothing else."""
+    schema = app.openapi()
+    components = schema["components"]["schemas"]
+
+    def values(name):
+        return set(components[name]["enum"])
+
+    assert values("Role") == {"owner", "member"}
+    assert values("Locale") == {"pt-BR", "en"}
+    assert values("ErrorCode") == {code.value for code in ErrorCode}
+    me = schema["paths"]["/api/me"]["get"]["responses"]
+    assert me["401"]["content"]["application/json"]["schema"]["$ref"].endswith("/ErrorOut")

@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from backend.db.isolation import scope_to_tenant
 from backend.identity import accounts
+from backend.identity.models import Role
 from backend.settings import Settings
 from backend.tenancy.models import Tenant
 
@@ -40,7 +41,7 @@ async def run(argv: list[str], database_url: str, ask_password: Callable[[], str
     add.add_argument("--tenant", required=True, help="tenant slug, e.g. alinea")
     add.add_argument("--email", required=True)
     add.add_argument("--name", required=True)
-    add.add_argument("--role", default="member", choices=["owner", "member"])
+    add.add_argument("--role", default=Role.MEMBER, choices=list(Role), type=Role)
     reset = commands.add_parser("set-password", help="set a new password")
     reset.add_argument("--tenant", required=True)
     reset.add_argument("--email", required=True)

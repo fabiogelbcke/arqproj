@@ -160,8 +160,13 @@ React painel. No client-visible features yet.
   the same answer after the same work (a dummy hash) plus a fixed 1-second delay,
   and at most 4 password checks run at once per instance (each takes 64 MiB).
   The cookie is re-sent with the session's current expiry on each signed-in
-  request. Errors return only a code (`invalid_credentials`); the screens
-  translate it. **Still open:** limits on attempts per account and per source
+  request. Errors return only a code (`{"error": "invalid_credentials"}`,
+  listed in `ErrorCode`); the screens translate it. Values from a fixed set are
+  Python `StrEnum`s (`Role`, `TenantStatus`, `Locale`, `ErrorCode`), stored as text
+  with a CHECK constraint (`backend/db/types.py`) because PostgreSQL enum types
+  are hard to change; the API schema lists them, so the screens' generated types
+  do too. `/api/me` includes the office's language. Passwords: at least 8
+  characters. **Still open:** limits on attempts per account and per source
   (plan section 5), deliberately deferred; needed before offices other than the
   first can sign in. Accounts are created with
   `backend.commands.staff` (`add`, `set-password`; prompts for the password)

@@ -10,10 +10,10 @@ from __future__ import annotations
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.identity.models import ROLES, LoginSession, User
+from backend.identity.models import LoginSession, Role, User
 from backend.identity.passwords import hash_password
 
-MIN_PASSWORD_LENGTH = 10
+MIN_PASSWORD_LENGTH = 8
 
 
 class AccountError(ValueError):
@@ -40,17 +40,17 @@ async def find_user(session: AsyncSession, email: str) -> User | None:
 
 
 async def create_user(
-    session: AsyncSession, *, email: str, name: str, password: str, role: str = "member"
+    session: AsyncSession, *, email: str, name: str, password: str, role: Role = Role.MEMBER
 ) -> User:
-    if role not in ROLES:
-        raise AccountError(f"Role must be one of: {', '.join(ROLES)}")
+    if role not in set(Role):
+        raise AccountError(f"Role must be one of: {', '.join(Role)}")
     _check_password(password)
     if await find_user(session, email) is not None:
         raise AccountError(f"There is already an account for {normalize_email(email)}")
     user = User(
         email=normalize_email(email),
         name=name.strip(),
-        role=role,
+        role=Role(role),
         password_hash=hash_password(password),
     )
     session.add(user)

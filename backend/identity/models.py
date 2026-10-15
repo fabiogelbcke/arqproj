@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import (
     CheckConstraint,
@@ -23,8 +24,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.base import Base, CreatedAtMixin, IdMixin, TimestampsMixin
 from backend.db.isolation import TenantOwned
+from backend.db.types import TextEnum, enum_check
 
-ROLES = ("owner", "member")
+
+class Role(StrEnum):
+    OWNER = "owner"
+    MEMBER = "member"
 
 
 class User(IdMixin, TimestampsMixin, TenantOwned, Base):
@@ -36,12 +41,12 @@ class User(IdMixin, TimestampsMixin, TenantOwned, Base):
         UniqueConstraint("tenant_id", "id", name="uq_users_tenant_id_id"),
         CheckConstraint("email = lower(email) AND email LIKE '%_@_%'", name="email_format"),
         CheckConstraint("length(btrim(name)) > 0", name="name_not_blank"),
-        CheckConstraint(f"role IN {ROLES}", name="role_known"),
+        enum_check("role", Role),
     )
 
     email: Mapped[str] = mapped_column(Text)
     name: Mapped[str] = mapped_column(Text)
-    role: Mapped[str] = mapped_column(Text, server_default=text("'member'"))
+    role: Mapped[Role] = mapped_column(TextEnum(Role), server_default=text("'member'"))
     # None for accounts that will sign in only with Google (step 6).
     password_hash: Mapped[str | None] = mapped_column(Text)
 

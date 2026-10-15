@@ -8,13 +8,26 @@ product subdomain next to a custom domain). `www.` is handled in code, not here.
 from __future__ import annotations
 
 import uuid
+from enum import StrEnum
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.base import Base, CreatedAtMixin, IdMixin, TimestampsMixin
+from backend.db.types import TextEnum, enum_check
 
-TENANT_STATUSES = ("active", "suspended")
+
+class TenantStatus(StrEnum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+
+
+class Locale(StrEnum):
+    """Languages the site's own text is translated into. Text an office writes
+    itself is shown as written."""
+
+    PT_BR = "pt-BR"
+    EN = "en"
 
 
 class Tenant(IdMixin, TimestampsMixin, Base):
@@ -22,14 +35,17 @@ class Tenant(IdMixin, TimestampsMixin, Base):
     __table_args__ = (
         CheckConstraint(r"slug ~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'", name="slug_format"),
         CheckConstraint("length(btrim(name)) > 0", name="name_not_blank"),
-        CheckConstraint(f"status IN {TENANT_STATUSES}", name="status_known"),
+        enum_check("status", TenantStatus),
+        enum_check("locale", Locale),
     )
 
     slug: Mapped[str] = mapped_column(Text, unique=True)
     name: Mapped[str] = mapped_column(Text)
-    locale: Mapped[str] = mapped_column(Text, server_default=text("'pt-BR'"))
+    locale: Mapped[Locale] = mapped_column(TextEnum(Locale), server_default=text("'pt-BR'"))
     timezone: Mapped[str] = mapped_column(Text, server_default=text("'America/Sao_Paulo'"))
-    status: Mapped[str] = mapped_column(Text, server_default=text("'active'"))
+    status: Mapped[TenantStatus] = mapped_column(
+        TextEnum(TenantStatus), server_default=text("'active'")
+    )
 
     domains: Mapped[list[TenantDomain]] = relationship(back_populates="tenant")
 

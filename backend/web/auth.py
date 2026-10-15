@@ -17,15 +17,17 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import anyio
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts, sessions
-from backend.identity.models import LoginSession
+from backend.identity.models import LoginSession, Role
 from backend.identity.passwords import verify_password
+from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
+from backend.web.errors import ApiError, ErrorCode, documented
 
 COOKIE = "portal_session"
 CSRF_HEADER = "X-CSRF-Token"
@@ -40,7 +42,7 @@ class CurrentStaff:
     user_id: uuid.UUID
     email: str
     name: str
-    role: str
+    role: Role
     session_id: uuid.UUID
     csrf_token: str
 
@@ -53,14 +55,16 @@ class LoginIn(BaseModel):
 class MeOut(BaseModel):
     email: str
     name: str
-    role: str
+    role: Role
     tenant_slug: str
     tenant_name: str
+    # The language the screens show their own text in.
+    tenant_locale: Locale
     csrf_token: str
 
 
-def _not_signed_in() -> HTTPException:
-    return HTTPException(401, detail={"error": "not_signed_in"})
+def _not_signed_in() -> ApiError:
+    return ApiError(401, ErrorCode.NOT_SIGNED_IN)
 
 
 def _set_cookie(request: Request, response: Response, token: str, expires_at: datetime) -> None:
@@ -97,22 +101,23 @@ async def require_csrf(
     """For state-changing requests: the session's CSRF token must come back."""
     sent = request.headers.get(CSRF_HEADER, "")
     if not hmac.compare_digest(sent, staff.csrf_token):
-        raise HTTPException(403, detail={"error": "csrf_token_missing_or_wrong"})
+        raise ApiError(403, ErrorCode.CSRF_TOKEN_MISSING_OR_WRONG)
     return staff
 
 
-def _me(staff_email: str, name: str, role: str, tenant: CurrentTenant, csrf: str) -> MeOut:
+def _me(staff_email: str, name: str, role: Role, tenant: CurrentTenant, csrf: str) -> MeOut:
     return MeOut(
         email=staff_email,
         name=name,
         role=role,
         tenant_slug=tenant.slug,
         tenant_name=tenant.name,
+        tenant_locale=tenant.locale,
         csrf_token=csrf,
     )
 
 
-@router.post("/session")
+@router.post("/session", responses=documented(401))
 async def sign_in(
     body: LoginIn,
     request: Request,
@@ -127,14 +132,14 @@ async def sign_in(
     # Same work and the same answer whether the email or the password is wrong.
     if not await verify_password(user.password_hash if user else None, body.password):
         await anyio.sleep(FAILED_LOGIN_DELAY)
-        raise HTTPException(401, detail={"error": "invalid_credentials"})
+        raise ApiError(401, ErrorCode.INVALID_CREDENTIALS)
     token, row = await sessions.start(db, user)
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
     return _me(user.email, user.name, user.role, tenant, row.csrf_token)
 
 
-@router.delete("/session", status_code=204)
+@router.delete("/session", status_code=204, responses=documented(401, 403))
 async def sign_out(
     response: Response,
     staff: CurrentStaff = Depends(require_csrf),
@@ -147,7 +152,7 @@ async def sign_out(
     response.delete_cookie(COOKIE, path="/")
 
 
-@router.get("/me")
+@router.get("/me", responses=documented(401))
 async def me(
     staff: CurrentStaff = Depends(current_staff),
     tenant: CurrentTenant = Depends(current_tenant),
