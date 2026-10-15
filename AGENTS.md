@@ -259,30 +259,30 @@ How many rounds:
 
 ### Pull request description
 
-Start every rewrite pull request description with a **Plan** section linking the
-documents that describe the work, so reviewers know what to check against:
-
-- the step in `docs/rewrite-steps.md` (link to its heading), and the plan
-  sections and register entries (A…, D…) it implements;
-- `docs/decision-changelog.md` entries added or relied on;
-- one line each: what the step called for, what was built, and what was
-  deliberately left out or deferred, with the reason.
+Start every pull request description with a **Context** section linking the
+documentation the change is meant to satisfy, so reviewers know what to check it
+against. Link the specific section (heading anchor), not just the file: for
+example a plan section, a decision in the register, a changelog entry, a step or
+milestone, an issue, or a README section the change updates. Then say in one line
+each what that documentation calls for, what was built, and what was deliberately
+left out or deferred, with the reason. If no documentation covers the change,
+say so.
 
 ### Review guidelines
 
-Whoever reviews (Codex, Claude or a person) reads the linked documents first and
-checks the change against them, in addition to bugs:
+Whoever reviews (Codex, Claude or a person) reads the linked sections first and
+checks the change against them, in addition to looking for bugs:
 
-- It does what its step lists, and nothing that belongs to a later step.
-- It does not contradict a decision in the register (plan section 2) or a
-  `D…` decision in `docs/rewrite-steps.md`. A change of decision must update the
-  register, the changelog and their tests in the same pull request.
-- Anything the plan requires for this area is present, unless the step's notes
-  or the description record it as deferred.
-- The step's notes in `docs/rewrite-steps.md` ("As built") match what the code
-  actually does.
+- It does what the linked documentation calls for, and does not take on work it
+  assigns elsewhere or later.
+- It does not contradict a recorded decision. A change of decision updates the
+  decision's record, its changelog entry and its tests in the same pull request.
+- Anything the documentation requires for this area is present, unless the
+  description or the documentation records it as deferred.
+- Documentation that describes the changed behaviour still matches the code.
 
-Report a mismatch with the plan as a finding like any other, citing the document.
+Report a mismatch with the documentation as a finding like any other, citing
+the section.
 
 ## User-facing errors
 
