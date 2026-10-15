@@ -420,7 +420,7 @@ def test_provisioning_refuses_logins_that_bypass_isolation(migrated_url):
     engine.dispose()
 
     for login in (owner, bypass):
-        with pytest.raises(SystemExit, match="bypass row-level security"):
+        with pytest.raises(SystemExit, match="running migrations|bypass row-level security"):
             provision_url(migrated_url, login)
     assert _members(migrated_url, app_role_for(make_url(migrated_url).database)) == set()
 
@@ -477,3 +477,33 @@ def test_a_noinherit_login_still_gets_working_access(migrated_url):
     with as_login.connect() as connection:
         assert connection.scalar(text("SELECT count(*) FROM tenants")) == 0  # readable
     as_login.dispose()
+
+
+@pytest.mark.parametrize("power", ["BYPASSRLS", "owns a table"])
+def test_provisioning_refuses_a_login_that_can_switch_into_a_powerful_role(migrated_url, power):
+    """Checked through the whole membership graph: SET ROLE would hand these over."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    login = RUNTIME_ROLE + "_member"
+    powerful = "arqproj_test_powerful"
+    local.create_runtime_role(login)
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        connection.execute(text(f'DROP ROLE IF EXISTS "{powerful}"'))
+        connection.execute(text(f'CREATE ROLE "{powerful}" NOLOGIN'))
+        if power == "BYPASSRLS":
+            connection.execute(text(f'ALTER ROLE "{powerful}" BYPASSRLS'))
+        else:
+            connection.execute(text("CREATE TABLE owned_by_role (id int)"))
+            connection.execute(text(f'ALTER TABLE owned_by_role OWNER TO "{powerful}"'))
+        # Not inherited, only switchable with SET ROLE.
+        connection.execute(text(f'GRANT "{powerful}" TO "{login}" WITH INHERIT FALSE, SET TRUE'))
+    engine.dispose()
+    try:
+        with pytest.raises(SystemExit, match=f"could get around office isolation: {powerful}"):
+            provision_url(migrated_url, login)
+    finally:
+        engine = create_engine(migrated_url)
+        with engine.begin() as connection:
+            connection.execute(text("DROP TABLE IF EXISTS owned_by_role"))
+            connection.execute(text(f'DROP ROLE "{powerful}"'))
+        engine.dispose()

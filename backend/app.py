@@ -12,7 +12,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from sqlalchemy import text
 
+from backend.db import runtime_role
 from backend.db.engine import create_engine, create_sessionmaker
 from backend.settings import Settings
 from backend.tenancy.middleware import OfficeMiddleware
@@ -71,13 +73,38 @@ def configure_logging(settings: Settings) -> None:
     root.setLevel(settings.log_level)
 
 
+async def verify_runtime_login(engine, settings: Settings) -> None:
+    """Refuse to serve unless connected as the restricted login provisioning checked.
+
+    DATABASE_URL and DATABASE_RUNTIME_ROLE are separate settings; if they disagree
+    (or the login can get around isolation) the app would run with an unchecked
+    identity, so it stops at startup instead.
+    """
+    async with engine.connect() as connection:
+        login = await connection.scalar(text("SELECT session_user"))
+        if login != settings.database_runtime_role:
+            raise RuntimeError(
+                f"DATABASE_URL logs in as {login!r}, but DATABASE_RUNTIME_ROLE is "
+                f"{settings.database_runtime_role!r}"
+            )
+        problems = (
+            await connection.execute(text(runtime_role.PROBLEMS_SQL_SQLALCHEMY), {"login": login})
+        ).all()
+    if problems:
+        raise RuntimeError(
+            f"refusing to serve as {login!r}, which could get around office isolation: "
+            f"{runtime_role.describe(problems)}"
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # One connection pool per process, closed on shutdown. Creating the engine
-    # does not connect; the first query does, so startup never waits on the database.
+    # One connection pool per process, closed on shutdown. Startup checks the login
+    # once (a single query), so a misconfigured deployment fails before serving.
     engine = create_engine(app.state.settings)
-    app.state.sessionmaker = create_sessionmaker(engine)
     try:
+        await verify_runtime_login(engine, app.state.settings)
+        app.state.sessionmaker = create_sessionmaker(engine)
         yield
     finally:
         await engine.dispose()

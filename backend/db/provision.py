@@ -16,6 +16,7 @@ import psycopg
 from psycopg import sql
 from sqlalchemy.engine import make_url
 
+from backend.db import runtime_role
 from backend.settings import Settings
 
 
@@ -26,28 +27,19 @@ def app_role_for(database: str) -> str:
 
 
 def _refuse_unsafe_login(conn: psycopg.Connection, login: str) -> None:
-    """The app's login must be subject to row-level security, or isolation is void."""
-    role = conn.execute(
-        "SELECT rolsuper, rolbypassrls, rolname = current_user FROM pg_roles WHERE rolname = %s",
-        (login,),
+    """The app's login must be bound by row-level security, or isolation is void."""
+    exists = conn.execute(
+        "SELECT rolname = current_user FROM pg_roles WHERE rolname = %s", (login,)
     ).fetchone()
-    if role is None:
+    if exists is None:
         raise SystemExit(f"Login {login} does not exist: create it first")
-    superuser, bypassrls, is_runner = role
-    if superuser or bypassrls:
-        # Exempt from row-level security even when it is FORCEd.
-        raise SystemExit(f"Login {login} is a superuser or can bypass row-level security")
-    if is_runner:
+    if exists[0]:
         raise SystemExit(f"Login {login} is the login running migrations and provisioning")
-    # Owners can ALTER or DROP the policies on their tables. Cloud SQL has no true
-    # superuser, so its migration login passes the check above yet owns everything.
-    owned = conn.execute(
-        "SELECT c.relname FROM pg_class c JOIN pg_roles r ON r.oid = c.relowner "
-        "WHERE c.relnamespace = 'public'::regnamespace AND r.rolname = %s LIMIT 1",
-        (login,),
-    ).fetchone()
-    if owned:
-        raise SystemExit(f"Login {login} owns application tables (e.g. {owned[0]})")
+    problems = conn.execute(runtime_role.PROBLEMS_SQL_PSYCOPG, {"login": login}).fetchall()
+    if problems:
+        raise SystemExit(
+            f"Login {login} could get around office isolation: {runtime_role.describe(problems)}"
+        )
 
 
 def provision(conn: psycopg.Connection, login: str) -> list[str]:
