@@ -142,6 +142,9 @@ def test_database_from_migrations_equals_database_from_models(migrated_url, from
 
 
 def test_every_updated_at_has_its_trigger(migrated_url):
+    """Each table with updated_at has exactly the trigger that maintains it: before
+    every UPDATE (any column), for each row. Compared as PostgreSQL's full trigger
+    definition, so a narrowed trigger (e.g. `BEFORE UPDATE OF name`) fails."""
     command.upgrade(alembic_config(migrated_url), "head")
     engine = create_engine(migrated_url)
     with engine.connect() as connection:
@@ -153,19 +156,29 @@ def test_every_updated_at_has_its_trigger(migrated_url):
                 )
             )
         )
-        with_trigger = set(
-            connection.scalars(
+        triggers = set(
+            connection.execute(
                 text(
-                    "SELECT c.relname FROM pg_trigger t "
+                    "SELECT c.relname, pg_get_triggerdef(t.oid) FROM pg_trigger t "
                     "JOIN pg_class c ON c.oid = t.tgrelid "
-                    "JOIN pg_proc p ON p.oid = t.tgfoid "
-                    "WHERE NOT t.tgisinternal AND p.proname = 'set_updated_at'"
+                    "WHERE NOT t.tgisinternal AND c.relnamespace = 'public'::regnamespace"
                 )
-            )
+            ).all()
+        )
+        function = connection.scalar(
+            text("SELECT prosrc FROM pg_proc WHERE proname = 'set_updated_at'")
         )
     engine.dispose()
     assert with_updated_at  # the rule is not vacuous
-    assert with_updated_at == with_trigger
+    assert triggers == {
+        (
+            table,
+            f"CREATE TRIGGER {table}_set_updated_at BEFORE UPDATE ON public.{table} "
+            "FOR EACH ROW EXECUTE FUNCTION set_updated_at()",
+        )
+        for table in with_updated_at
+    }
+    assert "NEW.updated_at = clock_timestamp();" in function
 
 
 def test_the_comparison_catches_model_drift(migrated_url, from_models_url):

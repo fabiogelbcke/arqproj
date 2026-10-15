@@ -19,8 +19,6 @@ from sqlalchemy.engine import make_url
 DEV_DATABASE = "arqproj_dev"
 TEST_DATABASE = "arqproj_test"
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
-# Connection options that can name a destination other than the URL's host part.
-_HOST_OPTIONS = ("host", "hostaddr")
 
 
 def _is_local(host: str) -> bool:
@@ -28,29 +26,36 @@ def _is_local(host: str) -> bool:
     return host in LOCAL_HOSTS or host.startswith("/")
 
 
-def effective_hosts(url: str) -> list[str]:
-    """Every destination the driver could connect to for this URL.
+def _option(parsed, name: str) -> list[str]:
+    values = parsed.query.get(name) or ()
+    return [
+        part
+        for value in ((values,) if isinstance(values, str) else values)
+        for part in value.split(",")
+    ]
 
-    libpq takes the destination from the URL's host, but `?host=` and `?hostaddr=`
-    override it, a `?service=` (or PGSERVICE) names an entry in a settings file
-    that can point anywhere, and with no host at all PGHOST/PGHOSTADDR decide.
-    An empty list means the default local Unix socket.
+
+def effective_hosts(url: str) -> list[str]:
+    """Every destination libpq could connect to for this URL.
+
+    libpq fills each connection parameter independently: from the connection
+    string (the URL's host, or `?host=`), or else from its environment variable.
+    So `host` falls back to PGHOST only when the URL gives none, while `hostaddr`
+    (the address actually dialled) comes from `?hostaddr=` or else PGHOSTADDR,
+    even when the URL names localhost. A `?service=` or PGSERVICE names an entry in
+    a settings file that can point anywhere, so it is refused outright. An empty
+    list means the default local Unix socket.
     """
     parsed = make_url(url)
     if "service" in parsed.query or os.environ.get("PGSERVICE"):
         raise SystemExit("Refusing a database service name: it can point to any server")
-    hosts: list[str] = []
-    for option in _HOST_OPTIONS:
-        values = parsed.query.get(option) or ()
-        for value in (values,) if isinstance(values, str) else values:
-            hosts += value.split(",")
-    if parsed.host:
-        hosts += parsed.host.split(",")
-    if not hosts:
-        for variable in ("PGHOST", "PGHOSTADDR"):
-            if os.environ.get(variable):
-                hosts += os.environ[variable].split(",")
-    return [host.strip() for host in hosts if host.strip()]
+    hosts = _option(parsed, "host") + (parsed.host.split(",") if parsed.host else [])
+    if not hosts and os.environ.get("PGHOST"):
+        hosts = os.environ["PGHOST"].split(",")
+    hostaddrs = _option(parsed, "hostaddr")
+    if not hostaddrs and os.environ.get("PGHOSTADDR"):
+        hostaddrs = os.environ["PGHOSTADDR"].split(",")
+    return [host.strip() for host in hosts + hostaddrs if host.strip()]
 
 
 def require_local(url: str) -> None:
@@ -72,7 +77,11 @@ async def require_local_server(connection) -> None:
 
 
 def _admin_connection() -> psycopg.Connection:
-    return psycopg.connect("host=localhost port=5432 dbname=postgres", autocommit=True)
+    # Every destination parameter given explicitly, so no PG* environment variable
+    # or service file can redirect this connection to another machine.
+    return psycopg.connect(
+        "host=localhost hostaddr=127.0.0.1 port=5432 dbname=postgres", autocommit=True
+    )
 
 
 def create_database(name: str) -> bool:
