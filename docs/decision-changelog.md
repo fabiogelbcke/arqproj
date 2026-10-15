@@ -53,9 +53,12 @@ plan that Fabio relayed.
   detail presets seeded as Portuguese text. *Why:* stored Portuguese labels
   cannot be translated; Fabio scoped translation to the product's text and its
   standard options.
-- **A27 (new): typed details and a project type field.** *Was:* project type
-  and details were free label/value pairs. *Why:* the prototype sorts and labels
-  projects by type, and formats areas and dates.
+- **A27 (new): typed details and a project type field, built-ins only for the
+  pilot.** *Was:* project type and details were free label/value pairs, with
+  office-defined presets. *Why:* the prototype sorts and labels projects by type,
+  and formats areas and dates. Office-defined details and types were deferred
+  (Fabio): they add a definitions table, a "built-in or custom" rule and an
+  options editor, and can be added later without converting existing rows.
 - **A28 (new): one feed of client-visible events.** *Was:* `publication_events`
   for email only. *Why:* the prototype's "latest updates" panel and "last
   updated" date need the same events, including notes and meeting changes.
