@@ -25,10 +25,47 @@ Before finishing:
 - Follow existing code conventions.
 - Avoid unnecessary refactoring.
 - Explain significant architectural changes before making them.
+- Keep safeguards proportional to the real risk in our setup (Cloud Run,
+  Cloud SQL, a handful of offices, a small team). Prefer one simple check that
+  covers the real failure over many checks for unusual configurations.
+
+### Searching code
+
+When Jev is available (for example in Claude Code or the Codex CLI), use it to
+locate code by behaviour or to check a property across many files. Scope searches
+to the relevant directories when known, then read the matching sections. Use
+ordinary text search for exact names. Read enough surrounding code to make edits
+safely. If Jev fails, report it.
+
+### Runtime code vs one-off code (`backend/`)
+
+Code the running app executes lives apart from code that runs once or only by
+hand, so a reader of the app's code sees only what actually runs:
+
+- **Runtime** (loaded by the app): `backend/app.py`, `settings.py`, `db/`,
+  `tenancy/`, `web/`, and later feature packages.
+- **Migrations** (`backend/migrations/`): Alembic versions, plus
+  `snippets.py` (SQL to paste into new migrations) and `registry.py`.
+  A migration writes its SQL out in full and never imports helpers from app
+  code, so it replays exactly as it first ran.
+- **Commands** (`backend/commands/`): run by a developer or a release step,
+  e.g. local database setup, seeding, provisioning.
+
+One-off code may import runtime code, never the reverse. A test fails if the app
+loads anything from `backend/migrations/` or `backend/commands/`.
 
 ## Testing
 
-- Add or update automated tests for changed functionality.
+- Add or update automated tests for changed functionality. Be thorough about
+  behaviour: what the code does, its edge cases and failure paths, and the rules
+  that later changes could break (for example "every office table is isolated").
+- Do not test fixed values for their own sake: constants, default literals,
+  exact copies of SQL or strings that merely restate the implementation. Such
+  tests break on harmless edits and catch nothing. Test the behaviour that
+  depends on them instead.
+- A regression test for a bug should fail on the code before the fix; check it.
+  A test of a safety rule should include a self-test showing it catches a
+  violation, so it cannot silently stop working.
 - Run relevant tests after making changes.
 - Run the production build and check for errors.
 - Fix any test failures introduced by the changes.
@@ -184,6 +221,33 @@ committed here.
   the plan's structure, say so rather than creating a second source of truth.
 - Any copy of these documents outside the repository — for example in a claude.ai
   project — is a stale mirror. Read the repo.
+
+## Code review (Codex)
+
+Pull requests for the rewrite go into the `staging` branch. Codex reviews them on
+GitHub (comment `@codex review`; marking a draft ready does not reliably trigger
+it). When the review rounds end, the pull request goes to Fabio, who reviews and
+merges.
+
+How many rounds:
+
+- Request another review after fixes while the last round found something that
+  was fixed because it was serious or realistic for our setup. Declined or
+  marginal findings do not count.
+- Stop when a round brings only declined or marginal findings, or comes back
+  clean (👍).
+- A serious (P1) finding always gets one more round after its fix.
+- Hard stop after 4 rounds. If real issues are still appearing, the pull request
+  is too big or its design is unsettled: pause and discuss it with Fabio.
+- Scale with the risk: security and data-isolation work follows the rules above;
+  documentation-only or file-move pull requests get one review, and a
+  documentation-only change after a clean review needs none.
+
+- Fix serious findings and those realistic for our actual setup.
+- Do not implement findings that are nitpicky, guard against configurations we
+  never create, or would add code without real benefit. Reply on the comment
+  explaining why, and list it in the pull request description.
+- Reproduce a finding before fixing it.
 
 ## User-facing errors
 

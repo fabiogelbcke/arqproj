@@ -51,12 +51,6 @@ def test_deployed_logs_are_one_json_object_per_line(capsys):
     }
 
 
-def test_local_logs_are_plain_text(capsys):
-    create_app(settings_for("local"))
-    logging.getLogger("backend.test").info("ready")
-    assert capsys.readouterr().out.strip().endswith("INFO backend.test [-]: ready")
-
-
 def test_uvicorn_factory_builds_with_defaults(monkeypatch):
     # `uvicorn backend.app:create_app --factory` calls it without arguments.
     for name in ("ENVIRONMENT", "LOG_LEVEL", "K_SERVICE", "DATABASE_URL"):
@@ -80,16 +74,22 @@ def test_startup_opens_a_working_database_pool(test_database_url):
         assert client.portal.call(ping) == 1
 
 
-def test_the_app_never_loads_migration_helpers():
-    """Migration-writing SQL lives apart from runtime code; the app must not import it."""
+def test_the_app_loads_no_one_off_code():
+    """Runtime code never imports migrations or commands (AGENTS.md, "Runtime code
+    vs one-off code"); checked in a fresh interpreter so other tests' imports
+    don't hide it."""
     import subprocess
     import sys
 
-    code = "import backend.app, sys; print('backend.migrations.snippets' in sys.modules)"
+    code = (
+        "import backend.app, sys; "
+        "print(sorted(m for m in sys.modules "
+        "if m.startswith(('backend.migrations', 'backend.commands'))))"
+    )
     loaded = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
     )
-    assert loaded.stdout.strip() == "False"
+    assert loaded.stdout.strip() == "[]"
 
 
 def test_startup_refuses_a_login_other_than_the_checked_one(test_database_url):

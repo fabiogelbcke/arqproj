@@ -15,7 +15,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
-from backend.db.registry import metadata
+from backend.migrations.registry import metadata
 from backend.settings import Settings
 
 config = context.config

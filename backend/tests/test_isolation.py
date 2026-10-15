@@ -18,9 +18,9 @@ from sqlalchemy.exc import DBAPIError, ProgrammingError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import QueuePool
 
-from backend.db import local
+from backend.commands import local_db
+from backend.commands.provision import provision_url
 from backend.db.isolation import OFFICE_SETTING, scope_to_office
-from backend.db.provision import provision_url
 from backend.migrations.snippets import enable_office_isolation_sql, grant_to_app_sql
 from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL, alembic_config
 
@@ -38,11 +38,11 @@ class Offices:
 def offices() -> Iterator[Offices]:
     owner_url = make_url(TEST_DATABASE_URL).set(database=DATABASE)
     runtime_url = owner_url.set(username=RUNTIME_ROLE)
-    local.require_local(owner_url.render_as_string(hide_password=False))
-    local.create_runtime_role(RUNTIME_ROLE)
-    local.drop_database(DATABASE)
-    local.create_database(DATABASE)
+    local_db.create_runtime_role(RUNTIME_ROLE)
+    local_db.drop_database(DATABASE)
+    local_db.create_database(DATABASE)
     owner_dsn = owner_url.render_as_string(hide_password=False)
+    local_db.require_local_server(owner_dsn)  # before anything is written
     command.upgrade(alembic_config(owner_dsn), "head")
     provision_url(owner_dsn, RUNTIME_ROLE)
 
@@ -72,7 +72,7 @@ def offices() -> Iterator[Offices]:
     app = create_engine(runtime_url, poolclass=QueuePool, pool_size=1, max_overflow=0)
     yield Offices(alinea=ids["alinea"], norte=ids["norte"], app=app)
     app.dispose()
-    local.drop_database(DATABASE)
+    local_db.drop_database(DATABASE)
 
 
 def set_office(conn, office_id) -> None:

@@ -8,21 +8,24 @@ or production.
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 import httpx2
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.util.exc import CommandError
 from fastapi import FastAPI
+from sqlalchemy import MetaData, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from backend.app import create_app
-from backend.db import local
-from backend.db.provision import provision_url
+from backend.commands import local_db
+from backend.commands.provision import provision_url
+from backend.migrations.snippets import CURRENT_TENANT_FUNCTION_SQL
 from backend.settings import LOCAL_RUNTIME_ROLE, Settings
 
 TEST_DATABASE_URL = os.environ.get(
@@ -46,15 +49,28 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
+def prepare_database(url: str) -> None:
+    """Create (or recreate) a local test database, check it really is local, migrate
+    it and give the app login access. A database left at a migration this branch
+    does not have (from working on another branch) is rebuilt automatically."""
+    name = make_url(url).database
+    local_db.create_runtime_role(RUNTIME_ROLE)
+    local_db.create_database(name)
+    local_db.require_local_server(url)  # before anything is written
+    try:
+        command.upgrade(alembic_config(url), "head")
+    except CommandError as error:
+        if "Can't locate revision" not in str(error):
+            raise
+        local_db.drop_database(name)
+        local_db.create_database(name)
+        command.upgrade(alembic_config(url), "head")
+    provision_url(url, RUNTIME_ROLE)
+
+
 @pytest.fixture(scope="session")
 def test_database_url() -> str:
-    """Create the test database if needed and bring it to the latest migration."""
-    local.require_local(TEST_DATABASE_URL)
-    local.create_runtime_role(RUNTIME_ROLE)
-    local.create_database(make_url(TEST_DATABASE_URL).database)
-    local.require_local_server_before_use(TEST_DATABASE_URL)  # before any migration
-    command.upgrade(alembic_config(TEST_DATABASE_URL), "head")
-    provision_url(TEST_DATABASE_URL, RUNTIME_ROLE)
+    prepare_database(TEST_DATABASE_URL)
     return TEST_DATABASE_URL
 
 
@@ -64,7 +80,6 @@ async def db_connection(test_database_url: str) -> AsyncIterator[AsyncConnection
     engine = create_async_engine(test_database_url, poolclass=NullPool)
     async with engine.connect() as connection:
         transaction = await connection.begin()
-        await local.require_local_server(connection)
         try:
             yield connection
         finally:
@@ -104,3 +119,34 @@ async def client(app: FastAPI) -> AsyncIterator[httpx2.AsyncClient]:
     transport = httpx2.ASGITransport(app=app)
     async with httpx2.AsyncClient(transport=transport, base_url="http://testserver") as c:
         yield c
+
+
+# -- throwaway databases for migration and schema tests --------------------
+
+
+def _scratch(name: str) -> Iterator[str]:
+    url = make_url(TEST_DATABASE_URL).set(database=name).render_as_string(hide_password=False)
+    local_db.drop_database(name)
+    local_db.create_database(name)
+    local_db.require_local_server(url)  # before any migration
+    yield url
+    local_db.drop_database(name)
+
+
+@pytest.fixture
+def migrated_url() -> Iterator[str]:
+    yield from _scratch("arqproj_test_migrations")
+
+
+@pytest.fixture
+def from_models_url() -> Iterator[str]:
+    yield from _scratch("arqproj_test_models")
+
+
+def build_from_models(url: str, source: MetaData) -> None:
+    engine = create_engine(url)
+    with engine.begin() as connection:
+        # Office-owned models default tenant_id to this function, so it must exist.
+        connection.execute(text(CURRENT_TENANT_FUNCTION_SQL))
+        source.create_all(connection)
+    engine.dispose()

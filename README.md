@@ -238,10 +238,10 @@ the current app and does not change what production serves.
 
 ```bash
 brew install postgresql@17 && brew services start postgresql@17   # once
-uv run python -m backend.db.local setup                    # arqproj_dev, arqproj_test and the arqproj_app login
+uv run python -m backend.commands.local_db setup                    # arqproj_dev, arqproj_test and the arqproj_app login
 uv run alembic -c backend/alembic.ini upgrade head          # apply migrations to arqproj_dev
-uv run python -m backend.db.provision                      # give the app login its access
-uv run python -m backend.tenancy.seed                      # two fictional offices (see below)
+uv run python -m backend.commands.provision                      # give the app login its access
+uv run python -m backend.commands.seed                      # two fictional offices (see below)
 uv run uvicorn backend.app:create_app --factory --reload   # → http://127.0.0.1:8000/health
 uv run pytest                                              # backend tests (migrate arqproj_test themselves)
 uv run ruff check backend && uv run ruff format --check backend
@@ -258,7 +258,7 @@ Two logins: the app connects as `arqproj_app` (`DATABASE_URL`), a restricted rol
 that PostgreSQL row-level security applies to; migrations and the seed command use
 the owner (`MIGRATION_DATABASE_URL`, locally your own PostgreSQL user).
 Migrations grant privileges to a group role named after the database
-(`arqproj_dev_app`); `backend.db.provision` (run after migrations) makes the
+(`arqproj_dev_app`); `backend.commands.provision` (run after migrations) makes the
 `DATABASE_RUNTIME_ROLE` login its only member, so changing the login is a re-run
 of that command, not a migration. Migrations write their SQL out in full rather
 than importing it from app code. Every table

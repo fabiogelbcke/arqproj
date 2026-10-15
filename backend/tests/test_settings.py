@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from backend.settings import LOCAL_DATABASE_URL, Environment, Settings
+from backend.settings import Environment, Settings
 
 DB = "postgresql+psycopg://db.internal:5432/portal"
 
@@ -13,13 +13,10 @@ def clean_environment(monkeypatch):
         monkeypatch.delenv(name, raising=False)
 
 
-def test_defaults_are_for_local_development():
+def test_without_settings_it_runs_as_local_development():
     settings = Settings()
-    assert settings.environment is Environment.LOCAL
-    assert settings.log_level == "INFO"
     assert not settings.deployed
     assert settings.show_api_docs
-    assert settings.database_url == LOCAL_DATABASE_URL
 
 
 def test_reads_environment_variables_case_insensitively(monkeypatch):

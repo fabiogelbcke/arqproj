@@ -1,6 +1,6 @@
 """Give the app's login its privileges, by membership of the database's group role.
 
-    uv run python -m backend.db.provision
+    uv run python -m backend.commands.provision
 
 Run after migrations (locally, and as a release step when deployed). Connects as
 the owner (MIGRATION_DATABASE_URL) and makes DATABASE_RUNTIME_ROLE the one member

@@ -1,6 +1,6 @@
 """Two fictional offices for local development.
 
-    uv run python -m backend.tenancy.seed
+    uv run python -m backend.commands.seed
 
 Then open http://alinea.localhost:8000/ and http://norte.localhost:8000/ (browsers
 send every *.localhost address to this machine). Safe to run repeatedly. Only
@@ -15,7 +15,7 @@ import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from backend.db import local
+from backend.commands import local_db
 from backend.settings import Settings
 from backend.tenancy.models import Tenant, TenantDomain
 
@@ -56,10 +56,9 @@ async def seed(session: AsyncSession) -> list[str]:
 async def main() -> None:
     # Offices are created by the owner: the app's own login can only read them.
     url = Settings().migration_database_url
-    local.require_local(url)
+    local_db.require_local_server(url)  # before writing anything
     engine = create_async_engine(url)
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        await local.require_local_server(session)
         added = await seed(session)
     await engine.dispose()
     print("Added: " + ", ".join(added) if added else "Nothing to add; already seeded.")

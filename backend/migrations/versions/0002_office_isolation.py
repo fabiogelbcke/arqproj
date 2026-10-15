@@ -8,7 +8,7 @@ SQL is written out here rather than imported from application code that may chan
 
 Grants go to a group role named after the database (`<database>_app`, NOLOGIN),
 never to a specific login. The app's login is made a member of it by
-`python -m backend.db.provision`, run after migrations; rotating the login is a
+`python -m backend.commands.provision`, run after migrations; rotating the login is a
 re-run of that command, not a migration. Naming the role after the database keeps
 staging and production apart when they share one PostgreSQL instance.
 """

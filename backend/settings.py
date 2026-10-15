@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     database_url: str = LOCAL_DATABASE_URL
     # The owner login, used only by migrations and local admin commands.
     migration_database_url: str = LOCAL_MIGRATION_DATABASE_URL
-    # The login DATABASE_URL uses; `backend.db.provision` makes it a member of the
+    # The login DATABASE_URL uses; `backend.commands.provision` makes it a member of the
     # database's app group role, which holds the privileges migrations grant.
     database_runtime_role: str = LOCAL_RUNTIME_ROLE
     # Lets Cloud Logging group a request's log lines by trace. Optional.
