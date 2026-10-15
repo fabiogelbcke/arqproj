@@ -10,6 +10,7 @@ import logging
 import os
 import re
 from enum import StrEnum
+from pathlib import Path
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -44,6 +45,11 @@ class Settings(BaseSettings):
     database_runtime_role: str = LOCAL_RUNTIME_ROLE
     # Lets Cloud Logging group a request's log lines by trace. Optional.
     google_cloud_project: str | None = None
+    # Identifies the release; sent as X-Build-Id so open staff-app tabs notice a
+    # new deploy. The image build sets it (step 1.7); "dev" locally.
+    build_id: str = "dev"
+    # The staff app's build (`npm run build` in frontend/).
+    frontend_dist: str = str(Path(__file__).resolve().parent.parent / "frontend" / "dist")
 
     @field_validator("log_level")
     @classmethod

@@ -77,3 +77,7 @@ $RECYCLE.BIN/
 spike/.tokens.json
 spike/__pycache__/
 spike/
+
+# Staff app (frontend/) build and browser-test output
+frontend/test-results/
+frontend/playwright-report/

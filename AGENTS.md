@@ -78,8 +78,9 @@ loads anything from `backend/migrations/` or `backend/commands/`.
 - Run the production build and check for errors.
 - Fix any test failures introduced by the changes.
 - If tests cannot run, explain why.
-- For changes under `backend/`, also run `uv run pytest` and
-  `uv run ruff check backend && uv run ruff format --check backend`.
+- For changes under `backend/` or `frontend/`, run `make test` and `make lint`;
+  for changes to the staff app's screens or how it is served, also `make e2e`.
+  After an API change, run `make api-types` and commit the regenerated files.
 - When the current app's libraries change, update both `requirements.txt`
   (production deploys from it) and the `legacy` group in `pyproject.toml`.
 - Run the complete existing local suite with `.venv/bin/python -m tools.test_local`.

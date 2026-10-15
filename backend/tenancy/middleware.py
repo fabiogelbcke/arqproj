@@ -18,6 +18,8 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from backend.tenancy.resolve import resolve
 
 EXEMPT_PATHS = frozenset({"/health", "/api/docs", "/api/openapi.json"})
+# The staff app's built files are the same for every tenant: no lookup per file.
+EXEMPT_PREFIXES = ("/painel/assets/",)
 REDIRECT_MAX_AGE = 86400  # one day
 
 
@@ -26,7 +28,8 @@ class TenantMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or scope["path"] in EXEMPT_PATHS:
+        path = scope.get("path", "")
+        if scope["type"] != "http" or path in EXEMPT_PATHS or path.startswith(EXEMPT_PREFIXES):
             await self.app(scope, receive, send)
             return
 

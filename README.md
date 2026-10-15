@@ -232,21 +232,29 @@ Use real Drive mode to verify actual Google-native exports and permissions.
 
 ## New backend (`backend/`)
 
-The multi-tenant rewrite lives in `backend/` (Python, FastAPI) and, later,
-`frontend/` (the React staff app). See `docs/rewrite-steps.md`. It runs alongside
-the current app and does not change what production serves.
+The multi-tenant rewrite lives in `backend/` (Python, FastAPI) and `frontend/`
+(the React staff app, "painel"). See `docs/rewrite-steps.md`. It runs alongside
+the current app and does not change what production serves. Everyday commands
+are in the `Makefile` (`make help` lists them):
 
 ```bash
 brew install postgresql@17 && brew services start postgresql@17   # once
-uv run python -m backend.commands.local_db setup                    # arqproj_dev, arqproj_test and the arqproj_app login
-uv run alembic -c backend/alembic.ini upgrade head          # apply migrations to arqproj_dev
-uv run python -m backend.commands.provision                      # give the app login its access
-uv run python -m backend.commands.seed                      # two fictional offices (see below)
-uv run python -m backend.commands.staff add --tenant alinea --email you@example.com --name You --role owner
-uv run uvicorn backend.app:create_app --factory --reload   # → http://127.0.0.1:8000/health
-uv run pytest                                              # backend tests (migrate arqproj_test themselves)
-uv run ruff check backend && uv run ruff format --check backend
+make setup        # packages, local databases, migrations, app access, two fictional offices
+make staff TENANT=alinea EMAIL=you@example.com NAME=You ROLE=owner   # prints an invite link
+make dev          # backend + staff app with live reload → http://alinea.localhost:5173/painel
+make serve        # the built app, as deployed         → http://alinea.localhost:8000/painel
+make test         # backend tests, staff app tests, API types up to date
+make e2e          # browser tests against the built app on a fresh local database
+make lint
 ```
+
+Open the invite link (with `make dev`, change its port to 5173) to choose a
+password; the painel then shows the office's projects (an empty list until step 2).
+After changing the API, run `make api-types`: the staff app's TypeScript types are
+generated from the backend's OpenAPI description (`frontend/src/api/`), and
+`make test` fails while they are stale. Texts shown to people live in
+`backend/i18n/<language>.json`, shared by the server and the staff app; a test
+fails if a language lacks a text.
 
 The office is chosen by the exact hostname of each request (`tenant_domains`).
 Locally, every `*.localhost` address reaches this machine: the seed creates

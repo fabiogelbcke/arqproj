@@ -199,6 +199,24 @@ React painel. No client-visible features yet.
   **built** app served by FastAPI: log in, see "Projetos", reload a deep link.
 - **Review:** project structure, the generated API client, how the shell is
   served and cached.
+- **As built:** Vite 8, React 19, TypeScript 5.9 (strict; 7 is out but the type
+  generator needs 5's compiler API), React Router 8, TanStack Query 5,
+  openapi-fetch with types from `openapi-typescript`, i18next reading
+  `backend/i18n/*.json`, React Aria Components for accessible base pieces in
+  `frontend/src/ui/`, CSS modules with the prototype's tokens, Hanken Grotesk
+  self-hosted. Screens: sign-in (`/painel/entrar`), choose password
+  (`/painel/definir-senha#token=…`, token removed from the address bar), Projetos
+  (empty), not found; sign-out; light/dark per device. Served by
+  `backend/web/painel.py`: shell never cached, `assets/` cached a year, a missing
+  asset is a 404 (not the shell). `X-Build-Id` on every response; a different
+  release build or a failed file load shows a reload prompt. `GET /api/tenant`
+  gives the office's name and language before sign-in. A `Makefile` wraps setup,
+  dev, test, e2e and API-type generation. Tests: Vitest + Testing Library for the
+  screens (fake API), pytest for serving, translations (every language has every
+  text; every error code, role and language is translated) and API-description
+  freshness, Playwright against the built app served by Python on a fresh database
+  (`backend.commands.e2e`). Editing components shared with the client page: the
+  `ui/` folder is ready; the second bundle comes with project editing.
 
 ### Step 1.7: Container, CI and staging deploy
 
