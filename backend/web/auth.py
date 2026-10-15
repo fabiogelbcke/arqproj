@@ -14,6 +14,7 @@ from __future__ import annotations
 import hmac
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import anyio
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -62,8 +63,20 @@ def _not_signed_in() -> HTTPException:
     return HTTPException(401, detail={"error": "not_signed_in"})
 
 
+def _set_cookie(request: Request, response: Response, token: str, expires_at: datetime) -> None:
+    response.set_cookie(
+        COOKIE,
+        token,
+        max_age=max(0, int((expires_at - datetime.now(UTC)).total_seconds())),
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=request.app.state.settings.deployed,
+    )
+
+
 async def current_staff(
-    request: Request, db: AsyncSession = Depends(get_tenant_session)
+    request: Request, response: Response, db: AsyncSession = Depends(get_tenant_session)
 ) -> CurrentStaff:
     """The signed-in staff member of this tenant, or 401."""
     token = request.cookies.get(COOKIE)
@@ -72,6 +85,9 @@ async def current_staff(
         raise _not_signed_in()
     row, user = found
     await db.commit()  # keeps an extended expiry, if find_active extended it
+    # The browser keeps the cookie as long as the session lives, so an active
+    # person is not signed out 30 days after signing in.
+    _set_cookie(request, response, token, row.expires_at)
     return CurrentStaff(user.id, user.email, user.name, user.role, row.id, row.csrf_token)
 
 
@@ -108,21 +124,10 @@ async def sign_in(
     # Same work and the same answer whether the email or the password is wrong.
     if not await verify_password(user.password_hash if user else None, body.password):
         await anyio.sleep(FAILED_LOGIN_DELAY)
-        raise HTTPException(
-            401,
-            detail={"error": "invalid_credentials", "message": "E-mail ou senha incorretos."},
-        )
+        raise HTTPException(401, detail={"error": "invalid_credentials"})
     token, row = await sessions.start(db, user)
     await db.commit()
-    response.set_cookie(
-        COOKIE,
-        token,
-        max_age=int(sessions.LIFETIME.total_seconds()),
-        path="/",
-        httponly=True,
-        samesite="lax",
-        secure=request.app.state.settings.deployed,
-    )
+    _set_cookie(request, response, token, row.expires_at)
     return _me(user.email, user.name, user.role, tenant, row.csrf_token)
 
 
@@ -135,6 +140,7 @@ async def sign_out(
     row = await db.get(LoginSession, staff.session_id)
     await sessions.revoke(db, row)
     await db.commit()
+    del response.headers["set-cookie"]  # current_staff's refresh of the same cookie
     response.delete_cookie(COOKIE, path="/")
 
 

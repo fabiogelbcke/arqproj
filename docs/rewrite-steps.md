@@ -157,8 +157,13 @@ React painel. No client-visible features yet.
   API: `POST /api/session` (sign in), `DELETE /api/session` (sign out),
   `GET /api/me`; dependencies `current_staff` and `require_csrf` (token per
   session, sent back in `X-CSRF-Token`). A wrong email and a wrong password get
-  the same answer after the same work (a dummy hash) plus a fixed 1-second delay;
-  real rate limiting is deferred. Accounts are created with
+  the same answer after the same work (a dummy hash) plus a fixed 1-second delay,
+  and at most 4 password checks run at once per instance (each takes 64 MiB).
+  The cookie is re-sent with the session's current expiry on each signed-in
+  request. Errors return only a code (`invalid_credentials`); the screens
+  translate it. **Still open:** limits on attempts per account and per source
+  (plan section 5), deliberately deferred; needed before offices other than the
+  first can sign in. Accounts are created with
   `backend.commands.staff` (`add`, `set-password`; prompts for the password)
   through `backend.identity.accounts`, which a sign-up page can reuse later.
 

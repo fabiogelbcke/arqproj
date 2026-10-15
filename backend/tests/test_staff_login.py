@@ -151,10 +151,22 @@ async def test_using_a_session_keeps_it_alive(client, db_session, staff):
             last_seen_at=a_while_ago, expires_at=a_while_ago + timedelta(days=1)
         )
     )
-    assert (await client.get("/api/me", headers={"host": "alinea.localhost"})).status_code == 200
+    me = await client.get("/api/me", headers={"host": "alinea.localhost"})
+    assert me.status_code == 200
     row = await db_session.scalar(select(LoginSession))
     await db_session.refresh(row)
     assert row.expires_at > datetime.now(UTC) + timedelta(days=29)
+    # The browser's cookie is extended too, or it would expire first.
+    max_age = int(me.headers["set-cookie"].lower().split("max-age=")[1].split(";")[0])
+    assert max_age > timedelta(days=29).total_seconds()
+
+
+async def test_signing_out_removes_the_cookie(client, staff):
+    csrf = (await sign_in(client)).json()["csrf_token"]
+    await client.delete(
+        "/api/session", headers={"host": "alinea.localhost", auth.CSRF_HEADER: csrf}
+    )
+    assert auth.COOKIE not in client.cookies
 
 
 async def test_only_a_hash_of_the_token_is_stored(client, db_session, staff):
