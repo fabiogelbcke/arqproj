@@ -17,6 +17,7 @@ from flask import Flask, Response, abort, flash, redirect, render_template, requ
 from arq import i18n, oauth_drive, site_settings
 from arq.drive import Drive, DriveFile, NotDownloadable
 from arq.google_auth import get_auth
+from arq.legal import LEGAL
 from arq.config import slugify
 from arq.projects import ProjectStore
 
@@ -131,6 +132,15 @@ def create_app(store: ProjectStore | None = None) -> Flask:
     def landing():
         projects = sorted(store.index().values(), key=lambda p: p.title.lower()) if show_index else []
         return render_template("landing.html", projects=projects)
+
+    # Linked from Google's OAuth consent screen, which requires both.
+    @app.get("/privacidade")
+    def privacy():
+        return render_template("legal/privacy.html", legal=LEGAL)
+
+    @app.get("/termos")
+    def terms():
+        return render_template("legal/terms.html", legal=LEGAL)
 
     @app.get("/healthz")
     def healthz():
