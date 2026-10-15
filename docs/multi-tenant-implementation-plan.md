@@ -94,10 +94,10 @@ its affected tests before coding proceeds.
 | A06 | Public or password-protected project access | Agreed; no mandatory client account for the pilot |
 | A07 | Atomic DB creation plus recoverable Drive provisioning | Recommended implementation of an all-or-nothing customer experience |
 | A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules. Revised by A25: clear `vN` names still group automatically |
-| A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: hourly authenticated endpoint in the web service, with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
+| A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: an authenticated maintenance endpoint in the web service, called every 10 minutes (15 Oct 2026, was hourly), with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
 | A10 | Incremental Drive sync, initially polled; reconciliation as repair | Recommended; webhooks can accelerate later without becoming a correctness dependency |
 | A11 | Streaming proxy for private Drive content; optional Drive links | Recommended; clients need not have Google accounts or Drive sharing permissions |
-| A12 | Email first, trailing "settle" window: send once uploads stop | Revised 14 Oct 2026 from a fixed 60-minute window. 45-minute quiet period, 2-hour maximum hold, configurable per office. See section 14 and the [changelog](decision-changelog.md) |
+| A12 | Email first, trailing "settle" window: send once uploads stop | Revised 14 Oct 2026 from a fixed 60-minute window. 45-minute quiet period, 2-hour maximum hold from the first publication, configurable per office. Clarified 15 Oct 2026: a batch becomes *due* by these rules and is *sent* by the next maintenance run (every 10 minutes); the delay prevents an email about withdrawn files, it does not hide them. See section 14 and the [changelog](decision-changelog.md) |
 | A13 | Protected main, staging and approved promotion of one build | Recommended; environments are separate without requiring permanent divergent code branches |
 | A14 | Same PostgreSQL engine locally and in production | Recommended; SQLite cannot validate the intended constraints, queue locks or row policies |
 | A15 | Cloud Run web with bounded maintenance execution | Proposed hosting continuation; POC can run maintenance in the same service. Actual infrastructure requires separate approval |
@@ -108,9 +108,14 @@ its affected tests before coding proceeds.
 | A20 | Client pages server-rendered with Jinja; staff administration as a React + TypeScript app built with Vite, served by the same FastAPI service on the same origin | Agreed direction 14 Oct 2026, replacing "Jinja for all UI, no separate frontend application". Staff screens (file manager, uploads, invitations, settings, connection health) are stateful enough to justify a component framework; client pages stay fast, simple and link-preview friendly. One image, one Cloud Run service, no Node at runtime. See sections 4 and 17 and the [changelog](decision-changelog.md) |
 | A21 | Office address scheme | **Open, two options recorded.** A: office subdomains behind a global load balancer (agreed requirement; ~$18.25/month fixed plus processing). B: one domain with office paths (no load-balancer fee, but every no-load-balancer front door has a production caveat). Options and consequences in section 4; decide before DNS/OAuth registration and before any client link is shared |
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
-| A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain |
-| A24 | Minimal project creation; editing in the painel and in a staff edit mode on the project page | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus an optional stage template. Details, stages, stage progress, meeting and files are edited later. Uploads happen per stage on the project page; a full file browser in the painel is optional, not a pilot requirement. See section 10 |
-| A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original is shown as v1. See section 12 |
+| A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
+| A24 | Minimal project creation; editing in the painel and in a staff edit mode on the project page | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus an optional stage template. Details, stages, stage progress, meeting and files are edited later. Uploads happen per stage on the project page; a full file browser in the painel is optional, not a pilot requirement. Extended 15 Oct 2026 (prototype review): the cover can also be changed from the painel project card. See section 10 |
+| A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original is shown as v1. Refined 15 Oct 2026: the client page shows the clean name with a separate version badge, while the copy in Drive carries the version (`Planta v3.pdf`); grouping only within one folder; clashes are flagged, never merged; current = highest version. See section 12 and the [changelog](decision-changelog.md) |
+| A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Built-in project types, detail types, standard details, built-in stages and their explanations are enums whose words live in one translation catalog per language, shared by the server and the staff app; the database stores keys with a CHECK. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
+| A27 | Typed project details; project type as its own field; built-in details and types only for the pilot | Agreed 15 Oct 2026 (prototype review). Details are text, choice, area (m²) or date, formatted per language. Project type is a column with four built-in types (architecture, interiors, renovation, landscaping), defaulting from the stage template. The pilot offers only built-in details and types; office-defined ones are a later addition (an optional custom label beside the built-in key; existing rows need no conversion). See sections 7 and 10 |
+| A28 | One feed of client-visible project events | Agreed 15 Oct 2026 (prototype review). New files and versions, stage notes and meeting changes are recorded once as `project_events`; the client page's "latest updates" panel, the project's "last updated" date and email batching (A12) all read it. See sections 7 and 14 |
+| A29 | A project address (slug), once used, stays reserved for that project | Agreed 15 Oct 2026. Old slugs keep redirecting and can never be given to another project in the office, so an old client link cannot land on someone else's project. See section 6 |
+| A30 | Staff app and API stay compatible across a deploy | Agreed 15 Oct 2026, correcting "one revision means the staff app can never run against another API version": an open tab keeps the old code. Fingerprinted assets, a build ID on API responses, a reload prompt that keeps unsaved edits, and API changes compatible with the previous release. See section 4 |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -161,7 +166,7 @@ backend/
   app.py                 application factory, dependency wiring
   config.py              typed deployment settings; no tenant state in env
   tenancy/               hostname resolution and tenant context
-  identity/              staff login, memberships, sessions, invitations
+  identity/              staff accounts, sessions, password links
   projects/              project metadata, stages, access policies
   documents/             documents, revisions, publication and previews
   storage/               provider contract, Google adapter, fake adapter
@@ -219,7 +224,9 @@ reference for its first screens.
 ## 4. Deployment shape and data flow
 
 **POC simplification under discussion:** following the cost review, first evaluate
-one web deployment with an authenticated maintenance endpoint called hourly. The
+one web deployment with an authenticated maintenance endpoint called every 10
+minutes (A09; Cloud Scheduler charges per job, not per run, and Cloud SQL is
+always on, so a shorter interval costs nothing extra). The
 worker below is a logical function and need not be a separate deployed service.
 The fuller queue and wildcard load-balancer design remains an alternative, not
 a prerequisite for the POC. Domain routing is now an explicit open decision with
@@ -297,9 +304,17 @@ COPY --from=frontend /frontend/dist backend/static/frontend
 CMD ["sh", "-c", "uvicorn backend.app:create_app --factory --host 0.0.0.0 --port $PORT"]
 ```
 
-Client pages, API and staff app always ship together in one revision, so the
-staff app can never run against an API version it was not built for, and a Cloud
-Run rollback reverts all three at once. `gcloud run deploy --source` builds from
+Client pages, API and staff app always ship together in one revision, and a Cloud
+Run rollback reverts all three at once. That does **not** keep an already-open
+browser tab in step (A30): it keeps running the previous build's JavaScript, calls
+the new API, and may request lazily loaded files the new revision no longer has.
+So: built assets have fingerprinted names (Vite's default) and are cached for a
+long time, while the app shell is never cached; every API response carries the
+build ID; when the staff app sees a newer build, or fails to load one of its own
+files, it offers "Nova versão disponível — recarregar" without discarding unsaved
+edits; and API changes stay compatible with the previous release (add fields,
+do not repurpose or remove them in the same release). Keeping the previous
+build's assets available for a few days is a later option if reloads annoy. `gcloud run deploy --source` builds from
 a root `Dockerfile` when one exists. **Adding that file therefore changes how the
 current Flask site deploys**: introduce it with the new entry point at cutover,
 or keep it outside the source-deploy path until then (section 19).
@@ -358,7 +373,7 @@ executes it. FastAPI itself does not replace any of these durable responsibiliti
 
 | Option | Technology | Benefit | Main tradeoff |
 | --- | --- | --- | --- |
-| E: revised POC proposal | One hourly Cloud Scheduler job or local cron → authenticated endpoint in the web service | One deployment; no broker/managed task queue; can let the database sleep | Slower Drive discovery; bounded work shares web resources; retain retryable state and overlap protection |
+| E: revised POC proposal | One Cloud Scheduler job (every 10 minutes) or local cron → authenticated endpoint in the web service | One deployment; no broker/managed task queue | Slower Drive discovery; bounded work shares web resources; retain retryable state and overlap protection |
 | A: original proposal | Cloud Scheduler → Cloud Run worker → PostgreSQL jobs | Few services; portable; easy to exercise against local PostgreSQL | We implement leases, retries, recovery and dispatch; minute polling keeps the DB awake and adds dispatch latency |
 | B: managed queue alternative | Cloud Tasks → Cloud Run worker, with Cloud Scheduler for recurring checks/recovery | Managed delivery retries, delayed tasks and dispatch limits; enqueue work promptly | Provider-specific adapter and cloud integration tests; SQL idempotency/outbox still required |
 | C: established Python queue | Celery with Redis/RabbitMQ, dedicated workers and Beat for recurrence | Mature Python task ecosystem; useful for substantial continuous work | Additional broker and always-running processes to operate and fund |
@@ -588,7 +603,12 @@ a project does not change its slug. Reserved paths (`painel`, `api`, `static`,
 `healthz`-style names) cannot be slugs. A slug is guessable by design: public
 mode is not a secrecy promise, and projects that need privacy use a password.
 Office staff can change a slug deliberately; the old one keeps redirecting so
-links already sent to clients do not break.
+links already sent to clients do not break. **A slug, once used, stays reserved
+for its project (A29):** current slugs and old ones (`project_slug_aliases`)
+share one namespace per office, so another project can never take an old slug
+and receive a client's old link. This holds after a project is deleted too:
+projects are soft-deleted and keep their slugs, so an old link shows "this
+project is no longer available" instead of someone else's project.
 
 For password mode, office staff set/reset the password through the panel. This
 interprets “clients can add a password” as the office/customer controlling the
@@ -626,22 +646,21 @@ The following is a logical schema specification, not a migration:
 | `tenants` | ID, display name, slug, locale, timezone, lifecycle, plan/feature settings |
 | `tenant_domains` | hostname unique, tenant ID, canonical/alias status |
 | `users` | tenant, email (unique per tenant), display name, role (owner/member), password hash (none for Google-only accounts), later identity provider + subject |
-| `invitations` | tenant, intended email, role, token hash, expiry, accepted/revoked |
+| `password_links` | tenant, user (same tenant), kind (invite/reset), token hash, expiry, used time; one-time links for people to choose their own password (step 1.5b) |
 | `sessions` | tenant, user (same tenant), token hash, CSRF token, last seen, expiry, revoked |
 | `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
-| `projects` | tenant, title, client name, cover image reference, slug (unique per tenant), status, connection, root/deliverables folder IDs, description, client display name, project type, optional professional, access mode/hash/version, current stage, row version |
-| `project_slug_aliases` | tenant, old slug, project; redirects links shared before a slug change or migration |
-| `detail_presets` | tenant, label, order, default-on flag; the office's predefined project details (Cliente, Tipo de projeto, Localização, Área do terreno, Área construída…) offered when editing a project |
-| `stage_templates` | tenant, name, ordered stage titles with optional explanation/deliverables; the default is the office's standard workflow |
-| `project_details` | tenant, project, ordered label/value fields from existing metadata |
-| `project_stages` | tenant, project, stable stage key, title, order, status, notes, bound folder ID |
-| `meetings` | tenant, project, title, start/end, timezone, location/link; supports current single meeting first |
+| `projects` | tenant, title, client name (≤ 48 characters), cover image reference, slug (unique per tenant, shared namespace with aliases), status, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), stage template used, optional professional, access mode/hash/version, current stage, last client-visible activity time (A28), row version |
+| `project_slug_aliases` | tenant, old slug, project; redirects links shared before a slug change or migration; reserved for that project (A29) |
+| `stage_templates` | tenant, name, ordered stages, each a built-in stage key or office-written title with optional explanation (what happens) and deliverables (what the client receives). Built-in templates come from code: Padrão (7 stages) and Interiores (6); offices may add their own |
+| `project_details` | tenant, project, built-in detail key (enum, A27), order, value stored by the detail's type (text, choice key, number in m², date). Built-in details and their types come from code: Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável. Pilot: built-ins only; custom details later add an optional label column (A26) |
+| `project_stages` | tenant, project, stable stage key, **either** a built-in stage key (title and explanations translated) **or** office-written title and explanations, order, status, notes and when they last changed, bound folder ID |
+| `meetings` | tenant, project, title (≤ 40), start/end (end after start), timezone, location (≤ 60), link (`http`/`https` only); supports current single meeting first |
 | `folder_bindings` | tenant, project, connection, provider folder ID, parent ID, path display, classification |
 | `storage_items` | tenant, connection, provider file ID, parent, MIME, name, size, checksum/revision metadata, observed capabilities, present/trashed state, last seen |
 | `documents` | tenant, project, logical title, stage, current revision ID, publication state |
 | `document_revisions` | tenant, document, storage item, application sequence, label, observed content marker, source, published time, availability state |
 | `project_recipients` | tenant, project, email, locale, subscription state, unsubscribe-token hash |
-| `publication_events` | tenant, project, document/revision, kind, source fingerprint, detected/published times |
+| `project_events` | tenant, project, kind (file published, new version, file withdrawn, note changed, meeting scheduled/changed/cleared), document/revision or stage reference, source fingerprint, detected/published times. Client-visible activity (A28): feeds the updates panel, the project's last-activity time and email batching |
 | `notification_batches` | tenant, project, start/due time, state; events captured in batch-item rows |
 | `notification_deliveries` | tenant, batch, recipient, idempotency key, provider ID, attempt/result timestamps |
 | `operations` / `operation_steps` | tenant, type, request key/hash, state, result IDs, provisioning progress |
@@ -669,6 +688,15 @@ context denies access. Migration and tightly controlled global scheduling roles
 are separate from request roles. Test policies through the **runtime role**, not
 only an owner connection. PostgreSQL owners/bypass roles otherwise defeat the
 intended test. [PostgreSQL row security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+
+**Built-in options and office content (A26).** A value from a fixed set is a
+Python `StrEnum` stored as text with a CHECK constraint built from the enum
+(PostgreSQL enum types are hard to change). Built-in options (project types,
+detail types and keys, built-in stages and templates) are such enums; their
+visible words live in the translation catalogs (section 16), so the database
+holds only keys. Office-written content is plain text shown as typed. Where a
+row can be either, it holds exactly one of the two (a built-in key or custom
+text), enforced by a CHECK.
 
 Use optimistic row versions for simultaneous form edits: a stale update returns
 a conflict with the latest values instead of silently replacing someone else's
@@ -722,9 +750,14 @@ reader access afterwards will pass every test where nobody uploads in between
 and fail on the first real office that does.
 
 This also sets the recovery behaviour. If a folder exists without reader access
-and already has foreign content, the share cannot be repaired in place: create a
-new folder, share it while empty, and rebind. Record this as a
-`needs_attention` outcome rather than retrying the failing call.
+and already has foreign content, **our** writer cannot repair the share, but the
+office owner usually can: ask them to share the existing folder with the reader in
+Drive (step-by-step instructions), verify the reader now sees its contents, and
+resume. Only if that fails, create a new folder, share it while empty, and rebind;
+the original may hold client files, so it is never the first resort. Record this
+as a `needs_attention` outcome rather than retrying the failing call. **To verify
+live** before writing the recovery screen: does an owner's share of the folder
+give the reader access to files others had already put inside?
 
 The reader has read-only scope and explicit sharing permission on the office's
 designated root. The writer uses the office user's refresh token with
@@ -861,7 +894,8 @@ A fault injected after database commit must not lose the creation job.
 Creating a project must take seconds. The form asks for the **project name** and
 the **client's name** (both required, both editable later), plus an optional
 stage template (the office's standard workflow is preselected). The client name
-is the main label in the painel, and drives the fallback cover below. The slug is derived from the name and editable; duplicates of an
+(at most 48 characters) is the main label in the painel; the chosen template also
+sets the default project type (A27). The slug is derived from the name and editable; duplicates of an
 existing name or slug in the office are refused with the conflicting project
 named. Everything else starts empty or from office defaults and is edited later.
 
@@ -870,12 +904,13 @@ Editable after creation, by office staff:
 | Content | Editing |
 | --- | --- |
 | Description | Plain paragraphs and `- ` bullet lines, as today |
-| Project details | Chosen from the office's `detail_presets` (Cliente, Tipo de projeto, Localização, Área do terreno, Área construída…) plus custom label/value pairs; reorder, hide empty ones |
-| Stages | Add, rename, reorder, remove (only when empty, or with explicit confirmation that its files stay in Drive); per-stage notes |
+| Project type | One of the built-in types (A27); defaults from the stage template |
+| Project details | Chosen from the built-in details (Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável), each with a fixed type (text, choice, area, date); reorder, hide empty ones. Areas and dates are formatted per language. Custom details are a later addition (A27) |
+| Stages | Add, rename, reorder, remove (only when empty, or with explicit confirmation that its files stay in Drive); per-stage notes; built-in stages carry translated explanations (what happens, what the client receives), custom stages the office's own or a generic one |
 | Progress | "Advance stage" moves the current-stage pointer; "mark complete" finishes the project. Status (done/current/upcoming) derives from the pointer |
-| Meeting | Start, end, subject, location, link; clearing it shows "no meeting scheduled" |
+| Meeting | Start, end (after start), subject (≤ 40), location (≤ 60), link (`http`/`https` only, so a pasted `javascript:` link can never run in a client's browser); clearing it shows "no meeting scheduled". Clients can add it to their calendar: a Google Calendar link and an `.ics` file generated by the server in the office's timezone |
 | Files | Upload into a stage, send a new version of a file (section 12) |
-| Cover image | Upload, replace or remove; or "set as cover" from an image file in the project. Shown on the painel project card and as a hero at the top of the client page |
+| Cover image | Upload (JPG, PNG or WebP, up to 10 MB), replace or remove, from the project page or directly from the painel project card; or "set as cover" from an image file in the project. Shown on the painel project card and at the top of the client page |
 | Access | Public or password; change slug (old slug keeps redirecting) |
 
 Where it is edited:
@@ -885,14 +920,19 @@ Where it is edited:
   the client sees it, with controls in place: edit details, stages, progress,
   meeting, notes, and upload per stage. This is the main place for day-to-day
   updates and for uploads. Name and slug are not edited here, to keep it safe.
-- **Painel.** Project list with status at a glance, project creation, the same
-  project settings in one form (including name, slug and access), office
-  settings, Drive connection and stage/detail presets.
+- **Painel.** Project list with status at a glance (current stage of how many,
+  project type, client, last client-visible activity), sortable by project type,
+  client, project name, creation date or last activity, in either direction
+  (sorted in the browser; office project counts are small). Project creation,
+  the same project settings in one form (including name, slug and access),
+  office settings, Drive connection and stage templates. Office-wide
+  problems, such as a lapsed Drive connection, show as an office notice, not on
+  each project.
 
-Without a cover, the painel shows a generated one instead of an empty
-placeholder: the client's name set over a blurred, darkened architecture photo,
-chosen deterministically per project from a small bundled set so it stays the
-same between visits. **Clients only ever see a cover the architect uploaded:** the generated fallback
+Without a cover, the painel shows a placeholder architecture photo instead of an
+empty box, chosen deterministically per project from a small bundled set so it
+stays the same between visits (revised 15 Oct 2026: no longer the client's name
+over a blurred photo). **Clients only ever see a cover the architect uploaded:** the placeholder
 is a painel-only device, and the client page shows no hero without a real cover.
 The bundled photos must be licensed for this use and their sources recorded next
 to them in the repository; the prototype's set is ten CC0 photos from StockSnap,
@@ -904,6 +944,12 @@ file (outside the client-visible stage folders). The app creates it through the
 serves it like any other file. "Set as cover" from an image the office added
 through Drive copies its bytes (read by the reader identity) into a new `_capa`
 file, because the grant cannot move or rename the original.
+
+The client page also offers, as requirements (layout still being designed): a
+"latest updates" panel listing new files, notes and meeting changes from
+`project_events` (A28), with read state kept in the client's browser since clients
+have no accounts; a short explanation per stage; a search over file and stage
+names; and the theme choice remembered per device.
 
 Changing a stage title or order renames/moves its Drive folder only where the
 write capability allows; otherwise the change is presentation-only and staff are
@@ -988,16 +1034,26 @@ Version naming and upload flow (A25):
 - Uploading a file whose name matches an existing document in that stage asks:
   "É uma nova versão de Planta.pdf?" Yes stores it as the next `vN` and makes it
   current; No keeps both as separate documents (the new one gets a distinct name).
-- The new file is named with its version (`Planta v3.pdf`). **Existing files are
+- The client page shows the document's clean name with a separate version badge
+  ("Planta.pdf", v3). The copy saved in Drive carries the version in its name
+  (`Planta v3.pdf`), so staff working directly in Drive can tell versions apart
+  and synced computers do not produce "Planta (1).pdf". **Existing files are
   never renamed**: the `drive.file` grant cannot rename files the office added
   through Drive. An unnumbered original counts and displays as v1.
-- Files added directly through Drive with a clear version token (`v2`, `_v02`,
-  and the legacy `rev B` style) still group automatically, as the current site
-  does; ambiguous names stay separate and can be grouped by staff.
+- Website uploads take the next version number under a lock, so two uploads
+  cannot both become v3.
+- Files added directly through Drive group automatically when their name carries
+  a clear version token (`v2`, `_v02`, and the legacy `rev B` style) or exactly
+  matches an existing document's name; ambiguous names stay separate and can be
+  grouped by staff.
+- Grouping rules (A25): only within the same folder; two files claiming the same
+  version (two "v2") are never merged, they are flagged for staff; the current
+  version is the highest number, not the latest upload; staff corrections are
+  stored and always win over automatic grouping on later syncs.
 - Older versions stay downloadable under "Versões anteriores" on the client page. Store a monotonic sequence, optional
 human label, date and source. “Current” is a database pointer, not whichever
-filename sorts last. Default a successfully published new website revision to
-current; staff can select another available revision, with an audit entry.
+filename sorts last: by default the highest version, and staff can select another
+available revision, with an audit entry.
 
 For external Drive uploads:
 
@@ -1048,8 +1104,9 @@ notification events during this baseline. A reconnect establishes a new baseline
 without notifying clients about every old file again.
 
 The fuller design polls active connections approximately every two minutes.
-Option E instead proposes an hourly sweep for the POC, or 15 minutes after checking
-database usage; this freshness tradeoff needs agreement. UI-triggered sync can
+Option E instead runs one maintenance pass every 10 minutes for the POC (A09):
+each pass sends due email batches and polls Drive changes for active connections
+(incremental, so cheap). UI-triggered sync can
 request earlier bounded work with a rate limit. Show the selected freshness expectation
 rather than “instant”. Coalesce repeated poll requests. A scheduled daily
 reconciliation compares the complete in-scope tree with indexed state and repairs
@@ -1101,9 +1158,13 @@ necessarily one billable message. [Resend limits and plans](https://resend.com/p
 
 Default batching: a **trailing "settle" window**. A publication starts a pending
 batch; the batch becomes due once **nothing new has been published for 45
-minutes**, subject to a **maximum hold of 2 hours** from the first event in the
-batch. Example: uploads at 10:00, 10:20 and 10:50 send at 11:35, as one batch;
-an upload at 11:40 starts a new one. An office that uploads continuously all
+minutes**, subject to a **maximum hold of 2 hours** from the first publication in
+the batch (when the file became visible on the page, which can be later than the
+upload if Drive reports it late). A due batch is *sent* by the next maintenance
+run, which runs every 10 minutes (Cloud Scheduler charges per job, not per run,
+so this stays free). Example: uploads at 10:00, 10:20 and 10:50 make the batch
+due at 11:35; it is sent by the run at or after 11:35, at the latest about 11:45,
+as one email; an upload at 11:40 starts a new batch. An office that uploads continuously all
 afternoon still gets mail, because the maximum hold closes the batch regardless.
 
 Offer an office setting with a bounded range, initially 5–120 minutes for the
@@ -1116,12 +1177,13 @@ across two emails whenever the upload straddles the boundary. The architect made
 one delivery and the client should get one mail. The cost is unbounded latency
 without the hold cap, which is why the cap is not optional.
 
-The window also functions as an **undo window**, which is worth stating because
-it changes the risk of automatic notification: an upload into the wrong project,
-noticed and removed within the quiet period, never reaches the client. That
-argues for erring longer rather than shorter, and against letting an office
-configure the quiet period down to 5 minutes without warning them what they are
-giving up.
+The window also prevents an **email about a mistake**: an upload into the wrong
+project, noticed and removed within the quiet period, produces no email. It is
+**not** an undo window for the file itself: files publish as soon as they are
+found, so a client already viewing the page can see or download it in the
+meantime. Do not describe it to offices as one. It still argues for erring
+longer rather than shorter, and against letting an office configure the quiet
+period down to 5 minutes without warning them what they are giving up.
 
 45 minutes and 2 hours are both guesses. Ask a pilot office how long a typical
 upload session runs before treating them as settled. Initial recipients share a
@@ -1225,7 +1287,18 @@ file URLs. Support mobile, keyboard navigation, meaningful empty/loading/error
 states, readable filenames and accessible focus/contrast from the first pilot.
 
 Brazilian Portuguese is the default. Preserve English capability through explicit
-locale arguments; never change global environment variables per request. Timezone
+locale arguments; never change global environment variables per request. Each
+office has a language (`tenants.locale`, an enum of the languages the product is
+translated into: `pt-BR`, `en`). **Supporting a language (A26)** means translating
+the product's own text (buttons, headings, messages, error codes) and its built-in
+options (project types, standard details, built-in stages and their
+explanations). What an office writes itself is shown exactly as typed and never
+translated: an office writes in its own language. One translation catalog per
+language is shared by the server (client pages, emails, calendar files) and the
+staff app; no visible text is written directly into screens, and a test fails if
+any key or built-in option lacks a translation in a supported language. Dates and
+numbers format per language (17/10/2026 and 1.240 m² in Portuguese). Before
+launch, audit a fully English test office for leftover Portuguese. Timezone
 is per office. Long Portuguese labels, accents, duplicate filenames and non-Latin
 names belong in fixtures. Template content and default stage descriptions are
 versioned: updating defaults does not overwrite an office's edited project stages.
@@ -1257,6 +1330,9 @@ Representative contract:
 | `POST /api/admin/projects/{id}/sync` | Deduplicated, rate-limited sync request |
 | `POST /api/admin/documents/{id}/revisions` | Explicit version association / upload ("Enviar nova versão", A25) |
 | `POST /api/admin/projects/{id}/stages/{stage}/uploads/check` | Before an upload: report name matches so the UI can ask "nova versão de…?" |
+| `PUT /api/admin/projects/{id}/cover` | Upload or replace the cover (JPG, PNG, WebP, ≤ 10 MB; specific error codes); stored in Drive as `_capa` |
+| `GET /{slug}/updates` | Client-visible events (A28) for the "latest updates" panel; same access checks as the page |
+| `GET /{slug}/reuniao.ics` | The meeting as a calendar file in the office's timezone; same access checks |
 | `POST /api/admin/connections/{id}/disconnect` | Disable both application access paths; cancel stale work |
 | `GET /api/admin/operations/{id}` | Progress or actionable failure |
 | `POST /integrations/drive/events` | Validate registered channel; enqueue sync only |
@@ -1565,9 +1641,13 @@ choices need an owner before their corresponding feature ships:
 | --- | --- | --- |
 | Product name/domain and first hosting region | Choose once office URL examples and latency are reviewed | Real DNS/OAuth registration |
 | Database instance size/backup retention | Cloud SQL, smallest shared-core instance (A16); confirm price, backups and point-in-time recovery at creation, then prove a restore | Infrastructure purchase |
-| Background dispatch technology and refresh interval | Evaluate hourly in-app maintenance first for POC; add a queue/worker when needed | Maintenance implementation |
+| Background dispatch technology and refresh interval | In-app maintenance every 10 minutes for the POC (A09); add a queue/worker when needed | Maintenance implementation |
 | Timer setup | Prefer Cloud Scheduler within account-wide free allowance; local cron is the alternative | Confirm allowance and cadence before setup |
-| Detail presets and stage templates | Seed from the first office: Cliente, Tipo de projeto, Localização, Área do terreno, Área construída; the seven standard stages | Slice 3 |
+| Detail presets and stage templates | Built in (A26, A27): Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável; templates Padrão (seven stages) and Interiores (six), with explanations | Slice 3 |
+| Custom project details and types | Not in the pilot (A27). Before migrating the first office, list the detail labels its existing `_project` files use; any outside the built-in list becomes a built-in or is mapped, so migration drops nothing | Before migration (section 20); custom details after pilot feedback |
+| Editing on the project page and in the painel | Build editing components once in React and load them onto the client page for signed-in staff only, sharing the painel's components and API validation, rather than implementing both editing experiences separately | Step 1.6 (affects how `frontend/` is built) |
+| "Precisa de você" (projects needing staff action) | Left out of the pilot; re-evaluate project-level triggers later (broken folder binding, bounced client email, version clash, unreadable file). Office-wide problems such as a lapsed Drive connection are an office notice, and failed creation is part of the creation flow (A07) | After pilot feedback |
+| Office tagline | Optional office setting (e.g. "Do primeiro traço ao espaço vivido."); can be left out at first | Branding settings |
 | Painel file manager | Not in the pilot unless per-stage uploads prove insufficient (A24) | After pilot feedback |
 | Office address scheme (A21) | Two options in section 4: A, office subdomains behind a load balancer; B, one domain with office paths. Recommended default: A for anything clients see, `run.app` paths for internal testing | Before DNS/OAuth registration and before any client link is shared |
 | Staff app building blocks | Evaluate SVAR React File Manager, Uppy and the Google Picker (section 11) against a custom screen | Slice 3 |
