@@ -80,7 +80,7 @@ async def test_add_creates_an_account_without_a_password_and_prints_an_invite(da
     )
     assert output.startswith("Created owner ana@example.com in alinea")
     # On the office's primary address, with the token in the fragment.
-    assert "http://alinea.localhost:8000/painel/definir-senha#token=" in output
+    assert "http://alinea.localhost:5173/painel/definir-senha#token=" in output
     assert accounts_in(database) == [("alinea", "ana@example.com", "owner", None)]
     [(_, kind, stored)] = unused_links(database)
     assert kind == "invite"

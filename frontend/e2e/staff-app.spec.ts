@@ -21,7 +21,7 @@ function invite(email: string): string {
   );
   const link = output.match(/http\S+#token=\S+/)?.[0];
   if (!link) throw new Error(`no link in: ${output}`);
-  return link.replace(":8000/", `:${PORT}/`);
+  return link.replace(/:\d+\//, `:${PORT}/`);
 }
 
 test("invite → choose password → projects → deep link → sign out → sign in", async ({ page }) => {

@@ -248,8 +248,8 @@ make e2e          # browser tests against the built app on a fresh local databas
 make lint
 ```
 
-Open the invite link (with `make dev`, change its port to 5173) to choose a
-password; the painel then shows the office's projects (an empty list until step 2).
+Open the invite link (it points to `make dev`'s port, 5173; with `make serve`,
+use 8000) to choose a password; the painel then shows the office's projects (an empty list until step 2).
 After changing the API, run `make api-types`: the staff app's TypeScript types are
 generated from the backend's OpenAPI description (`frontend/src/api/`), and
 `make test` fails while they are stale. Texts shown to people live in
@@ -266,10 +266,8 @@ printed on each log line.
 Staff accounts belong to one office each, and people choose their own passwords.
 `backend.commands.staff add` creates an account without a password and prints a
 one-time invite link (7 days); `reset-link` prints a link to choose a new one
-(1 day). Send the link to the person. Until the "choose your password" screen
-arrives in step 1.6, use the API: `POST /api/password` with the token from the
-link and the new password, on that office's address (e.g. `alinea.localhost:8000`);
-then sign in with `POST /api/session`.
+(1 day). Send the link to the person; it opens the painel's "choose your
+password" screen.
 
 Two logins: the app connects as `arqproj_app` (`DATABASE_URL`), a restricted role
 that PostgreSQL row-level security applies to; migrations and the seed command use
