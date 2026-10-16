@@ -1,9 +1,10 @@
 """Slowing down password guessing on client pages (step 2.4).
 
-Five wrong passwords from one device (its address) for one project, then that
-device waits 15 minutes. Kept in this server's memory: Cloud Run runs at most a
-couple of instances, so a guesser gets at most a few more tries; a shared link's
-password guarded this way is proportional to the risk (AGENTS.md).
+Five wrong passwords from one device (its address) for one project within 15
+minutes, then that device waits 15 minutes from the fifth. Kept in this
+server's memory: Cloud Run runs at most a couple of instances, so a guesser gets
+at most a few more tries; a shared link's password guarded this way is
+proportional to the risk (AGENTS.md).
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ WINDOW_SECONDS = 15 * 60
 
 # (project id, device) -> times of recent wrong passwords
 _failures: dict[tuple[str, str], list[float]] = defaultdict(list)
+# (project id, device) -> when its wait ends: 15 minutes after the fifth wrong try
+_blocked_until: dict[tuple[str, str], float] = {}
 
 
 def device(request: Request) -> str:
@@ -40,13 +43,24 @@ def _recent(key: tuple[str, str], now: float) -> list[float]:
 
 
 def blocked(project_id: str, who: str, now: float | None = None) -> bool:
-    return len(_recent((project_id, who), now or time.monotonic())) >= LIMIT
+    now = time.monotonic() if now is None else now
+    until = _blocked_until.get((project_id, who))
+    if until is None:
+        return False
+    if now < until:
+        return True
+    _blocked_until.pop((project_id, who), None)
+    return False
 
 
 def failed(project_id: str, who: str, now: float | None = None) -> None:
-    now = now or time.monotonic()
-    _recent((project_id, who), now)
-    _failures[(project_id, who)].append(now)
+    now = time.monotonic() if now is None else now
+    key = (project_id, who)
+    _recent(key, now)
+    _failures[key].append(now)
+    if len(_failures[key]) >= LIMIT:  # the fifth within 15 minutes: wait from now
+        _blocked_until[key] = now + WINDOW_SECONDS
+        _failures.pop(key, None)
 
 
 def succeeded(project_id: str, who: str) -> None:
@@ -56,3 +70,4 @@ def succeeded(project_id: str, who: str) -> None:
 def reset() -> None:
     """For tests."""
     _failures.clear()
+    _blocked_until.clear()

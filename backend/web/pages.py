@@ -432,7 +432,12 @@ async def meeting_ics(
     return Response(
         "\r\n".join(lines) + "\r\n",
         media_type="text/calendar; charset=utf-8",
-        headers={"Content-Disposition": 'attachment; filename="reuniao.ics"', **PAGE_HEADERS},
+        headers={
+            "Content-Disposition": 'attachment; filename="reuniao.ics"',
+            **PAGE_HEADERS,
+            # Staff-only or behind a password: never in a shared cache.
+            **(PRIVATE if staff is not None or project.access_mode is AccessMode.PASSWORD else {}),
+        },
     )
 
 
