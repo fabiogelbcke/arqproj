@@ -225,7 +225,8 @@ async def new_project(
     try:
         project = await create_project(db, maker, root, tenant.locale, new)
     except CreationProblem as problem:
-        status = 409 if problem.code == ErrorCode.SLUG_TAKEN else 422
+        taken = problem.code in (ErrorCode.SLUG_TAKEN, ErrorCode.PROJECT_NAME_TAKEN)
+        status = 409 if taken else 422
         raise ApiError(status, ErrorCode(problem.code), problem.conflict_name) from None
     except ConnectError as error:
         log.error("creating project folders failed for %s: %s", tenant.slug, error.detail)

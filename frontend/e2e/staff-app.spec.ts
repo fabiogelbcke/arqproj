@@ -90,7 +90,11 @@ test("create a project → it is listed as a draft; a used address names its pro
   await dialog.getByRole("button", { name: "Criar projeto" }).click();
   await expect(dialog.getByRole("alert")).toContainText("Este endereço já é do projeto “Casa Jardim”");
 
+  // Changing the address alone is not enough: the name is taken too.
   await dialog.getByLabel("Endereço da página").fill("casa-jardim-teste");
+  await dialog.getByRole("button", { name: "Criar projeto" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Já existe o projeto “Casa Jardim”");
+  await dialog.getByLabel("Nome do projeto").fill("Casa Jardim Teste");
   await dialog.getByText("Interiores", { exact: true }).click();
   await expect(dialog.getByRole("radio", { name: /Interiores/ })).toBeChecked();
   await dialog.getByRole("button", { name: "Criar projeto" }).click();

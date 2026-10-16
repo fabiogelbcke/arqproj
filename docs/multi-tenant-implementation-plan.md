@@ -92,7 +92,7 @@ its affected tests before coding proceeds.
 | A04 | OAuth writes + service-account reads | Product choice, core flow reported tested by Fabio; remaining capability matrix below. **Hard ordering constraint on provisioning** — see section 9 |
 | A05 | Tenant and project checks on every resource path | Required even for public projects; public within one office does not mean cross-office access |
 | A06 | Public or password-protected project access | Agreed; no mandatory client account for the pilot |
-| A07 | All-or-nothing project creation | Pilot (15 Oct 2026): within the request, folders first, then every row in one transaction; on any failure the new project folder (with its stage folders) is trashed and nothing is saved; a one-time creation key makes retries safe. The durable provisioning operation in section 10 replaces it when there is a worker. See section 10 |
+| A07 | All-or-nothing project creation | Pilot (15 Oct 2026): within the request, folders first, then every row in one transaction; on any failure nothing is saved and the new project folder (with its stage folders) is trashed, best effort; a one-time creation key makes retries safe. The durable provisioning operation in section 10 replaces it when there is a worker. See section 10 |
 | A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules. Revised by A25: clear `vN` names still group automatically |
 | A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: an authenticated maintenance endpoint in the web service, called every 10 minutes (15 Oct 2026, was hourly), with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
 | A10 | Incremental Drive sync, initially polled; reconciliation as repair | Recommended; webhooks can accelerate later without becoming a correctness dependency |
@@ -865,9 +865,10 @@ per stage, then saves the project, its address and its stages in one database
 transaction, which is not held open during the Drive calls. If any step fails, the project
 folder is moved to the trash, which takes its stage folders with it, and nothing
 is saved. The form sends a one-time creation key, so a double click or a retry
-returns the project already created. What this gives up: a crash between the
-folders and the save leaves an empty folder in the office's Drive (no project
-is shown); the durable operation below is the eventual design.
+returns the project already created. What this gives up: if the server stops
+between the folders and the save, or Drive also refuses the move to the trash,
+an empty folder stays in the office's Drive (logged; no project is shown); the
+durable operation below is the eventual design.
 
 Do not hold a database transaction open during a sequence of network calls.
 Eventually, implement a durable provisioning operation:

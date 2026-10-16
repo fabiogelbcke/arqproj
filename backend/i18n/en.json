@@ -85,7 +85,8 @@
     "creating": "Creating…",
     "cancel": "Cancel",
     "created": "Project “{{name}}” created.",
-    "noStagesHint": "You set up the stages later, on the project page"
+    "noStagesHint": "You set up the stages later, on the project page",
+    "nameTakenBy": "There's already a project called “{{name}}”. Choose another name."
   },
   "notFound": {
     "title": "Page not found",
@@ -131,7 +132,8 @@
     "invalid_client_name": "Enter the client, up to 48 characters.",
     "unknown_template": "Choose a stage template.",
     "invalid_slug": "Use only lowercase letters, numbers and hyphens, with no hyphen at the start or end. Some words are reserved by the portal.",
-    "slug_taken": "This address is already in use. Choose another."
+    "slug_taken": "This address is already in use. Choose another.",
+    "project_name_taken": "A project with this name already exists. Choose another."
   },
   "projectStatus": {
     "draft": "Draft",

@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -95,6 +95,16 @@ async def _validate(db: AsyncSession, new: NewProject) -> StageTemplateDef:
     )
     if taken is not None:
         raise CreationProblem("slug_taken", conflict_name=taken)
+    # Plan section 10: two projects with one name are ambiguous in the painel
+    # and in Drive. Case and surrounding spaces don't make a different name.
+    same_name = await db.scalar(
+        select(Project.name).where(
+            Project.deleted_at.is_(None),
+            func.lower(func.btrim(Project.name)) == new.name.strip().lower(),
+        )
+    )
+    if same_name is not None:
+        raise CreationProblem("project_name_taken", conflict_name=same_name)
     return template
 
 

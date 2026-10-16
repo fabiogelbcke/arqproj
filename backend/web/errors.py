@@ -41,6 +41,7 @@ class ErrorCode(StrEnum):
     INVALID_CLIENT_NAME = "invalid_client_name"
     UNKNOWN_TEMPLATE = "unknown_template"
     INVALID_SLUG = "invalid_slug"  # letters, numbers and hyphens; some words are the app's
+    PROJECT_NAME_TAKEN = "project_name_taken"  # `conflict_name` as typed by the office
     SLUG_TAKEN = "slug_taken"  # `conflict_name` names the project that has it, when known
 
 

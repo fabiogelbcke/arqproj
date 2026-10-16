@@ -85,7 +85,8 @@
     "creating": "Criando…",
     "cancel": "Cancelar",
     "created": "Projeto “{{name}}” criado.",
-    "noStagesHint": "Você monta as etapas depois, na página do projeto"
+    "noStagesHint": "Você monta as etapas depois, na página do projeto",
+    "nameTakenBy": "Já existe o projeto “{{name}}”. Escolha outro nome."
   },
   "notFound": {
     "title": "Página não encontrada",
@@ -131,7 +132,8 @@
     "invalid_client_name": "Informe o cliente, com até 48 caracteres.",
     "unknown_template": "Escolha um modelo de etapas.",
     "invalid_slug": "Use só letras minúsculas, números e hífens, sem hífen no começo ou no fim. Algumas palavras são reservadas pelo portal.",
-    "slug_taken": "Este endereço já está em uso. Escolha outro."
+    "slug_taken": "Este endereço já está em uso. Escolha outro.",
+    "project_name_taken": "Já existe um projeto com este nome. Escolha outro."
   },
   "projectStatus": {
     "draft": "Rascunho",

@@ -38,7 +38,15 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
   const [typedSlug, setTypedSlug] = useState<string | null>(null);
   const slug = typedSlug ?? suggestedSlug(name);
   const error = create.error;
-  const takenBy = error instanceof ApiError && error.code === "slug_taken" ? error.conflictName : null;
+  // A clash names the project that has the address or name (plan section 10).
+  const clash =
+    error instanceof ApiError && error.conflictName
+      ? error.code === "slug_taken"
+        ? t("newProject.slugTakenBy", { name: error.conflictName })
+        : error.code === "project_name_taken"
+          ? t("newProject.nameTakenBy", { name: error.conflictName })
+          : null
+      : null;
 
   return (
     <Form
@@ -98,9 +106,9 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         spellCheck="false"
       />
       <p className={styles.note}>{t("newProject.draftNote")}</p>
-      {takenBy ? (
+      {clash ? (
         <p role="alert" className={styles.problem}>
-          {t("newProject.slugTakenBy", { name: takenBy })}
+          {clash}
         </p>
       ) : (
         <ErrorNotice error={error} />

@@ -187,6 +187,19 @@ describe("Novo projeto", () => {
     );
   });
 
+  it("names the project that already has the name", async () => {
+    api(LOCAL, {
+      "POST /api/projects": () => ({ status: 409, body: { error: "project_name_taken", conflict_name: "Casa Jardim" } }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "casa jardim");
+    await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Ana");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Já existe o projeto “Casa Jardim”.");
+  });
+
   it("without Google Drive, explains what to do instead of showing the form", async () => {
     api(NONE);
     renderAt("/");

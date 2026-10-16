@@ -792,6 +792,7 @@
           "invalid_client_name",
           "unknown_template",
           "invalid_slug",
+          "project_name_taken",
           "slug_taken"
         ],
         "title": "ErrorCode"

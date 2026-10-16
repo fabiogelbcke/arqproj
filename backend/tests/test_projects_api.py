@@ -116,6 +116,27 @@ async def test_an_address_in_use_names_the_project_that_has_it(
     assert list(tmp_path.iterdir()) == []  # checked before any folder is made
 
 
+async def test_a_name_in_use_names_the_project_that_has_it(client, db_session, owner, tmp_path):
+    """Plan section 10: whatever the address, case or spaces, the name is taken."""
+    before = await project_count(db_session)
+    response = await create(client, owner, name="  casa JARDIM ", slug="outra-casa")
+    assert response.status_code == 409
+    assert response.json() == {"error": "project_name_taken", "conflict_name": "Casa Jardim"}
+    assert await project_count(db_session) == before
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_a_deleted_projects_name_can_be_used_again(client, db_session, owner):
+    await db_session.execute(
+        text(
+            "UPDATE projects SET deleted_at = now() WHERE name = 'Casa Jardim' AND tenant_id = "
+            "(SELECT id FROM tenants WHERE slug = 'alinea')"
+        )
+    )
+    response = await create(client, owner, name="Casa Jardim", slug="casa-jardim-nova")
+    assert response.status_code == 201, response.text
+
+
 @pytest.mark.parametrize(
     ("changes", "error"),
     [
