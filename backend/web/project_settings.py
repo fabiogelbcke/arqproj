@@ -86,10 +86,9 @@ class ProjectChange(BaseModel):
 PAGE_PASSWORD_MIN = 6  # Fabio, 16 Oct 2026
 
 
-async def _project(db: AsyncSession, project_id: uuid.UUID) -> Project:
-    project = await db.scalar(
-        select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
-    )
+async def _project(db: AsyncSession, project_id: uuid.UUID, lock: bool = False) -> Project:
+    query = select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
+    project = await db.scalar(query.with_for_update() if lock else query)
     if project is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
     return project
@@ -142,7 +141,10 @@ async def change_project(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
-    project = await _project(db, project_id)
+    # Locked until this save ends: a second dialog saving at the same moment
+    # waits, then finds the new version and gets `project_changed`, rather than
+    # colliding on the same new address.
+    project = await _project(db, project_id, lock=True)
     values: dict = {}
     if body.name is not None:
         name = body.name.strip()
