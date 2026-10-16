@@ -126,7 +126,7 @@ async def change_project(
     return await _summary(db, tenant, project_id)
 
 
-@router.post("/projects/{project_id}/publish", responses=documented(401, 404, 422))
+@router.post("/projects/{project_id}/publish", responses=documented(401, 404, 409, 422))
 async def publish(
     project_id: uuid.UUID,
     _staff: CurrentStaff = Depends(require_csrf),
