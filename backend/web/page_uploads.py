@@ -54,6 +54,8 @@ LOCAL_SECONDS = 3600  # like Google's session, it is used at once
 
 
 class UploadIn(BaseModel):
+    # The page's: stages may have moved since it loaded (plan section 7).
+    row_version: int
     name: str = Field(max_length=255)
     size: int = Field(ge=0)
     mime_type: str = Field(default="", max_length=255)
@@ -71,6 +73,8 @@ def _clean(name: str) -> str:
     cleaned = cleaned.strip()
     if cleaned in ("", ".", ".."):
         raise ApiError(422, ErrorCode.INVALID_FILE_NAME)
+    if cleaned.startswith("_"):
+        raise ApiError(422, ErrorCode.HIDDEN_FILE_NAME)  # the page would never show it (A05)
     return cleaned
 
 
@@ -101,7 +105,11 @@ async def start_upload(
     if body.size > UPLOAD_MAX:
         raise ApiError(422, ErrorCode.FILE_TOO_LARGE)
     name = _clean(body.name)
-    await _changeable(db, project_id)
+    project = await _changeable(db, project_id)
+    if project.row_version != body.row_version:
+        # Someone moved or removed stages meanwhile: this position may now be
+        # another stage, and the file would go to its folder.
+        raise ApiError(409, ErrorCode.PROJECT_CHANGED)
     stage = await db.scalar(
         select(ProjectStage).where(
             ProjectStage.project_id == project_id, ProjectStage.position == position

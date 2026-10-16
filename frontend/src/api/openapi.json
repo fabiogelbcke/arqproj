@@ -2470,6 +2470,7 @@
           "file_not_found",
           "file_too_large",
           "invalid_file_name",
+          "hidden_file_name",
           "stage_has_no_folder",
           "file_not_ours"
         ],
@@ -3598,6 +3599,10 @@
       },
       "UploadIn": {
         "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
           "name": {
             "type": "string",
             "maxLength": 255,
@@ -3617,6 +3622,7 @@
         },
         "type": "object",
         "required": [
+          "row_version",
           "name",
           "size"
         ],

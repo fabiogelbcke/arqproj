@@ -68,7 +68,7 @@ export function StageDrop({
       const opened = await call(
         api.POST("/api/projects/{project_id}/stages/{position}/uploads", {
           params: { path: { project_id: staff.project_id, position } },
-          body: { name: file.name, size: file.size, mime_type: file.type },
+          body: { row_version: staff.row_version, name: file.name, size: file.size, mime_type: file.type },
         }),
       );
       await sendFile(opened.upload_url, file, (progress) => update(id, { progress }));

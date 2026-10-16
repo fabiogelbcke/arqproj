@@ -441,7 +441,12 @@ describe("edit mode", () => {
       const file = new File(["%PDF"], "Corte.pdf", { type: "application/pdf" });
       await userEvent.upload(await within(stage).findByLabelText("escolha no computador"), file);
       expect(await screen.findByText("Arquivo enviado.")).toBeInTheDocument();
-      expect(sent.find((r) => r.method === "POST")?.body).toEqual({ name: "Corte.pdf", size: 4, mime_type: "application/pdf" });
+      expect(sent.find((r) => r.method === "POST")?.body).toEqual({
+        row_version: 4,
+        name: "Corte.pdf",
+        size: 4,
+        mime_type: "application/pdf",
+      });
       expect(FakeXhr.sent).toEqual([{ method: "PUT", url: "https://upload.example/s1", body: file }]);
       await waitFor(() =>
         expect(sent.filter((r) => r.method === "GET" && r.path === "/api/pages/casa-jardim/files").length).toBe(2),
@@ -469,14 +474,14 @@ describe("edit mode", () => {
       expect(sent.some((r) => r.method === "POST" && r.path.endsWith("/k1/hide"))).toBe(true);
     });
 
-    it("explains how to hide a file put straight into Drive", async () => {
+    it("explains how to hide a file not sent through the site", async () => {
       asEditor({
         "POST /api/pages/casa-jardim/files/k1/hide": () => ({ status: 409, body: { error: "file_not_ours" } }),
       });
       await startEditing();
       await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
       await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar do cliente/ }));
-      expect(await screen.findByText(/renomeie-o lá começando com _/)).toBeInTheDocument();
+      expect(await screen.findByText(/renomeie-o na pasta da etapa começando com _/)).toBeInTheDocument();
     });
 
     it("shows neither to someone viewing as the client", async () => {

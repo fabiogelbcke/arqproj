@@ -28,17 +28,20 @@ def folders(tmp_path):
     return tmp_path / "Casa Jardim"
 
 
+async def staff_of(client):
+    return (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()["staff"]
+
+
 async def project_id(client):
-    return (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()["staff"][
-        "project_id"
-    ]
+    return (await staff_of(client))["project_id"]
 
 
 async def start(client, headers, stage=1, name="Planta baixa.pdf", size=PDF_SIZE, **extra):
-    pid = await project_id(client)
+    staff = await staff_of(client)
+    body = {"row_version": staff["row_version"], "name": name, "size": size}
     return await client.post(
-        f"/api/projects/{pid}/stages/{stage}/uploads",
-        json={"name": name, "size": size, "mime_type": "application/pdf", **extra},
+        f"/api/projects/{staff['project_id']}/stages/{stage}/uploads",
+        json=body | {"mime_type": "application/pdf"} | extra,
         headers=headers,
     )
 
@@ -79,6 +82,7 @@ async def test_a_name_already_there_is_kept_beside_it(client, owner, folders):
     [
         ({"size": page_uploads.UPLOAD_MAX + 1}, 422, "file_too_large"),
         ({"name": " \t "}, 422, "invalid_file_name"),
+        ({"name": "_Rascunho.pdf"}, 422, "hidden_file_name"),  # the page would never show it
         ({"stage": 6}, 409, "stage_has_no_folder"),  # the seed binds five folders
         ({"stage": 42}, 404, "project_not_found"),
     ],
@@ -88,6 +92,19 @@ async def test_an_upload_that_cant_go_is_refused_before_anything_is_sent(
 ):
     response = await start(client, owner, **changes)
     assert (response.status_code, response.json()["error"]) == (status, error)
+
+
+async def test_after_stages_moved_meanwhile_the_upload_is_refused(client, owner, folders):
+    """Position 1 is another stage now: the file would land in its folder."""
+    stale = (await staff_of(client))["row_version"]
+    moved = await client.post(
+        f"/api/projects/{await project_id(client)}/stages/1/move",
+        json={"row_version": stale, "direction": 1},
+        headers=owner,
+    )
+    assert moved.status_code == 204
+    response = await start(client, owner, row_version=stale)
+    assert (response.status_code, response.json()["error"]) == (409, "project_changed")
 
 
 async def test_a_name_never_becomes_a_path(client, owner, folders):
@@ -110,7 +127,7 @@ async def test_an_archived_project_takes_no_uploads(client, db_session, owner, f
 async def test_only_staff_with_their_token_open_uploads(client, db_session, owner, folders):
     pid = await project_id(client)
     url = f"/api/projects/{pid}/stages/1/uploads"
-    body = {"name": "x.pdf", "size": 3}
+    body = {"row_version": (await staff_of(client))["row_version"], "name": "x.pdf", "size": 3}
     assert (await client.post(url, json=body, headers=ALINEA)).status_code in (401, 403)
     norte = await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
     response = await client.post(url, json=body, headers=norte)
@@ -175,7 +192,12 @@ async def test_on_drive_the_browser_gets_googles_session_for_its_own_origin(
     pid = await project_id(client)
     response = await client.post(
         f"/api/projects/{pid}/stages/1/uploads",
-        json={"name": "Planta.pdf", "size": 1234, "mime_type": "application/pdf"},
+        json={
+            "row_version": (await staff_of(client))["row_version"],
+            "name": "Planta.pdf",
+            "size": 1234,
+            "mime_type": "application/pdf",
+        },
         headers=owner | {"origin": "http://alinea.localhost"},
     )
     assert response.json()["upload_url"].startswith("https://www.googleapis.com/upload/")
