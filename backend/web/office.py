@@ -29,6 +29,7 @@ from backend.office.models import NAME_MAX, LogoType, OfficeProfile
 from backend.office.profile import profile as load_profile
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
+from backend.storage.google_connect import ConnectError
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
@@ -138,7 +139,7 @@ def _logo_type(content: bytes) -> LogoType | None:
     return None
 
 
-@router.put("/office/logo", responses=documented(401, 403, 409, 413, 415))
+@router.put("/office/logo", responses=documented(401, 403, 409, 413, 415, 503))
 async def upload_logo(
     request: Request,
     file: UploadFile,
@@ -172,10 +173,16 @@ async def upload_logo(
             raise ApiError(409, ErrorCode.DRIVE_UNREADABLE)
         connection, writer = await writer_for(request, db)
         found = await _profile_for_change(db, tenant)
-        if not (found.brand_folder_id and await writer.can_open(found.brand_folder_id)):
-            found.brand_folder_id = await writer.create_folder(BRAND_FOLDER, connection.root_id)
-        previous = found.logo_file_id
-        found.logo_file_id = await writer.upload(name, found.brand_folder_id, content, logo_type)
+        try:
+            if not (found.brand_folder_id and await writer.can_open(found.brand_folder_id)):
+                found.brand_folder_id = await writer.create_folder(BRAND_FOLDER, connection.root_id)
+            previous = found.logo_file_id
+            found.logo_file_id = await writer.upload(
+                name, found.brand_folder_id, content, logo_type
+            )
+        except ConnectError as error:
+            log.error("logo upload to Drive failed for %s: %s", tenant.slug, error.detail)
+            raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
         found.logo_type = logo_type
         if previous:
             await writer.trash(previous)

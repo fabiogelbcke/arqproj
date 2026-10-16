@@ -144,6 +144,7 @@ class FakeGoogle:
     def __init__(self):
         self.calls, self.refresh_refused, self.next_id = [], False, 0
         self.token_service_down = False
+        self.upload_down = False
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         path, method = request.url.path, request.method
@@ -155,6 +156,8 @@ class FakeGoogle:
                 return httpx2.Response(400, json={"error": "invalid_grant"})
             assert parse_qs(request.content.decode())["refresh_token"] == ["refresh-1"]
             return httpx2.Response(200, json={"access_token": "writer"})
+        if method == "POST" and path.startswith("/upload") and self.upload_down:
+            return httpx2.Response(503)
         if method == "POST":
             self.next_id += 1
             return httpx2.Response(200, json={"id": f"new{self.next_id}"})
@@ -227,6 +230,13 @@ async def test_a_passing_google_failure_does_not_disconnect_the_office(
     assert (response.status_code, response.json()) == (503, {"error": "drive_connect_failed"})
     await db_session.refresh(connection)
     assert connection.writer_status is WriterStatus.CONNECTED  # still connected
+
+
+async def test_a_passing_drive_failure_during_upload_says_try_again(client, owner, on_google):
+    fake, _ = on_google
+    fake.upload_down = True
+    response = await upload(client, owner, PNG)
+    assert (response.status_code, response.json()) == (503, {"error": "drive_connect_failed"})
 
 
 async def test_no_upload_while_the_portal_cannot_read_the_folder(

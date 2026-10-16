@@ -39,7 +39,11 @@ export function SettingsOfficePage() {
       <Form
         onSubmit={(event) => {
           event.preventDefault();
-          save.mutate(values, { onSuccess: () => setDraft(null) });
+          const submitted = values;
+          // Keep anything typed while the save was on its way.
+          save.mutate(submitted, {
+            onSuccess: () => setDraft((current) => (current === submitted ? null : current)),
+          });
         }}
         className={styles.form}
       >
