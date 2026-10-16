@@ -72,13 +72,9 @@ test("@screenshots staff app", async ({ page }) => {
   await page.getByLabel("Nome do projeto").fill("Casa do Lago");
   await shoot(page, "03b-novo-projeto");
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Abrir as configurações de Casa Jardim" }).click();
+  await page.getByRole("button", { name: "Editar o projeto Casa Jardim" }).click();
   await page.getByRole("dialog", { name: "Projeto" }).waitFor();
   await shoot(page, "03c-projeto");
-  await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Trocar foto de Casa Jardim" }).click();
-  await page.getByRole("dialog", { name: "Trocar foto" }).waitFor();
-  await shoot(page, "03d-trocar-foto");
   await page.keyboard.press("Escape");
 
   await page.goto("/painel/configuracoes/escritorio");
