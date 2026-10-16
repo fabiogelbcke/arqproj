@@ -56,7 +56,7 @@ describe("Configurações → Escritório", () => {
       "PUT /api/office/logo": () => ({ body: { ...OFFICE, logo_url: "/api/office/logo?v=1" } }),
     });
     renderAt("/configuracoes/escritorio");
-    await screen.findByLabelText(/Nome do escritório/);
+    await screen.findByRole("button", { name: "Escolher imagem" }); // once Drive's state is known
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["png"], "logo.png", { type: "image/png" }));
     await waitFor(() => expect(sent.some((r) => r.path === "/api/office/logo")).toBe(true));
@@ -67,6 +67,16 @@ describe("Configurações → Escritório", () => {
       "src",
       "/api/office/logo?v=1",
     );
+  });
+
+  it("shows the uploaded logo in the header, next to the office's name", async () => {
+    api({ ...OFFICE, logo_url: "/api/office/logo?v=7" } as unknown as typeof OFFICE);
+    renderAt("/");
+    const header = await screen.findByRole("banner");
+    await waitFor(() =>
+      expect(header.querySelector("img")).toHaveAttribute("src", "/api/office/logo?v=7"),
+    );
+    expect(header).toHaveTextContent("Alinea");
   });
 
   it("shows the office's initials in an empty slot until there is a logo", async () => {

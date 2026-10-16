@@ -277,8 +277,8 @@ async def test_project_values_are_checked(db_session, alinea, values, constraint
 
 
 async def test_through_the_app_login_each_office_sees_only_its_projects(db_session):
-    """The seed's projects, read as the app's restricted login: isolation and
-    read-only access, on the real tables."""
+    """The seed's projects, as the app's restricted login: isolation, and only the
+    columns the painel changes may be changed, on the real tables."""
     from backend.commands.seed import seed
     from backend.tests.conftest import RUNTIME_ROLE
 
@@ -305,8 +305,14 @@ async def test_through_the_app_login_each_office_sees_only_its_projects(db_sessi
             ],
             "norte": ["casa-jardim"],
         }
+        # As Norte, a change reaches only Norte's one project.
+        await db_session.execute(
+            text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenants["norte"])}
+        )
+        renamed = await db_session.execute(text("UPDATE projects SET name = name || ' '"))
+        assert renamed.rowcount == 1
         with pytest.raises(Exception, match="permission denied"):
-            await db_session.execute(text("UPDATE projects SET name = 'x'"))
+            await db_session.execute(text("UPDATE projects SET description = 'x'"))
     finally:
         await db_session.rollback()
 

@@ -22,7 +22,15 @@ import styles from "../projects/projects.module.css";
 import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { toast } from "../ui/Toast";
 import pageStyles from "./pages.module.css";
+
+/** "A–Z ↑" for names, "Recentes primeiro ↓" for dates (prototype). */
+function directionLabel(sort: Sort): string {
+  const dates = sort.key === "updated" || sort.key === "created";
+  if (dates) return sort.direction === "asc" ? "projects.oldestFirst" : "projects.newestFirst";
+  return sort.direction === "asc" ? "projects.az" : "projects.za";
+}
 
 function Group({
   id,
@@ -94,7 +102,6 @@ export function ProjectsPage() {
   const timeZone = me.data?.tenant_timezone ?? "America/Sao_Paulo";
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>(loadSort);
-  const [created, setCreated] = useState<string | null>(null);
   const sortId = useId();
 
   const changeSort = (next: Sort) => {
@@ -116,11 +123,15 @@ export function ProjectsPage() {
   return (
     <>
       <div className={styles.head}>
-        <h1 className={pageStyles.display}>{t("projects.title")}</h1>
+        <p className={styles.kicker}>
+          {me.data?.tenant_name} / {t("projects.kicker")}
+        </p>
+        <h1 className={`${pageStyles.display} ${styles.title}`}>{t("projects.title")}</h1>
         <div className={styles.tools}>
           {hasAny && (
             <>
               <SearchField className={styles.search} value={query} onChange={setQuery} aria-label={t("projects.search")}>
+                <span className={styles.searchIcon} aria-hidden="true" />
                 <Input className={styles.searchInput} placeholder={t("projects.searchPlaceholder")} />
               </SearchField>
               <div className={styles.sort}>
@@ -141,21 +152,20 @@ export function ProjectsPage() {
                   ))}
                 </select>
                 <Button
-                  variant="ghost"
-                  aria-label={t(sort.direction === "asc" ? "projects.ascending" : "projects.descending")}
+                  className={styles.direction}
+                  aria-label={t(sort.direction === "asc" ? "projects.directionAsc" : "projects.directionDesc")}
                   onPress={() => changeSort({ ...sort, direction: sort.direction === "asc" ? "desc" : "asc" })}
                 >
-                  <span aria-hidden="true">{sort.direction === "asc" ? "↑" : "↓"}</span>
+                  {t(directionLabel(sort))}
                 </Button>
               </div>
             </>
           )}
-          <NewProjectDialog onCreated={(project) => setCreated(project.name)} />
+          <NewProjectDialog onCreated={(project) => toast(t("newProject.created", { name: project.name }))} />
         </div>
       </div>
       <DriveNotice />
       <FirstSteps />
-      {created && <p role="status">{t("newProject.created", { name: created })}</p>}
       {projects.error ? (
         <ErrorNotice error={projects.error} />
       ) : !projects.data ? (

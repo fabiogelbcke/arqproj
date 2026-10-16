@@ -292,10 +292,16 @@ office. So the painel comes next, then the client page once its design settles:
    (10 CC0 photos, `frontend/src/projects/covers/LICENSES.json`), the current
    stage "N / total", the next meeting and the last update in the office's time
    zone. Copying the client link waits for the client page (slice 2).
-3. **P3 Editing in the painel**: what exactly is editable here is to be
-   discussed before this step (Fabio); row-version conflicts handled.
-4. **P4 Folders and covers**: folders for projects created before P2's
-   folders existed, and covers.
+3. **P3 Project settings in the painel** (A24, narrowed 16 Oct 2026): the
+   prototype's "Projeto" dialog with name, client and cover, and "Arquivar"
+   (undo from the toast); the card's photo button ("Trocar foto"); covers stored
+   in a `_capa` folder in the project's folder; simultaneous edits detected by
+   row version; the toast component. Client link and access join the dialog in
+   slice 2. Until the project page exists, a card's title opens the dialog.
+   Slice 2 must leave `_capa` out of the client's file list, and serve the cover
+   to clients (staff only for now).
+4. **P4 Folders for older projects**: moved into the import of existing
+   projects (slice 2).
 5. Then **slice 2** below (client page, password, downloads, import), whose edit
    mode reuses the painel's editing pieces (plan section 24), then slices 3b–7.
 

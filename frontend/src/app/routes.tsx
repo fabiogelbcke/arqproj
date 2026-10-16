@@ -11,6 +11,7 @@ import { SettingsLayout } from "../pages/SettingsLayout";
 import { SettingsOfficePage } from "../pages/SettingsOfficePage";
 import { SignInPage } from "../pages/SignInPage";
 import { useMe, useTenant } from "../session/session";
+import { Toaster } from "../ui/Toast";
 import { UpdateBanner } from "../ui/UpdateBanner";
 import { SignedInLayout } from "./SignedInLayout";
 
@@ -24,6 +25,7 @@ function Root() {
     <I18nProvider locale={i18n.language}>
       <Outlet />
       <UpdateBanner />
+      <Toaster />
     </I18nProvider>
   );
 }

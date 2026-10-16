@@ -42,7 +42,13 @@ class ErrorCode(StrEnum):
     UNKNOWN_TEMPLATE = "unknown_template"
     INVALID_SLUG = "invalid_slug"  # letters, numbers and hyphens; some words are the app's
     PROJECT_NAME_TAKEN = "project_name_taken"  # `conflict_name` as typed by the office
-    SLUG_TAKEN = "slug_taken"  # `conflict_name` names the project that has it, when known
+    SLUG_TAKEN = "slug_taken"
+    PROJECT_NOT_FOUND = "project_not_found"  # unknown, deleted or another office's
+    PROJECT_CHANGED = "project_changed"  # someone else saved it meanwhile: reload
+    INVALID_STATUS_CHANGE = "invalid_status_change"
+    PROJECT_HAS_NO_FOLDER = "project_has_no_folder"
+    COVER_WRONG_TYPE = "cover_wrong_type"
+    COVER_TOO_LARGE = "cover_too_large"  # `conflict_name` names the project that has it, when known
 
 
 class ErrorOut(BaseModel):

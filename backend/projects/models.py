@@ -1,6 +1,6 @@
 """Project tables. All are tenant tables under `tenant_isolation`; children point
 at their project by (tenant_id, project_id), so a row can never join another
-office's project. The app only reads them for now (editing: slice 3).
+office's project.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from backend.db.types import TextEnum, enum_check
 from backend.projects.enums import (
     RESERVED_SLUGS,
     AccessMode,
+    CoverType,
     DetailType,
     ProjectStatus,
 )
@@ -146,6 +147,8 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
             "current_position IS NULL OR current_position >= 1", name="position_positive"
         ),
         UniqueConstraint("tenant_id", "creation_key", name="uq_projects_tenant_id_creation_key"),
+        enum_check("cover_type", CoverType),
+        CheckConstraint("(cover_file_id IS NULL) = (cover_type IS NULL)", name="cover_complete"),
     )
 
     name: Mapped[str] = mapped_column(Text)
@@ -180,6 +183,10 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
     # Sent by the creation form; a repeated request (double click, retry) returns
     # the project it already created instead of a second one.
     creation_key: Mapped[str | None] = mapped_column(Text)
+    # The cover photo, in a `_capa` folder inside the project's folder.
+    cover_file_id: Mapped[str | None] = mapped_column(Text)
+    cover_type: Mapped[CoverType | None] = mapped_column(TextEnum(CoverType))
+    cover_folder_id: Mapped[str | None] = mapped_column(Text)
 
 
 class ProjectSlug(IdMixin, TenantOwned, Base):

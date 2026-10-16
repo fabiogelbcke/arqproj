@@ -153,7 +153,10 @@ export function NewProjectDialog({ onCreated }: { onCreated: (p: ProjectSummary)
       drive.data.reader_status === "ok");
   return (
     <DialogTrigger>
-      <Button variant="primary">{t("projects.new")}</Button>
+      <Button variant="primary" className={styles.newButton}>
+        <span aria-hidden="true">+</span>
+        {t("projects.new")}
+      </Button>
       <ModalOverlay className={styles.overlay} isDismissable>
         <Modal className={styles.modal}>
           <Dialog className={styles.dialog}>

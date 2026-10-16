@@ -1,7 +1,7 @@
 .button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 40px; padding: 0 18px; border: 1px solid var(--line-strong); border-radius: 999px;
-  background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-weight: 500; font-size: 14px;
+  min-height: 44px; padding: 0 20px; border: 1px solid var(--line-strong); border-radius: var(--r);
+  background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-weight: 500; font-size: 13px;
   white-space: nowrap; transition: background 0.2s, border-color 0.2s, transform 0.15s var(--ease);
 }
 .button[data-hovered] { border-color: var(--ink); }
@@ -42,3 +42,19 @@
   background: var(--raise); box-shadow: var(--shadow);
 }
 @media (max-width: 560px) { .banner { inset: auto 16px 16px 16px; } }
+
+/* Toasts (prototype: a dark pill at the bottom centre). */
+.toastRegion {
+  position: fixed; left: 50%; bottom: 28px; translate: -50% 0; z-index: 60; max-width: calc(100vw - 32px);
+}
+.toast {
+  display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-radius: 999px;
+  background: var(--ink); color: var(--bg); font-weight: 500; font-size: 14px; box-shadow: var(--shadow);
+  animation: toast-in 0.35s var(--ease);
+}
+.toast span { flex: 1 1 auto; }
+.toast button {
+  background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }

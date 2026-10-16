@@ -34,6 +34,62 @@ export function useCreateProject() {
   });
 }
 
+/** Puts a project returned by a change into the list (or takes it out, archived). */
+function useStoreProject() {
+  const client = useQueryClient();
+  return (project: ProjectSummary) => {
+    client.setQueryData<ProjectSummary[]>(PROJECTS, (list) => {
+      if (!list) return list;
+      const others = list.filter((p) => p.id !== project.id);
+      return project.status === "archived" ? others : [...others, project];
+    });
+    void client.invalidateQueries({ queryKey: PROJECTS });
+  };
+}
+
+export type ProjectChange = Schemas["ProjectChange"];
+
+export function useChangeProject() {
+  const store = useStoreProject();
+  return useMutation({
+    mutationFn: ({ id, ...body }: ProjectChange & { id: string }) =>
+      call(api.PATCH("/api/projects/{project_id}", { params: { path: { project_id: id } }, body })),
+    onSuccess: store,
+  });
+}
+
+export const COVER_TYPES = ["image/jpeg", "image/png", "image/webp"];
+export const COVER_MAX_BYTES = 10 * 1024 * 1024;
+
+export function useUploadCover() {
+  const store = useStoreProject();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      call(
+        api.PUT("/api/projects/{project_id}/cover", {
+          params: { path: { project_id: id } },
+          // OpenAPI describes an uploaded file as a binary string; it is the File.
+          body: { file: file as unknown as string },
+          bodySerializer: (body) => {
+            const form = new FormData();
+            form.append("file", body.file as unknown as Blob);
+            return form;
+          },
+        }),
+      ),
+    onSuccess: store,
+  });
+}
+
+export function useRemoveCover() {
+  const store = useStoreProject();
+  return useMutation({
+    mutationFn: (id: string) =>
+      call(api.DELETE("/api/projects/{project_id}/cover", { params: { path: { project_id: id } } })),
+    onSuccess: store,
+  });
+}
+
 /** Lowercase, no accents: "Conceição" and "conceicao" match. */
 export function plain(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();

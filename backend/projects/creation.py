@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import re
 import shutil
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -95,17 +96,26 @@ async def _validate(db: AsyncSession, new: NewProject) -> StageTemplateDef:
     )
     if taken is not None:
         raise CreationProblem("slug_taken", conflict_name=taken)
-    # Plan section 10: two projects with one name are ambiguous in the painel
-    # and in Drive. Case and surrounding spaces don't make a different name.
-    same_name = await db.scalar(
-        select(Project.name).where(
-            Project.deleted_at.is_(None),
-            func.lower(func.btrim(Project.name)) == new.name.strip().lower(),
-        )
-    )
-    if same_name is not None:
+    if (same_name := await project_named(db, new.name)) is not None:
         raise CreationProblem("project_name_taken", conflict_name=same_name)
     return template
+
+
+async def project_named(
+    db: AsyncSession, name: str, other_than: uuid.UUID | None = None
+) -> str | None:
+    """The name of another project already called `name`, if any.
+
+    Plan section 10: two projects with one name are ambiguous in the painel and
+    in Drive. Case and surrounding spaces don't make a different name.
+    """
+    query = select(Project.name).where(
+        Project.deleted_at.is_(None),
+        func.lower(func.btrim(Project.name)) == name.strip().lower(),
+    )
+    if other_than is not None:
+        query = query.where(Project.id != other_than)
+    return await db.scalar(query.limit(1))
 
 
 async def create_project(

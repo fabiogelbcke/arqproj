@@ -19,6 +19,22 @@ a new entry too.
 
 ---
 
+## 2026-10-16 — A24 narrowed: the painel edits settings only
+
+**Was:** details, stages, progress, meeting and the other project content could
+be edited in two places: a painel form and the project page's staff edit mode.
+
+**Now:** content is edited only on the project page (edit mode). The painel
+edits the project's settings, following the prototype's "Projeto" dialog: name,
+client, cover (also from the card's photo button), client link and access (once
+the client page exists, slice 2), and archiving. Project type is one of the
+details, so it moves to the page. No delete for now; the prototype has none.
+
+**Why:** Fabio, reviewing the P3 proposal: editing belongs where the client sees
+the result; two editors for the same content means twice the work and two
+places to keep consistent. The cover stays in the painel too, as in the
+prototype's cards.
+
 ## 2026-10-15 — A07: project creation within the request for the pilot
 
 **Was:** creation as a durable provisioning operation: the project saved as

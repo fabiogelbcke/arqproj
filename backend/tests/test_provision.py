@@ -95,6 +95,18 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
     assert _column_grants(migrated_url, group) == {
         ("users", "password_hash", "UPDATE"),
         ("password_links", "used_at", "UPDATE"),
+        *(
+            ("projects", column, "UPDATE")
+            for column in (
+                "name",
+                "client_name",
+                "status",
+                "cover_file_id",
+                "cover_type",
+                "cover_folder_id",
+                "row_version",
+            )
+        ),
     }
     assert _grants(migrated_url, RUNTIME_ROLE) == set()
     assert _column_grants(migrated_url, RUNTIME_ROLE) == set()

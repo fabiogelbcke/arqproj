@@ -111,3 +111,44 @@ test("create a project → it is listed as a draft; a used address names its pro
   await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("nada parecido");
   await expect(page.getByText("Nenhum projeto encontrado")).toBeVisible();
 });
+
+// A real 1×1 PNG, so the browser can preview it.
+const PNG_1PX = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+test("project settings: rename, cover photo, archive and undo", async ({ page }) => {
+  const link = invite("ajustes@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+
+  // The card's photo button (a completed project: open its group first).
+  await page.getByRole("button", { name: "Concluídos" }).click();
+  await page.getByRole("button", { name: "Trocar foto de Refúgio da Mantiqueira" }).click();
+  const photo = page.getByRole("dialog", { name: "Trocar foto" });
+  await photo.locator('input[type="file"]').setInputFiles({ name: "obra.png", mimeType: "image/png", buffer: PNG_1PX });
+  await photo.getByRole("button", { name: "Salvar foto" }).click();
+  await expect(page.getByText("Foto da capa atualizada.")).toBeVisible();
+  await expect(photo).toBeHidden();
+
+  // The Projeto dialog.
+  await page.getByRole("button", { name: "Abrir as configurações de Refúgio da Mantiqueira" }).click();
+  const settings = page.getByRole("dialog", { name: "Projeto" });
+  await expect(settings.getByRole("button", { name: "Trocar capa" })).toBeVisible(); // the photo above
+  await settings.getByLabel("Nome do projeto").fill("Refúgio da Serra");
+  await settings.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Salvo.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Abrir as configurações de Refúgio da Serra" }).click();
+  await settings.getByRole("button", { name: "Arquivar" }).click();
+  await expect(page.getByText("Projeto “Refúgio da Serra” arquivado.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeHidden();
+  await page.getByRole("button", { name: "Desfazer" }).click();
+  await expect(page.getByText("Projeto “Refúgio da Serra” de volta.")).toBeVisible();
+  await page.getByRole("button", { name: "Concluídos" }).click(); // its group, folded again
+  await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeVisible();
+});
