@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -69,14 +69,21 @@ describe("Configurações → Escritório", () => {
     );
   });
 
-  it("shows the uploaded logo in the header, next to the office's name", async () => {
+  it("shows the uploaded logo in the header instead of the office's name", async () => {
     api({ ...OFFICE, logo_url: "/api/office/logo?v=7" } as unknown as typeof OFFICE);
     renderAt("/");
     const header = await screen.findByRole("banner");
-    await waitFor(() =>
-      expect(header.querySelector("img")).toHaveAttribute("src", "/api/office/logo?v=7"),
-    );
+    const logo = await within(header).findByRole("img", { name: "Alinea" }); // the name, for screen readers
+    expect(logo).toHaveAttribute("src", "/api/office/logo?v=7");
+    expect(header).not.toHaveTextContent("Alinea"); // not written out a second time
+  });
+
+  it("shows the office's name in the header until there is a logo", async () => {
+    api();
+    renderAt("/");
+    const header = await screen.findByRole("banner");
     expect(header).toHaveTextContent("Alinea");
+    expect(within(header).queryByRole("img")).not.toBeInTheDocument();
   });
 
   it("shows the office's initials in an empty slot until there is a logo", async () => {

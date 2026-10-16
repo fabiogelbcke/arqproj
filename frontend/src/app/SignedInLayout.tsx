@@ -36,9 +36,13 @@ export function SignedInLayout() {
     <>
       <header className={styles.topbar}>
         <div className={styles.topbarIn}>
+          {/* A logo usually carries the name already, so it replaces it. */}
           <span className={styles.brand}>
-            {office.data?.logo_url && <img src={office.data.logo_url} alt="" />}
-            {me.data.tenant_name}
+            {office.data?.logo_url ? (
+              <img src={office.data.logo_url} alt={me.data.tenant_name} />
+            ) : (
+              me.data.tenant_name
+            )}
           </span>
           <nav className={styles.nav} aria-label={t("app.name")}>
             <NavLink to="/" end>
