@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -56,7 +56,7 @@ describe("Configurações → Escritório", () => {
       "PUT /api/office/logo": () => ({ body: { ...OFFICE, logo_url: "/api/office/logo?v=1" } }),
     });
     renderAt("/configuracoes/escritorio");
-    await screen.findByLabelText(/Nome do escritório/);
+    await screen.findByRole("button", { name: "Escolher imagem" }); // once Drive's state is known
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["png"], "logo.png", { type: "image/png" }));
     await waitFor(() => expect(sent.some((r) => r.path === "/api/office/logo")).toBe(true));
@@ -67,6 +67,23 @@ describe("Configurações → Escritório", () => {
       "src",
       "/api/office/logo?v=1",
     );
+  });
+
+  it("shows the uploaded logo in the header instead of the office's name", async () => {
+    api({ ...OFFICE, logo_url: "/api/office/logo?v=7" } as unknown as typeof OFFICE);
+    renderAt("/");
+    const header = await screen.findByRole("banner");
+    const logo = await within(header).findByRole("img", { name: "Alinea" }); // the name, for screen readers
+    expect(logo).toHaveAttribute("src", "/api/office/logo?v=7");
+    expect(header).not.toHaveTextContent("Alinea"); // not written out a second time
+  });
+
+  it("shows the office's name in the header until there is a logo", async () => {
+    api();
+    renderAt("/");
+    const header = await screen.findByRole("banner");
+    expect(header).toHaveTextContent("Alinea");
+    expect(within(header).queryByRole("img")).not.toBeInTheDocument();
   });
 
   it("shows the office's initials in an empty slot until there is a logo", async () => {

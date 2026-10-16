@@ -50,8 +50,6 @@
       "client": "Client",
       "type": "Project type"
     },
-    "ascending": "Ascending",
-    "descending": "Descending",
     "groupActive": "In progress",
     "groupDrafts": "Drafts",
     "groupCompleted": "Completed",
@@ -67,7 +65,14 @@
     "done": "Project completed",
     "stageCaption": "Current stage",
     "stagesCaption": "Project stages",
-    "groupCountLabel": "{{shown}} projects in progress of {{total}} shown"
+    "groupCountLabel": "{{shown}} projects in progress of {{total}} shown",
+    "kicker": "Project space",
+    "az": "A–Z ↑",
+    "za": "Z–A ↓",
+    "newestFirst": "Newest first ↓",
+    "oldestFirst": "Oldest first ↑",
+    "directionAsc": "Ascending order. Change to descending",
+    "directionDesc": "Descending order. Change to ascending"
   },
   "newProject": {
     "title": "New project",
@@ -87,6 +92,37 @@
     "created": "Project “{{name}}” created.",
     "noStagesHint": "You set up the stages later, on the project page",
     "nameTakenBy": "There's already a project called “{{name}}”. Choose another name."
+  },
+  "cover": {
+    "change": "Change photo",
+    "changeOf": "Change the photo of {{name}}",
+    "choose": "Choose a photo",
+    "chooseHint": "JPG, PNG or WebP · up to 10 MB",
+    "preview": "Preview of the new cover",
+    "save": "Save photo",
+    "saving": "Saving…",
+    "saved": "Cover photo updated.",
+    "unreadable": "This photo couldn't be read. Choose another."
+  },
+  "projectSettings": {
+    "title": "Project",
+    "open": "Open the settings of {{name}}",
+    "name": "Project name",
+    "client": "Client",
+    "cover": "Cover",
+    "changeCover": "Change cover",
+    "setCover": "Set cover",
+    "removeCover": "Remove cover",
+    "noCover": "Without a cover, the painel shows a sample photo.",
+    "coverRemoved": "Cover removed. The photo went to the Google Drive trash.",
+    "archive": "Archive",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "archived": "Project “{{name}}” archived.",
+    "undo": "Undo",
+    "restored": "Project “{{name}}” is back."
   },
   "notFound": {
     "title": "Page not found",
@@ -133,7 +169,14 @@
     "unknown_template": "Choose a stage template.",
     "invalid_slug": "Use only lowercase letters, numbers and hyphens, with no hyphen at the start or end. Some words are reserved by the portal.",
     "slug_taken": "This address is already in use. Choose another.",
-    "project_name_taken": "A project with this name already exists. Choose another."
+    "project_name_taken": "A project with this name already exists. Choose another.",
+    "project_not_found": "This project no longer exists. Reload the page.",
+    "project_changed": "Someone else changed this project while you were editing. Reload the page to see their changes and try again.",
+    "invalid_status_change": "This project's status couldn't be changed. Reload the page and try again.",
+    "project_has_no_folder": "This project doesn't have a Google Drive folder yet, so it can't take a photo.",
+    "cover_wrong_type": "Choose a JPG, PNG or WebP image.",
+    "cover_too_large": "Choose an image of up to 10 MB.",
+    "project_archived": "This project is archived and takes no new files. Restore it first."
   },
   "projectStatus": {
     "draft": "Draft",

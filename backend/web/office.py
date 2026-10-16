@@ -125,7 +125,7 @@ async def change_office(
     return _out(tenant, found, staff)
 
 
-def _logo_type(content: bytes) -> LogoType | None:
+def image_type(content: bytes) -> LogoType | None:
     """From the bytes, never from the file name or the browser's word."""
     if content.startswith(b"\x89PNG\r\n\x1a\n"):
         return LogoType.PNG
@@ -151,7 +151,7 @@ async def upload_logo(
     content = await file.read(LOGO_MAX_BYTES + 1)
     if len(content) > LOGO_MAX_BYTES:
         raise ApiError(413, ErrorCode.LOGO_TOO_LARGE)
-    logo_type = _logo_type(content)
+    logo_type = image_type(content)
     if logo_type is None:
         raise ApiError(415, ErrorCode.LOGO_WRONG_TYPE)
     name = f"logo.{_EXTENSIONS[logo_type]}"

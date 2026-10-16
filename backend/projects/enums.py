@@ -24,6 +24,14 @@ class ProjectStatus(StrEnum):
     ARCHIVED = "archived"  # still viewable; no new uploads or emails (plan section 22)
 
 
+class CoverType(StrEnum):
+    """A cover photo's type, read from its bytes; also its Content-Type."""
+
+    PNG = "image/png"
+    JPEG = "image/jpeg"
+    WEBP = "image/webp"
+
+
 class AccessMode(StrEnum):
     PUBLIC = "public"
     PASSWORD = "password"

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 
 import { api, call } from "../api/client";
+import { useOffice } from "../office/office";
 import { useMe, useSignedOut } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
@@ -13,6 +14,7 @@ import styles from "../pages/pages.module.css";
 export function SignedInLayout() {
   const { t } = useTranslation();
   const me = useMe();
+  const office = useOffice(); // the logo, once uploaded (Configurações → Escritório)
   const location = useLocation();
   const signedOut = useSignedOut();
   const navigate = useNavigate();
@@ -34,7 +36,14 @@ export function SignedInLayout() {
     <>
       <header className={styles.topbar}>
         <div className={styles.topbarIn}>
-          <span className={styles.brand}>{me.data.tenant_name}</span>
+          {/* A logo usually carries the name already, so it replaces it. */}
+          <span className={styles.brand}>
+            {office.data?.logo_url ? (
+              <img src={office.data.logo_url} alt={me.data.tenant_name} />
+            ) : (
+              me.data.tenant_name
+            )}
+          </span>
           <nav className={styles.nav} aria-label={t("app.name")}>
             <NavLink to="/" end>
               {t("nav.projects")}

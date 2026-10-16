@@ -50,8 +50,6 @@
       "client": "Cliente",
       "type": "Tipo de projeto"
     },
-    "ascending": "Crescente",
-    "descending": "Decrescente",
     "groupActive": "Em andamento",
     "groupDrafts": "Rascunhos",
     "groupCompleted": "Concluídos",
@@ -67,7 +65,14 @@
     "done": "Projeto concluído",
     "stageCaption": "Etapa atual",
     "stagesCaption": "Etapas do projeto",
-    "groupCountLabel": "{{shown}} projetos em andamento de {{total}} exibidos"
+    "groupCountLabel": "{{shown}} projetos em andamento de {{total}} exibidos",
+    "kicker": "Espaço de projetos",
+    "az": "A–Z ↑",
+    "za": "Z–A ↓",
+    "newestFirst": "Recentes primeiro ↓",
+    "oldestFirst": "Antigos primeiro ↑",
+    "directionAsc": "Ordem crescente. Alterar para decrescente",
+    "directionDesc": "Ordem decrescente. Alterar para crescente"
   },
   "newProject": {
     "title": "Novo projeto",
@@ -87,6 +92,37 @@
     "created": "Projeto “{{name}}” criado.",
     "noStagesHint": "Você monta as etapas depois, na página do projeto",
     "nameTakenBy": "Já existe o projeto “{{name}}”. Escolha outro nome."
+  },
+  "cover": {
+    "change": "Trocar foto",
+    "changeOf": "Trocar foto de {{name}}",
+    "choose": "Escolher uma foto",
+    "chooseHint": "JPG, PNG ou WebP · até 10 MB",
+    "preview": "Prévia da nova capa",
+    "save": "Salvar foto",
+    "saving": "Salvando…",
+    "saved": "Foto da capa atualizada.",
+    "unreadable": "Não foi possível ler esta foto. Escolha outra."
+  },
+  "projectSettings": {
+    "title": "Projeto",
+    "open": "Abrir as configurações de {{name}}",
+    "name": "Nome do projeto",
+    "client": "Cliente",
+    "cover": "Capa",
+    "changeCover": "Trocar capa",
+    "setCover": "Definir capa",
+    "removeCover": "Remover capa",
+    "noCover": "Sem capa, o painel mostra uma foto de exemplo.",
+    "coverRemoved": "Capa removida. A foto foi para a lixeira do Google Drive.",
+    "archive": "Arquivar",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "saving": "Salvando…",
+    "saved": "Salvo.",
+    "archived": "Projeto “{{name}}” arquivado.",
+    "undo": "Desfazer",
+    "restored": "Projeto “{{name}}” de volta."
   },
   "notFound": {
     "title": "Página não encontrada",
@@ -133,7 +169,14 @@
     "unknown_template": "Escolha um modelo de etapas.",
     "invalid_slug": "Use só letras minúsculas, números e hífens, sem hífen no começo ou no fim. Algumas palavras são reservadas pelo portal.",
     "slug_taken": "Este endereço já está em uso. Escolha outro.",
-    "project_name_taken": "Já existe um projeto com este nome. Escolha outro."
+    "project_name_taken": "Já existe um projeto com este nome. Escolha outro.",
+    "project_not_found": "Este projeto não existe mais. Recarregue a página.",
+    "project_changed": "Este projeto foi alterado por outra pessoa enquanto você editava. Recarregue a página para ver as mudanças e tente de novo.",
+    "invalid_status_change": "Não foi possível mudar a situação deste projeto. Recarregue a página e tente de novo.",
+    "project_has_no_folder": "Este projeto ainda não tem uma pasta no Google Drive, então não pode receber uma foto.",
+    "cover_wrong_type": "Escolha uma imagem JPG, PNG ou WebP.",
+    "cover_too_large": "Escolha uma imagem de até 10 MB.",
+    "project_archived": "Este projeto está arquivado e não recebe novos arquivos. Desarquive-o antes."
   },
   "projectStatus": {
     "draft": "Rascunho",

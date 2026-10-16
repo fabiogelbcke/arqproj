@@ -1,12 +1,11 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { coverIndex, type ProjectSummary } from "./projects";
+import { Cover } from "./Cover";
+import { CoverDialog } from "./CoverDialog";
+import { ProjectDialog } from "./ProjectDialog";
+import { type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
-
-// 10 CC0 photos (StockSnap; see covers/LICENSES.json), until projects have covers (P4).
-const COVERS = Object.values(
-  import.meta.glob<string>("./covers/*.jpg", { eager: true, import: "default", query: "?url" }),
-).sort();
 
 function Progress({ project }: { project: ProjectSummary }) {
   const { t } = useTranslation();
@@ -44,24 +43,41 @@ function Progress({ project }: { project: ProjectSummary }) {
 /** A project in the list. Times are the office's, wherever the viewer is. */
 export function ProjectCard({ project, timeZone }: { project: ProjectSummary; timeZone: string }) {
   const { t, i18n } = useTranslation();
-  const day = new Intl.DateTimeFormat(i18n.language, { timeZone, day: "numeric", month: "short", year: "numeric" });
+  // Numeric dates, as in the prototype: 15/10/2026 and 17/10/2026, 16:00.
+  const day = new Intl.DateTimeFormat(i18n.language, { timeZone, day: "2-digit", month: "2-digit", year: "numeric" });
   const meeting = new Intl.DateTimeFormat(i18n.language, {
     timeZone,
-    weekday: "short",
-    day: "numeric",
-    month: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
   const updated = project.last_activity_at ?? project.created_at;
+  const [open, setOpen] = useState<"settings" | "cover" | null>(null);
   return (
     <li className={styles.card} data-testid="project-card">
-      <span className={styles.cover}>
-        <img src={COVERS[coverIndex(project.id, COVERS.length)]} alt="" loading="lazy" />
-      </span>
+      <Cover project={project} className={styles.cardCover} />
+      <button
+        type="button"
+        className={styles.coverButton}
+        aria-label={t("cover.changeOf", { name: project.name })}
+        title={t("cover.change")}
+        onClick={() => setOpen("cover")}
+      >
+        <span aria-hidden="true">+</span>
+      </button>
       <div className={styles.identity}>
         <h3 className={styles.name}>
-          {project.name}
+          {/* Until the project page exists (slice 2), the title opens the settings. */}
+          <button
+            type="button"
+            className={styles.titleButton}
+            aria-label={t("projectSettings.open", { name: project.name })}
+            onClick={() => setOpen("settings")}
+          >
+            {project.name}
+          </button>
           {project.status === "draft" && <span className={styles.tag}>{t("projectStatus.draft")}</span>}
         </h3>
         <p className={styles.client}>
@@ -73,11 +89,7 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
       <div className={styles.meta}>
         <small>{t("projects.nextMeeting")}</small>
         {project.next_meeting ? (
-          <span>
-            {project.next_meeting.title}
-            <br />
-            {meeting.format(new Date(project.next_meeting.starts_at))}
-          </span>
+          <span title={project.next_meeting.title}>{meeting.format(new Date(project.next_meeting.starts_at))}</span>
         ) : (
           <span className={styles.muted}>{t("projects.noMeeting")}</span>
         )}
@@ -85,6 +97,8 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
       <p className={styles.updated}>
         <small>{t("projects.updated")}</small> {day.format(new Date(updated))}
       </p>
+      {open === "cover" && <CoverDialog project={project} onClose={() => setOpen(null)} />}
+      {open === "settings" && <ProjectDialog project={project} onClose={() => setOpen(null)} />}
     </li>
   );
 }

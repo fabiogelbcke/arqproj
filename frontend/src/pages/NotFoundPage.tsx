@@ -7,7 +7,7 @@ export function NotFoundPage() {
   const { t } = useTranslation();
   return (
     <>
-      <h1 className={styles.display}>{t("notFound.title")}</h1>
+      <h1 className={`${styles.display} ${styles.displayMedium}`}>{t("notFound.title")}</h1>
       <Link to="/">{t("notFound.back")}</Link>
     </>
   );

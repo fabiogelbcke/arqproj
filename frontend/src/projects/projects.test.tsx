@@ -36,6 +36,8 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
     next_meeting: null,
     created_at: "2026-09-01T12:00:00Z",
     last_activity_at: null,
+    row_version: 1,
+    cover_url: null,
     ...changes,
   };
 }
@@ -88,7 +90,7 @@ describe("the project list", () => {
   it("shows meeting times in the office's time zone", async () => {
     api();
     renderAt("/");
-    expect(await screen.findByText(/21 de out\., 16:00/)).toBeInTheDocument(); // 19:00 UTC
+    expect(await screen.findByText("21/10/2026, 16:00")).toBeInTheDocument(); // 19:00 UTC
   });
 
   it("finds projects by name or client, ignoring accents and case", async () => {

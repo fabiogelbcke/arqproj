@@ -76,6 +76,10 @@ class ProjectSummary(BaseModel):
     created_at: datetime
     # The last change a client can see (A28); None until there is one.
     last_activity_at: datetime | None
+    # Sent back with a change, so a change made meanwhile by someone else is caught.
+    row_version: int
+    # Changes when the cover does, so browsers fetch the new one; None: placeholder.
+    cover_url: str | None
 
 
 class TemplateOut(BaseModel):
@@ -94,17 +98,20 @@ class ProjectIn(BaseModel):
     creation_key: str = Field(min_length=16, max_length=100)
 
 
-async def _summaries(
+async def summaries(
     db: AsyncSession, locale: Locale, only: uuid.UUID | None = None
 ) -> list[ProjectSummary]:
     query = (
         select(Project, ProjectSlug.slug, ProjectTypeDef.labels)
         .join(ProjectSlug, (ProjectSlug.project_id == Project.id) & ProjectSlug.is_current)
         .join(ProjectTypeDef, ProjectTypeDef.key == Project.project_type)
-        .where(Project.deleted_at.is_(None), Project.status != ProjectStatus.ARCHIVED)
+        .where(Project.deleted_at.is_(None))
     )
+    # The list leaves archived projects out; one asked for by id is returned as is.
     if only is not None:
         query = query.where(Project.id == only)
+    else:
+        query = query.where(Project.status != ProjectStatus.ARCHIVED)
     rows = (await db.execute(query)).all()
     ids = [project.id for project, _, _ in rows]
     if not ids:
@@ -158,9 +165,18 @@ async def _summaries(
             next_meeting=meetings.get(project.id),
             created_at=project.created_at,
             last_activity_at=project.last_activity_at,
+            row_version=project.row_version,
+            cover_url=cover_url(project),
         )
         for project, slug, labels in rows
     ]
+
+
+def cover_url(project: Project) -> str | None:
+    if project.cover_file_id is None:
+        return None
+    # Microseconds: two changes within a second still get different addresses.
+    return f"/api/projects/{project.id}/cover?v={project.updated_at.timestamp():.6f}"
 
 
 @router.get("/projects", responses=documented(401))
@@ -169,7 +185,7 @@ async def projects(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> list[ProjectSummary]:
-    return await _summaries(db, tenant.locale)
+    return await summaries(db, tenant.locale)
 
 
 @router.get("/templates", responses=documented(401))
@@ -232,4 +248,4 @@ async def new_project(
         log.error("creating project folders failed for %s: %s", tenant.slug, error.detail)
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
     log.info("project %s created in %s", project.id, tenant.slug)
-    return (await _summaries(db, tenant.locale, only=project.id))[0]
+    return (await summaries(db, tenant.locale, only=project.id))[0]

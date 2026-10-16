@@ -335,7 +335,8 @@ async def test_deleted_and_archived_projects_are_not_listed(client, db_session, 
     )
     await db_session.execute(
         text(
-            f"UPDATE projects SET status = '{ProjectStatus.ARCHIVED.value}' WHERE id = "
+            f"UPDATE projects SET status = '{ProjectStatus.ARCHIVED.value}', "
+            "archived_from = 'draft' WHERE id = "
             "(SELECT project_id FROM project_slugs WHERE slug = 'casa-das-oliveiras')"
         )
     )

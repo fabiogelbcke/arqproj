@@ -30,7 +30,8 @@ CONTENT_SECURITY_POLICY = "; ".join(
         # pressable elements (usePress). Any other inline style stays blocked; if
         # a library update changes that rule, `make e2e` fails on the violation.
         "style-src 'self' 'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='",
-        "img-src 'self' data:",
+        # blob: previews a photo chosen on this device before it is uploaded.
+        "img-src 'self' data: blob:",
         "font-src 'self'",
         "connect-src 'self'",
         "object-src 'none'",
