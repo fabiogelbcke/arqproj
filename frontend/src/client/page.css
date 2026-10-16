@@ -24,3 +24,9 @@
 .file__thumb > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .file-group + .file-group { margin-top: 22px; }
 .file-group__title { margin: 18px 0 0; font: 500 11px/1.4 var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-muted, var(--muted)); }
+
+/* Edit mode (part 1): small additions to the prototype's editor styles. */
+.editor__problem { margin: 0; color: var(--danger, #9b3d1d); font-size: 14px; }
+.add-detail { display: block; max-width: 280px; }
+.desc__empty { opacity: .55; }
+.addnote { margin-top: 4px; }

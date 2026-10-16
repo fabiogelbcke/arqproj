@@ -118,6 +118,7 @@ class OfficeOut(BaseModel):
 
 
 class DetailOut(BaseModel):
+    key: str
     label: str
     type: DetailType
     # Text as typed, an area in m² as a number, or an ISO date; formatted by the page.
@@ -125,6 +126,7 @@ class DetailOut(BaseModel):
 
 
 class StageOut(BaseModel):
+    position: int
     title: str
     about: str | None  # what happens in this stage, in the project type's words
     notes: str
@@ -143,6 +145,8 @@ class StaffView(BaseModel):
 
     project_id: uuid.UUID
     status: ProjectStatus
+    # Sent back with every change made from the page (plan section 7).
+    row_version: int
 
 
 class PageOut(BaseModel):
@@ -187,7 +191,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         select(ProjectTypeDef.labels).where(ProjectTypeDef.key == project.project_type)
     )
     details = [
-        DetailOut(label=_text(labels, locale), type=row.value_type, value=value)
+        DetailOut(key=row.key, label=_text(labels, locale), type=row.value_type, value=value)
         for row, labels in await db.execute(
             select(ProjectDetail, DetailTypeDef.labels)
             .join(DetailTypeDef, DetailTypeDef.key == ProjectDetail.key)
@@ -209,11 +213,20 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         .order_by(ProjectStage.position)
     ):
         if stage.builtin_key is None:  # written by the office, shown as typed
-            stages.append(StageOut(title=stage.title, about=stage.about, notes=stage.notes))
+            stages.append(
+                StageOut(
+                    position=stage.position, title=stage.title, about=stage.about, notes=stage.notes
+                )
+            )
         else:
             about = own or general  # the type's own words, else the general text
             stages.append(
-                StageOut(title=_text(titles, locale), about=_text(about, locale), notes=stage.notes)
+                StageOut(
+                    position=stage.position,
+                    title=_text(titles, locale),
+                    about=_text(about, locale),
+                    notes=stage.notes,
+                )
             )
     meeting = await db.scalar(
         select(Meeting)
@@ -299,7 +312,9 @@ async def page(
     project = await _readable(db, slug, staff, request)
     shown = await _page(db, tenant, project, slug)
     if staff is not None:
-        shown.staff = StaffView(project_id=project.id, status=project.status)
+        shown.staff = StaffView(
+            project_id=project.id, status=project.status, row_version=project.row_version
+        )
     if staff is not None or project.access_mode is AccessMode.PASSWORD:
         response.headers.update(PRIVATE)
     return shown

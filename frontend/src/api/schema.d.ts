@@ -275,6 +275,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/detail-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detail Types */
+        get: operations["detail_types_api_detail_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change Content */
+        patch: operations["change_content_api_projects__project_id__content_patch"];
+        trace?: never;
+    };
+    "/api/projects/{project_id}/meeting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Meeting
+         * @description The page shows one meeting, the next: this sets it (a new one, or the
+         *     upcoming one changed).
+         */
+        put: operations["set_meeting_api_projects__project_id__meeting_put"];
+        post?: never;
+        /** Clear Meeting */
+        delete: operations["clear_meeting_api_projects__project_id__meeting_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/stages/{position}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Notes
+         * @description A stage's note to the client ("Recado"); empty removes it.
+         */
+        put: operations["set_notes_api_projects__project_id__stages__position__notes_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pages/{slug}/files": {
         parameters: {
             query?: never;
@@ -360,6 +436,15 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** ContentIn */
+        ContentIn: {
+            /** Row Version */
+            row_version: number;
+            /** Description */
+            description?: string | null;
+            /** Details */
+            details?: components["schemas"]["DetailIn"][] | null;
+        };
         /** CreationOptions */
         CreationOptions: {
             /** Types */
@@ -367,8 +452,17 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageOption"][];
         };
+        /** DetailIn */
+        DetailIn: {
+            /** Key */
+            key: string;
+            /** Value */
+            value: string;
+        };
         /** DetailOut */
         DetailOut: {
+            /** Key */
+            key: string;
             /** Label */
             label: string;
             type: components["schemas"]["DetailType"];
@@ -380,6 +474,14 @@ export interface components {
          * @enum {string}
          */
         DetailType: "text" | "area" | "date";
+        /** DetailTypeOut */
+        DetailTypeOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            type: components["schemas"]["DetailType"];
+        };
         /** DriveOut */
         DriveOut: {
             kind: components["schemas"]["StorageKind"] | null;
@@ -396,7 +498,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "wrong_page_password" | "too_many_attempts" | "password_required" | "file_not_found";
+        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "wrong_page_password" | "too_many_attempts" | "password_required" | "invalid_detail" | "invalid_meeting" | "file_not_found";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -480,6 +582,29 @@ export interface components {
             /** Csrf Token */
             csrf_token: string;
         };
+        /** MeetingIn */
+        MeetingIn: {
+            /** Row Version */
+            row_version: number;
+            /** Title */
+            title: string;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Start
+             * Format: time
+             */
+            start: string;
+            /** End */
+            end?: string | null;
+            /** Location */
+            location?: string | null;
+            /** Link */
+            link?: string | null;
+        };
         /** MeetingOut */
         MeetingOut: {
             /** Title */
@@ -508,6 +633,13 @@ export interface components {
              * Format: date-time
              */
             starts_at: string;
+        };
+        /** NotesIn */
+        NotesIn: {
+            /** Row Version */
+            row_version: number;
+            /** Notes */
+            notes: string;
         };
         /** OfficeIn */
         OfficeIn: {
@@ -666,6 +798,8 @@ export interface components {
              */
             project_id: string;
             status: components["schemas"]["ProjectStatus"];
+            /** Row Version */
+            row_version: number;
         };
         /** StageFilesOut */
         StageFilesOut: {
@@ -688,6 +822,8 @@ export interface components {
         };
         /** StageOut */
         StageOut: {
+            /** Position */
+            position: number;
             /** Title */
             title: string;
             /** About */
@@ -1657,6 +1793,274 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    detail_types_api_detail_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailTypeOut"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    change_content_api_projects__project_id__content_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    set_meeting_api_projects__project_id__meeting_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeetingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    clear_meeting_api_projects__project_id__meeting_delete: {
+        parameters: {
+            query: {
+                row_version: number;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_notes_api_projects__project_id__stages__position__notes_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

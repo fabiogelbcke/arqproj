@@ -92,4 +92,8 @@ test("@screenshots staff app", async ({ page }) => {
   await page.getByRole("heading", { name: "Etapas e próximos passos" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: "Editar reunião" }).click();
+  await shoot(page, "06b-pagina-editando");
 });

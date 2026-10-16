@@ -310,7 +310,7 @@ async def test_through_the_app_login_each_office_sees_only_its_projects(db_sessi
         renamed = await db_session.execute(text("UPDATE projects SET name = name || ' '"))
         assert renamed.rowcount == 1
         with pytest.raises(Exception, match="permission denied"):
-            await db_session.execute(text("UPDATE projects SET description = 'x'"))
+            await db_session.execute(text("UPDATE projects SET folder_id = 'x'"))
     finally:
         await db_session.rollback()
 

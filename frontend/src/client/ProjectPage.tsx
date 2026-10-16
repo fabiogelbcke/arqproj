@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
 import { Toaster, toast } from "../ui/Toast";
+import { DescriptionEditor, DetailsEditor, EditButton, MeetingEditor, NotesEditor } from "./Editors";
 import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -292,14 +293,15 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
   );
 }
 
-function MeetingCard({ page, slug }: { page: Page; slug: string }) {
+function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?: () => void }) {
   const { t, i18n } = useTranslation();
   const narrow = useNarrow();
   const meeting = page.next_meeting;
   const when = meeting ? meetingWhen(meeting, i18n.language, page.timezone) : null;
   const title = meeting ? meeting.title || t("page.defaultMeetingTitle") : t("page.noMeetingTitle");
   return (
-    <section className="meet" aria-label={t("page.nextMeeting")}>
+    <section className="meet" data-editable aria-label={t("page.nextMeeting")}>
+      {onEdit && <EditButton label={meeting ? t("edit.meeting") : t("edit.schedule")} onClick={onEdit} />}
       <div>
         <h2>{narrow && meeting ? t("page.meetingScheduled") : t("page.nextMeeting")}</h2>
         <p className="meet__title" title={title}>
@@ -354,6 +356,7 @@ function Stage({
   onToggle,
   files,
   slug,
+  editor,
 }: {
   page: Page;
   index: number;
@@ -361,6 +364,7 @@ function Stage({
   onToggle: () => void;
   files: StageFiles | undefined;
   slug: string;
+  editor?: { open: boolean; onOpen: () => void; render: () => ReactNode };
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -434,10 +438,19 @@ function Stage({
       {narrow && helpPanel}
       <div className="stage__body" id={`stage-body-${index}`} aria-hidden={!open} inert={!open}>
         <div className="stage__body-inner">
-          {stage.notes && (
-            <div className="notes">
+          {editor?.open ? (
+            editor.render()
+          ) : stage.notes ? (
+            <div className="notes" data-editable>
+              {editor && <EditButton label={t("edit.notesShort")} onClick={editor.onOpen} />}
               <p>{stage.notes}</p>
             </div>
+          ) : (
+            editor && (
+              <button className="ghostline addnote" type="button" onClick={editor.onOpen}>
+                + {t("edit.addNote")}
+              </button>
+            )
           )}
           <StageFilesList files={files} slug={slug} timeZone={page.timezone} />
         </div>
@@ -448,7 +461,19 @@ function Stage({
 
 /** For the office's signed-in staff only (the prototype's dock): back to the
  *  painel, the page's status, copy its link, and publish a draft. */
-function StaffBar({ page, ready, onPublished }: { page: Page; ready: boolean; onPublished: () => void }) {
+function StaffBar({
+  page,
+  ready,
+  editing,
+  onMode,
+  onPublished,
+}: {
+  page: Page;
+  ready: boolean;
+  editing: boolean;
+  onMode: (editing: boolean) => void;
+  onPublished: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const [publishing, setPublishing] = useState(false);
   const staff = page.staff!;
@@ -464,6 +489,15 @@ function StaffBar({ page, ready, onPublished }: { page: Page; ready: boolean; on
         {page.name}
         <small>{draft ? t("page.draftNote") : t("page.publishedNote")}</small>
       </span>
+      {/* The prototype's switch: the page as the client sees it, or with controls. */}
+      <div className="seg" role="group" aria-label={t("edit.mode")} data-on={editing ? "edit" : "view"}>
+        <button type="button" aria-pressed={!editing} onClick={() => onMode(false)}>
+          {t("edit.asClient")}
+        </button>
+        <button type="button" aria-pressed={editing} disabled={!ready} onClick={() => onMode(true)}>
+          {t("edit.edit")}
+        </button>
+      </div>
       <button
         className="iconbtn"
         type="button"
@@ -565,6 +599,14 @@ export function ProjectPage({
   const cover = useRef<HTMLDivElement>(null);
   useCoverWipe(cover);
   const stageFiles = useStageFiles(slug, page);
+  const [editing, setEditing] = useState(false);
+  const [openEditor, setOpenEditor] = useState<string | null>(null);
+  const staff = page.staff;
+  const canEdit = editing && !!staff;
+  const done = (saved: boolean) => {
+    setOpenEditor(null);
+    if (saved) onChanged?.();
+  };
   // One stage open at a time: the current one, until the client opens another.
   const [openStage, setOpenStage] = useState(() => Math.max(0, (page.current_position ?? 1) - 1));
 
@@ -581,7 +623,7 @@ export function ProjectPage({
   };
 
   return (
-    <div className="client">
+    <div className={`client${canEdit ? " editing" : ""}`}>
       <SiteHeader office={page.office} />
       <div className="cwrap">
         <div className="project-opening">
@@ -597,14 +639,30 @@ export function ProjectPage({
             </figure>
           )}
         </div>
-        <section className={`hero${narrow ? " mobile-view-hidden" : ""}`}>
+        <section className={`hero${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
           <div>
-            <div className="desc">{page.description && <Description text={page.description} />}</div>
+            {canEdit && openEditor === "desc" ? (
+              <DescriptionEditor page={page} staff={staff!} onDone={done} />
+            ) : (
+              <div className="desc" data-editable>
+                {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
+                {page.description ? (
+                  <Description text={page.description} />
+                ) : (
+                  canEdit && <p className="desc__empty">{t("edit.noDescription")}</p>
+                )}
+              </div>
+            )}
           </div>
           <div>
-            <dl className="facts">
-              <Facts page={page} />
-            </dl>
+            {canEdit && openEditor === "facts" ? (
+              <DetailsEditor page={page} staff={staff!} onDone={done} />
+            ) : (
+              <dl className="facts" data-editable>
+                {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
+                <Facts page={page} />
+              </dl>
+            )}
           </div>
         </section>
         <div className={`project-status${page.stages.length ? "" : " project-status--single"}`}>
@@ -614,7 +672,11 @@ export function ProjectPage({
             </div>
           )}
           <div className="project-status__meeting">
-            <MeetingCard page={page} slug={slug} />
+            {canEdit && openEditor === "meet" ? (
+              <MeetingEditor page={page} staff={staff!} onDone={done} />
+            ) : (
+              <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
+            )}
           </div>
         </div>
         {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
@@ -627,11 +689,31 @@ export function ProjectPage({
             onToggle={() => setOpenStage(i === openStage ? -1 : i)}
             files={stageFiles?.find((s) => s.position === i + 1)}
             slug={slug}
+            editor={
+              canEdit
+                ? {
+                    open: openEditor === `notes-${i}`,
+                    onOpen: () => setOpenEditor(`notes-${i}`),
+                    render: () => <NotesEditor page={page} staff={staff!} index={i} onDone={done} />,
+                  }
+                : undefined
+            }
           />
         ))}
         <footer className="client-footer">{page.office.name}</footer>
       </div>
-      {page.staff && <StaffBar page={page} ready={ready} onPublished={() => onChanged?.()} />}
+      {page.staff && (
+        <StaffBar
+          page={page}
+          ready={ready}
+          editing={editing}
+          onMode={(next) => {
+            setEditing(next);
+            setOpenEditor(null);
+          }}
+          onPublished={() => onChanged?.()}
+        />
+      )}
       <Toaster />
     </div>
   );

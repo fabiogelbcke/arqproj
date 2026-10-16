@@ -271,3 +271,34 @@ test("the client page lists each stage's files, with subfolders as groups", asyn
   await expect(first.getByRole("heading", { name: "Levantamento" })).toBeVisible(); // a subfolder
   await expect(first.getByText("Medidas do terreno.pdf")).toBeVisible();
 });
+
+test("staff edit the page in place and the client sees it", async ({ page, browser }) => {
+  const link = invite("editar@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await page.getByRole("heading", { name: "Projetos" }).waitFor();
+
+  await page.goto("/casa-jardim");
+  const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
+  await bar.getByRole("button", { name: "Editar" }).click();
+
+  await page.getByRole("button", { name: "Editar descrição" }).click();
+  await page.getByLabel("Descrição").fill("Casa revisada.\n- Pátio com jabuticabeira");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Salvo.")).toBeVisible();
+
+  await page.locator("#stage-2").getByRole("button", { name: "Recado para o cliente" }).click();
+  await page.getByLabel("Recado da etapa").fill("Confira as plantas v2 antes de sexta.");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Confira as plantas v2 antes de sexta.")).toBeVisible();
+
+  const client = await browser.newPage();
+  await client.goto("/casa-jardim");
+  await expect(client.getByText("Casa revisada.")).toBeVisible();
+  await expect(client.getByText("Pátio com jabuticabeira")).toBeVisible();
+  await expect(client.getByText("Confira as plantas v2 antes de sexta.")).toBeVisible();
+  await expect(client.getByRole("button", { name: "Editar descrição" })).toHaveCount(0);
+  await client.close();
+});
