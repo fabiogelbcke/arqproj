@@ -192,6 +192,7 @@
     "file_not_found": "This file is no longer available. Reload the page.",
     "file_too_large": "Send files of up to {{max}} MB.",
     "invalid_file_name": "This file needs a name. Rename it and send it again.",
+    "upload_failed": "The file couldn't be sent. Try again; if it keeps failing, contact support.",
     "hidden_file_name": "Files whose names start with _ don't show on the site. Rename the file and send it again.",
     "stage_has_no_folder": "This stage has no file folder, so it can't take files.",
     "file_not_ours": "This file wasn't sent through the site. To hide it, rename it in the stage's folder starting with _.",

@@ -142,6 +142,30 @@ async def test_only_staff_with_their_token_open_uploads(client, db_session, owne
     assert (response.status_code, response.json()["error"]) == (404, "project_not_found")
 
 
+async def test_a_failed_send_is_logged_with_its_context_and_answers_with_the_code(
+    client, owner, folders, caplog
+):
+    """The bytes never pass through the app: the page reports a send that failed."""
+    pid = await project_id(client)
+    response = await client.post(
+        f"/api/projects/{pid}/stages/1/uploads/failed",
+        json={"name": "Planta.pdf", "size": 9, "status": 403, "detail": "storageQuotaExceeded"},
+        headers=owner,
+    )
+    assert (response.status_code, response.json()) == (502, {"error": "upload_failed"})
+    reference = response.headers["x-request-id"]
+    logged = [r for r in caplog.records if "sending failed" in r.getMessage()]
+    assert logged and logged[0].levelname == "ERROR"
+    assert pid in logged[0].getMessage() and "storageQuotaExceeded" in logged[0].getMessage()
+    assert reference  # the same code the log line carries
+    no_token = await client.post(
+        f"/api/projects/{pid}/stages/1/uploads/failed",
+        json={"name": "x", "size": 1, "status": 0},
+        headers=ALINEA,
+    )
+    assert no_token.status_code in (401, 403)
+
+
 # -- the local stand-in for Google's upload session -----------------------------------
 
 

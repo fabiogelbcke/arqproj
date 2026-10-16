@@ -11,6 +11,7 @@ function session(answers: Answer[]) {
   class Xhr {
     upload: { onprogress?: (event: { loaded: number }) => void } = {};
     status = 0;
+    responseText = "";
     onload?: () => void;
     onerror?: () => void;
     private headers: Record<string, string> = {};
@@ -30,6 +31,7 @@ function session(answers: Answer[]) {
         if (answer === "break") return this.onerror?.();
         this.upload.onprogress?.({ loaded: body?.size ?? 0 });
         this.status = answer.status;
+        this.responseText = answer.status >= 400 ? `{"error": "${answer.status}"}` : "";
         this.onload?.();
       });
     }
@@ -71,11 +73,12 @@ describe("sending a file to its upload session", () => {
   it("gives up on a refusal at once, and after a few breaks", async () => {
     session([{ status: 403 }]);
     await expect(sendFile("https://upload.example/s", file(), () => {}, NO_WAIT)).rejects.toMatchObject({
-      code: "unexpected",
+      status: 403,
+      detail: '{"error": "403"}', // for the log, through the app's report
     });
     const sent = session(["break", "break", "break", "break", "break", "break", "break"]);
     await expect(sendFile("https://upload.example/s", file(), () => {}, NO_WAIT)).rejects.toMatchObject({
-      code: "network",
+      status: 0,
     });
     expect(sent.length).toBe(4); // the first try, then one question per wait
   });

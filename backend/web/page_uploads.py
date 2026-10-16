@@ -1,6 +1,7 @@
 """Uploading files from the project page's edit mode, and hiding them (A31).
 
     POST /api/projects/{id}/stages/{n}/uploads   open an upload; says where to send the file
+    POST .../uploads/failed                      the browser's report of one that failed
     PUT  /api/local-uploads/{token}              local folders only (never deployed): take it
     POST /api/pages/{slug}/files/{key}/hide      "Ocultar do cliente": a leading "_"
 
@@ -171,6 +172,41 @@ async def start_upload(
         "uploads: opened for %s/%s, stage %s, %s bytes", tenant.id, project_id, position, body.size
     )
     return UploadOut(upload_url=url)
+
+
+class UploadFailedIn(BaseModel):
+    name: str = Field(max_length=255)
+    size: int = Field(ge=0)
+    status: int  # Google's answer; 0 when the connection kept breaking
+    detail: str = Field(default="", max_length=500)  # the start of Google's answer
+
+
+@router.post(
+    "/api/projects/{project_id}/stages/{position}/uploads/failed",
+    status_code=502,
+    responses=documented(401, 502),
+)
+async def upload_failed(
+    project_id: uuid.UUID,
+    position: int,
+    body: UploadFailedIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+) -> Response:
+    """The bytes go from the browser to Google, past the app; when sending fails
+    for good, the browser reports it here, so it is logged with the office and the
+    operation, and staff get the support code that the log line carries."""
+    log.error(
+        "uploads: sending failed for %s/%s, stage %s: %r (%s bytes), status %s: %s",
+        tenant.id,
+        project_id,
+        position,
+        body.name,
+        body.size,
+        body.status,
+        body.detail,
+    )
+    raise ApiError(502, ErrorCode.UPLOAD_FAILED)
 
 
 def _free_name(folder: Path, name: str) -> Path:

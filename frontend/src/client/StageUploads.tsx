@@ -37,17 +37,33 @@ function put(
 }
 
 class Refused extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly detail: string,
+  ) {
     super(String(status));
   }
 }
+
+/** Sending failed for good. The app never sees these bytes, so the page reports
+ *  it (`/uploads/failed`) to have it logged and get the support code. */
+export class UploadBroke extends Error {
+  constructor(
+    readonly status: number, // Google's last answer; 0 when the connection kept breaking
+    readonly detail: string,
+  ) {
+    super("upload_broke");
+  }
+}
+
+const refused = (answer: XMLHttpRequest) => new Refused(answer.status, (answer.responseText ?? "").slice(0, 500));
 
 /** How much of the file the upload session already has (Google's resumable
  *  protocol): all of it once it answered 200/201, else its "Range". */
 async function received(url: string, size: number): Promise<number> {
   const answer = await put(url, null, { "Content-Range": `bytes */${size}` });
   if (answer.status < 300) return size;
-  if (answer.status !== 308) throw new Refused(answer.status); // the session is gone
+  if (answer.status !== 308) throw refused(answer); // the session is gone
   const range = /bytes=0-(\d+)/.exec(answer.getResponseHeader("Range") ?? "");
   return range ? Number(range[1]) + 1 : 0;
 }
@@ -61,6 +77,7 @@ export async function sendFile(
   onProgress: (fraction: number) => void,
   waits: number[] = RETRY_WAITS,
 ): Promise<void> {
+  let last = { status: 0, detail: "the connection kept breaking" };
   for (let attempt = 0; ; attempt += 1) {
     try {
       const from = attempt === 0 ? 0 : await received(url, file.size);
@@ -75,12 +92,13 @@ export async function sendFile(
         onProgress(file.size ? (from + loaded) / file.size : 1),
       );
       if (answer.status < 300) return;
-      if (answer.status < 500) throw new Refused(answer.status);
+      if (answer.status < 500) throw refused(answer);
+      last = { status: answer.status, detail: (answer.responseText ?? "").slice(0, 500) };
     } catch (failure) {
-      if (failure instanceof Refused) throw new ApiError("unexpected", failure.status);
+      if (failure instanceof Refused) throw new UploadBroke(failure.status, failure.detail);
       // A break: try again below.
     }
-    if (attempt >= waits.length) throw new ApiError("network");
+    if (attempt >= waits.length) throw new UploadBroke(last.status, last.detail);
     await new Promise((resume) => setTimeout(resume, waits[attempt]));
   }
 }
@@ -129,7 +147,16 @@ export function StageDrop({
           body: { row_version: staff.row_version, name: file.name, size: file.size, mime_type: file.type },
         }),
       );
-      await sendFile(opened.upload_url, file, (progress) => update(id, { progress }));
+      await sendFile(opened.upload_url, file, (progress) => update(id, { progress })).catch((broke) =>
+        broke instanceof UploadBroke
+          ? call(
+              api.POST("/api/projects/{project_id}/stages/{position}/uploads/failed", {
+                params: { path: { project_id: staff.project_id, position } },
+                body: { name: file.name, size: file.size, status: broke.status, detail: broke.detail },
+              }),
+            ) // always an error: "upload_failed", with the support code
+          : Promise.reject(broke),
+      );
       setSending((all) => all.filter((item) => item.id !== id));
       return true;
     } catch (failure) {

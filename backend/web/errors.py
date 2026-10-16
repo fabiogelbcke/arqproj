@@ -65,6 +65,7 @@ class ErrorCode(StrEnum):
     INVALID_FILE_NAME = "invalid_file_name"  # blank after cleaning
     HIDDEN_FILE_NAME = "hidden_file_name"  # starts with "_": the page never shows it
     STAGE_HAS_NO_FOLDER = "stage_has_no_folder"  # nowhere in Drive to put the file
+    UPLOAD_FAILED = "upload_failed"  # the browser couldn't finish sending: logged, with the code
     FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
 
 

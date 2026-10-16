@@ -407,6 +407,8 @@ describe("edit mode", () => {
     // The browser's own PUT to the upload address: XMLHttpRequest, for progress.
     class FakeXhr {
       static sent: { method: string; url: string; body: unknown }[] = [];
+      static answer = 200; // Google's answer to every PUT
+      responseText = "";
       upload: { onprogress?: (event: { lengthComputable: boolean; loaded: number; total: number }) => void } = {};
       status = 0;
       onload?: () => void;
@@ -421,13 +423,15 @@ describe("edit mode", () => {
       send(body: File) {
         FakeXhr.sent.push({ method: this.method, url: this.url, body });
         this.upload.onprogress?.({ lengthComputable: true, loaded: body.size, total: body.size });
-        this.status = 200;
+        this.status = FakeXhr.answer;
+        this.responseText = this.status >= 400 ? "storageQuotaExceeded" : "";
         setTimeout(() => this.onload?.());
       }
     }
 
     function asEditor(extra: Parameters<typeof fakeApi>[0] = {}) {
       FakeXhr.sent = [];
+      FakeXhr.answer = 200;
       vi.stubGlobal("XMLHttpRequest", FakeXhr);
       return asStaff({ "GET /api/pages/casa-jardim/files": () => ({ body: FILES }), ...extra });
     }
@@ -451,6 +455,33 @@ describe("edit mode", () => {
       await waitFor(() =>
         expect(sent.filter((r) => r.method === "GET" && r.path === "/api/pages/casa-jardim/files").length).toBe(2),
       );
+    });
+
+    it("reports a send that failed for good, and shows the support code", async () => {
+      const { sent } = asEditor({
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+        "POST /api/projects/p-1/stages/2/uploads/failed": () => ({
+          status: 502,
+          body: { error: "upload_failed" },
+          headers: { "X-Request-ID": "ref-77" },
+        }),
+      });
+      FakeXhr.answer = 403; // e.g. the office's Drive is full
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await userEvent.upload(
+        await within(stage).findByLabelText("escolha no computador"),
+        new File(["%PDF"], "Corte.pdf", { type: "application/pdf" }),
+      );
+      expect(await within(stage).findByRole("alert")).toHaveTextContent(
+        "Não foi possível enviar o arquivo. Tente de novo; se continuar, fale com o suporte. Código de suporte: ref-77",
+      );
+      expect(sent.find((r) => r.path.endsWith("/uploads/failed"))?.body).toEqual({
+        name: "Corte.pdf",
+        size: 4,
+        status: 403,
+        detail: "storageQuotaExceeded",
+      });
     });
 
     it("says a file over 100 MB is too large, without opening an upload", async () => {
