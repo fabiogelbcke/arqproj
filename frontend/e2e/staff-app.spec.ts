@@ -72,3 +72,42 @@ test("a session belongs to its office's address", async ({ page }) => {
   await page.goto(`http://norte.localhost:${PORT}/painel`);
   await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
 });
+
+test("create a project → it is listed as a draft; a used address names its project", async ({ page }) => {
+  const link = invite("projetos@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await expect(page.getByRole("heading", { name: "Em andamento" })).toBeVisible();
+
+  // An address another project already has.
+  await page.getByRole("button", { name: "Novo projeto" }).click();
+  const dialog = page.getByRole("dialog", { name: "Novo projeto" });
+  await dialog.getByLabel("Nome do projeto").fill("Casa Jardim");
+  await dialog.getByLabel("Cliente").fill("Família Teste");
+  await expect(dialog.getByLabel("Endereço da página")).toHaveValue("casa-jardim"); // from the name
+  await dialog.getByRole("button", { name: "Criar projeto" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Este endereço já é do projeto “Casa Jardim”");
+
+  // Changing the address alone is not enough: the name is taken too.
+  await dialog.getByLabel("Endereço da página").fill("casa-jardim-teste");
+  await dialog.getByRole("button", { name: "Criar projeto" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Já existe o projeto “Casa Jardim”");
+  await dialog.getByLabel("Nome do projeto").fill("Casa Jardim Teste");
+  await dialog.getByText("Interiores", { exact: true }).click();
+  await expect(dialog.getByRole("radio", { name: /Interiores/ })).toBeChecked();
+  await dialog.getByRole("button", { name: "Criar projeto" }).click();
+  await expect(dialog).toBeHidden();
+
+  const drafts = page.getByRole("region", { name: "Rascunhos" });
+  const card = drafts.getByTestId("project-card").filter({ hasText: "Família Teste" });
+  await expect(card).toContainText("Rascunho");
+  await expect(card).toContainText("1 / 6");
+
+  // Search ignores accents and case.
+  await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("familia teste");
+  await expect(page.getByTestId("project-card")).toHaveCount(1);
+  await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("nada parecido");
+  await expect(page.getByText("Nenhum projeto encontrado")).toBeVisible();
+});

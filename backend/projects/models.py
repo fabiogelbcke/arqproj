@@ -145,6 +145,7 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
         CheckConstraint(
             "current_position IS NULL OR current_position >= 1", name="position_positive"
         ),
+        UniqueConstraint("tenant_id", "creation_key", name="uq_projects_tenant_id_creation_key"),
     )
 
     name: Mapped[str] = mapped_column(Text)
@@ -176,6 +177,9 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # The project's folder in the office's file store (backend.storage).
     folder_id: Mapped[str | None] = mapped_column(Text)
+    # Sent by the creation form; a repeated request (double click, retry) returns
+    # the project it already created instead of a second one.
+    creation_key: Mapped[str | None] = mapped_column(Text)
 
 
 class ProjectSlug(IdMixin, TenantOwned, Base):

@@ -275,17 +275,28 @@ office. So the painel comes next, then the client page once its design settles:
    `_marca` folder in the office's Drive (or the local folder in development),
    replacing the previous one, and is served with a policy that lets nothing in
    it run. The checklist item ticks once the email and logo are set.
-2. **P1 Painel project list** (now after creation): groups (in progress, drafts, completed), search,
-   sorting, progress, next meeting, last update, placeholder covers. Read-only.
-3. **P2 Creating a project**: name, client, template (stages and default type
-   from the reference tables), suggested slug; starts as a draft. Database only.
-   The app gets write access to the project tables.
-4. **P3 Editing in the painel**: what exactly is editable here is to be
+2. **P2 Creating a project and the project list** (as built, combined with the
+   list): "Novo projeto" asks for the name, client (up to 48 characters), stage
+   template (Padrão, Interiores, Sem etapas, from the reference tables) and the
+   page address, suggested from the name and editable; an address in use names
+   the project that has it. The project starts as a draft with the template's
+   stages and default type. Its folder goes into the office's folder, with one
+   "01 - <stage>" folder per stage in the office's language (a local folder in
+   development); all or nothing within the request (A07), with a one-time
+   creation key. Needs the office's Drive connected; members can create too.
+   Migration 0011 gives the app INSERT on projects, project_slugs and
+   project_stages. The list (read-only): groups in progress (x/y), drafts
+   (tagged) and completed (folded), accent-insensitive search on name and
+   client, sorting by last update, creation date, name, client or type in
+   either direction (remembered on the device), cards with a placeholder photo
+   (10 CC0 photos, `frontend/src/projects/covers/LICENSES.json`), the current
+   stage "N / total", the next meeting and the last update in the office's time
+   zone. Copying the client link waits for the client page (slice 2).
+3. **P3 Editing in the painel**: what exactly is editable here is to be
    discussed before this step (Fabio); row-version conflicts handled.
-5. **P4 Folders for projects, covers**: "Connect Google Drive" (staging's own
-   OAuth client), folder creation with share-while-empty, folders for projects
-   made in P2–P3, covers.
-6. Then **slice 2** below (client page, password, downloads, import), whose edit
+4. **P4 Folders and covers**: folders for projects created before P2's
+   folders existed, and covers.
+5. Then **slice 2** below (client page, password, downloads, import), whose edit
    mode reuses the painel's editing pieces (plan section 24), then slices 3b–7.
 
 Steps 2.1, 2.2 and 2.2b (tables, storage, reference tables) are done and stay

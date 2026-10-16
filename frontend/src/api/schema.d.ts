@@ -184,6 +184,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Projects */
+        get: operations["projects_api_projects_get"];
+        put?: never;
+        /** New Project */
+        post: operations["new_project_api_projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Templates */
+        get: operations["templates_api_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -221,10 +256,12 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large";
+        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_template" | "invalid_slug" | "project_name_taken" | "slug_taken";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
+            /** Conflict Name */
+            conflict_name?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -275,8 +312,20 @@ export interface components {
             /** Tenant Name */
             tenant_name: string;
             tenant_locale: components["schemas"]["Locale"];
+            /** Tenant Timezone */
+            tenant_timezone: string;
             /** Csrf Token */
             csrf_token: string;
+        };
+        /** NextMeeting */
+        NextMeeting: {
+            /** Title */
+            title: string;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
         };
         /** OfficeIn */
         OfficeIn: {
@@ -305,6 +354,57 @@ export interface components {
             /** Has Project */
             has_project: boolean;
         };
+        /** ProjectIn */
+        ProjectIn: {
+            /** Name */
+            name: string;
+            /** Client Name */
+            client_name: string;
+            /** Template */
+            template: string;
+            /** Slug */
+            slug: string;
+            /** Creation Key */
+            creation_key: string;
+        };
+        /**
+         * ProjectStatus
+         * @enum {string}
+         */
+        ProjectStatus: "draft" | "active" | "completed" | "archived";
+        /** ProjectSummary */
+        ProjectSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Client Name */
+            client_name: string;
+            /** Slug */
+            slug: string;
+            status: components["schemas"]["ProjectStatus"];
+            /** Project Type */
+            project_type: string;
+            /** Project Type Label */
+            project_type_label: string;
+            /** Stage Count */
+            stage_count: number;
+            /** Current Position */
+            current_position: number | null;
+            /** Current Stage Title */
+            current_stage_title: string | null;
+            next_meeting: components["schemas"]["NextMeeting"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Activity At */
+            last_activity_at: string | null;
+        };
         /**
          * ReaderStatus
          * @description The reader identity's access to the office's folder (pages, downloads).
@@ -321,6 +421,15 @@ export interface components {
          * @enum {string}
          */
         StorageKind: "google" | "folder";
+        /** TemplateOut */
+        TemplateOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Stage Count */
+            stage_count: number;
+        };
         /** TenantOut */
         TenantOut: {
             /** Name */
@@ -856,6 +965,124 @@ export interface operations {
             };
             /** @description Service Unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    projects_api_projects_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectSummary"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    new_project_api_projects_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectSummary"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    templates_api_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

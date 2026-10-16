@@ -49,6 +49,10 @@ test("@screenshots staff app", async ({ page }) => {
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
+  await page.getByRole("button", { name: "Novo projeto" }).click();
+  await page.getByLabel("Nome do projeto").fill("Casa do Lago");
+  await shoot(page, "03b-novo-projeto");
+  await page.keyboard.press("Escape");
 
   await page.goto("/painel/configuracoes/escritorio");
   await page.getByLabel(/Nome do escritório/).waitFor();

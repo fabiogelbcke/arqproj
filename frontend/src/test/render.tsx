@@ -37,6 +37,7 @@ export const ME = {
   tenant_slug: "alinea",
   tenant_name: "Alinea",
   tenant_locale: "pt-BR",
+  tenant_timezone: "America/Sao_Paulo",
   csrf_token: "csrf-123",
 };
 export const notSignedIn: Reply = { status: 401, body: { error: "not_signed_in" } };

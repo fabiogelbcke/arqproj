@@ -37,17 +37,26 @@ class ErrorCode(StrEnum):
     INVALID_EMAIL = "invalid_email"
     LOGO_WRONG_TYPE = "logo_wrong_type"
     LOGO_TOO_LARGE = "logo_too_large"
+    INVALID_PROJECT_NAME = "invalid_project_name"
+    INVALID_CLIENT_NAME = "invalid_client_name"
+    UNKNOWN_TEMPLATE = "unknown_template"
+    INVALID_SLUG = "invalid_slug"  # letters, numbers and hyphens; some words are the app's
+    PROJECT_NAME_TAKEN = "project_name_taken"  # `conflict_name` as typed by the office
+    SLUG_TAKEN = "slug_taken"  # `conflict_name` names the project that has it, when known
 
 
 class ErrorOut(BaseModel):
     error: ErrorCode
+    # Office content the screen can show with the error, e.g. who has an address.
+    conflict_name: str | None = None
 
 
 class ApiError(Exception):
-    def __init__(self, status_code: int, code: ErrorCode) -> None:
+    def __init__(self, status_code: int, code: ErrorCode, conflict_name: str | None = None) -> None:
         super().__init__(code.value)
         self.status_code = status_code
         self.code = code
+        self.conflict_name = conflict_name
 
 
 def documented(*status_codes: int) -> dict:
@@ -65,4 +74,7 @@ async def handle_invalid_request(request: Request, error: RequestValidationError
 
 
 async def handle_api_error(_request: Request, error: ApiError) -> JSONResponse:
-    return JSONResponse({"error": error.code.value}, status_code=error.status_code)
+    body = {"error": error.code.value}
+    if error.conflict_name is not None:
+        body["conflict_name"] = error.conflict_name
+    return JSONResponse(body, status_code=error.status_code)

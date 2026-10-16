@@ -1,3 +1,6 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 
 // The built staff app, served by the real Python backend on a fresh local
@@ -6,7 +9,9 @@ import { defineConfig, devices } from "@playwright/test";
 export const PORT = 8010;
 const OWNER = "postgresql+psycopg://localhost:5432/arqproj_e2e";
 const APP = "postgresql+psycopg://arqproj_app@localhost:5432/arqproj_e2e";
-export const E2E_ENV = { MIGRATION_DATABASE_URL: OWNER, DATABASE_URL: APP };
+// Folders of projects created in the tests: never the local dataset.
+const FILES = join(tmpdir(), "arqproj-e2e-files");
+export const E2E_ENV = { MIGRATION_DATABASE_URL: OWNER, DATABASE_URL: APP, LOCAL_STORAGE_ROOT: FILES };
 
 export default defineConfig({
   testDir: "e2e",
