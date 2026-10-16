@@ -643,6 +643,7 @@
           "drive_other_account",
           "drive_not_connected",
           "drive_expired",
+          "drive_unreadable",
           "invalid_office_name",
           "invalid_email",
           "logo_wrong_type",

@@ -77,7 +77,8 @@
     "invalid_office_name": "Enter a name of up to 80 characters.",
     "invalid_email": "Enter a valid email address, like contact@office.com.",
     "logo_wrong_type": "Use a PNG, JPG, WebP or SVG image.",
-    "logo_too_large": "Use an image of up to 512 KB."
+    "logo_too_large": "Use an image of up to 512 KB.",
+    "drive_unreadable": "The portal cannot read the office's Google Drive folder. Check its sharing in Settings → Google Drive."
   },
   "projectStatus": {
     "draft": "Draft",

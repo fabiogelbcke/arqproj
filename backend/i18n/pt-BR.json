@@ -77,7 +77,8 @@
     "invalid_office_name": "Informe um nome de até 80 caracteres.",
     "invalid_email": "Informe um e-mail válido, como contato@escritorio.com.br.",
     "logo_wrong_type": "Use uma imagem PNG, JPG, WebP ou SVG.",
-    "logo_too_large": "Use uma imagem de até 512 KB."
+    "logo_too_large": "Use uma imagem de até 512 KB.",
+    "drive_unreadable": "O portal não consegue ler a pasta do escritório no Google Drive. Verifique o compartilhamento em Configurações → Google Drive."
   },
   "projectStatus": {
     "draft": "Rascunho",

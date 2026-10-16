@@ -75,6 +75,12 @@ describe("Configurações → Escritório", () => {
     expect(screen.queryByRole("button", { name: "Escolher imagem" })).toBeNull();
   });
 
+  it("waits while the portal cannot read the Drive folder", async () => {
+    api(OFFICE, { ...LOCAL, kind: "google", writer_status: "connected", reader_status: "no_access" });
+    renderAt("/configuracoes/escritorio");
+    expect(await screen.findByText(/Conecte o Google Drive para enviar o logo/)).toBeInTheDocument();
+  });
+
   it("is read-only for members", async () => {
     api({ ...OFFICE, can_manage: false }, LOCAL, { ...ME, role: "member" });
     renderAt("/configuracoes/escritorio");

@@ -32,6 +32,7 @@ class ErrorCode(StrEnum):
     DRIVE_OTHER_ACCOUNT = "drive_other_account"  # reconnect with the account that has the folder
     DRIVE_NOT_CONNECTED = "drive_not_connected"  # this needs the office's Drive connected first
     DRIVE_EXPIRED = "drive_expired"  # Google refused the stored grant: reconnect
+    DRIVE_UNREADABLE = "drive_unreadable"  # the portal cannot read the office's folder
     INVALID_OFFICE_NAME = "invalid_office_name"
     INVALID_EMAIL = "invalid_email"
     LOGO_WRONG_TYPE = "logo_wrong_type"

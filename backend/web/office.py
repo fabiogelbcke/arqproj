@@ -29,7 +29,7 @@ from backend.office.models import NAME_MAX, LogoType, OfficeProfile
 from backend.office.profile import profile as load_profile
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
-from backend.storage.models import StorageConnection, StorageKind
+from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.drive import writer_for
@@ -72,7 +72,8 @@ def _out(tenant: CurrentTenant, found: OfficeProfile | None, staff: CurrentStaff
     return OfficeOut(
         name=found.display_name if found else tenant.name,
         contact_email=found.contact_email if found else None,
-        logo_url=f"/api/office/logo?v={int(found.updated_at.timestamp())}" if has_logo else None,
+        # Microseconds: two changes within a second still get different addresses.
+        logo_url=f"/api/office/logo?v={found.updated_at.timestamp():.6f}" if has_logo else None,
         can_manage=staff.role is Role.OWNER,
     )
 
@@ -165,6 +166,10 @@ async def upload_logo(
         found = await _profile_for_change(db, tenant)
         found.logo_file_id, found.logo_type = f"{BRAND_FOLDER}/{name}", logo_type
     else:
+        if connection is not None and connection.reader_status is not ReaderStatus.OK:
+            # Uploaded through the office's grant but shown through the reader: if
+            # the reader cannot read the folder, the logo would never display.
+            raise ApiError(409, ErrorCode.DRIVE_UNREADABLE)
         connection, writer = await writer_for(request, db)
         found = await _profile_for_change(db, tenant)
         if not (found.brand_folder_id and await writer.can_open(found.brand_folder_id)):

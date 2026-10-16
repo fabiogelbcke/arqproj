@@ -36,6 +36,7 @@ class ConnectProblem(StrEnum):
     SHARE_FAILED = "share_failed"
     OTHER_ACCOUNT = "other_account"  # this grant cannot reach the office's existing folder
     EXPIRED = "expired"  # the stored grant was revoked or expired
+    UNAVAILABLE = "unavailable"  # a passing failure (network, Google's 5xx or 429)
 
 
 class ConnectError(Exception):
@@ -98,10 +99,15 @@ class OAuthClient:
         try:
             response = await http.post(TOKEN_URL, data=data)
         except httpx2.TransportError as error:
-            raise ConnectError(problem, repr(error)) from error
+            raise ConnectError(ConnectProblem.UNAVAILABLE, repr(error)) from error
         if response.status_code >= 400:
             # Never log the request: it holds the code or refresh token.
-            raise ConnectError(problem, f"{response.status_code}: {response.text[:300]}")
+            detail = f"{response.status_code}: {response.text[:300]}"
+            # Only Google's refusal of the grant itself means "expired/revoked";
+            # throttling and server errors pass, and must not disconnect the office.
+            if response.status_code == 429 or response.status_code >= 500:
+                raise ConnectError(ConnectProblem.UNAVAILABLE, detail)
+            raise ConnectError(problem, detail)
         return response.json()
 
 

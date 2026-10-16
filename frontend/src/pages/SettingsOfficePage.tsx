@@ -23,9 +23,12 @@ export function SettingsOfficePage() {
   const values = draft ?? { name: details.name, contact_email: details.contact_email ?? "" };
   const manage = details.can_manage;
   // The logo lives in the office's storage: Google Drive connected, or local folders.
+  // On Drive, both paths must work: the office's grant writes it, the reader shows it.
   const storageReady =
     drive.data?.kind === "folder" ||
-    (drive.data?.kind === "google" && drive.data.writer_status === "connected");
+    (drive.data?.kind === "google" &&
+      drive.data.writer_status === "connected" &&
+      drive.data.reader_status === "ok");
 
   return (
     <section className={styles.panel} aria-labelledby="office-title">

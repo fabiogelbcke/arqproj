@@ -11,7 +11,7 @@ from backend.identity import accounts
 from backend.identity.models import Role
 from backend.security import keys
 from backend.storage.google import GoogleDriveStorage
-from backend.storage.models import StorageConnection, StorageKind, WriterStatus
+from backend.storage.models import ReaderStatus, StorageConnection, StorageKind, WriterStatus
 from backend.tenancy.models import Tenant
 from backend.web import auth, drive
 
@@ -143,11 +143,14 @@ async def test_first_steps_tick_office_details_once_email_and_logo_are_set(clien
 class FakeGoogle:
     def __init__(self):
         self.calls, self.refresh_refused, self.next_id = [], False, 0
+        self.token_service_down = False
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         path, method = request.url.path, request.method
         self.calls.append(f"{method} {path}")
         if path == "/token":
+            if self.token_service_down:
+                return httpx2.Response(503)
             if self.refresh_refused:
                 return httpx2.Response(400, json={"error": "invalid_grant"})
             assert parse_qs(request.content.decode())["refresh_token"] == ["refresh-1"]
@@ -188,6 +191,7 @@ async def on_google(app, db_session, owner):
         app.state.settings.app_secret, drive.TOKEN_PURPOSE, "refresh-1"
     )
     connection.writer_status = WriterStatus.CONNECTED
+    connection.reader_status = ReaderStatus.OK
     await db_session.flush()
     return fake, connection
 
@@ -212,6 +216,47 @@ async def test_a_refused_grant_marks_the_connection_expired(client, db_session, 
     assert (response.status_code, response.json()) == (409, {"error": "drive_expired"})
     await db_session.refresh(connection)
     assert connection.writer_status is WriterStatus.EXPIRED
+
+
+async def test_a_passing_google_failure_does_not_disconnect_the_office(
+    client, db_session, owner, on_google
+):
+    fake, connection = on_google
+    fake.token_service_down = True
+    response = await upload(client, owner, PNG)
+    assert (response.status_code, response.json()) == (503, {"error": "drive_connect_failed"})
+    await db_session.refresh(connection)
+    assert connection.writer_status is WriterStatus.CONNECTED  # still connected
+
+
+async def test_no_upload_while_the_portal_cannot_read_the_folder(
+    client, db_session, owner, on_google
+):
+    fake, connection = on_google
+    connection.reader_status = ReaderStatus.NO_ACCESS
+    await db_session.flush()
+    response = await upload(client, owner, PNG)
+    assert (response.status_code, response.json()) == (409, {"error": "drive_unreadable"})
+    assert not any("upload" in c for c in fake.calls)
+
+
+def test_each_logo_change_gets_a_new_address():
+    """Two changes within the same second must not share an address, or browsers
+    keep showing the first logo for the cache's five minutes."""
+    from datetime import UTC, datetime, timedelta
+
+    from backend.office.models import LogoType, OfficeProfile
+    from backend.web.office import _out
+
+    staff = auth.CurrentStaff(None, "a@b.c", "A", Role.OWNER, None, "csrf")
+    when = datetime(2026, 10, 15, 12, 0, 0, 100_000, tzinfo=UTC)
+    urls = set()
+    for moment in (when, when + timedelta(milliseconds=300)):
+        profile = OfficeProfile(
+            display_name="A", logo_file_id="f", logo_type=LogoType.PNG, updated_at=moment
+        )
+        urls.add(_out(None, profile, staff).logo_url)
+    assert len(urls) == 2
 
 
 async def test_without_a_connection_the_logo_waits_for_drive(client, db_session, owner):
