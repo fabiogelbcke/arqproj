@@ -53,6 +53,13 @@ class StorageItem:
     modified_at: datetime
     checksum: str | None = None  # MD5 where the provider has one
     shortcut_target: str | None = None  # the item a shortcut points to
+    # What stays the same when the item is renamed or moved, where `id` doesn't
+    # (local folders, whose ids are paths); None where `id` already does (Drive).
+    stable_id: str | None = None
+
+    @property
+    def identity(self) -> str:
+        return self.stable_id or self.id
 
     @property
     def is_folder(self) -> bool:

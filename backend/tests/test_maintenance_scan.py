@@ -72,6 +72,18 @@ async def test_a_file_shown_for_the_first_time_is_recorded_once(app, db_session,
     assert len(await events(db_session)) == 1  # not again
 
 
+async def test_a_renamed_or_moved_local_file_is_not_new(app, db_session, owner, folders):
+    """Local folders name files by path; renaming a file, moving it to another
+    stage, or renaming a stage folder (edit mode does) keeps it the same file."""
+    await run(app)
+    briefing = folders / "01 - Briefing"
+    (briefing / "Programa.pdf").rename(briefing / "Programa v2.pdf")
+    await run(app)
+    (briefing / "Programa v2.pdf").rename(folders / "02 - Conceito" / "Programa v2.pdf")
+    await run(app)
+    assert await events(db_session) == []
+
+
 async def test_a_quiet_pass_writes_nothing(app, db_session, owner, folders):
     """A project's `updated_at` versions its cover's address: a pass with nothing
     new must not move it."""
@@ -191,9 +203,16 @@ async def test_meetings_and_notes_are_recorded(client, db_session, owner, folder
     await call(client, owner, "PUT", "/meeting", title="Visita à obra", day=day, start="11:00")
     await call(client, owner, "DELETE", "/meeting")
     await call(client, owner, "PUT", "/stages/2/notes", notes="Confira as medidas.")
-    kinds = [kind for kind, _, _ in await events(db_session)]
+    await call(client, owner, "PUT", "/stages/2/notes", notes="")  # removed: a change too
+    kinds = sorted(kind for kind, _, _ in await events(db_session))
     # Casa Jardim's seed meeting is the upcoming one: the first PUT changes it.
-    assert kinds == ["meeting_changed", "meeting_changed", "meeting_cleared", "note_changed"]
+    assert kinds == [
+        "meeting_changed",
+        "meeting_changed",
+        "meeting_cleared",
+        "note_changed",
+        "note_changed",
+    ]
 
 
 async def test_a_drafts_changes_are_not_recorded(client, db_session, owner, folders):

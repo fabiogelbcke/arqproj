@@ -69,7 +69,9 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
             continue
         for _group, _listed, files in await stage_groups(storage, folder):
             for item in files:
-                shown.setdefault(item.id, (position, item))
+                # Its identity, not its id: a local file renamed or moved, or its
+                # stage folder renamed, is not new (section 14).
+                shown.setdefault(item.identity, (position, item))
     seen = set(
         await db.scalars(
             select(ProjectFileSeen.item_id).where(ProjectFileSeen.project_id == project.id)
@@ -81,7 +83,7 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
         return 0
     now = datetime.now(UTC)
     for position, item in new:
-        db.add(ProjectFileSeen(project_id=project.id, item_id=item.id))
+        db.add(ProjectFileSeen(project_id=project.id, item_id=item.identity))
         if not first:
             name = f"{item.name}.pdf" if item.is_native else item.name  # as the page names it
             record(

@@ -292,7 +292,8 @@ async def set_notes(
         .where(ProjectStage.id == stage)
         .values(notes=notes, notes_updated_at=now if notes else None)
     )
-    if notes:  # for the updates panel; a note never emails (A32)
-        record(db, project, EventKind.NOTE_CHANGED, stage_position=position)
+    # Written or removed, the client sees it change: for the updates panel; a note
+    # never emails (A32).
+    record(db, project, EventKind.NOTE_CHANGED, stage_position=position)
     await db.commit()
     return Response(status_code=204)
