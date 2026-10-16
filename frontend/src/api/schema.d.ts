@@ -254,6 +254,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pages/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Page */
+        get: operations["page_api_pages__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -287,6 +304,19 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageOption"][];
         };
+        /** DetailOut */
+        DetailOut: {
+            /** Label */
+            label: string;
+            type: components["schemas"]["DetailType"];
+            /** Value */
+            value: string | number;
+        };
+        /**
+         * DetailType
+         * @enum {string}
+         */
+        DetailType: "text" | "area" | "date";
         /** DriveOut */
         DriveOut: {
             kind: components["schemas"]["StorageKind"] | null;
@@ -303,7 +333,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large";
+        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -364,6 +394,25 @@ export interface components {
             /** Csrf Token */
             csrf_token: string;
         };
+        /** MeetingOut */
+        MeetingOut: {
+            /** Title */
+            title: string;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Location */
+            location: string | null;
+            /** Link */
+            link: string | null;
+        };
         /** NextMeeting */
         NextMeeting: {
             /** Title */
@@ -381,17 +430,6 @@ export interface components {
             /** Contact Email */
             contact_email?: string | null;
         };
-        /** OfficeOut */
-        OfficeOut: {
-            /** Name */
-            name: string;
-            /** Contact Email */
-            contact_email: string | null;
-            /** Logo Url */
-            logo_url: string | null;
-            /** Can Manage */
-            can_manage: boolean;
-        };
         /** OnboardingOut */
         OnboardingOut: {
             /** Storage Connected */
@@ -400,6 +438,37 @@ export interface components {
             office_details: boolean;
             /** Has Project */
             has_project: boolean;
+        };
+        /** PageOut */
+        PageOut: {
+            office: components["schemas"]["backend__web__pages__OfficeOut"];
+            locale: components["schemas"]["Locale"];
+            /** Timezone */
+            timezone: string;
+            /** Name */
+            name: string;
+            /** Client Name */
+            client_name: string;
+            /** Project Type */
+            project_type: string;
+            /** Description */
+            description: string;
+            /** Cover Url */
+            cover_url: string | null;
+            /** Completed */
+            completed: boolean;
+            /** Current Position */
+            current_position: number | null;
+            /**
+             * Last Update
+             * Format: date-time
+             */
+            last_update: string;
+            /** Details */
+            details: components["schemas"]["DetailOut"][];
+            /** Stages */
+            stages: components["schemas"]["StageOut"][];
+            next_meeting: components["schemas"]["MeetingOut"] | null;
         };
         /** ProjectChange */
         ProjectChange: {
@@ -495,6 +564,15 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** StageOut */
+        StageOut: {
+            /** Title */
+            title: string;
+            /** About */
+            about: string | null;
+            /** Notes */
+            notes: string;
+        };
         /**
          * StorageKind
          * @enum {string}
@@ -525,6 +603,24 @@ export interface components {
          * @enum {string}
          */
         WriterStatus: "none" | "connected" | "expired";
+        /** OfficeOut */
+        backend__web__office__OfficeOut: {
+            /** Name */
+            name: string;
+            /** Contact Email */
+            contact_email: string | null;
+            /** Logo Url */
+            logo_url: string | null;
+            /** Can Manage */
+            can_manage: boolean;
+        };
+        /** OfficeOut */
+        backend__web__pages__OfficeOut: {
+            /** Name */
+            name: string;
+            /** Logo Url */
+            logo_url: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -892,7 +988,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OfficeOut"];
+                    "application/json": components["schemas"]["backend__web__office__OfficeOut"];
                 };
             };
             /** @description Unauthorized */
@@ -925,7 +1021,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OfficeOut"];
+                    "application/json": components["schemas"]["backend__web__office__OfficeOut"];
                 };
             };
             /** @description Unauthorized */
@@ -976,7 +1072,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OfficeOut"];
+                    "application/json": components["schemas"]["backend__web__office__OfficeOut"];
                 };
             };
             /** @description Unauthorized */
@@ -1376,6 +1472,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    page_api_pages__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

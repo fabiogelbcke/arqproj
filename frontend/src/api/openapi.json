@@ -359,7 +359,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OfficeOut"
+                  "$ref": "#/components/schemas/backend__web__office__OfficeOut"
                 }
               }
             }
@@ -395,7 +395,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OfficeOut"
+                  "$ref": "#/components/schemas/backend__web__office__OfficeOut"
                 }
               }
             }
@@ -453,7 +453,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OfficeOut"
+                  "$ref": "#/components/schemas/backend__web__office__OfficeOut"
                 }
               }
             }
@@ -924,6 +924,65 @@
           }
         }
       }
+    },
+    "/api/pages/{slug}": {
+      "get": {
+        "summary": "Page",
+        "operationId": "page_api_pages__slug__get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1010,6 +1069,44 @@
           "stages"
         ],
         "title": "CreationOptions"
+      },
+      "DetailOut": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "$ref": "#/components/schemas/DetailType"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "type",
+          "value"
+        ],
+        "title": "DetailOut"
+      },
+      "DetailType": {
+        "type": "string",
+        "enum": [
+          "text",
+          "area",
+          "date"
+        ],
+        "title": "DetailType"
       },
       "DriveOut": {
         "properties": {
@@ -1103,7 +1200,9 @@
           "project_has_no_folder",
           "project_archived",
           "cover_wrong_type",
-          "cover_too_large"
+          "cover_too_large",
+          "page_not_found",
+          "page_locked"
         ],
         "title": "ErrorCode"
       },
@@ -1259,6 +1358,55 @@
         ],
         "title": "MeOut"
       },
+      "MeetingOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Starts At"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ends At"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "starts_at",
+          "ends_at",
+          "location",
+          "link"
+        ],
+        "title": "MeetingOut"
+      },
       "NextMeeting": {
         "properties": {
           "title": {
@@ -1306,48 +1454,6 @@
         "type": "object",
         "title": "OfficeIn"
       },
-      "OfficeOut": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "contact_email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Email"
-          },
-          "logo_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Logo Url"
-          },
-          "can_manage": {
-            "type": "boolean",
-            "title": "Can Manage"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "contact_email",
-          "logo_url",
-          "can_manage"
-        ],
-        "title": "OfficeOut"
-      },
       "OnboardingOut": {
         "properties": {
           "storage_connected": {
@@ -1370,6 +1476,109 @@
           "has_project"
         ],
         "title": "OnboardingOut"
+      },
+      "PageOut": {
+        "properties": {
+          "office": {
+            "$ref": "#/components/schemas/backend__web__pages__OfficeOut"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/Locale"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "client_name": {
+            "type": "string",
+            "title": "Client Name"
+          },
+          "project_type": {
+            "type": "string",
+            "title": "Project Type"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed"
+          },
+          "current_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Position"
+          },
+          "last_update": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Update"
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/DetailOut"
+            },
+            "type": "array",
+            "title": "Details"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageOut"
+            },
+            "type": "array",
+            "title": "Stages"
+          },
+          "next_meeting": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeetingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "office",
+          "locale",
+          "timezone",
+          "name",
+          "client_name",
+          "project_type",
+          "description",
+          "cover_url",
+          "completed",
+          "current_position",
+          "last_update",
+          "details",
+          "stages",
+          "next_meeting"
+        ],
+        "title": "PageOut"
       },
       "ProjectChange": {
         "properties": {
@@ -1657,6 +1866,36 @@
         ],
         "title": "StageOption"
       },
+      "StageOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "about",
+          "notes"
+        ],
+        "title": "StageOut"
+      },
       "StorageKind": {
         "type": "string",
         "enum": [
@@ -1731,6 +1970,73 @@
         ],
         "title": "WriterStatus",
         "description": "The office's own grant, used to create folders and upload."
+      },
+      "backend__web__office__OfficeOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "can_manage": {
+            "type": "boolean",
+            "title": "Can Manage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "contact_email",
+          "logo_url",
+          "can_manage"
+        ],
+        "title": "OfficeOut"
+      },
+      "backend__web__pages__OfficeOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "logo_url"
+        ],
+        "title": "OfficeOut"
       }
     }
   }

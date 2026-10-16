@@ -10,10 +10,10 @@ deployment. It separates chosen product behavior, recommended implementation,
 verified behavior, and work that still needs external verification.
 
 Framework decision updated after discussion: the new backend will use FastAPI
-and Pydantic, while retaining Python. Updated 14 October 2026 (A20): client-facing
-pages stay server-rendered with Jinja and reuse the existing HTML/CSS/JavaScript;
-the staff administration becomes a React + TypeScript app served by the same
-service on the same origin. The office address scheme is reopened as an explicit
+and Pydantic, while retaining Python. Updated 14 October 2026 (A20), revised 16
+October 2026: the client project page and the staff administration are both React
++ TypeScript, built by Vite and served by the same service on the same origin;
+the server renders the client page's preview tags and its "not found" answers. The office address scheme is reopened as an explicit
 choice between two options (A21, section 4). References to Flask/Gunicorn in the
 current-state inventory and verification history describe the existing
 application, not the target backend.
@@ -40,9 +40,10 @@ release readiness is determined by evidence rather than an assumed coding speed.
 
 Confirmed choices:
 
-- Keep Python; use FastAPI and Pydantic for the new backend. Client-facing pages
-  stay server-rendered with Jinja and reuse the existing HTML/CSS/JavaScript; the
-  staff administration becomes a React app on the same origin (A20).
+- Keep Python; use FastAPI and Pydantic for the new backend. The client project
+  page and the staff administration are React apps on the same origin; the
+  client page is its own small bundle, and its edit mode is the same page with
+  controls switched on (A20).
 - Build a clean multi-tenant backend instead of threading tenant parameters
   through the prototype's single-office backend.
 - Office URLs: `{office-slug}.{product-domain}` was agreed, and is reopened as of
@@ -105,7 +106,7 @@ its affected tests before coding proceeds.
 | A17 | Resend behind an email adapter | Proposed first provider; choose a plan based on actual volumes and delivery limits |
 | A18 | FastAPI + Pydantic + Uvicorn for the new web backend | Agreed framework switch; validated request/response contracts, dependency injection and native async support; Cloud Run remains compatible |
 | A19 | Cloud Scheduler preferred within its free allowance; local cron retained as an alternative | User accepts managed scheduling when free. Both call the same protected maintenance endpoint; cadence and deployment shape remain separate decisions. See the [cost comparison](infrastructure-cost-comparison.md). |
-| A20 | Client pages server-rendered with Jinja; staff administration as a React + TypeScript app built with Vite, served by the same FastAPI service on the same origin | Agreed direction 14 Oct 2026, replacing "Jinja for all UI, no separate frontend application". Staff screens (file manager, uploads, invitations, settings, connection health) are stateful enough to justify a component framework; client pages stay fast, simple and link-preview friendly. One image, one Cloud Run service, no Node at runtime. See sections 4 and 17 and the [changelog](decision-changelog.md) |
+| A20 | Client project page and staff administration both React + TypeScript, built by Vite, served by the same FastAPI service on the same origin | Agreed 14 Oct 2026 with client pages in Jinja; revised 16 Oct 2026 (Fabio): since the project page is also where staff edit content (A24), one React page serves viewing and editing instead of two copies of every section. The client page is a separate, small bundle (staff editing code loads only on "Editar"). The server still answers before any script runs: the preview tags (title, description, cover) that messaging apps read, "not found" for drafts and unknown addresses, redirects from old addresses, and the password check. One image, one Cloud Run service. See section 4 and the [changelog](decision-changelog.md) |
 | A21 | Office address scheme | **Open, two options recorded.** A: office subdomains behind a global load balancer (agreed requirement; ~$18.25/month fixed plus processing). B: one domain with office paths (no load-balancer fee, but every no-load-balancer front door has a production caveat). Options and consequences in section 4; decide before DNS/OAuth registration and before any client link is shared |
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
@@ -178,15 +179,16 @@ backend/
   web/                   FastAPI routers, forms, Pydantic request/response models
   db/                    models and repository implementations
 migrations/              reviewed Alembic migrations
-frontend/             React + TypeScript staff administration (A20), built by Vite
+frontend/             React + TypeScript: staff administration and the client page (A20), built by Vite
   src/                   screens, components, API client generated from OpenAPI
   package.json           own lockfile; Node is used to build, never at runtime
 ```
 
-`backend/` serves both audiences: the client project pages (Jinja templates under
-`web/`) and the JSON API the staff app uses, over one shared set of services, so
-there is a single copy of rules such as "who may see this file". `frontend/` holds
-only the staff app's source and never runs as a server.
+`backend/` serves both audiences: the client project pages (the page's shell with
+its preview tags, and a public JSON API that returns only what the page may show)
+and the JSON API the staff app uses, over one shared set of services, so there is
+a single copy of rules such as "who may see this file". `frontend/` holds the
+source of both React apps (painel and client page) and never runs as a server.
 
 Modules call explicit services; templates do not call Google or construct SQL.
 A service takes tenant context and dependencies explicitly. A background job
@@ -200,7 +202,7 @@ from SQLAlchemy persistence models, especially for credentials, password hashes
 and internal IDs. Alembic still manages database schema changes. OpenAPI provides
 the API contract for the staff app (A20): generate its TypeScript types from the
 schema in CI, so a backend change that breaks the staff app fails the build
-instead of failing in a browser. Client pages remain Jinja and do not use it.
+instead of failing in a browser. The client page uses the same generated types.
 
 Use asynchronous HTTP calls for Drive streaming and an async SQLAlchemy/psycopg
 database path in the new request handlers. Initialize reusable clients/pools
@@ -260,7 +262,7 @@ Each office is served by the one FastAPI service, from one origin. Under option 
 of A21 the layout is:
 
 ```text
-{office}.{product-domain}/{slug}             client pages: Jinja, server-rendered (A22)
+{office}.{product-domain}/{slug}             client pages: React, shell and preview tags from the server (A20, A22)
 {office}.{product-domain}/painel/...         staff app: React, static files
 {office}.{product-domain}/api/...            JSON API used by the staff app
 auth.{product-domain}/...                    shared Google login (section 5)
@@ -607,8 +609,9 @@ links already sent to clients do not break. **A slug, once used, stays reserved
 for its project (A29):** current and old slugs live in one table (`project_slugs`,
 exactly one current per project) and share one namespace per office, so another project can never take an old slug
 and receive a client's old link. This holds after a project is deleted too:
-projects are soft-deleted and keep their slugs, so an old link shows "this
-project is no longer available" instead of someone else's project.
+projects are soft-deleted and keep their slugs, so an old link answers "not
+found" (the same as an unknown address or a draft, so none can be told apart)
+instead of showing someone else's project.
 
 For password mode, office staff set/reset the password through the panel. This
 interprets “clients can add a password” as the office/customer controlling the
@@ -1349,7 +1352,9 @@ versioned: updating defaults does not overwrite an office's edited project stage
 
 ## 17. API and error conventions
 
-Client-facing routes render Jinja pages with progressive JavaScript, as today.
+Client-facing routes serve the client page's shell, with its preview tags and
+status (A20); the page reads a public JSON API (`/api/pages/...`) that returns
+only what that page may show, behind its password.
 Staff administration is the React staff app (A20), which uses JSON endpoints under
 `/api/` for everything: project editing, file browsing, uploads, operation
 progress and settings. Administrative endpoints require a staff session and a

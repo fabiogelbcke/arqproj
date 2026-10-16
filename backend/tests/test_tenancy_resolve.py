@@ -37,6 +37,12 @@ async def tenants(db_session):
     await seed(db_session)
 
 
+def ahead_of_pages(app):
+    """Move the route just added in front of the client page's `/{slug}`, which
+    otherwise answers every single-segment address added after it."""
+    app.router.routes.insert(0, app.router.routes.pop())
+
+
 @pytest.fixture
 def tenant_route(app):
     """A test-only route that reports the tenant it was given."""
@@ -45,6 +51,7 @@ def tenant_route(app):
     async def whoami(tenant: CurrentTenant = Depends(current_tenant)):
         return {"slug": tenant.slug, "primary_host": tenant.primary_host}
 
+    ahead_of_pages(app)
     return app
 
 
@@ -184,6 +191,8 @@ async def test_log_lines_carry_the_request_id(app, client, tenants, capsys):
         logging.getLogger("backend.test").info("inside the request")
         return {}
 
+    ahead_of_pages(app)
+
     response = await get(client, "alinea.localhost", path="/log-something")
     request_id = response.headers["x-request-id"]
     assert f"INFO backend.test [{request_id}]: inside the request" in capsys.readouterr().out
@@ -207,6 +216,8 @@ async def test_server_errors_keep_their_request_id(app, client, tenants, capsys)
     @app.get("/boom")
     async def boom():
         raise RuntimeError("simulated database failure")
+
+    ahead_of_pages(app)
 
     response = await get(client, "alinea.localhost", path="/boom")
     request_id = response.headers["x-request-id"]

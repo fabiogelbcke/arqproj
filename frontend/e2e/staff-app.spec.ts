@@ -36,7 +36,7 @@ test("invite → choose password → projects → deep link → sign out → sig
   await expect(page.getByRole("heading", { name: "Projetos" })).toBeVisible();
 
   // A deep link survives a reload: the server returns the shell, the app routes.
-  await page.goto("/painel/um/endereco/qualquer");
+  await page.goto("/painel/a/deep/link");
   await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
@@ -166,4 +166,31 @@ test("cards in a row line up, whatever their content", async ({ page }) => {
   );
   expect(tops.length).toBe(2);
   expect(new Set(tops).size).toBe(1);
+});
+
+test("the client page: content, redirects, not found and protected", async ({ page }) => {
+  // No sign-in: it's the client's page.
+  await page.goto("/casa-jardim");
+  await expect(page.getByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveText("/casajardim");
+  await expect(page).toHaveTitle("Casa Jardim · Alinea (dev)");
+  await expect(page.getByRole("heading", { name: "Etapas e próximos passos" })).toBeVisible();
+  await expect(page.getByText("Apresentação do layout")).toBeVisible();
+  // The current stage is open; another opens from the timeline.
+  await expect(page.getByText("Levantamento concluído", { exact: false })).toBeHidden();
+  await page.getByRole("button", { name: /02\s*Levantamento/ }).click();
+  await expect(page.getByText("Levantamento concluído", { exact: false })).toBeVisible();
+  // "Sobre esta etapa": the project type's own description.
+  await page.getByRole("button", { name: "Sobre esta etapa: Levantamento" }).click();
+  await expect(page.getByText("Análise do terreno, medidas, legislação e condicionantes.")).toBeVisible();
+
+  await page.goto("/apto-atlantico");
+  await expect(page).toHaveURL(/\/apartamento-atlantico$/);
+
+  const draft = await page.goto("/casa-das-oliveiras");
+  expect(draft?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
+
+  await page.goto("/refugio-da-mantiqueira");
+  await expect(page.getByRole("heading", { name: "Página protegida" })).toBeVisible();
+  await expect(page.getByText("Mantiqueira")).toHaveCount(0);
 });

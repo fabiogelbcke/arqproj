@@ -33,7 +33,7 @@ These shape every later step, so they are worth settling first.
 | --- | --- | --- | --- |
 | D1 | Python version | **Agreed: 3.13**, matching production. This Mac has it (`/opt/homebrew/bin/python3.13`); the current app's venv is 3.11 | 3.14 is newer, but Cloud Run's builders and some libraries lag |
 | D2 | Dependency management | **Agreed:** **`uv`** with `pyproject.toml` and a committed lockfile (`uv.lock`). One fast tool for the virtual environment, installs and exact versions | `pip-tools` works but is slower and has more moving parts. Plain `requirements.txt` without a lock is not reproducible (the plan already flags this) |
-| D3 | Where new code lives | **Agreed:** **`backend/`** is the whole Python app for both audiences: client project pages (their Jinja templates live inside it), the JSON API, login, database, Drive and background work. It is the only thing that runs on Cloud Run. **`frontend/`** is only the React source for the staff screens; it is built into static files that `backend/` serves at `/painel`, and it talks to `backend/`'s API. Both at the repo root, next to the current app, which stays as it is until cutover | A separate repository: harder to share fixtures, the fake Drive and history. Rewriting in place: the current site would break during the rewrite |
+| D3 | Where new code lives | **Agreed:** **`backend/`** is the whole Python app for both audiences: client project pages (it serves their shell and preview tags), the JSON API, login, database, Drive and background work. It is the only thing that runs on Cloud Run. **`frontend/`** is the React source of the staff screens and the client page (A20, revised 16 Oct 2026); it is built into static files that `backend/` serves (`/painel` and `/{slug}`), and it talks to `backend/`'s API. Both at the repo root, next to the current app, which stays as it is until cutover | A separate repository: harder to share fixtures, the fake Drive and history. Rewriting in place: the current site would break during the rewrite |
 | D4 | Test framework for new code | **Agreed:** **pytest**, for fixtures (database per test, fake Google) and readable assertions. The current app's `unittest` tests keep running unchanged | `unittest` everywhere: consistent, but fixtures for the database and fakes get verbose |
 | D5 | Sync or async database access | **Async** (SQLAlchemy 2 async with psycopg 3), as the plan's section 3 already says, so file streaming and Drive calls don't block other requests | Sync is simpler to write, but slow Drive calls would hold a worker while waiting |
 | D6 | How offices are kept apart in the database | **Both layers:** every query goes through repository functions that require the office (tenant), **and** PostgreSQL row-level security (RLS) refuses rows of another office even if code forgets. The app connects as a restricted role that cannot bypass RLS | Code-only scoping: one missed filter leaks another office's data. RLS-only: harder to read and test, and errors surface late |
@@ -346,10 +346,26 @@ texts in Portuguese and English (moved out of `backend/i18n`), replaces the
 CHECKs on the columns that use them with foreign keys, and gives each detail row
 its value type (composite foreign key, so its value column is checked by the
 database). The enums stay as names for the built-in rows; `test_reference_content`
-keeps them and the rows in step. 2.3 Project page at `/{slug}` rendered with the current Jinja templates, data
-from the database. 2.4 Optional password on every content route. 2.5 File
-streaming and previews through the reader identity. 2.6 Staff bar on the page.
-2.7 Read-only import of the current `_project` / `_stage` files (dry run first).
+keeps them and the rows in step. 2.3 Read-only project page at `/{slug}`, after the fresh prototype (A20
+revised: React, its own bundle; the server sends preview tags, "not found" for
+drafts and unknown addresses, redirects from old addresses). **As built:**
+`backend/web/pages.py` serves `/{slug}` (the shell from `frontend/client.html`
+with title, description and cover preview tags, `noindex`; 404 for drafts,
+deleted and unknown addresses alike; 301 from an old address) and the public
+`/api/pages/{slug}` (only what the page shows: no ids or folders), its cover and
+`meeting.ics`. A password-protected project shows only "Página protegida" until
+2.4, and its name stays out of previews. `frontend/src/client/` is the page,
+styled by the prototype's own stylesheet (`prototype.css`, replaced wholesale
+when the design moves to Figma); Vite builds it as a second app. Stages show
+the project type's description under "Sobre esta etapa"; files come in 2.5.
+2.4 Optional
+password on every content route; client link and access in the "Projeto"
+dialog. 2.5 Each stage's files, downloads and previews through the reader
+identity. 2.6 Staff bar on the page ("Painel", "Editar"); a card's title opens
+the page; "Copiar link". Then the page's edit mode (description, details,
+meeting, stages, progress, completion) and "Publicar". ~~2.7 Import of the
+current `_project` / `_stage` files~~: dropped 16 Oct 2026, Alinea has no real
+projects yet.
 
 ### Slice 3: creating and editing projects
 
@@ -383,7 +399,7 @@ Drive accounts.
 
 ### Slice 7: moving the first office over
 
-Import, comparison against the current site, and switching `alineaarquitetos.com`
+Switching `alineaarquitetos.com` (no projects to import: Alinea starts fresh)
 to the new app: only with your explicit approval, and with the current site kept
 ready to switch back.
 

@@ -2,7 +2,8 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
-// The staff app is served by the Python backend at /painel (backend/web/painel.py).
+// The staff app is served by the Python backend at /painel (backend/web/painel.py),
+// the client page at /{slug} (backend/web/pages.py); both built from here.
 // In development, Vite serves it instead and forwards /api to the backend, keeping
 // the browser's Host header so the backend picks the right office and the
 // sign-in cookie belongs to the address in the address bar.
@@ -18,6 +19,11 @@ const devRedirects: Plugin = {
         response.setHeader("Location", "/painel/" + (query ? `?${query}` : ""));
         response.end();
         return;
+      }
+      // A client page address (`/casa-jardim`): the client page's entry. Deployed,
+      // the backend serves it with the preview tags (backend/web/pages.py).
+      if (/^\/[a-z0-9-]+$/.test(path ?? "") && path !== "/api") {
+        request.url = "/painel/client.html" + (query ? `?${query}` : "");
       }
       next();
     });
@@ -41,7 +47,14 @@ export default defineConfig({
   },
   // Never inline files as data: URLs: the Content Security Policy allows fonts and
   // images only from this site (backend/web/painel.py).
-  build: { outDir: "dist", assetsDir: "assets", assetsInlineLimit: 0 },
+  build: {
+    outDir: "dist",
+    assetsDir: "assets",
+    assetsInlineLimit: 0,
+    // Two apps: the painel (index.html) and the client page (client.html), each
+    // with only its own code.
+    rollupOptions: { input: { painel: "index.html", client: "client.html" } },
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],

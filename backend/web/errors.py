@@ -43,14 +43,16 @@ class ErrorCode(StrEnum):
     UNKNOWN_STAGE = "unknown_stage"  # not a built-in stage, or chosen twice
     INVALID_SLUG = "invalid_slug"  # letters, numbers and hyphens; some words are the app's
     PROJECT_NAME_TAKEN = "project_name_taken"  # `conflict_name` as typed by the office
-    SLUG_TAKEN = "slug_taken"
+    SLUG_TAKEN = "slug_taken"  # `conflict_name` names the project that has it, when known
     PROJECT_NOT_FOUND = "project_not_found"  # unknown, deleted or another office's
     PROJECT_CHANGED = "project_changed"  # someone else saved it meanwhile: reload
     INVALID_STATUS_CHANGE = "invalid_status_change"
     PROJECT_HAS_NO_FOLDER = "project_has_no_folder"
     PROJECT_ARCHIVED = "project_archived"  # takes no new uploads (plan section 22)
     COVER_WRONG_TYPE = "cover_wrong_type"
-    COVER_TOO_LARGE = "cover_too_large"  # `conflict_name` names the project that has it, when known
+    COVER_TOO_LARGE = "cover_too_large"
+    PAGE_NOT_FOUND = "page_not_found"  # unknown address, draft or deleted: never told apart
+    PAGE_LOCKED = "page_locked"  # protected by a password
 
 
 class ErrorOut(BaseModel):
