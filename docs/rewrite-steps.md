@@ -368,7 +368,16 @@ the password; `POST /api/pages/{slug}/unlock` sets a signed cookie per project
 for 90 days, tied to `access_version`; 5 wrong tries per device, then 15
 minutes (`backend/web/attempts.py`). Protected pages' responses are private,
 no-store. Migration 0014 grants the columns this changes. 2.5 Each stage's files, downloads and previews through the reader
-identity. 2.6 Staff bar on the page ("Painel", "Editar"); a card's title opens
+identity. **As built:** each stage lists its folder live
+(`backend/web/page_files.py`): the files directly in it, and each subfolder as a
+titled group (one level; Fabio, 16 Oct 2026). Names starting with "_",
+shortcuts and Google formats that can't be exported stay hidden; Docs/Sheets
+come as PDF. A file is named by a signed key (project, `access_version`, item;
+12 hours), never its Drive id, so a key opens only what that page listed and a
+new password ends it. Images and PDFs open in the browser, everything else only
+downloads; nothing runs on the office's address (`nosniff`, a sandbox except for
+the PDF viewer). Drive's previews where it has them. A stage whose folder can't
+be read says so, and the rest of the page stays. 2.6 Staff bar on the page ("Painel", "Editar"); a card's title opens
 the page; "Copiar link". **As built (with "Publicar", ahead of 2.4 and 2.5):**
 the whole painel card links to `/{slug}`; the office's signed-in staff see
 their drafts and protected pages there, with the prototype's dock ("Painel",

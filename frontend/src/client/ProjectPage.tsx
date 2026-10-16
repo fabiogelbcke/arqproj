@@ -38,7 +38,8 @@ function fileSize(bytes: number | null | undefined, locale: string): string {
 
 function FileCard({ file, slug, timeZone }: { file: FileItem; slug: string; timeZone: string }) {
   const { t, i18n } = useTranslation();
-  const [thumb, setThumb] = useState<"thumb" | "original" | "none">("thumb");
+  // Only images and PDFs have previews (Drive's); other files show their type.
+  const [thumb, setThumb] = useState<"thumb" | "original" | "none">(file.kind === "other" ? "none" : "thumb");
   const url = `/api/pages/${slug}/files/${encodeURIComponent(file.key)}`;
   const opens = file.kind === "image" || file.kind === "pdf";
   const extension = file.name.includes(".") ? file.name.split(".").pop()!.toUpperCase() : "";
