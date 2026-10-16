@@ -47,7 +47,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("the client page", () => {
   it("shows the project with the current stage open", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
-    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent("/casajardim");
+    expect(await screen.findByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveTextContent("/casajardim");
     expect(screen.getByText("Medidas conferidas.")).toBeVisible(); // stage 2 is current
     expect(screen.getByText("1.240 m²")).toBeInTheDocument();
     expect(screen.getByText("15/10/2026")).toBeInTheDocument(); // the office's day

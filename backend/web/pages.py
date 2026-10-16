@@ -55,6 +55,7 @@ router = APIRouter()
 
 VISIBLE = (ProjectStatus.ACTIVE, ProjectStatus.COMPLETED, ProjectStatus.ARCHIVED)
 BANNER_SIZE = 2000  # pixels on the long side: the page's full-width cover
+PREVIEW_SIZE = 1200  # link previews: WhatsApp skips large images
 PAGE_HEADERS = {"X-Robots-Tag": "noindex"}
 COVER_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; sandbox",
@@ -250,13 +251,17 @@ async def page(
 
 @router.get("/api/pages/{slug}/cover", include_in_schema=False)
 async def page_cover(
-    request: Request, slug: str, db: AsyncSession = Depends(get_tenant_session)
+    request: Request,
+    slug: str,
+    preview: bool = False,
+    db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     try:
         project = await _readable(db, slug)
     except ApiError:
         return Response(status_code=404, headers=PAGE_HEADERS)
-    return await serve_cover(request, db, project, BANNER_SIZE, COVER_HEADERS)
+    size = PREVIEW_SIZE if preview else BANNER_SIZE
+    return await serve_cover(request, db, project, size, COVER_HEADERS)
 
 
 def _origin(request: Request, tenant: CurrentTenant) -> str:
@@ -279,6 +284,7 @@ def _ics_text(value: str) -> str:
         .replace(",", "\\,")
         .replace("\r\n", "\\n")
         .replace("\n", "\\n")
+        .replace("\r", "\\n")
     )
 
 
@@ -363,7 +369,12 @@ async def shell(
     project, current = await _find(db, slug)
     if project is not None and current != slug:
         query = f"?{request.url.query}" if request.url.query else ""
-        return RedirectResponse(f"/{current}{query}", status_code=301, headers=PAGE_HEADERS)
+        # Permanent, but not cached forever: a slug may later point back here.
+        return RedirectResponse(
+            f"/{current}{query}",
+            status_code=301,
+            headers={"Cache-Control": "no-cache", **PAGE_HEADERS},
+        )
 
     office = (await _office(db, tenant)).name
     tags = {"robots": "noindex"}
@@ -380,7 +391,9 @@ async def shell(
             tags |= {"description": summary, "og:description": summary}
         if project.cover_file_id:
             version = f"{project.updated_at.timestamp():.6f}"
-            tags["og:image"] = f"{_origin(request, tenant)}/api/pages/{slug}/cover?v={version}"
+            tags["og:image"] = (
+                f"{_origin(request, tenant)}/api/pages/{slug}/cover?v={version}&preview=true"
+            )
     document = shell_file.read_text("utf-8").replace("<!--page-head-->", _head(tags, title))
     return Response(
         document,

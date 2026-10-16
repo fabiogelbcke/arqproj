@@ -179,7 +179,7 @@ backend/
   web/                   FastAPI routers, forms, Pydantic request/response models
   db/                    models and repository implementations
 migrations/              reviewed Alembic migrations
-frontend/             React + TypeScript staff administration (A20), built by Vite
+frontend/             React + TypeScript: staff administration and the client page (A20), built by Vite
   src/                   screens, components, API client generated from OpenAPI
   package.json           own lockfile; Node is used to build, never at runtime
 ```
@@ -609,8 +609,9 @@ links already sent to clients do not break. **A slug, once used, stays reserved
 for its project (A29):** current and old slugs live in one table (`project_slugs`,
 exactly one current per project) and share one namespace per office, so another project can never take an old slug
 and receive a client's old link. This holds after a project is deleted too:
-projects are soft-deleted and keep their slugs, so an old link shows "this
-project is no longer available" instead of someone else's project.
+projects are soft-deleted and keep their slugs, so an old link answers "not
+found" (the same as an unknown address or a draft, so none can be told apart)
+instead of showing someone else's project.
 
 For password mode, office staff set/reset the password through the panel. This
 interprets “clients can add a password” as the office/customer controlling the

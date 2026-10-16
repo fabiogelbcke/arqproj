@@ -171,7 +171,7 @@ test("cards in a row line up, whatever their content", async ({ page }) => {
 test("the client page: content, redirects, not found and protected", async ({ page }) => {
   // No sign-in: it's the client's page.
   await page.goto("/casa-jardim");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("/casajardim");
+  await expect(page.getByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveText("/casajardim");
   await expect(page).toHaveTitle("Casa Jardim · Alinea (dev)");
   await expect(page.getByRole("heading", { name: "Etapas e próximos passos" })).toBeVisible();
   await expect(page.getByText("Apresentação do layout")).toBeVisible();

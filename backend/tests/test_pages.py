@@ -154,15 +154,16 @@ async def test_the_cover_is_public_on_a_readable_page_only(client, db_session, o
 
 async def test_the_next_meeting_downloads_as_a_calendar_file(client, db_session, owner):
     await db_session.execute(
-        text("UPDATE meetings SET location = 'Sala 2, térreo; bloco B' WHERE title = :t"),
-        {"t": "Apresentação do layout"},
+        text("UPDATE meetings SET location = :l WHERE title = :t"),
+        {"l": "Sala 2, térreo; bloco B\rportaria", "t": "Apresentação do layout"},
     )
     response = await client.get("/api/pages/casa-jardim/meeting.ics", headers=ALINEA)
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/calendar")
     body = response.text
     assert "SUMMARY:Apresentação do layout · Casa Jardim" in body
-    assert "LOCATION:Sala 2\\, térreo\\; bloco B" in body  # escaped as the format requires
+    # Escaped as the format requires; no line break (even a lone \r) gets through.
+    assert "LOCATION:Sala 2\\, térreo\\; bloco B\\nportaria" in body
     assert "DTSTART:" in body and body.count("BEGIN:VEVENT") == 1
     none = await client.get("/api/pages/apartamento-atlantico/meeting.ics", headers=ALINEA)
     assert none.status_code == 404  # no meeting ahead
@@ -188,12 +189,14 @@ async def test_the_preview_shows_the_cover_when_there_is_one(client, db_session,
     await client.put(f"/api/projects/{found}/cover", files={"file": ("c.png", PNG)}, headers=owner)
     document = (await client.get("/casa-jardim", headers=ALINEA)).text
     assert 'og:image" content="http://alinea.localhost/api/pages/casa-jardim/cover?v=' in document
+    assert "preview=true" in document  # the smaller image messaging apps accept
 
 
 async def test_an_old_address_redirects_to_the_current_one(client, dist, owner):
     response = await client.get("/apto-atlantico?de=whatsapp", headers=ALINEA)
     assert response.status_code == 301
     assert response.headers["location"] == "/apartamento-atlantico?de=whatsapp"
+    assert response.headers["cache-control"] == "no-cache"  # a slug may point back later
 
 
 @pytest.mark.parametrize("slug", ["casa-das-oliveiras", "nao-existe"])

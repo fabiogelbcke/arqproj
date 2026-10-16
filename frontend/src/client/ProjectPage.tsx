@@ -199,7 +199,7 @@ function MeetingCard({ page, slug }: { page: Page; slug: string }) {
   return (
     <section className="meet" aria-label={t("page.nextMeeting")}>
       <div>
-        <h2>{narrow ? t("page.meetingScheduled") : t("page.nextMeeting")}</h2>
+        <h2>{narrow && meeting ? t("page.meetingScheduled") : t("page.nextMeeting")}</h2>
         <p className="meet__title" title={title}>
           {title}
         </p>
@@ -363,7 +363,8 @@ function Title({ name }: { name: string }) {
   const { i18n } = useTranslation();
   const [lead, ...rest] = name.trim().split(/\s+/);
   return (
-    <h1 className="client-project-title" title={name}>
+    // The two parts are one name for screen readers ("/casa" + "jardim").
+    <h1 className="client-project-title" title={name} aria-label={name}>
       <span className="project-title__lead">/{lead?.toLocaleLowerCase(i18n.language)}</span>
       {rest.length > 0 && (
         <strong className="project-title__tail">{rest.join(" ").toLocaleLowerCase(i18n.language)}</strong>
