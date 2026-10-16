@@ -227,6 +227,14 @@ async def test_saving_the_meeting_unchanged_records_nothing(client, db_session, 
     assert (await events(db_session), await casa(db_session, "last_activity_at")) == before
 
 
+async def test_saving_a_note_unchanged_records_nothing(client, db_session, owner, folders):
+    await call(client, owner, "PUT", "/stages/2/notes", notes="Confira as medidas.")
+    before = (await events(db_session), await casa(db_session, "last_activity_at"))
+    response = await call(client, owner, "PUT", "/stages/2/notes", notes=" Confira as medidas. ")
+    assert response.status_code == 204
+    assert (await events(db_session), await casa(db_session, "last_activity_at")) == before
+
+
 async def test_a_drafts_changes_are_not_recorded(client, db_session, owner, folders):
     await db_session.execute(text(f"UPDATE projects SET status = 'draft' WHERE id = {CASA}"))
     await call(client, owner, "POST", "/progress", action="advance")

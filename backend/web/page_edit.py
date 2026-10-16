@@ -281,18 +281,21 @@ async def set_notes(
 ) -> Response:
     """A stage's note to the client ("Recado"); empty removes it."""
     stage = await db.scalar(
-        select(ProjectStage.id).where(
+        select(ProjectStage).where(
             ProjectStage.project_id == project_id, ProjectStage.position == position
         )
     )
     if stage is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
+    notes = body.notes.strip()
+    if notes == (stage.notes or ""):
+        # Saved as it was: nothing to tell the client, and "Atualizado" stays.
+        return Response(status_code=204)
     now = datetime.now(UTC)
     project = await _change(db, project_id, body.row_version, {"last_activity_at": now})
-    notes = body.notes.strip()
     await db.execute(
         update(ProjectStage)
-        .where(ProjectStage.id == stage)
+        .where(ProjectStage.id == stage.id)
         .values(notes=notes, notes_updated_at=now if notes else None)
     )
     # Written or removed, the client sees it change: for the updates panel; a note
