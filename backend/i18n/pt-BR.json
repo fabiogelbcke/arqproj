@@ -77,7 +77,7 @@
     "invalid_office_name": "Informe um nome de até 80 caracteres.",
     "invalid_email": "Informe um e-mail válido, como contato@escritorio.com.br.",
     "logo_wrong_type": "Use uma imagem PNG, JPG, WebP ou SVG.",
-    "logo_too_large": "Use uma imagem de até 512 KB.",
+    "logo_too_large": "Use uma imagem de até 5 MB.",
     "drive_unreadable": "O portal não consegue ler a pasta do escritório no Google Drive. Verifique o compartilhamento em Configurações → Google Drive."
   },
   "projectStatus": {
@@ -134,7 +134,7 @@
     "save": "Salvar",
     "saved": "Salvo.",
     "logo": "Logo",
-    "logoHint": "PNG, JPG, WebP ou SVG, até 512 KB.",
+    "logoHint": "PNG, JPG, WebP ou SVG, até 5 MB.",
     "logoNone": "Nenhum logo ainda.",
     "chooseLogo": "Escolher imagem",
     "logoSaved": "Logo atualizado.",

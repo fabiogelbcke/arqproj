@@ -121,7 +121,7 @@ async def test_an_svg_with_a_script_is_served_so_nothing_in_it_runs(client, owne
     [
         (b"hello, not an image", 415, "logo_wrong_type"),
         (b"%PDF-1.4 renamed.png", 415, "logo_wrong_type"),  # the bytes decide, not the name
-        (PNG + b"\x00" * 512 * 1024, 413, "logo_too_large"),
+        (PNG + b"\x00" * 5 * 1024 * 1024, 413, "logo_too_large"),
     ],
 )
 async def test_only_small_images_are_accepted_as_a_logo(client, owner, content, status, error):

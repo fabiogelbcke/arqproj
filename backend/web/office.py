@@ -39,7 +39,7 @@ from backend.web.errors import ApiError, ErrorCode, documented
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 
-LOGO_MAX_BYTES = 512 * 1024
+LOGO_MAX_BYTES = 5 * 1024 * 1024  # shown small, but exported logos are often large
 BRAND_FOLDER = "_marca"
 _EXTENSIONS = {
     LogoType.PNG: "png",

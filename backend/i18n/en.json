@@ -77,7 +77,7 @@
     "invalid_office_name": "Enter a name of up to 80 characters.",
     "invalid_email": "Enter a valid email address, like contact@office.com.",
     "logo_wrong_type": "Use a PNG, JPG, WebP or SVG image.",
-    "logo_too_large": "Use an image of up to 512 KB.",
+    "logo_too_large": "Use an image of up to 5 MB.",
     "drive_unreadable": "The portal cannot read the office's Google Drive folder. Check its sharing in Settings → Google Drive."
   },
   "projectStatus": {
@@ -134,7 +134,7 @@
     "save": "Save",
     "saved": "Saved.",
     "logo": "Logo",
-    "logoHint": "PNG, JPG, WebP or SVG, up to 512 KB.",
+    "logoHint": "PNG, JPG, WebP or SVG, up to 5 MB.",
     "logoNone": "No logo yet.",
     "chooseLogo": "Choose image",
     "logoSaved": "Logo updated.",

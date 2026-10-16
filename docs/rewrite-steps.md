@@ -271,7 +271,7 @@ office. So the painel comes next, then the client page once its design settles:
    **P1b Office details** (as built): Configurações → Escritório (name, contact
    email, logo; owners edit, members see), in a new isolated `office_profiles`
    table (migration 0010) rather than the shared `tenants` registry. The logo
-   (PNG, JPG, WebP or SVG up to 512 KB, type read from the bytes) goes to a
+   (PNG, JPG, WebP or SVG up to 5 MB, type read from the bytes) goes to a
    `_marca` folder in the office's Drive (or the local folder in development),
    replacing the previous one, and is served with a policy that lets nothing in
    it run. The checklist item ticks once the email and logo are set.
