@@ -47,8 +47,18 @@
 .add-stage__row { display: flex; gap: 8px; }
 
 /* Edit mode: uploads under the drop area, one row each until it is sent (A31). */
-.uploads { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13px; color: var(--brand-ink); }
+.uploads { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
 .uploads li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .uploads__name { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
 .uploads progress { flex: 1 1 140px; height: 4px; accent-color: var(--mark); }
 .uploads__failed [role="alert"] { flex-basis: 100%; color: var(--danger, #9b3d1d); }
+
+/* The open stage is a dark band (light in the dark theme). The prototype keeps
+   these colours for phones only, which left the drop area's words and the rename
+   box dark on dark on wider screens. */
+.client.editing .stage.is-expanded .stage__title input, .client.editing .stage.is-expanded .drop { color: #fff; caret-color: #fff; border-color: #c9cbcd; }
+.client.editing .stage.is-expanded .drop small, .client.editing .stage.is-expanded .drop svg { color: #c9cbcd; }
+.client.editing .stage.is-expanded .uploads__failed [role="alert"] { color: #f2b8a2; }
+:root[data-theme="dark"] .client.editing .stage.is-expanded .stage__title input, :root[data-theme="dark"] .client.editing .stage.is-expanded .drop { color: #242629; caret-color: #242629; border-color: #777a7d; }
+:root[data-theme="dark"] .client.editing .stage.is-expanded .drop small, :root[data-theme="dark"] .client.editing .stage.is-expanded .drop svg { color: #55585b; }
+:root[data-theme="dark"] .client.editing .stage.is-expanded .uploads__failed [role="alert"] { color: var(--danger, #9b3d1d); }
