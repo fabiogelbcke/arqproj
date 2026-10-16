@@ -64,6 +64,17 @@ describe("sending a file to its upload session", () => {
     expect(sent[2]).toEqual({ headers: { "Content-Type": "application/pdf" }, size: 10 });
   });
 
+  it("waits and resumes when Google asks to slow down", async () => {
+    const sent = session([{ status: 429 }, { status: 429 }, { status: 308, headers: { Range: "bytes=0-4" } }, { status: 200 }]);
+    await sendFile("https://upload.example/s", file(), () => {}, NO_WAIT);
+    expect(sent.map((s) => s.headers)).toEqual([
+      { "Content-Type": "application/pdf" },
+      { "Content-Range": "bytes */10" }, // throttled again: asked later
+      { "Content-Range": "bytes */10" },
+      { "Content-Range": "bytes 5-9/10" },
+    ]);
+  });
+
   it("is done when the session already has it all", async () => {
     const sent = session(["break", { status: 200 }]);
     await sendFile("https://upload.example/s", file(), () => {}, NO_WAIT);

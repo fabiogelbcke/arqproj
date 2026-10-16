@@ -56,6 +56,9 @@ export class UploadBroke extends Error {
   }
 }
 
+/** Worth another try later: Google busy (5xx) or asking us to slow down (429). */
+const passing = (status: number) => status >= 500 || status === 429;
+
 const refused = (answer: XMLHttpRequest) => new Refused(answer.status, (answer.responseText ?? "").slice(0, 500));
 
 /** How much of the file the upload session already has (Google's resumable
@@ -63,13 +66,14 @@ const refused = (answer: XMLHttpRequest) => new Refused(answer.status, (answer.r
 async function received(url: string, size: number): Promise<number> {
   const answer = await put(url, null, { "Content-Range": `bytes */${size}` });
   if (answer.status < 300) return size;
+  if (passing(answer.status)) throw new Error("busy"); // a break: ask again later
   if (answer.status !== 308) throw refused(answer); // the session is gone
   const range = /bytes=0-(\d+)/.exec(answer.getResponseHeader("Range") ?? "");
   return range ? Number(range[1]) + 1 : 0;
 }
 
 /** Sends the file to its upload session. After a break (a lost connection, a
- *  5xx) it asks the session how much arrived and sends the rest, so a large
+ *  5xx, a 429) it asks the session how much arrived and sends the rest, so a large
  *  file need not start over (plan section 11). A refusal (4xx) is final. */
 export async function sendFile(
   url: string,
@@ -92,7 +96,7 @@ export async function sendFile(
         onProgress(file.size ? (from + loaded) / file.size : 1),
       );
       if (answer.status < 300) return;
-      if (answer.status < 500) throw refused(answer);
+      if (!passing(answer.status)) throw refused(answer);
       last = { status: answer.status, detail: (answer.responseText ?? "").slice(0, 500) };
     } catch (failure) {
       if (failure instanceof Refused) throw new UploadBroke(failure.status, failure.detail);
