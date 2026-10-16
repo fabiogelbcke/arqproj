@@ -341,9 +341,14 @@ async def unlock(
     if project is None or current != slug or project.access_mode is not AccessMode.PASSWORD:
         raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
     who, key = attempts.device(request), str(project.id)
-    if attempts.blocked(key, who):
+    if not attempts.admit(key, who):  # reserved before the (slow) hash check
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
-    if not await verify_password(project.password_hash, body.password):
+    try:
+        right = await verify_password(project.password_hash, body.password)
+    except BaseException:
+        attempts.failed(key, who)  # a try that didn't finish still counts
+        raise
+    if not right:
         attempts.failed(key, who)
         log.info("wrong page password for %s", slug)
         raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD)
