@@ -22,6 +22,7 @@ from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.notifications.models import ProjectRecipient, RecipientStatus
 from backend.projects.creation import (
     CreationProblem,
     FolderMaker,
@@ -60,6 +61,13 @@ class NextMeeting(BaseModel):
     starts_at: datetime
 
 
+class RecipientOut(BaseModel):
+    email: str
+    # False once the client followed the email's unsubscribe link: they get
+    # nothing more, and staff can't undo it (A32, section 14).
+    subscribed: bool
+
+
 class ProjectSummary(BaseModel):
     id: uuid.UUID
     name: str
@@ -80,6 +88,8 @@ class ProjectSummary(BaseModel):
     # Changes when the cover does, so browsers fetch the new one; None: placeholder.
     cover_url: str | None
     access_mode: AccessMode
+    # Who gets this project's email updates (A32), in the order they were added.
+    recipients: list[RecipientOut]
 
 
 class StageOption(BaseModel):
@@ -163,6 +173,18 @@ async def summaries(
             .ext(distinct_on(Meeting.project_id))
         )
     }
+    recipients: dict[uuid.UUID, list[RecipientOut]] = {}
+    for recipient in await db.scalars(
+        select(ProjectRecipient)
+        .where(ProjectRecipient.project_id.in_(ids))
+        .order_by(ProjectRecipient.created_at, ProjectRecipient.email)
+    ):
+        recipients.setdefault(recipient.project_id, []).append(
+            RecipientOut(
+                email=recipient.email,
+                subscribed=recipient.status is RecipientStatus.SUBSCRIBED,
+            )
+        )
     return [
         ProjectSummary(
             id=project.id,
@@ -181,6 +203,7 @@ async def summaries(
             row_version=project.row_version,
             cover_url=cover_url(project),
             access_mode=project.access_mode,
+            recipients=recipients.get(project.id, []),
         )
         for project, slug, labels in rows
     ]

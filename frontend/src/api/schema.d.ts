@@ -888,6 +888,8 @@ export interface components {
             access_mode?: components["schemas"]["AccessMode"] | null;
             /** Password */
             password?: string | null;
+            /** Recipients */
+            recipients?: string[] | null;
         };
         /** ProjectIn */
         ProjectIn: {
@@ -946,6 +948,8 @@ export interface components {
             /** Cover Url */
             cover_url: string | null;
             access_mode: components["schemas"]["AccessMode"];
+            /** Recipients */
+            recipients: components["schemas"]["RecipientOut"][];
         };
         /** ProjectTypeOption */
         ProjectTypeOption: {
@@ -962,6 +966,13 @@ export interface components {
          * @enum {string}
          */
         ReaderStatus: "unknown" | "ok" | "no_access";
+        /** RecipientOut */
+        RecipientOut: {
+            /** Email */
+            email: string;
+            /** Subscribed */
+            subscribed: boolean;
+        };
         /** RenameIn */
         RenameIn: {
             /** Row Version */

@@ -23,6 +23,7 @@ const CASA: ProjectSummary = {
   row_version: 4,
   cover_url: null,
   access_mode: "public",
+  recipients: [],
 };
 const PATH = `/api/projects/${CASA.id}`;
 
@@ -149,6 +150,44 @@ describe("the Projeto dialog", () => {
       access_mode: "password",
       password: "segredo",
     });
+  });
+
+  it("lists the client's emails: added with Enter or Adicionar, removed with ×", async () => {
+    const sent = api({ [`PATCH ${PATH}`]: () => ({ body: { ...CASA, row_version: 5 } }) });
+    const dialog = await openSettings();
+    const field = within(dialog).getByLabelText("Novo e-mail");
+    await userEvent.type(field, "Ana@Example.com{Enter}");
+    expect(screen.getByRole("dialog", { name: "Projeto" })).toBeInTheDocument(); // Enter added, didn't save
+    await userEvent.type(field, "joao@example.com");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar" }));
+    await userEvent.type(field, "x@example.com{Enter}");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Remover x@example.com" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({
+      recipients: ["ana@example.com", "joao@example.com"],
+    });
+  });
+
+  it("saves an email typed but not added", async () => {
+    const sent = api({ [`PATCH ${PATH}`]: () => ({ body: { ...CASA, row_version: 5 } }) });
+    const dialog = await openSettings();
+    await userEvent.type(within(dialog).getByLabelText("Novo e-mail"), "ana@example.com");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ recipients: ["ana@example.com"] });
+  });
+
+  it("shows who unsubscribed, and staff can't remove them to add them back", async () => {
+    api({
+      "GET /api/projects": () => ({
+        body: [{ ...CASA, recipients: [{ email: "ana@example.com", subscribed: false }, { email: "joao@example.com", subscribed: true }] }],
+      }),
+    });
+    const dialog = await openSettings();
+    expect(within(dialog).getByText("Cancelou os e-mails")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Remover ana@example.com" })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: "Remover joao@example.com" })).toBeInTheDocument();
   });
 
   it("keeps an existing password when its field stays empty", async () => {

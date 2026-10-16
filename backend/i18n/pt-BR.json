@@ -102,6 +102,12 @@
     "unreadable": "Não foi possível ler esta foto. Escolha outra."
   },
   "projectSettings": {
+    "recipients": "E-mails do cliente",
+    "recipientsHint": "Recebem um e-mail quando há arquivos novos, a etapa avança ou uma reunião muda. Um aviso por vez, depois que os envios param.",
+    "newRecipient": "Novo e-mail",
+    "addRecipient": "Adicionar",
+    "removeRecipient": "Remover {{email}}",
+    "unsubscribed": "Cancelou os e-mails",
     "title": "Projeto",
     "open": "Editar o projeto {{name}}",
     "name": "Nome do projeto",

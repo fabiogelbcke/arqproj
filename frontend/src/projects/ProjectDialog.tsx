@@ -22,6 +22,9 @@ import styles from "./projects.module.css";
 
 const NAME_MAX = 120;
 const CLIENT_MAX = 48;
+const RECIPIENTS_MAX = 20; // the server checks it too
+
+const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
 /** What happens to the cover on Salvar: nothing, a new photo, or back to the placeholder. */
 type CoverChoice = { kind: "keep" } | { kind: "new"; file: File; preview: string } | { kind: "remove" };
@@ -46,6 +49,15 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
   const [access, setAccess] = useState(project.access_mode);
   const [password, setPassword] = useState("");
   const [coverProblem, setCoverProblem] = useState<string | null>(null);
+  // The client's addresses for email updates (A32): the whole list is sent.
+  const [recipients, setRecipients] = useState(() => project.recipients.map((r) => r.email));
+  const [newRecipient, setNewRecipient] = useState("");
+  const unsubscribed = new Set(saved.recipients.filter((r) => !r.subscribed).map((r) => r.email));
+  const addRecipient = () => {
+    const email = newRecipient.trim().toLowerCase();
+    if (email && !recipients.includes(email)) setRecipients([...recipients, email]);
+    setNewRecipient("");
+  };
   const saving = change.isPending || upload.isPending || remove.isPending;
 
   const preview = cover.kind === "new" ? cover.preview : null;
@@ -64,7 +76,20 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
     try {
       const linkChanged = slug !== saved.slug;
       const accessChanged = access !== saved.access_mode || (access === "password" && password !== "");
-      if (name !== saved.name || client !== saved.client_name || linkChanged || accessChanged) {
+      // An address typed but not added yet counts too: easy to forget "Adicionar".
+      const typed = newRecipient.trim().toLowerCase();
+      const wanted = typed && !recipients.includes(typed) ? [...recipients, typed] : recipients;
+      const recipientsChanged = !sameList(
+        wanted,
+        saved.recipients.map((r) => r.email),
+      );
+      if (
+        name !== saved.name ||
+        client !== saved.client_name ||
+        linkChanged ||
+        accessChanged ||
+        recipientsChanged
+      ) {
         setSaved(
           await change.mutateAsync({
             id: project.id,
@@ -73,9 +98,11 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
             client_name: client,
             ...(linkChanged ? { slug } : {}),
             ...(accessChanged ? { access_mode: access, ...(password ? { password } : {}) } : {}),
+            ...(recipientsChanged ? { recipients: wanted } : {}),
           }),
         );
         setPassword("");
+        setNewRecipient("");
       }
       if (cover.kind === "new") await upload.mutateAsync({ id: project.id, file: cover.file });
       if (cover.kind === "remove") await remove.mutateAsync(project.id);
@@ -249,6 +276,52 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
                 autoComplete="new-password"
               />
             )}
+
+            <fieldset className={styles.recipientsField}>
+              <legend className={styles.label}>{t("projectSettings.recipients")}</legend>
+              <p className={styles.choiceNote}>{t("projectSettings.recipientsHint")}</p>
+              {recipients.length > 0 && (
+                <ul className={styles.recipients}>
+                  {recipients.map((email) => (
+                    <li key={email} className={styles.recipient}>
+                      <span className={styles.recipientEmail}>{email}</span>
+                      {unsubscribed.has(email) ? (
+                        // The client's choice: staff can't undo it (A32).
+                        <small className={styles.choiceNote}>{t("projectSettings.unsubscribed")}</small>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          aria-label={t("projectSettings.removeRecipient", { email })}
+                          onPress={() => setRecipients(recipients.filter((other) => other !== email))}
+                        >
+                          ×
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {recipients.length < RECIPIENTS_MAX && (
+                <div className={styles.recipientAdd}>
+                  <TextField
+                    label={t("projectSettings.newRecipient")}
+                    type="email"
+                    value={newRecipient}
+                    onChange={setNewRecipient}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault(); // add it, don't save the dialog
+                        addRecipient();
+                      }
+                    }}
+                    autoComplete="off"
+                  />
+                  <Button onPress={addRecipient} isDisabled={!newRecipient.trim()}>
+                    {t("projectSettings.addRecipient")}
+                  </Button>
+                </div>
+              )}
+            </fieldset>
 
             {nameTaken ? (
               <p role="alert" className={styles.problem}>

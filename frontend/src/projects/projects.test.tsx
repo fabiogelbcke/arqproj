@@ -38,6 +38,7 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
     project_type: "architecture",
     project_type_label: "Projeto Arquitetônico",
     stage_count: 7,
+    recipients: [],
     current_position: 3,
     current_stage_title: "Estudos Preliminares",
     next_meeting: null,
