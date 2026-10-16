@@ -233,6 +233,7 @@
 
 /* The client's addresses for email updates (A32). */
 .recipientsField { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.recipientsField legend { padding: 0; }
 .recipients { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .recipient { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 0 0 12px; border: 1px solid var(--line); border-radius: var(--r); }
 .recipientEmail { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
