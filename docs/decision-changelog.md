@@ -26,8 +26,7 @@ a new entry too.
 `202` plus an operation URL the painel polls.
 
 **Now:** for the pilot, creation runs within the request: folders first, then
-every row in one transaction; any failure saves nothing and trashes the new project folder (best effort), and
-saves nothing. A one-time creation key makes a retried or double-sent request
+every row in one transaction; any failure saves nothing and trashes the new project folder (best effort). A one-time creation key makes a retried or double-sent request
 return the project already created. The durable operation stays the eventual
 design (plan section 10).
 
