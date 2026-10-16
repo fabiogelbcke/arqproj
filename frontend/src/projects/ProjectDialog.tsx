@@ -59,8 +59,11 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
               );
               toast(t("projectSettings.restored", { name: back.name }));
             } catch (failure) {
-              const code = failure instanceof ApiError ? failure.code : "unexpected";
-              toast(i18n.exists(`errors.${code}`) ? t(`errors.${code}`) : t("errors.unexpected"));
+              // As ErrorNotice: the message, plus the support code the log line carries.
+              const error = failure instanceof ApiError ? failure : new ApiError("unexpected");
+              const message = i18n.exists(`errors.${error.code}`) ? t(`errors.${error.code}`) : t("errors.unexpected");
+              const reference = error.requestId ? ` ${t("errors.reference", { id: error.requestId })}` : "";
+              toast(message + reference);
             }
             void queryClient.invalidateQueries({ queryKey: PROJECTS });
           });

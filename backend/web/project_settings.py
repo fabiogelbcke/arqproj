@@ -101,11 +101,14 @@ async def change_project(
             raise ApiError(422, ErrorCode.INVALID_CLIENT_NAME)
         values["client_name"] = client
     if body.status is not None and body.status is not project.status:
-        # Publishing and completing belong to the project page (A24).
-        archiving = body.status is ProjectStatus.ARCHIVED
-        if not archiving and project.status is not ProjectStatus.ARCHIVED:
+        # Archiving, or undoing it back to exactly what it was. Publishing and
+        # completing belong to the project page (A24).
+        if body.status is ProjectStatus.ARCHIVED:
+            values |= {"status": body.status, "archived_from": project.status}
+        elif body.status is project.archived_from:
+            values |= {"status": body.status, "archived_from": None}
+        else:
             raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
-        values["status"] = body.status
     if values:
         # Only if nobody saved it since the screen loaded it.
         changed = await db.execute(

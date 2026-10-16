@@ -147,6 +147,15 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
             "current_position IS NULL OR current_position >= 1", name="position_positive"
         ),
         UniqueConstraint("tenant_id", "creation_key", name="uq_projects_tenant_id_creation_key"),
+        CheckConstraint(
+            "archived_from IN ("
+            + ", ".join(f"'{s.value}'" for s in ProjectStatus if s is not ProjectStatus.ARCHIVED)
+            + ")",
+            name="archived_from_known",
+        ),
+        CheckConstraint(
+            "(status = 'archived') = (archived_from IS NOT NULL)", name="archived_from_set"
+        ),
         enum_check("cover_type", CoverType),
         CheckConstraint("(cover_file_id IS NULL) = (cover_type IS NULL)", name="cover_complete"),
     )
@@ -183,6 +192,8 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
     # Sent by the creation form; a repeated request (double click, retry) returns
     # the project it already created instead of a second one.
     creation_key: Mapped[str | None] = mapped_column(Text)
+    # The status before archiving: undoing an archive may only return to it.
+    archived_from: Mapped[ProjectStatus | None] = mapped_column(TextEnum(ProjectStatus))
     # The cover photo, in a `_capa` folder inside the project's folder.
     cover_file_id: Mapped[str | None] = mapped_column(Text)
     cover_type: Mapped[CoverType | None] = mapped_column(TextEnum(CoverType))

@@ -101,6 +101,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
                 "name",
                 "client_name",
                 "status",
+                "archived_from",
                 "cover_file_id",
                 "cover_type",
                 "cover_folder_id",

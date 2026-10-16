@@ -99,6 +99,19 @@ describe("the Projeto dialog", () => {
     ]);
   });
 
+  it("a failed Desfazer says why, with the support code", async () => {
+    api({
+      [`PATCH ${PATH}`]: (body: unknown) =>
+        (body as { status: string }).status === "archived"
+          ? { body: { ...CASA, status: "archived", row_version: 5 } }
+          : { status: 409, body: { error: "project_changed" }, headers: { "X-Request-ID": "abc123" } },
+    });
+    const dialog = await openSettings();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Arquivar" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
+    expect(await screen.findByText(/alterado por outra pessoa.*Código de suporte: abc123/)).toBeInTheDocument();
+  });
+
   it("removes the cover", async () => {
     const withCover = { ...CASA, cover_url: "/api/projects/x/cover?v=1" };
     api({
