@@ -28,6 +28,8 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.notifications.events import record
+from backend.notifications.models import EventKind
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Project, ProjectStage, ProjectTypeStage, StageDef
 from backend.storage.google_connect import ConnectError
@@ -378,10 +380,12 @@ async def progress(
     project_id: uuid.UUID,
     body: ProgressIn,
     _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Advance to the next stage, go back one, complete the project (all stages
-    done) or reopen it. The client sees it at once; "Atualizado" moves."""
+    done) or reopen it. The client sees it at once; "Atualizado" moves. Advancing
+    and completing are recorded for the client's email (A32)."""
     project = await db.scalar(
         select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
     )
@@ -401,5 +405,17 @@ async def progress(
     else:
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
     await _change(db, project_id, body.row_version, values)
+    if body.action == "advance":
+        stages = await _stages(db, project_id)
+        reached = stages[current]  # the stage after the old current one
+        record(
+            db,
+            project,
+            EventKind.STAGE_ADVANCED,
+            stage_position=current + 1,
+            title=await _title(db, reached, tenant.locale),
+        )
+    elif body.action == "complete":
+        record(db, project, EventKind.PROJECT_COMPLETED)
     await db.commit()
     return Response(status_code=204)

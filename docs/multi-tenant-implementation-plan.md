@@ -96,7 +96,7 @@ its affected tests before coding proceeds.
 | A07 | All-or-nothing project creation | Pilot (15 Oct 2026): within the request, folders first, then every row in one transaction; on any failure nothing is saved and the new project folder (with its stage folders) is trashed, best effort; a one-time creation key makes retries safe. The durable provisioning operation in section 10 replaces it when there is a worker. See section 10 |
 | A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules. Revised by A25: clear `vN` names still group automatically |
 | A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: an authenticated maintenance endpoint in the web service, called every 10 minutes (15 Oct 2026, was hourly), with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
-| A10 | The client page reads Drive live; the sync job only notices changes | Revised 16 Oct 2026 (Fabio): a project page lists its stage folders from Drive on each visit, so a file added in Drive shows at once (staff) or within two minutes (a public page's browser cache). The incremental, polled sync no longer feeds the display; it records what changed, for emails (A12), "Atualizado" and the updates feed (A28), and, once versions arrive, the document index (A25). Reconciliation stays the repair path; webhooks can wake it later without becoming a correctness dependency. See sections 8 and 13 |
+| A10 | The client page reads Drive live; the sync job only notices changes | Revised 16 Oct 2026 (Fabio): a project page lists its stage folders from Drive on each visit, so a file added in Drive shows at once (staff) or within two minutes (a public page's browser cache). The incremental, polled sync no longer feeds the display; it records what changed, for emails (A12), "Atualizado" and the updates feed (A28), and, once versions arrive, the document index (A25). Reconciliation stays the repair path; webhooks can wake it later without becoming a correctness dependency. For the pilot it finds new files by scanning each published project's stage folders every pass rather than reading Drive's changes feed (Fabio, 16 Oct 2026). See sections 8 and 13 |
 | A11 | Streaming proxy for private Drive content; optional Drive links | Recommended; clients need not have Google accounts or Drive sharing permissions |
 | A12 | Email first, trailing "settle" window: send once uploads stop | Revised 14 Oct 2026 from a fixed 60-minute window. 45-minute quiet period, 2-hour maximum hold from the first publication, configurable per office. Clarified 15 Oct 2026: a batch becomes *due* by these rules and is *sent* by the next maintenance run (every 10 minutes); the delay prevents an email about withdrawn files, it does not hide them. See section 14 and the [changelog](decision-changelog.md) |
 | A13 | Protected main, staging and approved promotion of one build | Recommended; environments are separate without requiring permanent divergent code branches |
@@ -1143,6 +1143,17 @@ all original files. The initial pilot can use upstream thumbnails and ephemeral
 rendering to avoid requiring that extra storage service immediately.
 
 ## 13. Sync and durable jobs
+
+**Pilot (A10, 16 Oct 2026): a scan, not the changes feed.** Each maintenance
+pass lists every published project's stage folders, as the client page does
+(hidden names, folders still in their project), and compares them with the files
+the project has shown before; a file shown for the first time is recorded as
+"file published" (A28). A project's first scan only records what is there, so
+existing files never email. It costs about one Drive call per stage folder per
+project per pass, cannot miss a change, and needs no cursor or repair pass. The
+changes feed below replaces it when versions (A25) need a file followed across
+renames, or when the number of projects makes scanning costly; the events and
+emails built on the scan stay as they are.
 
 Use the read identity's changes feed when coverage is validated. Scope a cursor
 to connection generation, identity and Drive corpus; Shared Drives have explicit
