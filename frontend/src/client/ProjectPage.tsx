@@ -1,0 +1,453 @@
+// The client's project page, read-only (slice 2.3), after the fresh prototype's
+// markup: its stylesheet (prototype.css) styles these same class names.
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+
+import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function useNarrow(): boolean {
+  const query = "(max-width: 760px)";
+  const [narrow, setNarrow] = useState(() => window.matchMedia?.(query).matches ?? false);
+  useEffect(() => {
+    const list = window.matchMedia?.(query);
+    if (!list) return;
+    const change = () => setNarrow(list.matches);
+    list.addEventListener("change", change);
+    return () => list.removeEventListener("change", change);
+  }, []);
+  return narrow;
+}
+
+export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" }) {
+  const paths = {
+    down: "M6 9l6 6 6-6",
+    up: "M6 15l6-6 6 6",
+    x: "M6 6l12 12M18 6L6 18",
+    moon: "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z",
+    sun: "M12 4V2M12 22v-2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z",
+  };
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <path d={paths[name]} />
+    </svg>
+  );
+}
+
+const THEME_KEY = "alinea-theme";
+
+/** Light by default; the choice is remembered on this device. */
+export function ThemeSwitch() {
+  const { t } = useTranslation();
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? "light");
+  const next = theme === "dark" ? "light" : "dark";
+  return (
+    <button
+      className="theme-switch"
+      type="button"
+      aria-label={t(next === "dark" ? "page.useDark" : "page.useLight")}
+      onClick={() => {
+        document.documentElement.dataset.theme = next;
+        try {
+          localStorage.setItem(THEME_KEY, next);
+        } catch {
+          // Private browsing: the choice lasts until the tab closes.
+        }
+        setTheme(next);
+      }}
+    >
+      <Icon name={next === "dark" ? "moon" : "sun"} />
+      <span className="theme-switch__label">{t(next === "dark" ? "page.themeDark" : "page.themeLight")}</span>
+    </button>
+  );
+}
+
+export function applyStoredTheme(): void {
+  try {
+    if (localStorage.getItem(THEME_KEY) === "dark") document.documentElement.dataset.theme = "dark";
+  } catch {
+    // The default theme.
+  }
+}
+
+/** The office's logo (it carries the name) or, without one, its name. */
+export function SiteHeader({ office }: { office: { name: string; logo_url?: string | null } }) {
+  return (
+    <div className="site">
+      <div className="site__in">
+        <div className="site__brand">
+          {office.logo_url ? <img src={office.logo_url} alt={office.name} /> : <span>{office.name}</span>}
+        </div>
+        <div className="client-header-tools">
+          <ThemeSwitch />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Description({ text }: { text: string }) {
+  return (
+    <>
+      {paragraphs(text).map((block, i) =>
+        block.kind === "p" ? (
+          <p key={i}>{block.text}</p>
+        ) : (
+          <ul key={i}>
+            {block.items.map((item, j) => (
+              <li key={j}>{item}</li>
+            ))}
+          </ul>
+        ),
+      )}
+    </>
+  );
+}
+
+/** Cliente, type, the project's details, and the last update. */
+function Facts({ page, skipClient = false }: { page: Page; skipClient?: boolean }) {
+  const { t, i18n } = useTranslation();
+  const rows: Array<[string, string]> = [
+    ...(skipClient ? [] : [[t("page.client"), page.client_name.toLocaleUpperCase(i18n.language)] as [string, string]]),
+    [t("page.projectType"), page.project_type.toLocaleUpperCase(i18n.language)],
+    ...page.details.map((d) => [d.label, detailValue(d, i18n.language)] as [string, string]),
+    [t("page.lastUpdate"), day(page.last_update, i18n.language, page.timezone)],
+  ];
+  return (
+    <>
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </>
+  );
+}
+
+/** On phones: the client's name, opening to the details and the description. */
+function MobileSummary({ page }: { page: Page }) {
+  const { t, i18n } = useTranslation();
+  return (
+    <details className="facts-disclosure mobile-project-summary">
+      <summary>
+        <span className="facts-summary-label">{t("page.client")}</span>
+        <strong>{page.client_name.toLocaleUpperCase(i18n.language)}</strong>
+        <span className="facts-summary-action" aria-hidden="true">
+          <Icon name="down" />
+        </span>
+      </summary>
+      <dl className="facts">
+        <Facts page={page} skipClient />
+        <div className="mobile-project-description">
+          <dt>{t("page.description")}</dt>
+          <dd>{page.description ? <Description text={page.description} /> : <p>{t("page.noDescription")}</p>}</dd>
+        </div>
+      </dl>
+    </details>
+  );
+}
+
+function stateOf(page: Page, index: number): "done" | "current" | "upcoming" {
+  const current = page.current_position ?? 0;
+  if (page.completed || index + 1 < current) return "done";
+  return index + 1 === current ? "current" : "upcoming";
+}
+
+function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => void }) {
+  const { t } = useTranslation();
+  const narrow = useNarrow();
+  return (
+    <>
+      <div className="journey-intro">
+        <div>
+          {narrow ? (
+            <span className="journey-kicker">{t("page.timeline").toLocaleUpperCase()}</span>
+          ) : (
+            <>
+              <span className="journey-kicker">{t("page.journeyKicker").toLocaleUpperCase()}</span>
+              <h2>{t("page.journeyTitle")}</h2>
+            </>
+          )}
+        </div>
+      </div>
+      <ol className="tl" style={{ "--n": page.stages.length } as React.CSSProperties} aria-label={t("page.stages")}>
+        {page.stages.map((stage, i) => {
+          const state = stateOf(page, i);
+          return (
+            <li key={i} className={state === "upcoming" ? "" : state}>
+              <button type="button" onClick={() => onJump(i)}>
+                <span className="n">{pad(i + 1)}</span>
+                <b>{stage.title}</b>
+                <span>{state === "done" ? t("page.stageDone") : state === "current" ? t("page.stageCurrent") : ""}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </>
+  );
+}
+
+function MeetingCard({ page, slug }: { page: Page; slug: string }) {
+  const { t, i18n } = useTranslation();
+  const narrow = useNarrow();
+  const meeting = page.next_meeting;
+  const when = meeting ? meetingWhen(meeting, i18n.language, page.timezone) : null;
+  const title = meeting ? meeting.title || t("page.defaultMeetingTitle") : t("page.noMeetingTitle");
+  return (
+    <section className="meet" aria-label={t("page.nextMeeting")}>
+      <div>
+        <h2>{narrow ? t("page.meetingScheduled") : t("page.nextMeeting")}</h2>
+        <p className="meet__title" title={title}>
+          {title}
+        </p>
+        {when ? (
+          <p className="meet__meta meet__schedule">
+            <span>{when.day}</span>
+            <span>{when.time}</span>
+          </p>
+        ) : (
+          <p className="meet__meta">{t("page.noMeeting")}</p>
+        )}
+        {meeting?.location && (
+          <p className="meet__meta" title={meeting.location}>
+            {meeting.location}
+          </p>
+        )}
+      </div>
+      {meeting && (
+        <div className="meeting-actions">
+          {meeting.link && (
+            <a className="cbtn" href={meeting.link} target="_blank" rel="noopener noreferrer">
+              {t("page.joinMeeting")}
+            </a>
+          )}
+          <details className="calendar-options">
+            <summary className="b b--small">{t("page.addToCalendar")}</summary>
+            <div className="calendar-menu">
+              <a
+                href={googleCalendarLink(meeting, page.name, window.location.href)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("page.googleCalendar")}
+              </a>
+              <a href={`/api/pages/${slug}/meeting.ics`} download="reuniao.ics">
+                {t("page.otherCalendar")}
+              </a>
+            </div>
+          </details>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Stage({
+  page,
+  index,
+  open,
+  onToggle,
+}: {
+  page: Page;
+  index: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslation();
+  const narrow = useNarrow();
+  const [help, setHelp] = useState(false);
+  const stage = page.stages[index]!;
+  const state = stateOf(page, index);
+  const helpPanel = stage.about && (
+    <div className={`stage-help-pop${narrow ? " stage-help-pop--inline" : ""}`} hidden={!help}>
+      <button type="button" className="iconbtn stage-help-close" aria-label={t("page.closeAbout")} onClick={() => setHelp(false)}>
+        <Icon name="x" />
+      </button>
+      <p>{stage.about}</p>
+    </div>
+  );
+  const helpControl = stage.about && (
+    <div className="stage-help">
+      <button
+        className="stage-help-toggle"
+        type="button"
+        aria-expanded={help}
+        aria-label={t("page.aboutStageOf", { title: stage.title })}
+        onClick={() => setHelp(!help)}
+      >
+        <span className="stage-help-mark" aria-hidden="true">
+          {narrow ? "+" : "i"}
+        </span>
+        {!narrow && <span>{t("page.aboutStage")}</span>}
+      </button>
+      {!narrow && helpPanel}
+    </div>
+  );
+  return (
+    <section
+      className={`stage ${open ? "is-expanded " : ""}${state}`}
+      id={`stage-${index}`}
+      aria-labelledby={`st-${index}`}
+    >
+      <span className="stage__n">{pad(index + 1)}</span>
+      <div className="stage__head">
+        <div className="stage__title">
+          <h2 id={`st-${index}`} tabIndex={-1}>
+            {stage.title}
+          </h2>
+          <div className="client-stage-controls">
+            {narrow && helpControl}
+            <button
+              className="iconbtn"
+              type="button"
+              aria-controls={`stage-body-${index}`}
+              aria-expanded={open}
+              aria-label={t(open ? "page.stageOpen" : "page.openStage", { title: stage.title })}
+              onClick={onToggle}
+            >
+              <Icon name={open ? "up" : "down"} />
+            </button>
+            {!narrow && helpControl}
+          </div>
+        </div>
+        <p className="stage__meta">
+          {state === "done" && <span className="pill">{t("page.stageDone")}</span>}
+          {state === "current" && <span className="pill pill--current">{t("page.stageCurrent")}</span>}
+        </p>
+      </div>
+      {narrow && helpPanel}
+      <div className="stage__body" id={`stage-body-${index}`} aria-hidden={!open} inert={!open}>
+        <div className="stage__body-inner">
+          {stage.notes && (
+            <div className="notes">
+              <p>{stage.notes}</p>
+            </div>
+          )}
+          <p className="empty-stage">{t("page.noFilesYet")}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** The cover shrinks away as the page scrolls (prototype), unless motion is reduced. */
+function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const image = ref.current;
+      if (!image || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+      const full = (image.clientWidth * 9) / 16;
+      image.style.setProperty("--cover-image-height", `${full}px`);
+      image.style.height = `${Math.max(0, full - window.scrollY)}px`;
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    update();
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      cancelAnimationFrame(frame);
+    };
+  }, [ref]);
+}
+
+function Title({ name }: { name: string }) {
+  const { i18n } = useTranslation();
+  const [lead, ...rest] = name.trim().split(/\s+/);
+  return (
+    <h1 className="client-project-title" title={name}>
+      <span className="project-title__lead">/{lead?.toLocaleLowerCase(i18n.language)}</span>
+      {rest.length > 0 && (
+        <strong className="project-title__tail">{rest.join(" ").toLocaleLowerCase(i18n.language)}</strong>
+      )}
+    </h1>
+  );
+}
+
+export function ProjectPage({ page, slug }: { page: Page; slug: string }) {
+  const { t } = useTranslation();
+  const narrow = useNarrow();
+  const cover = useRef<HTMLDivElement>(null);
+  useCoverWipe(cover);
+  // One stage open at a time: the current one, until the client opens another.
+  const [openStage, setOpenStage] = useState(() => Math.max(0, (page.current_position ?? 1) - 1));
+
+  useEffect(() => {
+    document.title = `${page.name} · ${page.office.name}`;
+  }, [page.name, page.office.name]);
+
+  const jump = (index: number) => {
+    setOpenStage(index);
+    const section = document.getElementById(`stage-${index}`);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    section?.scrollIntoView({ behavior: reduce ? "instant" : "smooth", block: "start" });
+    section?.querySelector("h2")?.focus({ preventScroll: true });
+  };
+
+  return (
+    <div className="client">
+      <SiteHeader office={page.office} />
+      <div className="cwrap">
+        <div className="project-opening">
+          <header className="project-heading">
+            <Title name={page.name} />
+          </header>
+          {narrow && <MobileSummary page={page} />}
+          {page.cover_url && (
+            <figure className="banner">
+              <div className="banner__img" ref={cover}>
+                <img src={page.cover_url} alt={t("page.cover", { name: page.name })} />
+              </div>
+            </figure>
+          )}
+        </div>
+        <section className={`hero${narrow ? " mobile-view-hidden" : ""}`}>
+          <div>
+            <div className="desc">{page.description && <Description text={page.description} />}</div>
+          </div>
+          <div>
+            <dl className="facts">
+              <Facts page={page} />
+            </dl>
+          </div>
+        </section>
+        <div className={`project-status${page.stages.length ? "" : " project-status--single"}`}>
+          {!narrow && page.stages.length > 0 && (
+            <div className="project-status__timeline">
+              <Timeline page={page} onJump={jump} />
+            </div>
+          )}
+          <div className="project-status__meeting">
+            <MeetingCard page={page} slug={slug} />
+          </div>
+        </div>
+        {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
+        {page.stages.map((_, i) => (
+          <Stage key={i} page={page} index={i} open={i === openStage} onToggle={() => setOpenStage(i === openStage ? -1 : i)} />
+        ))}
+        <footer className="client-footer">{page.office.name}</footer>
+      </div>
+    </div>
+  );
+}
+
+/** Not found, or protected: the office's header and a short message. */
+export function PageMessage({ office, title, body }: { office: { name: string } | null; title: string; body: ReactNode }) {
+  return (
+    <div className="client">
+      {office && <SiteHeader office={office} />}
+      <div className="cwrap page-message">
+        <h1>{title}</h1>
+        <p>{body}</p>
+      </div>
+    </div>
+  );
+}

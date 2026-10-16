@@ -85,4 +85,11 @@ test("@screenshots staff app", async ({ page }) => {
   await page.goto("/painel/configuracoes/drive");
   await page.getByRole("heading", { name: "Google Drive" }).waitFor();
   await shoot(page, "05-configuracoes-drive");
+
+  // The client's page (no sign-in needed; the staff session doesn't change it).
+  await page.setViewportSize(SIZES[0]!);
+  await page.goto("/casa-jardim");
+  await page.getByRole("heading", { name: "Etapas e próximos passos" }).waitFor();
+  await shoot(page, "06-pagina-do-cliente");
+  await shoot(page, "06-pagina-do-cliente", "dark");
 });

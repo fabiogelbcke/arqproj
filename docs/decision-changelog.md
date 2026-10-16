@@ -19,6 +19,27 @@ a new entry too.
 
 ---
 
+## 2026-10-16 — A20: the client page is React too
+
+**Was:** client project pages server-rendered with Jinja (fast, simple, good link
+previews); only the staff administration in React.
+
+**Now:** the client page is a React app as well: a separate, small bundle served
+by the same service. The server still renders what must not wait for scripts: the
+preview tags (title, description, cover) that WhatsApp and other apps read, "not
+found" for drafts and unknown addresses, redirects from old addresses, and the
+password check. Staff editing code loads only when staff press "Editar".
+
+**Why:** A24 (narrowed 16 Oct 2026) made the project page the main place staff
+edit content, in an edit mode that shows the page as the client sees it with
+controls in place. With Jinja, every section would exist twice (template for
+viewing, component for editing) and drift; one React page avoids that and reuses
+the painel's pieces. Cost accepted by Fabio: the page needs JavaScript and a first
+visit loads slightly slower.
+
+Also recorded the same day: Alinea has no real projects yet, so importing the
+current site's projects (step 2.7) is dropped.
+
 ## 2026-10-16 — A27: the project type is chosen at creation and ticks its usual stages
 
 **Was:** creation offered three stage templates (Padrão, 7 stages; Interiores, 6;

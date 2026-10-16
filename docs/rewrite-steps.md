@@ -346,10 +346,26 @@ texts in Portuguese and English (moved out of `backend/i18n`), replaces the
 CHECKs on the columns that use them with foreign keys, and gives each detail row
 its value type (composite foreign key, so its value column is checked by the
 database). The enums stay as names for the built-in rows; `test_reference_content`
-keeps them and the rows in step. 2.3 Project page at `/{slug}` rendered with the current Jinja templates, data
-from the database. 2.4 Optional password on every content route. 2.5 File
-streaming and previews through the reader identity. 2.6 Staff bar on the page.
-2.7 Read-only import of the current `_project` / `_stage` files (dry run first).
+keeps them and the rows in step. 2.3 Read-only project page at `/{slug}`, after the fresh prototype (A20
+revised: React, its own bundle; the server sends preview tags, "not found" for
+drafts and unknown addresses, redirects from old addresses). **As built:**
+`backend/web/pages.py` serves `/{slug}` (the shell from `frontend/client.html`
+with title, description and cover preview tags, `noindex`; 404 for drafts,
+deleted and unknown addresses alike; 301 from an old address) and the public
+`/api/pages/{slug}` (only what the page shows: no ids or folders), its cover and
+`meeting.ics`. A password-protected project shows only "Página protegida" until
+2.4, and its name stays out of previews. `frontend/src/client/` is the page,
+styled by the prototype's own stylesheet (`prototype.css`, replaced wholesale
+when the design moves to Figma); Vite builds it as a second app. Stages show
+the project type's description under "Sobre esta etapa"; files come in 2.5.
+2.4 Optional
+password on every content route; client link and access in the "Projeto"
+dialog. 2.5 Each stage's files, downloads and previews through the reader
+identity. 2.6 Staff bar on the page ("Painel", "Editar"); a card's title opens
+the page; "Copiar link". Then the page's edit mode (description, details,
+meeting, stages, progress, completion) and "Publicar". ~~2.7 Import of the
+current `_project` / `_stage` files~~: dropped 16 Oct 2026, Alinea has no real
+projects yet.
 
 ### Slice 3: creating and editing projects
 
@@ -383,7 +399,7 @@ Drive accounts.
 
 ### Slice 7: moving the first office over
 
-Import, comparison against the current site, and switching `alineaarquitetos.com`
+Switching `alineaarquitetos.com` (no projects to import: Alinea starts fresh)
 to the new app: only with your explicit approval, and with the current site kept
 ready to switch back.
 

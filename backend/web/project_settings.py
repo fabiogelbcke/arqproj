@@ -231,6 +231,18 @@ async def cover(
     project = await db.scalar(
         select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
     )
+    return await serve_cover(request, db, project, COVER_SIZE, COVER_HEADERS)
+
+
+async def serve_cover(
+    request: Request,
+    db: AsyncSession,
+    project: Project | None,
+    size: int,
+    headers: dict[str, str],
+) -> Response:
+    """The cover through the office's storage, shrunk by Drive to `size` pixels
+    where it can; otherwise the original. 404 when there is none to show."""
     connection = await db.scalar(select(StorageConnection))
     if project is None or project.cover_file_id is None or connection is None:
         return Response(status_code=404)
@@ -238,10 +250,9 @@ async def cover(
         google = getattr(request.app.state, "google", None)  # set up at app start
         storage = storage_for(connection, request.app.state.settings, google)
         item = await storage.get(project.cover_file_id)
-        # A large photo shrunk by Drive, where available; otherwise the original.
-        small = await storage.thumbnail(item, COVER_SIZE)
+        small = await storage.thumbnail(item, size)
         if small is not None and (kind := image_type(small)) in set(CoverType):
-            return Response(small, media_type=kind, headers=COVER_HEADERS)
+            return Response(small, media_type=kind, headers=headers)
         download = await storage.download(item)
     except StorageError as error:
         log.warning("cover unavailable: %s %s", error.problem, error.detail)
@@ -254,4 +265,4 @@ async def cover(
         finally:
             await download.aclose()
 
-    return StreamingResponse(body(), media_type=project.cover_type.value, headers=COVER_HEADERS)
+    return StreamingResponse(body(), media_type=project.cover_type.value, headers=headers)
