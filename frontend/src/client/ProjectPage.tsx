@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { api, call, type Schemas } from "../api/client";
 import { Toaster, toast } from "../ui/Toast";
 import { DescriptionEditor, DetailsEditor, EditButton, MeetingEditor, NotesEditor } from "./Editors";
+import { AddStage, ProgressRail, StageControls } from "./StageEditing";
 import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -387,6 +388,7 @@ function Stage({
   reference,
   slug,
   editor,
+  controls,
 }: {
   page: Page;
   index: number;
@@ -396,6 +398,7 @@ function Stage({
   reference: string | null;
   slug: string;
   editor?: { open: boolean; onOpen: () => void; render: () => ReactNode };
+  controls?: ReactNode;
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -453,6 +456,7 @@ function Stage({
             </button>
             {!narrow && helpControl}
           </div>
+          {controls}
         </div>
         <p className="stage__meta">
           {state === "done" && <span className="pill">{t("page.stageDone")}</span>}
@@ -710,6 +714,7 @@ export function ProjectPage({
             )}
           </div>
         </div>
+        {canEdit && <ProgressRail page={page} staff={staff!} onChanged={() => onChanged?.()} />}
         {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
         {page.stages.map((_, i) => (
           <Stage
@@ -720,6 +725,7 @@ export function ProjectPage({
             onToggle={() => setOpenStage(i === openStage ? -1 : i)}
             {...filesFor(stageFiles, i + 1)}
             slug={slug}
+            controls={canEdit ? <StageControls page={page} staff={staff!} index={i} onChanged={() => onChanged?.()} /> : undefined}
             editor={
               canEdit
                 ? {
@@ -731,6 +737,7 @@ export function ProjectPage({
             }
           />
         ))}
+        {canEdit && <AddStage page={page} staff={staff!} onChanged={() => onChanged?.()} />}
         <footer className="client-footer">{page.office.name}</footer>
       </div>
       {page.staff && (

@@ -391,9 +391,17 @@ the details (built-in ones: add, change, remove; areas and dates typed), the
 next meeting (set in the office's time zone, or removed) and each stage's note
 ("Recado para o cliente"). Every save carries the page's `row_version`
 (`project_changed` if someone saved meanwhile). "Atualizado" moves for notes and
-the meeting only. Migration 0015 grants these columns and tables. **Part 2:**
-stages (rename, reorder, add, remove, with their Drive folders kept in step)
-and progress (advance, back, complete, reopen). ~~2.7 Import of the
+the meeting only. Migration 0015 grants these columns and tables. **Part 2 as
+built:** in Editar, each stage has the prototype's controls (rename, move up or
+down, remove with a confirmation that its folder stays), "Adicionar etapa" (a
+built-in stage not yet in the project, or the office's own), and the progress
+rail ("Avançar para NN …", "Voltar etapa", "Concluir projeto", "Reabrir").
+Folders follow in Drive: renames and moves rename the "NN - title" folders,
+adding creates one, removing renumbers the folders after it and leaves its own;
+Drive goes first and, if it fails, the names it changed are put back (to their
+real earlier names) and nothing is saved. A folder deleted by hand is skipped.
+A built-in stage renamed becomes the office's own, keeping its description.
+Progress moves "Atualizado". Migration 0016 grants these columns. ~~2.7 Import of the
 current `_project` / `_stage` files~~: dropped 16 Oct 2026, Alinea has no real
 projects yet.
 

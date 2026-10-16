@@ -53,6 +53,15 @@ class CreationProblem(Exception):
 class FolderMaker(Protocol):
     async def create_folder(self, name: str, parent: str | None = None) -> str: ...
     async def trash(self, item_id: str) -> None: ...
+    async def rename(self, item_id: str, name: str) -> str:
+        """The item's id afterwards (on Drive the same; locally its new path)."""
+        ...
+
+    async def name_of(self, item_id: str) -> str: ...
+
+    async def can_open(self, folder_id: str) -> bool:
+        """False when the folder is gone (deleted, trashed, out of reach)."""
+        ...
 
 
 class LocalFolders:
@@ -72,6 +81,23 @@ class LocalFolders:
 
     async def trash(self, item_id: str) -> None:
         shutil.rmtree(self.root / item_id, ignore_errors=True)
+
+    async def name_of(self, item_id: str) -> str:
+        return Path(item_id).name
+
+    async def can_open(self, folder_id: str) -> bool:
+        return (self.root / folder_id).is_dir()
+
+    async def rename(self, item_id: str, name: str) -> str:
+        current = Path(item_id)
+        name = name.replace("/", "-").replace("\\", "-")
+        if current.name == name:
+            return item_id
+        candidate, n = current.with_name(name), 2
+        while (self.root / candidate).exists():
+            candidate, n = current.with_name(f"{name} ({n})"), n + 1
+        (self.root / current).rename(self.root / candidate)
+        return candidate.as_posix()
 
 
 @dataclass(frozen=True)

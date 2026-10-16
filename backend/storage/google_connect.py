@@ -204,6 +204,26 @@ class DriveWriter:
         )
         return response.json()["id"]
 
+    async def name_of(self, item_id: str) -> str:
+        response = await self._call(
+            "GET",
+            f"{DRIVE}/files/{item_id}",
+            ConnectProblem.FOLDER_FAILED,
+            params={"supportsAllDrives": "true", "fields": "name"},
+        )
+        return response.json()["name"]
+
+    async def rename(self, item_id: str, name: str) -> str:
+        """Rename an item the app created; its id stays the same."""
+        await self._call(
+            "PATCH",
+            f"{DRIVE}/files/{item_id}",
+            ConnectProblem.FOLDER_FAILED,
+            params={"supportsAllDrives": "true", "fields": "id"},
+            json={"name": name},
+        )
+        return item_id
+
     async def trash(self, item_id: str) -> None:
         try:
             await self._call(

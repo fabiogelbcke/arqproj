@@ -191,7 +191,8 @@
     "password_required": "Defina uma senha para proteger a página.",
     "file_not_found": "Este arquivo não está mais disponível. Recarregue a página.",
     "invalid_detail": "Confira as informações: cada uma aparece uma vez, áreas são números e datas são datas.",
-    "invalid_meeting": "Confira a reunião: assunto de até 40 caracteres, fim depois do início e link começando com https://."
+    "invalid_meeting": "Confira a reunião: assunto de até 40 caracteres, fim depois do início e link começando com https://.",
+    "invalid_stage": "Não foi possível mudar esta etapa. Recarregue a página e tente de novo."
   },
   "projectStatus": {
     "draft": "Rascunho",
@@ -337,6 +338,30 @@
     "notes": "Recado da etapa",
     "notesShort": "Recado",
     "addNote": "Recado para o cliente",
-    "notesPlaceholder": "Confira as plantas e envie suas observações antes da reunião."
+    "notesPlaceholder": "Confira as plantas e envie suas observações antes da reunião.",
+    "stageName": "Nome da etapa",
+    "renameStage": "Renomear etapa {{title}}",
+    "moveUp": "Mover {{title}} para cima",
+    "moveDown": "Mover {{title}} para baixo",
+    "removeStage": "Remover etapa {{title}}",
+    "removeStageConfirm": "Remover “{{title}}” da página? A pasta e os arquivos continuam no Drive.",
+    "remove": "Remover",
+    "stageRemoved": "Etapa “{{title}}” removida. A pasta continua no Drive.",
+    "addStage": "Adicionar etapa",
+    "builtInStage": "Uma etapa da lista",
+    "chooseStage": "Escolher…",
+    "ownStage": "Ou uma etapa do escritório",
+    "add": "Adicionar",
+    "addStageHint": "A etapa entra no fim, com uma pasta nova no Drive.",
+    "noStagesYet": "Adicione etapas para acompanhar o andamento.",
+    "allDoneNote": "Todas as etapas aparecem como concluídas para o cliente.",
+    "reopen": "Reabrir",
+    "reopened": "Projeto reaberto.",
+    "currentNote": "Etapa atual. O cliente vê “Em andamento”.",
+    "back": "Voltar etapa",
+    "advanceTo": "Avançar para {{n}} {{title}}",
+    "advanced": "Avançou para “{{title}}”.",
+    "complete": "Concluir projeto",
+    "completed": "Projeto concluído."
   }
 }

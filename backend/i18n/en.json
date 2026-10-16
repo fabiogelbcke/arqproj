@@ -191,7 +191,8 @@
     "password_required": "Set a password to protect the page.",
     "file_not_found": "This file is no longer available. Reload the page.",
     "invalid_detail": "Check the details: each appears once, areas are numbers and dates are dates.",
-    "invalid_meeting": "Check the meeting: a subject of up to 40 characters, an end after the start, and a link starting with https://."
+    "invalid_meeting": "Check the meeting: a subject of up to 40 characters, an end after the start, and a link starting with https://.",
+    "invalid_stage": "This stage couldn't be changed. Reload the page and try again."
   },
   "projectStatus": {
     "draft": "Draft",
@@ -337,6 +338,30 @@
     "notes": "Stage note",
     "notesShort": "Note",
     "addNote": "Note for the client",
-    "notesPlaceholder": "Check the plans and send your comments before the meeting."
+    "notesPlaceholder": "Check the plans and send your comments before the meeting.",
+    "stageName": "Stage name",
+    "renameStage": "Rename stage {{title}}",
+    "moveUp": "Move {{title}} up",
+    "moveDown": "Move {{title}} down",
+    "removeStage": "Remove stage {{title}}",
+    "removeStageConfirm": "Remove “{{title}}” from the page? Its folder and files stay in Drive.",
+    "remove": "Remove",
+    "stageRemoved": "Stage “{{title}}” removed. Its folder stays in Drive.",
+    "addStage": "Add a stage",
+    "builtInStage": "A stage from the list",
+    "chooseStage": "Choose…",
+    "ownStage": "Or the office's own stage",
+    "add": "Add",
+    "addStageHint": "The stage goes at the end, with a new folder in Drive.",
+    "noStagesYet": "Add stages to follow the project's progress.",
+    "allDoneNote": "All stages show as done to the client.",
+    "reopen": "Reopen",
+    "reopened": "Project reopened.",
+    "currentNote": "Current stage. The client sees “In progress”.",
+    "back": "Back one stage",
+    "advanceTo": "Advance to {{n}} {{title}}",
+    "advanced": "Advanced to “{{title}}”.",
+    "complete": "Complete the project",
+    "completed": "Project completed."
   }
 }

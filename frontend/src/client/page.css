@@ -35,3 +35,13 @@
 .editor .row2 > *, .editor .row3 > * { min-width: 0; }
 .editor .input { min-width: 0; }
 @media (max-width: 560px) { .editor .row3 { grid-template-columns: 1fr 1fr; } .editor .row3 > :first-child { grid-column: 1 / -1; } }
+
+/* Edit mode (part 2): renaming, removing and adding stages. */
+.stage-rename, .stage-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.stage-rename input { font: inherit; min-width: 0; width: min(360px, 100%); background: transparent; color: inherit; border: 0; border-bottom: 1.5px solid currentColor; padding: 2px; }
+.stage-confirm p { margin: 0; font-size: 13px; }
+.stagectl .iconbtn { font-size: 16px; color: inherit; }
+.stagectl .iconbtn:disabled { opacity: .3; }
+.add-stage { width: min(560px, 100%); }
+.add-stage .field > span { font-size: 14px; font-weight: 500; }
+.add-stage__row { display: flex; gap: 8px; }

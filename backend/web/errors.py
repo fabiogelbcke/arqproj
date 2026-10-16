@@ -57,6 +57,7 @@ class ErrorCode(StrEnum):
     TOO_MANY_ATTEMPTS = "too_many_attempts"  # wait 15 minutes
     PASSWORD_REQUIRED = "password_required"  # password access needs a password
     INVALID_DETAIL = "invalid_detail"  # unknown, repeated, or a value of the wrong kind
+    INVALID_STAGE = "invalid_stage"  # unknown, already there, blank, or nowhere to move
     INVALID_MEETING = "invalid_meeting"  # title 1-40, ends after it starts, web link
     FILE_NOT_FOUND = "file_not_found"  # moved, deleted, or its link expired: reload
 
