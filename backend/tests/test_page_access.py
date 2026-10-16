@@ -97,6 +97,40 @@ async def test_five_wrong_tries_make_the_device_wait(client, owner, monkeypatch)
     assert (await unlock(client, SEED_PASSWORD)).status_code == 204
 
 
+async def test_the_wait_starts_at_the_fifth_wrong_try(client, owner, monkeypatch):
+    """Five tries spread over 14 minutes still mean 15 minutes from the fifth."""
+    Roles(client).visitor()
+    clock = [1000.0]
+    monkeypatch.setattr(attempts.time, "monotonic", lambda: clock[0])
+    for minute in (0, 3, 6, 9, 14):
+        clock[0] = 1000.0 + minute * 60
+        assert (await unlock(client, "chute")).status_code == 401
+    clock[0] = 1000.0 + 16 * 60  # the first try is now over 15 minutes old
+    assert (await unlock(client, SEED_PASSWORD)).status_code == 429
+    clock[0] = 1000.0 + 29 * 60 + 1  # 15 minutes after the fifth
+    assert (await unlock(client, SEED_PASSWORD)).status_code == 204
+
+
+async def test_an_unlocked_protected_pages_calendar_file_is_private(client, db_session, owner):
+    from sqlalchemy import text
+
+    from backend.tests.test_office import tenant_id
+
+    await db_session.execute(
+        text(
+            "INSERT INTO meetings (tenant_id, project_id, title, starts_at, ends_at) "
+            "SELECT tenant_id, project_id, 'Entrega', now() + interval '1 day', "
+            "now() + interval '25 hours' FROM project_slugs WHERE slug = :s AND tenant_id = :t"
+        ),
+        {"s": PROTECTED, "t": await tenant_id(db_session, "alinea")},
+    )
+    Roles(client).visitor()
+    await unlock(client, SEED_PASSWORD)
+    response = await client.get(f"/api/pages/{PROTECTED}/meeting.ics", headers=ALINEA)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "private, no-store"
+
+
 async def test_an_unlock_for_one_project_opens_no_other(client, db_session, owner):
     roles = Roles(client)
     # A second protected project, with the same password.
