@@ -191,7 +191,7 @@
     "password_required": "Defina uma senha para proteger a página.",
     "file_not_found": "Este arquivo não está mais disponível. Recarregue a página.",
     "invalid_detail": "Confira as informações: cada uma aparece uma vez, áreas são números e datas são datas.",
-    "invalid_meeting": "Confira a reunião: assunto de até 40 caracteres, fim depois do início e link começando com https://."
+    "invalid_meeting": "Confira a reunião: assunto de até 40 caracteres, data no futuro, fim depois do início e link começando com https://."
   },
   "projectStatus": {
     "draft": "Rascunho",

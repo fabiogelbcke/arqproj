@@ -207,6 +207,7 @@ async def set_meeting(
         or ends_at <= starts_at
         or (location and len(location) > MEETING_LOCATION_MAX)
         or (link and not _WEB_LINK.match(link))  # never a javascript: link
+        or ends_at <= datetime.now(UTC)  # already over: the page would hide it at once
     ):
         raise ApiError(422, ErrorCode.INVALID_MEETING)
     now = datetime.now(UTC)
