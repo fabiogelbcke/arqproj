@@ -127,6 +127,56 @@ describe("the client page", () => {
   });
 });
 
+describe("the files", () => {
+  it("shows each stage's files, its subfolders as groups, and how many", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({
+        body: {
+          stages: [
+            { position: 1, groups: [], unavailable: true },
+            {
+              position: 2,
+              groups: [
+                { folder: null, files: [{ key: "k1", name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z" }] },
+                { folder: "Fotos", files: [{ key: "k2", name: "Terreno.jpg", kind: "image", size: 10, modified_at: "2026-10-11T12:00:00Z" }] },
+              ],
+            },
+            { position: 3, groups: [] },
+          ],
+        },
+      }),
+    });
+    const current = await screen.findByRole("region", { name: "Levantamento" });
+    expect(await within(current).findByRole("link", { name: "Abrir Planta.pdf" })).toHaveAttribute(
+      "href",
+      "/api/pages/casa-jardim/files/k1?inline=true",
+    );
+    expect(within(current).getByRole("heading", { name: "Fotos" })).toBeInTheDocument();
+    expect(within(current).getByText("02 arquivos")).toBeInTheDocument();
+    expect(within(current).getByText("2 KB, 10/10/2026")).toBeInTheDocument();
+    const first = screen.getByRole("region", { name: "Briefing" });
+    expect(within(first).getByText(/Não foi possível carregar os arquivos/)).toBeInTheDocument();
+    const third = screen.getByRole("region", { name: "Estudo Preliminar" });
+    expect(within(third).getByText("Ainda sem arquivos nesta etapa.")).toBeInTheDocument();
+  });
+});
+
+describe("files that can't be listed", () => {
+  it("says so in every stage, with the support code, instead of staying blank", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({
+        status: 500,
+        body: { error: "unexpected" },
+        headers: { "X-Request-ID": "ref42" },
+      }),
+    });
+    const current = await screen.findByRole("region", { name: "Levantamento" });
+    expect(await within(current).findByText(/Não foi possível carregar os arquivos.*Código de suporte: ref42/)).toBeInTheDocument();
+  });
+});
+
 describe("the staff bar", () => {
   it("is only there for the office's staff", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });

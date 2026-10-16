@@ -27,6 +27,7 @@ from backend.web import (
     health,
     office,
     onboarding,
+    page_files,
     pages,
     painel,
     project_settings,
@@ -153,6 +154,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(projects.router)
     app.include_router(project_settings.router)
     app.include_router(painel.router)
+    app.include_router(page_files.router)
     # Last: `/{slug}` answers any single-segment address the routes above don't.
     app.include_router(pages.router)
     app.add_exception_handler(ApiError, handle_api_error)

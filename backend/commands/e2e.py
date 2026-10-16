@@ -10,6 +10,7 @@ browser tests start the real app against it, as the restricted login.
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -36,6 +37,26 @@ async def _seed() -> None:
     await engine.dispose()
 
 
+# A few fictional files in Casa Jardim's first stage folder, so the browser
+# tests and screenshots show files (step 2.5). Only under the e2e files folder.
+SAMPLE_FILES = {
+    "Casa Jardim/01 - Briefing/Programa de necessidades.pdf": b"%PDF-1.4\n% fictional\n",
+    "Casa Jardim/01 - Briefing/Levantamento/Medidas do terreno.pdf": b"%PDF-1.4\n% fictional\n",
+    "Casa Jardim/03 - Anteprojeto/Plantas v2.pdf": b"%PDF-1.4\n% fictional\n",
+    "Casa Jardim/03 - Anteprojeto/Implantação.dwg": b"fictional",
+}
+
+
+def _sample_files() -> None:
+    root = os.environ.get("LOCAL_STORAGE_ROOT")
+    if not root or "e2e" not in root:  # never the developer's own dataset
+        return
+    for name, content in SAMPLE_FILES.items():
+        path = Path(root) / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+
+
 def main() -> int:
     local_db.drop_database(DATABASE)
     local_db.create_database(DATABASE)
@@ -46,6 +67,7 @@ def main() -> int:
     command.upgrade(config, "head")
     provision_url(OWNER_URL, LOCAL_RUNTIME_ROLE)
     asyncio.run(_seed())
+    _sample_files()
     print(f"Ready: {DATABASE}")
     return 0
 

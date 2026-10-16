@@ -188,7 +188,9 @@
     "page_locked": "This page is protected by a password.",
     "wrong_page_password": "Wrong password. Check it with the office.",
     "too_many_attempts": "Too many attempts. Try again in 15 minutes.",
-    "password_required": "Set a password to protect the page."
+    "password_required": "Set a password to protect the page.",
+    "file_not_found": "This file is no longer available. Reload the page.",
+    "files_unavailable": "The file couldn't be opened just now. Try again in a moment."
   },
   "projectStatus": {
     "draft": "Draft",
@@ -265,8 +267,8 @@
     "closeAbout": "Close explanation",
     "openStage": "Open stage {{title}}",
     "stageOpen": "Stage open: {{title}}",
-    "noFilesYet": "This stage's files will appear here.",
     "client": "Client",
+    "backToProject": "Back to the project",
     "projectType": "Project type",
     "lastUpdate": "Last update",
     "notInformed": "Not provided",
@@ -300,6 +302,13 @@
     "publish": "Publish",
     "published": "Published. The client can now open the link.",
     "password": "Password",
-    "enter": "Enter"
+    "enter": "Enter",
+    "noFiles": "No files in this stage yet.",
+    "noFilesShort": "No files",
+    "fileCount_one": "{{padded}} file",
+    "fileCount_other": "{{padded}} files",
+    "filesUnavailable": "The files couldn't be loaded just now. Try again in a moment.",
+    "openFile": "Open {{name}}",
+    "downloadFile": "Download {{name}}"
   }
 }

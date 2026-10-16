@@ -253,3 +253,21 @@ test("staff protect a page with a password; a client unlocks it once", async ({ 
   await expect(client.getByRole("heading", { level: 1, name: "Apartamento Atlântico — Copacabana" })).toBeVisible();
   await client.close();
 });
+
+test("the client page lists each stage's files, with subfolders as groups", async ({ page }) => {
+  await page.goto("/casa-jardim");
+  // The current stage (03) is open.
+  const current = page.locator("#stage-2");
+  await expect(current.getByText("Plantas v2.pdf")).toBeVisible();
+  await expect(current.getByText("02 arquivos")).toBeVisible();
+  const dwg = current.getByRole("link", { name: "Baixar Implantação.dwg" });
+  const [download] = await Promise.all([page.waitForEvent("download"), dwg.click()]);
+  expect(download.suggestedFilename()).toBe("Implantação.dwg"); // the server's name for it
+  await expect(page).toHaveURL(/\/casa-jardim$/); // the page stays
+
+  await page.getByRole("button", { name: /01\s*Briefing/ }).click();
+  const first = page.locator("#stage-0");
+  await expect(first.getByText("Programa de necessidades.pdf")).toBeVisible();
+  await expect(first.getByRole("heading", { name: "Levantamento" })).toBeVisible(); // a subfolder
+  await expect(first.getByText("Medidas do terreno.pdf")).toBeVisible();
+});

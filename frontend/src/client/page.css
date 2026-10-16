@@ -18,3 +18,9 @@
 .password-gate__row { display: flex; gap: 8px; }
 .password-gate__row .input { flex: 1; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); background: transparent; color: inherit; }
 .password-gate__problem { color: var(--danger, #9b3d1d); font-size: 14px; }
+
+/* Files (2.5): the prototype's cards; subfolders as small titled groups. */
+.file__open { display: grid; grid-template-rows: auto 1fr; color: inherit; text-decoration: none; }
+.file__thumb > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.file-group + .file-group { margin-top: 22px; }
+.file-group__title { margin: 18px 0 0; font: 500 11px/1.4 var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-muted, var(--muted)); }
