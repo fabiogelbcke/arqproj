@@ -478,11 +478,7 @@ async def shell(
 ) -> Response:
     if slug in RESERVED_SLUGS:
         return PlainTextResponse("Not found", status_code=404)
-    shell_file = Path(request.app.state.settings.frontend_dist) / "client.html"
-    if not shell_file.is_file():
-        return PlainTextResponse(
-            "The client page is not built. Run `make build` (or `make dev`).", status_code=503
-        )
+    # An old address redirects before anything else: it needs no page.
     project, current = await _find(db, slug, staff)
     if project is not None and current != slug:
         query = f"?{request.url.query}" if request.url.query else ""
@@ -493,6 +489,11 @@ async def shell(
             headers={"Cache-Control": "no-cache", **PAGE_HEADERS},
         )
 
+    shell_file = Path(request.app.state.settings.frontend_dist) / "client.html"
+    if not shell_file.is_file():
+        return PlainTextResponse(
+            "The client page is not built. Run `make build` (or `make dev`).", status_code=503
+        )
     office = (await _office(db, tenant)).name
     tags = {"robots": "noindex"}
     if project is None:
