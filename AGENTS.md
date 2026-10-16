@@ -272,6 +272,16 @@ each what that documentation calls for, what was built, and what was deliberatel
 left out or deferred, with the reason. If no documentation covers the change,
 say so.
 
+### Screenshots for UI changes
+
+A pull request that changes what the staff app shows includes a **Screenshots**
+section: run `make screenshots PR=<number>`, which captures the screens
+(desktop and phone; dark where relevant) from the built app on fresh fictional
+data, publishes them to the `screenshots` branch (never merged; one folder per
+pull request, so images stay out of the code history) and prints the table to
+paste. Add screens to `frontend/e2e/screenshots.spec.ts` as the app grows. Look
+at the images yourself only when checking something visual.
+
 ### Review guidelines
 
 Whoever reviews (Codex, Claude or a person) reads the linked sections first and

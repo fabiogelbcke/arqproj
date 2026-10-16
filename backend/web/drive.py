@@ -266,6 +266,38 @@ async def disconnect(
     await db.commit()
 
 
+async def writer_for(request: Request, db: AsyncSession) -> tuple[StorageConnection, DriveWriter]:
+    """The office's own grant, refreshed for use now. A refused grant marks the
+    connection expired (the painel then asks to reconnect)."""
+    connection = await _connection(db)
+    if (
+        connection is None
+        or connection.kind is not StorageKind.GOOGLE
+        or connection.writer_status is not WriterStatus.CONNECTED
+    ):
+        raise ApiError(409, ErrorCode.DRIVE_NOT_CONNECTED)
+    settings = request.app.state.settings
+    try:
+        refresh = keys.decrypt(settings.app_secret, TOKEN_PURPOSE, connection.writer_token)
+        access = await _oauth(request).access_token(request.app.state.http, refresh)
+    except ConnectError as error:
+        if error.problem is not ConnectProblem.EXPIRED:
+            log.warning("Google token service unavailable: %s", error.detail)
+            raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+        log.error("office Drive grant refused: %s", error.detail)
+        connection.writer_status = WriterStatus.EXPIRED
+        connection.checked_at = datetime.now(UTC)
+        await db.commit()
+        raise ApiError(409, ErrorCode.DRIVE_EXPIRED) from None
+    except keys.BadToken as error:
+        log.error("office Drive grant refused: %r", getattr(error, "detail", error))
+        connection.writer_status = WriterStatus.EXPIRED
+        connection.checked_at = datetime.now(UTC)
+        await db.commit()
+        raise ApiError(409, ErrorCode.DRIVE_EXPIRED) from None
+    return connection, DriveWriter(request.app.state.http, access)
+
+
 def _back(request: Request, code: ErrorCode) -> Response:
     """To the settings page with an error code the screen translates."""
     host = normalize_host(request.headers.get("host"))

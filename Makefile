@@ -31,7 +31,7 @@ define on_database
 	else echo "ENV must be local or staging"; exit 2; fi
 endef
 
-.PHONY: help setup dev serve build api-types test e2e lint format migrate staff reset-link tenant
+.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff reset-link tenant
 
 help: ## List the commands
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -67,6 +67,24 @@ test: ## All fast tests: backend, staff app, and API types up to date
 
 e2e: build ## Browser tests against the built app on a fresh local database
 	cd $(FRONTEND) && npm run test:e2e
+
+screenshots: build ## Staff app screenshots; with PR=<n>, published for that PR's description
+	cd $(FRONTEND) && rm -rf screenshots && npm run screenshots
+	@if [ -z "$(PR)" ]; then echo "Saved in $(FRONTEND)/screenshots (add PR=<n> to publish)"; exit 0; fi; \
+	dir=$$(mktemp -d); \
+	if git ls-remote --exit-code --heads origin screenshots >/dev/null 2>&1; then \
+	  git fetch -q origin screenshots && git worktree add -q -B screenshots "$$dir" origin/screenshots; \
+	else git worktree add -q --orphan -b screenshots "$$dir"; fi; \
+	rm -rf "$$dir/pr-$(PR)" && mkdir -p "$$dir/pr-$(PR)" && cp $(FRONTEND)/screenshots/*.png "$$dir/pr-$(PR)/" && \
+	git -C "$$dir" add "pr-$(PR)" && git -C "$$dir" commit -q -m "Screenshots for PR #$(PR)" && \
+	git -C "$$dir" push -q origin screenshots; \
+	git worktree remove --force "$$dir"; \
+	echo; echo "## Screenshots"; echo; echo "| Screen | Desktop | Phone |"; echo "| --- | --- | --- |"; \
+	for desktop in $(FRONTEND)/screenshots/*-desktop*.png; do \
+	  name=$$(basename "$$desktop"); phone=$${name/desktop/phone}; \
+	  url="https://github.com/fabiogelbcke/arqproj/blob/screenshots/pr-$(PR)"; \
+	  echo "| $${name%.png} | <img src=\"$$url/$$name?raw=true\" width=\"420\"> | <img src=\"$$url/$$phone?raw=true\" width=\"160\"> |"; \
+	done
 
 lint: ## Code style checks
 	uv run ruff check backend

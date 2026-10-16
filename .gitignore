@@ -81,3 +81,4 @@ spike/
 # Staff app (frontend/) build and browser-test output
 frontend/test-results/
 frontend/playwright-report/
+frontend/screenshots/

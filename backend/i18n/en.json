@@ -71,7 +71,14 @@
     "drive_link_invalid": "This connection request has expired. Start again with Connect.",
     "drive_connect_failed": "Google Drive could not be connected. Please try again shortly.",
     "drive_share_failed": "The folder in your Drive could not be prepared. Nothing was changed; try again.",
-    "drive_other_account": "This Google account cannot reach the office's folder. Reconnect with the account used before; nothing was changed."
+    "drive_other_account": "This Google account cannot reach the office's folder. Reconnect with the account used before; nothing was changed.",
+    "drive_not_connected": "Connect the office's Google Drive before doing this.",
+    "drive_expired": "The Google Drive connection expired. Reconnect in Settings → Google Drive.",
+    "invalid_office_name": "Enter a name of up to 80 characters.",
+    "invalid_email": "Enter a valid email address, like contact@office.com.",
+    "logo_wrong_type": "Use a PNG, JPG, WebP or SVG image.",
+    "logo_too_large": "Use an image of up to 5 MB.",
+    "drive_unreadable": "The portal cannot read the office's Google Drive folder. Check its sharing in Settings → Google Drive."
   },
   "projectStatus": {
     "draft": "Draft",
@@ -116,6 +123,23 @@
     "firstProject": "Create the first project",
     "firstProjectSoon": "Coming soon",
     "done": "Done",
-    "membersNote": "The office's owner needs to complete these steps."
+    "membersNote": "The office's owner needs to complete these steps.",
+    "office": "Fill in the office's details (contact email and logo)"
+  },
+  "office": {
+    "name": "Office name",
+    "nameHint": "Shown at the top of client pages and in the browser tab.",
+    "email": "Contact email",
+    "emailHint": "Used as the reply-to address on emails to clients.",
+    "save": "Save",
+    "saved": "Saved.",
+    "logo": "Logo",
+    "logoHint": "PNG, JPG, WebP or SVG, up to 5 MB.",
+    "logoNone": "No logo yet.",
+    "chooseLogo": "Choose image",
+    "logoSaved": "Logo updated.",
+    "logoNeedsDrive": "Connect Google Drive to upload the logo; it is kept in the office's Drive.",
+    "logoAlt": "{{name}} logo",
+    "ownerOnly": "Only the office's owner can change these details."
   }
 }

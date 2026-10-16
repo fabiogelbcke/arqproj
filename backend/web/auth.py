@@ -27,6 +27,7 @@ from backend.db.engine import get_tenant_session
 from backend.identity import accounts, links, sessions
 from backend.identity.models import LinkKind, LoginSession, Role
 from backend.identity.passwords import verify_password
+from backend.office.profile import display_name
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.errors import ApiError, ErrorCode, documented
@@ -122,13 +123,15 @@ async def require_csrf(
     return staff
 
 
-def _me(staff_email: str, name: str, role: Role, tenant: CurrentTenant, csrf: str) -> MeOut:
+def _me(
+    staff_email: str, name: str, role: Role, tenant: CurrentTenant, office: str, csrf: str
+) -> MeOut:
     return MeOut(
         email=staff_email,
         name=name,
         role=role,
         tenant_slug=tenant.slug,
-        tenant_name=tenant.name,
+        tenant_name=office,
         tenant_locale=tenant.locale,
         csrf_token=csrf,
     )
@@ -153,7 +156,9 @@ async def sign_in(
     token, row = await sessions.start(db, user)
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
-    return _me(user.email, user.name, user.role, tenant, row.csrf_token)
+    return _me(
+        user.email, user.name, user.role, tenant, await display_name(db, tenant), row.csrf_token
+    )
 
 
 @router.delete("/session", status_code=204, responses=documented(401, 403))
@@ -204,12 +209,16 @@ async def choose_password(
     token, row = await sessions.start(db, user)
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
-    return _me(user.email, user.name, user.role, tenant, row.csrf_token)
+    return _me(
+        user.email, user.name, user.role, tenant, await display_name(db, tenant), row.csrf_token
+    )
 
 
 @router.get("/me", responses=documented(401))
 async def me(
     staff: CurrentStaff = Depends(current_staff),
     tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
-    return _me(staff.email, staff.name, staff.role, tenant, staff.csrf_token)
+    office = await display_name(db, tenant)
+    return _me(staff.email, staff.name, staff.role, tenant, office, staff.csrf_token)

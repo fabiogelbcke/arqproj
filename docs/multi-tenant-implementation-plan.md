@@ -1298,7 +1298,10 @@ and rate controls without forcing legitimate clients to create accounts.
 
 ## 16. Branding, accessibility and language
 
-Pilot branding: office name, light/dark logo, accent color, bounded neutral palette,
+Office details (P1b, 15 Oct 2026): name, contact email and logo live in a
+per-office `office_profiles` table (not the shared `tenants` registry, which the
+app only reads); the logo is stored in the office's Drive (`_marca`) and served
+so nothing in it can run. Pilot branding: office name, light/dark logo, accent color, bounded neutral palette,
 contact details and one versioned portal template. Keep the current Alínea design
 as one office configuration. Provide a preview and publish action for theme edits.
 Validate colors and contrast; do not accept arbitrary script, CSS or markup.

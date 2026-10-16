@@ -34,7 +34,6 @@ export function SettingsDrivePage() {
 
   return (
     <>
-      <h1 className={styles.display}>{t("settings.title")}</h1>
       <section className={styles.panel} aria-labelledby="drive-title">
         <h2 id="drive-title">{t("settings.drive")}</h2>
         <p className={styles.lead}>{t("drive.intro")}</p>
