@@ -103,7 +103,7 @@
   },
   "projectSettings": {
     "recipients": "E-mails do cliente",
-    "recipientsHint": "Recebem um e-mail quando há arquivos novos, a etapa avança ou uma reunião muda. Um aviso por vez, depois que os envios param.",
+    "recipientsHint": "Clientes receberão automaticamente atualizações sobre o projeto por e-mail.",
     "newRecipient": "Novo e-mail",
     "addRecipient": "Adicionar",
     "removeRecipient": "Remover {{email}}",
