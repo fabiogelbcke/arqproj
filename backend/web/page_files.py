@@ -308,6 +308,9 @@ async def page_file(
         finally:
             await download.aclose()
 
+    # Everything is checked: let the database connection go before the bytes
+    # flow, so slow downloads never hold the small pool (plan section 15).
+    await db.close()
     return StreamingResponse(body(), media_type=media_type, headers=headers)
 
 
