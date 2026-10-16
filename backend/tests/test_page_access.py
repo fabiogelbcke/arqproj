@@ -252,3 +252,19 @@ async def test_the_same_address_changes_nothing(client, owner):
     response = await change(client, owner, "casa-jardim", slug="casa-jardim")
     assert response.status_code == 200
     assert response.json()["row_version"] == before["row_version"]
+
+
+async def test_a_faked_forwarded_address_doesnt_make_a_new_device():
+    """The visitor controls the start of X-Forwarded-For; Google's front end adds
+    the address it saw at the end (Cloud Run alone)."""
+    from types import SimpleNamespace
+
+    settings = SimpleNamespace(deployed=True)
+    request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(settings=settings)),
+        headers={"x-forwarded-for": "1.2.3.4, 203.0.113.9"},
+        client=None,
+    )
+    assert attempts.device(request) == "203.0.113.9"
+    request.headers = {"x-forwarded-for": "5.6.7.8, 203.0.113.9"}
+    assert attempts.device(request) == "203.0.113.9"  # same device, whatever it sends

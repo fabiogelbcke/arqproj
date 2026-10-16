@@ -24,12 +24,15 @@ _blocked_until: dict[tuple[str, str], float] = {}
 
 
 def device(request: Request) -> str:
-    """The visitor's address. Behind Cloud Run's front end, the first address in
-    X-Forwarded-For is the visitor's; locally, the socket's."""
+    """The visitor's address. Google's front end appends the address it saw to
+    X-Forwarded-For, after anything the visitor sent (which can be faked), so
+    the last entry is the trustworthy one with Cloud Run alone. With an external
+    load balancer in front (A21 option A), the second to last is: revisit then.
+    Locally, the socket's."""
     if request.app.state.settings.deployed:
-        forwarded = request.headers.get("x-forwarded-for", "")
-        if first := forwarded.split(",")[0].strip():
-            return first
+        entries = [e.strip() for e in request.headers.get("x-forwarded-for", "").split(",")]
+        if entries and entries[-1]:
+            return entries[-1]
     return request.client.host if request.client else "unknown"
 
 
