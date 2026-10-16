@@ -232,16 +232,78 @@ async def test_a_files_key_reveals_no_ids(client, owner, files):
     assert b"Casa Jardim" not in raw and b"Programa" not in raw  # encrypted, not encoded
 
 
-async def test_drive_down_during_a_download_says_try_again(client, owner, files, monkeypatch):
+@pytest.fixture
+def drive(monkeypatch):
+    """Drive-like storage: ids stay the same when a folder moves (local folders
+    can't show this, their ids are paths)."""
+    from backend.storage.memory import MemoryStorage
+
+    storage = MemoryStorage()
+    storage.add_folder("Casa Jardim", "Casa Jardim")
+    storage.add_folder("Casa Jardim/01 - Briefing", "01 - Briefing", "Casa Jardim")
+    storage.add_file("plan", "Planta.pdf", "Casa Jardim/01 - Briefing", PDF, "application/pdf")
+    storage.add_folder("other-project", "Outro Projeto")
+    monkeypatch.setattr(page_files, "storage_for", lambda *_args: storage)
+    return storage
+
+
+async def test_a_stage_folder_moved_to_another_project_stops_showing(client, owner, drive):
+    first = (await listing(client)).json()["stages"][0]
+    key = first["groups"][0]["files"][0]["key"]
+    url = f"/api/pages/casa-jardim/files/{key}"
+    assert (await client.get(url, headers=ALINEA)).status_code == 200
+    drive._parents["Casa Jardim/01 - Briefing"] = "other-project"  # moved in Drive
+    moved = (await listing(client)).json()["stages"][0]
+    assert (moved["groups"], moved["unavailable"]) == ([], False)
+    assert (await client.get(url, headers=ALINEA)).status_code == 404
+
+
+async def test_a_failed_file_link_shows_a_translated_page_with_the_code(
+    client, owner, files, monkeypatch
+):
+    """The page's links open the file address directly: a failure there must
+    read like the site, never like the API."""
     from backend.storage.base import StorageError, StorageProblem
     from backend.storage.folder import FolderStorage
 
     first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
 
     async def down(self, item):
-        raise StorageError(StorageProblem.UNAVAILABLE, "simulated")
+        raise StorageError(StorageProblem.UNAVAILABLE, "Drive said 500 for item abc")
 
     monkeypatch.setattr(FolderStorage, "download", down)
     response = await client.get(f"/api/pages/casa-jardim/files/{first[0]['key']}", headers=ALINEA)
-    assert (response.status_code, response.json()) == (503, {"error": "files_unavailable"})
-    assert response.headers["x-request-id"]
+    assert response.status_code == 503
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Não foi possível abrir o arquivo agora" in response.text
+    assert response.headers["x-request-id"] in response.text  # the support code
+    assert 'href="/casa-jardim"' in response.text
+    assert "files_unavailable" not in response.text and "abc" not in response.text
+
+
+async def test_a_stale_file_link_says_so_in_the_offices_language(client, owner, files):
+    response = await client.get("/api/pages/casa-jardim/files/not-a-key", headers=ALINEA)
+    assert response.status_code == 404
+    assert "Este arquivo não está mais disponível" in response.text
+
+
+async def test_a_download_that_breaks_off_is_logged_with_its_context(
+    client, owner, drive, caplog, monkeypatch
+):
+    from backend.storage.base import Download, StorageError, StorageProblem
+    from backend.storage.memory import MemoryStorage
+
+    async def breaks(self, item):
+        async def chunks():
+            yield b"%PDF"
+            raise StorageError(StorageProblem.UNAVAILABLE, "connection reset")
+
+        return Download(item.mime_type, None, chunks())
+
+    monkeypatch.setattr(MemoryStorage, "download", breaks)
+    key = (await listing(client)).json()["stages"][0]["groups"][0]["files"][0]["key"]
+    with pytest.raises(StorageError):
+        await client.get(f"/api/pages/casa-jardim/files/{key}", headers=ALINEA)
+    logged = [r for r in caplog.records if "broke off" in r.getMessage()]
+    assert logged and logged[0].levelname == "ERROR"
+    assert "connection reset" in logged[0].getMessage() and "plan" in logged[0].getMessage()

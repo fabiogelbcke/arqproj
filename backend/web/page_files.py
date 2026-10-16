@@ -14,19 +14,25 @@ project, its `access_version`, the stage, the folder and the item, so it opens
 only what this page listed (rechecked against Drive on every request), and a
 new password or access mode ends every key handed out before.
 Bytes come through the office's storage view (the reader identity on Drive),
-which refuses anything outside the office's folder.
+which refuses anything outside the office's folder; a stage's folder shows only
+while it is still directly in its project's folder.
+
+The page links straight to a file, so a failure there answers with a short page
+in the office's language (and the support code), not the API's JSON.
 """
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 import time
 from datetime import datetime
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +44,8 @@ from backend.security import keys
 from backend.storage.base import StorageError, StorageItem, StorageProblem
 from backend.storage.connections import storage_for
 from backend.storage.models import StorageConnection
+from backend.tenancy.models import Locale
+from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.office import image_type
@@ -53,6 +61,12 @@ THUMB_SIZE = 480
 # Shown in the page itself; everything else only downloads.
 INLINE_IMAGES = frozenset({"image/jpeg", "image/png", "image/webp", "image/gif"})
 PDF = "application/pdf"
+# The page's own words, for the one answer a browser shows directly: a file
+# link that fails (AGENTS.md, user-facing errors).
+_TEXTS = {
+    locale: json.loads((Path(__file__).parent.parent / "i18n" / f"{locale.value}.json").read_text())
+    for locale in Locale
+}
 
 
 class FileOut(BaseModel):
@@ -108,6 +122,15 @@ def _private(project: Project, staff: CurrentStaff | None) -> dict[str, str]:
 async def _list(storage, folder: str) -> list[StorageItem]:
     """Always Drive's current listing: what a key may open is decided now."""
     return await storage.list_folder(folder)
+
+
+async def _in_project(storage, project: Project) -> set[str]:
+    """The folders directly in the project's folder, where its stage folders
+    live: a stage folder moved elsewhere (say, into another project's folder)
+    stops showing here (A05, plan section 6)."""
+    if project.folder_id is None:
+        return set()
+    return {i.id for i in await _list(storage, project.folder_id) if i.is_folder}
 
 
 def _file(
@@ -175,6 +198,20 @@ async def page_files(
         )
     )
     stages = []
+    in_project: set[str] | None = None
+    if storage is not None and any(folders):
+        try:
+            in_project = await _in_project(storage, project)
+        except StorageError as error:
+            log.error(
+                "files: listing the folder of %s/%s failed: %s %s",
+                project.tenant_id,
+                slug,
+                error.problem,
+                error.detail,
+            )
+            storage = None  # every bound stage shows as unavailable
+            has_connection = True
     for position, folder in enumerate(folders, start=1):
         shown = StageFilesOut(position=position, groups=[])
         if folder is None:
@@ -183,6 +220,15 @@ async def page_files(
         if storage is None:  # a bound folder that can't be read at all
             shown.unavailable = has_connection
             stages.append(shown)
+            continue
+        if folder not in (in_project or set()):
+            log.warning(
+                "files: stage %s of %s/%s is not in its project folder",
+                position,
+                project.tenant_id,
+                slug,
+            )
+            stages.append(shown)  # moved out of the project: nothing to show
             continue
         try:
             items = await _list(storage, folder)
@@ -262,6 +308,8 @@ async def _still_listed(db: AsyncSession, storage, project: Project, found: dict
     folder = found.get("f")
     if stage_folder is None or folder is None:
         return False
+    if stage_folder not in await _in_project(storage, project):
+        return False
     if folder != stage_folder:
         siblings = await _list(storage, stage_folder)
         if not any(i.id == folder and i.is_folder and not _hidden(i) for i in siblings):
@@ -275,6 +323,30 @@ def _disposition(name: str, inline: bool) -> str:
     return f"{how}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
 
 
+def _failure_page(tenant: CurrentTenant, slug: str, code: ErrorCode, status: int) -> Response:
+    """What the browser shows when a file link fails: the reason in the office's
+    language, the support code for a failure, and the way back; never the API's
+    answer. (The page's links open this address directly.)"""
+    texts = _TEXTS[tenant.locale]
+    lines = [texts["errors"][code.value]]
+    if status >= 500:
+        lines.append(texts["errors"]["reference"].replace("{{id}}", current_request_id()))
+    body = "".join(f"<p>{html.escape(line)}</p>" for line in lines)
+    back = html.escape(texts["page"]["backToProject"])
+    return HTMLResponse(
+        f'<!doctype html><html lang="{tenant.locale.value}"><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        f"<title>{html.escape(lines[0])}</title>"
+        '<body style="font: 16px/1.5 system-ui, sans-serif; max-width: 32rem; margin: 15vh auto;'
+        f' padding: 0 16px">{body}<p><a href="/{quote(slug)}">{back}</a></p>',
+        status_code=status,
+        headers={
+            **PAGE_HEADERS,
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+        },
+    )
+
+
 @router.get("/api/pages/{slug}/files/{key}", include_in_schema=False)
 async def page_file(
     request: Request,
@@ -282,6 +354,7 @@ async def page_file(
     key: str,
     inline: bool = False,
     staff: CurrentStaff | None = Depends(optional_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     try:
@@ -293,8 +366,8 @@ async def page_file(
             raise _storage_failure(error, project, "download") from None
     except ApiError as error:
         if error.code is ErrorCode.FILES_UNAVAILABLE:
-            raise  # a translated "try again", with the support code
-        return Response(status_code=404, headers=PAGE_HEADERS)
+            return _failure_page(tenant, slug, error.code, 503)  # "try again", with the code
+        return _failure_page(tenant, slug, ErrorCode.FILE_NOT_FOUND, 404)
     kind = _kind(item)
     shown_inline = inline and kind in ("image", "pdf")
     name = f"{item.name}.pdf" if item.is_native else item.name
@@ -316,6 +389,16 @@ async def page_file(
         try:
             async for chunk in download.chunks:
                 yield chunk
+        except StorageError as error:  # Drive gave up partway: the client sees a cut download
+            log.error(
+                "files: download broke off for %s/%s, item %s: %s %s",
+                project.tenant_id,
+                project.id,
+                item.id,
+                error.problem,
+                error.detail,
+            )
+            raise
         finally:
             await download.aclose()
 
