@@ -129,7 +129,15 @@ export function StageControls({
     );
   return (
     <span className="stagectl">
-      <button className="iconbtn" type="button" aria-label={t("edit.renameStage", { title: stage.title })} onClick={() => setMode("rename")}>
+      <button
+        className="iconbtn"
+        type="button"
+        aria-label={t("edit.renameStage", { title: stage.title })}
+        onClick={() => {
+          setTitle(stage.title); // this row's stage now: rows stay put while stages move
+          setMode("rename");
+        }}
+      >
         ✎
       </button>
       <button
@@ -279,19 +287,22 @@ export function ProgressRail({ page, staff, onChanged }: { page: Page; staff: St
           {t("edit.back")}
         </button>
       )}
-      <button
-        className="b b--primary"
-        type="button"
-        disabled={change.busy}
-        onClick={() =>
-          void change.run(
-            () => send(next ? "advance" : "complete"),
-            next ? t("edit.advanced", { title: next.title }) : t("edit.completed"),
-          )
-        }
-      >
-        {next ? t("edit.advanceTo", { n: pad(current + 1), title: next.title }) : t("edit.complete")}
-      </button>
+      {/* Only an active project can be completed (a draft is published first). */}
+      {(next || staff.status === "active") && (
+        <button
+          className="b b--primary"
+          type="button"
+          disabled={change.busy}
+          onClick={() =>
+            void change.run(
+              () => send(next ? "advance" : "complete"),
+              next ? t("edit.advanced", { title: next.title }) : t("edit.completed"),
+            )
+          }
+        >
+          {next ? t("edit.advanceTo", { n: pad(current + 1), title: next.title }) : t("edit.complete")}
+        </button>
+      )}
     </div>
   );
 }

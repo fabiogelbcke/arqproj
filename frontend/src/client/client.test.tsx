@@ -254,6 +254,50 @@ describe("edit mode", () => {
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-9");
   });
 
+  it("renames the stage now on that row, after stages moved", async () => {
+    let moved = false;
+    const stages = () =>
+      (moved ? [PAGE.stages[1]!, PAGE.stages[0]!, PAGE.stages[2]!] : PAGE.stages).map((stage, i) => ({
+        ...stage,
+        position: i + 1,
+      }));
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, stages: stages(), staff: { project_id: "p-1", status: "active", row_version: 4 } },
+      }),
+      "POST /api/projects/p-1/stages/1/move": () => {
+        moved = true;
+        return { status: 204 };
+      },
+    });
+    render(<ClientApp />);
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Mover Briefing para baixo" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Renomear etapa Levantamento" }));
+    expect(screen.getByLabelText("Nome da etapa")).toHaveValue("Levantamento");
+  });
+
+  it.each([
+    ["active", true],
+    ["draft", false],
+  ])("at the last stage, offers Concluir projeto only to an active project (%s)", async (status, offered) => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, current_position: PAGE.stages.length, staff: { project_id: "p-1", status, row_version: 4 } },
+      }),
+    });
+    render(<ClientApp />);
+    await startEditing();
+    expect(await screen.findByText(/Estudo Preliminar/, { selector: ".rail__now p" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Concluir projeto" }) !== null).toBe(offered);
+  });
+
   it("says when someone else changed the project meanwhile", async () => {
     asStaff({ "PUT /api/projects/p-1/stages/2/notes": () => ({ status: 409, body: { error: "project_changed" } }) });
     await startEditing();

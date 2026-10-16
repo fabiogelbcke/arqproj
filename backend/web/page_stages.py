@@ -115,15 +115,30 @@ async def _maker(request: Request, db: AsyncSession, project: Project):
     return maker
 
 
-async def _run(db: AsyncSession, renames: Renames, work) -> None:
+def _drive_failed(operation: str, tenant: CurrentTenant, project_id: uuid.UUID, error) -> ApiError:
+    """AGENTS.md: the detail in the log at ERROR with the office and the
+    operation (the request id comes with every line); staff see "try again"."""
+    log.error(
+        "stage folders: %s failed for %s/%s: %s", operation, tenant.id, project_id, error.detail
+    )
+    return ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED)
+
+
+async def _run(
+    db: AsyncSession,
+    renames: Renames,
+    work,
+    operation: str,
+    tenant: CurrentTenant,
+    project_id: uuid.UUID,
+) -> None:
     try:
         await work()
         await db.commit()
     except ConnectError as error:
         await db.rollback()
         await renames.undo()
-        log.error("stage folders: Drive failed: %s", error.detail)
-        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+        raise _drive_failed(operation, tenant, project_id, error) from None
     except BaseException:
         await db.rollback()
         await renames.undo()
@@ -178,8 +193,7 @@ async def add_stage(
         if folder is not None:
             await maker.trash(folder)  # nothing saved: the new folder goes too
         if isinstance(error, ConnectError):
-            log.error("stage folders: Drive failed: %s", error.detail)
-            raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+            raise _drive_failed("add stage", tenant, project_id, error) from None
         raise
     return Response(status_code=204)
 
@@ -235,7 +249,7 @@ async def rename_stage(
             .values(builtin_key=None, title=title, about=about, folder_id=stage.folder_id)
         )
 
-    await _run(db, renames, work)
+    await _run(db, renames, work, "rename stage", tenant, project_id)
     return Response(status_code=204)
 
 
@@ -295,7 +309,7 @@ async def move_stage(
                 update(Project).where(Project.id == project_id).values(current_position=new_current)
             )
 
-    await _run(db, renames, work)
+    await _run(db, renames, work, "move stage", tenant, project_id)
     return Response(status_code=204)
 
 
@@ -348,7 +362,7 @@ async def remove_stage(
                 update(Project).where(Project.id == project_id).values(current_position=new_current)
             )
 
-    await _run(db, renames, work)
+    await _run(db, renames, work, "remove stage", tenant, project_id)
     return Response(status_code=204)
 
 

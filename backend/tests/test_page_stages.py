@@ -1,6 +1,7 @@
 """Edit mode, part 2: stages (with their folders kept in step) and progress."""
 
 import pytest
+from sqlalchemy import text
 
 from backend.projects import creation
 from backend.storage.google_connect import ConnectError, ConnectProblem
@@ -117,7 +118,7 @@ async def test_removing_a_stage_keeps_its_folder_and_renumbers_the_rest(client, 
 
 
 async def test_if_drive_fails_nothing_changes_and_names_are_put_back(
-    client, owner, folders, monkeypatch
+    client, db_session, owner, folders, monkeypatch, caplog
 ):
     real = creation.LocalFolders.rename
     calls = []
@@ -134,6 +135,16 @@ async def test_if_drive_fails_nothing_changes_and_names_are_put_back(
     assert (response.status_code, response.json()) == (503, {"error": "drive_connect_failed"})
     assert titles(await page(client)) == titles(before)
     assert on_disk(folders) == sorted(SEEDED)  # the first rename was put back
+    # The detail goes to the log with the office and the operation, for support.
+    logged = [r.getMessage() for r in caplog.records if r.levelname == "ERROR"]
+    tenant = await db_session.scalar(text("SELECT id FROM tenants WHERE slug = 'alinea'"))
+    assert any(
+        "move stage" in m
+        and "simulated" in m
+        and str(tenant) in m
+        and before["staff"]["project_id"] in m
+        for m in logged
+    )
 
 
 async def test_a_stale_page_cant_change_stages(client, owner, folders):
