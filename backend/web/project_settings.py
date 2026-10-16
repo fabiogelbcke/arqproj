@@ -2,6 +2,7 @@
 photo button.
 
     PATCH  /api/projects/{id}         name, client; archive or restore
+    POST   /api/projects/{id}/publish a draft goes live (from the page's staff bar)
     PUT    /api/projects/{id}/cover   upload the cover photo
     DELETE /api/projects/{id}/cover   back to the placeholder photo
     GET    /api/projects/{id}/cover   the cover (staff only until the client page)
@@ -121,6 +122,29 @@ async def change_project(
         await db.commit()
     elif project.row_version != body.row_version:
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)
+    db.expire_all()
+    return await _summary(db, tenant, project_id)
+
+
+@router.post("/projects/{project_id}/publish", responses=documented(401, 404, 422))
+async def publish(
+    project_id: uuid.UUID,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> ProjectSummary:
+    """A draft goes live: its page opens to anyone with the link (A24: from the
+    project page's staff bar). Publishing twice changes nothing."""
+    project = await _project(db, project_id)
+    if project.status is ProjectStatus.DRAFT:
+        await db.execute(
+            update(Project)
+            .where(Project.id == project.id, Project.status == ProjectStatus.DRAFT)
+            .values(status=ProjectStatus.ACTIVE, row_version=Project.row_version + 1)
+        )
+        await db.commit()
+    elif project.status is not ProjectStatus.ACTIVE:
+        raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # completed or archived
     db.expire_all()
     return await _summary(db, tenant, project_id)
 

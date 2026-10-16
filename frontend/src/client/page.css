@@ -9,3 +9,5 @@
    between the timeline and the stages. */
 .project-status + .stage { margin-top: 48px; }
 @media (max-width: 760px) { .project-status + .stage { margin-top: 0; } }
+/* Room below the page so the staff bar never covers its last lines. */
+.client:has(.dock) .cwrap { padding-bottom: 96px; }

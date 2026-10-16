@@ -737,6 +737,67 @@
         }
       }
     },
+    "/api/projects/{project_id}/publish": {
+      "post": {
+        "summary": "Publish",
+        "description": "A draft goes live: its page opens to anyone with the link (A24: from the\nproject page's staff bar). Publishing twice changes nothing.",
+        "operationId": "publish_api_projects__project_id__publish_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/cover": {
       "put": {
         "summary": "Upload Cover",
@@ -1559,6 +1620,16 @@
                 "type": "null"
               }
             ]
+          },
+          "staff": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -1847,6 +1918,25 @@
           "member"
         ],
         "title": "Role"
+      },
+      "StaffView": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProjectStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "status"
+        ],
+        "title": "StaffView",
+        "description": "Only for the office's signed-in staff: what the staff bar needs."
       },
       "StageOption": {
         "properties": {

@@ -275,6 +275,15 @@
     "notFoundBody": "Check the link with the office. If the project moved, ask for the new link.",
     "lockedTitle": "Protected page",
     "lockedBody": "This page is protected by a password. Soon you'll be able to enter it here.",
-    "cover": "Cover of the project {{name}}"
+    "cover": "Cover of the project {{name}}",
+    "staffBar": "Office tools",
+    "backToPainel": "Painel",
+    "draftNote": "Draft, only you can see it",
+    "publishedNote": "Published",
+    "copyLink": "Copy the client's link",
+    "linkCopied": "Link copied.",
+    "linkCopiedDraft": "Link copied. The client will see the page once it's published.",
+    "publish": "Publish",
+    "published": "Published. The client can now open the link."
   }
 }

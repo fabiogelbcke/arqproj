@@ -7,9 +7,11 @@
 
 A page exists only for a published project (active, completed or archived) that
 isn't deleted: a draft, a deleted project and an unknown address all answer the
-same "not found", so nobody can tell them apart. An address the project had
-before redirects to the current one (A29). A password-protected project shows
-nothing until the password step (2.4) exists: its page says it is protected.
+same "not found", so nobody can tell them apart. The office's signed-in staff
+also see drafts and protected pages, with a staff bar (2.6) to publish them.
+An address the project had before redirects to the current one (A29). A
+password-protected project shows nothing to clients until the password step
+(2.4) exists: its page says it is protected.
 
 The server answers before any script runs: the tags messaging apps read for a
 link preview (they don't run scripts), the status, and the redirect. Pages are
@@ -20,6 +22,7 @@ from __future__ import annotations
 
 import html
 import logging
+import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -46,6 +49,7 @@ from backend.projects.models import (
 )
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
+from backend.web.auth import CurrentStaff, optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
 from backend.web.project_settings import serve_cover
@@ -69,17 +73,19 @@ def _text(texts: dict[str, str], locale: Locale) -> str:
     return texts.get(locale.value) or texts[Locale.PT_BR.value]
 
 
-async def _find(db: AsyncSession, slug: str) -> tuple[Project | None, str | None]:
-    """The published project at this address, and its current address (which
-    differs when `slug` is one it had before)."""
+async def _find(
+    db: AsyncSession, slug: str, staff: CurrentStaff | None = None
+) -> tuple[Project | None, str | None]:
+    """The project at this address that this visitor may see (published, or
+    any for the office's staff), and its current address (which differs when
+    `slug` is one it had before)."""
+    shown = Project.deleted_at.is_(None)
+    if staff is None:
+        shown &= Project.status.in_(VISIBLE)
     found = await db.execute(
         select(Project, ProjectSlug.is_current)
         .join(ProjectSlug, ProjectSlug.project_id == Project.id)
-        .where(
-            ProjectSlug.slug == slug,
-            Project.deleted_at.is_(None),
-            Project.status.in_(VISIBLE),
-        )
+        .where(ProjectSlug.slug == slug, shown)
     )
     row = found.first()
     if row is None:
@@ -122,6 +128,13 @@ class MeetingOut(BaseModel):
     link: str | None
 
 
+class StaffView(BaseModel):
+    """Only for the office's signed-in staff: what the staff bar needs."""
+
+    project_id: uuid.UUID
+    status: ProjectStatus
+
+
 class PageOut(BaseModel):
     office: OfficeOut
     locale: Locale
@@ -138,6 +151,7 @@ class PageOut(BaseModel):
     details: list[DetailOut]
     stages: list[StageOut]
     next_meeting: MeetingOut | None
+    staff: StaffView | None = None
 
 
 async def _office(db: AsyncSession, tenant: CurrentTenant) -> OfficeOut:
@@ -229,12 +243,12 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
     )
 
 
-async def _readable(db: AsyncSession, slug: str) -> Project:
-    """The project behind a current address, if the page may show it."""
-    project, current = await _find(db, slug)
+async def _readable(db: AsyncSession, slug: str, staff: CurrentStaff | None = None) -> Project:
+    """The project behind a current address, if this visitor may see its page."""
+    project, current = await _find(db, slug, staff)
     if project is None or current != slug:
         raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
-    if project.access_mode is AccessMode.PASSWORD:
+    if project.access_mode is AccessMode.PASSWORD and staff is None:
         raise ApiError(403, ErrorCode.PAGE_LOCKED)  # the password step comes in 2.4
     return project
 
@@ -242,11 +256,15 @@ async def _readable(db: AsyncSession, slug: str) -> Project:
 @router.get("/api/pages/{slug}", responses=documented(403, 404))
 async def page(
     slug: str,
+    staff: CurrentStaff | None = Depends(optional_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PageOut:
-    project = await _readable(db, slug)
-    return await _page(db, tenant, project, slug)
+    project = await _readable(db, slug, staff)
+    shown = await _page(db, tenant, project, slug)
+    if staff is not None:
+        shown.staff = StaffView(project_id=project.id, status=project.status)
+    return shown
 
 
 @router.get("/api/pages/{slug}/cover", include_in_schema=False)
@@ -254,10 +272,11 @@ async def page_cover(
     request: Request,
     slug: str,
     preview: bool = False,
+    staff: CurrentStaff | None = Depends(optional_staff),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     try:
-        project = await _readable(db, slug)
+        project = await _readable(db, slug, staff)
     except ApiError:
         return Response(status_code=404, headers=PAGE_HEADERS)
     size = PREVIEW_SIZE if preview else BANNER_SIZE
@@ -356,6 +375,7 @@ def _head(tags: dict[str, str], title: str) -> str:
 async def shell(
     request: Request,
     slug: str,
+    staff: CurrentStaff | None = Depends(optional_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -366,7 +386,7 @@ async def shell(
         return PlainTextResponse(
             "The client page is not built. Run `make build` (or `make dev`).", status_code=503
         )
-    project, current = await _find(db, slug)
+    project, current = await _find(db, slug, staff)
     if project is not None and current != slug:
         query = f"?{request.url.query}" if request.url.query else ""
         # Permanent, but not cached forever: a slug may later point back here.

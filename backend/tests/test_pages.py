@@ -103,6 +103,7 @@ async def test_completed_and_archived_projects_still_have_a_page(client, db_sess
     ],
 )
 async def test_drafts_unknown_and_old_addresses_are_not_found_alike(client, owner, slug):
+    client.cookies.clear()  # a visitor
     response = await page(client, slug)
     assert (response.status_code, response.json()) == (404, {"error": "page_not_found"})
 
@@ -116,6 +117,7 @@ async def test_a_deleted_project_is_not_found(client, db_session, owner):
 
 
 async def test_a_protected_project_shows_nothing_until_its_password_step(client, owner):
+    client.cookies.clear()  # a visitor
     response = await page(client, "refugio-da-mantiqueira")
     assert (response.status_code, response.json()) == (403, {"error": "page_locked"})
 
@@ -201,12 +203,14 @@ async def test_an_old_address_redirects_to_the_current_one(client, dist, owner):
 
 @pytest.mark.parametrize("slug", ["casa-das-oliveiras", "nao-existe"])
 async def test_drafts_and_unknown_addresses_get_the_shell_with_not_found(client, dist, owner, slug):
+    client.cookies.clear()  # a visitor
     response = await client.get(f"/{slug}", headers=ALINEA)
     assert response.status_code == 404
     assert "Casa das Oliveiras" not in response.text  # not even the draft's name
 
 
 async def test_a_protected_projects_name_stays_out_of_the_preview(client, dist, owner):
+    client.cookies.clear()  # a visitor
     document = (await client.get("/refugio-da-mantiqueira", headers=ALINEA)).text
     assert "Mantiqueira" not in document
     assert "<title>Alinea (dev)</title>" in document
@@ -234,9 +238,45 @@ async def test_the_apps_own_addresses_are_never_a_page(client, dist, owner):
     assert (await client.get("/api", headers=ALINEA)).text == "Not found"  # reserved
 
 
-async def test_staff_and_clients_see_the_same_page(client, db_session, owner):
-    """No staff-only content leaks into the public answer (staff bar: 2.6)."""
+async def test_staff_see_the_clients_page_plus_what_the_staff_bar_needs(client, owner):
     as_staff = (await page(client, "casa-jardim")).json()
-    await sign_in_as(client, db_session, "membro@alinea.example", Role.MEMBER)
+    assert as_staff["staff"]["status"] == "active" and as_staff["staff"]["project_id"]
     client.cookies.clear()
-    assert (await page(client, "casa-jardim")).json() == as_staff
+    as_client = (await page(client, "casa-jardim")).json()
+    assert as_client["staff"] is None
+    assert {**as_staff, "staff": None} == as_client  # nothing else differs
+
+
+async def test_staff_see_their_drafts_and_protected_pages(client, dist, owner):
+    draft = (await page(client, "casa-das-oliveiras")).json()
+    assert (draft["name"], draft["staff"]["status"]) == ("Casa das Oliveiras", "draft")
+    assert (await page(client, "refugio-da-mantiqueira")).status_code == 200
+    assert (await client.get("/casa-das-oliveiras", headers=ALINEA)).status_code == 200
+
+
+async def test_another_offices_staff_get_no_preview_of_drafts(client, db_session, owner):
+    """Signed in at Norte, Alinea's draft is still "not found"."""
+    await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
+    assert (await page(client, "casa-das-oliveiras")).status_code == 404
+
+
+async def test_publishing_opens_the_page_to_clients(client, db_session, owner):
+    draft = (await page(client, "casa-das-oliveiras")).json()["staff"]
+    published = await client.post(f"/api/projects/{draft['project_id']}/publish", headers=owner)
+    assert (published.status_code, published.json()["status"]) == (200, "active")
+    again = await client.post(f"/api/projects/{draft['project_id']}/publish", headers=owner)
+    assert again.status_code == 200  # twice changes nothing
+    client.cookies.clear()
+    assert (await page(client, "casa-das-oliveiras")).status_code == 200
+
+
+async def test_publishing_needs_staff_and_their_csrf_token(client, db_session, owner):
+    draft = (await page(client, "casa-das-oliveiras")).json()["staff"]
+    response = await client.post(f"/api/projects/{draft['project_id']}/publish", headers=ALINEA)
+    assert response.status_code in (401, 403)
+
+
+async def test_only_drafts_and_live_projects_can_be_published(client, db_session, owner):
+    found = await project_id(db_session, "refugio-da-mantiqueira")  # completed
+    response = await client.post(f"/api/projects/{found}/publish", headers=owner)
+    assert (response.status_code, response.json()["error"]) == (422, "invalid_status_change")

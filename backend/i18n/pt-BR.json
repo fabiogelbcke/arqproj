@@ -275,6 +275,15 @@
     "notFoundBody": "Confira o link com o escritório. Se o projeto mudou de endereço, peça o link novo.",
     "lockedTitle": "Página protegida",
     "lockedBody": "Esta página é protegida por senha. Em breve você poderá digitá-la aqui.",
-    "cover": "Capa do projeto {{name}}"
+    "cover": "Capa do projeto {{name}}",
+    "staffBar": "Ferramentas do escritório",
+    "backToPainel": "Painel",
+    "draftNote": "Rascunho, só você vê",
+    "publishedNote": "Publicado",
+    "copyLink": "Copiar link do cliente",
+    "linkCopied": "Link copiado.",
+    "linkCopiedDraft": "Link copiado. O cliente só verá a página depois de publicada.",
+    "publish": "Publicar",
+    "published": "Publicado. O cliente já pode abrir o link."
   }
 }
