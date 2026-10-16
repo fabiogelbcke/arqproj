@@ -157,7 +157,8 @@ class PageOut(BaseModel):
     timezone: str
     name: str
     client_name: str
-    project_type: str
+    project_type: str  # its label, in the office's language
+    project_type_key: str
     description: str
     cover_url: str | None
     completed: bool
@@ -243,6 +244,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         name=project.name,
         client_name=project.client_name,
         project_type=_text(type_label, locale),
+        project_type_key=project.project_type,
         description=project.description,
         cover_url=(
             f"/api/pages/{slug}/cover?v={project.updated_at.timestamp():.6f}"

@@ -115,6 +115,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
                 "password_hash",
                 "access_version",
                 "description",
+                "project_type",
                 "last_activity_at",
             )
         ),

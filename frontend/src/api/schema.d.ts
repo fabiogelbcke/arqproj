@@ -444,6 +444,8 @@ export interface components {
             description?: string | null;
             /** Details */
             details?: components["schemas"]["DetailIn"][] | null;
+            /** Project Type */
+            project_type?: string | null;
         };
         /** CreationOptions */
         CreationOptions: {
@@ -676,6 +678,8 @@ export interface components {
             client_name: string;
             /** Project Type */
             project_type: string;
+            /** Project Type Key */
+            project_type_key: string;
             /** Description */
             description: string;
             /** Cover Url */

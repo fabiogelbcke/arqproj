@@ -22,9 +22,16 @@ function useSave(onSaved: () => void) {
       toast(t("projectSettings.saved"));
       onSaved();
     } catch (failure) {
-      const error = failure instanceof ApiError ? failure : new ApiError("unexpected");
-      const message = i18n.exists(`errors.${error.code}`) ? t(`errors.${error.code}`) : t("errors.unexpected");
-      setProblem(error.requestId ? `${message} ${t("errors.reference", { id: error.requestId })}` : message);
+      const error =
+        failure instanceof ApiError ? failure : new ApiError("unexpected");
+      const message = i18n.exists(`errors.${error.code}`)
+        ? t(`errors.${error.code}`)
+        : t("errors.unexpected");
+      setProblem(
+        error.requestId
+          ? `${message} ${t("errors.reference", { id: error.requestId })}`
+          : message,
+      );
     } finally {
       setBusy(false);
     }
@@ -78,19 +85,15 @@ function Editor({
   );
 }
 
-export function EditButton({ label, onClick }: { label: string; onClick: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <button className="editbtn" type="button" aria-label={t("edit.editThis", { what: label.toLowerCase() })} onClick={onClick}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-        <path d="M4 20h4L19 9l-4-4L4 16v4Z M13.5 6.5l4 4" />
-      </svg>
-      {label}
-    </button>
-  );
-}
-
-export function DescriptionEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
+export function DescriptionEditor({
+  page,
+  staff,
+  onDone,
+}: {
+  page: Page;
+  staff: Staff;
+  onDone: (saved: boolean) => void;
+}) {
   const { t } = useTranslation();
   const [text, setText] = useState(page.description);
   const save = useSave(() => onDone(true));
@@ -114,7 +117,14 @@ export function DescriptionEditor({ page, staff, onDone }: { page: Page; staff: 
         <label className="sr" htmlFor="ed-desc">
           {t("edit.description")}
         </label>
-        <textarea className="textarea" id="ed-desc" rows={7} value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+        <textarea
+          className="textarea"
+          id="ed-desc"
+          rows={7}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          autoFocus
+        />
         <p className="hint">{t("edit.descriptionHint")}</p>
       </div>
     </Editor>
@@ -123,16 +133,36 @@ export function DescriptionEditor({ page, staff, onDone }: { page: Page; staff: 
 
 type DetailType = Schemas["DetailTypeOut"];
 
-export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
+export function DetailsEditor({
+  page,
+  staff,
+  onDone,
+}: {
+  page: Page;
+  staff: Staff;
+  onDone: (saved: boolean) => void;
+}) {
   const { t } = useTranslation();
   const [types, setTypes] = useState<DetailType[]>([]);
-  const [rows, setRows] = useState(() => page.details.map((d) => ({ key: d.key, value: String(d.value) })));
+  const [projectTypes, setProjectTypes] = useState<
+    Schemas["ProjectTypeOption"][]
+  >([]);
+  const [projectType, setProjectType] = useState(page.project_type_key);
+  const [rows, setRows] = useState(() =>
+    page.details.map((d) => ({ key: d.key, value: String(d.value) })),
+  );
   const save = useSave(() => onDone(true));
   useEffect(() => {
     call(api.GET("/api/detail-types")).then(setTypes, () => setTypes([]));
+    call(api.GET("/api/project-types")).then(
+      (found) => setProjectTypes(found.types),
+      () => setProjectTypes([]),
+    );
   }, []);
   const typeOf = (key: string) => types.find((type) => type.key === key);
-  const unused = types.filter((type) => !rows.some((row) => row.key === type.key));
+  const unused = types.filter(
+    (type) => !rows.some((row) => row.key === type.key),
+  );
   return (
     <Editor
       title={t("edit.details")}
@@ -143,19 +173,48 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
           call(
             api.PATCH("/api/projects/{project_id}/content", {
               params: { path: { project_id: staff.project_id } },
-              body: { row_version: staff.row_version, details: rows.filter((row) => row.value.trim() !== "") },
+              body: {
+                row_version: staff.row_version,
+                details: rows.filter((row) => row.value.trim() !== ""),
+                ...(projectType !== page.project_type_key
+                  ? { project_type: projectType }
+                  : {}),
+              },
             }),
           ),
         )
       }
     >
       <ul className="facts-edit">
+        <li>
+          <label className="lbl" htmlFor="fv-project-type">
+            {t("page.projectType")}
+          </label>
+          <select
+            className="select"
+            id="fv-project-type"
+            value={projectType}
+            onChange={(e) => setProjectType(e.target.value)}
+          >
+            {(projectTypes.length
+              ? projectTypes
+              : [{ key: page.project_type_key, label: page.project_type }]
+            ).map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <span />
+        </li>
         {rows.map((row, i) => {
-          const type = typeOf(row.key) ?? page.details.find((d) => d.key === row.key);
+          const type =
+            typeOf(row.key) ?? page.details.find((d) => d.key === row.key);
           const label = type && "label" in type ? type.label : row.key;
           const kind = type?.type ?? "text";
           const id = `fv-${row.key}`;
-          const set = (value: string) => setRows(rows.map((r, j) => (j === i ? { ...r, value } : r)));
+          const set = (value: string) =>
+            setRows(rows.map((r, j) => (j === i ? { ...r, value } : r)));
           return (
             <li key={row.key}>
               <label className="lbl" htmlFor={id}>
@@ -163,11 +222,26 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
               </label>
               {kind === "area" ? (
                 <div className="unit">
-                  <input className="input" id={id} type="number" min="0" step="0.01" inputMode="decimal" value={row.value} onChange={(e) => set(e.target.value)} />
+                  <input
+                    className="input"
+                    id={id}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={row.value}
+                    onChange={(e) => set(e.target.value)}
+                  />
                   <span>m²</span>
                 </div>
               ) : (
-                <input className="input" id={id} type={kind === "date" ? "date" : "text"} value={row.value} onChange={(e) => set(e.target.value)} />
+                <input
+                  className="input"
+                  id={id}
+                  type={kind === "date" ? "date" : "text"}
+                  value={row.value}
+                  onChange={(e) => set(e.target.value)}
+                />
               )}
               <button
                 className="iconbtn"
@@ -187,7 +261,10 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
           <select
             className="select"
             value=""
-            onChange={(e) => e.target.value && setRows([...rows, { key: e.target.value, value: "" }])}
+            onChange={(e) =>
+              e.target.value &&
+              setRows([...rows, { key: e.target.value, value: "" }])
+            }
           >
             <option value="">+ {t("edit.addDetail")}</option>
             {unused.map((type) => (
@@ -217,14 +294,29 @@ function officeClock(iso: string, timeZone: string) {
       .formatToParts(new Date(iso))
       .map((part) => [part.type, part.value]),
   );
-  return { day: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+  return {
+    day: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${parts.minute}`,
+  };
 }
 
-export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
+export function MeetingEditor({
+  page,
+  staff,
+  onDone,
+}: {
+  page: Page;
+  staff: Staff;
+  onDone: (saved: boolean) => void;
+}) {
   const { t } = useTranslation();
   const meeting = page.next_meeting;
-  const start = meeting ? officeClock(meeting.starts_at, page.timezone) : { day: "", time: "" };
-  const end = meeting ? officeClock(meeting.ends_at, page.timezone) : { day: "", time: "" };
+  const start = meeting
+    ? officeClock(meeting.starts_at, page.timezone)
+    : { day: "", time: "" };
+  const end = meeting
+    ? officeClock(meeting.ends_at, page.timezone)
+    : { day: "", time: "" };
   const [form, setForm] = useState({
     title: meeting?.title ?? "",
     day: start.day,
@@ -233,7 +325,9 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
     location: meeting?.location ?? "",
     link: meeting?.link ?? "",
   });
-  const set = (field: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [field]: e.target.value });
+  const set =
+    (field: keyof typeof form) => (e: { target: { value: string } }) =>
+      setForm({ ...form, [field]: e.target.value });
   const save = useSave(() => onDone(true));
   const path = { params: { path: { project_id: staff.project_id } } };
   return (
@@ -269,7 +363,10 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
               save.run(() =>
                 call(
                   api.DELETE("/api/projects/{project_id}/meeting", {
-                    params: { path: { project_id: staff.project_id }, query: { row_version: staff.row_version } },
+                    params: {
+                      path: { project_id: staff.project_id },
+                      query: { row_version: staff.row_version },
+                    },
                   }),
                 ),
               )
@@ -282,31 +379,72 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
     >
       <div className="field">
         <label htmlFor="m-title">{t("edit.subject")}</label>
-        <input className="input" id="m-title" value={form.title} onChange={set("title")} maxLength={40} required autoFocus />
+        <input
+          className="input"
+          id="m-title"
+          value={form.title}
+          onChange={set("title")}
+          maxLength={40}
+          required
+          autoFocus
+        />
         <p className="hint">{t("edit.subjectHint")}</p>
       </div>
       <div className="row3">
         <div className="field">
           <label htmlFor="m-date">{t("edit.day")}</label>
-          <input className="input" type="date" id="m-date" value={form.day} onChange={set("day")} required />
+          <input
+            className="input"
+            type="date"
+            id="m-date"
+            value={form.day}
+            onChange={set("day")}
+            required
+          />
         </div>
         <div className="field">
           <label htmlFor="m-start">{t("edit.start")}</label>
-          <input className="input" type="time" id="m-start" value={form.start} onChange={set("start")} required />
+          <input
+            className="input"
+            type="time"
+            id="m-start"
+            value={form.start}
+            onChange={set("start")}
+            required
+          />
         </div>
         <div className="field">
           <label htmlFor="m-end">{t("edit.end")}</label>
-          <input className="input" type="time" id="m-end" value={form.end} onChange={set("end")} />
+          <input
+            className="input"
+            type="time"
+            id="m-end"
+            value={form.end}
+            onChange={set("end")}
+          />
         </div>
       </div>
       <div className="row2">
         <div className="field">
           <label htmlFor="m-loc">{t("edit.location")}</label>
-          <input className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={60} />
+          <input
+            className="input"
+            id="m-loc"
+            value={form.location}
+            onChange={set("location")}
+            maxLength={60}
+          />
         </div>
         <div className="field">
           <label htmlFor="m-link">{t("edit.link")}</label>
-          <input className="input" type="url" id="m-link" value={form.link} onChange={set("link")} placeholder="https://meet.google.com/…" />
+          <input
+            className="input"
+            type="url"
+            id="m-link"
+            value={form.link}
+            onChange={set("link")}
+            placeholder="https://meet.google.com/…"
+          />
         </div>
       </div>
       <p className="hint">{t("edit.timeZoneHint")}</p>
@@ -338,7 +476,12 @@ export function NotesEditor({
         save.run(() =>
           call(
             api.PUT("/api/projects/{project_id}/stages/{position}/notes", {
-              params: { path: { project_id: staff.project_id, position: stage.position } },
+              params: {
+                path: {
+                  project_id: staff.project_id,
+                  position: stage.position,
+                },
+              },
               body: { row_version: staff.row_version, notes },
             }),
           ),

@@ -42,28 +42,62 @@ export function ClientApp() {
       (page) => setState({ kind: "page", page }),
       (error) => {
         const code = error instanceof ApiError ? error.code : null;
-        setState({ kind: code === "page_not_found" ? "missing" : code === "page_locked" ? "locked" : "failed", error });
+        setState({
+          kind:
+            code === "page_not_found"
+              ? "missing"
+              : code === "page_locked"
+                ? "locked"
+                : "failed",
+          error,
+        });
       },
     );
   }, [slug, version]);
-  useOfficeLocale(((state.kind === "page" && state.page.locale) || office?.locale) as Locale | undefined);
+  useOfficeLocale(
+    ((state.kind === "page" && state.page.locale) || office?.locale) as
+      Locale | undefined,
+  );
 
-  if (state.kind === "loading") return <p className="sr">{t("page.loading")}</p>;
+  if (state.kind === "loading")
+    return <p className="sr">{t("page.loading")}</p>;
   if (state.kind === "page")
     return (
-      <ProjectPage page={state.page} slug={slug} ready={signedIn} onChanged={() => setVersion((v) => v + 1)} />
+      <ProjectPage
+        page={state.page}
+        slug={slug}
+        ready={signedIn}
+        onChanged={() => setVersion((v) => v + 1)}
+      />
     );
   if (state.kind === "locked")
-    return <PasswordGate office={office} slug={slug} onUnlocked={() => setVersion((v) => v + 1)} />;
+    return (
+      <PasswordGate
+        office={office}
+        slug={slug}
+        onUnlocked={() => setVersion((v) => v + 1)}
+      />
+    );
   if (state.kind === "missing")
-    return <PageMessage office={office} title={t("page.notFoundTitle")} body={t("page.notFoundBody")} />;
+    return (
+      <PageMessage
+        office={office}
+        title={t("page.notFoundTitle")}
+        body={t("page.notFoundBody")}
+      />
+    );
   // Anything else: the shared wording, with the support code (AGENTS.md).
-  const failure = state.error instanceof ApiError ? state.error : new ApiError("unexpected");
+  const failure =
+    state.error instanceof ApiError ? state.error : new ApiError("unexpected");
   return (
     <PageMessage
       office={office}
       title={t("errors.unexpected")}
-      body={failure.requestId ? t("errors.reference", { id: failure.requestId }) : ""}
+      body={
+        failure.requestId
+          ? t("errors.reference", { id: failure.requestId })
+          : ""
+      }
     />
   );
 }

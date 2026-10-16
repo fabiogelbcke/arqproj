@@ -1,7 +1,7 @@
 """Editing a project's content from its page (edit mode, part 1; A24).
 
     GET    /api/detail-types                        the built-in details to add
-    PATCH  /api/projects/{id}/content               description and details
+    PATCH  /api/projects/{id}/content               description, details, project type
     PUT    /api/projects/{id}/meeting               set the next meeting
     DELETE /api/projects/{id}/meeting?row_version=  clear it
     PUT    /api/projects/{id}/stages/{n}/notes      a stage's note to the client
@@ -28,7 +28,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
-from backend.projects.enums import DetailType
+from backend.projects.enums import DetailType, ProjectStatus
 from backend.projects.models import (
     MEETING_LOCATION_MAX,
     MEETING_TITLE_MAX,
@@ -37,6 +37,7 @@ from backend.projects.models import (
     Project,
     ProjectDetail,
     ProjectStage,
+    ProjectTypeDef,
 )
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
@@ -83,6 +84,8 @@ async def _change(
     )
     if project is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
+    if project.status is ProjectStatus.ARCHIVED:
+        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)  # viewable, not editable (section 22)
     changed = await db.execute(
         update(Project)
         .where(Project.id == project_id, Project.row_version == row_version)
@@ -103,6 +106,8 @@ class ContentIn(BaseModel):
     description: str | None = Field(default=None, max_length=DESCRIPTION_MAX)
     # The whole list, in order; a detail left out is removed.
     details: list[DetailIn] | None = Field(default=None, max_length=50)
+    # Changing the type later leaves the stages as they are (section 10).
+    project_type: str | None = Field(default=None, max_length=100)
 
 
 def _detail_value(value_type: DetailType, value: str) -> dict:
@@ -137,6 +142,10 @@ async def change_content(
     values = {}
     if body.description is not None:
         values["description"] = body.description.strip()
+    if body.project_type is not None:
+        if await db.get(ProjectTypeDef, body.project_type) is None:
+            raise ApiError(422, ErrorCode.UNKNOWN_PROJECT_TYPE)
+        values["project_type"] = body.project_type
     rows = []
     if body.details is not None:
         known = dict((await db.execute(select(DetailTypeDef.key, DetailTypeDef.value_type))).all())

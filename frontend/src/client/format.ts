@@ -8,40 +8,66 @@ export type Detail = Schemas["DetailOut"];
 
 /** 15/10/2026, in the office's time zone. */
 export function day(value: string, locale: string, timeZone: string): string {
-  return new Intl.DateTimeFormat(locale, { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).format(
-    new Date(value),
-  );
+  return new Intl.DateTimeFormat(locale, {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 /** A calendar date as stored ("2026-03-02"), shown without any time-zone shift. */
 function calendarDay(value: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" }).format(
-    new Date(`${value}T12:00:00Z`),
-  );
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(`${value}T12:00:00Z`));
 }
 
 /** Text as typed (in capitals, as the design shows facts), 1.240 m², or a date. */
 export function detailValue(detail: Detail, locale: string): string {
-  if (detail.type === "area") return `${Number(detail.value).toLocaleString(locale)} m²`;
+  if (detail.type === "area")
+    return `${Number(detail.value).toLocaleString(locale)} m²`;
   if (detail.type === "date") return calendarDay(String(detail.value), locale);
   return String(detail.value).toLocaleUpperCase(locale);
 }
 
 /** "terça-feira 21/10/2026" and "16:00 – 17:00", in the office's time zone. */
-export function meetingWhen(meeting: Meeting, locale: string, timeZone: string) {
+export function meetingWhen(
+  meeting: Meeting,
+  locale: string,
+  timeZone: string,
+) {
   const start = new Date(meeting.starts_at);
-  const weekday = new Intl.DateTimeFormat(locale, { timeZone, weekday: "long" }).format(start);
-  const time = new Intl.DateTimeFormat(locale, { timeZone, hour: "2-digit", minute: "2-digit" });
+  const weekday = new Intl.DateTimeFormat(locale, {
+    timeZone,
+    weekday: "long",
+  }).format(start);
+  const time = new Intl.DateTimeFormat(locale, {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   return {
     day: `${weekday} ${day(meeting.starts_at, locale, timeZone)}`,
     time: `${time.format(start)} – ${time.format(new Date(meeting.ends_at))}`,
   };
 }
 
-const utc = (value: string) => new Date(value).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+const utc = (value: string) =>
+  new Date(value)
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
 
 /** Google Calendar's "new event" page, filled in. */
-export function googleCalendarLink(meeting: Meeting, projectName: string, pageUrl: string): string {
+export function googleCalendarLink(
+  meeting: Meeting,
+  projectName: string,
+  pageUrl: string,
+): string {
   const query = new URLSearchParams({
     action: "TEMPLATE",
     text: `${meeting.title} · ${projectName}`,
@@ -53,9 +79,16 @@ export function googleCalendarLink(meeting: Meeting, projectName: string, pageUr
 }
 
 /** Description: plain paragraphs, and "- " lines as a list (as the painel writes it). */
-export function paragraphs(text: string): Array<{ kind: "p"; text: string } | { kind: "ul"; items: string[] }> {
-  const out: Array<{ kind: "p"; text: string } | { kind: "ul"; items: string[] }> = [];
-  for (const line of text.split("\n").map((l) => l.trim()).filter(Boolean)) {
+export function paragraphs(
+  text: string,
+): Array<{ kind: "p"; text: string } | { kind: "ul"; items: string[] }> {
+  const out: Array<
+    { kind: "p"; text: string } | { kind: "ul"; items: string[] }
+  > = [];
+  for (const line of text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)) {
     if (line.startsWith("- ")) {
       const last = out[out.length - 1];
       if (last?.kind === "ul") last.items.push(line.slice(2));
