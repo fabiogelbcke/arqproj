@@ -3,11 +3,108 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { api, call } from "../api/client";
+import { api, call, type Schemas } from "../api/client";
 import { Toaster, toast } from "../ui/Toast";
 import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
+
+type StageFiles = Schemas["StageFilesOut"];
+type FileItem = Schemas["FileOut"];
+
+/** Every stage's files, read live from the office's Drive (2.5). */
+function useStageFiles(slug: string, version: unknown) {
+  const [stages, setStages] = useState<StageFiles[] | null>(null);
+  useEffect(() => {
+    call(api.GET("/api/pages/{slug}/files", { params: { path: { slug } } })).then(
+      (found) => setStages(found.stages),
+      () => setStages([]),
+    );
+  }, [slug, version]);
+  return stages;
+}
+
+function fileSize(bytes: number | null | undefined, locale: string): string {
+  if (bytes == null) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toLocaleString(locale, { maximumFractionDigits: unit ? 1 : 0 })} ${units[unit]}`;
+}
+
+function FileCard({ file, slug, timeZone }: { file: FileItem; slug: string; timeZone: string }) {
+  const { t, i18n } = useTranslation();
+  const [thumb, setThumb] = useState<"thumb" | "original" | "none">("thumb");
+  const url = `/api/pages/${slug}/files/${encodeURIComponent(file.key)}`;
+  const opens = file.kind === "image" || file.kind === "pdf";
+  const extension = file.name.includes(".") ? file.name.split(".").pop()!.toUpperCase() : "";
+  // Drive's preview first; for an image without one (local folders), the image itself.
+  const src = thumb === "thumb" ? `${url}/thumb` : thumb === "original" ? `${url}?inline=true` : null;
+  return (
+    <div className="file">
+      <a
+        className="file__open"
+        href={opens ? `${url}?inline=true` : url}
+        {...(opens ? { target: "_blank", rel: "noopener" } : { download: file.name })}
+        aria-label={t(opens ? "page.openFile" : "page.downloadFile", { name: file.name })}
+      >
+        <span className="file__thumb">
+          {src ? (
+            <img
+              src={src}
+              alt=""
+              loading="lazy"
+              onError={() => setThumb(thumb === "thumb" && file.kind === "image" ? "original" : "none")}
+            />
+          ) : file.kind === "pdf" ? (
+            <span className="sheetthumb" aria-hidden="true" />
+          ) : (
+            <span className="file__type">{extension}</span>
+          )}
+        </span>
+        <span className="file__body">
+          <span className="file__name" title={file.name}>
+            {file.name}
+          </span>
+          <span className="file__meta">
+            {[fileSize(file.size, i18n.language), day(file.modified_at, i18n.language, timeZone)]
+              .filter(Boolean)
+              .join(", ")}
+          </span>
+        </span>
+      </a>
+    </div>
+  );
+}
+
+function StageFilesList({ files, slug, timeZone }: { files: StageFiles | undefined; slug: string; timeZone: string }) {
+  const { t } = useTranslation();
+  if (!files) return null; // still loading
+  if (files.unavailable) return <p className="empty-stage">{t("page.filesUnavailable")}</p>;
+  if (!files.groups.length) return <p className="empty-stage">{t("page.noFiles")}</p>;
+  return (
+    <>
+      {files.groups.map((group) => (
+        <div key={group.folder ?? ""} className="file-group">
+          {group.folder && <h3 className="file-group__title">{group.folder}</h3>}
+          <div className="files" data-view="grid">
+            {group.files.map((file) => (
+              <FileCard key={file.key} file={file} slug={slug} timeZone={timeZone} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function countFiles(files: StageFiles | undefined): number {
+  return files?.groups.reduce((sum, group) => sum + group.files.length, 0) ?? 0;
+}
 
 function useNarrow(): boolean {
   const query = "(max-width: 760px)";
@@ -254,11 +351,15 @@ function Stage({
   index,
   open,
   onToggle,
+  files,
+  slug,
 }: {
   page: Page;
   index: number;
   open: boolean;
   onToggle: () => void;
+  files: StageFiles | undefined;
+  slug: string;
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -320,6 +421,13 @@ function Stage({
         <p className="stage__meta">
           {state === "done" && <span className="pill">{t("page.stageDone")}</span>}
           {state === "current" && <span className="pill pill--current">{t("page.stageCurrent")}</span>}
+          {files && !files.unavailable && (
+            <span>
+              {countFiles(files)
+                ? t("page.fileCount", { count: countFiles(files), padded: pad(countFiles(files)) })
+                : t("page.noFilesShort")}
+            </span>
+          )}
         </p>
       </div>
       {narrow && helpPanel}
@@ -330,7 +438,7 @@ function Stage({
               <p>{stage.notes}</p>
             </div>
           )}
-          <p className="empty-stage">{t("page.noFilesYet")}</p>
+          <StageFilesList files={files} slug={slug} timeZone={page.timezone} />
         </div>
       </div>
     </section>
@@ -455,6 +563,7 @@ export function ProjectPage({
   const narrow = useNarrow();
   const cover = useRef<HTMLDivElement>(null);
   useCoverWipe(cover);
+  const stageFiles = useStageFiles(slug, page);
   // One stage open at a time: the current one, until the client opens another.
   const [openStage, setOpenStage] = useState(() => Math.max(0, (page.current_position ?? 1) - 1));
 
@@ -509,7 +618,15 @@ export function ProjectPage({
         </div>
         {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
         {page.stages.map((_, i) => (
-          <Stage key={i} page={page} index={i} open={i === openStage} onToggle={() => setOpenStage(i === openStage ? -1 : i)} />
+          <Stage
+            key={i}
+            page={page}
+            index={i}
+            open={i === openStage}
+            onToggle={() => setOpenStage(i === openStage ? -1 : i)}
+            files={stageFiles?.find((s) => s.position === i + 1)}
+            slug={slug}
+          />
         ))}
         <footer className="client-footer">{page.office.name}</footer>
       </div>

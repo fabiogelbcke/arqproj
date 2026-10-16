@@ -187,7 +187,8 @@
     "page_locked": "Esta página é protegida por senha.",
     "wrong_page_password": "Senha incorreta. Confira com o escritório.",
     "too_many_attempts": "Muitas tentativas. Tente de novo em 15 minutos.",
-    "password_required": "Defina uma senha para proteger a página."
+    "password_required": "Defina uma senha para proteger a página.",
+    "file_not_found": "Este arquivo não está mais disponível. Recarregue a página."
   },
   "projectStatus": {
     "draft": "Rascunho",
@@ -264,7 +265,6 @@
     "closeAbout": "Fechar explicação",
     "openStage": "Abrir etapa {{title}}",
     "stageOpen": "Etapa aberta: {{title}}",
-    "noFilesYet": "Os arquivos desta etapa aparecerão aqui.",
     "client": "Cliente",
     "projectType": "Tipo de projeto",
     "lastUpdate": "Última atualização",
@@ -299,6 +299,13 @@
     "publish": "Publicar",
     "published": "Publicado. O cliente já pode abrir o link.",
     "password": "Senha",
-    "enter": "Entrar"
+    "enter": "Entrar",
+    "noFiles": "Ainda sem arquivos nesta etapa.",
+    "noFilesShort": "Sem arquivos",
+    "fileCount_one": "{{padded}} arquivo",
+    "fileCount_other": "{{padded}} arquivos",
+    "filesUnavailable": "Não foi possível carregar os arquivos agora. Tente de novo em instantes.",
+    "openFile": "Abrir {{name}}",
+    "downloadFile": "Baixar {{name}}"
   }
 }

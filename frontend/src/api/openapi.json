@@ -986,6 +986,65 @@
         }
       }
     },
+    "/api/pages/{slug}/files": {
+      "get": {
+        "summary": "Page Files",
+        "operationId": "page_files_api_pages__slug__files_get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageFilesOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/pages/{slug}": {
       "get": {
         "summary": "Page",
@@ -1347,7 +1406,8 @@
           "page_locked",
           "wrong_page_password",
           "too_many_attempts",
-          "password_required"
+          "password_required",
+          "file_not_found"
         ],
         "title": "ErrorCode"
       },
@@ -1373,6 +1433,75 @@
           "error"
         ],
         "title": "ErrorOut"
+      },
+      "FileOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Modified At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "size",
+          "modified_at"
+        ],
+        "title": "FileOut"
+      },
+      "GroupOut": {
+        "properties": {
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileOut"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "folder",
+          "files"
+        ],
+        "title": "GroupOut"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1621,6 +1750,22 @@
           "has_project"
         ],
         "title": "OnboardingOut"
+      },
+      "PageFilesOut": {
+        "properties": {
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageFilesOut"
+            },
+            "type": "array",
+            "title": "Stages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stages"
+        ],
+        "title": "PageFilesOut"
       },
       "PageOut": {
         "properties": {
@@ -2059,6 +2204,32 @@
         ],
         "title": "StaffView",
         "description": "Only for the office's signed-in staff: what the staff bar needs."
+      },
+      "StageFilesOut": {
+        "properties": {
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupOut"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "unavailable": {
+            "type": "boolean",
+            "title": "Unavailable",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "position",
+          "groups"
+        ],
+        "title": "StageFilesOut"
       },
       "StageOption": {
         "properties": {

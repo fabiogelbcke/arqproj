@@ -56,6 +56,7 @@ class ErrorCode(StrEnum):
     WRONG_PAGE_PASSWORD = "wrong_page_password"
     TOO_MANY_ATTEMPTS = "too_many_attempts"  # wait 15 minutes
     PASSWORD_REQUIRED = "password_required"  # password access needs a password
+    FILE_NOT_FOUND = "file_not_found"  # moved, deleted, or its link expired: reload
 
 
 class ErrorOut(BaseModel):
