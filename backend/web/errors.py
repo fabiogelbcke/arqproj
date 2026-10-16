@@ -66,11 +66,18 @@ class ErrorOut(BaseModel):
 
 
 class ApiError(Exception):
-    def __init__(self, status_code: int, code: ErrorCode, conflict_name: str | None = None) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        code: ErrorCode,
+        conflict_name: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(code.value)
         self.status_code = status_code
         self.code = code
         self.conflict_name = conflict_name
+        self.headers = headers or {}
 
 
 def documented(*status_codes: int) -> dict:
@@ -91,4 +98,4 @@ async def handle_api_error(_request: Request, error: ApiError) -> JSONResponse:
     body = {"error": error.code.value}
     if error.conflict_name is not None:
         body["conflict_name"] = error.conflict_name
-    return JSONResponse(body, status_code=error.status_code)
+    return JSONResponse(body, status_code=error.status_code, headers=error.headers)
