@@ -92,7 +92,8 @@
     "type": "Project type",
     "stages": "Stages",
     "stagesHint_one": "{{count}} stage ticked. The type's usual stages come ticked; tick or untick as you like.",
-    "stagesHint_other": "{{count}} stages ticked. The type's usual stages come ticked; tick or untick as you like."
+    "stagesHint_other": "{{count}} stages ticked. The type's usual stages come ticked; tick or untick as you like.",
+    "retry": "Try again"
   },
   "cover": {
     "choose": "Choose a photo",

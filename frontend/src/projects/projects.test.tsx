@@ -169,6 +169,22 @@ describe("Novo projeto", () => {
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-123");
   });
 
+  it("if the types fail to load, offers to try again and blocks creating", async () => {
+    let fail = true;
+    api(LOCAL, {
+      "GET /api/project-types": () => (fail ? { status: 503, body: { error: "unexpected" } } : { body: OPTIONS }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    const retry = await within(dialog).findByRole("button", { name: "Tentar de novo" });
+    expect(within(dialog).getByRole("button", { name: "Criar projeto" })).toBeDisabled();
+    fail = false;
+    await userEvent.click(retry);
+    expect(await within(dialog).findByRole("checkbox", { name: "Briefing" })).toBeChecked();
+    expect(within(dialog).getByRole("button", { name: "Criar projeto" })).toBeEnabled();
+  });
+
   it("changing the type ticks its usual stages again", async () => {
     api();
     renderAt("/");

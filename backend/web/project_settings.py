@@ -126,7 +126,7 @@ async def change_project(
     return await _summary(db, tenant, project_id)
 
 
-@router.post("/projects/{project_id}/publish", responses=documented(401, 404, 422))
+@router.post("/projects/{project_id}/publish", responses=documented(401, 404, 409, 422))
 async def publish(
     project_id: uuid.UUID,
     _staff: CurrentStaff = Depends(require_csrf),
@@ -137,11 +137,13 @@ async def publish(
     project page's staff bar). Publishing twice changes nothing."""
     project = await _project(db, project_id)
     if project.status is ProjectStatus.DRAFT:
-        await db.execute(
+        published = await db.execute(
             update(Project)
             .where(Project.id == project.id, Project.status == ProjectStatus.DRAFT)
             .values(status=ProjectStatus.ACTIVE, row_version=Project.row_version + 1)
         )
+        if published.rowcount != 1:  # someone archived it meanwhile
+            raise ApiError(409, ErrorCode.PROJECT_CHANGED)
         await db.commit()
     elif project.status is not ProjectStatus.ACTIVE:
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # completed or archived
