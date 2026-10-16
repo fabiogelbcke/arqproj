@@ -221,8 +221,6 @@ async def set_meeting(
         or ends_at <= datetime.now(UTC)  # already over: the page would hide it at once
     ):
         raise ApiError(422, ErrorCode.INVALID_MEETING)
-    now = datetime.now(UTC)
-    project = await _change(db, project_id, body.row_version, {"last_activity_at": now})
     values = {
         "title": title,
         "starts_at": starts_at,
@@ -231,6 +229,11 @@ async def set_meeting(
         "link": link,
     }
     upcoming = await _next_meeting(db, project_id)
+    if upcoming is not None and all(getattr(upcoming, k) == v for k, v in values.items()):
+        # Saved as it was: nothing to tell the client, and "Atualizado" stays.
+        return Response(status_code=204)
+    now = datetime.now(UTC)
+    project = await _change(db, project_id, body.row_version, {"last_activity_at": now})
     if upcoming is None:
         db.add(Meeting(project_id=project_id, **values))
     else:

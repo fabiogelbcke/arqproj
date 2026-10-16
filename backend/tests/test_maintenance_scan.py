@@ -215,6 +215,18 @@ async def test_meetings_and_notes_are_recorded(client, db_session, owner, folder
     ]
 
 
+async def test_saving_the_meeting_unchanged_records_nothing(client, db_session, owner, folders):
+    from datetime import date, timedelta
+
+    day = (date.today() + timedelta(days=5)).isoformat()
+    meeting = {"title": "Visita", "day": day, "start": "10:00", "location": "Obra"}
+    await call(client, owner, "PUT", "/meeting", **meeting)
+    before = (await events(db_session), await casa(db_session, "last_activity_at"))
+    response = await call(client, owner, "PUT", "/meeting", **meeting)  # Salvar, as it was
+    assert response.status_code == 204
+    assert (await events(db_session), await casa(db_session, "last_activity_at")) == before
+
+
 async def test_a_drafts_changes_are_not_recorded(client, db_session, owner, folders):
     await db_session.execute(text(f"UPDATE projects SET status = 'draft' WHERE id = {CASA}"))
     await call(client, owner, "POST", "/progress", action="advance")
