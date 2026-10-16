@@ -277,10 +277,10 @@ office. So the painel comes next, then the client page once its design settles:
    it run. The checklist item ticks once the email and logo are set.
 2. **P2 Creating a project and the project list** (as built, combined with the
    list): "Novo projeto" asks for the name, client (up to 48 characters), stage
-   template (Padrão, Interiores, Sem etapas, from the reference tables) and the
-   page address, suggested from the name and editable; an address in use names
-   the project that has it. The project starts as a draft with the template's
-   stages and default type. Its folder goes into the office's folder, with one
+   template (Padrão, Interiores, Sem etapas; replaced by the project type and
+   its ticked stages in P3b) and the page address, suggested from the name and
+   editable; an address in use names the project that has it. The project
+   starts as a draft with the template's stages and default type. Its folder goes into the office's folder, with one
    "01 - <stage>" folder per stage in the office's language (a local folder in
    development); all or nothing within the request (A07), with a one-time
    creation key. Needs the office's Drive connected; members can create too.
@@ -321,7 +321,7 @@ project has had, one current, one namespace per office), `project_stages`
 (built-in key or office-written title and explanations), `project_details`
 (built-in key, value stored by type), `meetings` (a list; next by date). Enums
 for status (`draft`/`active`/`completed`/`archived`), access mode, project type,
-stage template, built-in stage and detail key, all translated in
+stage template (removed in P3b), built-in stage and detail key, all translated in
 `backend/i18n`. Migration 0006 isolates every table and grants the app read
 access only. The local seed adds fictional Portuguese projects covering the edge
 cases (draft without stages, completed with a password, changed address,
@@ -346,7 +346,9 @@ texts in Portuguese and English (moved out of `backend/i18n`), replaces the
 CHECKs on the columns that use them with foreign keys, and gives each detail row
 its value type (composite foreign key, so its value column is checked by the
 database). The enums stay as names for the built-in rows; `test_reference_content`
-keeps them and the rows in step. 2.3 Read-only project page at `/{slug}`, after the fresh prototype (A20
+keeps them and the rows in step. Since P3b (migration 0013) the templates are
+gone: `project_type_stages` lists each type's usual stages instead.
+2.3 Read-only project page at `/{slug}`, after the fresh prototype (A20
 revised: React, its own bundle; the server sends preview tags, "not found" for
 drafts and unknown addresses, redirects from old addresses). **As built:**
 `backend/web/pages.py` serves `/{slug}` (the shell from `frontend/client.html`
@@ -381,9 +383,9 @@ projects yet.
 
 ### Slice 3: creating and editing projects
 
-3.1 Office presets (detail fields, stage templates) seeded from the first office.
-3.2 Project creation (name, client, template) with durable Drive provisioning
-and the share-while-empty rule. 3.3 Painel project list with covers and the
+3.1 Office presets (detail fields; each type's default stages, "Etapas padrão")
+seeded from the first office. 3.2 ~~Project creation~~: done in P2/P3b (type and
+ticked stages; within the request, A07). 3.3 Painel project list with covers and the
 generated fallback. 3.4 Edit mode on the project page: description, details,
 meeting. 3.5 Stages: add, rename, reorder, remove, advance, complete. 3.6 Office
 settings and Drive connection in the painel.

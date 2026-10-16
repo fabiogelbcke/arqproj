@@ -92,7 +92,8 @@
     "type": "Tipo de projeto",
     "stages": "Etapas",
     "stagesHint_one": "{{count}} etapa marcada. As etapas usuais do tipo já vêm marcadas; marque ou desmarque à vontade.",
-    "stagesHint_other": "{{count}} etapas marcadas. As etapas usuais do tipo já vêm marcadas; marque ou desmarque à vontade."
+    "stagesHint_other": "{{count}} etapas marcadas. As etapas usuais do tipo já vêm marcadas; marque ou desmarque à vontade.",
+    "retry": "Tentar de novo"
   },
   "cover": {
     "choose": "Escolher uma foto",
