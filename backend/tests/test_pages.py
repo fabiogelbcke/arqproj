@@ -332,3 +332,37 @@ async def test_what_only_staff_see_is_never_stored_by_a_shared_cache(
     client.cookies.clear()
     as_visitor = await client.get("/api/pages/casa-das-oliveiras/cover", headers=ALINEA)
     assert as_visitor.status_code == 404
+
+
+async def test_a_staff_only_meeting_download_is_private(client, db_session, owner):
+    found = await project_id(db_session, "casa-das-oliveiras")
+    await db_session.execute(
+        text(
+            "INSERT INTO meetings (tenant_id, project_id, title, starts_at, ends_at) "
+            "VALUES (:t, :p, 'Visita', now() + interval '1 day', now() + interval '25 hours')"
+        ),
+        {"t": await tenant_id(db_session, "alinea"), "p": found},
+    )
+    response = await client.get("/api/pages/casa-das-oliveiras/meeting.ics", headers=ALINEA)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "private, no-store"
+
+
+async def test_a_publish_that_loses_a_race_says_so(client, db_session, owner, monkeypatch):
+    """Archived by someone else between the check and the change: not "published"."""
+    from backend.web import project_settings
+
+    found = await project_id(db_session, "casa-das-oliveiras")
+    real = project_settings._project
+
+    async def read_then_archived(db, project_id):
+        project = await real(db, project_id)
+        await db.execute(
+            text("UPDATE projects SET status = 'archived', archived_from = 'draft' WHERE id = :p"),
+            {"p": found},
+        )
+        return project
+
+    monkeypatch.setattr(project_settings, "_project", read_then_archived)
+    response = await client.post(f"/api/projects/{found}/publish", headers=owner)
+    assert (response.status_code, response.json()["error"]) == (409, "project_changed")
