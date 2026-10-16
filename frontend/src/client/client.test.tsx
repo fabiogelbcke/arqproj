@@ -392,6 +392,101 @@ describe("edit mode", () => {
     );
   });
 
+  describe("uploads and hiding (A31)", () => {
+    const FILES = {
+      stages: [
+        { position: 1, groups: [] },
+        {
+          position: 2,
+          groups: [{ folder: null, files: [{ key: "k1", name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z" }] }],
+        },
+        { position: 3, groups: [] },
+      ],
+    };
+
+    // The browser's own PUT to the upload address: XMLHttpRequest, for progress.
+    class FakeXhr {
+      static sent: { method: string; url: string; body: unknown }[] = [];
+      upload: { onprogress?: (event: { lengthComputable: boolean; loaded: number; total: number }) => void } = {};
+      status = 0;
+      onload?: () => void;
+      onerror?: () => void;
+      private method = "";
+      private url = "";
+      open(method: string, url: string) {
+        this.method = method;
+        this.url = url;
+      }
+      setRequestHeader() {}
+      send(body: File) {
+        FakeXhr.sent.push({ method: this.method, url: this.url, body });
+        this.upload.onprogress?.({ lengthComputable: true, loaded: body.size, total: body.size });
+        this.status = 200;
+        setTimeout(() => this.onload?.());
+      }
+    }
+
+    function asEditor(extra: Parameters<typeof fakeApi>[0] = {}) {
+      FakeXhr.sent = [];
+      vi.stubGlobal("XMLHttpRequest", FakeXhr);
+      return asStaff({ "GET /api/pages/casa-jardim/files": () => ({ body: FILES }), ...extra });
+    }
+
+    it("sends a chosen file straight to the address the app opened, then lists again", async () => {
+      const { sent } = asEditor({
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+      });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      const file = new File(["%PDF"], "Corte.pdf", { type: "application/pdf" });
+      await userEvent.upload(await within(stage).findByLabelText("escolha no computador"), file);
+      expect(await screen.findByText("Arquivo enviado.")).toBeInTheDocument();
+      expect(sent.find((r) => r.method === "POST")?.body).toEqual({ name: "Corte.pdf", size: 4, mime_type: "application/pdf" });
+      expect(FakeXhr.sent).toEqual([{ method: "PUT", url: "https://upload.example/s1", body: file }]);
+      await waitFor(() =>
+        expect(sent.filter((r) => r.method === "GET" && r.path === "/api/pages/casa-jardim/files").length).toBe(2),
+      );
+    });
+
+    it("says a file over 100 MB is too large, without opening an upload", async () => {
+      const { sent } = asEditor();
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      const big = new File(["x"], "Video.mp4", { type: "video/mp4" });
+      Object.defineProperty(big, "size", { value: 101 * 1024 * 1024 });
+      await userEvent.upload(await within(stage).findByLabelText("escolha no computador"), big);
+      expect(await within(stage).findByRole("alert")).toHaveTextContent("até 100 MB");
+      expect(sent.some((r) => r.method === "POST")).toBe(false);
+      expect(FakeXhr.sent).toEqual([]);
+    });
+
+    it("hides a file from the client from its menu", async () => {
+      const { sent } = asEditor({ "POST /api/pages/casa-jardim/files/k1/hide": () => ({ status: 204 }) });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar do cliente/ }));
+      expect(await screen.findByText(/não aparece mais para o cliente/)).toBeInTheDocument();
+      expect(sent.some((r) => r.method === "POST" && r.path.endsWith("/k1/hide"))).toBe(true);
+    });
+
+    it("explains how to hide a file put straight into Drive", async () => {
+      asEditor({
+        "POST /api/pages/casa-jardim/files/k1/hide": () => ({ status: 409, body: { error: "file_not_ours" } }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar do cliente/ }));
+      expect(await screen.findByText(/renomeie-o lá começando com _/)).toBeInTheDocument();
+    });
+
+    it("shows neither to someone viewing as the client", async () => {
+      asEditor();
+      await screen.findByRole("link", { name: "Abrir Planta.pdf" });
+      expect(screen.queryByLabelText("escolha no computador")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Ações para Planta.pdf" })).toBeNull();
+    });
+  });
+
   it("says when someone else changed the project meanwhile", async () => {
     asStaff({ "PUT /api/projects/p-1/stages/2/notes": () => ({ status: 409, body: { error: "project_changed" } }) });
     await startEditing();

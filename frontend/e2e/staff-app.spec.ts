@@ -272,6 +272,44 @@ test("the client page lists each stage's files, with subfolders as groups", asyn
   await expect(first.getByText("Medidas do terreno.pdf")).toBeVisible();
 });
 
+test("staff upload a file into a stage, the client sees it, and staff hide it", async ({ page, browser }) => {
+  const link = invite("arquivos@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await page.getByRole("heading", { name: "Projetos" }).waitFor();
+
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: /01\s*Briefing/ }).click();
+  const briefing = page.locator("#stage-0");
+  await briefing.getByLabel("escolha no computador").setInputFiles({
+    name: "Levantamento fotográfico.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 fotos"),
+  });
+  await expect(page.getByText("Arquivo enviado.")).toBeVisible();
+  await expect(briefing.getByText("Levantamento fotográfico.pdf")).toBeVisible();
+
+  const client = await browser.newPage();
+  await client.goto("/casa-jardim");
+  await client.getByRole("button", { name: /01\s*Briefing/ }).click();
+  await expect(client.locator("#stage-0").getByText("Levantamento fotográfico.pdf")).toBeVisible();
+
+  await briefing.getByRole("button", { name: "Ações para Levantamento fotográfico.pdf" }).click();
+  await page.getByRole("menuitem", { name: /Ocultar do cliente/ }).click();
+  await expect(page.getByText(/não aparece mais para o cliente/)).toBeVisible();
+  await client.close();
+  // A new visitor (a returning one may keep the list up to two minutes, A10).
+  const later = await browser.newPage();
+  await later.goto("/casa-jardim");
+  await later.getByRole("button", { name: /01\s*Briefing/ }).click();
+  await expect(later.locator("#stage-0").getByText("Programa de necessidades.pdf")).toBeVisible();
+  await expect(later.locator("#stage-0").getByText("Levantamento fotográfico.pdf")).toHaveCount(0);
+  await later.close();
+});
+
 test("staff edit the page in place and the client sees it", async ({ page, browser }) => {
   const link = invite("editar@alinea.example");
   await page.goto(link);

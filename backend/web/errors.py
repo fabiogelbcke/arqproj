@@ -61,6 +61,10 @@ class ErrorCode(StrEnum):
     INVALID_MEETING = "invalid_meeting"  # title 1-40, ends after it starts, web link
     FILES_UNAVAILABLE = "files_unavailable"  # Drive down or throttled: try again
     FILE_NOT_FOUND = "file_not_found"  # moved, deleted, or its link expired: reload
+    FILE_TOO_LARGE = "file_too_large"  # over the upload limit (A31)
+    INVALID_FILE_NAME = "invalid_file_name"  # blank after cleaning
+    STAGE_HAS_NO_FOLDER = "stage_has_no_folder"  # nowhere in Drive to put the file
+    FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
 
 
 class ErrorOut(BaseModel):

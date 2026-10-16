@@ -45,3 +45,10 @@
 .add-stage { width: min(560px, 100%); }
 .add-stage .field > span { font-size: 14px; font-weight: 500; }
 .add-stage__row { display: flex; gap: 8px; }
+
+/* Edit mode: uploads under the drop area, one row each until it is sent (A31). */
+.uploads { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13px; color: var(--brand-ink); }
+.uploads li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.uploads__name { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.uploads progress { flex: 1 1 140px; height: 4px; accent-color: var(--mark); }
+.uploads__failed [role="alert"] { flex-basis: 100%; color: var(--danger, #9b3d1d); }

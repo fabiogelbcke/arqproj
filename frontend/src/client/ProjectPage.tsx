@@ -15,6 +15,8 @@ const NotesEditor = lazy(() => import("./Editors").then((m) => ({ default: m.Not
 const AddStage = lazy(() => import("./StageEditing").then((m) => ({ default: m.AddStage })));
 const ProgressRail = lazy(() => import("./StageEditing").then((m) => ({ default: m.ProgressRail })));
 const StageControls = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageControls })));
+const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
+const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
 import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -59,7 +61,17 @@ function fileSize(bytes: number | null | undefined, locale: string): string {
   return `${value.toLocaleString(locale, { maximumFractionDigits: unit ? 1 : 0 })} ${units[unit]}`;
 }
 
-function FileCard({ file, slug, timeZone }: { file: FileItem; slug: string; timeZone: string }) {
+function FileCard({
+  file,
+  slug,
+  timeZone,
+  menu,
+}: {
+  file: FileItem;
+  slug: string;
+  timeZone: string;
+  menu?: ReactNode; // edit mode: the file's "⋯"
+}) {
   const { t, i18n } = useTranslation();
   // Only images and PDFs have previews (Drive's); other files show their type.
   const [thumb, setThumb] = useState<"thumb" | "original" | "none">(file.kind === "other" ? "none" : "thumb");
@@ -103,6 +115,7 @@ function FileCard({ file, slug, timeZone }: { file: FileItem; slug: string; time
           </span>
         </span>
       </a>
+      {menu}
     </div>
   );
 }
@@ -112,11 +125,13 @@ function StageFilesList({
   reference,
   slug,
   timeZone,
+  fileMenu,
 }: {
   files: StageFiles | undefined;
   reference: string | null;
   slug: string;
   timeZone: string;
+  fileMenu?: (file: FileItem) => ReactNode;
 }) {
   const { t } = useTranslation();
   if (!files) return null; // still loading
@@ -135,7 +150,7 @@ function StageFilesList({
           {group.folder && <h3 className="file-group__title">{group.folder}</h3>}
           <div className="files" data-view="grid">
             {group.files.map((file) => (
-              <FileCard key={file.key} file={file} slug={slug} timeZone={timeZone} />
+              <FileCard key={file.key} file={file} slug={slug} timeZone={timeZone} menu={fileMenu?.(file)} />
             ))}
           </div>
         </div>
@@ -399,6 +414,8 @@ function Stage({
   slug,
   editor,
   controls,
+  uploads,
+  fileMenu,
 }: {
   page: Page;
   index: number;
@@ -409,6 +426,8 @@ function Stage({
   slug: string;
   editor?: { open: boolean; onOpen: () => void; render: () => ReactNode };
   controls?: ReactNode;
+  uploads?: ReactNode; // edit mode: the drop area
+  fileMenu?: (file: FileItem) => ReactNode;
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -497,7 +516,14 @@ function Stage({
               </button>
             )
           )}
-          <StageFilesList files={files} reference={reference} slug={slug} timeZone={page.timezone} />
+          <StageFilesList
+            files={files}
+            reference={reference}
+            slug={slug}
+            timeZone={page.timezone}
+            fileMenu={fileMenu}
+          />
+          {uploads}
         </div>
       </div>
     </section>
@@ -759,6 +785,27 @@ export function ProjectPage({
             onToggle={() => setOpenStage(i === openStage ? -1 : i)}
             {...filesFor(stageFiles, i + 1)}
             slug={slug}
+            uploads={
+              canEdit ? (
+                <Suspense fallback={null}>
+                  <StageDrop
+                    staff={staff!}
+                    position={i + 1}
+                    folder={`${pad(i + 1)} - ${page.stages[i]!.title}`}
+                    onChanged={() => onChanged?.()}
+                  />
+                </Suspense>
+              ) : undefined
+            }
+            fileMenu={
+              canEdit
+                ? (file) => (
+                    <Suspense fallback={null}>
+                      <FileMenu slug={slug} file={file} onChanged={() => onChanged?.()} />
+                    </Suspense>
+                  )
+                : undefined
+            }
             controls={
               canEdit ? (
                 <Suspense fallback={null}>

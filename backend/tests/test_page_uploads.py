@@ -1,0 +1,265 @@
+"""Uploads from the project page's edit mode, and "Ocultar do cliente" (A31)."""
+
+import pytest
+from sqlalchemy import text
+
+from backend.identity.models import Role
+from backend.projects import creation
+from backend.storage.google_connect import ConnectError, ConnectProblem
+from backend.tests import test_office
+from backend.tests.test_office import ALINEA, NORTE, sign_in_as
+from backend.web import page_uploads
+
+owner = test_office.owner  # fixtures
+
+pytestmark = pytest.mark.anyio
+
+PDF = b"%PDF-1.4 planta"
+PDF_SIZE = len(PDF)
+
+
+@pytest.fixture
+def folders(tmp_path):
+    """Casa Jardim's first two stage folders, as the seed binds them."""
+    briefing = tmp_path / "Casa Jardim" / "01 - Briefing"
+    briefing.mkdir(parents=True)
+    (briefing / "Programa.pdf").write_bytes(PDF)
+    (tmp_path / "Casa Jardim" / "02 - Conceito").mkdir()
+    return tmp_path / "Casa Jardim"
+
+
+async def project_id(client):
+    return (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()["staff"][
+        "project_id"
+    ]
+
+
+async def start(client, headers, stage=1, name="Planta baixa.pdf", size=PDF_SIZE, **extra):
+    pid = await project_id(client)
+    return await client.post(
+        f"/api/projects/{pid}/stages/{stage}/uploads",
+        json={"name": name, "size": size, "mime_type": "application/pdf", **extra},
+        headers=headers,
+    )
+
+
+async def send(client, response, content=PDF):
+    return await client.put(
+        response.json()["upload_url"], content=content, headers={"host": ALINEA["host"]}
+    )
+
+
+async def stage_files(client, position=1):
+    stages = (await client.get("/api/pages/casa-jardim/files", headers=ALINEA)).json()["stages"]
+    groups = stages[position - 1]["groups"]
+    return [f["name"] for g in groups for f in g["files"]]
+
+
+async def test_a_staff_member_uploads_into_a_stage_and_the_page_shows_it(client, owner, folders):
+    opened = await start(client, owner)
+    assert opened.status_code == 200, opened.text
+    sent = await send(client, opened)
+    assert sent.status_code == 201
+    assert (folders / "01 - Briefing" / "Planta baixa.pdf").read_bytes() == PDF
+    assert "Planta baixa.pdf" in await stage_files(client)
+
+
+async def test_members_upload_too(client, db_session, owner, folders):
+    member = await sign_in_as(client, db_session, "membro@alinea.example", Role.MEMBER)
+    assert (await start(client, member)).status_code == 200
+
+
+async def test_a_name_already_there_is_kept_beside_it(client, owner, folders):
+    await send(client, await start(client, owner, name="Programa.pdf"))
+    assert sorted(await stage_files(client)) == ["Programa (2).pdf", "Programa.pdf"]
+
+
+@pytest.mark.parametrize(
+    ("changes", "status", "error"),
+    [
+        ({"size": page_uploads.UPLOAD_MAX + 1}, 422, "file_too_large"),
+        ({"name": " \t "}, 422, "invalid_file_name"),
+        ({"stage": 6}, 409, "stage_has_no_folder"),  # the seed binds five folders
+        ({"stage": 42}, 404, "project_not_found"),
+    ],
+)
+async def test_an_upload_that_cant_go_is_refused_before_anything_is_sent(
+    client, owner, folders, changes, status, error
+):
+    response = await start(client, owner, **changes)
+    assert (response.status_code, response.json()["error"]) == (status, error)
+
+
+async def test_a_name_never_becomes_a_path(client, owner, folders):
+    await send(client, await start(client, owner, name="../../Fora.pdf"))
+    assert (folders / "01 - Briefing" / "..-..-Fora.pdf").exists()
+    assert not (folders.parent / "Fora.pdf").exists()
+
+
+async def test_an_archived_project_takes_no_uploads(client, db_session, owner, folders):
+    await db_session.execute(
+        text(
+            "UPDATE projects SET status = 'archived', archived_from = 'active' WHERE name = "
+            "'Casa Jardim' AND tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
+        )
+    )
+    response = await start(client, owner)
+    assert (response.status_code, response.json()["error"]) == (409, "project_archived")
+
+
+async def test_only_staff_with_their_token_open_uploads(client, db_session, owner, folders):
+    pid = await project_id(client)
+    url = f"/api/projects/{pid}/stages/1/uploads"
+    body = {"name": "x.pdf", "size": 3}
+    assert (await client.post(url, json=body, headers=ALINEA)).status_code in (401, 403)
+    norte = await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
+    response = await client.post(url, json=body, headers=norte)
+    assert (response.status_code, response.json()["error"]) == (404, "project_not_found")
+
+
+# -- the local stand-in for Google's upload session -----------------------------------
+
+
+async def test_more_or_fewer_bytes_than_declared_leave_nothing(client, owner, folders):
+    before = sorted(p.name for p in (folders / "01 - Briefing").iterdir())
+    too_many = await send(client, await start(client, owner), PDF + b"more")
+    assert (too_many.status_code, too_many.json()["error"]) == (413, "file_too_large")
+    too_few = await send(client, await start(client, owner), PDF[:3])
+    assert too_few.status_code == 400
+    assert sorted(p.name for p in (folders / "01 - Briefing").iterdir()) == before
+
+
+async def test_a_forged_or_another_offices_upload_address_takes_nothing(client, owner, folders):
+    opened = await start(client, owner)
+    url = opened.json()["upload_url"]
+    forged = await client.put(url[:-4] + "AAAA", content=PDF, headers=ALINEA)
+    assert forged.status_code == 404
+    elsewhere = await client.put(url, content=PDF, headers=NORTE)
+    assert elsewhere.status_code == 404
+    assert not (folders / "01 - Briefing" / "Planta baixa.pdf").exists()
+
+
+async def test_the_local_stand_in_never_runs_when_deployed(app, client, owner, folders):
+    from backend.settings import Environment
+
+    opened = await start(client, owner)
+    app.state.settings = app.state.settings.model_copy(update={"environment": Environment.STAGING})
+    assert (await send(client, opened)).status_code == 404
+    assert not (folders / "01 - Briefing" / "Planta baixa.pdf").exists()
+
+
+# -- Google Drive ---------------------------------------------------------------------
+
+
+class FakeWriter:
+    def __init__(self, fails=False):
+        self.calls = []
+        self.fails = fails
+
+    async def start_upload(self, name, parent, size, mime_type, origin):
+        if self.fails:
+            raise ConnectError(ConnectProblem.UNAVAILABLE, "503 from Google")
+        self.calls.append((name, parent, size, mime_type, origin))
+        return "https://www.googleapis.com/upload/drive/v3/files?upload_id=abc"
+
+
+async def test_on_drive_the_browser_gets_googles_session_for_its_own_origin(
+    client, owner, folders, monkeypatch
+):
+    writer = FakeWriter()
+
+    async def drive(_request, _db):
+        return writer, "root"
+
+    monkeypatch.setattr(page_uploads, "_folders", drive)
+    pid = await project_id(client)
+    response = await client.post(
+        f"/api/projects/{pid}/stages/1/uploads",
+        json={"name": "Planta.pdf", "size": 1234, "mime_type": "application/pdf"},
+        headers=owner | {"origin": "http://alinea.localhost"},
+    )
+    assert response.json()["upload_url"].startswith("https://www.googleapis.com/upload/")
+    assert writer.calls == [
+        (
+            "Planta.pdf",
+            "Casa Jardim/01 - Briefing",
+            1234,
+            "application/pdf",
+            "http://alinea.localhost",
+        )
+    ]
+
+
+async def test_drive_failing_to_open_an_upload_says_try_again_and_logs_it(
+    client, owner, folders, monkeypatch, caplog
+):
+    async def drive(_request, _db):
+        return FakeWriter(fails=True), "root"
+
+    monkeypatch.setattr(page_uploads, "_folders", drive)
+    response = await start(client, owner)
+    assert (response.status_code, response.json()["error"]) == (503, "drive_connect_failed")
+    logged = [r.getMessage() for r in caplog.records if r.levelname == "ERROR"]
+    assert any("opening an upload failed" in m and "503 from Google" in m for m in logged)
+
+
+async def test_the_writer_opens_a_resumable_upload_with_the_size_fixed():
+    import httpx2
+
+    from backend.storage.google_connect import DriveWriter
+
+    seen = {}
+
+    def google(request):
+        seen.update(
+            params=dict(request.url.params),
+            length=request.headers["x-upload-content-length"],
+            origin=request.headers["origin"],
+            body=request.content,
+        )
+        return httpx2.Response(200, headers={"Location": "https://upload.example/session"})
+
+    http = httpx2.AsyncClient(transport=httpx2.MockTransport(google))
+    url = await DriveWriter(http, "token").start_upload(
+        "Planta.pdf", "folder1", 99, "application/pdf", "https://alinea.example"
+    )
+    assert url == "https://upload.example/session"
+    assert seen["params"]["uploadType"] == "resumable"
+    assert (seen["length"], seen["origin"]) == ("99", "https://alinea.example")
+    assert b'"parents": ["folder1"]' in seen["body"] or b'"parents":["folder1"]' in seen["body"]
+
+
+# -- Ocultar do cliente ---------------------------------------------------------------
+
+
+async def file_key(client, name="Programa.pdf"):
+    stages = (await client.get("/api/pages/casa-jardim/files", headers=ALINEA)).json()["stages"]
+    return next(f["key"] for g in stages[0]["groups"] for f in g["files"] if f["name"] == name)
+
+
+async def test_hiding_renames_with_an_underscore_and_the_page_stops_showing_it(
+    client, owner, folders
+):
+    key = await file_key(client)
+    response = await client.post(f"/api/pages/casa-jardim/files/{key}/hide", headers=owner)
+    assert response.status_code == 204, response.text
+    assert (folders / "01 - Briefing" / "_Programa.pdf").exists()  # still in Drive
+    assert "Programa.pdf" not in await stage_files(client)
+
+
+async def test_a_file_put_straight_into_drive_is_hidden_there(client, owner, folders, monkeypatch):
+    async def not_ours(self, item_id):
+        return False  # drive.file: the grant sees only what the app created
+
+    monkeypatch.setattr(creation.LocalFolders, "can_rename", not_ours)
+    key = await file_key(client)
+    response = await client.post(f"/api/pages/casa-jardim/files/{key}/hide", headers=owner)
+    assert (response.status_code, response.json()["error"]) == (409, "file_not_ours")
+    assert (folders / "01 - Briefing" / "Programa.pdf").exists()
+
+
+async def test_only_staff_hide_files(client, owner, folders):
+    key = await file_key(client)
+    response = await client.post(f"/api/pages/casa-jardim/files/{key}/hide", headers=ALINEA)
+    assert response.status_code in (401, 403)
+    assert (folders / "01 - Briefing" / "Programa.pdf").exists()

@@ -204,6 +204,32 @@ class DriveWriter:
         )
         return response.json()["id"]
 
+    async def can_rename(self, item_id: str) -> bool:
+        """The grant (drive.file) reaches only what the app created."""
+        return await self.can_open(item_id)
+
+    async def start_upload(
+        self, name: str, parent: str, size: int, mime_type: str, origin: str
+    ) -> str:
+        """Open a resumable upload of one file into `parent`, the size fixed now;
+        returns the session's address, where the browser sends the bytes itself
+        (Google answers it with CORS for `origin`). The file never passes through
+        the app (A31)."""
+        response = await self._call(
+            "POST",
+            f"{UPLOAD}/files",
+            ConnectProblem.FOLDER_FAILED,
+            params={"uploadType": "resumable", "supportsAllDrives": "true", "fields": "id"},
+            json={"name": name, "parents": [parent]},
+            headers=self._headers
+            | {
+                "X-Upload-Content-Type": mime_type,
+                "X-Upload-Content-Length": str(size),
+                "Origin": origin,
+            },
+        )
+        return response.headers["Location"]
+
     async def name_of(self, item_id: str) -> str:
         response = await self._call(
             "GET",
