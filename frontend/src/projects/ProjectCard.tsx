@@ -70,7 +70,12 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
         </svg>
       </button>
       <div className={styles.identity}>
-        <h3 className={styles.name}>{project.name}</h3>
+        <h3 className={styles.name}>
+          {/* The whole card opens the client's page (the pencil stays on top). */}
+          <a className={styles.cardLink} href={`/${project.slug}`}>
+            {project.name}
+          </a>
+        </h3>
         <p className={styles.client}>
           <span>{project.client_name}</span>
           <span>{project.project_type_label}</span>

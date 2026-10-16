@@ -236,6 +236,27 @@ export interface paths {
         patch: operations["change_project_api_projects__project_id__patch"];
         trace?: never;
     };
+    "/api/projects/{project_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish
+         * @description A draft goes live: its page opens to anyone with the link (A24: from the
+         *     project page's staff bar). Publishing twice changes nothing.
+         */
+        post: operations["publish_api_projects__project_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/cover": {
         parameters: {
             query?: never;
@@ -469,6 +490,7 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageOut"][];
             next_meeting: components["schemas"]["MeetingOut"] | null;
+            staff?: components["schemas"]["StaffView"] | null;
         };
         /** ProjectChange */
         ProjectChange: {
@@ -557,6 +579,18 @@ export interface components {
          * @enum {string}
          */
         Role: "owner" | "member";
+        /**
+         * StaffView
+         * @description Only for the office's signed-in staff: what the staff bar needs.
+         */
+        StaffView: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            status: components["schemas"]["ProjectStatus"];
+        };
         /** StageOption */
         StageOption: {
             /** Key */
@@ -1302,6 +1336,55 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    publish_api_projects__project_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectSummary"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

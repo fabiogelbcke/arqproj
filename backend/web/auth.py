@@ -115,6 +115,18 @@ async def current_staff(
     return CurrentStaff(user.id, user.email, user.name, user.role, row.id, row.csrf_token)
 
 
+async def optional_staff(
+    request: Request, response: Response, db: AsyncSession = Depends(get_tenant_session)
+) -> CurrentStaff | None:
+    """The signed-in staff member, or None for anyone else (public pages)."""
+    if not request.cookies.get(COOKIE):
+        return None
+    try:
+        return await current_staff(request, response, db)
+    except ApiError:
+        return None
+
+
 async def require_csrf(
     request: Request, staff: CurrentStaff = Depends(current_staff)
 ) -> CurrentStaff:

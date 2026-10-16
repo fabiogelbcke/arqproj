@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { api, call } from "../api/client";
+import { Toaster, toast } from "../ui/Toast";
 import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -20,8 +22,10 @@ function useNarrow(): boolean {
   return narrow;
 }
 
-export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" }) {
+export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left" }) {
   const paths = {
+    link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
+    left: "M15 6l-6 6 6 6",
     down: "M6 9l6 6 6-6",
     up: "M6 15l6-6 6 6",
     x: "M6 6l12 12M18 6L6 18",
@@ -333,6 +337,69 @@ function Stage({
   );
 }
 
+/** For the office's signed-in staff only (the prototype's dock): back to the
+ *  painel, the page's status, copy its link, and publish a draft. */
+function StaffBar({ page, ready, onPublished }: { page: Page; ready: boolean; onPublished: () => void }) {
+  const { t, i18n } = useTranslation();
+  const [publishing, setPublishing] = useState(false);
+  const staff = page.staff!;
+  const draft = staff.status === "draft";
+  return (
+    <nav className="dock" aria-label={t("page.staffBar")}>
+      <a className="b" href="/painel/">
+        <Icon name="left" />
+        {t("page.backToPainel")}
+      </a>
+      <span className="dock__sep" />
+      <span className="dock__title">
+        {page.name}
+        <small>{draft ? t("page.draftNote") : t("page.publishedNote")}</small>
+      </span>
+      <button
+        className="iconbtn"
+        type="button"
+        aria-label={t("page.copyLink")}
+        title={t("page.copyLink")}
+        onClick={() => {
+          const link = window.location.origin + window.location.pathname;
+          navigator.clipboard?.writeText(link).then(
+            () => toast(t(draft ? "page.linkCopiedDraft" : "page.linkCopied")),
+            () => toast(link),
+          );
+        }}
+      >
+        <Icon name="link" />
+      </button>
+      {draft && (
+        <button
+          className="b b--primary b--small"
+          type="button"
+          disabled={publishing || !ready}
+          onClick={async () => {
+            setPublishing(true);
+            try {
+              await call(
+                api.POST("/api/projects/{project_id}/publish", { params: { path: { project_id: staff.project_id } } }),
+              );
+              toast(t("page.published"));
+              onPublished();
+            } catch (failure) {
+              const code = (failure as { code?: string }).code ?? "unexpected";
+              const reference = (failure as { requestId?: string | null }).requestId;
+              const message = i18n.exists(`errors.${code}`) ? t(`errors.${code}`) : t("errors.unexpected");
+              toast(reference ? `${message} ${t("errors.reference", { id: reference })}` : message);
+            } finally {
+              setPublishing(false);
+            }
+          }}
+        >
+          {t("page.publish")}
+        </button>
+      )}
+    </nav>
+  );
+}
+
 /** The cover shrinks away as the page scrolls (prototype), unless motion is reduced. */
 function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
@@ -373,7 +440,17 @@ function Title({ name }: { name: string }) {
   );
 }
 
-export function ProjectPage({ page, slug }: { page: Page; slug: string }) {
+export function ProjectPage({
+  page,
+  slug,
+  ready = false,
+  onChanged,
+}: {
+  page: Page;
+  slug: string;
+  ready?: boolean; // the staff session's CSRF token is in hand
+  onChanged?: () => void;
+}) {
   const { t } = useTranslation();
   const narrow = useNarrow();
   const cover = useRef<HTMLDivElement>(null);
@@ -436,6 +513,8 @@ export function ProjectPage({ page, slug }: { page: Page; slug: string }) {
         ))}
         <footer className="client-footer">{page.office.name}</footer>
       </div>
+      {page.staff && <StaffBar page={page} ready={ready} onPublished={() => onChanged?.()} />}
+      <Toaster />
     </div>
   );
 }

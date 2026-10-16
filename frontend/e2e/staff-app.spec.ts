@@ -194,3 +194,32 @@ test("the client page: content, redirects, not found and protected", async ({ pa
   await expect(page.getByRole("heading", { name: "Página protegida" })).toBeVisible();
   await expect(page.getByText("Mantiqueira")).toHaveCount(0);
 });
+
+test("staff open a draft's page from its card, publish it, and clients can see it", async ({ page, browser }) => {
+  const link = invite("publicar@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+
+  await page.getByRole("link", { name: "Casa das Oliveiras" }).click();
+  await expect(page).toHaveURL(/\/casa-das-oliveiras$/);
+  const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
+  await expect(bar).toContainText("Rascunho, só você vê");
+
+  // A visitor (no session) can't see the draft yet.
+  const visitor = await browser.newPage();
+  expect((await visitor.goto("/casa-das-oliveiras"))?.status()).toBe(404);
+
+  await bar.getByRole("button", { name: "Publicar" }).click();
+  await expect(page.getByText("Publicado. O cliente já pode abrir o link.")).toBeVisible();
+  await expect(bar).toContainText("Publicado");
+
+  expect((await visitor.goto("/casa-das-oliveiras"))?.status()).toBe(200);
+  await expect(visitor.getByRole("heading", { level: 1, name: "Casa das Oliveiras" })).toBeVisible();
+  await expect(visitor.getByRole("navigation", { name: "Ferramentas do escritório" })).toHaveCount(0);
+
+  await bar.getByRole("link", { name: "Painel" }).click();
+  await expect(page.getByRole("heading", { name: "Projetos" })).toBeVisible();
+  await visitor.close();
+});

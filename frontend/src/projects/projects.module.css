@@ -115,6 +115,10 @@
 }
 
 .identity { min-width: 0; }
+.cardLink { color: inherit; text-decoration: none; }
+.cardLink::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.cardLink:focus-visible { outline: none; }
+.card:has(.cardLink:focus-visible) { outline: 2px solid var(--focus); outline-offset: 16px; }
 .name {
   margin: 0; font: 400 clamp(17px, 1.7vw, 23px)/1.15 var(--display-font); overflow-wrap: anywhere;
 }

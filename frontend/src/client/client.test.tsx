@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -51,7 +51,7 @@ describe("the client page", () => {
     expect(screen.getByText("Medidas conferidas.")).toBeVisible(); // stage 2 is current
     expect(screen.getByText("1.240 m²")).toBeInTheDocument();
     expect(screen.getByText("15/10/2026")).toBeInTheDocument(); // the office's day
-    expect(document.title).toBe("Casa Jardim · Alinea");
+    await waitFor(() => expect(document.title).toBe("Casa Jardim · Alinea")); // set after drawing
   });
 
   it("explains a stage in the project type's words", async () => {
@@ -87,6 +87,39 @@ describe("the client page", () => {
     });
     expect(await screen.findByRole("heading", { name: "Algo deu errado. Tente de novo em instantes." })).toBeInTheDocument();
     expect(screen.queryByText(/Traceback/)).toBeNull();
+  });
+});
+
+describe("the staff bar", () => {
+  it("is only there for the office's staff", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    await screen.findByRole("heading", { level: 1, name: "Casa Jardim" });
+    expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
+  });
+
+  it("publishes a draft, with the CSRF token, and shows it as published", async () => {
+    const draft = { ...PAGE, staff: { project_id: "p-1", status: "draft" as const } };
+    let published = false;
+    window.history.pushState({}, "", "/casa-jardim");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: published ? { ...draft, staff: { project_id: "p-1", status: "active" } } : draft,
+      }),
+      "POST /api/projects/p-1/publish": () => {
+        published = true;
+        return { body: {} };
+      },
+    });
+    render(<ClientApp />);
+    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    expect(within(bar).getByText("Rascunho, só você vê")).toBeInTheDocument();
+    await userEvent.click(within(bar).getByRole("button", { name: "Publicar" }));
+    expect(await screen.findByText("Publicado. O cliente já pode abrir o link.")).toBeInTheDocument();
+    expect(await within(bar).findByText("Publicado")).toBeInTheDocument();
+    expect(within(bar).queryByRole("button", { name: "Publicar" })).toBeNull();
+    expect(sent.find((r) => r.method === "POST")?.headers.get("X-CSRF-Token")).toBe("csrf-9");
   });
 });
 

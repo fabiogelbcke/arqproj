@@ -179,12 +179,14 @@ describe("the Projeto dialog", () => {
 });
 
 describe("the card", () => {
-  it("marks drafts on the photo, and the title opens nothing", async () => {
+  it("marks drafts on the photo, and opens the client's page", async () => {
     api({ "GET /api/projects": () => ({ body: [{ ...CASA, status: "draft" }] }) });
     renderAt("/");
     const card = await screen.findByTestId("project-card");
     expect(within(card).getByText("Rascunho")).toBeInTheDocument();
     expect(within(card).getByRole("heading", { name: "Casa Jardim" })).toBeInTheDocument();
     expect(within(card).getAllByRole("button")).toHaveLength(1); // only the pencil
+    // The card opens the client's page.
+    expect(within(card).getByRole("link", { name: "Casa Jardim" })).toHaveAttribute("href", "/casa-jardim");
   });
 });
