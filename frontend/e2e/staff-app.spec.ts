@@ -223,3 +223,33 @@ test("staff open a draft's page from its card, publish it, and clients can see i
   await expect(page.getByRole("heading", { name: "Projetos" })).toBeVisible();
   await visitor.close();
 });
+
+test("staff protect a page with a password; a client unlocks it once", async ({ page, browser }) => {
+  const link = invite("senha@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+
+  await page.getByRole("button", { name: "Editar o projeto Apartamento Atlântico — Copacabana" }).click();
+  const settings = page.getByRole("dialog", { name: "Projeto" });
+  await settings.getByText("Com senha", { exact: true }).click();
+  await settings.getByLabel(/^Senha/).fill("praia-123");
+  await settings.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Salvo.")).toBeVisible();
+
+  const client = await browser.newPage();
+  await client.goto("/apartamento-atlantico");
+  await expect(client.getByRole("heading", { name: "Página protegida" })).toBeVisible();
+  await expect(client.getByText("Copacabana")).toHaveCount(0);
+  await client.getByLabel("Senha").fill("errada");
+  await client.getByRole("button", { name: "Entrar" }).click();
+  await expect(client.getByRole("alert")).toContainText("Senha incorreta");
+  await client.getByLabel("Senha").fill("praia-123");
+  await client.getByRole("button", { name: "Entrar" }).click();
+  await expect(client.getByRole("heading", { level: 1, name: "Apartamento Atlântico — Copacabana" })).toBeVisible();
+  // Once per device: a reload stays unlocked.
+  await client.reload();
+  await expect(client.getByRole("heading", { level: 1, name: "Apartamento Atlântico — Copacabana" })).toBeVisible();
+  await client.close();
+});

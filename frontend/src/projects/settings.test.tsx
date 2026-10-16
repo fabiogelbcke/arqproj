@@ -22,6 +22,7 @@ const CASA: ProjectSummary = {
   last_activity_at: null,
   row_version: 4,
   cover_url: null,
+  access_mode: "public",
 };
 const PATH = `/api/projects/${CASA.id}`;
 
@@ -114,6 +115,58 @@ describe("the Projeto dialog", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Arquivar" }));
     await userEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
     expect(await screen.findByText(/alterado por outra pessoa.*Código de suporte: abc123/)).toBeInTheDocument();
+  });
+
+  it("changes the client's link, and names the project that has an address", async () => {
+    const sent = api({
+      [`PATCH ${PATH}`]: (body: unknown) =>
+        (body as { slug?: string }).slug === "casa-velha"
+          ? { status: 409, body: { error: "slug_taken", conflict_name: "Casa Velha" } }
+          : { body: { ...CASA, slug: (body as { slug: string }).slug, row_version: 5 } },
+    });
+    const dialog = await openSettings();
+    const link = within(dialog).getByLabelText(/Link do cliente/);
+    await userEvent.clear(link);
+    await userEvent.type(link, "Casa-Velha");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Este endereço já é do projeto “Casa Velha”");
+    await userEvent.clear(link);
+    await userEvent.type(link, "casa-jardim-lagoa");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    expect(sent.filter((r) => r.method === "PATCH").at(-1)?.body).toMatchObject({ slug: "casa-jardim-lagoa" });
+  });
+
+  it("protects the page with a password", async () => {
+    const sent = api({ [`PATCH ${PATH}`]: () => ({ body: { ...CASA, access_mode: "password", row_version: 5 } }) });
+    const dialog = await openSettings();
+    await userEvent.click(within(dialog).getByText("Com senha"));
+    const password = within(dialog).getByLabelText(/^Senha/);
+    await userEvent.type(password, "segredo");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({
+      access_mode: "password",
+      password: "segredo",
+    });
+  });
+
+  it("keeps an existing password when its field stays empty", async () => {
+    const protectedCasa = { ...CASA, access_mode: "password" as const };
+    const sent = api({
+      "GET /api/projects": () => ({ body: [protectedCasa] }),
+      [`PATCH ${PATH}`]: () => ({ body: { ...protectedCasa, name: "Casa II", row_version: 5 } }),
+    });
+    const dialog = await openSettings();
+    expect(within(dialog).getByText(/Deixe em branco para manter a senha atual/)).toBeInTheDocument();
+    const name = within(dialog).getByLabelText(/Nome do projeto/);
+    await userEvent.clear(name);
+    await userEvent.type(name, "Casa II");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    const body = sent.find((r) => r.method === "PATCH")?.body as Record<string, unknown>;
+    expect(body.password).toBeUndefined();
+    expect(body.access_mode).toBeUndefined(); // nothing about access changed
   });
 
   it("removes the cover on Salvar", async () => {

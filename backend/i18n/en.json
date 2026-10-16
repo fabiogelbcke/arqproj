@@ -118,7 +118,17 @@
     "archived": "Project “{{name}}” archived.",
     "undo": "Undo",
     "restored": "Project “{{name}}” is back.",
-    "edit": "Edit project"
+    "edit": "Edit project",
+    "link": "Client link",
+    "linkHint": "The page is at {{address}}. The old link keeps working.",
+    "access": "Access",
+    "public": "Anyone with the link",
+    "publicHint": "Whoever gets the link can open the page.",
+    "withPassword": "With a password",
+    "withPasswordHint": "The client types it once per device; it lasts 90 days.",
+    "password": "Password",
+    "passwordKeep": "Leave empty to keep the current password. A new one asks for it again on every device.",
+    "passwordNew": "At least 6 characters. Send it to the client with the link."
   },
   "notFound": {
     "title": "Page not found",
@@ -175,7 +185,10 @@
     "unknown_project_type": "Choose a project type.",
     "unknown_stage": "One of the chosen stages no longer exists. Reload the page and try again.",
     "page_not_found": "We couldn't find this page. Check the link with the office.",
-    "page_locked": "This page is protected by a password."
+    "page_locked": "This page is protected by a password.",
+    "wrong_page_password": "Wrong password. Check it with the office.",
+    "too_many_attempts": "Too many attempts. Try again in 15 minutes.",
+    "password_required": "Set a password to protect the page."
   },
   "projectStatus": {
     "draft": "Draft",
@@ -275,7 +288,7 @@
     "notFoundTitle": "Page not found",
     "notFoundBody": "Check the link with the office. If the project moved, ask for the new link.",
     "lockedTitle": "Protected page",
-    "lockedBody": "This page is protected by a password. Soon you'll be able to enter it here.",
+    "lockedBody": "This page is protected by a password. Enter the password the office sent you; this device stays unlocked for 90 days.",
     "cover": "Cover of the project {{name}}",
     "staffBar": "Office tools",
     "backToPainel": "Painel",
@@ -285,6 +298,8 @@
     "linkCopied": "Link copied.",
     "linkCopiedDraft": "Link copied. The client will see the page once it's published.",
     "publish": "Publish",
-    "published": "Published. The client can now open the link."
+    "published": "Published. The client can now open the link.",
+    "password": "Password",
+    "enter": "Enter"
   }
 }

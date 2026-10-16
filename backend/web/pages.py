@@ -10,8 +10,8 @@ isn't deleted: a draft, a deleted project and an unknown address all answer the
 same "not found", so nobody can tell them apart. The office's signed-in staff
 also see drafts and protected pages, with a staff bar (2.6) to publish them.
 An address the project had before redirects to the current one (A29). A
-password-protected project shows nothing to clients until the password step
-(2.4) exists: its page says it is protected.
+password-protected project asks for its password once per device (2.4) and
+shows nothing until then; its name stays out of link previews.
 
 The server answers before any script runs: the tags messaging apps read for a
 link preview (they don't run scripts), the status, and the redirect. Pages are
@@ -29,11 +29,12 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.identity.passwords import verify_password
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import RESERVED_SLUGS, AccessMode, DetailType, ProjectStatus
 from backend.projects.models import (
@@ -47,8 +48,10 @@ from backend.projects.models import (
     ProjectTypeStage,
     StageDef,
 )
+from backend.security import keys
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
+from backend.web import attempts
 from backend.web.auth import CurrentStaff, optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
@@ -65,12 +68,15 @@ PUBLISHED = Project.status.in_((ProjectStatus.ACTIVE, ProjectStatus.COMPLETED)) 
 BANNER_SIZE = 2000  # pixels on the long side: the page's full-width cover
 PREVIEW_SIZE = 1200  # link previews: WhatsApp skips large images
 PAGE_HEADERS = {"X-Robots-Tag": "noindex"}
-# Anything only staff may see must never enter a shared cache (plan section 6).
-STAFF_ONLY = {"Cache-Control": "private, no-store"}
+# Anything only staff or an unlocked device may see must never enter a shared
+# cache (plan section 6).
+PRIVATE = {"Cache-Control": "private, no-store"}
 COVER_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; sandbox",
     "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "public, max-age=300",
+    # Browsers only: a shared cache could keep serving it after the page is
+    # given a password (plan section 6).
+    "Cache-Control": "private, max-age=300",
     **PAGE_HEADERS,
 }
 
@@ -249,29 +255,55 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
     )
 
 
-async def _readable(db: AsyncSession, slug: str, staff: CurrentStaff | None = None) -> Project:
+UNLOCK_PURPOSE = "page-unlock"
+UNLOCK_DAYS = 90  # a device stays unlocked this long (Fabio, 16 Oct 2026)
+
+
+def _unlock_cookie(project: Project) -> str:
+    return f"unlock-{project.id.hex[:16]}"
+
+
+def _unlocked(request: Request, project: Project) -> bool:
+    """This device typed the project's current password (A06): changing the
+    password or the access mode bumps `access_version`, ending older unlocks."""
+    token = request.cookies.get(_unlock_cookie(project))
+    if not token:
+        return False
+    try:
+        found = keys.verify(request.app.state.settings.app_secret, UNLOCK_PURPOSE, token)
+    except keys.BadToken:
+        return False
+    return found.get("p") == str(project.id) and found.get("v") == project.access_version
+
+
+async def _readable(
+    db: AsyncSession, slug: str, staff: CurrentStaff | None, request: Request
+) -> Project:
     """The project behind a current address, if this visitor may see its page."""
     project, current = await _find(db, slug, staff)
     if project is None or current != slug:
         raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
-    if project.access_mode is AccessMode.PASSWORD and staff is None:
+    locked = project.access_mode is AccessMode.PASSWORD and not _unlocked(request, project)
+    if locked and staff is None:
         raise ApiError(403, ErrorCode.PAGE_LOCKED)  # the password step comes in 2.4
     return project
 
 
 @router.get("/api/pages/{slug}", responses=documented(403, 404))
 async def page(
+    request: Request,
     slug: str,
     response: Response,
     staff: CurrentStaff | None = Depends(optional_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PageOut:
-    project = await _readable(db, slug, staff)
+    project = await _readable(db, slug, staff, request)
     shown = await _page(db, tenant, project, slug)
     if staff is not None:
         shown.staff = StaffView(project_id=project.id, status=project.status)
-        response.headers.update(STAFF_ONLY)
+    if staff is not None or project.access_mode is AccessMode.PASSWORD:
+        response.headers.update(PRIVATE)
     return shown
 
 
@@ -284,12 +316,62 @@ async def page_cover(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     try:
-        project = await _readable(db, slug, staff)
+        project = await _readable(db, slug, staff, request)
     except ApiError:
         return Response(status_code=404, headers=PAGE_HEADERS)
     size = PREVIEW_SIZE if preview else BANNER_SIZE
-    headers = COVER_HEADERS if staff is None else {**COVER_HEADERS, **STAFF_ONLY}
+    private = staff is not None or project.access_mode is AccessMode.PASSWORD
+    headers = {**COVER_HEADERS, **PRIVATE} if private else COVER_HEADERS
     return await serve_cover(request, db, project, size, headers)
+
+
+class UnlockIn(BaseModel):
+    password: str = Field(max_length=200)
+
+
+@router.post("/api/pages/{slug}/unlock", status_code=204, responses=documented(401, 404, 429))
+async def unlock(
+    request: Request,
+    slug: str,
+    body: UnlockIn,
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """The client types the project's password once per device (A06)."""
+    # A password challenge and its answers are never stored (plan section 6).
+    challenge = {**PAGE_HEADERS, **PRIVATE}
+    project, current = await _find(db, slug)
+    if project is None or current != slug or project.access_mode is not AccessMode.PASSWORD:
+        raise ApiError(404, ErrorCode.PAGE_NOT_FOUND, headers=challenge)
+    who, key = attempts.device(request), str(project.id)
+    if not attempts.admit(key, who):  # reserved before the (slow) hash check
+        raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS, headers=challenge)
+    try:
+        right = await verify_password(project.password_hash, body.password)
+    except BaseException:
+        attempts.failed(key, who)  # a try that didn't finish still counts
+        raise
+    if not right:
+        attempts.failed(key, who)
+        log.info("wrong page password for %s", slug)
+        raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD, headers=challenge)
+    attempts.succeeded(key, who)
+    token = keys.sign(
+        request.app.state.settings.app_secret,
+        UNLOCK_PURPOSE,
+        {"p": str(project.id), "v": project.access_version},
+        UNLOCK_DAYS * 86400,
+    )
+    response = Response(status_code=204, headers=challenge)
+    response.set_cookie(
+        _unlock_cookie(project),
+        token,
+        max_age=UNLOCK_DAYS * 86400,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=request.app.state.settings.deployed,
+    )
+    return response
 
 
 def _origin(request: Request, tenant: CurrentTenant) -> str:
@@ -326,7 +408,7 @@ async def meeting_ics(
 ) -> Response:
     """For Apple Calendar, Outlook and others ("Adicionar à agenda")."""
     try:
-        project = await _readable(db, slug, staff)
+        project = await _readable(db, slug, staff, request)
     except ApiError:
         return Response(status_code=404, headers=PAGE_HEADERS)
     meeting = await db.scalar(
@@ -362,8 +444,8 @@ async def meeting_ics(
         headers={
             "Content-Disposition": 'attachment; filename="reuniao.ics"',
             **PAGE_HEADERS,
-            # A staff-only page's meeting must never stay in a shared cache.
-            **(STAFF_ONLY if staff is not None else {}),
+            # Staff-only or behind a password: never in a shared cache.
+            **(PRIVATE if staff is not None or project.access_mode is AccessMode.PASSWORD else {}),
         },
     )
 
@@ -396,11 +478,7 @@ async def shell(
 ) -> Response:
     if slug in RESERVED_SLUGS:
         return PlainTextResponse("Not found", status_code=404)
-    shell_file = Path(request.app.state.settings.frontend_dist) / "client.html"
-    if not shell_file.is_file():
-        return PlainTextResponse(
-            "The client page is not built. Run `make build` (or `make dev`).", status_code=503
-        )
+    # An old address redirects before anything else: it needs no page.
     project, current = await _find(db, slug, staff)
     if project is not None and current != slug:
         query = f"?{request.url.query}" if request.url.query else ""
@@ -411,6 +489,11 @@ async def shell(
             headers={"Cache-Control": "no-cache", **PAGE_HEADERS},
         )
 
+    shell_file = Path(request.app.state.settings.frontend_dist) / "client.html"
+    if not shell_file.is_file():
+        return PlainTextResponse(
+            "The client page is not built. Run `make build` (or `make dev`).", status_code=503
+        )
     office = (await _office(db, tenant)).name
     tags = {"robots": "noindex"}
     if project is None:
@@ -438,6 +521,6 @@ async def shell(
             "Cache-Control": SHELL_CACHE,
             "Content-Security-Policy": CONTENT_SECURITY_POLICY,
             **PAGE_HEADERS,
-            **(STAFF_ONLY if staff is not None else {}),
+            **(PRIVATE if staff is not None else {}),
         },
     )

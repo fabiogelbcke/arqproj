@@ -53,6 +53,9 @@ class ErrorCode(StrEnum):
     COVER_TOO_LARGE = "cover_too_large"
     PAGE_NOT_FOUND = "page_not_found"  # unknown address, draft or deleted: never told apart
     PAGE_LOCKED = "page_locked"  # protected by a password
+    WRONG_PAGE_PASSWORD = "wrong_page_password"
+    TOO_MANY_ATTEMPTS = "too_many_attempts"  # wait 15 minutes
+    PASSWORD_REQUIRED = "password_required"  # password access needs a password
 
 
 class ErrorOut(BaseModel):
@@ -62,11 +65,18 @@ class ErrorOut(BaseModel):
 
 
 class ApiError(Exception):
-    def __init__(self, status_code: int, code: ErrorCode, conflict_name: str | None = None) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        code: ErrorCode,
+        conflict_name: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(code.value)
         self.status_code = status_code
         self.code = code
         self.conflict_name = conflict_name
+        self.headers = headers or {}
 
 
 def documented(*status_codes: int) -> dict:
@@ -87,4 +97,4 @@ async def handle_api_error(_request: Request, error: ApiError) -> JSONResponse:
     body = {"error": error.code.value}
     if error.conflict_name is not None:
         body["conflict_name"] = error.conflict_name
-    return JSONResponse(body, status_code=error.status_code)
+    return JSONResponse(body, status_code=error.status_code, headers=error.headers)

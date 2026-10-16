@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { type Locale, useOfficeLocale } from "../i18n";
 import type { Page } from "./format";
+import { PasswordGate } from "./PasswordGate";
 import { PageMessage, ProjectPage } from "./ProjectPage";
 
 type State =
@@ -52,7 +53,8 @@ export function ClientApp() {
     return (
       <ProjectPage page={state.page} slug={slug} ready={signedIn} onChanged={() => setVersion((v) => v + 1)} />
     );
-  if (state.kind === "locked") return <PageMessage office={office} title={t("page.lockedTitle")} body={t("page.lockedBody")} />;
+  if (state.kind === "locked")
+    return <PasswordGate office={office} slug={slug} onUnlocked={() => setVersion((v) => v + 1)} />;
   if (state.kind === "missing")
     return <PageMessage office={office} title={t("page.notFoundTitle")} body={t("page.notFoundBody")} />;
   // Anything else: the shared wording, with the support code (AGENTS.md).

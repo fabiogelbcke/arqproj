@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Dialog, Form, Heading, Modal, ModalOverlay } from "react-aria-components";
+import { Dialog, Form, Heading, Label, Modal, ModalOverlay, Radio, RadioGroup } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call } from "../api/client";
@@ -42,6 +42,9 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
   // conflict with) a name change that already went through.
   const [saved, setSaved] = useState(project);
   const [cover, setCover] = useState<CoverChoice>({ kind: "keep" });
+  const [slug, setSlug] = useState(project.slug);
+  const [access, setAccess] = useState(project.access_mode);
+  const [password, setPassword] = useState("");
   const [coverProblem, setCoverProblem] = useState<string | null>(null);
   const saving = change.isPending || upload.isPending || remove.isPending;
 
@@ -59,10 +62,20 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
 
   const save = async () => {
     try {
-      if (name !== saved.name || client !== saved.client_name) {
+      const linkChanged = slug !== saved.slug;
+      const accessChanged = access !== saved.access_mode || (access === "password" && password !== "");
+      if (name !== saved.name || client !== saved.client_name || linkChanged || accessChanged) {
         setSaved(
-          await change.mutateAsync({ id: project.id, row_version: saved.row_version, name, client_name: client }),
+          await change.mutateAsync({
+            id: project.id,
+            row_version: saved.row_version,
+            name,
+            client_name: client,
+            ...(linkChanged ? { slug } : {}),
+            ...(accessChanged ? { access_mode: access, ...(password ? { password } : {}) } : {}),
+          }),
         );
+        setPassword("");
       }
       if (cover.kind === "new") await upload.mutateAsync({ id: project.id, file: cover.file });
       if (cover.kind === "remove") await remove.mutateAsync(project.id);
@@ -104,8 +117,12 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
 
   const error = change.error ?? archive.error;
   const nameTaken =
-    error instanceof ApiError && error.code === "project_name_taken" && error.conflictName
-      ? t("newProject.nameTakenBy", { name: error.conflictName })
+    error instanceof ApiError && error.conflictName
+      ? error.code === "project_name_taken"
+        ? t("newProject.nameTakenBy", { name: error.conflictName })
+        : error.code === "slug_taken"
+          ? t("newProject.slugTakenBy", { name: error.conflictName })
+          : null
       : null;
   // The preview: the chosen photo, the placeholder after "Remover", or the current cover.
   const shown = cover.kind === "remove" ? { ...project, cover_url: null } : project;
@@ -191,12 +208,54 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
               <ErrorNotice error={upload.error ?? remove.error} />
             </fieldset>
 
+            <TextField
+              label={t("projectSettings.link")}
+              description={t("projectSettings.linkHint", { address: `${window.location.host}/${slug || "…"}` })}
+              value={slug}
+              onChange={(value) => setSlug(value.toLowerCase())}
+              isRequired
+              maxLength={80}
+              autoComplete="off"
+              spellCheck="false"
+            />
+            <RadioGroup
+              className={styles.types}
+              value={access}
+              onChange={(value) => setAccess(value as typeof access)}
+            >
+              <Label className={styles.label}>{t("projectSettings.access")}</Label>
+              <Radio value="public" className={styles.choice}>
+                <b>{t("projectSettings.public")}</b>
+                <small className={styles.choiceNote}>{t("projectSettings.publicHint")}</small>
+              </Radio>
+              <Radio value="password" className={styles.choice}>
+                <b>{t("projectSettings.withPassword")}</b>
+                <small className={styles.choiceNote}>{t("projectSettings.withPasswordHint")}</small>
+              </Radio>
+            </RadioGroup>
+            {access === "password" && (
+              <TextField
+                label={t("projectSettings.password")}
+                description={
+                  saved.access_mode === "password"
+                    ? t("projectSettings.passwordKeep")
+                    : t("projectSettings.passwordNew")
+                }
+                type="password"
+                value={password}
+                onChange={setPassword}
+                isRequired={saved.access_mode !== "password"}
+                minLength={6}
+                autoComplete="new-password"
+              />
+            )}
+
             {nameTaken ? (
               <p role="alert" className={styles.problem}>
                 {nameTaken}
               </p>
             ) : (
-              <ErrorNotice error={error} />
+              <ErrorNotice error={error} values={{ min: 6 }} />
             )}
             <div className={styles.actions}>
               <Button

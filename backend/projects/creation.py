@@ -38,6 +38,11 @@ NAME_MAX = 120
 _SLUG = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
 
 
+def valid_slug(slug: str) -> bool:
+    """Lowercase letters, digits and inner hyphens; never one of the app's words."""
+    return bool(_SLUG.match(slug)) and slug not in RESERVED_SLUGS
+
+
 class CreationProblem(Exception):
     def __init__(self, code: str, conflict_name: str | None = None) -> None:
         super().__init__(code)
@@ -95,7 +100,7 @@ async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
     )
     if len(chosen) != len(new.stages) or len(stages) != len(chosen):
         raise CreationProblem("unknown_stage")  # unknown or repeated
-    if not _SLUG.match(new.slug) or new.slug in RESERVED_SLUGS:
+    if not valid_slug(new.slug):
         raise CreationProblem("invalid_slug")
     taken = await db.scalar(
         select(Project.name)

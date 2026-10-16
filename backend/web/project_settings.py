@@ -1,7 +1,7 @@
 """A project's settings in the painel (A24): the "Projeto" dialog and the card's
 photo button.
 
-    PATCH  /api/projects/{id}         name, client; archive or restore
+    PATCH  /api/projects/{id}         name, client, address, access; archive or restore
     POST   /api/projects/{id}/publish a draft goes live (from the page's staff bar)
     PUT    /api/projects/{id}/cover   upload the cover photo
     DELETE /api/projects/{id}/cover   back to the placeholder photo
@@ -26,12 +26,14 @@ from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
-from backend.projects.creation import NAME_MAX, project_named
-from backend.projects.enums import CoverType, ProjectStatus
-from backend.projects.models import CLIENT_NAME_MAX, Project
+from backend.identity.passwords import hash_password
+from backend.projects.creation import NAME_MAX, project_named, valid_slug
+from backend.projects.enums import AccessMode, CoverType, ProjectStatus
+from backend.projects.models import CLIENT_NAME_MAX, Project, ProjectSlug
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
 from backend.storage.google_connect import ConnectError
@@ -64,6 +66,16 @@ class ProjectChange(BaseModel):
     client_name: str | None = Field(default=None, max_length=500)
     # "archived", or back from archived to what it was (the toast's "Desfazer").
     status: ProjectStatus | None = None
+    # The client's link: a new address, or one the project had before. Old ones
+    # keep redirecting here (A29).
+    slug: str | None = Field(default=None, max_length=200)
+    access_mode: AccessMode | None = None
+    # Required when switching to password access; a new one locks out every
+    # device that unlocked the page before.
+    password: str | None = Field(default=None, max_length=200)
+
+
+PAGE_PASSWORD_MIN = 6  # Fabio, 16 Oct 2026
 
 
 async def _project(db: AsyncSession, project_id: uuid.UUID) -> Project:
@@ -110,7 +122,44 @@ async def change_project(
             values |= {"status": body.status, "archived_from": None}
         else:
             raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
-    if values:
+    access_changed = False
+    if body.access_mode is AccessMode.PASSWORD:
+        if body.password is not None:
+            if len(body.password) < PAGE_PASSWORD_MIN:
+                raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT)
+            values["password_hash"] = await hash_password(body.password)
+            access_changed = True
+        elif project.password_hash is None:
+            raise ApiError(422, ErrorCode.PASSWORD_REQUIRED)
+        if project.access_mode is not AccessMode.PASSWORD:
+            values["access_mode"] = AccessMode.PASSWORD
+            access_changed = True
+    elif body.access_mode is AccessMode.PUBLIC and project.access_mode is not AccessMode.PUBLIC:
+        values |= {"access_mode": AccessMode.PUBLIC, "password_hash": None}
+        access_changed = True
+    if access_changed:
+        values["access_version"] = Project.access_version + 1  # ends every unlock
+    new_slug = None
+    if body.slug is not None:
+        new_slug = body.slug.strip().lower()
+        current = await db.scalar(
+            select(ProjectSlug.slug).where(
+                ProjectSlug.project_id == project.id, ProjectSlug.is_current
+            )
+        )
+        if new_slug == current:
+            new_slug = None
+        elif not valid_slug(new_slug):
+            raise ApiError(422, ErrorCode.INVALID_SLUG)
+        else:
+            holder = await db.scalar(
+                select(Project.name)
+                .join(ProjectSlug, ProjectSlug.project_id == Project.id)
+                .where(ProjectSlug.slug == new_slug, Project.id != project.id)
+            )
+            if holder is not None:  # never another project's, old or current (A29)
+                raise ApiError(409, ErrorCode.SLUG_TAKEN, holder)
+    if values or new_slug:
         # Only if nobody saved it since the screen loaded it.
         changed = await db.execute(
             update(Project)
@@ -119,11 +168,38 @@ async def change_project(
         )
         if changed.rowcount != 1:
             raise ApiError(409, ErrorCode.PROJECT_CHANGED)
-        await db.commit()
+        try:
+            if new_slug:
+                await _move_address(db, project.id, new_slug)
+            await db.commit()
+        except IntegrityError as error:
+            # Two people gave the same new address at once: the second loses.
+            await db.rollback()
+            if "slug" in str(error.orig):
+                raise ApiError(409, ErrorCode.SLUG_TAKEN) from None
+            raise
     elif project.row_version != body.row_version:
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)
     db.expire_all()
     return await _summary(db, tenant, project_id)
+
+
+async def _move_address(db: AsyncSession, project_id: uuid.UUID, slug: str) -> None:
+    """Make `slug` the project's current address; the previous one stays as an
+    old address that redirects (A29). An address it had before is reused."""
+    await db.execute(
+        update(ProjectSlug)
+        .where(ProjectSlug.project_id == project_id, ProjectSlug.is_current)
+        .values(is_current=False)
+    )
+    reused = await db.execute(
+        update(ProjectSlug)
+        .where(ProjectSlug.project_id == project_id, ProjectSlug.slug == slug)
+        .values(is_current=True)
+    )
+    if reused.rowcount == 0:
+        db.add(ProjectSlug(project_id=project_id, slug=slug))
+        await db.flush()
 
 
 @router.post("/projects/{project_id}/publish", responses=documented(401, 404, 409, 422))

@@ -1054,10 +1054,91 @@
           }
         }
       }
+    },
+    "/api/pages/{slug}/unlock": {
+      "post": {
+        "summary": "Unlock",
+        "description": "The client types the project's password once per device (A06).",
+        "operationId": "unlock_api_pages__slug__unlock_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlockIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AccessMode": {
+        "type": "string",
+        "enum": [
+          "public",
+          "password"
+        ],
+        "title": "AccessMode"
+      },
       "Body_upload_cover_api_projects__project_id__cover_put": {
         "properties": {
           "file": {
@@ -1273,7 +1354,10 @@
           "cover_wrong_type",
           "cover_too_large",
           "page_not_found",
-          "page_locked"
+          "page_locked",
+          "wrong_page_password",
+          "too_many_attempts",
+          "password_required"
         ],
         "title": "ErrorCode"
       },
@@ -1700,6 +1784,40 @@
                 "type": "null"
               }
             ]
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "access_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccessMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
           }
         },
         "type": "object",
@@ -1863,6 +1981,9 @@
               }
             ],
             "title": "Cover Url"
+          },
+          "access_mode": {
+            "$ref": "#/components/schemas/AccessMode"
           }
         },
         "type": "object",
@@ -1881,7 +2002,8 @@
           "created_at",
           "last_activity_at",
           "row_version",
-          "cover_url"
+          "cover_url",
+          "access_mode"
         ],
         "title": "ProjectSummary"
       },
@@ -2020,6 +2142,20 @@
           "locale"
         ],
         "title": "TenantOut"
+      },
+      "UnlockIn": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "UnlockIn"
       },
       "ValidationError": {
         "properties": {

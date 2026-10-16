@@ -29,7 +29,7 @@ from backend.projects.creation import (
     NewProject,
     create_project,
 )
-from backend.projects.enums import ProjectStatus
+from backend.projects.enums import AccessMode, ProjectStatus
 from backend.projects.models import (
     Meeting,
     Project,
@@ -79,6 +79,7 @@ class ProjectSummary(BaseModel):
     row_version: int
     # Changes when the cover does, so browsers fetch the new one; None: placeholder.
     cover_url: str | None
+    access_mode: AccessMode
 
 
 class StageOption(BaseModel):
@@ -179,6 +180,7 @@ async def summaries(
             last_activity_at=project.last_activity_at,
             row_version=project.row_version,
             cover_url=cover_url(project),
+            access_mode=project.access_mode,
         )
         for project, slug, labels in rows
     ]

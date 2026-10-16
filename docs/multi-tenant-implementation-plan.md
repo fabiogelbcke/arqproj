@@ -92,7 +92,7 @@ its affected tests before coding proceeds.
 | A03 | PostgreSQL + SQLAlchemy 2 + Alembic + psycopg 3 | Recommended; relationships, transactions, migrations and local parity |
 | A04 | OAuth writes + service-account reads | Product choice, core flow reported tested by Fabio; remaining capability matrix below. **Hard ordering constraint on provisioning** — see section 9 |
 | A05 | Tenant and project checks on every resource path | Required even for public projects; public within one office does not mean cross-office access |
-| A06 | Public or password-protected project access | Agreed; no mandatory client account for the pilot |
+| A06 | Public or password-protected project access | Agreed; no mandatory client account for the pilot. Details agreed 16 Oct 2026 (Fabio): staff set the password in the "Projeto" dialog (at least 6 characters, no generator); the client types it once per device and stays unlocked for 90 days; five wrong tries from one device make it wait 15 minutes, with no email to the office; a new password or access mode ends every unlock. See section 6 |
 | A07 | All-or-nothing project creation | Pilot (15 Oct 2026): within the request, folders first, then every row in one transaction; on any failure nothing is saved and the new project folder (with its stage folders) is trashed, best effort; a one-time creation key makes retries safe. The durable provisioning operation in section 10 replaces it when there is a worker. See section 10 |
 | A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules. Revised by A25: clear `vN` names still group automatically |
 | A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: an authenticated maintenance endpoint in the web service, called every 10 minutes (15 Oct 2026, was hourly), with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
@@ -613,7 +613,11 @@ projects are soft-deleted and keep their slugs, so an old link answers "not
 found" (the same as an unknown address or a draft, so none can be told apart)
 instead of showing someone else's project.
 
-For password mode, office staff set/reset the password through the panel. This
+For password mode, office staff set/reset the password through the panel (the
+"Projeto" dialog; at least 6 characters). A device stays unlocked for 90 days;
+five wrong passwords from one device make it wait 15 minutes (kept in memory
+per instance, proportional to a shared link's password). As built in 2.4, the
+grant is a signed cookie per project carrying its `access_version`. This
 interprets “clients can add a password” as the office/customer controlling the
 setting; anonymous project viewers cannot change access policy. Store an
 adaptive password hash, never recoverable plaintext. A successful challenge

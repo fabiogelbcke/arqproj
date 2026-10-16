@@ -76,9 +76,46 @@ describe("the client page", () => {
     expect(await screen.findByRole("heading", { name: "Página não encontrada" })).toBeInTheDocument();
   });
 
-  it("says when a page is protected, and shows nothing of it", async () => {
-    at("/refugio", { "GET /api/pages/refugio": () => ({ status: 403, body: { error: "page_locked" } }) });
+  it("asks for the password on a protected page, then shows it", async () => {
+    let unlocked = false;
+    let tries = 0;
+    window.history.pushState({}, "", "/refugio");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/pages/refugio": () =>
+        unlocked ? { body: { ...PAGE, name: "Refúgio" } } : { status: 403, body: { error: "page_locked" } },
+      "POST /api/pages/refugio/unlock": (body: unknown) => {
+        tries += 1;
+        if ((body as { password: string }).password !== "certa") return { status: 401, body: { error: "wrong_page_password" } };
+        unlocked = true;
+        return { status: 204 };
+      },
+    });
+    render(<ClientApp />);
     expect(await screen.findByRole("heading", { name: "Página protegida" })).toBeInTheDocument();
+    expect(screen.queryByText("Refúgio")).toBeNull();
+    await userEvent.type(screen.getByLabelText("Senha"), "errada");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Senha incorreta.");
+    await userEvent.clear(screen.getByLabelText("Senha"));
+    await userEvent.type(screen.getByLabelText("Senha"), "certa");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Refúgio" })).toBeInTheDocument();
+    expect(tries).toBe(2);
+    expect(sent.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([
+      { password: "errada" },
+      { password: "certa" },
+    ]);
+  });
+
+  it("tells a device to wait after too many wrong passwords", async () => {
+    at("/refugio", {
+      "GET /api/pages/refugio": () => ({ status: 403, body: { error: "page_locked" } }),
+      "POST /api/pages/refugio/unlock": () => ({ status: 429, body: { error: "too_many_attempts" } }),
+    });
+    await userEvent.type(await screen.findByLabelText("Senha"), "qualquer");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Tente de novo em 15 minutos.");
   });
 
   it("shows any other failure with its support code, never the server's words", async () => {
