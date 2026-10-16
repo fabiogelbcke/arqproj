@@ -255,6 +255,50 @@ describe("edit mode", () => {
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-9");
   });
 
+  it("renames the stage now on that row, after stages moved", async () => {
+    let moved = false;
+    const stages = () =>
+      (moved ? [PAGE.stages[1]!, PAGE.stages[0]!, PAGE.stages[2]!] : PAGE.stages).map((stage, i) => ({
+        ...stage,
+        position: i + 1,
+      }));
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, stages: stages(), staff: { project_id: "p-1", status: "active", row_version: 4 } },
+      }),
+      "POST /api/projects/p-1/stages/1/move": () => {
+        moved = true;
+        return { status: 204 };
+      },
+    });
+    render(<ClientApp />);
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Mover Briefing para baixo" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Renomear etapa Levantamento" }));
+    expect(screen.getByLabelText("Nome da etapa")).toHaveValue("Levantamento");
+  });
+
+  it.each([
+    ["active", true],
+    ["draft", false],
+  ])("at the last stage, offers Concluir projeto only to an active project (%s)", async (status, offered) => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, current_position: PAGE.stages.length, staff: { project_id: "p-1", status, row_version: 4 } },
+      }),
+    });
+    render(<ClientApp />);
+    await startEditing();
+    expect(await screen.findByText(/Estudo Preliminar/, { selector: ".rail__now p" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Concluir projeto" }) !== null).toBe(offered);
+  });
+
   it("changes the project type with the details, only when it changed", async () => {
     const { sent } = asStaff({
       "GET /api/detail-types": () => ({ body: [] }),
@@ -292,6 +336,60 @@ describe("edit mode", () => {
     const editar = within(bar).getByRole("button", { name: "Editar" });
     expect(editar).toBeDisabled();
     expect(editar).toHaveAttribute("title", expect.stringContaining("desarquive"));
+  });
+
+  function stagePage(stages: () => Page["stages"], version: () => number, extra: Parameters<typeof fakeApi>[0] = {}) {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, stages: stages(), staff: { project_id: "p-1", status: "active", row_version: version() } },
+      }),
+      ...extra,
+    });
+    render(<ClientApp />);
+  }
+
+  it("closes the remove confirmation once the stage is gone", async () => {
+    let removed = false;
+    stagePage(
+      () => (removed ? [PAGE.stages[0]!, PAGE.stages[2]!] : PAGE.stages).map((s, i) => ({ ...s, position: i + 1 })),
+      () => (removed ? 5 : 4),
+      {
+        "DELETE /api/projects/p-1/stages/2": () => {
+          removed = true;
+          return { status: 204 };
+        },
+      },
+    );
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Remover etapa Levantamento" }));
+    const confirm = screen.getByRole("group", { name: "Remover etapa Levantamento" });
+    await userEvent.click(within(confirm).getByRole("button", { name: "Remover" }));
+    // The row now shows Estudo Preliminar: no confirmation waits one click from removing it.
+    await screen.findByRole("button", { name: "Remover etapa Estudo Preliminar" });
+    expect(screen.queryByRole("group", { name: /Remover etapa/ })).toBeNull();
+  });
+
+  it("keeps stage controls off until the page shows the change", async () => {
+    let moved = false;
+    stagePage(
+      () => PAGE.stages,
+      () => 4, // the reload hasn't brought the new version yet
+      {
+        "POST /api/projects/p-1/stages/1/move": () => {
+          moved = true;
+          return { status: 204 };
+        },
+      },
+    );
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Mover Briefing para baixo" }));
+    expect(moved).toBe(true);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Mover Levantamento para baixo" })).toBeDisabled(),
+    );
   });
 
   it("says when someone else changed the project meanwhile", async () => {

@@ -12,6 +12,9 @@ const DescriptionEditor = lazy(() => import("./Editors").then((m) => ({ default:
 const DetailsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DetailsEditor })));
 const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.MeetingEditor })));
 const NotesEditor = lazy(() => import("./Editors").then((m) => ({ default: m.NotesEditor })));
+const AddStage = lazy(() => import("./StageEditing").then((m) => ({ default: m.AddStage })));
+const ProgressRail = lazy(() => import("./StageEditing").then((m) => ({ default: m.ProgressRail })));
+const StageControls = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageControls })));
 import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -395,6 +398,7 @@ function Stage({
   reference,
   slug,
   editor,
+  controls,
 }: {
   page: Page;
   index: number;
@@ -404,6 +408,7 @@ function Stage({
   reference: string | null;
   slug: string;
   editor?: { open: boolean; onOpen: () => void; render: () => ReactNode };
+  controls?: ReactNode;
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -461,6 +466,7 @@ function Stage({
             </button>
             {!narrow && helpControl}
           </div>
+          {controls}
         </div>
         <p className="stage__meta">
           {state === "done" && <span className="pill">{t("page.stageDone")}</span>}
@@ -648,6 +654,13 @@ export function ProjectPage({
   const [editing, setEditing] = useState(false);
   const [openEditor, setOpenEditor] = useState<string | null>(null);
   const staff = page.staff;
+  // Stage controls wait for the reloaded page after each change (a new row version).
+  const [changedFrom, setChangedFrom] = useState<number | null>(null);
+  const stagesLocked = staff != null && changedFrom === staff.row_version;
+  const stagesChanged = () => {
+    setChangedFrom(staff?.row_version ?? null);
+    onChanged?.();
+  };
   const canEdit = editing && !!staff;
   const done = (saved: boolean) => {
     setOpenEditor(null);
@@ -731,6 +744,11 @@ export function ProjectPage({
             )}
           </div>
         </div>
+        {canEdit && (
+          <Suspense fallback={null}>
+            <ProgressRail page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
+          </Suspense>
+        )}
         {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
         {page.stages.map((_, i) => (
           <Stage
@@ -741,6 +759,19 @@ export function ProjectPage({
             onToggle={() => setOpenStage(i === openStage ? -1 : i)}
             {...filesFor(stageFiles, i + 1)}
             slug={slug}
+            controls={
+              canEdit ? (
+                <Suspense fallback={null}>
+                  <StageControls
+                    page={page}
+                    staff={staff!}
+                    index={i}
+                    onChanged={stagesChanged}
+                    locked={stagesLocked}
+                  />
+                </Suspense>
+              ) : undefined
+            }
             editor={
               canEdit
                 ? {
@@ -756,6 +787,11 @@ export function ProjectPage({
             }
           />
         ))}
+        {canEdit && (
+          <Suspense fallback={null}>
+            <AddStage page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
+          </Suspense>
+        )}
         <footer className="client-footer">{page.office.name}</footer>
       </div>
       {page.staff && (

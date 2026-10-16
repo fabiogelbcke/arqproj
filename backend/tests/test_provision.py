@@ -77,6 +77,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("project_slugs", "INSERT"),
         ("project_stages", "SELECT"),
         ("project_stages", "INSERT"),
+        ("project_stages", "DELETE"),
         ("project_details", "SELECT"),
         ("project_details", "INSERT"),
         ("project_details", "UPDATE"),
@@ -117,7 +118,12 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
                 "description",
                 "project_type",
                 "last_activity_at",
+                "current_position",
             )
+        ),
+        *(
+            ("project_stages", column, "UPDATE")
+            for column in ("position", "builtin_key", "title", "about", "folder_id")
         ),
         ("project_stages", "notes", "UPDATE"),
         ("project_stages", "notes_updated_at", "UPDATE"),

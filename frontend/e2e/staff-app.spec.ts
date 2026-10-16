@@ -302,3 +302,41 @@ test("staff edit the page in place and the client sees it", async ({ page, brows
   await expect(client.getByRole("button", { name: "Editar descrição" })).toHaveCount(0);
   await client.close();
 });
+
+test("staff rename, add and remove stages, and advance the project", async ({ page, browser }) => {
+  const link = invite("etapas@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await page.getByRole("heading", { name: "Projetos" }).waitFor();
+
+  // (Casa Jardim: earlier tests password-protect the apartment.)
+  await page.goto("/casa-jardim");
+  const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
+  await bar.getByRole("button", { name: "Editar" }).click();
+
+  // Rename the second stage.
+  await page.getByRole("button", { name: "Renomear etapa Levantamento" }).click();
+  await page.getByLabel("Nome da etapa").fill("Medição do apartamento");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.locator("#st-1")).toHaveText("Medição do apartamento");
+
+  // Add the office's own stage, then remove it.
+  await page.getByRole("button", { name: "+ Adicionar etapa" }).click();
+  await page.getByLabel("Ou uma etapa do escritório").fill("Visita técnica");
+  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Visita técnica" })).toBeVisible();
+  await page.getByRole("button", { name: "Remover etapa Visita técnica" }).click();
+  await page.getByRole("button", { name: "Remover", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Visita técnica" })).toHaveCount(0);
+
+  // Advance: the client sees the next stage in progress.
+  await page.getByRole("button", { name: /Avançar para 04/ }).click();
+  await expect(page.getByText(/Avançou para/)).toBeVisible();
+  const client = await browser.newPage();
+  await client.goto("/casa-jardim");
+  await expect(client.locator("#stage-3 .pill--current")).toBeVisible();
+  await expect(client.getByText("Medição do apartamento").first()).toBeVisible();
+  await client.close();
+});
