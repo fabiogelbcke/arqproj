@@ -13,6 +13,7 @@ const PAGE: Page = {
   name: "Casa Jardim",
   client_name: "Família Oliveira",
   project_type: "Projeto Arquitetônico",
+  project_type_key: "architecture",
   description: "Residência no alto.\n- Concreto aparente\n- Brises de madeira",
   cover_url: null,
   completed: false,
@@ -244,7 +245,7 @@ describe("edit mode", () => {
     const { sent } = asStaff({ "PATCH /api/projects/p-1/content": () => ({ status: 204 }) });
     await startEditing();
     await userEvent.click(screen.getByRole("button", { name: "Editar descrição" }));
-    const box = screen.getByLabelText("Descrição");
+    const box = await screen.findByLabelText("Descrição");
     await userEvent.clear(box);
     await userEvent.type(box, "Casa nova.");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
@@ -275,7 +276,7 @@ describe("edit mode", () => {
     });
     render(<ClientApp />);
     await startEditing();
-    await userEvent.click(screen.getByRole("button", { name: "Mover Briefing para baixo" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Mover Briefing para baixo" }));
     await userEvent.click(await screen.findByRole("button", { name: "Renomear etapa Levantamento" }));
     expect(screen.getByLabelText("Nome da etapa")).toHaveValue("Levantamento");
   });
@@ -298,11 +299,34 @@ describe("edit mode", () => {
     expect(screen.queryByRole("button", { name: "Concluir projeto" }) !== null).toBe(offered);
   });
 
+  it("changes the project type with the details, only when it changed", async () => {
+    const { sent } = asStaff({
+      "GET /api/detail-types": () => ({ body: [] }),
+      "GET /api/project-types": () => ({
+        body: {
+          types: [
+            { key: "architecture", label: "Projeto Arquitetônico" },
+            { key: "renovation", label: "Projeto de Reforma" },
+          ],
+        },
+      }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    const type = await screen.findByLabelText("Tipo de projeto");
+    await screen.findByRole("option", { name: "Projeto de Reforma" });
+    await userEvent.selectOptions(type, "renovation");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ project_type: "renovation" });
+  });
+
   it("says when someone else changed the project meanwhile", async () => {
     asStaff({ "PUT /api/projects/p-1/stages/2/notes": () => ({ status: 409, body: { error: "project_changed" } }) });
     await startEditing();
     await userEvent.click(screen.getByRole("button", { name: "Editar recado" }));
-    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Salvar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("alterado por outra pessoa");
   });
 
@@ -311,7 +335,7 @@ describe("edit mode", () => {
     await startEditing();
     await userEvent.click(screen.getByRole("button", { name: "Editar reunião" }));
     // The existing meeting (19:00 UTC) shows as 16:00, São Paulo's time.
-    expect(screen.getByLabelText("Início")).toHaveValue("16:00");
+    expect(await screen.findByLabelText("Início")).toHaveValue("16:00");
     expect(screen.getByLabelText("Data")).toHaveValue("2026-10-21");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     await screen.findByText("Salvo.");

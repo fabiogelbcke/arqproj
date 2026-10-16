@@ -2055,6 +2055,18 @@
               }
             ],
             "title": "Details"
+          },
+          "project_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Type"
           }
         },
         "type": "object",
@@ -2273,6 +2285,7 @@
           "invalid_detail",
           "invalid_stage",
           "invalid_meeting",
+          "files_unavailable",
           "file_not_found"
         ],
         "title": "ErrorCode"
@@ -2813,6 +2826,10 @@
             "type": "string",
             "title": "Project Type"
           },
+          "project_type_key": {
+            "type": "string",
+            "title": "Project Type Key"
+          },
           "description": {
             "type": "string",
             "title": "Description"
@@ -2891,6 +2908,7 @@
           "name",
           "client_name",
           "project_type",
+          "project_type_key",
           "description",
           "cover_url",
           "completed",

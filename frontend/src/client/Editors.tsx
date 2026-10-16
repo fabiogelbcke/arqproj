@@ -78,18 +78,6 @@ function Editor({
   );
 }
 
-export function EditButton({ label, onClick }: { label: string; onClick: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <button className="editbtn" type="button" aria-label={t("edit.editThis", { what: label.toLowerCase() })} onClick={onClick}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-        <path d="M4 20h4L19 9l-4-4L4 16v4Z M13.5 6.5l4 4" />
-      </svg>
-      {label}
-    </button>
-  );
-}
-
 export function DescriptionEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
   const { t } = useTranslation();
   const [text, setText] = useState(page.description);
@@ -126,10 +114,13 @@ type DetailType = Schemas["DetailTypeOut"];
 export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
   const { t } = useTranslation();
   const [types, setTypes] = useState<DetailType[]>([]);
+  const [projectTypes, setProjectTypes] = useState<Schemas["ProjectTypeOption"][]>([]);
+  const [projectType, setProjectType] = useState(page.project_type_key);
   const [rows, setRows] = useState(() => page.details.map((d) => ({ key: d.key, value: String(d.value) })));
   const save = useSave(() => onDone(true));
   useEffect(() => {
     call(api.GET("/api/detail-types")).then(setTypes, () => setTypes([]));
+    call(api.GET("/api/project-types")).then((found) => setProjectTypes(found.types), () => setProjectTypes([]));
   }, []);
   const typeOf = (key: string) => types.find((type) => type.key === key);
   const unused = types.filter((type) => !rows.some((row) => row.key === type.key));
@@ -143,13 +134,30 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
           call(
             api.PATCH("/api/projects/{project_id}/content", {
               params: { path: { project_id: staff.project_id } },
-              body: { row_version: staff.row_version, details: rows.filter((row) => row.value.trim() !== "") },
+              body: {
+                row_version: staff.row_version,
+                details: rows.filter((row) => row.value.trim() !== ""),
+                ...(projectType !== page.project_type_key ? { project_type: projectType } : {}),
+              },
             }),
           ),
         )
       }
     >
       <ul className="facts-edit">
+        <li>
+          <label className="lbl" htmlFor="fv-project-type">
+            {t("page.projectType")}
+          </label>
+          <select className="select" id="fv-project-type" value={projectType} onChange={(e) => setProjectType(e.target.value)}>
+            {(projectTypes.length ? projectTypes : [{ key: page.project_type_key, label: page.project_type }]).map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <span />
+        </li>
         {rows.map((row, i) => {
           const type = typeOf(row.key) ?? page.details.find((d) => d.key === row.key);
           const label = type && "label" in type ? type.label : row.key;

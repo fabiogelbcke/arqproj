@@ -9,15 +9,17 @@ group (one level; Fabio, 16 Oct 2026). Names starting with "_" stay hidden (the
 office's own, like `_capa`), and so do shortcuts (their target may lie outside
 the office's folder) and Google formats that can't be exported.
 
-A file is named by a signed key, never by its Drive id: the key carries the
-project, its `access_version` and the item, so it opens only what this page
-listed, and a new password or access mode ends every key handed out before.
+A file is named by an encrypted key, never by its Drive id: the key carries the
+project, its `access_version`, the stage, the folder and the item, so it opens
+only what this page listed (rechecked against Drive on every request), and a
+new password or access mode ends every key handed out before.
 Bytes come through the office's storage view (the reader identity on Drive),
 which refuses anything outside the office's folder.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from datetime import datetime
@@ -33,7 +35,7 @@ from backend.db.engine import get_tenant_session
 from backend.projects.enums import AccessMode
 from backend.projects.models import Project, ProjectStage
 from backend.security import keys
-from backend.storage.base import StorageError, StorageItem
+from backend.storage.base import StorageError, StorageItem, StorageProblem
 from backend.storage.connections import storage_for
 from backend.storage.models import StorageConnection
 from backend.web.auth import CurrentStaff, optional_staff
@@ -103,25 +105,9 @@ def _private(project: Project, staff: CurrentStaff | None) -> dict[str, str]:
     return {"Cache-Control": "private, max-age=300"}
 
 
-# Folder listings, kept a minute: checking a file is still where its key says
-# (on every download and preview) would otherwise list Drive once per card.
-LISTING_SECONDS = 60
-_listings: dict[str, tuple[float, list[StorageItem]]] = {}
-
-
-async def _list(storage, folder: str, fresh: bool = False) -> list[StorageItem]:
-    now = time.monotonic()
-    cached = _listings.get(folder)
-    if not fresh and cached and now - cached[0] < LISTING_SECONDS:
-        return cached[1]
-    items = await storage.list_folder(folder)
-    _listings[folder] = (now, items)
-    return items
-
-
-def forget_listings() -> None:
-    """For tests."""
-    _listings.clear()
+async def _list(storage, folder: str) -> list[StorageItem]:
+    """Always Drive's current listing: what a key may open is decided now."""
+    return await storage.list_folder(folder)
 
 
 def _file(
@@ -129,17 +115,20 @@ def _file(
 ) -> FileOut:
     """The file with its key: project, access version, stage, the folder it was
     listed in, and the item, so a download can check it's still there."""
-    key = keys.sign(
+    # Encrypted, not just signed: the key never reveals Drive or project ids.
+    key = keys.encrypt(
         request.app.state.settings.app_secret,
         KEY_PURPOSE,
-        {
-            "p": str(project.id),
-            "v": project.access_version,
-            "s": stage,
-            "f": folder,
-            "i": item.id,
-        },
-        KEY_HOURS * 3600,
+        json.dumps(
+            {
+                "p": str(project.id),
+                "v": project.access_version,
+                "s": stage,
+                "f": folder,
+                "i": item.id,
+                "exp": int(time.time()) + KEY_HOURS * 3600,
+            }
+        ),
     )
     name = f"{item.name}.pdf" if item.is_native else item.name
     return FileOut(
@@ -196,12 +185,12 @@ async def page_files(
             stages.append(shown)
             continue
         try:
-            items = await _list(storage, folder, fresh=True)
+            items = await _list(storage, folder)
             direct = [_file(request, project, i, position, folder) for i in items if _showable(i)]
             if direct:
                 shown.groups.append(GroupOut(folder=None, files=direct))
             for sub in (i for i in items if i.is_folder and not _hidden(i)):
-                inside = await _list(storage, sub.id, fresh=True)
+                inside = await _list(storage, sub.id)
                 inner = [
                     _file(request, project, i, position, sub.id) for i in inside if _showable(i)
                 ]
@@ -228,9 +217,11 @@ async def _item(request: Request, db: AsyncSession, project: Project, key: str):
     """The storage and the item a key names, if it was issued for this project's
     current access."""
     try:
-        found = keys.verify(request.app.state.settings.app_secret, KEY_PURPOSE, key)
-    except keys.BadToken:
+        found = json.loads(keys.decrypt(request.app.state.settings.app_secret, KEY_PURPOSE, key))
+    except (keys.BadToken, ValueError):
         raise ApiError(404, ErrorCode.FILE_NOT_FOUND) from None
+    if not isinstance(found, dict) or found.get("exp", 0) < time.time():
+        raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # the page lists again on every visit
     if found.get("p") != str(project.id) or found.get("v") != project.access_version:
         raise ApiError(404, ErrorCode.FILE_NOT_FOUND)
     storage = await _storage(request, db)
@@ -241,8 +232,23 @@ async def _item(request: Request, db: AsyncSession, project: Project, key: str):
             raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # moved, hidden or removed
         return storage, await storage.get(found["i"])
     except StorageError as error:
-        log.warning("file unavailable: %s %s", error.problem, error.detail)
-        raise ApiError(404, ErrorCode.FILE_NOT_FOUND) from None
+        raise _storage_failure(error, project, "open") from None
+
+
+def _storage_failure(error: StorageError, project: Project, operation: str) -> ApiError:
+    """Gone is "not found"; Drive down or throttled is a failure to report: logged
+    at ERROR with the office and operation, answered with the support code."""
+    if error.problem in (StorageProblem.NOT_FOUND, StorageProblem.NO_ACCESS):
+        return ApiError(404, ErrorCode.FILE_NOT_FOUND)
+    log.error(
+        "files: %s failed for %s/%s: %s %s",
+        operation,
+        project.tenant_id,
+        project.id,
+        error.problem,
+        error.detail,
+    )
+    return ApiError(503, ErrorCode.FILES_UNAVAILABLE)
 
 
 async def _still_listed(db: AsyncSession, storage, project: Project, found: dict) -> bool:
@@ -281,8 +287,13 @@ async def page_file(
     try:
         project = await _readable(db, slug, staff, request)
         storage, item = await _item(request, db, project, key)
-        download = await storage.download(item)
-    except (ApiError, StorageError):
+        try:
+            download = await storage.download(item)
+        except StorageError as error:
+            raise _storage_failure(error, project, "download") from None
+    except ApiError as error:
+        if error.code is ErrorCode.FILES_UNAVAILABLE:
+            raise  # a translated "try again", with the support code
         return Response(status_code=404, headers=PAGE_HEADERS)
     kind = _kind(item)
     shown_inline = inline and kind in ("image", "pdf")
@@ -325,8 +336,13 @@ async def page_file_thumb(
     try:
         project = await _readable(db, slug, staff, request)
         storage, item = await _item(request, db, project, key)
-        small = await storage.thumbnail(item, THUMB_SIZE)
-    except (ApiError, StorageError):
+        try:
+            small = await storage.thumbnail(item, THUMB_SIZE)
+        except StorageError as error:
+            raise _storage_failure(error, project, "preview") from None
+    except ApiError as error:
+        if error.code is ErrorCode.FILES_UNAVAILABLE:
+            raise
         return Response(status_code=404, headers=PAGE_HEADERS)
     kind = image_type(small) if small is not None else None
     if kind is None or kind not in INLINE_IMAGES:  # none here (local folders), or odd bytes

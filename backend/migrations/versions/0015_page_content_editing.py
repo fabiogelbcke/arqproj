@@ -1,5 +1,5 @@
 """Editing a project's content on its page (edit mode, part 1): description,
-details, the next meeting and stage notes.
+project type, details, the next meeting and stage notes.
 
 Revision: 0015
 Previous: 0014
@@ -15,7 +15,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 GRANTS = [
-    "UPDATE (description, last_activity_at) ON projects",
+    "UPDATE (description, project_type, last_activity_at) ON projects",
     "INSERT, UPDATE, DELETE ON project_details",
     "INSERT, UPDATE, DELETE ON meetings",
     "UPDATE (notes, notes_updated_at) ON project_stages",

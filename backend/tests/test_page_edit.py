@@ -186,3 +186,34 @@ async def test_members_edit_too_but_only_with_their_csrf_token(client, db_sessio
 async def test_detail_types_come_in_the_offices_language(client, owner):
     types = (await client.get("/api/detail-types", headers=ALINEA)).json()
     assert {"key": "site_area", "label": "Área do terreno", "type": "area"} in types
+
+
+async def test_the_project_type_changes_and_the_stages_stay(client, owner):
+    before = await page(client)
+    response = await edit(client, owner, "PATCH", "/content", project_type="renovation")
+    assert response.status_code == 204, response.text
+    after = await page(client)
+    assert (after["project_type"], after["project_type_key"]) == (
+        "Projeto de Reforma",
+        "renovation",
+    )
+    # The same stages; their descriptions now come in the new type's words.
+    assert [s["title"] for s in after["stages"]] == [s["title"] for s in before["stages"]]
+    assert after["stages"][0]["about"].startswith("Identificação dos objetivos")
+    bad = await edit(client, owner, "PATCH", "/content", project_type="pools")
+    assert (bad.status_code, bad.json()["error"]) == (422, "unknown_project_type")
+
+
+async def test_an_archived_project_cant_be_edited(client, db_session, owner):
+    from sqlalchemy import text
+
+    await db_session.execute(
+        text(
+            "UPDATE projects SET status = 'archived', archived_from = 'active' WHERE id = "
+            "(SELECT project_id FROM project_slugs WHERE slug = :s AND tenant_id = "
+            "(SELECT id FROM tenants WHERE slug = 'alinea'))"
+        ),
+        {"s": SLUG},
+    )
+    response = await edit(client, owner, "PATCH", "/content", description="Não deveria")
+    assert (response.status_code, response.json()["error"]) == (409, "project_archived")

@@ -157,7 +157,8 @@ class PageOut(BaseModel):
     timezone: str
     name: str
     client_name: str
-    project_type: str
+    project_type: str  # its label, in the office's language
+    project_type_key: str
     description: str
     cover_url: str | None
     completed: bool
@@ -243,6 +244,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         name=project.name,
         client_name=project.client_name,
         project_type=_text(type_label, locale),
+        project_type_key=project.project_type,
         description=project.description,
         cover_url=(
             f"/api/pages/{slug}/cover?v={project.updated_at.timestamp():.6f}"
@@ -352,12 +354,14 @@ async def unlock(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """The client types the project's password once per device (A06)."""
+    # A password challenge and its answers are never stored (plan section 6).
+    challenge = {**PAGE_HEADERS, **PRIVATE}
     project, current = await _find(db, slug)
     if project is None or current != slug or project.access_mode is not AccessMode.PASSWORD:
-        raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
+        raise ApiError(404, ErrorCode.PAGE_NOT_FOUND, headers=challenge)
     who, key = attempts.device(request), str(project.id)
     if not attempts.admit(key, who):  # reserved before the (slow) hash check
-        raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
+        raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS, headers=challenge)
     try:
         right = await verify_password(project.password_hash, body.password)
     except BaseException:
@@ -366,7 +370,7 @@ async def unlock(
     if not right:
         attempts.failed(key, who)
         log.info("wrong page password for %s", slug)
-        raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD)
+        raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD, headers=challenge)
     attempts.succeeded(key, who)
     token = keys.sign(
         request.app.state.settings.app_secret,
@@ -374,7 +378,7 @@ async def unlock(
         {"p": str(project.id), "v": project.access_version},
         UNLOCK_DAYS * 86400,
     )
-    response = Response(status_code=204, headers=PAGE_HEADERS)
+    response = Response(status_code=204, headers=challenge)
     response.set_cookie(
         _unlock_cookie(project),
         token,
@@ -491,11 +495,7 @@ async def shell(
 ) -> Response:
     if slug in RESERVED_SLUGS:
         return PlainTextResponse("Not found", status_code=404)
-    shell_file = Path(request.app.state.settings.frontend_dist) / "client.html"
-    if not shell_file.is_file():
-        return PlainTextResponse(
-            "The client page is not built. Run `make build` (or `make dev`).", status_code=503
-        )
+    # An old address redirects before anything else: it needs no page.
     project, current = await _find(db, slug, staff)
     if project is not None and current != slug:
         query = f"?{request.url.query}" if request.url.query else ""
@@ -506,6 +506,11 @@ async def shell(
             headers={"Cache-Control": "no-cache", **PAGE_HEADERS},
         )
 
+    shell_file = Path(request.app.state.settings.frontend_dist) / "client.html"
+    if not shell_file.is_file():
+        return PlainTextResponse(
+            "The client page is not built. Run `make build` (or `make dev`).", status_code=503
+        )
     office = (await _office(db, tenant)).name
     tags = {"robots": "noindex"}
     if project is None:

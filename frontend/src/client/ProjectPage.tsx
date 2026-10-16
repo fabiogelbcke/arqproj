@@ -1,12 +1,20 @@
 // The client's project page, read-only (slice 2.3), after the fresh prototype's
 // markup: its stylesheet (prototype.css) styles these same class names.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
 import { Toaster, toast } from "../ui/Toast";
-import { DescriptionEditor, DetailsEditor, EditButton, MeetingEditor, NotesEditor } from "./Editors";
-import { AddStage, ProgressRail, StageControls } from "./StageEditing";
+import { EditButton } from "./EditButton";
+
+// Staff editing code loads only once staff press "Editar" (A20): visitors never get it.
+const DescriptionEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DescriptionEditor })));
+const DetailsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DetailsEditor })));
+const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.MeetingEditor })));
+const NotesEditor = lazy(() => import("./Editors").then((m) => ({ default: m.NotesEditor })));
+const AddStage = lazy(() => import("./StageEditing").then((m) => ({ default: m.AddStage })));
+const ProgressRail = lazy(() => import("./StageEditing").then((m) => ({ default: m.ProgressRail })));
+const StageControls = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageControls })));
 import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -677,7 +685,9 @@ export function ProjectPage({
         <section className={`hero${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
           <div>
             {canEdit && openEditor === "desc" ? (
-              <DescriptionEditor page={page} staff={staff!} onDone={done} />
+              <Suspense fallback={null}>
+                <DescriptionEditor page={page} staff={staff!} onDone={done} />
+              </Suspense>
             ) : (
               <div className="desc" data-editable>
                 {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
@@ -691,7 +701,9 @@ export function ProjectPage({
           </div>
           <div>
             {canEdit && openEditor === "facts" ? (
-              <DetailsEditor page={page} staff={staff!} onDone={done} />
+              <Suspense fallback={null}>
+                <DetailsEditor page={page} staff={staff!} onDone={done} />
+              </Suspense>
             ) : (
               <dl className="facts" data-editable>
                 {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
@@ -708,13 +720,19 @@ export function ProjectPage({
           )}
           <div className="project-status__meeting">
             {canEdit && openEditor === "meet" ? (
-              <MeetingEditor page={page} staff={staff!} onDone={done} />
+              <Suspense fallback={null}>
+                <MeetingEditor page={page} staff={staff!} onDone={done} />
+              </Suspense>
             ) : (
               <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
             )}
           </div>
         </div>
-        {canEdit && <ProgressRail page={page} staff={staff!} onChanged={() => onChanged?.()} />}
+        {canEdit && (
+          <Suspense fallback={null}>
+            <ProgressRail page={page} staff={staff!} onChanged={() => onChanged?.()} />
+          </Suspense>
+        )}
         {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
         {page.stages.map((_, i) => (
           <Stage
@@ -725,19 +743,33 @@ export function ProjectPage({
             onToggle={() => setOpenStage(i === openStage ? -1 : i)}
             {...filesFor(stageFiles, i + 1)}
             slug={slug}
-            controls={canEdit ? <StageControls page={page} staff={staff!} index={i} onChanged={() => onChanged?.()} /> : undefined}
+            controls={
+              canEdit ? (
+                <Suspense fallback={null}>
+                  <StageControls page={page} staff={staff!} index={i} onChanged={() => onChanged?.()} />
+                </Suspense>
+              ) : undefined
+            }
             editor={
               canEdit
                 ? {
                     open: openEditor === `notes-${i}`,
                     onOpen: () => setOpenEditor(`notes-${i}`),
-                    render: () => <NotesEditor page={page} staff={staff!} index={i} onDone={done} />,
+                    render: () => (
+                      <Suspense fallback={null}>
+                        <NotesEditor page={page} staff={staff!} index={i} onDone={done} />
+                      </Suspense>
+                    ),
                   }
                 : undefined
             }
           />
         ))}
-        {canEdit && <AddStage page={page} staff={staff!} onChanged={() => onChanged?.()} />}
+        {canEdit && (
+          <Suspense fallback={null}>
+            <AddStage page={page} staff={staff!} onChanged={() => onChanged?.()} />
+          </Suspense>
+        )}
         <footer className="client-footer">{page.office.name}</footer>
       </div>
       {page.staff && (

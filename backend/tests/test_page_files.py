@@ -18,10 +18,8 @@ PDF = b"%PDF-1.4 fictional"
 @pytest.fixture(autouse=True)
 def fresh_attempts():
     attempts.reset()
-    page_files.forget_listings()
     yield
     attempts.reset()
-    page_files.forget_listings()
 
 
 @pytest.fixture
@@ -173,7 +171,6 @@ async def test_a_file_moved_out_of_the_stage_no_longer_opens(client, owner, file
     assert (await client.get(url, headers=ALINEA)).status_code == 200
     briefing = files / "Casa Jardim" / "01 - Briefing"
     (briefing / "Programa de necessidades.pdf").rename(files / "Programa de necessidades.pdf")
-    page_files.forget_listings()  # a minute later
     assert (await client.get(url, headers=ALINEA)).status_code == 404
 
 
@@ -182,7 +179,6 @@ async def test_a_file_in_a_folder_hidden_later_no_longer_opens(client, owner, fi
     dwg = groups[1]["files"][0]  # in "Plantas antigas"
     briefing = files / "Casa Jardim" / "01 - Briefing"
     (briefing / "Plantas antigas").rename(briefing / "_Plantas antigas")
-    page_files.forget_listings()
     response = await client.get(f"/api/pages/casa-jardim/files/{dwg['key']}", headers=ALINEA)
     assert response.status_code == 404
 
@@ -225,3 +221,27 @@ async def test_the_database_is_released_before_a_file_streams(client, owner, fil
     monkeypatch.setattr(page_files, "StreamingResponse", stream)
     await client.get(f"/api/pages/casa-jardim/files/{first[0]['key']}", headers=ALINEA)
     assert events.index("database released") < events.index("streaming")
+
+
+async def test_a_files_key_reveals_no_ids(client, owner, files):
+    import base64
+
+    first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
+    key = first[0]["key"]
+    raw = base64.urlsafe_b64decode(key.split(":", 1)[1] + "==")
+    assert b"Casa Jardim" not in raw and b"Programa" not in raw  # encrypted, not encoded
+
+
+async def test_drive_down_during_a_download_says_try_again(client, owner, files, monkeypatch):
+    from backend.storage.base import StorageError, StorageProblem
+    from backend.storage.folder import FolderStorage
+
+    first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
+
+    async def down(self, item):
+        raise StorageError(StorageProblem.UNAVAILABLE, "simulated")
+
+    monkeypatch.setattr(FolderStorage, "download", down)
+    response = await client.get(f"/api/pages/casa-jardim/files/{first[0]['key']}", headers=ALINEA)
+    assert (response.status_code, response.json()) == (503, {"error": "files_unavailable"})
+    assert response.headers["x-request-id"]
