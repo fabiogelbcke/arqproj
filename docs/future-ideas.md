@@ -41,6 +41,14 @@ decision in the [decision changelog](decision-changelog.md).
 - Keep organization separate from authorization: a default view can help someone
   focus on their work without necessarily restricting access to other projects.
 
+## Usage metrics
+
+- Record how offices use the features (for example uploads: how many, how
+  large, from which screen) to see what people rely on and where limits such
+  as the 100 MB upload cap (A31) should move.
+- Raised by Fabio, 16 Oct 2026, while deciding uploads. Choose what to record,
+  and keep clients' personal data out of it, before building.
+
 ## Searchable project themes and tags
 
 - Let staff add `#tags` or keywords to a project's description so projects

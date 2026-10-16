@@ -33,7 +33,8 @@ CONTENT_SECURITY_POLICY = "; ".join(
         # blob: previews a photo chosen on this device before it is uploaded.
         "img-src 'self' data: blob:",
         "font-src 'self'",
-        "connect-src 'self'",
+        # Uploads go from the browser straight to Google's upload session (A31).
+        "connect-src 'self' https://www.googleapis.com",
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",

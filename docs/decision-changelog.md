@@ -19,6 +19,22 @@ a new entry too.
 
 ---
 
+## 2026-10-16 — A31 added: uploads go from the browser straight to Drive
+
+**Was:** slice 3b listed "resumable upload into a stage" and "Ocultar do
+cliente" with no decisions on who, how large, or how.
+
+**Now:** any staff member uploads from the project page's edit mode; at most
+100 MB a file; the browser sends the file to a Google resumable upload the app
+opens in the stage's folder, so Cloud Run (32 MB a request) never carries it.
+Hiding renames the file with a leading `_`. A same-name file is kept beside the
+other for now.
+
+**Why:** Fabio, 16 Oct 2026: "for now, any staff members"; files straight to
+Drive "even better"; 2 GB is large, "let's say like 100MB for now"; `_` is fine;
+same names don't matter for the short time before versions. The `drive.file`
+limit on hiding is Google's: the office's grant sees only what the app created.
+
 ## 2026-10-16 — A10: pages read Drive live; the sync job only notices changes
 
 **Was:** a polled sync (about every 10 minutes in the POC) indexed Drive into the

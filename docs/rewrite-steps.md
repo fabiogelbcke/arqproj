@@ -421,7 +421,15 @@ settings and Drive connection in the painel.
 
 3b.1 Resumable upload into a stage. 3b.2 Same-name prompt and "Enviar nova
 versão" (`vN`, originals never renamed). 3b.3 Covers stored as `_capa` in Drive.
-3b.4 "Ocultar do cliente".
+3b.4 "Ocultar do cliente". **3b.1 and 3b.4 as built (A31):** in Editar, each stage
+has the prototype's drop area ("Solte arquivos aqui ou escolha no computador").
+Any staff member uploads, at most 100 MB a file: the app opens a Google resumable
+upload in the stage's folder and the browser sends the file straight there, with
+a progress bar; local folders get the app's own stand-in, never when deployed. A
+same-name file is kept beside the other. Each file's "⋯" menu has "Ocultar do
+cliente", which renames it with a leading `_`; a file put straight into Drive
+says to rename it there (the grant is `drive.file`). No migration: pages list
+Drive live (A10).
 
 ### Slice 4: keeping up with Drive
 

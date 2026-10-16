@@ -63,6 +63,11 @@ class FolderMaker(Protocol):
         """False when the folder is gone (deleted, trashed, out of reach)."""
         ...
 
+    async def can_rename(self, item_id: str) -> bool:
+        """Whether this identity may rename the item: on Drive, only what the app
+        created (drive.file); a file put straight into Drive is out of reach."""
+        ...
+
 
 class LocalFolders:
     """Local development: ordinary folders under the office's local root."""
@@ -87,6 +92,9 @@ class LocalFolders:
 
     async def can_open(self, folder_id: str) -> bool:
         return (self.root / folder_id).is_dir()
+
+    async def can_rename(self, item_id: str) -> bool:
+        return (self.root / item_id).exists()
 
     async def rename(self, item_id: str, name: str) -> str:
         current = Path(item_id)
