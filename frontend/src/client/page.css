@@ -30,3 +30,8 @@
 .add-detail { display: block; max-width: 280px; }
 .desc__empty { opacity: .55; }
 .addnote { margin-top: 4px; }
+/* Editors fit their column: date and time inputs otherwise refuse to shrink. */
+.editor { min-width: 0; }
+.editor .row2 > *, .editor .row3 > * { min-width: 0; }
+.editor .input { min-width: 0; }
+@media (max-width: 560px) { .editor .row3 { grid-template-columns: 1fr 1fr; } .editor .row3 > :first-child { grid-column: 1 / -1; } }
