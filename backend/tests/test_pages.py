@@ -150,6 +150,7 @@ async def test_the_cover_is_public_on_a_readable_page_only(client, db_session, o
     shown = await client.get(url, headers=ALINEA)
     assert (shown.status_code, shown.content) == (200, PNG)
     assert shown.headers["x-robots-tag"] == "noindex"
+    assert shown.headers["cache-control"].startswith("private")  # never a shared cache
     locked = await client.get("/api/pages/refugio-da-mantiqueira/cover", headers=ALINEA)
     assert locked.status_code == 404
 
