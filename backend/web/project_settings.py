@@ -359,4 +359,6 @@ async def serve_cover(
         finally:
             await download.aclose()
 
-    return StreamingResponse(body(), media_type=project.cover_type.value, headers=headers)
+    media_type = project.cover_type.value
+    await db.close()  # before streaming: never hold a database connection meanwhile
+    return StreamingResponse(body(), media_type=media_type, headers=headers)
