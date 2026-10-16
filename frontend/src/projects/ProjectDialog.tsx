@@ -102,6 +102,8 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           }),
         );
         setPassword("");
+        // Saved now: keep it listed, so a retry after a failed photo doesn't remove it.
+        setRecipients(wanted);
         setNewRecipient("");
       }
       if (cover.kind === "new") await upload.mutateAsync({ id: project.id, file: cover.file });

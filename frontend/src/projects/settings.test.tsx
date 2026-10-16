@@ -248,6 +248,28 @@ describe("the Projeto dialog", () => {
     expect(within(dialog).getByRole("button", { name: "Salvar" })).toBeDisabled();
   });
 
+  it("after a failed photo, a retry keeps the email that was typed and already saved", async () => {
+    let puts = 0;
+    const sent = api({
+      [`PATCH ${PATH}`]: (body: unknown) => {
+        const emails = (body as { recipients?: string[] }).recipients ?? [];
+        return { body: { ...CASA, recipients: emails.map((email) => ({ email, subscribed: true })), row_version: 5 } };
+      },
+      [`PUT ${PATH}/cover`]: () =>
+        ++puts === 1 ? { status: 503, body: { error: "drive_connect_failed" } } : { body: CASA },
+    });
+    const dialog = await openSettings();
+    await userEvent.type(within(dialog).getByLabelText("Novo e-mail"), "ana@example.com");
+    const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    await within(dialog).findByRole("alert");
+    expect(within(dialog).getByText("ana@example.com")).toBeInTheDocument(); // still listed
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    expect(sent.filter((r) => r.method === "PATCH")).toHaveLength(1); // no second save removing it
+  });
+
   it("after a failed photo, a retry doesn't resend the name it already saved", async () => {
     let puts = 0;
     const sent = api({
