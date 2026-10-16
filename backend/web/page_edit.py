@@ -28,6 +28,8 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.notifications.events import record
+from backend.notifications.models import EventKind
 from backend.projects.enums import DetailType, ProjectStatus
 from backend.projects.models import (
     MEETING_LOCATION_MAX,
@@ -220,7 +222,7 @@ async def set_meeting(
     ):
         raise ApiError(422, ErrorCode.INVALID_MEETING)
     now = datetime.now(UTC)
-    await _change(db, project_id, body.row_version, {"last_activity_at": now})
+    project = await _change(db, project_id, body.row_version, {"last_activity_at": now})
     values = {
         "title": title,
         "starts_at": starts_at,
@@ -233,6 +235,8 @@ async def set_meeting(
         db.add(Meeting(project_id=project_id, **values))
     else:
         await db.execute(update(Meeting).where(Meeting.id == upcoming.id).values(**values))
+    kind = EventKind.MEETING_SCHEDULED if upcoming is None else EventKind.MEETING_CHANGED
+    record(db, project, kind, title=title)
     await db.commit()
     return Response(status_code=204)
 
@@ -246,10 +250,11 @@ async def clear_meeting(
     _staff: CurrentStaff = Depends(require_csrf),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    await _change(db, project_id, row_version, {"last_activity_at": datetime.now(UTC)})
+    project = await _change(db, project_id, row_version, {"last_activity_at": datetime.now(UTC)})
     upcoming = await _next_meeting(db, project_id)
     if upcoming is not None:
         await db.execute(delete(Meeting).where(Meeting.id == upcoming.id))
+        record(db, project, EventKind.MEETING_CLEARED, title=upcoming.title)
     await db.commit()
     return Response(status_code=204)
 
@@ -280,12 +285,14 @@ async def set_notes(
     if stage is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
     now = datetime.now(UTC)
-    await _change(db, project_id, body.row_version, {"last_activity_at": now})
+    project = await _change(db, project_id, body.row_version, {"last_activity_at": now})
     notes = body.notes.strip()
     await db.execute(
         update(ProjectStage)
         .where(ProjectStage.id == stage)
         .values(notes=notes, notes_updated_at=now if notes else None)
     )
+    if notes:  # for the updates panel; a note never emails (A32)
+        record(db, project, EventKind.NOTE_CHANGED, stage_position=position)
     await db.commit()
     return Response(status_code=204)

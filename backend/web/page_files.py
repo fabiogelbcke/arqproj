@@ -139,6 +139,22 @@ async def _in_project(storage, project: Project) -> set[str]:
     return {i.id for i in await _list(storage, project.folder_id) if i.is_folder}
 
 
+async def stage_groups(storage, folder: str) -> list[tuple[str | None, str, list[StorageItem]]]:
+    """What the page shows of one stage folder: its own files, then each visible
+    subfolder's (one level), as (group name or None, folder listed, files). The
+    maintenance scan reads the same, so it notices exactly what clients see."""
+    items = await _list(storage, folder)
+    groups = []
+    direct = [i for i in items if _showable(i)]
+    if direct:
+        groups.append((None, folder, direct))
+    for sub in (i for i in items if i.is_folder and not _hidden(i)):
+        inner = [i for i in await _list(storage, sub.id) if _showable(i)]
+        if inner:
+            groups.append((sub.name, sub.id, inner))
+    return groups
+
+
 def _file(
     request: Request, project: Project, item: StorageItem, stage: int, folder: str
 ) -> FileOut:
@@ -168,12 +184,19 @@ def _file(
 async def _storage(request: Request, db: AsyncSession):
     """The office's storage view, or None when there is none to read (no
     connection, or Drive disconnected)."""
+    # `google` is set up at app start.
+    return await storage_view(
+        db, request.app.state.settings, getattr(request.app.state, "google", None)
+    )
+
+
+async def storage_view(db: AsyncSession, settings, google):
+    """As `_storage`, outside a request too (the maintenance scan)."""
     connection = await db.scalar(select(StorageConnection))
     if connection is None:
         return None
-    google = getattr(request.app.state, "google", None)  # set up at app start
     try:
-        return storage_for(connection, request.app.state.settings, google)
+        return storage_for(connection, settings, google)
     except StorageError as error:  # e.g. the office disconnected Drive
         log.error(
             "files: storage unusable for %s: %s %s",
@@ -237,17 +260,13 @@ async def page_files(
             stages.append(shown)  # moved out of the project: nothing to show
             continue
         try:
-            items = await _list(storage, folder)
-            direct = [_file(request, project, i, position, folder) for i in items if _showable(i)]
-            if direct:
-                shown.groups.append(GroupOut(folder=None, files=direct))
-            for sub in (i for i in items if i.is_folder and not _hidden(i)):
-                inside = await _list(storage, sub.id)
-                inner = [
-                    _file(request, project, i, position, sub.id) for i in inside if _showable(i)
-                ]
-                if inner:
-                    shown.groups.append(GroupOut(folder=sub.name, files=inner))
+            for group, parent, files in await stage_groups(storage, folder):
+                shown.groups.append(
+                    GroupOut(
+                        folder=group,
+                        files=[_file(request, project, i, position, parent) for i in files],
+                    )
+                )
         except StorageError as error:
             # AGENTS.md: the detail in the log at ERROR, with the support code shown.
             log.error(
