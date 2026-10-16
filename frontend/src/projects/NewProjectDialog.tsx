@@ -1,5 +1,7 @@
 import { useState } from "react";
 import {
+  Checkbox,
+  CheckboxGroup,
   Dialog,
   DialogTrigger,
   Form,
@@ -9,6 +11,7 @@ import {
   ModalOverlay,
   Radio,
   RadioGroup,
+  Text,
 } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
@@ -19,7 +22,7 @@ import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
-import { suggestedSlug, useCreateProject, useTemplates, type ProjectSummary } from "./projects";
+import { suggestedSlug, useCreateProject, useCreationOptions, type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
 const CLIENT_MAX = 48;
@@ -27,13 +30,18 @@ const NAME_MAX = 120;
 
 function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: ProjectSummary) => void }) {
   const { t } = useTranslation();
-  const templates = useTemplates();
+  const options = useCreationOptions();
   const create = useCreateProject();
   // One per dialog: a double click or a retry returns the project already made.
   const [creationKey] = useState(() => crypto.randomUUID());
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
-  const [template, setTemplate] = useState("standard");
+  const [typeKey, setTypeKey] = useState<string | null>(null);
+  // null: the chosen type's usual stages; a list once staff tick or untick one.
+  const [ticked, setTicked] = useState<string[] | null>(null);
+  const types = options.data?.types ?? [];
+  const type = types.find((option) => option.key === typeKey) ?? types[0];
+  const stages = ticked ?? type?.stages ?? [];
   // Follows the name until the address is edited by hand.
   const [typedSlug, setTypedSlug] = useState<string | null>(null);
   const slug = typedSlug ?? suggestedSlug(name);
@@ -54,7 +62,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
       onSubmit={(event) => {
         event.preventDefault();
         create.mutate(
-          { name, client_name: client, template, slug, creation_key: creationKey },
+          { name, client_name: client, project_type: type?.key ?? "", stages, slug, creation_key: creationKey },
           {
             onSuccess: (project) => {
               onCreated(project);
@@ -82,19 +90,40 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         maxLength={CLIENT_MAX}
         autoComplete="off"
       />
-      <RadioGroup className={styles.templates} value={template} onChange={setTemplate} isRequired>
-        <Label className={styles.label}>{t("newProject.template")}</Label>
-        {(templates.data ?? []).map((option) => (
-          <Radio key={option.key} value={option.key} className={styles.template}>
-            <b>{option.label}</b>
-            <small>
-              {option.stage_count
-                ? t("newProject.stageCount", { count: option.stage_count })
-                : t("newProject.noStagesHint")}
-            </small>
-          </Radio>
-        ))}
+      <RadioGroup
+        className={styles.types}
+        value={type?.key ?? null}
+        onChange={(key) => {
+          setTypeKey(key);
+          setTicked(null); // the new type's usual stages
+        }}
+        isRequired
+      >
+        <Label className={styles.label}>{t("newProject.type")}</Label>
+        <div className={styles.typeOptions}>
+          {types.map((option) => (
+            <Radio key={option.key} value={option.key} className={styles.choice}>
+              {option.label}
+            </Radio>
+          ))}
+        </div>
       </RadioGroup>
+      <CheckboxGroup className={styles.stagesField} value={stages} onChange={setTicked}>
+        <Label className={styles.label}>{t("newProject.stages")}</Label>
+        <Text slot="description" className={styles.note}>
+          {stages.length
+            ? t("newProject.stagesHint", { count: stages.length })
+            : t("newProject.noStagesHint")}
+        </Text>
+        <div className={styles.stageOptions}>
+          {(options.data?.stages ?? []).map((stage) => (
+            <Checkbox key={stage.key} value={stage.key} className={styles.stageOption}>
+              <span className={styles.box} aria-hidden="true" />
+              {stage.title}
+            </Checkbox>
+          ))}
+        </div>
+      </CheckboxGroup>
       <TextField
         label={t("newProject.slug")}
         description={t("newProject.slugHint", { address: `${window.location.host}/${slug || "…"}` })}

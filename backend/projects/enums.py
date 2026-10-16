@@ -4,8 +4,8 @@ Two kinds of enum live here:
 
 - Values the code acts on (status, access mode, a detail's value type): stored as
   text with a CHECK built from the enum.
-- Names of built-in content rows (project types, stage templates, built-in
-  stages, detail types): the rows themselves, with their texts in every language,
+- Names of built-in content rows (project types, built-in stages, detail
+  types): the rows themselves, with their texts in every language,
   are reference tables in the database (migration 0008), which columns reference
   by foreign key. These enums let code name a specific built-in with autocomplete;
   a test keeps them and the rows in step. Offices' own rows (later) have keys no
@@ -45,22 +45,20 @@ class ProjectType(StrEnum):
 
 
 class BuiltinStage(StrEnum):
-    PROPOSAL = "proposal"
-    BRIEFING_SURVEY = "briefing_survey"
-    PRELIMINARY_STUDIES = "preliminary_studies"
-    MODEL_3D = "model_3d"
-    CONSTRUCTION_DOCUMENTS = "construction_documents"
-    FINAL_DELIVERY = "final_delivery"
-    EXTRA_SERVICES = "extra_services"
+    """The 12 built-in stages (A27), in the order every project lists them."""
+
     BRIEFING = "briefing"
-    LAYOUT = "layout"
+    SURVEY = "survey"
+    SURVEY_ASSESSMENT = "survey_assessment"
+    FEASIBILITY_STUDY = "feasibility_study"
+    PRELIMINARY_STUDY = "preliminary_study"
+    SCHEMATIC_DESIGN = "schematic_design"
+    PERMIT_DOCUMENTS = "permit_documents"
+    CONSTRUCTION_DOCUMENTS = "construction_documents"
     DETAILING = "detailing"
-
-
-class StageTemplate(StrEnum):
-    STANDARD = "standard"  # Padrão
-    INTERIORS = "interiors"
-    EMPTY = "empty"
+    COORDINATION = "coordination"
+    COMPLEMENTARY_PROJECTS = "complementary_projects"
+    SPECIFICATIONS = "specifications"
 
 
 class DetailType(StrEnum):

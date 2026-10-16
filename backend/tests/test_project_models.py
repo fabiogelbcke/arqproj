@@ -12,7 +12,6 @@ from backend.projects.enums import (
     DetailType,
     ProjectStatus,
     ProjectType,
-    StageTemplate,
 )
 from backend.projects.models import Meeting, Project, ProjectDetail, ProjectSlug, ProjectStage
 from backend.tests.test_tenancy_models import add_tenant, assert_refused
@@ -28,7 +27,6 @@ async def add_project(session, tenant, slug="casa-jardim", **values):
         "name": "Casa Jardim",
         "client_name": "Família Oliveira",
         "project_type": ProjectType.ARCHITECTURE,
-        "stage_template": StageTemplate.STANDARD,
     } | values
     project = Project(**fields)
     session.add(project)
@@ -105,8 +103,8 @@ async def test_slugs_are_clean_and_never_a_reserved_path(db_session, alinea, slu
     ("values", "constraint"),
     [
         ({}, "builtin_or_custom"),  # neither
-        ({"builtin_key": BuiltinStage.LAYOUT, "title": "Layout"}, "builtin_or_custom"),  # both
-        ({"builtin_key": BuiltinStage.LAYOUT, "about": "…"}, "builtin_texts_translated"),
+        ({"builtin_key": BuiltinStage.DETAILING, "title": "Layout"}, "builtin_or_custom"),  # both
+        ({"builtin_key": BuiltinStage.DETAILING, "about": "…"}, "builtin_texts_translated"),
     ],
 )
 async def test_a_stage_is_built_in_or_written_by_the_office(db_session, alinea, values, constraint):
@@ -123,20 +121,17 @@ async def test_a_built_in_stage_must_exist(db_session, alinea):
     await assert_refused(db_session, db_session.flush(), "fk_project_stages_builtin_key")
 
 
-@pytest.mark.parametrize(
-    ("values", "constraint"),
-    [
-        ({"project_type": "pools"}, "fk_projects_project_type"),
-        ({"stage_template": "nope"}, "fk_projects_stage_template"),
-    ],
-)
-async def test_a_project_uses_known_types_and_templates(db_session, alinea, values, constraint):
-    await assert_refused(db_session, add_project(db_session, alinea, **values), constraint)
+async def test_a_project_uses_a_known_type(db_session, alinea):
+    await assert_refused(
+        db_session,
+        add_project(db_session, alinea, project_type="pools"),
+        "fk_projects_project_type",
+    )
 
 
 async def test_stages_can_swap_positions_in_one_change(db_session, alinea):
     project = await add_project(db_session, alinea)
-    for position, key in ((1, BuiltinStage.PROPOSAL), (2, BuiltinStage.LAYOUT)):
+    for position, key in ((1, BuiltinStage.BRIEFING), (2, BuiltinStage.DETAILING)):
         db_session.add(
             ProjectStage(
                 tenant_id=alinea.id, project_id=project.id, position=position, builtin_key=key
@@ -155,7 +150,10 @@ async def test_a_stage_cannot_join_another_offices_project(db_session, alinea, n
     project = await add_project(db_session, alinea)
     db_session.add(
         ProjectStage(
-            tenant_id=norte.id, project_id=project.id, position=1, builtin_key=BuiltinStage.LAYOUT
+            tenant_id=norte.id,
+            project_id=project.id,
+            position=1,
+            builtin_key=BuiltinStage.DETAILING,
         )
     )
     await assert_refused(db_session, db_session.flush(), "fk_project_stages_project")

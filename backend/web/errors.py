@@ -39,7 +39,8 @@ class ErrorCode(StrEnum):
     LOGO_TOO_LARGE = "logo_too_large"
     INVALID_PROJECT_NAME = "invalid_project_name"
     INVALID_CLIENT_NAME = "invalid_client_name"
-    UNKNOWN_TEMPLATE = "unknown_template"
+    UNKNOWN_PROJECT_TYPE = "unknown_project_type"
+    UNKNOWN_STAGE = "unknown_stage"  # not a built-in stage, or chosen twice
     INVALID_SLUG = "invalid_slug"  # letters, numbers and hyphens; some words are the app's
     PROJECT_NAME_TAKEN = "project_name_taken"  # `conflict_name` as typed by the office
     SLUG_TAKEN = "slug_taken"

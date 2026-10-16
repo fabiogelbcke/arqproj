@@ -20,11 +20,24 @@ on_google = test_office.on_google
 pytestmark = pytest.mark.anyio
 
 
+# Architecture's usual stages, as the dialog ticks them.
+ARCHITECTURE = [
+    "briefing",
+    "survey",
+    "preliminary_study",
+    "schematic_design",
+    "permit_documents",
+    "construction_documents",
+    "coordination",
+]
+
+
 def body(**changes):
     return {
         "name": "Casa do Lago",
         "client_name": "Família Souza",
-        "template": "standard",
+        "project_type": "architecture",
+        "stages": ARCHITECTURE,
         "slug": "casa-do-lago",
         "creation_key": "key-0123456789abcdef",
     } | changes
@@ -43,7 +56,7 @@ async def project_count(db, slug="alinea"):
 # -- creating ---------------------------------------------------------------------
 
 
-async def test_a_new_project_is_a_draft_with_its_templates_stages_and_folders(
+async def test_a_new_project_is_a_draft_with_its_type_ticked_stages_and_folders(
     client, db_session, owner, tmp_path
 ):
     response = await create(client, owner)
@@ -54,11 +67,12 @@ async def test_a_new_project_is_a_draft_with_its_templates_stages_and_folders(
         "casa-do-lago",
         7,
     )
-    assert created["project_type"] == "architecture"  # the template's default
-    assert created["current_stage_title"] == "Proposta"
+    assert created["project_type"] == "architecture"
+    assert created["current_stage_title"] == "Briefing"
 
     folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
-    assert len(folders) == 7 and folders[0] == "01 - Proposta"
+    assert len(folders) == 7 and folders[0] == "01 - Briefing"
+    assert folders[-1] == "07 - Compatibilização"
     stages = list(
         await db_session.scalars(
             select(ProjectStage)
@@ -66,7 +80,7 @@ async def test_a_new_project_is_a_draft_with_its_templates_stages_and_folders(
             .order_by(ProjectStage.position)
         )
     )
-    assert [s.folder_id for s in stages][0] == "Casa do Lago/01 - Proposta"
+    assert [s.folder_id for s in stages][0] == "Casa do Lago/01 - Briefing"
 
     listed = (await client.get("/api/projects", headers=ALINEA)).json()
     assert created["id"] in {p["id"] for p in listed}
@@ -74,13 +88,24 @@ async def test_a_new_project_is_a_draft_with_its_templates_stages_and_folders(
 
 async def test_folder_names_follow_the_offices_language(client, db_session, owner, tmp_path):
     await db_session.execute(text("UPDATE tenants SET locale = 'en' WHERE slug = 'alinea'"))
-    response = await create(client, owner)
+    response = await create(client, owner, stages=["survey"])
     assert response.status_code == 201, response.text
-    assert (tmp_path / "Casa do Lago" / "01 - Proposal").is_dir()
+    assert (tmp_path / "Casa do Lago" / "01 - Survey").is_dir()
 
 
-async def test_a_template_without_stages_makes_just_the_project_folder(client, owner, tmp_path):
-    response = await create(client, owner, template="empty")
+async def test_ticked_stages_come_in_the_shared_order_whatever_the_type(client, owner, tmp_path):
+    """Staff may tick a stage outside the type's usual list; the order is fixed."""
+    response = await create(
+        client, owner, project_type="interiors", stages=["specifications", "permit_documents"]
+    )
+    assert response.status_code == 201, response.text
+    assert (response.json()["project_type"], response.json()["stage_count"]) == ("interiors", 2)
+    folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
+    assert folders == ["01 - Projeto Legal", "02 - Especificações"]
+
+
+async def test_with_every_stage_unticked_only_the_project_folder_is_made(client, owner, tmp_path):
+    response = await create(client, owner, stages=[])
     assert (response.json()["stage_count"], response.json()["current_position"]) == (0, None)
     assert list((tmp_path / "Casa do Lago").iterdir()) == []
 
@@ -100,7 +125,7 @@ async def test_a_name_that_is_already_a_folder_gets_its_own(client, owner, tmp_p
     (tmp_path / "Casa do Lago").mkdir()
     response = await create(client, owner)
     assert response.status_code == 201
-    assert (tmp_path / "Casa do Lago (2)" / "01 - Proposta").is_dir()
+    assert (tmp_path / "Casa do Lago (2)" / "01 - Briefing").is_dir()
 
 
 @pytest.mark.parametrize("slug", ["casa-jardim", "apto-atlantico"])  # current and former
@@ -144,7 +169,9 @@ async def test_a_deleted_projects_name_can_be_used_again(client, db_session, own
         ({"name": "x" * 121}, "invalid_project_name"),
         ({"client_name": " "}, "invalid_client_name"),
         ({"client_name": "x" * 49}, "invalid_client_name"),
-        ({"template": "no-such-template"}, "unknown_template"),
+        ({"project_type": "pools"}, "unknown_project_type"),
+        ({"stages": ["briefing", "proposal"]}, "unknown_stage"),  # an old, removed stage
+        ({"stages": ["briefing", "briefing"]}, "unknown_stage"),
         ({"slug": "Casa do Lago"}, "invalid_slug"),
         ({"slug": "-casa"}, "invalid_slug"),
         ({"slug": "painel"}, "invalid_slug"),
@@ -283,19 +310,17 @@ async def test_the_list_has_what_the_cards_show(client, owner):
     }
     casa = listed["casa-jardim"]
     assert (casa["stage_count"], casa["current_position"]) == (7, 3)
-    assert (
-        casa["current_stage_title"] == "Estudos Preliminares / Anteprojeto"
-    )  # translated built-in
+    assert casa["current_stage_title"] == "Estudo Preliminar"  # translated built-in
     assert casa["project_type_label"] == "Projeto Arquitetônico"
     assert casa["next_meeting"]["title"] == "Apresentação do layout"  # the past one is skipped
     apartment = listed["apartamento-atlantico"]
-    assert apartment["stage_count"] == 7  # six built in + the office's own
+    assert apartment["stage_count"] == 8  # interiors' seven + the office's own
 
 
 async def test_an_office_written_current_stage_shows_as_typed(client, db_session, owner):
     await db_session.execute(
         text(
-            "UPDATE projects SET current_position = 7 WHERE id = "
+            "UPDATE projects SET current_position = 8 WHERE id = "
             "(SELECT project_id FROM project_slugs WHERE slug = 'apartamento-atlantico')"
         )
     )
@@ -355,11 +380,17 @@ async def test_the_list_needs_sign_in(client, owner):
     assert (await client.get("/api/projects", headers=ALINEA)).status_code == 401
 
 
-async def test_templates_come_in_order_with_their_stage_counts(client, owner):
-    templates = (await client.get("/api/templates", headers=ALINEA)).json()
-    assert [(t["key"], t["stage_count"]) for t in templates] == [
-        ("standard", 7),
-        ("interiors", 6),
-        ("empty", 0),
+async def test_the_dialog_gets_every_stage_and_each_types_usual_ones(client, owner):
+    options = (await client.get("/api/project-types", headers=ALINEA)).json()
+    assert [t["label"] for t in options["types"]] == [
+        "Projeto Arquitetônico",
+        "Projeto de Interiores",
+        "Projeto de Reforma",
+        "Projeto de Paisagismo",
     ]
-    assert all(t["label"] for t in templates)
+    assert options["types"][0]["stages"] == ARCHITECTURE
+    assert len(options["stages"]) == 12
+    assert options["stages"][0] == {"key": "briefing", "title": "Briefing"}
+    every = [stage["key"] for stage in options["stages"]]
+    for kind in options["types"]:  # each type's stages, in the shared order
+        assert kind["stages"] == [key for key in every if key in kind["stages"]]

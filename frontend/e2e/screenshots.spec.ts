@@ -70,6 +70,7 @@ test("@screenshots staff app", async ({ page }) => {
   await shoot(page, "03-projetos", "dark");
   await page.getByRole("button", { name: "Novo projeto" }).click();
   await page.getByLabel("Nome do projeto").fill("Casa do Lago");
+  await page.getByLabel("Cliente").fill("Família Souza");
   await shoot(page, "03b-novo-projeto");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Editar o projeto Casa Jardim" }).click();

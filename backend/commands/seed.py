@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from backend.commands import local_db
 from backend.identity.passwords import hash_password
-from backend.projects.enums import AccessMode, DetailKey, ProjectStatus, StageTemplate
+from backend.projects.enums import AccessMode, DetailKey, ProjectStatus, ProjectType
 from backend.projects.models import (
     DetailTypeDef,
     Meeting,
@@ -27,8 +27,8 @@ from backend.projects.models import (
     ProjectDetail,
     ProjectSlug,
     ProjectStage,
-    StageTemplateDef,
-    TemplateStage,
+    ProjectTypeStage,
+    StageDef,
 )
 from backend.settings import Settings
 from backend.storage.models import StorageConnection, StorageKind
@@ -45,7 +45,7 @@ PROJECTS = {
             "slug": "casa-jardim",
             "name": "Casa Jardim",
             "client": "Família Oliveira",
-            "template": StageTemplate.STANDARD,
+            "type": ProjectType.ARCHITECTURE,
             "status": ProjectStatus.ACTIVE,
             "current": 3,
             "description": (
@@ -76,7 +76,7 @@ PROJECTS = {
             "old_slugs": ["apto-atlantico"],
             "name": "Apartamento Atlântico — Copacabana",
             "client": "Clara Martins e Rafael Nogueira de Albuquerque",
-            "template": StageTemplate.INTERIORS,
+            "type": ProjectType.INTERIORS,
             "status": ProjectStatus.ACTIVE,
             "current": 3,
             "description": "Reforma completa de um apartamento de frente para o mar.",
@@ -93,14 +93,15 @@ PROJECTS = {
             "slug": "casa-das-oliveiras",
             "name": "Casa das Oliveiras",
             "client": "Família Almeida",
-            "template": StageTemplate.EMPTY,
+            "type": ProjectType.ARCHITECTURE,
+            "stages": [],  # every stage unticked at creation
             "status": ProjectStatus.DRAFT,
         },
         {
             "slug": "refugio-da-mantiqueira",
             "name": "Refúgio da Mantiqueira",
             "client": "Helena e André",
-            "template": StageTemplate.STANDARD,
+            "type": ProjectType.LANDSCAPING,
             "status": ProjectStatus.COMPLETED,
             "current": 7,
             "password": "demo-senha",
@@ -122,7 +123,7 @@ PROJECTS = {
             "slug": "casa-jardim",
             "name": "Casa Jardim (Norte)",
             "client": "Família Rocha",
-            "template": StageTemplate.STANDARD,
+            "type": ProjectType.ARCHITECTURE,
             "status": ProjectStatus.ACTIVE,
             "current": 1,
             "folder": "Casa Nova",
@@ -186,14 +187,17 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
         return False
     owned = {"tenant_id": tenant.id}
     password = spec.get("password")
-    template = await session.get(StageTemplateDef, spec["template"])
-    stages = list(
-        await session.scalars(
-            select(TemplateStage.stage_key)
-            .where(TemplateStage.template_key == template.key)
-            .order_by(TemplateStage.position)
+    # The type's usual stages, as creation ticks them, unless the spec says otherwise.
+    stages = spec.get("stages")
+    if stages is None:
+        stages = list(
+            await session.scalars(
+                select(StageDef.key)
+                .join(ProjectTypeStage, ProjectTypeStage.stage_key == StageDef.key)
+                .where(ProjectTypeStage.project_type == spec["type"])
+                .order_by(StageDef.position)
+            )
         )
-    )
     value_types = dict(
         (await session.execute(select(DetailTypeDef.key, DetailTypeDef.value_type))).all()
     )
@@ -201,8 +205,7 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
         **owned,
         name=spec["name"],
         client_name=spec["client"],
-        project_type=template.default_project_type,
-        stage_template=spec["template"],
+        project_type=spec["type"],
         status=spec["status"],
         description=spec.get("description", ""),
         current_position=spec.get("current"),

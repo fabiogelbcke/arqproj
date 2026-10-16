@@ -202,15 +202,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/templates": {
+    "/api/project-types": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Templates */
-        get: operations["templates_api_templates_get"];
+        /** Project Types */
+        get: operations["project_types_api_project_types_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -280,6 +280,13 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** CreationOptions */
+        CreationOptions: {
+            /** Types */
+            types: components["schemas"]["ProjectTypeOption"][];
+            /** Stages */
+            stages: components["schemas"]["StageOption"][];
+        };
         /** DriveOut */
         DriveOut: {
             kind: components["schemas"]["StorageKind"] | null;
@@ -296,7 +303,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_template" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large";
+        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -410,8 +417,10 @@ export interface components {
             name: string;
             /** Client Name */
             client_name: string;
-            /** Template */
-            template: string;
+            /** Project Type */
+            project_type: string;
+            /** Stages */
+            stages: string[];
             /** Slug */
             slug: string;
             /** Creation Key */
@@ -459,6 +468,15 @@ export interface components {
             /** Cover Url */
             cover_url: string | null;
         };
+        /** ProjectTypeOption */
+        ProjectTypeOption: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Stages */
+            stages: string[];
+        };
         /**
          * ReaderStatus
          * @description The reader identity's access to the office's folder (pages, downloads).
@@ -470,20 +488,18 @@ export interface components {
          * @enum {string}
          */
         Role: "owner" | "member";
+        /** StageOption */
+        StageOption: {
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+        };
         /**
          * StorageKind
          * @enum {string}
          */
         StorageKind: "google" | "folder";
-        /** TemplateOut */
-        TemplateOut: {
-            /** Key */
-            key: string;
-            /** Label */
-            label: string;
-            /** Stage Count */
-            stage_count: number;
-        };
         /** TenantOut */
         TenantOut: {
             /** Name */
@@ -1117,7 +1133,7 @@ export interface operations {
             };
         };
     };
-    templates_api_templates_get: {
+    project_types_api_project_types_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -1132,7 +1148,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TemplateOut"][];
+                    "application/json": components["schemas"]["CreationOptions"];
                 };
             };
             /** @description Unauthorized */

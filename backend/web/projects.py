@@ -1,10 +1,10 @@
 """Projects in the painel: the list, and creating one.
 
     GET  /api/projects    the office's projects, for the list (anyone signed in)
-    GET  /api/templates   the stage templates a new project can start from
+    GET  /api/project-types   the types and stages a new project chooses from
     POST /api/projects    create a draft project with its folders (anyone signed in)
 
-Built-in texts (project types, stage titles, templates) come in the office's
+Built-in texts (project types, stage titles) come in the office's
 language; what the office typed comes as typed.
 """
 
@@ -36,9 +36,8 @@ from backend.projects.models import (
     ProjectSlug,
     ProjectStage,
     ProjectTypeDef,
+    ProjectTypeStage,
     StageDef,
-    StageTemplateDef,
-    TemplateStage,
 )
 from backend.storage.google_connect import ConnectError
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
@@ -82,16 +81,29 @@ class ProjectSummary(BaseModel):
     cover_url: str | None
 
 
-class TemplateOut(BaseModel):
+class StageOption(BaseModel):
+    key: str
+    title: str
+
+
+class ProjectTypeOption(BaseModel):
     key: str
     label: str
-    stage_count: int
+    # Its usual stages, ticked when it is chosen.
+    stages: list[str]
+
+
+class CreationOptions(BaseModel):
+    types: list[ProjectTypeOption]
+    # Every built-in stage, in the order a project lists them.
+    stages: list[StageOption]
 
 
 class ProjectIn(BaseModel):
     name: str = Field(max_length=500)
     client_name: str = Field(max_length=500)
-    template: str = Field(max_length=100)
+    project_type: str = Field(max_length=100)
+    stages: list[str] = Field(max_length=50)
     slug: str = Field(max_length=200)
     # Made by the screen once per dialog: a retried or double-sent request
     # returns the project already created.
@@ -188,22 +200,31 @@ async def projects(
     return await summaries(db, tenant.locale)
 
 
-@router.get("/templates", responses=documented(401))
-async def templates(
+@router.get("/project-types", responses=documented(401))
+async def project_types(
     _staff: CurrentStaff = Depends(current_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
-) -> list[TemplateOut]:
-    rows = await db.execute(
-        select(StageTemplateDef, func.count(TemplateStage.position))
-        .outerjoin(TemplateStage, TemplateStage.template_key == StageTemplateDef.key)
-        .group_by(StageTemplateDef.key)
-        .order_by(StageTemplateDef.position)
+) -> CreationOptions:
+    stages = list(await db.scalars(select(StageDef).order_by(StageDef.position)))
+    usual: dict[str, set[str]] = {}
+    for kind, stage in await db.execute(
+        select(ProjectTypeStage.project_type, ProjectTypeStage.stage_key)
+    ):
+        usual.setdefault(kind, set()).add(stage)
+    return CreationOptions(
+        types=[
+            ProjectTypeOption(
+                key=kind.key,
+                label=_text(kind.labels, tenant.locale),
+                stages=[stage.key for stage in stages if stage.key in usual.get(kind.key, set())],
+            )
+            for kind in await db.scalars(select(ProjectTypeDef).order_by(ProjectTypeDef.position))
+        ],
+        stages=[
+            StageOption(key=stage.key, title=_text(stage.titles, tenant.locale)) for stage in stages
+        ],
     )
-    return [
-        TemplateOut(key=template.key, label=_text(template.labels, tenant.locale), stage_count=n)
-        for template, n in rows.all()
-    ]
 
 
 async def _folders(request: Request, db: AsyncSession) -> tuple[FolderMaker, str | None]:
@@ -234,7 +255,8 @@ async def new_project(
     new = NewProject(
         name=body.name,
         client_name=body.client_name,
-        template=body.template,
+        project_type=body.project_type,
+        stages=tuple(body.stages),
         slug=body.slug.strip().lower(),
         creation_key=body.creation_key,
     )
