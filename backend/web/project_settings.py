@@ -26,6 +26,7 @@ from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
@@ -167,9 +168,16 @@ async def change_project(
         )
         if changed.rowcount != 1:
             raise ApiError(409, ErrorCode.PROJECT_CHANGED)
-        if new_slug:
-            await _move_address(db, project.id, new_slug)
-        await db.commit()
+        try:
+            if new_slug:
+                await _move_address(db, project.id, new_slug)
+            await db.commit()
+        except IntegrityError as error:
+            # Two people gave the same new address at once: the second loses.
+            await db.rollback()
+            if "slug" in str(error.orig):
+                raise ApiError(409, ErrorCode.SLUG_TAKEN) from None
+            raise
     elif project.row_version != body.row_version:
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)
     db.expire_all()
