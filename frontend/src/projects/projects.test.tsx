@@ -45,6 +45,7 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
     last_activity_at: null,
     row_version: 1,
     cover_url: null,
+    access_mode: "public",
     ...changes,
   };
 }

@@ -117,7 +117,17 @@
     "archived": "Projeto “{{name}}” arquivado.",
     "undo": "Desfazer",
     "restored": "Projeto “{{name}}” de volta.",
-    "edit": "Editar projeto"
+    "edit": "Editar projeto",
+    "link": "Link do cliente",
+    "linkHint": "A página fica em {{address}}. O link antigo continua funcionando.",
+    "access": "Acesso",
+    "public": "Qualquer pessoa com o link",
+    "publicHint": "Quem recebe o link abre a página.",
+    "withPassword": "Com senha",
+    "withPasswordHint": "O cliente digita a senha uma vez por aparelho; vale por 90 dias.",
+    "password": "Senha",
+    "passwordKeep": "Deixe em branco para manter a senha atual. Uma senha nova pede a senha de novo em todos os aparelhos.",
+    "passwordNew": "Pelo menos 6 caracteres. Envie a senha ao cliente junto com o link."
   },
   "notFound": {
     "title": "Página não encontrada",
@@ -174,7 +184,10 @@
     "unknown_project_type": "Escolha um tipo de projeto.",
     "unknown_stage": "Uma das etapas escolhidas não existe mais. Recarregue a página e tente de novo.",
     "page_not_found": "Não encontramos esta página. Confira o link com o escritório.",
-    "page_locked": "Esta página é protegida por senha."
+    "page_locked": "Esta página é protegida por senha.",
+    "wrong_page_password": "Senha incorreta. Confira com o escritório.",
+    "too_many_attempts": "Muitas tentativas. Tente de novo em 15 minutos.",
+    "password_required": "Defina uma senha para proteger a página."
   },
   "projectStatus": {
     "draft": "Rascunho",
@@ -274,7 +287,7 @@
     "notFoundTitle": "Página não encontrada",
     "notFoundBody": "Confira o link com o escritório. Se o projeto mudou de endereço, peça o link novo.",
     "lockedTitle": "Página protegida",
-    "lockedBody": "Esta página é protegida por senha. Em breve você poderá digitá-la aqui.",
+    "lockedBody": "Esta página é protegida por senha. Digite a senha que o escritório enviou; este aparelho fica liberado por 90 dias.",
     "cover": "Capa do projeto {{name}}",
     "staffBar": "Ferramentas do escritório",
     "backToPainel": "Painel",
@@ -284,6 +297,8 @@
     "linkCopied": "Link copiado.",
     "linkCopiedDraft": "Link copiado. O cliente só verá a página depois de publicada.",
     "publish": "Publicar",
-    "published": "Publicado. O cliente já pode abrir o link."
+    "published": "Publicado. O cliente já pode abrir o link.",
+    "password": "Senha",
+    "enter": "Entrar"
   }
 }

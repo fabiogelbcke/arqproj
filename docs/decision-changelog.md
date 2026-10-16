@@ -19,6 +19,21 @@ a new entry too.
 
 ---
 
+## 2026-10-16 — A06 detailed: how the client password works
+
+**Was:** public or password-protected access, details open.
+
+**Now:** staff set the password in the "Projeto" dialog (at least 6
+characters, no generator). The client types it once per device, which stays
+unlocked for 90 days. After five wrong tries a device waits 15 minutes; the
+office gets no email. A new password, or a change of access mode, ends every
+earlier unlock. Changing the page's address there keeps the old link working
+(A29).
+
+**Why:** Fabio's choices before the overnight run (16 Oct 2026): fewer retypes
+for clients, a simple form for staff, and a limit proportional to a shared
+link's password.
+
 ## 2026-10-16 — A20: the client page is React too
 
 **Was:** client project pages server-rendered with Jinja (fast, simple, good link

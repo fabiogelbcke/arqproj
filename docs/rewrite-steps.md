@@ -360,7 +360,14 @@ when the design moves to Figma); Vite builds it as a second app. Stages show
 the project type's description under "Sobre esta etapa"; files come in 2.5.
 2.4 Optional
 password on every content route; client link and access in the "Projeto"
-dialog. 2.5 Each stage's files, downloads and previews through the reader
+dialog. **As built:** the "Projeto" dialog gains "Link do cliente" (a new or
+earlier address; the old one keeps redirecting; another project's, current or
+old, is refused with its name) and "Acesso" (public, or a password of 6+
+characters; an empty field keeps the current one). A protected page asks for
+the password; `POST /api/pages/{slug}/unlock` sets a signed cookie per project
+for 90 days, tied to `access_version`; 5 wrong tries per device, then 15
+minutes (`backend/web/attempts.py`). Protected pages' responses are private,
+no-store. Migration 0014 grants the columns this changes. 2.5 Each stage's files, downloads and previews through the reader
 identity. 2.6 Staff bar on the page ("Painel", "Editar"); a card's title opens
 the page; "Copiar link". **As built (with "Publicar", ahead of 2.4 and 2.5):**
 the whole painel card links to `/{slug}`; the office's signed-in staff see

@@ -105,8 +105,12 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
                 "cover_type",
                 "cover_folder_id",
                 "row_version",
+                "access_mode",
+                "password_hash",
+                "access_version",
             )
         ),
+        ("project_slugs", "is_current", "UPDATE"),
     }
     assert _grants(migrated_url, RUNTIME_ROLE) == set()
     assert _column_grants(migrated_url, RUNTIME_ROLE) == set()
