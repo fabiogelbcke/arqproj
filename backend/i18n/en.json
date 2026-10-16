@@ -189,7 +189,8 @@
     "wrong_page_password": "Wrong password. Check it with the office.",
     "too_many_attempts": "Too many attempts. Try again in 15 minutes.",
     "password_required": "Set a password to protect the page.",
-    "file_not_found": "This file is no longer available. Reload the page."
+    "file_not_found": "This file is no longer available. Reload the page.",
+    "files_unavailable": "The file couldn't be opened just now. Try again in a moment."
   },
   "projectStatus": {
     "draft": "Draft",

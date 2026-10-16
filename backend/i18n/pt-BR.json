@@ -189,7 +189,8 @@
     "wrong_page_password": "Senha incorreta. Confira com o escritório.",
     "too_many_attempts": "Muitas tentativas. Tente de novo em 15 minutos.",
     "password_required": "Defina uma senha para proteger a página.",
-    "file_not_found": "Este arquivo não está mais disponível. Recarregue a página."
+    "file_not_found": "Este arquivo não está mais disponível. Recarregue a página.",
+    "files_unavailable": "Não foi possível abrir o arquivo agora. Tente de novo em instantes."
   },
   "projectStatus": {
     "draft": "Rascunho",
