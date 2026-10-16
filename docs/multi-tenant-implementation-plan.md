@@ -114,10 +114,11 @@ its affected tests before coding proceeds.
 | A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original is shown as v1. Refined 15 Oct 2026: the client page shows the clean name with a separate version badge, while the copy in Drive carries the version (`Planta v3.pdf`); grouping only within one folder; clashes are flagged, never merged; current = highest version. See section 12 and the [changelog](decision-changelog.md) |
 | A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Refined the same day: values the code **acts on** (status, access mode, roles, a detail's value type, languages, error codes) are enums stored with a CHECK; **content the app only displays** (project types, detail types, built-in stages with their descriptions, each type's usual stages) lives in reference tables with its texts per language, referenced by foreign key, and the code keeps enums naming the built-in rows (a test keeps them in step). Interface text lives in one translation catalog per language shared by the server and the staff app. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
 | A27 | Typed project details; project type chosen at creation, with its usual stages | Agreed 15 Oct 2026 (prototype review). Details are text, choice, area (m²) or date, formatted per language. Project type is a column with four built-in types: Projeto Arquitetônico, Projeto de Interiores, Projeto de Reforma, Projeto de Paisagismo. Revised 16 Oct 2026 (Alinea's partners): creation asks for the type; all 12 built-in stages are listed in one fixed order, the type's usual ones ticked, and staff tick or untick any. Each type gives its stages its own description; a stage outside its type's list uses a general one. Built-in stages have a description only (no separate deliverables). Stage templates are gone. The pilot offers only built-in details, types and stages; office-defined ones are a later addition. See sections 7 and 10 |
-| A28 | One feed of client-visible project events | Agreed 15 Oct 2026 (prototype review). New files and versions, stage notes and meeting changes are recorded once as `project_events`; the client page's "latest updates" panel, the project's "last updated" date and email batching (A12) all read it. See sections 7 and 14 |
+| A28 | One feed of client-visible project events | Agreed 15 Oct 2026 (prototype review). New files and versions, stage notes, stage progress (advanced, project completed) and meeting changes are recorded once as `project_events`; the client page's "latest updates" panel, the project's "last updated" date and email batching (A12) all read it. Which of them email: A32 (not notes). See sections 7 and 14 |
 | A29 | A project address (slug), once used, stays reserved for that project | Agreed 15 Oct 2026. Old slugs keep redirecting and can never be given to another project in the office, so an old client link cannot land on someone else's project. See section 6 |
 | A30 | Staff app and API stay compatible across a deploy | Agreed 15 Oct 2026, correcting "one revision means the staff app can never run against another API version": an open tab keeps the old code. Fingerprinted assets, a build ID on API responses, a reload prompt that keeps unsaved edits, and API changes compatible with the previous release. See section 4 |
 | A31 | Uploads go from the browser straight to Drive | Agreed 16 Oct 2026 (Fabio), first part of slice 3b. Any staff member uploads into a stage from edit mode. The app checks the request (staff, project not archived, the stage's folder, at most 100 MB a file) and opens a Google resumable upload in that folder through the office's grant; the browser sends the bytes to Google, never through Cloud Run. A file with a name already there is kept beside it until versions (A25) arrive. The 100 MB cap settles the upload cap that section 24 listed as open; usage metrics (future ideas) may move it. "Ocultar do cliente" renames a file with a leading `_` (A05's hidden names); the office's grant (`drive.file`) reaches only files the app uploaded, so a file put straight into Drive is hidden by renaming it there. Versions, covers in Drive and usage metrics are later. See section 11 |
+| A32 | Client email updates: what, to whom, from where, and how often | Agreed 16 Oct 2026 (Fabio). Staff list the client's addresses in the Projeto dialog, several per project (`project_recipients`). An email goes out for new files on the page, a stage advanced or the project completed, and a meeting scheduled, changed or removed; a stage's note does not email (it still counts for the updates panel). Batching as A12, 45 minutes quiet and 2 hours at most, confirmed for the pilot. Each office sends from its own domain once that domain is verified with the provider (Alinea: `alineaarquitetos.com`); until then, and for every other office, from the product's general domain with the office's name. Replies go to the office's contact email (office settings), else its owner. Locally and in tests a collecting fake records emails; staging sends only to allowlisted addresses. One Cloud Scheduler job calls the maintenance endpoint every 10 minutes (A09, A19), staging first. See section 14 |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -671,7 +672,7 @@ The following is a logical schema specification, not a migration:
 | `documents` | tenant, project, logical title, stage, current revision ID, publication state |
 | `document_revisions` | tenant, document, storage item, application sequence, label, observed content marker, source, published time, availability state |
 | `project_recipients` | tenant, project, email, locale, subscription state, unsubscribe-token hash |
-| `project_events` | tenant, project, kind (file published, new version, file withdrawn, note changed, meeting scheduled/changed/cleared), document/revision or stage reference, source fingerprint, detected/published times. Client-visible activity (A28): feeds the updates panel, the project's last-activity time and email batching |
+| `project_events` | tenant, project, kind (file published, new version, file withdrawn, note changed, stage advanced, project completed, meeting scheduled/changed/cleared), document/revision or stage reference, source fingerprint, detected/published times. Client-visible activity (A28): feeds the updates panel, the project's last-activity time and email batching; every kind but "note changed" can start an email (A32) |
 | `notification_batches` | tenant, project, start/due time, state; events captured in batch-item rows |
 | `notification_deliveries` | tenant, batch, recipient, idempotency key, provider ID, attempt/result timestamps |
 | `operations` / `operation_steps` | tenant, type, request key/hash, state, result IDs, provisioning progress |
@@ -1198,7 +1199,9 @@ as described in section 4, retaining the business-level guarantees):
 
 Email is the first delivery channel. Use a verified product sender domain, with
 an office-specific display name and a validated reply-to address. Do not attempt
-to impersonate an office's domain before it has configured email authentication.
+to impersonate an office's domain before it has configured email authentication. An
+office whose own domain is verified sends from it (A32: Alinea, from
+`alineaarquitetos.com`); the reply-to is the office's contact email.
 Resend is the proposed adapter; keep provider-specific behavior out of batching
 logic. Configure SPF/DKIM/DMARC, suppression and bounce handling before sending
 to customers. Provider quotas count recipients, so a digest to ten people is not
@@ -1254,7 +1257,9 @@ Send recipients separately to avoid exposing the client list. Offer an
 unguessable unsubscribe link scoped to that recipient/project and an office
 preference control. Disabled recipients remain suppressed on retries. Initial
 imports, rename-only changes, previews, metadata edits and moves within the same
-published project do not create “new file” mail. A genuinely new visible revision
+published project do not create “new file” mail. What does email (A32): new files, a stage
+advanced or the project completed, and a meeting scheduled, changed or removed.
+A stage's note does not; it is recorded for the updates panel only. A genuinely new visible revision
 does. Repeated edits in a batch are summarized once per document with the latest
 still-visible state.
 
@@ -1707,7 +1712,7 @@ choices need an owner before their corresponding feature ships:
 | Office address scheme (A21) | Two options in section 4: A, office subdomains behind a load balancer; B, one domain with office paths. Recommended default: A for anything clients see, `run.app` paths for internal testing | Before DNS/OAuth registration and before any client link is shared |
 | Staff app building blocks | Evaluate SVAR React File Manager, Uppy and the Google Picker (section 11) against a custom screen | Slice 3 |
 | Password setter | Office owner/member; viewers cannot change it | Access UI implementation |
-| Digest semantics | Trailing 45-minute quiet period with a 2-hour maximum hold; quiet period configurable 5–120 minutes | Notification acceptance tests; confirm both figures with a pilot office |
+| Digest semantics | Trailing 45-minute quiet period with a 2-hour maximum hold; quiet period configurable 5–120 minutes | Confirmed for the pilot by Fabio, 16 Oct 2026 (A32); revisit with the first office's real upload sessions |
 | External file write limitations | Disable unsupported actions + Open in Drive / explicit authorization | Live Google acceptance |
 | Revision retention promise | Separate `vN` files for website revisions (A25); no guarantee for overwritten Drive history | Versioning UI copy |
 | Download model | Streaming proxy by default, optional authorized Drive link | Hosting/load test |

@@ -19,6 +19,25 @@ a new entry too.
 
 ---
 
+## 2026-10-16 — A32 added: client email updates
+
+**Was:** section 14 described batching and privacy for email, and A12 set the
+45-minute quiet period with a 2-hour hold "to confirm with a pilot office"; the
+recipients, what triggers an email, and the sender were open.
+
+**Now:** staff list several client addresses per project in the Projeto dialog.
+Emails go out for new files, a stage advanced or the project completed, and a
+meeting scheduled, changed or removed, not for a stage's note. 45 minutes and 2
+hours stay for the pilot. Each office sends from its own domain once verified
+(Alinea: `alineaarquitetos.com`), otherwise from the product's general domain
+under its name; replies go to the office's contact email. One Cloud Scheduler job
+runs the maintenance pass every 10 minutes, on staging first.
+
+**Why:** Fabio, 16 Oct 2026: recipients in the Projeto dialog, "yes"; triggers,
+"not for notes, but meetings yes and files/stages"; timing, "yes"; the scheduler,
+"sure". On the sender, a general domain is being set up for the product: Alinea
+keeps its own, other offices use the general one.
+
 ## 2026-10-16 — A31 added: uploads go from the browser straight to Drive
 
 **Was:** slice 3b listed "resumable upload into a stage" and "Ocultar do

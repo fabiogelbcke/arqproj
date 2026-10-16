@@ -438,8 +438,10 @@ names, repair scans, previews.
 
 ### Slice 5: notifications
 
-Email on stage advance and new files, with the 45-minute quiet window (A12),
-recipients and unsubscribe.
+Email on new files, a stage advanced or the project completed, and a meeting
+scheduled, changed or removed (not a stage's note), with the 45-minute quiet
+window and 2-hour hold (A12), recipients in the Projeto dialog and unsubscribe
+(A32).
 
 ### Slice 6: real Google login and live checks
 
