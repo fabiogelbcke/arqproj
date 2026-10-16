@@ -162,6 +162,21 @@ describe("the files", () => {
   });
 });
 
+describe("files that can't be listed", () => {
+  it("says so in every stage, with the support code, instead of staying blank", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({
+        status: 500,
+        body: { error: "unexpected" },
+        headers: { "X-Request-ID": "ref42" },
+      }),
+    });
+    const current = await screen.findByRole("region", { name: "Levantamento" });
+    expect(await within(current).findByText(/Não foi possível carregar os arquivos.*Código de suporte: ref42/)).toBeInTheDocument();
+  });
+});
+
 describe("the staff bar", () => {
   it("is only there for the office's staff", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });

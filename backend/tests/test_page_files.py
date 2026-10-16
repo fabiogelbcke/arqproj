@@ -6,7 +6,7 @@ from sqlalchemy import text
 from backend.tests import test_office
 from backend.tests.test_office import ALINEA, PNG
 from backend.tests.test_page_access import SEED_PASSWORD, Roles, change, unlock
-from backend.web import attempts
+from backend.web import attempts, page_files
 
 owner = test_office.owner  # fixtures
 
@@ -18,8 +18,10 @@ PDF = b"%PDF-1.4 fictional"
 @pytest.fixture(autouse=True)
 def fresh_attempts():
     attempts.reset()
+    page_files.forget_listings()
     yield
     attempts.reset()
+    page_files.forget_listings()
 
 
 @pytest.fixture
@@ -161,3 +163,42 @@ async def test_a_missing_stage_folder_marks_that_stage_unavailable(client, owner
     stages = (await listing(client)).json()["stages"]
     assert stages[0]["unavailable"] is True
     assert stages[5]["unavailable"] is False  # no folder bound: simply empty
+
+
+async def test_a_file_moved_out_of_the_stage_no_longer_opens(client, owner, files):
+    """A key opens what the page listed only while it's still there (A05)."""
+    first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
+    pdf = next(f for f in first if f["kind"] == "pdf")
+    url = f"/api/pages/casa-jardim/files/{pdf['key']}"
+    assert (await client.get(url, headers=ALINEA)).status_code == 200
+    briefing = files / "Casa Jardim" / "01 - Briefing"
+    (briefing / "Programa de necessidades.pdf").rename(files / "Programa de necessidades.pdf")
+    page_files.forget_listings()  # a minute later
+    assert (await client.get(url, headers=ALINEA)).status_code == 404
+
+
+async def test_a_file_in_a_folder_hidden_later_no_longer_opens(client, owner, files):
+    groups = (await listing(client)).json()["stages"][0]["groups"]
+    dwg = groups[1]["files"][0]  # in "Plantas antigas"
+    briefing = files / "Casa Jardim" / "01 - Briefing"
+    (briefing / "Plantas antigas").rename(briefing / "_Plantas antigas")
+    page_files.forget_listings()
+    response = await client.get(f"/api/pages/casa-jardim/files/{dwg['key']}", headers=ALINEA)
+    assert response.status_code == 404
+
+
+async def test_disconnected_storage_marks_stages_unavailable_with_a_reference(
+    client, owner, files, monkeypatch
+):
+    from backend.storage.base import StorageError, StorageProblem
+
+    def disconnected(*_args):
+        raise StorageError(StorageProblem.NO_ACCESS, "office disconnected Drive")
+
+    monkeypatch.setattr(page_files, "storage_for", disconnected)
+    response = await listing(client)
+    assert response.status_code == 200
+    shown = response.json()
+    assert shown["stages"][0]["unavailable"] is True
+    assert shown["stages"][5]["unavailable"] is False  # no folder bound
+    assert shown["reference"] == response.headers["x-request-id"]
