@@ -21,6 +21,9 @@ WINDOW_SECONDS = 15 * 60
 _failures: dict[tuple[str, str], list[float]] = defaultdict(list)
 # (project id, device) -> when its wait ends: 15 minutes after the fifth wrong try
 _blocked_until: dict[tuple[str, str], float] = {}
+# (project id, device) -> tries being checked right now: they count too, so a
+# batch sent at once can't all slip past the limit while the hashes run.
+_in_flight: dict[tuple[str, str], int] = defaultdict(int)
 
 
 def device(request: Request) -> str:
@@ -56,9 +59,28 @@ def blocked(project_id: str, who: str, now: float | None = None) -> bool:
     return False
 
 
+def admit(project_id: str, who: str, now: float | None = None) -> bool:
+    """Reserve one try before checking the password, or False if this device
+    must wait. No await between the check and the reservation, so concurrent
+    requests can't all pass. Every admitted try ends in `failed` or `succeeded`."""
+    now = time.monotonic() if now is None else now
+    key = (project_id, who)
+    if blocked(project_id, who, now) or len(_recent(key, now)) + _in_flight[key] >= LIMIT:
+        return False
+    _in_flight[key] += 1
+    return True
+
+
+def _release(key: tuple[str, str]) -> None:
+    _in_flight[key] -= 1
+    if _in_flight[key] <= 0:
+        _in_flight.pop(key, None)
+
+
 def failed(project_id: str, who: str, now: float | None = None) -> None:
     now = time.monotonic() if now is None else now
     key = (project_id, who)
+    _release(key)
     _recent(key, now)
     _failures[key].append(now)
     if len(_failures[key]) >= LIMIT:  # the fifth within 15 minutes: wait from now
@@ -67,6 +89,7 @@ def failed(project_id: str, who: str, now: float | None = None) -> None:
 
 
 def succeeded(project_id: str, who: str) -> None:
+    _release((project_id, who))
     _failures.pop((project_id, who), None)
 
 
@@ -74,3 +97,4 @@ def reset() -> None:
     """For tests."""
     _failures.clear()
     _blocked_until.clear()
+    _in_flight.clear()
