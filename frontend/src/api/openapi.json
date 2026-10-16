@@ -2276,6 +2276,17 @@
             },
             "type": "array",
             "title": "Stages"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
           }
         },
         "type": "object",

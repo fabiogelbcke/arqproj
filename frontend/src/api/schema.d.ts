@@ -661,6 +661,8 @@ export interface components {
         PageFilesOut: {
             /** Stages */
             stages: components["schemas"]["StageFilesOut"][];
+            /** Reference */
+            reference?: string | null;
         };
         /** PageOut */
         PageOut: {

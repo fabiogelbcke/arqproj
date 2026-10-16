@@ -14,15 +14,28 @@ type StageFiles = Schemas["StageFilesOut"];
 type FileItem = Schemas["FileOut"];
 
 /** Every stage's files, read live from the office's Drive (2.5). */
-function useStageFiles(slug: string, version: unknown) {
-  const [stages, setStages] = useState<StageFiles[] | null>(null);
+type FilesState = { stages: StageFiles[]; reference: string | null; failed: boolean };
+
+function useStageFiles(slug: string, version: unknown): FilesState | null {
+  const [state, setState] = useState<FilesState | null>(null); // null while loading
   useEffect(() => {
     call(api.GET("/api/pages/{slug}/files", { params: { path: { slug } } })).then(
-      (found) => setStages(found.stages),
-      () => setStages([]),
+      (found) => setState({ stages: found.stages, reference: found.reference ?? null, failed: false }),
+      // Couldn't be fetched at all: every stage says so, with the support code.
+      (failure: { requestId?: string | null }) =>
+        setState({ stages: [], reference: failure?.requestId ?? null, failed: true }),
     );
   }, [slug, version]);
-  return stages;
+  return state;
+}
+
+/** One stage's files (undefined while loading) and the support code, if any. */
+function filesFor(state: FilesState | null, position: number) {
+  if (state === null) return { files: undefined, reference: null };
+  const files = state.failed
+    ? { position, groups: [], unavailable: true }
+    : state.stages.find((s) => s.position === position);
+  return { files, reference: state.reference };
 }
 
 function fileSize(bytes: number | null | undefined, locale: string): string {
@@ -83,10 +96,26 @@ function FileCard({ file, slug, timeZone }: { file: FileItem; slug: string; time
   );
 }
 
-function StageFilesList({ files, slug, timeZone }: { files: StageFiles | undefined; slug: string; timeZone: string }) {
+function StageFilesList({
+  files,
+  reference,
+  slug,
+  timeZone,
+}: {
+  files: StageFiles | undefined;
+  reference: string | null;
+  slug: string;
+  timeZone: string;
+}) {
   const { t } = useTranslation();
   if (!files) return null; // still loading
-  if (files.unavailable) return <p className="empty-stage">{t("page.filesUnavailable")}</p>;
+  if (files.unavailable)
+    return (
+      <p className="empty-stage">
+        {t("page.filesUnavailable")}
+        {reference && ` ${t("errors.reference", { id: reference })}`}
+      </p>
+    );
   if (!files.groups.length) return <p className="empty-stage">{t("page.noFiles")}</p>;
   return (
     <>
@@ -355,6 +384,7 @@ function Stage({
   open,
   onToggle,
   files,
+  reference,
   slug,
   editor,
 }: {
@@ -363,6 +393,7 @@ function Stage({
   open: boolean;
   onToggle: () => void;
   files: StageFiles | undefined;
+  reference: string | null;
   slug: string;
   editor?: { open: boolean; onOpen: () => void; render: () => ReactNode };
 }) {
@@ -452,7 +483,7 @@ function Stage({
               </button>
             )
           )}
-          <StageFilesList files={files} slug={slug} timeZone={page.timezone} />
+          <StageFilesList files={files} reference={reference} slug={slug} timeZone={page.timezone} />
         </div>
       </div>
     </section>
@@ -687,7 +718,7 @@ export function ProjectPage({
             index={i}
             open={i === openStage}
             onToggle={() => setOpenStage(i === openStage ? -1 : i)}
-            files={stageFiles?.find((s) => s.position === i + 1)}
+            {...filesFor(stageFiles, i + 1)}
             slug={slug}
             editor={
               canEdit

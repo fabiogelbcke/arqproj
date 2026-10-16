@@ -19,6 +19,7 @@ which refuses anything outside the office's folder.
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime
 from urllib.parse import quote
 
@@ -39,6 +40,7 @@ from backend.web.auth import CurrentStaff, optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.office import image_type
 from backend.web.pages import PAGE_HEADERS, _readable
+from backend.web.request_id import current_request_id
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -72,6 +74,8 @@ class StageFilesOut(BaseModel):
 
 class PageFilesOut(BaseModel):
     stages: list[StageFilesOut]
+    # The support code, when a stage couldn't be read (its detail is in the log).
+    reference: str | None = None
 
 
 def _hidden(item: StorageItem) -> bool:
@@ -99,11 +103,42 @@ def _private(project: Project, staff: CurrentStaff | None) -> dict[str, str]:
     return {"Cache-Control": "private, max-age=300"}
 
 
-def _file(request: Request, project: Project, item: StorageItem) -> FileOut:
+# Folder listings, kept a minute: checking a file is still where its key says
+# (on every download and preview) would otherwise list Drive once per card.
+LISTING_SECONDS = 60
+_listings: dict[str, tuple[float, list[StorageItem]]] = {}
+
+
+async def _list(storage, folder: str, fresh: bool = False) -> list[StorageItem]:
+    now = time.monotonic()
+    cached = _listings.get(folder)
+    if not fresh and cached and now - cached[0] < LISTING_SECONDS:
+        return cached[1]
+    items = await storage.list_folder(folder)
+    _listings[folder] = (now, items)
+    return items
+
+
+def forget_listings() -> None:
+    """For tests."""
+    _listings.clear()
+
+
+def _file(
+    request: Request, project: Project, item: StorageItem, stage: int, folder: str
+) -> FileOut:
+    """The file with its key: project, access version, stage, the folder it was
+    listed in, and the item, so a download can check it's still there."""
     key = keys.sign(
         request.app.state.settings.app_secret,
         KEY_PURPOSE,
-        {"p": str(project.id), "v": project.access_version, "i": item.id},
+        {
+            "p": str(project.id),
+            "v": project.access_version,
+            "s": stage,
+            "f": folder,
+            "i": item.id,
+        },
         KEY_HOURS * 3600,
     )
     name = f"{item.name}.pdf" if item.is_native else item.name
@@ -113,11 +148,22 @@ def _file(request: Request, project: Project, item: StorageItem) -> FileOut:
 
 
 async def _storage(request: Request, db: AsyncSession):
+    """The office's storage view, or None when there is none to read (no
+    connection, or Drive disconnected)."""
     connection = await db.scalar(select(StorageConnection))
     if connection is None:
         return None
     google = getattr(request.app.state, "google", None)  # set up at app start
-    return storage_for(connection, request.app.state.settings, google)
+    try:
+        return storage_for(connection, request.app.state.settings, google)
+    except StorageError as error:  # e.g. the office disconnected Drive
+        log.error(
+            "files: storage unusable for %s: %s %s",
+            connection.tenant_id,
+            error.problem,
+            error.detail,
+        )
+        return None
 
 
 @router.get("/api/pages/{slug}/files", responses=documented(403, 404))
@@ -131,6 +177,7 @@ async def page_files(
     project = await _readable(db, slug, staff, request)
     response.headers.update({**PAGE_HEADERS, **_private(project, staff)})
     storage = await _storage(request, db)
+    has_connection = await db.scalar(select(StorageConnection.id)) is not None
     folders = list(
         await db.scalars(
             select(ProjectStage.folder_id)
@@ -141,27 +188,40 @@ async def page_files(
     stages = []
     for position, folder in enumerate(folders, start=1):
         shown = StageFilesOut(position=position, groups=[])
-        if folder is None or storage is None:
+        if folder is None:
+            stages.append(shown)
+            continue
+        if storage is None:  # a bound folder that can't be read at all
+            shown.unavailable = has_connection
             stages.append(shown)
             continue
         try:
-            items = await storage.list_folder(folder)
-            direct = [_file(request, project, i) for i in items if _showable(i)]
+            items = await _list(storage, folder, fresh=True)
+            direct = [_file(request, project, i, position, folder) for i in items if _showable(i)]
             if direct:
                 shown.groups.append(GroupOut(folder=None, files=direct))
             for sub in (i for i in items if i.is_folder and not _hidden(i)):
-                inside = await storage.list_folder(sub.id)
-                inner = [_file(request, project, i) for i in inside if _showable(i)]
+                inside = await _list(storage, sub.id, fresh=True)
+                inner = [
+                    _file(request, project, i, position, sub.id) for i in inside if _showable(i)
+                ]
                 if inner:
                     shown.groups.append(GroupOut(folder=sub.name, files=inner))
         except StorageError as error:
-            log.warning(
-                "stage %s of %s unreadable: %s %s", position, slug, error.problem, error.detail
+            # AGENTS.md: the detail in the log at ERROR, with the support code shown.
+            log.error(
+                "files: listing stage %s of %s/%s failed: %s %s",
+                position,
+                project.tenant_id,
+                slug,
+                error.problem,
+                error.detail,
             )
             shown.unavailable = True
             shown.groups = []
         stages.append(shown)
-    return PageFilesOut(stages=stages)
+    unavailable = any(stage.unavailable for stage in stages)
+    return PageFilesOut(stages=stages, reference=current_request_id() if unavailable else None)
 
 
 async def _item(request: Request, db: AsyncSession, project: Project, key: str):
@@ -177,10 +237,30 @@ async def _item(request: Request, db: AsyncSession, project: Project, key: str):
     if storage is None:
         raise ApiError(404, ErrorCode.FILE_NOT_FOUND)
     try:
+        if not await _still_listed(db, storage, project, found):
+            raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # moved, hidden or removed
         return storage, await storage.get(found["i"])
     except StorageError as error:
         log.warning("file unavailable: %s %s", error.problem, error.detail)
         raise ApiError(404, ErrorCode.FILE_NOT_FOUND) from None
+
+
+async def _still_listed(db: AsyncSession, storage, project: Project, found: dict) -> bool:
+    """The item is still where the page would list it (A05, plan section 6): in
+    the stage's folder, or in a visible subfolder of it, and still shown."""
+    stage_folder = await db.scalar(
+        select(ProjectStage.folder_id).where(
+            ProjectStage.project_id == project.id, ProjectStage.position == found.get("s")
+        )
+    )
+    folder = found.get("f")
+    if stage_folder is None or folder is None:
+        return False
+    if folder != stage_folder:
+        siblings = await _list(storage, stage_folder)
+        if not any(i.id == folder and i.is_folder and not _hidden(i) for i in siblings):
+            return False
+    return any(i.id == found.get("i") and _showable(i) for i in await _list(storage, folder))
 
 
 def _disposition(name: str, inline: bool) -> str:

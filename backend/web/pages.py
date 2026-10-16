@@ -74,7 +74,9 @@ PRIVATE = {"Cache-Control": "private, no-store"}
 COVER_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; sandbox",
     "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "public, max-age=300",
+    # Browsers only: a shared cache could keep serving it after the page is
+    # given a password (plan section 6).
+    "Cache-Control": "private, max-age=300",
     **PAGE_HEADERS,
 }
 
