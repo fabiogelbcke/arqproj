@@ -73,7 +73,9 @@ function FileCard({ file, slug, timeZone }: { file: FileItem; slug: string; time
       <a
         className="file__open"
         href={opens ? `${url}?inline=true` : url}
-        {...(opens ? { target: "_blank", rel: "noopener" } : { download: file.name })}
+        // A download is sent as an attachment, so the page stays; if it fails,
+        // the browser shows the server's short translated page.
+        {...(opens ? { target: "_blank", rel: "noopener" } : {})}
         aria-label={t(opens ? "page.openFile" : "page.downloadFile", { name: file.name })}
       >
         <span className="file__thumb">

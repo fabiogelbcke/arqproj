@@ -261,9 +261,9 @@ test("the client page lists each stage's files, with subfolders as groups", asyn
   await expect(current.getByText("Plantas v2.pdf")).toBeVisible();
   await expect(current.getByText("02 arquivos")).toBeVisible();
   const dwg = current.getByRole("link", { name: "Baixar Implantação.dwg" });
-  await expect(dwg).toHaveAttribute("download", "Implantação.dwg");
   const [download] = await Promise.all([page.waitForEvent("download"), dwg.click()]);
-  expect(download.suggestedFilename()).toBe("Implantação.dwg");
+  expect(download.suggestedFilename()).toBe("Implantação.dwg"); // the server's name for it
+  await expect(page).toHaveURL(/\/casa-jardim$/); // the page stays
 
   await page.getByRole("button", { name: /01\s*Briefing/ }).click();
   const first = page.locator("#stage-0");

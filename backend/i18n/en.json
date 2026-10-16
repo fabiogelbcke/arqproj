@@ -271,6 +271,7 @@
     "openStage": "Open stage {{title}}",
     "stageOpen": "Stage open: {{title}}",
     "client": "Client",
+    "backToProject": "Back to the project",
     "projectType": "Project type",
     "lastUpdate": "Last update",
     "notInformed": "Not provided",

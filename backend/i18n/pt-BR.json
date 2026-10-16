@@ -271,6 +271,7 @@
     "openStage": "Abrir etapa {{title}}",
     "stageOpen": "Etapa aberta: {{title}}",
     "client": "Cliente",
+    "backToProject": "Voltar ao projeto",
     "projectType": "Tipo de projeto",
     "lastUpdate": "Última atualização",
     "notInformed": "Não informado",
