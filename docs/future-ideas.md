@@ -41,6 +41,15 @@ decision in the [decision changelog](decision-changelog.md).
 - Keep organization separate from authorization: a default view can help someone
   focus on their work without necessarily restricting access to other projects.
 
+## Searchable project themes and tags
+
+- Let staff add `#tags` or keywords to a project's description so projects
+  with related themes can be grouped, searched and filtered across the painel.
+- Suggest existing terms while editing to avoid several spellings for the same
+  theme (for example, natural materials or integrated spaces).
+- Explore inline hashtags versus a separate keyword field. Keep the project
+  description readable while making the themes reusable for search and filters.
+
 ## WhatsApp updates
 
 - Add project-update notifications through WhatsApp alongside email.
