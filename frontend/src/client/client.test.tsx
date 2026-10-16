@@ -278,6 +278,22 @@ describe("edit mode", () => {
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ project_type: "renovation" });
   });
 
+  it("doesn't offer Editar on an archived project", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, staff: { project_id: "p-1", status: "archived", row_version: 4 } },
+      }),
+    });
+    render(<ClientApp />);
+    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    const editar = within(bar).getByRole("button", { name: "Editar" });
+    expect(editar).toBeDisabled();
+    expect(editar).toHaveAttribute("title", expect.stringContaining("desarquive"));
+  });
+
   it("says when someone else changed the project meanwhile", async () => {
     asStaff({ "PUT /api/projects/p-1/stages/2/notes": () => ({ status: 409, body: { error: "project_changed" } }) });
     await startEditing();

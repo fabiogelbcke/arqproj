@@ -181,7 +181,7 @@
     "project_has_no_folder": "This project doesn't have a Google Drive folder yet, so it can't take a photo.",
     "cover_wrong_type": "Choose a JPG, PNG or WebP image.",
     "cover_too_large": "Choose an image of up to 10 MB.",
-    "project_archived": "This project is archived and takes no new files. Restore it first.",
+    "project_archived": "This project is archived and can't be changed. Restore it first.",
     "unknown_project_type": "Choose a project type.",
     "unknown_stage": "One of the chosen stages no longer exists. Reload the page and try again.",
     "page_not_found": "We couldn't find this page. Check the link with the office.",
@@ -313,6 +313,7 @@
     "downloadFile": "Download {{name}}"
   },
   "edit": {
+    "archivedNoEdit": "Archived project: restore it in the painel to edit.",
     "mode": "Mode",
     "asClient": "View as client",
     "edit": "Edit",

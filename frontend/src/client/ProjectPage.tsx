@@ -515,6 +515,7 @@ function StaffBar({
   const [publishing, setPublishing] = useState(false);
   const staff = page.staff!;
   const draft = staff.status === "draft";
+  const archived = staff.status === "archived"; // viewable, not editable (section 22)
   return (
     <nav className="dock" aria-label={t("page.staffBar")}>
       <a className="b" href="/painel/">
@@ -531,7 +532,13 @@ function StaffBar({
         <button type="button" aria-pressed={!editing} onClick={() => onMode(false)}>
           {t("edit.asClient")}
         </button>
-        <button type="button" aria-pressed={editing} disabled={!ready} onClick={() => onMode(true)}>
+        <button
+          type="button"
+          aria-pressed={editing}
+          disabled={!ready || archived}
+          title={archived ? t("edit.archivedNoEdit") : undefined}
+          onClick={() => onMode(true)}
+        >
           {t("edit.edit")}
         </button>
       </div>
