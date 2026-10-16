@@ -19,6 +19,22 @@ a new entry too.
 
 ---
 
+## 2026-10-16 — A10: new files found by a scan for the pilot, not the changes feed
+
+**Was:** section 13 had the sync job read the reader identity's Drive changes
+feed from a stored cursor, with a daily reconciliation scan as repair.
+
+**Now:** each maintenance pass lists every published project's stage folders,
+as the client page does, and records a file it shows for the first time as "file
+published". A project's first scan records what is there without emailing. The
+changes feed comes later, when versions need it or scanning gets costly.
+
+**Why:** with a handful of offices the scan costs a couple of hundred Drive calls
+a pass, reuses the page's tested listing (hidden names, folders that left their
+project), works the same on local folders, and cannot miss a change, so it needs
+no cursor or repair pass. The feed needs all of that plus a scan as repair
+anyway. Fabio, 16 Oct 2026: "we can start with the scan for now".
+
 ## 2026-10-16 — A32 added: client email updates
 
 **Was:** section 14 described batching and privacy for email, and A12 set the

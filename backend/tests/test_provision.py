@@ -86,6 +86,14 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("meetings", "INSERT"),
         ("meetings", "UPDATE"),
         ("meetings", "DELETE"),
+        ("project_recipients", "SELECT"),
+        ("project_recipients", "INSERT"),
+        ("project_recipients", "UPDATE"),
+        ("project_recipients", "DELETE"),
+        ("project_events", "SELECT"),
+        ("project_events", "INSERT"),
+        ("project_files_seen", "SELECT"),
+        ("project_files_seen", "INSERT"),
         ("storage_connections", "SELECT"),
         ("storage_connections", "INSERT"),
         ("storage_connections", "UPDATE"),
@@ -119,6 +127,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
                 "project_type",
                 "last_activity_at",
                 "current_position",
+                "files_scanned_at",
             )
         ),
         *(

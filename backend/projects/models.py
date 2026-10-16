@@ -172,6 +172,9 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
     current_position: Mapped[int | None] = mapped_column()
     # Last change a client can see (A28); orders the painel's "last updated".
     last_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the scan last listed its files (A10); None until the first, which only
+    # records what is there, so files from before never email.
+    files_scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Optimistic locking for simultaneous edits (plan section 7).
     row_version: Mapped[int] = mapped_column(server_default=text("1"))
     # Soft deletion: the project and its slugs stay, so old links never reach

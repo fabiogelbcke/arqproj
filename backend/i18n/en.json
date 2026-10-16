@@ -102,6 +102,12 @@
     "unreadable": "This photo couldn't be read. Choose another."
   },
   "projectSettings": {
+    "recipients": "Client emails",
+    "recipientsHint": "Clients will automatically get updates about the project by email.",
+    "newRecipient": "New email",
+    "addRecipient": "Add",
+    "removeRecipient": "Remove {{email}}",
+    "unsubscribed": "Unsubscribed",
     "title": "Project",
     "open": "Edit the project {{name}}",
     "name": "Project name",

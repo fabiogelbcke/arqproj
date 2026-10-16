@@ -1750,7 +1750,7 @@
     "/api/projects/{project_id}/progress": {
       "post": {
         "summary": "Progress",
-        "description": "Advance to the next stage, go back one, complete the project (all stages\ndone) or reopen it. The client sees it at once; \"Atualizado\" moves.",
+        "description": "Advance to the next stage, go back one, complete the project (all stages\ndone) or reopen it. The client sees it at once; \"Atualizado\" moves. Advancing\nand completing are recorded for the client's email (A32).",
         "operationId": "progress_api_projects__project_id__progress_post",
         "parameters": [
           {
@@ -3274,6 +3274,21 @@
               }
             ],
             "title": "Password"
+          },
+          "recipients": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipients"
           }
         },
         "type": "object",
@@ -3440,6 +3455,13 @@
           },
           "access_mode": {
             "$ref": "#/components/schemas/AccessMode"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/RecipientOut"
+            },
+            "type": "array",
+            "title": "Recipients"
           }
         },
         "type": "object",
@@ -3459,7 +3481,8 @@
           "last_activity_at",
           "row_version",
           "cover_url",
-          "access_mode"
+          "access_mode",
+          "recipients"
         ],
         "title": "ProjectSummary"
       },
@@ -3498,6 +3521,24 @@
         ],
         "title": "ReaderStatus",
         "description": "The reader identity's access to the office's folder (pages, downloads)."
+      },
+      "RecipientOut": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "subscribed": {
+            "type": "boolean",
+            "title": "Subscribed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "subscribed"
+        ],
+        "title": "RecipientOut"
       },
       "RenameIn": {
         "properties": {

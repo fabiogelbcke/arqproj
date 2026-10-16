@@ -445,7 +445,8 @@ export interface paths {
         /**
          * Progress
          * @description Advance to the next stage, go back one, complete the project (all stages
-         *     done) or reopen it. The client sees it at once; "Atualizado" moves.
+         *     done) or reopen it. The client sees it at once; "Atualizado" moves. Advancing
+         *     and completing are recorded for the client's email (A32).
          */
         post: operations["progress_api_projects__project_id__progress_post"];
         delete?: never;
@@ -888,6 +889,8 @@ export interface components {
             access_mode?: components["schemas"]["AccessMode"] | null;
             /** Password */
             password?: string | null;
+            /** Recipients */
+            recipients?: string[] | null;
         };
         /** ProjectIn */
         ProjectIn: {
@@ -946,6 +949,8 @@ export interface components {
             /** Cover Url */
             cover_url: string | null;
             access_mode: components["schemas"]["AccessMode"];
+            /** Recipients */
+            recipients: components["schemas"]["RecipientOut"][];
         };
         /** ProjectTypeOption */
         ProjectTypeOption: {
@@ -962,6 +967,13 @@ export interface components {
          * @enum {string}
          */
         ReaderStatus: "unknown" | "ok" | "no_access";
+        /** RecipientOut */
+        RecipientOut: {
+            /** Email */
+            email: string;
+            /** Subscribed */
+            subscribed: boolean;
+        };
         /** RenameIn */
         RenameIn: {
             /** Row Version */

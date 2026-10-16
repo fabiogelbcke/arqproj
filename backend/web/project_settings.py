@@ -31,6 +31,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity.passwords import hash_password
+from backend.notifications.models import (
+    EMAIL_MAX,
+    RECIPIENTS_MAX,
+    ProjectRecipient,
+    RecipientStatus,
+)
 from backend.projects.creation import NAME_MAX, project_named, valid_slug
 from backend.projects.enums import AccessMode, CoverType, ProjectStatus
 from backend.projects.models import CLIENT_NAME_MAX, Project, ProjectSlug
@@ -42,7 +48,7 @@ from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
-from backend.web.office import image_type
+from backend.web.office import _EMAIL, image_type
 from backend.web.projects import ProjectSummary, summaries
 
 log = logging.getLogger(__name__)
@@ -73,18 +79,54 @@ class ProjectChange(BaseModel):
     # Required when switching to password access; a new one locks out every
     # device that unlocked the page before.
     password: str | None = Field(default=None, max_length=200)
+    # The client's addresses for email updates, the whole list (A32).
+    recipients: list[str] | None = Field(default=None, max_length=RECIPIENTS_MAX)
 
 
 PAGE_PASSWORD_MIN = 6  # Fabio, 16 Oct 2026
 
 
-async def _project(db: AsyncSession, project_id: uuid.UUID) -> Project:
-    project = await db.scalar(
-        select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
-    )
+async def _project(db: AsyncSession, project_id: uuid.UUID, lock: bool = False) -> Project:
+    query = select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
+    project = await db.scalar(query.with_for_update() if lock else query)
     if project is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
     return project
+
+
+def _addresses(given: list[str]) -> list[str]:
+    """Trimmed, lowercase, each once, in the order given."""
+    found: list[str] = []
+    for raw in given:
+        email = raw.strip().lower()
+        if not email:
+            continue
+        if len(email) > EMAIL_MAX or not _EMAIL.match(email):
+            raise ApiError(422, ErrorCode.INVALID_EMAIL)
+        if email not in found:
+            found.append(email)
+    return found
+
+
+async def _set_recipients(db: AsyncSession, project_id: uuid.UUID, wanted: list[str]) -> bool:
+    """Add the new addresses, remove the ones left out; an unsubscribed one stays
+    (so it is never written to again). Whether anything changed."""
+    have = {
+        r.email: r
+        for r in await db.scalars(
+            select(ProjectRecipient).where(ProjectRecipient.project_id == project_id)
+        )
+    }
+    changed = False
+    for email, recipient in have.items():
+        if email not in wanted and recipient.status is RecipientStatus.SUBSCRIBED:
+            await db.delete(recipient)
+            changed = True
+    for email in wanted:
+        if email not in have:
+            db.add(ProjectRecipient(project_id=project_id, email=email))
+            changed = True
+    return changed
 
 
 async def _summary(db: AsyncSession, tenant: CurrentTenant, project_id: uuid.UUID):
@@ -99,7 +141,10 @@ async def change_project(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
-    project = await _project(db, project_id)
+    # Locked until this save ends: a second dialog saving at the same moment
+    # waits, then finds the new version and gets `project_changed`, rather than
+    # colliding on the same new address.
+    project = await _project(db, project_id, lock=True)
     values: dict = {}
     if body.name is not None:
         name = body.name.strip()
@@ -139,6 +184,7 @@ async def change_project(
         access_changed = True
     if access_changed:
         values["access_version"] = Project.access_version + 1  # ends every unlock
+    recipients = _addresses(body.recipients) if body.recipients is not None else None
     new_slug = None
     if body.slug is not None:
         new_slug = body.slug.strip().lower()
@@ -159,7 +205,10 @@ async def change_project(
             )
             if holder is not None:  # never another project's, old or current (A29)
                 raise ApiError(409, ErrorCode.SLUG_TAKEN, holder)
-    if values or new_slug:
+    recipients_changed = recipients is not None and await _set_recipients(
+        db, project.id, recipients
+    )
+    if values or new_slug or recipients_changed:
         # Only if nobody saved it since the screen loaded it.
         changed = await db.execute(
             update(Project)
@@ -167,6 +216,7 @@ async def change_project(
             .values(**values, row_version=Project.row_version + 1)
         )
         if changed.rowcount != 1:
+            await db.rollback()
             raise ApiError(409, ErrorCode.PROJECT_CHANGED)
         try:
             if new_slug:

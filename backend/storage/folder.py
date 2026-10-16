@@ -49,6 +49,8 @@ class FolderStorage:
             mime_type=mime,
             size=None if is_folder else stat.st_size,
             modified_at=datetime.fromtimestamp(stat.st_mtime, UTC),
+            # The disk's own number for the file: kept through renames and moves.
+            stable_id=f"inode:{stat.st_dev}:{stat.st_ino}",
         )
 
     async def list_folder(self, folder_id: str) -> list[StorageItem]:

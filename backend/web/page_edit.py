@@ -28,6 +28,8 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.notifications.events import record
+from backend.notifications.models import EventKind
 from backend.projects.enums import DetailType, ProjectStatus
 from backend.projects.models import (
     MEETING_LOCATION_MAX,
@@ -219,8 +221,6 @@ async def set_meeting(
         or ends_at <= datetime.now(UTC)  # already over: the page would hide it at once
     ):
         raise ApiError(422, ErrorCode.INVALID_MEETING)
-    now = datetime.now(UTC)
-    await _change(db, project_id, body.row_version, {"last_activity_at": now})
     values = {
         "title": title,
         "starts_at": starts_at,
@@ -229,10 +229,17 @@ async def set_meeting(
         "link": link,
     }
     upcoming = await _next_meeting(db, project_id)
+    if upcoming is not None and all(getattr(upcoming, k) == v for k, v in values.items()):
+        # Saved as it was: nothing to tell the client, and "Atualizado" stays.
+        return Response(status_code=204)
+    now = datetime.now(UTC)
+    project = await _change(db, project_id, body.row_version, {"last_activity_at": now})
     if upcoming is None:
         db.add(Meeting(project_id=project_id, **values))
     else:
         await db.execute(update(Meeting).where(Meeting.id == upcoming.id).values(**values))
+    kind = EventKind.MEETING_SCHEDULED if upcoming is None else EventKind.MEETING_CHANGED
+    record(db, project, kind, title=title)
     await db.commit()
     return Response(status_code=204)
 
@@ -246,10 +253,11 @@ async def clear_meeting(
     _staff: CurrentStaff = Depends(require_csrf),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    await _change(db, project_id, row_version, {"last_activity_at": datetime.now(UTC)})
+    project = await _change(db, project_id, row_version, {"last_activity_at": datetime.now(UTC)})
     upcoming = await _next_meeting(db, project_id)
     if upcoming is not None:
         await db.execute(delete(Meeting).where(Meeting.id == upcoming.id))
+        record(db, project, EventKind.MEETING_CLEARED, title=upcoming.title)
     await db.commit()
     return Response(status_code=204)
 
@@ -273,19 +281,25 @@ async def set_notes(
 ) -> Response:
     """A stage's note to the client ("Recado"); empty removes it."""
     stage = await db.scalar(
-        select(ProjectStage.id).where(
+        select(ProjectStage).where(
             ProjectStage.project_id == project_id, ProjectStage.position == position
         )
     )
     if stage is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
-    now = datetime.now(UTC)
-    await _change(db, project_id, body.row_version, {"last_activity_at": now})
     notes = body.notes.strip()
+    if notes == (stage.notes or ""):
+        # Saved as it was: nothing to tell the client, and "Atualizado" stays.
+        return Response(status_code=204)
+    now = datetime.now(UTC)
+    project = await _change(db, project_id, body.row_version, {"last_activity_at": now})
     await db.execute(
         update(ProjectStage)
-        .where(ProjectStage.id == stage)
+        .where(ProjectStage.id == stage.id)
         .values(notes=notes, notes_updated_at=now if notes else None)
     )
+    # Written or removed, the client sees it change: for the updates panel; a note
+    # never emails (A32).
+    record(db, project, EventKind.NOTE_CHANGED, stage_position=position)
     await db.commit()
     return Response(status_code=204)
