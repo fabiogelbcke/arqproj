@@ -194,3 +194,84 @@ async def test_a_stage_whose_folder_is_gone_can_still_be_renamed(client, owner, 
     response = await call(client, owner, "PATCH", "/stages/2", title="Medição")
     assert response.status_code == 204, response.text
     assert (await page(client))["stages"][1]["title"] == "Medição"
+
+
+async def test_removing_the_current_stage_makes_the_next_one_current(client, owner, folders):
+    before = await page(client)
+    current = before["current_position"]
+    await call(client, owner, "DELETE", f"/stages/{current}")
+    after = await page(client)
+    assert after["current_position"] == current
+    assert titles(after)[current - 1] == titles(before)[current]  # the stage after it
+
+
+async def test_removing_the_last_stage_while_current_steps_back(client, db_session, owner, folders):
+    count = len((await page(client))["stages"])
+    await db_session.execute(
+        text(
+            "UPDATE projects SET current_position = :n WHERE name = 'Casa Jardim' AND tenant_id = "
+            "(SELECT id FROM tenants WHERE slug = 'alinea')"
+        ),
+        {"n": count},
+    )
+    await call(client, owner, "DELETE", f"/stages/{count}")
+    assert (await page(client))["current_position"] == count - 1
+
+
+async def test_if_saving_a_new_stage_fails_its_new_folder_goes_too(
+    client, owner, folders, monkeypatch
+):
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    real_commit = AsyncSession.commit
+
+    async def fails(self):
+        """Fails the save that comes after Drive made the new folder."""
+        if (folders / "08 - Detalhamentos").exists():
+            raise RuntimeError("database went away")
+        await real_commit(self)
+
+    before = on_disk(folders)
+    staff = (await page(client))["staff"]
+    monkeypatch.setattr(AsyncSession, "commit", fails)
+    try:
+        response = await client.post(
+            f"/api/projects/{staff['project_id']}/stages",
+            json={"row_version": staff["row_version"], "builtin_key": "detailing"},
+            headers=owner,
+        )
+        assert response.status_code == 500
+    except RuntimeError:
+        pass  # the test client may pass the server error on as raised
+    monkeypatch.undo()
+    assert on_disk(folders) == before  # "08 - Detalhamentos" was made, then trashed
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("POST", "/stages", {"title": "Nova"}),
+        ("PATCH", "/stages/1", {"title": "Outro nome"}),
+        ("POST", "/stages/1/move", {"direction": 1}),
+        ("DELETE", "/stages/1", {}),
+        ("POST", "/progress", {"action": "advance"}),
+    ],
+)
+async def test_an_archived_projects_stages_cant_change(
+    client, db_session, owner, folders, method, path, body
+):
+    await db_session.execute(
+        text(
+            "UPDATE projects SET status = 'archived', archived_from = 'active' WHERE name = "
+            "'Casa Jardim' AND tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
+        )
+    )
+    before = await page(client)
+    response = await call(client, owner, method, path, **body)
+    assert (response.status_code, response.json()["error"]) == (409, "project_archived")
+    after = await page(client)
+    assert (titles(after), after["current_position"]) == (
+        titles(before),
+        before["current_position"],
+    )
+    assert on_disk(folders) == sorted(SEEDED)

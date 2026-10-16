@@ -652,6 +652,13 @@ export function ProjectPage({
   const [editing, setEditing] = useState(false);
   const [openEditor, setOpenEditor] = useState<string | null>(null);
   const staff = page.staff;
+  // Stage controls wait for the reloaded page after each change (a new row version).
+  const [changedFrom, setChangedFrom] = useState<number | null>(null);
+  const stagesLocked = staff != null && changedFrom === staff.row_version;
+  const stagesChanged = () => {
+    setChangedFrom(staff?.row_version ?? null);
+    onChanged?.();
+  };
   const canEdit = editing && !!staff;
   const done = (saved: boolean) => {
     setOpenEditor(null);
@@ -737,7 +744,7 @@ export function ProjectPage({
         </div>
         {canEdit && (
           <Suspense fallback={null}>
-            <ProgressRail page={page} staff={staff!} onChanged={() => onChanged?.()} />
+            <ProgressRail page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
           </Suspense>
         )}
         {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
@@ -753,7 +760,13 @@ export function ProjectPage({
             controls={
               canEdit ? (
                 <Suspense fallback={null}>
-                  <StageControls page={page} staff={staff!} index={i} onChanged={() => onChanged?.()} />
+                  <StageControls
+                    page={page}
+                    staff={staff!}
+                    index={i}
+                    onChanged={stagesChanged}
+                    locked={stagesLocked}
+                  />
                 </Suspense>
               ) : undefined
             }
@@ -774,7 +787,7 @@ export function ProjectPage({
         ))}
         {canEdit && (
           <Suspense fallback={null}>
-            <AddStage page={page} staff={staff!} onChanged={() => onChanged?.()} />
+            <AddStage page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
           </Suspense>
         )}
         <footer className="client-footer">{page.office.name}</footer>

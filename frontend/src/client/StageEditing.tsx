@@ -11,11 +11,13 @@ import type { Page } from "./format";
 type Staff = NonNullable<Page["staff"]>;
 const pad = (n: number) => String(n).padStart(2, "0");
 
-function useChange(onChanged: () => void) {
+/** `locked`: a change was saved and the page hasn't reloaded yet, so another
+ * click would carry the old row version and be refused as "changed meanwhile". */
+function useChange(onChanged: () => void, locked: boolean) {
   const { t, i18n } = useTranslation();
   const [busy, setBusy] = useState(false);
   return {
-    busy,
+    busy: busy || locked,
     run: async (work: () => Promise<unknown>, done?: string, undo?: () => void) => {
       setBusy(true);
       try {
@@ -43,17 +45,19 @@ export function StageControls({
   staff,
   index,
   onChanged,
+  locked = false,
 }: {
   page: Page;
   staff: Staff;
   index: number;
   onChanged: () => void;
+  locked?: boolean;
 }) {
   const { t } = useTranslation();
   const stage = page.stages[index]!;
   const [mode, setMode] = useState<"idle" | "rename" | "remove">("idle");
   const [title, setTitle] = useState(stage.title);
-  const change = useChange(onChanged);
+  const change = useChange(onChanged, locked);
   const position = stage.position;
 
   const rename = () =>
@@ -85,7 +89,7 @@ export function StageControls({
           }),
         ),
       t("edit.stageRemoved", { title: stage.title }),
-    );
+    ).then((ok) => ok && setMode("idle")); // this row shows the next stage now
 
   if (mode === "rename")
     return (
@@ -166,12 +170,22 @@ export function StageControls({
 }
 
 /** "Adicionar etapa": a built-in stage the project doesn't have yet, or the office's own. */
-export function AddStage({ page, staff, onChanged }: { page: Page; staff: Staff; onChanged: () => void }) {
+export function AddStage({
+  page,
+  staff,
+  onChanged,
+  locked = false,
+}: {
+  page: Page;
+  staff: Staff;
+  onChanged: () => void;
+  locked?: boolean;
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<Schemas["StageOption"][]>([]);
   const [custom, setCustom] = useState("");
-  const change = useChange(onChanged);
+  const change = useChange(onChanged, locked);
   useEffect(() => {
     if (open) call(api.GET("/api/project-types")).then((found) => setOptions(found.stages), () => setOptions([]));
   }, [open]);
@@ -244,9 +258,19 @@ export function AddStage({ page, staff, onChanged }: { page: Page; staff: Staff;
 }
 
 /** The prototype's rail: where the project is, and the next step. */
-export function ProgressRail({ page, staff, onChanged }: { page: Page; staff: Staff; onChanged: () => void }) {
+export function ProgressRail({
+  page,
+  staff,
+  onChanged,
+  locked = false,
+}: {
+  page: Page;
+  staff: Staff;
+  onChanged: () => void;
+  locked?: boolean;
+}) {
   const { t } = useTranslation();
-  const change = useChange(onChanged);
+  const change = useChange(onChanged, locked);
   const send = (action: "advance" | "back" | "complete" | "reopen", version = staff.row_version) =>
     call(
       api.POST("/api/projects/{project_id}/progress", {

@@ -338,6 +338,60 @@ describe("edit mode", () => {
     expect(editar).toHaveAttribute("title", expect.stringContaining("desarquive"));
   });
 
+  function stagePage(stages: () => Page["stages"], version: () => number, extra: Parameters<typeof fakeApi>[0] = {}) {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, stages: stages(), staff: { project_id: "p-1", status: "active", row_version: version() } },
+      }),
+      ...extra,
+    });
+    render(<ClientApp />);
+  }
+
+  it("closes the remove confirmation once the stage is gone", async () => {
+    let removed = false;
+    stagePage(
+      () => (removed ? [PAGE.stages[0]!, PAGE.stages[2]!] : PAGE.stages).map((s, i) => ({ ...s, position: i + 1 })),
+      () => (removed ? 5 : 4),
+      {
+        "DELETE /api/projects/p-1/stages/2": () => {
+          removed = true;
+          return { status: 204 };
+        },
+      },
+    );
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Remover etapa Levantamento" }));
+    const confirm = screen.getByRole("group", { name: "Remover etapa Levantamento" });
+    await userEvent.click(within(confirm).getByRole("button", { name: "Remover" }));
+    // The row now shows Estudo Preliminar: no confirmation waits one click from removing it.
+    await screen.findByRole("button", { name: "Remover etapa Estudo Preliminar" });
+    expect(screen.queryByRole("group", { name: /Remover etapa/ })).toBeNull();
+  });
+
+  it("keeps stage controls off until the page shows the change", async () => {
+    let moved = false;
+    stagePage(
+      () => PAGE.stages,
+      () => 4, // the reload hasn't brought the new version yet
+      {
+        "POST /api/projects/p-1/stages/1/move": () => {
+          moved = true;
+          return { status: 204 };
+        },
+      },
+    );
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Mover Briefing para baixo" }));
+    expect(moved).toBe(true);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Mover Levantamento para baixo" })).toBeDisabled(),
+    );
+  });
+
   it("says when someone else changed the project meanwhile", async () => {
     asStaff({ "PUT /api/projects/p-1/stages/2/notes": () => ({ status: 409, body: { error: "project_changed" } }) });
     await startEditing();
