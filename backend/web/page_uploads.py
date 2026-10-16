@@ -36,11 +36,12 @@ from backend.projects.creation import LocalFolders
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Project, ProjectStage
 from backend.security import keys
+from backend.storage.base import StorageError
 from backend.storage.google_connect import ConnectError
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
-from backend.web.page_files import _item
+from backend.web.page_files import _in_project, _item, _storage
 from backend.web.pages import _origin, _readable
 from backend.web.projects import _folders
 
@@ -119,6 +120,22 @@ async def start_upload(
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
     if stage.folder_id is None:
         raise ApiError(409, ErrorCode.STAGE_HAS_NO_FOLDER)
+    # Only into a folder the page shows: one moved out of the project in Drive
+    # would take the file where no one sees it (A05, section 11).
+    reader = await _storage(request, db)
+    try:
+        if reader is not None and stage.folder_id not in await _in_project(reader, project):
+            raise ApiError(409, ErrorCode.STAGE_HAS_NO_FOLDER)
+    except StorageError as error:
+        log.error(
+            "uploads: checking the stage folder failed for %s/%s, stage %s: %s %s",
+            tenant.id,
+            project_id,
+            position,
+            error.problem,
+            error.detail,
+        )
+        raise ApiError(503, ErrorCode.FILES_UNAVAILABLE) from None
     maker, _root = await _folders(request, db)
     if isinstance(maker, LocalFolders):
         token = keys.encrypt(

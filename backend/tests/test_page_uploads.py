@@ -107,6 +107,14 @@ async def test_after_stages_moved_meanwhile_the_upload_is_refused(client, owner,
     assert (response.status_code, response.json()["error"]) == (409, "project_changed")
 
 
+async def test_a_stage_folder_moved_out_of_the_project_takes_no_uploads(client, owner, folders):
+    """The page no longer shows that folder: a file sent there would never appear."""
+    (folders.parent / "Outro projeto").mkdir()
+    (folders / "01 - Briefing").rename(folders.parent / "Outro projeto" / "01 - Briefing")
+    response = await start(client, owner)
+    assert (response.status_code, response.json()["error"]) == (409, "stage_has_no_folder")
+
+
 async def test_a_name_never_becomes_a_path(client, owner, folders):
     await send(client, await start(client, owner, name="../../Fora.pdf"))
     assert (folders / "01 - Briefing" / "..-..-Fora.pdf").exists()

@@ -14,17 +14,75 @@ type FileItem = Schemas["FileOut"];
 export const UPLOAD_MAX_MB = 100; // the server checks it too
 const UPLOAD_MAX = UPLOAD_MAX_MB * 1024 * 1024;
 
-/** One PUT with the whole file, reporting progress (which fetch can't). */
-export function sendFile(url: string, file: File, onProgress: (fraction: number) => void): Promise<void> {
+// Waits before trying again after a break: about half a minute in all.
+const RETRY_WAITS = [1000, 2000, 4000, 8000, 16000];
+
+/** One PUT, reporting how much of its body went (which fetch can't). Resolves
+ *  with any answer; rejects only when the connection breaks. */
+function put(
+  url: string,
+  body: Blob | null,
+  headers: Record<string, string>,
+  onSent?: (loaded: number) => void,
+): Promise<XMLHttpRequest> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("PUT", url);
-    if (file.type) request.setRequestHeader("Content-Type", file.type);
-    request.upload.onprogress = (event) => event.lengthComputable && onProgress(event.loaded / event.total);
-    request.onload = () => (request.status < 300 ? resolve() : reject(new ApiError("unexpected", request.status)));
+    for (const [name, value] of Object.entries(headers)) request.setRequestHeader(name, value);
+    if (onSent) request.upload.onprogress = (event) => onSent(event.loaded);
+    request.onload = () => resolve(request);
     request.onerror = () => reject(new ApiError("network"));
-    request.send(file);
+    request.send(body);
   });
+}
+
+class Refused extends Error {
+  constructor(readonly status: number) {
+    super(String(status));
+  }
+}
+
+/** How much of the file the upload session already has (Google's resumable
+ *  protocol): all of it once it answered 200/201, else its "Range". */
+async function received(url: string, size: number): Promise<number> {
+  const answer = await put(url, null, { "Content-Range": `bytes */${size}` });
+  if (answer.status < 300) return size;
+  if (answer.status !== 308) throw new Refused(answer.status); // the session is gone
+  const range = /bytes=0-(\d+)/.exec(answer.getResponseHeader("Range") ?? "");
+  return range ? Number(range[1]) + 1 : 0;
+}
+
+/** Sends the file to its upload session. After a break (a lost connection, a
+ *  5xx) it asks the session how much arrived and sends the rest, so a large
+ *  file need not start over (plan section 11). A refusal (4xx) is final. */
+export async function sendFile(
+  url: string,
+  file: File,
+  onProgress: (fraction: number) => void,
+  waits: number[] = RETRY_WAITS,
+): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const from = attempt === 0 ? 0 : await received(url, file.size);
+      if (attempt > 0 && from >= file.size) return;
+      const headers: Record<string, string> =
+        from === 0
+          ? file.type
+            ? { "Content-Type": file.type }
+            : {}
+          : { "Content-Range": `bytes ${from}-${file.size - 1}/${file.size}` };
+      const answer = await put(url, from ? file.slice(from) : file, headers, (loaded) =>
+        onProgress(file.size ? (from + loaded) / file.size : 1),
+      );
+      if (answer.status < 300) return;
+      if (answer.status < 500) throw new Refused(answer.status);
+    } catch (failure) {
+      if (failure instanceof Refused) throw new ApiError("unexpected", failure.status);
+      // A break: try again below.
+    }
+    if (attempt >= waits.length) throw new ApiError("network");
+    await new Promise((resume) => setTimeout(resume, waits[attempt]));
+  }
 }
 
 function useMessage() {
