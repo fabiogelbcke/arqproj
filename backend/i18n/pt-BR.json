@@ -181,7 +181,7 @@
     "project_has_no_folder": "Este projeto ainda não tem uma pasta no Google Drive, então não pode receber uma foto.",
     "cover_wrong_type": "Escolha uma imagem JPG, PNG ou WebP.",
     "cover_too_large": "Escolha uma imagem de até 10 MB.",
-    "project_archived": "Este projeto está arquivado e não recebe novos arquivos. Desarquive-o antes.",
+    "project_archived": "Este projeto está arquivado e não pode ser alterado. Desarquive-o antes.",
     "unknown_project_type": "Escolha um tipo de projeto.",
     "unknown_stage": "Uma das etapas escolhidas não existe mais. Recarregue a página e tente de novo.",
     "page_not_found": "Não encontramos esta página. Confira o link com o escritório.",
@@ -314,6 +314,7 @@
     "downloadFile": "Baixar {{name}}"
   },
   "edit": {
+    "archivedNoEdit": "Projeto arquivado: desarquive-o no painel para editar.",
     "mode": "Modo",
     "asClient": "Ver como cliente",
     "edit": "Editar",

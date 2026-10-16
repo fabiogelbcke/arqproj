@@ -6,7 +6,7 @@ import pytest
 
 from backend.identity.models import Role
 from backend.tests import test_office
-from backend.tests.test_office import ALINEA, sign_in_as
+from backend.tests.test_office import ALINEA, NORTE, sign_in_as
 
 owner = test_office.owner  # fixtures
 
@@ -217,3 +217,32 @@ async def test_an_archived_project_cant_be_edited(client, db_session, owner):
     )
     response = await edit(client, owner, "PATCH", "/content", description="Não deveria")
     assert (response.status_code, response.json()["error"]) == (409, "project_archived")
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("PATCH", "/content", {"description": "Invasão"}),
+        ("PUT", "/meeting", {"title": "Invasão", "day": in_days(2), "start": "10:00"}),
+        ("DELETE", "/meeting", {}),
+        ("PUT", "/stages/1/notes", {"notes": "Invasão"}),
+    ],
+)
+async def test_another_offices_project_cant_be_edited(
+    client, db_session, owner, method, path, body
+):
+    before = await page(client)
+    staff = before["staff"]
+    norte = await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
+    url = f"/api/projects/{staff['project_id']}{path}"
+    if method == "DELETE":
+        response = await client.delete(f"{url}?row_version={staff['row_version']}", headers=norte)
+    else:
+        response = await client.request(
+            method, url, json={"row_version": staff["row_version"], **body}, headers=norte
+        )
+    assert response.status_code == 404
+    after = await page(client)
+    assert {k: after[k] for k in ("description", "next_meeting", "stages", "last_update")} == {
+        k: before[k] for k in ("description", "next_meeting", "stages", "last_update")
+    }
