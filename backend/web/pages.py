@@ -359,7 +359,12 @@ async def meeting_ics(
     return Response(
         "\r\n".join(lines) + "\r\n",
         media_type="text/calendar; charset=utf-8",
-        headers={"Content-Disposition": 'attachment; filename="reuniao.ics"', **PAGE_HEADERS},
+        headers={
+            "Content-Disposition": 'attachment; filename="reuniao.ics"',
+            **PAGE_HEADERS,
+            # A staff-only page's meeting must never stay in a shared cache.
+            **(STAFF_ONLY if staff is not None else {}),
+        },
     )
 
 

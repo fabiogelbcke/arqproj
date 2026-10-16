@@ -142,9 +142,15 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
       ) : (
         <ErrorNotice error={error} />
       )}
+      {options.error && (
+        <div className={styles.actions}>
+          <ErrorNotice error={options.error} />
+          <Button onPress={() => void options.refetch()}>{t("newProject.retry")}</Button>
+        </div>
+      )}
       <div className={styles.actions}>
         <Button onPress={close}>{t("newProject.cancel")}</Button>
-        <Button type="submit" variant="primary" isDisabled={create.isPending}>
+        <Button type="submit" variant="primary" isDisabled={create.isPending || !options.data}>
           {create.isPending ? t("newProject.creating") : t("newProject.create")}
         </Button>
       </div>

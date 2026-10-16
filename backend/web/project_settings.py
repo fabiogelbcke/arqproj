@@ -137,11 +137,13 @@ async def publish(
     project page's staff bar). Publishing twice changes nothing."""
     project = await _project(db, project_id)
     if project.status is ProjectStatus.DRAFT:
-        await db.execute(
+        published = await db.execute(
             update(Project)
             .where(Project.id == project.id, Project.status == ProjectStatus.DRAFT)
             .values(status=ProjectStatus.ACTIVE, row_version=Project.row_version + 1)
         )
+        if published.rowcount != 1:  # someone archived it meanwhile
+            raise ApiError(409, ErrorCode.PROJECT_CHANGED)
         await db.commit()
     elif project.status is not ProjectStatus.ACTIVE:
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # completed or archived
