@@ -13,19 +13,20 @@ const PAGE: Page = {
   name: "Casa Jardim",
   client_name: "Família Oliveira",
   project_type: "Projeto Arquitetônico",
+  project_type_key: "architecture",
   description: "Residência no alto.\n- Concreto aparente\n- Brises de madeira",
   cover_url: null,
   completed: false,
   current_position: 2,
   last_update: "2026-10-15T23:30:00Z", // 20:30 in São Paulo: still the 15th there
   details: [
-    { label: "Área do terreno", type: "area", value: 1240 },
-    { label: "Início", type: "date", value: "2026-03-02" },
+    { key: "site_area", label: "Área do terreno", type: "area", value: 1240 },
+    { key: "start_date", label: "Início", type: "date", value: "2026-03-02" },
   ],
   stages: [
-    { title: "Briefing", about: "Necessidades e orçamento.", notes: "" },
-    { title: "Levantamento", about: "Análise do terreno.", notes: "Medidas conferidas." },
-    { title: "Estudo Preliminar", about: null, notes: "" },
+    { position: 1, title: "Briefing", about: "Necessidades e orçamento.", notes: "" },
+    { position: 2, title: "Levantamento", about: "Análise do terreno.", notes: "Medidas conferidas." },
+    { position: 3, title: "Estudo Preliminar", about: null, notes: "" },
   ],
   next_meeting: {
     title: "Apresentação",
@@ -185,14 +186,14 @@ describe("the staff bar", () => {
   });
 
   it("publishes a draft, with the CSRF token, and shows it as published", async () => {
-    const draft = { ...PAGE, staff: { project_id: "p-1", status: "draft" as const } };
+    const draft = { ...PAGE, staff: { project_id: "p-1", status: "draft" as const, row_version: 1 } };
     let published = false;
     window.history.pushState({}, "", "/casa-jardim");
     const sent = fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
-        body: published ? { ...draft, staff: { project_id: "p-1", status: "active" } } : draft,
+        body: published ? { ...draft, staff: { project_id: "p-1", status: "active", row_version: 2 } } : draft,
       }),
       "POST /api/projects/p-1/publish": () => {
         published = true;
@@ -210,6 +211,116 @@ describe("the staff bar", () => {
   });
 });
 
+describe("edit mode", () => {
+  function asStaff(extra: Record<string, (body: unknown) => { status?: number; body?: unknown }> = {}) {
+    let version = 4;
+    window.history.pushState({}, "", "/casa-jardim");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: version } },
+      }),
+      ...extra,
+    });
+    render(<ClientApp />);
+    return { sent, bump: () => (version += 1) };
+  }
+
+  async function startEditing() {
+    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    await waitFor(() => expect(within(bar).getByRole("button", { name: "Editar" })).toBeEnabled());
+    await userEvent.click(within(bar).getByRole("button", { name: "Editar" }));
+  }
+
+  it("shows no edit controls until staff switch to Editar", async () => {
+    asStaff();
+    await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    expect(screen.queryByRole("button", { name: "Editar descrição" })).toBeNull();
+    await startEditing();
+    expect(screen.getByRole("button", { name: "Editar descrição" })).toBeInTheDocument();
+  });
+
+  it("saves the description with the page's row version", async () => {
+    const { sent } = asStaff({ "PATCH /api/projects/p-1/content": () => ({ status: 204 }) });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar descrição" }));
+    const box = await screen.findByLabelText("Descrição");
+    await userEvent.clear(box);
+    await userEvent.type(box, "Casa nova.");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    const request = sent.find((r) => r.method === "PATCH");
+    expect(request?.body).toEqual({ row_version: 4, description: "Casa nova." });
+    expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-9");
+  });
+
+  it("changes the project type with the details, only when it changed", async () => {
+    const { sent } = asStaff({
+      "GET /api/detail-types": () => ({ body: [] }),
+      "GET /api/project-types": () => ({
+        body: {
+          types: [
+            { key: "architecture", label: "Projeto Arquitetônico" },
+            { key: "renovation", label: "Projeto de Reforma" },
+          ],
+        },
+      }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    const type = await screen.findByLabelText("Tipo de projeto");
+    await screen.findByRole("option", { name: "Projeto de Reforma" });
+    await userEvent.selectOptions(type, "renovation");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ project_type: "renovation" });
+  });
+
+  it("doesn't offer Editar on an archived project", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, staff: { project_id: "p-1", status: "archived", row_version: 4 } },
+      }),
+    });
+    render(<ClientApp />);
+    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    const editar = within(bar).getByRole("button", { name: "Editar" });
+    expect(editar).toBeDisabled();
+    expect(editar).toHaveAttribute("title", expect.stringContaining("desarquive"));
+  });
+
+  it("says when someone else changed the project meanwhile", async () => {
+    asStaff({ "PUT /api/projects/p-1/stages/2/notes": () => ({ status: 409, body: { error: "project_changed" } }) });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar recado" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Salvar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("alterado por outra pessoa");
+  });
+
+  it("schedules the meeting on the office's clock", async () => {
+    const { sent } = asStaff({ "PUT /api/projects/p-1/meeting": () => ({ status: 204 }) });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar reunião" }));
+    // The existing meeting (19:00 UTC) shows as 16:00, São Paulo's time.
+    expect(await screen.findByLabelText("Início")).toHaveValue("16:00");
+    expect(screen.getByLabelText("Data")).toHaveValue("2026-10-21");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PUT")?.body).toMatchObject({
+      row_version: 4,
+      title: "Apresentação",
+      day: "2026-10-21",
+      start: "16:00",
+      end: "17:00",
+    });
+  });
+});
+
 describe("formatting", () => {
   it("reads the page from the address", () => {
     expect(slugFromPath("/casa-jardim")).toBe("casa-jardim");
@@ -217,9 +328,9 @@ describe("formatting", () => {
   });
 
   it("shows areas, dates and text as the design does", () => {
-    expect(detailValue({ label: "Área", type: "area", value: 148.5 }, "pt-BR")).toBe("148,5 m²");
-    expect(detailValue({ label: "Início", type: "date", value: "2026-03-02" }, "pt-BR")).toBe("02/03/2026");
-    expect(detailValue({ label: "Local", type: "text", value: "Florianópolis" }, "pt-BR")).toBe("FLORIANÓPOLIS");
+    expect(detailValue({ key: "a", label: "Área", type: "area", value: 148.5 }, "pt-BR")).toBe("148,5 m²");
+    expect(detailValue({ key: "d", label: "Início", type: "date", value: "2026-03-02" }, "pt-BR")).toBe("02/03/2026");
+    expect(detailValue({ key: "l", label: "Local", type: "text", value: "Florianópolis" }, "pt-BR")).toBe("FLORIANÓPOLIS");
   });
 
   it("puts the meeting in the office's time zone", () => {

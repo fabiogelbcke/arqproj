@@ -181,7 +181,7 @@
     "project_has_no_folder": "Este projeto ainda não tem uma pasta no Google Drive, então não pode receber uma foto.",
     "cover_wrong_type": "Escolha uma imagem JPG, PNG ou WebP.",
     "cover_too_large": "Escolha uma imagem de até 10 MB.",
-    "project_archived": "Este projeto está arquivado e não recebe novos arquivos. Desarquive-o antes.",
+    "project_archived": "Este projeto está arquivado e não pode ser alterado. Desarquive-o antes.",
     "unknown_project_type": "Escolha um tipo de projeto.",
     "unknown_stage": "Uma das etapas escolhidas não existe mais. Recarregue a página e tente de novo.",
     "page_not_found": "Não encontramos esta página. Confira o link com o escritório.",
@@ -190,6 +190,8 @@
     "too_many_attempts": "Muitas tentativas. Tente de novo em 15 minutos.",
     "password_required": "Defina uma senha para proteger a página.",
     "file_not_found": "Este arquivo não está mais disponível. Recarregue a página.",
+    "invalid_detail": "Confira as informações: cada uma aparece uma vez, áreas são números e datas são datas.",
+    "invalid_meeting": "Confira a reunião: assunto de até 40 caracteres, data no futuro, fim depois do início e link começando com https://.",
     "files_unavailable": "Não foi possível abrir o arquivo agora. Tente de novo em instantes."
   },
   "projectStatus": {
@@ -310,5 +312,34 @@
     "filesUnavailable": "Não foi possível carregar os arquivos agora. Tente de novo em instantes.",
     "openFile": "Abrir {{name}}",
     "downloadFile": "Baixar {{name}}"
+  },
+  "edit": {
+    "archivedNoEdit": "Projeto arquivado: desarquive-o no painel para editar.",
+    "mode": "Modo",
+    "asClient": "Ver como cliente",
+    "edit": "Editar",
+    "editThis": "Editar {{what}}",
+    "description": "Descrição",
+    "descriptionHint": "Cada linha vira um parágrafo. Comece com “- ” para fazer uma lista.",
+    "noDescription": "Sem descrição. Conte ao cliente em duas ou três frases o que é o projeto.",
+    "details": "Informações",
+    "addDetail": "Adicionar informação",
+    "removeDetail": "Remover {{name}}",
+    "meeting": "Reunião",
+    "schedule": "Agendar",
+    "scheduleMeeting": "Agendar reunião",
+    "subject": "Assunto",
+    "subjectHint": "Até 40 caracteres para o título da reunião.",
+    "day": "Data",
+    "start": "Início",
+    "end": "Fim",
+    "location": "Local",
+    "link": "Link da videochamada",
+    "timeZoneHint": "No horário do escritório. O cliente adiciona à agenda com um clique.",
+    "removeMeeting": "Remover reunião",
+    "notes": "Recado da etapa",
+    "notesShort": "Recado",
+    "addNote": "Recado para o cliente",
+    "notesPlaceholder": "Confira as plantas e envie suas observações antes da reunião."
   }
 }

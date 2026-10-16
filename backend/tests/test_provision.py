@@ -78,7 +78,13 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("project_stages", "SELECT"),
         ("project_stages", "INSERT"),
         ("project_details", "SELECT"),
+        ("project_details", "INSERT"),
+        ("project_details", "UPDATE"),
+        ("project_details", "DELETE"),
         ("meetings", "SELECT"),
+        ("meetings", "INSERT"),
+        ("meetings", "UPDATE"),
+        ("meetings", "DELETE"),
         ("storage_connections", "SELECT"),
         ("storage_connections", "INSERT"),
         ("storage_connections", "UPDATE"),
@@ -108,8 +114,13 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
                 "access_mode",
                 "password_hash",
                 "access_version",
+                "description",
+                "project_type",
+                "last_activity_at",
             )
         ),
+        ("project_stages", "notes", "UPDATE"),
+        ("project_stages", "notes_updated_at", "UPDATE"),
         ("project_slugs", "is_current", "UPDATE"),
     }
     assert _grants(migrated_url, RUNTIME_ROLE) == set()

@@ -48,7 +48,7 @@ class ErrorCode(StrEnum):
     PROJECT_CHANGED = "project_changed"  # someone else saved it meanwhile: reload
     INVALID_STATUS_CHANGE = "invalid_status_change"
     PROJECT_HAS_NO_FOLDER = "project_has_no_folder"
-    PROJECT_ARCHIVED = "project_archived"  # takes no new uploads (plan section 22)
+    PROJECT_ARCHIVED = "project_archived"  # viewable, not changed (plan section 22)
     COVER_WRONG_TYPE = "cover_wrong_type"
     COVER_TOO_LARGE = "cover_too_large"
     PAGE_NOT_FOUND = "page_not_found"  # unknown address, draft or deleted: never told apart
@@ -56,6 +56,8 @@ class ErrorCode(StrEnum):
     WRONG_PAGE_PASSWORD = "wrong_page_password"
     TOO_MANY_ATTEMPTS = "too_many_attempts"  # wait 15 minutes
     PASSWORD_REQUIRED = "password_required"  # password access needs a password
+    INVALID_DETAIL = "invalid_detail"  # unknown, repeated, or a value of the wrong kind
+    INVALID_MEETING = "invalid_meeting"  # title 1-40, ends after it starts, web link
     FILES_UNAVAILABLE = "files_unavailable"  # Drive down or throttled: try again
     FILE_NOT_FOUND = "file_not_found"  # moved, deleted, or its link expired: reload
 

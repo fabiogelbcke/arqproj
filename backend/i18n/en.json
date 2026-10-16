@@ -181,7 +181,7 @@
     "project_has_no_folder": "This project doesn't have a Google Drive folder yet, so it can't take a photo.",
     "cover_wrong_type": "Choose a JPG, PNG or WebP image.",
     "cover_too_large": "Choose an image of up to 10 MB.",
-    "project_archived": "This project is archived and takes no new files. Restore it first.",
+    "project_archived": "This project is archived and can't be changed. Restore it first.",
     "unknown_project_type": "Choose a project type.",
     "unknown_stage": "One of the chosen stages no longer exists. Reload the page and try again.",
     "page_not_found": "We couldn't find this page. Check the link with the office.",
@@ -190,6 +190,8 @@
     "too_many_attempts": "Too many attempts. Try again in 15 minutes.",
     "password_required": "Set a password to protect the page.",
     "file_not_found": "This file is no longer available. Reload the page.",
+    "invalid_detail": "Check the details: each appears once, areas are numbers and dates are dates.",
+    "invalid_meeting": "Check the meeting: a subject of up to 40 characters, a date ahead, an end after the start, and a link starting with https://.",
     "files_unavailable": "The file couldn't be opened just now. Try again in a moment."
   },
   "projectStatus": {
@@ -310,5 +312,34 @@
     "filesUnavailable": "The files couldn't be loaded just now. Try again in a moment.",
     "openFile": "Open {{name}}",
     "downloadFile": "Download {{name}}"
+  },
+  "edit": {
+    "archivedNoEdit": "Archived project: restore it in the painel to edit.",
+    "mode": "Mode",
+    "asClient": "View as client",
+    "edit": "Edit",
+    "editThis": "Edit the {{what}}",
+    "description": "Description",
+    "descriptionHint": "Each line becomes a paragraph. Start with “- ” for a list.",
+    "noDescription": "No description. Tell the client in two or three sentences what the project is.",
+    "details": "Details",
+    "addDetail": "Add a detail",
+    "removeDetail": "Remove {{name}}",
+    "meeting": "Meeting",
+    "schedule": "Schedule",
+    "scheduleMeeting": "Schedule a meeting",
+    "subject": "Subject",
+    "subjectHint": "Up to 40 characters for the meeting's title.",
+    "day": "Date",
+    "start": "Start",
+    "end": "End",
+    "location": "Place",
+    "link": "Video call link",
+    "timeZoneHint": "In the office's time. The client adds it to their calendar in one click.",
+    "removeMeeting": "Remove meeting",
+    "notes": "Stage note",
+    "notesShort": "Note",
+    "addNote": "Note for the client",
+    "notesPlaceholder": "Check the plans and send your comments before the meeting."
   }
 }
