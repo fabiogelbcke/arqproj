@@ -111,6 +111,25 @@ async def test_the_wait_starts_at_the_fifth_wrong_try(client, owner, monkeypatch
     assert (await unlock(client, SEED_PASSWORD)).status_code == 204
 
 
+def test_guesses_sent_all_at_once_still_stop_at_five():
+    """Tries are counted when they start, not when their (slow) hash ends: a
+    batch sent at once gets five checks, and the sixth waits."""
+    attempts.reset()
+    admitted = [attempts.admit("p", "device", now=1000.0) for _ in range(8)]
+    assert admitted == [True] * 5 + [False] * 3
+    for _ in range(5):  # the five finish, all wrong
+        attempts.failed("p", "device", now=1001.0)
+    assert not attempts.admit("p", "device", now=1002.0)  # now waiting 15 minutes
+    assert attempts.admit("p", "device", now=1001.0 + 15 * 60 + 1)
+
+
+def test_a_right_password_frees_its_reservation():
+    attempts.reset()
+    assert attempts.admit("p", "device", now=1.0)
+    attempts.succeeded("p", "device")
+    assert all(attempts.admit("p", "device", now=2.0) for _ in range(5))
+
+
 async def test_an_unlocked_protected_pages_calendar_file_is_private(client, db_session, owner):
     from sqlalchemy import text
 

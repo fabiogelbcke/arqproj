@@ -143,6 +143,7 @@ async def test_setting_the_meeting_changes_the_upcoming_one_not_a_second(client,
         {"start": "15:00", "end": "14:00"},
         {"link": "javascript:alert(1)"},
         {"location": "x" * 61},
+        {"day": in_days(-1)},  # already over: the page would hide it at once
     ],
 )
 async def test_a_bad_meeting_is_refused(client, owner, changes):

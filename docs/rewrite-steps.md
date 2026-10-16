@@ -379,7 +379,10 @@ come as PDF. A file is named by a signed key (project, `access_version`, item;
 new password ends it. Images and PDFs open in the browser, everything else only
 downloads; nothing runs on the office's address (`nosniff`, a sandbox except for
 the PDF viewer). Drive's previews where it has them. A stage whose folder can't
-be read says so, and the rest of the page stays. 2.6 Staff bar on the page ("Painel", "Editar"); a card's title opens
+be read says so, and the rest of the page stays. The database connection is
+released before any file or cover streams. Deferred: byte ranges and
+validators for downloads (plan section 15; resumable downloads and seeking in
+large PDFs), with slice 4's sync. 2.6 Staff bar on the page ("Painel", "Editar"); a card's title opens
 the page; "Copiar link". **As built (with "Publicar", ahead of 2.4 and 2.5):**
 the whole painel card links to `/{slug}`; the office's signed-in staff see
 their drafts and protected pages there, with the prototype's dock ("Painel",

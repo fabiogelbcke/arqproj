@@ -202,3 +202,26 @@ async def test_disconnected_storage_marks_stages_unavailable_with_a_reference(
     assert shown["stages"][0]["unavailable"] is True
     assert shown["stages"][5]["unavailable"] is False  # no folder bound
     assert shown["reference"] == response.headers["x-request-id"]
+
+
+async def test_the_database_is_released_before_a_file_streams(client, owner, files, monkeypatch):
+    """A slow download must not hold one of the few database connections."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    events = []
+    real_close = AsyncSession.close
+    real_stream = page_files.StreamingResponse
+
+    async def close(self):
+        events.append("database released")
+        await real_close(self)
+
+    def stream(*args, **kwargs):
+        events.append("streaming")
+        return real_stream(*args, **kwargs)
+
+    first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
+    monkeypatch.setattr(AsyncSession, "close", close)
+    monkeypatch.setattr(page_files, "StreamingResponse", stream)
+    await client.get(f"/api/pages/casa-jardim/files/{first[0]['key']}", headers=ALINEA)
+    assert events.index("database released") < events.index("streaming")
