@@ -112,11 +112,16 @@ def _kind(item: StorageItem) -> str:
     return "other"
 
 
-def _private(project: Project, staff: CurrentStaff | None) -> dict[str, str]:
-    """Never in a shared cache; a short private one for a public page's files:
-    a file added in Drive reaches a returning visitor within two minutes (A10)."""
+NO_STORE = {"Cache-Control": "private, no-store"}
+
+
+def _listing_cache(project: Project, staff: CurrentStaff | None) -> dict[str, str]:
+    """Never in a shared cache; a short private one for a public page's list: a
+    file added in Drive reaches a returning visitor within two minutes (A10).
+    The files themselves are never kept, so one removed in Drive stops opening
+    at once (A05)."""
     if staff is not None or project.access_mode is AccessMode.PASSWORD:
-        return {"Cache-Control": "private, no-store"}
+        return NO_STORE
     return {"Cache-Control": "private, max-age=120"}
 
 
@@ -188,7 +193,7 @@ async def page_files(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PageFilesOut:
     project = await _readable(db, slug, staff, request)
-    response.headers.update({**PAGE_HEADERS, **_private(project, staff)})
+    response.headers.update({**PAGE_HEADERS, **_listing_cache(project, staff)})
     storage = await _storage(request, db)
     has_connection = await db.scalar(select(StorageConnection.id)) is not None
     folders = list(
@@ -374,7 +379,7 @@ async def page_file(
     name = f"{item.name}.pdf" if item.is_native else item.name
     headers = {
         **PAGE_HEADERS,
-        **_private(project, staff),
+        **NO_STORE,
         "Content-Disposition": _disposition(name, shown_inline),
         "X-Content-Type-Options": "nosniff",
         # Nothing in a file may run on the office's address. A PDF keeps the
@@ -436,7 +441,7 @@ async def page_file_thumb(
         media_type=kind,
         headers={
             **PAGE_HEADERS,
-            **_private(project, staff),
+            **NO_STORE,
             "X-Content-Type-Options": "nosniff",
             "Content-Security-Policy": "default-src 'none'; sandbox",
         },

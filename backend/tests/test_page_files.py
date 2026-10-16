@@ -307,3 +307,20 @@ async def test_a_download_that_breaks_off_is_logged_with_its_context(
     logged = [r for r in caplog.records if "broke off" in r.getMessage()]
     assert logged and logged[0].levelname == "ERROR"
     assert "connection reset" in logged[0].getMessage() and "plan" in logged[0].getMessage()
+
+
+async def test_a_public_pages_files_are_never_kept_by_the_browser(client, owner, files):
+    """The list may be kept a moment; a file never, so one removed in Drive stops
+    opening at once instead of coming back from the browser's cache."""
+    Roles(client).visitor()
+    listed = await listing(client)
+    assert "no-store" not in listed.headers["cache-control"]  # Casa Jardim is public
+    first = listed.json()["stages"][0]["groups"][0]["files"]
+    image = next(f for f in first if f["kind"] == "image")
+    url = f"/api/pages/casa-jardim/files/{image['key']}"
+    for response in (
+        await client.get(url, headers=ALINEA),
+        await client.get(f"{url}?inline=true", headers=ALINEA),
+    ):
+        assert response.status_code == 200
+        assert "no-store" in response.headers["cache-control"]
