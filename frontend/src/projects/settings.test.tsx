@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,7 +38,7 @@ function api(extra = {}) {
 
 async function openSettings() {
   renderAt("/");
-  await userEvent.click(await screen.findByRole("button", { name: "Abrir as configurações de Casa Jardim" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Editar o projeto Casa Jardim" }));
   return screen.findByRole("dialog", { name: "Projeto" });
 }
 
@@ -65,9 +65,10 @@ describe("the Projeto dialog", () => {
   it("explains when someone else changed the project meanwhile", async () => {
     api({ [`PATCH ${PATH}`]: () => ({ status: 409, body: { error: "project_changed" } }) });
     const dialog = await openSettings();
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), " II");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("alterado por outra pessoa");
-    expect(within(dialog).getByLabelText(/Nome do projeto/)).toHaveValue("Casa Jardim"); // kept
+    expect(within(dialog).getByLabelText(/Nome do projeto/)).toHaveValue("Casa Jardim II"); // kept
   });
 
   it("names the project that already has the name", async () => {
@@ -75,6 +76,9 @@ describe("the Projeto dialog", () => {
       [`PATCH ${PATH}`]: () => ({ status: 409, body: { error: "project_name_taken", conflict_name: "Casa das Oliveiras" } }),
     });
     const dialog = await openSettings();
+    const name = within(dialog).getByLabelText(/Nome do projeto/);
+    await userEvent.clear(name);
+    await userEvent.type(name, "casa das oliveiras");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Já existe o projeto “Casa das Oliveiras”");
   });
@@ -112,49 +116,75 @@ describe("the Projeto dialog", () => {
     expect(await screen.findByText(/alterado por outra pessoa.*Código de suporte: abc123/)).toBeInTheDocument();
   });
 
-  it("removes the cover", async () => {
+  it("removes the cover on Salvar", async () => {
     const withCover = { ...CASA, cover_url: "/api/projects/x/cover?v=1" };
-    api({
+    const sent = api({
       "GET /api/projects": () => ({ body: [withCover] }),
       [`DELETE ${PATH}/cover`]: () => ({ body: CASA }),
     });
     const dialog = await openSettings();
     await userEvent.click(within(dialog).getByRole("button", { name: "Remover capa" }));
-    expect(await screen.findByText(/Capa removida/)).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Definir capa" })).toBeInTheDocument();
+    expect(within(dialog).getByText("Sem capa, o painel mostra uma foto de exemplo.")).toBeInTheDocument();
+    expect(sent.some((r) => r.method === "DELETE")).toBe(false); // nothing until Salvar
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    expect(sent.filter((r) => r.method === "DELETE")).toHaveLength(1);
+    expect(sent.some((r) => r.method === "PATCH")).toBe(false); // name and client unchanged
   });
-});
 
-describe("the card's photo button", () => {
-  async function openCover() {
-    renderAt("/");
-    await userEvent.click(await screen.findByRole("button", { name: "Trocar foto de Casa Jardim" }));
-    return screen.findByRole("dialog", { name: "Trocar foto" });
-  }
-
-  it("previews the chosen photo, then saves it", async () => {
+  it("previews a chosen photo and uploads it on Salvar", async () => {
     const sent = api({ [`PUT ${PATH}/cover`]: () => ({ body: { ...CASA, cover_url: "/c?v=2" } }) });
-    const dialog = await openCover();
-    const save = within(dialog).getByRole("button", { name: "Salvar foto" });
-    expect(save).toBeDisabled();
+    const dialog = await openSettings();
     const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
     expect(within(dialog).getByRole("img", { name: "Prévia da nova capa" })).toBeInTheDocument();
-    await userEvent.click(save);
-    expect(await screen.findByText("Foto da capa atualizada.")).toBeInTheDocument();
+    expect(sent.some((r) => r.method === "PUT")).toBe(false);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
     const request = sent.find((r) => r.method === "PUT");
     expect(request?.headers.get("Content-Type")).toMatch(/^multipart\/form-data/);
   });
 
   it("refuses a file that is not a photo before sending it", async () => {
-    const sent = api();
-    const dialog = await openCover();
+    api();
+    const dialog = await openSettings();
     const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["%PDF"], "planta.pdf", { type: "application/pdf" }), {
       applyAccept: false,
     });
     expect(within(dialog).getByRole("alert")).toHaveTextContent("Escolha uma imagem JPG, PNG ou WebP.");
-    expect(within(dialog).getByRole("button", { name: "Salvar foto" })).toBeDisabled();
-    await waitFor(() => expect(sent.some((r) => r.method === "PUT")).toBe(false));
+    expect(within(dialog).getByRole("button", { name: "Salvar" })).toBeDisabled();
+  });
+
+  it("after a failed photo, a retry doesn't resend the name it already saved", async () => {
+    let puts = 0;
+    const sent = api({
+      [`PATCH ${PATH}`]: (body: unknown) => ({ body: { ...CASA, ...(body as object), row_version: 5 } }),
+      [`PUT ${PATH}/cover`]: () =>
+        ++puts === 1 ? { status: 503, body: { error: "drive_connect_failed" } } : { body: CASA },
+    });
+    const dialog = await openSettings();
+    const name = within(dialog).getByLabelText(/Nome do projeto/);
+    await userEvent.clear(name);
+    await userEvent.type(name, "Casa Nova");
+    const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Não foi possível conectar o Google Drive");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    expect(sent.filter((r) => r.method === "PATCH")).toHaveLength(1);
+    expect(sent.filter((r) => r.method === "PUT")).toHaveLength(2);
+  });
+});
+
+describe("the card", () => {
+  it("marks drafts on the photo, and the title opens nothing", async () => {
+    api({ "GET /api/projects": () => ({ body: [{ ...CASA, status: "draft" }] }) });
+    renderAt("/");
+    const card = await screen.findByTestId("project-card");
+    expect(within(card).getByText("Rascunho")).toBeInTheDocument();
+    expect(within(card).getByRole("heading", { name: "Casa Jardim" })).toBeInTheDocument();
+    expect(within(card).getAllByRole("button")).toHaveLength(1); // only the pencil
   });
 });

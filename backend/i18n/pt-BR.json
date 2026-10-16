@@ -94,27 +94,20 @@
     "nameTakenBy": "Já existe o projeto “{{name}}”. Escolha outro nome."
   },
   "cover": {
-    "change": "Trocar foto",
-    "changeOf": "Trocar foto de {{name}}",
     "choose": "Escolher uma foto",
     "chooseHint": "JPG, PNG ou WebP · até 10 MB",
     "preview": "Prévia da nova capa",
-    "save": "Salvar foto",
-    "saving": "Salvando…",
-    "saved": "Foto da capa atualizada.",
     "unreadable": "Não foi possível ler esta foto. Escolha outra."
   },
   "projectSettings": {
     "title": "Projeto",
-    "open": "Abrir as configurações de {{name}}",
+    "open": "Editar o projeto {{name}}",
     "name": "Nome do projeto",
     "client": "Cliente",
     "cover": "Capa",
     "changeCover": "Trocar capa",
-    "setCover": "Definir capa",
     "removeCover": "Remover capa",
     "noCover": "Sem capa, o painel mostra uma foto de exemplo.",
-    "coverRemoved": "Capa removida. A foto foi para a lixeira do Google Drive.",
     "archive": "Arquivar",
     "cancel": "Cancelar",
     "save": "Salvar",
@@ -122,7 +115,8 @@
     "saved": "Salvo.",
     "archived": "Projeto “{{name}}” arquivado.",
     "undo": "Desfazer",
-    "restored": "Projeto “{{name}}” de volta."
+    "restored": "Projeto “{{name}}” de volta.",
+    "edit": "Editar projeto"
   },
   "notFound": {
     "title": "Página não encontrada",

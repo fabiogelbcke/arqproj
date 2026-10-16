@@ -94,27 +94,20 @@
     "nameTakenBy": "There's already a project called “{{name}}”. Choose another name."
   },
   "cover": {
-    "change": "Change photo",
-    "changeOf": "Change the photo of {{name}}",
     "choose": "Choose a photo",
     "chooseHint": "JPG, PNG or WebP · up to 10 MB",
     "preview": "Preview of the new cover",
-    "save": "Save photo",
-    "saving": "Saving…",
-    "saved": "Cover photo updated.",
     "unreadable": "This photo couldn't be read. Choose another."
   },
   "projectSettings": {
     "title": "Project",
-    "open": "Open the settings of {{name}}",
+    "open": "Edit the project {{name}}",
     "name": "Project name",
     "client": "Client",
     "cover": "Cover",
     "changeCover": "Change cover",
-    "setCover": "Set cover",
     "removeCover": "Remove cover",
     "noCover": "Without a cover, the painel shows a sample photo.",
-    "coverRemoved": "Cover removed. The photo went to the Google Drive trash.",
     "archive": "Archive",
     "cancel": "Cancel",
     "save": "Save",
@@ -122,7 +115,8 @@
     "saved": "Saved.",
     "archived": "Project “{{name}}” archived.",
     "undo": "Undo",
-    "restored": "Project “{{name}}” is back."
+    "restored": "Project “{{name}}” is back.",
+    "edit": "Edit project"
   },
   "notFound": {
     "title": "Page not found",

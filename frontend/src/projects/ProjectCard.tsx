@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Cover } from "./Cover";
-import { CoverDialog } from "./CoverDialog";
 import { ProjectDialog } from "./ProjectDialog";
 import { type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
@@ -54,32 +53,24 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
     minute: "2-digit",
   });
   const updated = project.last_activity_at ?? project.created_at;
-  const [open, setOpen] = useState<"settings" | "cover" | null>(null);
+  const [editing, setEditing] = useState(false);
   return (
     <li className={styles.card} data-testid="project-card">
       <Cover project={project} className={styles.cardCover} />
+      {project.status === "draft" && <span className={styles.draftTag}>{t("projectStatus.draft")}</span>}
       <button
         type="button"
-        className={styles.coverButton}
-        aria-label={t("cover.changeOf", { name: project.name })}
-        title={t("cover.change")}
-        onClick={() => setOpen("cover")}
+        className={styles.editButton}
+        aria-label={t("projectSettings.open", { name: project.name })}
+        title={t("projectSettings.edit")}
+        onClick={() => setEditing(true)}
       >
-        <span aria-hidden="true">+</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 20h4L19 9l-4-4L4 16v4Z M13.5 6.5l4 4" />
+        </svg>
       </button>
       <div className={styles.identity}>
-        <h3 className={styles.name}>
-          {/* Until the project page exists (slice 2), the title opens the settings. */}
-          <button
-            type="button"
-            className={styles.titleButton}
-            aria-label={t("projectSettings.open", { name: project.name })}
-            onClick={() => setOpen("settings")}
-          >
-            {project.name}
-          </button>
-          {project.status === "draft" && <span className={styles.tag}>{t("projectStatus.draft")}</span>}
-        </h3>
+        <h3 className={styles.name}>{project.name}</h3>
         <p className={styles.client}>
           <span>{project.client_name}</span>
           <span>{project.project_type_label}</span>
@@ -97,8 +88,7 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
       <p className={styles.updated}>
         <small>{t("projects.updated")}</small> {day.format(new Date(updated))}
       </p>
-      {open === "cover" && <CoverDialog project={project} onClose={() => setOpen(null)} />}
-      {open === "settings" && <ProjectDialog project={project} onClose={() => setOpen(null)} />}
+      {editing && <ProjectDialog project={project} onClose={() => setEditing(false)} />}
     </li>
   );
 }
