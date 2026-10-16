@@ -113,10 +113,11 @@ def _kind(item: StorageItem) -> str:
 
 
 def _private(project: Project, staff: CurrentStaff | None) -> dict[str, str]:
-    """Never in a shared cache; a short private one for a public page's files."""
+    """Never in a shared cache; a short private one for a public page's files:
+    a file added in Drive reaches a returning visitor within two minutes (A10)."""
     if staff is not None or project.access_mode is AccessMode.PASSWORD:
         return {"Cache-Control": "private, no-store"}
-    return {"Cache-Control": "private, max-age=300"}
+    return {"Cache-Control": "private, max-age=120"}
 
 
 async def _list(storage, folder: str) -> list[StorageItem]:

@@ -19,6 +19,26 @@ a new entry too.
 
 ---
 
+## 2026-10-16 — A10: pages read Drive live; the sync job only notices changes
+
+**Was:** a polled sync (about every 10 minutes in the POC) indexed Drive into the
+database, and the client page showed that index, so a new file appeared only
+after the next pass. The plan asked to show that delay rather than promise
+"instant".
+
+**Now:** the project page lists each stage folder from Drive on every visit
+(built in step 2.5), and a file opens only while Drive still lists it there. A
+public page's browser keeps the list for at most two minutes; staff and
+password-protected pages are never cached. The sync job remains, but only to
+notice changes: emails (A12), "Atualizado" and the updates feed (A28), and the
+document index once versions (A25) arrive.
+
+**Why:** live reads were already needed so a removed or moved file stops
+opening at once (A05). With them, a stored copy for display adds a delay and a
+second source of truth for nothing. At a handful of offices the extra Drive
+calls per visit are cheap. Fabio agreed, 16 Oct 2026, and chose a short browser
+cache of two to three minutes over none.
+
 ## 2026-10-16 — A28 (interim): what moves "Atualizado" until the updates feed exists
 
 **Was:** A28's feed of client-visible events (`project_events`) decides the

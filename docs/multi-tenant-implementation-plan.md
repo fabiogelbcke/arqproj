@@ -96,7 +96,7 @@ its affected tests before coding proceeds.
 | A07 | All-or-nothing project creation | Pilot (15 Oct 2026): within the request, folders first, then every row in one transaction; on any failure nothing is saved and the new project folder (with its stage folders) is trashed, best effort; a one-time creation key makes retries safe. The durable provisioning operation in section 10 replaces it when there is a worker. See section 10 |
 | A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules. Revised by A25: clear `vN` names still group automatically |
 | A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: an authenticated maintenance endpoint in the web service, called every 10 minutes (15 Oct 2026, was hourly), with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
-| A10 | Incremental Drive sync, initially polled; reconciliation as repair | Recommended; webhooks can accelerate later without becoming a correctness dependency |
+| A10 | The client page reads Drive live; the sync job only notices changes | Revised 16 Oct 2026 (Fabio): a project page lists its stage folders from Drive on each visit, so a file added in Drive shows at once (staff) or within two minutes (a public page's browser cache). The incremental, polled sync no longer feeds the display; it records what changed, for emails (A12), "Atualizado" and the updates feed (A28), and, once versions arrive, the document index (A25). Reconciliation stays the repair path; webhooks can wake it later without becoming a correctness dependency. See sections 8 and 13 |
 | A11 | Streaming proxy for private Drive content; optional Drive links | Recommended; clients need not have Google accounts or Drive sharing permissions |
 | A12 | Email first, trailing "settle" window: send once uploads stop | Revised 14 Oct 2026 from a fixed 60-minute window. 45-minute quiet period, 2-hour maximum hold from the first publication, configurable per office. Clarified 15 Oct 2026: a batch becomes *due* by these rules and is *sent* by the next maintenance run (every 10 minutes); the delay prevents an email about withdrawn files, it does not hide them. See section 14 and the [changelog](decision-changelog.md) |
 | A13 | Protected main, staging and approved promotion of one build | Recommended; environments are separate without requiring permanent divergent code branches |
@@ -722,7 +722,7 @@ not depend on a single worker instance.
 | Data | Authority | Behavior when edited elsewhere |
 | --- | --- | --- |
 | Project title/client/status/meeting/stages/custom fields | PostgreSQL | Drive `_project` files are imported once, then ignored for product metadata |
-| File bytes, physical filename/folder placement, trash | Google Drive | Reconcile into the application's index |
+| File bytes, physical filename/folder placement, trash | Google Drive | The client page reads it live (A10); the sync records changes as events, and later into the document index |
 | Document grouping, revision labels, selected current revision | PostgreSQL | External files may create new documents/revision observations; do not silently overwrite manual grouping |
 | Client visibility | Deliverables boundary plus DB project/access state | Moving out of the boundary removes portal availability |
 | Recipients, email preferences, delivery results | PostgreSQL | Drive has no authority over them |
@@ -1152,9 +1152,10 @@ without notifying clients about every old file again.
 The fuller design polls active connections approximately every two minutes.
 Option E instead runs one maintenance pass every 10 minutes for the POC (A09):
 each pass sends due email batches and polls Drive changes for active connections
-(incremental, so cheap). UI-triggered sync can
-request earlier bounded work with a rate limit. Show the selected freshness expectation
-rather than “instant”. Coalesce repeated poll requests. A scheduled daily
+(incremental, so cheap). The interval delays only notices (emails, "Atualizado",
+the updates feed), never what a page shows: pages read Drive live (A10).
+UI-triggered sync can request earlier bounded work with a rate limit. Coalesce
+repeated poll requests. A scheduled daily
 reconciliation compares the complete in-scope tree with indexed state and repairs
 missed moves/deletes or cursor errors. For larger trees, paginate and checkpoint
 scans; mark missing files only after a complete successful reconciliation.
