@@ -15,11 +15,18 @@ import {
 
 const LOCAL = { kind: "folder", writer_status: "none", reader_status: "unknown", account_email: null, folder_url: null, can_manage: true };
 const NONE = { ...LOCAL, kind: null };
-const TEMPLATES = [
-  { key: "standard", label: "Padrão", stage_count: 7 },
-  { key: "interiors", label: "Interiores", stage_count: 6 },
-  { key: "empty", label: "Sem etapas", stage_count: 0 },
-];
+const OPTIONS = {
+  types: [
+    { key: "architecture", label: "Projeto Arquitetônico", stages: ["briefing", "survey", "permit_documents"] },
+    { key: "interiors", label: "Projeto de Interiores", stages: ["briefing", "survey", "detailing"] },
+  ],
+  stages: [
+    { key: "briefing", title: "Briefing" },
+    { key: "survey", title: "Levantamento" },
+    { key: "permit_documents", title: "Projeto Legal" },
+    { key: "detailing", title: "Detalhamentos" },
+  ],
+};
 
 function project(changes: Partial<ProjectSummary>): ProjectSummary {
   return {
@@ -62,7 +69,7 @@ function api(drive: object = LOCAL, extra = {}) {
     "GET /api/drive": () => ({ body: drive }),
     "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: true, has_project: true } }),
     "GET /api/projects": () => ({ body: LIST }),
-    "GET /api/templates": () => ({ body: TEMPLATES }),
+    "GET /api/project-types": () => ({ body: OPTIONS }),
     ...extra,
   });
 }
@@ -138,7 +145,12 @@ describe("Novo projeto", () => {
     await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa do Lago — Conceição");
     await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Família Souza");
     expect(within(dialog).getByLabelText(/Endereço da página/)).toHaveValue("casa-do-lago-conceicao");
-    await userEvent.click(within(dialog).getByText("Interiores"));
+    await userEvent.click(within(dialog).getByText("Projeto de Interiores"));
+    // The type's usual stages come ticked; any can be ticked or unticked.
+    expect(within(dialog).getByRole("checkbox", { name: "Detalhamentos" })).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: "Projeto Legal" })).not.toBeChecked();
+    await userEvent.click(within(dialog).getByText("Levantamento"));
+    await userEvent.click(within(dialog).getByText("Projeto Legal"));
     await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
 
     expect(await screen.findByText("Projeto “Casa do Lago — Conceição” criado.")).toBeInTheDocument();
@@ -147,11 +159,27 @@ describe("Novo projeto", () => {
     expect(request?.body).toMatchObject({
       name: "Casa do Lago — Conceição",
       client_name: "Família Souza",
-      template: "interiors",
+      project_type: "interiors",
       slug: "casa-do-lago-conceicao",
     });
+    expect(new Set((request?.body as { stages: string[] }).stages)).toEqual(
+      new Set(["briefing", "detailing", "permit_documents"]),
+    );
     expect((request?.body as { creation_key: string }).creation_key.length).toBeGreaterThanOrEqual(16);
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-123");
+  });
+
+  it("changing the type ticks its usual stages again", async () => {
+    api();
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByRole("checkbox", { name: "Projeto Legal" })).toBeChecked();
+    await userEvent.click(within(dialog).getByText("Briefing")); // untick
+    await userEvent.click(within(dialog).getByText("Projeto de Interiores"));
+    expect(within(dialog).getByRole("checkbox", { name: "Briefing" })).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: "Projeto Legal" })).not.toBeChecked();
+    expect(within(dialog).getByText(/3 etapas marcadas/)).toBeInTheDocument();
   });
 
   it("a retry after a failure reuses the same key, so it never makes two", async () => {

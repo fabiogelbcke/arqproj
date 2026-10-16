@@ -79,9 +79,6 @@
     "name": "Project name",
     "client": "Client",
     "clientHint": "As shown on the client's page. Up to 48 characters.",
-    "template": "Stages",
-    "stageCount_one": "{{count}} stage",
-    "stageCount_other": "{{count}} stages",
     "slug": "Page address",
     "slugHint": "Lowercase letters, numbers and hyphens. The page will be {{address}}",
     "slugTakenBy": "This address already belongs to “{{name}}”. Choose another.",
@@ -90,8 +87,12 @@
     "creating": "Creating…",
     "cancel": "Cancel",
     "created": "Project “{{name}}” created.",
-    "noStagesHint": "You set up the stages later, on the project page",
-    "nameTakenBy": "There's already a project called “{{name}}”. Choose another name."
+    "noStagesHint": "No stages ticked: you set up the stages later, on the project page.",
+    "nameTakenBy": "There's already a project called “{{name}}”. Choose another name.",
+    "type": "Project type",
+    "stages": "Stages",
+    "stagesHint_one": "{{count}} stage ticked. The type's usual stages come ticked; tick or untick as you like.",
+    "stagesHint_other": "{{count}} stages ticked. The type's usual stages come ticked; tick or untick as you like."
   },
   "cover": {
     "choose": "Choose a photo",
@@ -160,7 +161,6 @@
     "drive_unreadable": "The portal cannot read the office's Google Drive folder. Check its sharing in Settings → Google Drive.",
     "invalid_project_name": "Enter the project's name, up to 120 characters.",
     "invalid_client_name": "Enter the client, up to 48 characters.",
-    "unknown_template": "Choose a stage template.",
     "invalid_slug": "Use only lowercase letters, numbers and hyphens, with no hyphen at the start or end. Some words are reserved by the portal.",
     "slug_taken": "This address is already in use. Choose another.",
     "project_name_taken": "A project with this name already exists. Choose another.",
@@ -170,7 +170,9 @@
     "project_has_no_folder": "This project doesn't have a Google Drive folder yet, so it can't take a photo.",
     "cover_wrong_type": "Choose a JPG, PNG or WebP image.",
     "cover_too_large": "Choose an image of up to 10 MB.",
-    "project_archived": "This project is archived and takes no new files. Restore it first."
+    "project_archived": "This project is archived and takes no new files. Restore it first.",
+    "unknown_project_type": "Choose a project type.",
+    "unknown_stage": "One of the chosen stages no longer exists. Reload the page and try again."
   },
   "projectStatus": {
     "draft": "Draft",

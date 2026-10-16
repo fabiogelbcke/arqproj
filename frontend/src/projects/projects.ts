@@ -5,20 +5,21 @@ import { api, call, type Schemas } from "../api/client";
 import { ONBOARDING } from "../drive/drive";
 
 export type ProjectSummary = Schemas["ProjectSummary"];
-export type Template = Schemas["TemplateOut"];
+export type CreationOptions = Schemas["CreationOptions"];
 export type NewProject = Schemas["ProjectIn"];
 
 export const PROJECTS = ["projects"] as const;
-const TEMPLATES = ["templates"] as const;
+const CREATION_OPTIONS = ["project-types"] as const;
 
 export function useProjects() {
   return useQuery({ queryKey: PROJECTS, queryFn: () => call(api.GET("/api/projects")) });
 }
 
-export function useTemplates() {
+/** The project types, each with its usual stages, and every built-in stage in order. */
+export function useCreationOptions() {
   return useQuery({
-    queryKey: TEMPLATES,
-    queryFn: () => call(api.GET("/api/templates")),
+    queryKey: CREATION_OPTIONS,
+    queryFn: () => call(api.GET("/api/project-types")),
     staleTime: Infinity,
   });
 }

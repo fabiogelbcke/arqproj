@@ -53,10 +53,10 @@ Confirmed choices:
   custom domain of the same deployment (A23); A21 only matters for later offices.
 - Project links are simple: `/{project-slug}` on the office's address, as today
   (A22). Optional per-project passwords cover projects that need privacy.
-- Creating a project asks only for its name and the client's name (plus an
-  optional stage template). Details, stages, meeting, cover image and files are
-  edited afterwards, in the painel and in a staff edit mode on the project page
-  itself (A24).
+- Creating a project asks for its name, the client's name and its type, whose
+  usual stages come ticked and can be changed (A27). Details, meeting, cover
+  image and files are edited afterwards: content in a staff edit mode on the
+  project page, settings in the painel (A24).
 - Files are versioned as `v1, v2, v3`: "send new version" on a file, and an
   upload with an existing name offers to become its next version (A25).
 - PostgreSQL owns project metadata. Drive owns file bytes and physical folders.
@@ -109,10 +109,10 @@ its affected tests before coding proceeds.
 | A21 | Office address scheme | **Open, two options recorded.** A: office subdomains behind a global load balancer (agreed requirement; ~$18.25/month fixed plus processing). B: one domain with office paths (no load-balancer fee, but every no-load-balancer front door has a production caveat). Options and consequences in section 4; decide before DNS/OAuth registration and before any client link is shared |
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
-| A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus an optional stage template. Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits only the project's settings, in the prototype's "Projeto" dialog: name, client, cover (also from the card's photo button), client link and access (with the client page, slice 2), and archiving. No delete for now. Uploads happen per stage on the project page. See section 10 |
+| A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits only the project's settings, in the prototype's "Projeto" dialog: name, client, cover (also from the card's photo button), client link and access (with the client page, slice 2), and archiving. No delete for now. Uploads happen per stage on the project page. See section 10 |
 | A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original is shown as v1. Refined 15 Oct 2026: the client page shows the clean name with a separate version badge, while the copy in Drive carries the version (`Planta v3.pdf`); grouping only within one folder; clashes are flagged, never merged; current = highest version. See section 12 and the [changelog](decision-changelog.md) |
-| A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Refined the same day: values the code **acts on** (status, access mode, roles, a detail's value type, languages, error codes) are enums stored with a CHECK; **content the app only displays** (project types, detail types, built-in stages with their explanations, stage templates) lives in reference tables with its texts per language, referenced by foreign key, and the code keeps enums naming the built-in rows (a test keeps them in step). Interface text lives in one translation catalog per language shared by the server and the staff app. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
-| A27 | Typed project details; project type as its own field; built-in details and types only for the pilot | Agreed 15 Oct 2026 (prototype review). Details are text, choice, area (m²) or date, formatted per language. Project type is a column with four built-in types (architecture, interiors, renovation, landscaping), defaulting from the stage template. The pilot offers only built-in details and types; office-defined ones are a later addition (an optional custom label beside the built-in key; existing rows need no conversion). See sections 7 and 10 |
+| A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Refined the same day: values the code **acts on** (status, access mode, roles, a detail's value type, languages, error codes) are enums stored with a CHECK; **content the app only displays** (project types, detail types, built-in stages with their descriptions, each type's usual stages) lives in reference tables with its texts per language, referenced by foreign key, and the code keeps enums naming the built-in rows (a test keeps them in step). Interface text lives in one translation catalog per language shared by the server and the staff app. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
+| A27 | Typed project details; project type chosen at creation, with its usual stages | Agreed 15 Oct 2026 (prototype review). Details are text, choice, area (m²) or date, formatted per language. Project type is a column with four built-in types: Projeto Arquitetônico, Projeto de Interiores, Projeto de Reforma, Projeto de Paisagismo. Revised 16 Oct 2026 (Alinea's partners): creation asks for the type; all 12 built-in stages are listed in one fixed order, the type's usual ones ticked, and staff tick or untick any. Each type gives its stages its own description; a stage outside its type's list uses a general one. Built-in stages have a description only (no separate deliverables). Stage templates are gone. The pilot offers only built-in details, types and stages; office-defined ones are a later addition. See sections 7 and 10 |
 | A28 | One feed of client-visible project events | Agreed 15 Oct 2026 (prototype review). New files and versions, stage notes and meeting changes are recorded once as `project_events`; the client page's "latest updates" panel, the project's "last updated" date and email batching (A12) all read it. See sections 7 and 14 |
 | A29 | A project address (slug), once used, stays reserved for that project | Agreed 15 Oct 2026. Old slugs keep redirecting and can never be given to another project in the office, so an old client link cannot land on someone else's project. See section 6 |
 | A30 | Staff app and API stay compatible across a deploy | Agreed 15 Oct 2026, correcting "one revision means the staff app can never run against another API version": an open tab keeps the old code. Fingerprinted assets, a build ID on API responses, a reload prompt that keeps unsaved edits, and API changes compatible with the previous release. See section 4 |
@@ -649,12 +649,12 @@ The following is a logical schema specification, not a migration:
 | `password_links` | tenant, user (same tenant), kind (invite/reset), token hash, expiry, used time; one-time links for people to choose their own password (step 1.5b) |
 | `sessions` | tenant, user (same tenant), token hash, CSRF token, last seen, expiry, revoked |
 | `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
-| `projects` | tenant, title, client name (≤ 48 characters), cover image reference, status (`draft` until published, `active`, `completed`, `archived`; see section 10), slugs in `project_slugs`, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), stage template used, optional professional, access mode/hash/version, current stage, last client-visible activity time (A28), row version |
+| `projects` | tenant, title, client name (≤ 48 characters), cover image reference, status (`draft` until published, `active`, `completed`, `archived`; see section 10), slugs in `project_slugs`, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), optional professional, access mode/hash/version, current stage, last client-visible activity time (A28), row version |
 | `project_slugs` | tenant, project, slug, is current, created; every address a project has had, exactly one current. Unique per tenant across current and old, so a used slug stays with its project (A29); old ones redirect. Reserved paths (`painel`, `api`, …) refused |
 | `project_types` | key, order, label per language. Built-in rows from a migration (A26) |
 | `detail_types` | key, value type (text/area/date), order, label per language. Built-in rows from a migration; offices' own later (A27) |
-| `stage_definitions` | key, title, what happens and what the client receives, each per language. Built-in rows from a migration |
-| `stage_templates` / `stage_template_stages` | key, label per language, default project type; its stages in order. Built-in: Padrão (7 stages), Interiores (6), empty. Offices may add their own later |
+| `stage_definitions` | key, order, title and a general description, each per language. The 12 built-in stages, from a migration (A27) |
+| `project_type_stages` | project type, stage; the type's usual stages (ticked at creation) and the type's own description of each, per language (A27) |
 | `project_details` | tenant, project, detail type (foreign key to `detail_types` by key and value type, so the database knows the value's type), order, the value in the column of its type (text, number in m², date). Pilot: built-in detail types only (A27) |
 | `project_stages` | tenant, project, stable stage key, **either** a built-in stage key (title and explanations translated) **or** office-written title and explanations, order, status, notes and when they last changed, bound folder ID |
 | `meetings` | tenant, project, title (≤ 40), start/end (end after start), timezone, location (≤ 60), link (`http`/`https` only); several per project: the client page shows the next one by date, so a past meeting stops showing on its own (agreed 15 Oct 2026) |
@@ -696,7 +696,7 @@ intended test. [PostgreSQL row security](https://www.postgresql.org/docs/current
 value (status, access mode, role, a detail's value type), it is a Python
 `StrEnum` stored as text with a CHECK built from the enum (PostgreSQL enum types
 are hard to change). If the app only displays it (project types, detail types,
-built-in stages and their explanations, stage templates), it is content: a row in
+built-in stages and their descriptions, each type's usual stages), it is content: a row in
 a reference table with its texts per language, referenced by foreign key, so the
 database describes its own data and offices' own rows can join later. The code
 keeps enums naming the built-in rows, and a test keeps enums and rows in step.
@@ -925,10 +925,10 @@ A fault injected after database commit must not lose the creation job.
 ### What creation asks for, and what is edited later (A24)
 
 Creating a project must take seconds. The form asks for the **project name** and
-the **client's name** (both required, both editable later), plus an optional
-stage template (the office's standard workflow is preselected). The client name
-(at most 48 characters) is the main label in the painel; the chosen template also
-sets the default project type (A27). The slug is derived from the name and editable; duplicates of an
+the **client's name** (both required, both editable later), the **project
+type**, and its stages: all built-in stages listed in order, the type's usual
+ones ticked, any of them ticked or unticked (A27). The client name (at most 48
+characters) is the main label in the painel. The slug is derived from the name and editable; duplicates of an
 existing name or slug in the office are refused with the conflicting project
 named. Everything else starts empty or from office defaults and is edited later.
 
@@ -942,9 +942,9 @@ Editable after creation, by office staff:
 | Content | Editing |
 | --- | --- |
 | Description | Plain paragraphs and `- ` bullet lines, as today |
-| Project type | One of the built-in types (A27); defaults from the stage template |
+| Project type | One of the built-in types (A27), chosen at creation; changing it later leaves the stages as they are |
 | Project details | Chosen from the built-in details (Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável), each with a fixed type (text, choice, area, date); reorder, hide empty ones. Areas and dates are formatted per language. Custom details are a later addition (A27) |
-| Stages | Add, rename, reorder, remove (only when empty, or with explicit confirmation that its files stay in Drive); per-stage notes; built-in stages carry translated explanations (what happens, what the client receives), custom stages the office's own or a generic one |
+| Stages | Add, rename, reorder, remove (only when empty, or with explicit confirmation that its files stay in Drive); per-stage notes; built-in stages carry a translated description, the project type's own where it has one (A27); custom stages the office's own |
 | Progress | "Advance stage" moves the current-stage pointer; "mark complete" finishes the project. Status (done/current/upcoming) derives from the pointer |
 | Meeting | Start, end (after start), subject (≤ 40), location (≤ 60), link (`http`/`https` only, so a pasted `javascript:` link can never run in a client's browser); clearing it shows "no meeting scheduled". Clients can add it to their calendar: a Google Calendar link and an `.ics` file generated by the server in the office's timezone |
 | Files | Upload into a stage, send a new version of a file (section 12) |
@@ -964,7 +964,7 @@ Where it is edited:
   (sorted in the browser; office project counts are small). Project creation;
   the project's settings in the "Projeto" dialog (name, client, cover, client
   link, access, archive) and the cover from the card's photo button (A24);
-  office settings, Drive connection and stage templates. Office-wide
+  office settings and Drive connection. Office-wide
   problems, such as a lapsed Drive connection, show as an office notice, not on
   each project.
 
@@ -1687,7 +1687,7 @@ choices need an owner before their corresponding feature ships:
 | Database instance size/backup retention | Cloud SQL, smallest shared-core instance (A16); confirm price, backups and point-in-time recovery at creation, then prove a restore | Infrastructure purchase |
 | Background dispatch technology and refresh interval | In-app maintenance every 10 minutes for the POC (A09); add a queue/worker when needed | Maintenance implementation |
 | Timer setup | Prefer Cloud Scheduler within account-wide free allowance; local cron is the alternative | Confirm allowance and cadence before setup |
-| Detail presets and stage templates | Built in (A26, A27): Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável; templates Padrão (seven stages) and Interiores (six), with explanations | Slice 3 |
+| Detail presets and stages | Built in (A26, A27): Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável; 12 stages, each project type ticking its usual ones, with descriptions per type | Slice 3 |
 | Custom project details and types | Not in the pilot (A27). Before migrating the first office, list the detail labels its existing `_project` files use; any outside the built-in list becomes a built-in or is mapped, so migration drops nothing | Before migration (section 20); custom details after pilot feedback |
 | Editing on the project page and in the painel | Build editing components once in React and load them onto the client page for signed-in staff only, sharing the painel's components and API validation, rather than implementing both editing experiences separately | Step 1.6 (affects how `frontend/` is built) |
 | "Precisa de você" (projects needing staff action) | Left out of the pilot; re-evaluate project-level triggers later (broken folder binding, bounced client email, version clash, unreadable file). Office-wide problems such as a lapsed Drive connection are an office notice, and failed creation is part of the creation flow (A07) | After pilot feedback |

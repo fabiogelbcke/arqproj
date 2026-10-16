@@ -233,7 +233,8 @@ def test_migrations_wait_for_one_already_running(migrated_url):
 def test_data_migrations_run_as_an_owner_that_isolation_binds(migrated_url):
     """On Cloud SQL the migration login owns the tables but is no superuser, so
     forced tenant isolation applies to it too. A migration updating existing rows
-    must still reach every office's rows (0008 backfills detail value types)."""
+    must still reach every office's rows (0008 backfills detail value types; 0013
+    deletes the test projects)."""
     from backend.commands import local_db
 
     owner = RUNTIME_ROLE + "_owner_like"
@@ -255,6 +256,14 @@ def test_data_migrations_run_as_an_owner_that_isolation_binds(migrated_url):
             text(
                 "INSERT INTO project_details (tenant_id, project_id, key, position, value_number) "
                 "VALUES (:t, :p, 'site_area', 1, 1240)"
+            ),
+            {"t": tenant, "p": project},
+        )
+        # A stage using an old built-in key: 0013 removes those definitions.
+        connection.execute(
+            text(
+                "INSERT INTO project_stages (tenant_id, project_id, position, builtin_key) "
+                "VALUES (:t, :p, 1, 'proposal')"
             ),
             {"t": tenant, "p": project},
         )
@@ -282,6 +291,15 @@ def test_data_migrations_run_as_an_owner_that_isolation_binds(migrated_url):
         )
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT value_type FROM project_details")) == "area"
+        # 0013 deletes the projects made with the old stages, every office's.
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0013",
+        )
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT count(*) FROM projects")) == 0
+            assert connection.scalar(text("SELECT count(*) FROM project_details")) == 0
+            assert connection.scalar(text("SELECT count(*) FROM project_stages")) == 0
     finally:
         with engine.begin() as connection:
             # This throwaway database is dropped after the test anyway.

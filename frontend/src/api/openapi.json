@@ -629,21 +629,17 @@
         }
       }
     },
-    "/api/templates": {
+    "/api/project-types": {
       "get": {
-        "summary": "Templates",
-        "operationId": "templates_api_templates_get",
+        "summary": "Project Types",
+        "operationId": "project_types_api_project_types_get",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TemplateOut"
-                  },
-                  "type": "array",
-                  "title": "Response Templates Api Templates Get"
+                  "$ref": "#/components/schemas/CreationOptions"
                 }
               }
             }
@@ -991,6 +987,30 @@
         ],
         "title": "ConnectOut"
       },
+      "CreationOptions": {
+        "properties": {
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectTypeOption"
+            },
+            "type": "array",
+            "title": "Types"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageOption"
+            },
+            "type": "array",
+            "title": "Stages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "types",
+          "stages"
+        ],
+        "title": "CreationOptions"
+      },
       "DriveOut": {
         "properties": {
           "kind": {
@@ -1072,7 +1092,8 @@
           "logo_too_large",
           "invalid_project_name",
           "invalid_client_name",
-          "unknown_template",
+          "unknown_project_type",
+          "unknown_stage",
           "invalid_slug",
           "project_name_taken",
           "slug_taken",
@@ -1409,10 +1430,18 @@
             "maxLength": 500,
             "title": "Client Name"
           },
-          "template": {
+          "project_type": {
             "type": "string",
             "maxLength": 100,
-            "title": "Template"
+            "title": "Project Type"
+          },
+          "stages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Stages"
           },
           "slug": {
             "type": "string",
@@ -1430,7 +1459,8 @@
         "required": [
           "name",
           "client_name",
-          "template",
+          "project_type",
+          "stages",
           "slug",
           "creation_key"
         ],
@@ -1565,6 +1595,32 @@
         ],
         "title": "ProjectSummary"
       },
+      "ProjectTypeOption": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "stages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "stages"
+        ],
+        "title": "ProjectTypeOption"
+      },
       "ReaderStatus": {
         "type": "string",
         "enum": [
@@ -1583,6 +1639,24 @@
         ],
         "title": "Role"
       },
+      "StageOption": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "title"
+        ],
+        "title": "StageOption"
+      },
       "StorageKind": {
         "type": "string",
         "enum": [
@@ -1590,29 +1664,6 @@
           "folder"
         ],
         "title": "StorageKind"
-      },
-      "TemplateOut": {
-        "properties": {
-          "key": {
-            "type": "string",
-            "title": "Key"
-          },
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "stage_count": {
-            "type": "integer",
-            "title": "Stage Count"
-          }
-        },
-        "type": "object",
-        "required": [
-          "key",
-          "label",
-          "stage_count"
-        ],
-        "title": "TemplateOut"
       },
       "TenantOut": {
         "properties": {

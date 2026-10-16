@@ -19,6 +19,32 @@ a new entry too.
 
 ---
 
+## 2026-10-16 — A27: the project type is chosen at creation and ticks its usual stages
+
+**Was:** creation offered three stage templates (Padrão, 7 stages; Interiores, 6;
+Sem etapas), and the template set the project type. Built-in stages had two
+texts: what happens and what the client receives.
+
+**Now:** creation asks for the project type (Projeto Arquitetônico, de
+Interiores, de Reforma, de Paisagismo). All 12 built-in stages are listed in one
+order; the type's usual ones come ticked, and staff tick or untick any. Each type
+describes its stages in its own words; a stage outside its type's list uses a
+general description. One description per stage, no deliverables text. The old
+stages (Proposta, Projeto 3D, Layout, Entrega Final, Serviços extras…) and the
+templates are removed, and so are the projects made with them. The general
+descriptions were drafted from the partners' per-type texts, for them to confirm.
+
+Migration 0013 deletes data and removes columns, tables and an API route in one
+release: a deliberate pre-pilot exception to plan section 19 (expand, migrate,
+contract) and A30 (compatible API changes). Nothing needs recovering: production
+has no projects, and staging's were tests.
+
+**Why:** Alinea's partners wrote the stages each type of project goes through
+(Fabio, 16 Oct 2026). The lists overlap heavily and share one order, so a single
+list with defaults per type is simpler than templates and lets staff fit each
+project. The old stages belonged to the current site's way of working; the
+projects using them were tests, so removing them keeps the data clean.
+
 ## 2026-10-16 — A24 narrowed: the painel edits settings only
 
 **Was:** details, stages, progress, meeting and the other project content could

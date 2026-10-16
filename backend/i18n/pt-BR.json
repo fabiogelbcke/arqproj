@@ -79,9 +79,6 @@
     "name": "Nome do projeto",
     "client": "Cliente",
     "clientHint": "Como aparece na página do cliente. Até 48 caracteres.",
-    "template": "Etapas",
-    "stageCount_one": "{{count}} etapa",
-    "stageCount_other": "{{count}} etapas",
     "slug": "Endereço da página",
     "slugHint": "Letras minúsculas, números e hífens. A página será {{address}}",
     "slugTakenBy": "Este endereço já é do projeto “{{name}}”. Escolha outro.",
@@ -90,8 +87,12 @@
     "creating": "Criando…",
     "cancel": "Cancelar",
     "created": "Projeto “{{name}}” criado.",
-    "noStagesHint": "Você monta as etapas depois, na página do projeto",
-    "nameTakenBy": "Já existe o projeto “{{name}}”. Escolha outro nome."
+    "noStagesHint": "Nenhuma etapa marcada: você monta as etapas depois, na página do projeto.",
+    "nameTakenBy": "Já existe o projeto “{{name}}”. Escolha outro nome.",
+    "type": "Tipo de projeto",
+    "stages": "Etapas",
+    "stagesHint_one": "{{count}} etapa marcada. As etapas usuais do tipo já vêm marcadas; marque ou desmarque à vontade.",
+    "stagesHint_other": "{{count}} etapas marcadas. As etapas usuais do tipo já vêm marcadas; marque ou desmarque à vontade."
   },
   "cover": {
     "choose": "Escolher uma foto",
@@ -160,7 +161,6 @@
     "drive_unreadable": "O portal não consegue ler a pasta do escritório no Google Drive. Verifique o compartilhamento em Configurações → Google Drive.",
     "invalid_project_name": "Informe o nome do projeto, com até 120 caracteres.",
     "invalid_client_name": "Informe o cliente, com até 48 caracteres.",
-    "unknown_template": "Escolha um modelo de etapas.",
     "invalid_slug": "Use só letras minúsculas, números e hífens, sem hífen no começo ou no fim. Algumas palavras são reservadas pelo portal.",
     "slug_taken": "Este endereço já está em uso. Escolha outro.",
     "project_name_taken": "Já existe um projeto com este nome. Escolha outro.",
@@ -170,7 +170,9 @@
     "project_has_no_folder": "Este projeto ainda não tem uma pasta no Google Drive, então não pode receber uma foto.",
     "cover_wrong_type": "Escolha uma imagem JPG, PNG ou WebP.",
     "cover_too_large": "Escolha uma imagem de até 10 MB.",
-    "project_archived": "Este projeto está arquivado e não recebe novos arquivos. Desarquive-o antes."
+    "project_archived": "Este projeto está arquivado e não recebe novos arquivos. Desarquive-o antes.",
+    "unknown_project_type": "Escolha um tipo de projeto.",
+    "unknown_stage": "Uma das etapas escolhidas não existe mais. Recarregue a página e tente de novo."
   },
   "projectStatus": {
     "draft": "Rascunho",

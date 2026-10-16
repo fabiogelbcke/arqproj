@@ -300,6 +300,11 @@ office. So the painel comes next, then the client page once its design settles:
    slice 2. Until the project page exists, a card's title opens the dialog.
    Slice 2 must leave `_capa` out of the client's file list, and serve the cover
    to clients (staff only for now).
+   **P3b Project types and their stages** (A27 revised 16 Oct 2026): "Novo
+   projeto" asks for the type; the 12 built-in stages from Alinea's partners are
+   listed in one order, the type's usual ones ticked, any ticked or unticked.
+   Descriptions per type, a general one otherwise. Migration 0013 replaces the
+   old stages and the templates and deletes the projects made with them (tests).
 4. **P4 Folders for older projects**: moved into the import of existing
    projects (slice 2).
 5. Then **slice 2** below (client page, password, downloads, import), whose edit

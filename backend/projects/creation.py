@@ -27,9 +27,8 @@ from backend.projects.models import (
     Project,
     ProjectSlug,
     ProjectStage,
+    ProjectTypeDef,
     StageDef,
-    StageTemplateDef,
-    TemplateStage,
 )
 from backend.tenancy.models import Locale
 
@@ -74,19 +73,28 @@ class LocalFolders:
 class NewProject:
     name: str
     client_name: str
-    template: str
+    project_type: str
+    stages: tuple[str, ...]  # built-in stage keys; listed in their fixed order
     slug: str
     creation_key: str
 
 
-async def _validate(db: AsyncSession, new: NewProject) -> StageTemplateDef:
+async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
+    """The project's stages, in order, once everything in `new` checks out."""
     if not new.name.strip() or len(new.name.strip()) > NAME_MAX:
         raise CreationProblem("invalid_project_name")
     if not new.client_name.strip() or len(new.client_name.strip()) > CLIENT_NAME_MAX:
         raise CreationProblem("invalid_client_name")
-    template = await db.get(StageTemplateDef, new.template)
-    if template is None:
-        raise CreationProblem("unknown_template")
+    if await db.get(ProjectTypeDef, new.project_type) is None:
+        raise CreationProblem("unknown_project_type")
+    chosen = set(new.stages)
+    stages = list(
+        await db.scalars(
+            select(StageDef).where(StageDef.key.in_(chosen)).order_by(StageDef.position)
+        )
+    )
+    if len(chosen) != len(new.stages) or len(stages) != len(chosen):
+        raise CreationProblem("unknown_stage")  # unknown or repeated
     if not _SLUG.match(new.slug) or new.slug in RESERVED_SLUGS:
         raise CreationProblem("invalid_slug")
     taken = await db.scalar(
@@ -98,7 +106,7 @@ async def _validate(db: AsyncSession, new: NewProject) -> StageTemplateDef:
         raise CreationProblem("slug_taken", conflict_name=taken)
     if (same_name := await project_named(db, new.name)) is not None:
         raise CreationProblem("project_name_taken", conflict_name=same_name)
-    return template
+    return stages
 
 
 async def project_named(
@@ -125,15 +133,7 @@ async def create_project(
     existing = await db.scalar(select(Project).where(Project.creation_key == new.creation_key))
     if existing is not None:
         return existing
-    template = await _validate(db, new)
-    stages = (
-        await db.execute(
-            select(TemplateStage.position, StageDef)
-            .join(StageDef, StageDef.key == TemplateStage.stage_key)
-            .where(TemplateStage.template_key == template.key)
-            .order_by(TemplateStage.position)
-        )
-    ).all()
+    stages = list(enumerate(await _validate(db, new), start=1))
 
     project_folder: str | None = None
     try:
@@ -147,8 +147,7 @@ async def create_project(
         project = Project(
             name=new.name.strip(),
             client_name=new.client_name.strip(),
-            project_type=template.default_project_type,
-            stage_template=template.key,
+            project_type=new.project_type,
             status=ProjectStatus.DRAFT,
             current_position=1 if stages else None,
             folder_id=project_folder,

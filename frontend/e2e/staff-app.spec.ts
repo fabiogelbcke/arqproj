@@ -95,8 +95,10 @@ test("create a project → it is listed as a draft; a used address names its pro
   await dialog.getByRole("button", { name: "Criar projeto" }).click();
   await expect(dialog.getByRole("alert")).toContainText("Já existe o projeto “Casa Jardim”");
   await dialog.getByLabel("Nome do projeto").fill("Casa Jardim Teste");
-  await dialog.getByText("Interiores", { exact: true }).click();
-  await expect(dialog.getByRole("radio", { name: /Interiores/ })).toBeChecked();
+  await dialog.getByText("Projeto de Interiores", { exact: true }).click();
+  await expect(dialog.getByRole("radio", { name: "Projeto de Interiores" })).toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "Especificações" })).toBeChecked(); // usual for interiors
+  await dialog.getByText("Especificações", { exact: true }).click(); // untick one
   await dialog.getByRole("button", { name: "Criar projeto" }).click();
   await expect(dialog).toBeHidden();
 
@@ -104,6 +106,7 @@ test("create a project → it is listed as a draft; a used address names its pro
   const card = drafts.getByTestId("project-card").filter({ hasText: "Família Teste" });
   await expect(card).toContainText("Rascunho");
   await expect(card).toContainText("1 / 6");
+  await expect(card).toContainText("Projeto de Interiores");
 
   // Search ignores accents and case.
   await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("familia teste");
