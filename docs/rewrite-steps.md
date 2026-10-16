@@ -385,8 +385,15 @@ the whole painel card links to `/{slug}`; the office's signed-in staff see
 their drafts and protected pages there, with the prototype's dock ("Painel",
 status, "Copiar link", "Publicar" for a draft; `POST /api/projects/{id}/publish`);
 clients still get "not found" for a draft. "Editar" comes with edit mode. Then
-the page's edit mode (description, details,
-meeting, stages, progress, completion). ~~2.7 Import of the
+the page's edit mode. **Part 1 as built:** the staff bar's "Ver como cliente |
+Editar" switch; in Editar, the prototype's inline editors for the description,
+the details (built-in ones: add, change, remove; areas and dates typed), the
+next meeting (set in the office's time zone, or removed) and each stage's note
+("Recado para o cliente"). Every save carries the page's `row_version`
+(`project_changed` if someone saved meanwhile). "Atualizado" moves for notes and
+the meeting only. Migration 0015 grants these columns and tables. **Part 2:**
+stages (rename, reorder, add, remove, with their Drive folders kept in step)
+and progress (advance, back, complete, reopen). ~~2.7 Import of the
 current `_project` / `_stage` files~~: dropped 16 Oct 2026, Alinea has no real
 projects yet.
 

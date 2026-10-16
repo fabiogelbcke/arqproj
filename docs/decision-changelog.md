@@ -19,6 +19,20 @@ a new entry too.
 
 ---
 
+## 2026-10-16 — A28 (interim): what moves "Atualizado" until the updates feed exists
+
+**Was:** A28's feed of client-visible events (`project_events`) decides the
+project's "last updated"; that feed isn't built yet.
+
+**Now:** until it is, edit mode moves `last_activity_at` for the changes a
+client notices: a stage's note, the meeting (set, changed or removed) and stage
+progress. Fixing the description or details doesn't. In edit mode's part 2,
+stage folders follow the stages in Drive: renaming or reordering renames the
+"NN - title" folders, adding creates one, removing keeps the folder and its
+files (the confirmation says so), and a Drive failure saves nothing.
+
+**Why:** Fabio's choices before the overnight run (16 Oct 2026).
+
 ## 2026-10-16 — A06 detailed: how the client password works
 
 **Was:** public or password-protected access, details open.
