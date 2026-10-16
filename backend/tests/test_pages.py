@@ -280,3 +280,55 @@ async def test_only_drafts_and_live_projects_can_be_published(client, db_session
     found = await project_id(db_session, "refugio-da-mantiqueira")  # completed
     response = await client.post(f"/api/projects/{found}/publish", headers=owner)
     assert (response.status_code, response.json()["error"]) == (422, "invalid_status_change")
+
+
+async def test_a_draft_archived_without_being_published_stays_unpublished(
+    client, db_session, owner
+):
+    """Archiving is not a way to publish (plan section 10)."""
+    draft = (await page(client, "casa-das-oliveiras")).json()["staff"]
+    archived = await client.patch(
+        f"/api/projects/{draft['project_id']}",
+        json={"row_version": 1, "status": "archived"},
+        headers=owner,
+    )
+    assert archived.status_code == 200, archived.text
+    client.cookies.clear()
+    assert (await page(client, "casa-das-oliveiras")).status_code == 404
+
+
+@pytest.mark.parametrize("cookie", ["not-a-session", "expired"])
+async def test_a_bad_or_expired_session_gets_the_visitors_answer(
+    client, db_session, dist, owner, cookie
+):
+    from backend.web.auth import COOKIE
+
+    if cookie == "expired":
+        await db_session.execute(text("UPDATE sessions SET expires_at = now() - interval '1 day'"))
+    else:
+        client.cookies.set(COOKIE, cookie)
+    assert (await page(client, "casa-das-oliveiras")).status_code == 404
+    assert (await page(client, "refugio-da-mantiqueira")).status_code == 403
+    assert (await page(client, "casa-jardim")).json()["staff"] is None
+    assert (await client.get("/casa-das-oliveiras", headers=ALINEA)).status_code == 404
+
+
+async def test_what_only_staff_see_is_never_stored_by_a_shared_cache(
+    client, db_session, dist, owner
+):
+    found = await project_id(db_session, "casa-das-oliveiras")
+    await db_session.execute(
+        text("UPDATE projects SET folder_id = 'Casa das Oliveiras' WHERE id = :p"), {"p": found}
+    )
+    await client.put(f"/api/projects/{found}/cover", files={"file": ("c.png", PNG)}, headers=owner)
+    for path in (
+        "/api/pages/casa-das-oliveiras",
+        "/casa-das-oliveiras",
+        "/api/pages/casa-das-oliveiras/cover",
+    ):
+        response = await client.get(path, headers=ALINEA)
+        assert response.status_code == 200, path
+        assert response.headers["cache-control"] == "private, no-store", path
+    client.cookies.clear()
+    as_visitor = await client.get("/api/pages/casa-das-oliveiras/cover", headers=ALINEA)
+    assert as_visitor.status_code == 404

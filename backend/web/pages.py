@@ -57,10 +57,16 @@ from backend.web.project_settings import serve_cover
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-VISIBLE = (ProjectStatus.ACTIVE, ProjectStatus.COMPLETED, ProjectStatus.ARCHIVED)
+# Published: live or completed, or archived after being published. A draft that
+# was archived without ever being published stays unpublished.
+PUBLISHED = Project.status.in_((ProjectStatus.ACTIVE, ProjectStatus.COMPLETED)) | (
+    (Project.status == ProjectStatus.ARCHIVED) & (Project.archived_from != ProjectStatus.DRAFT)
+)
 BANNER_SIZE = 2000  # pixels on the long side: the page's full-width cover
 PREVIEW_SIZE = 1200  # link previews: WhatsApp skips large images
 PAGE_HEADERS = {"X-Robots-Tag": "noindex"}
+# Anything only staff may see must never enter a shared cache (plan section 6).
+STAFF_ONLY = {"Cache-Control": "private, no-store"}
 COVER_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; sandbox",
     "X-Content-Type-Options": "nosniff",
@@ -81,7 +87,7 @@ async def _find(
     `slug` is one it had before)."""
     shown = Project.deleted_at.is_(None)
     if staff is None:
-        shown &= Project.status.in_(VISIBLE)
+        shown &= PUBLISHED
     found = await db.execute(
         select(Project, ProjectSlug.is_current)
         .join(ProjectSlug, ProjectSlug.project_id == Project.id)
@@ -256,6 +262,7 @@ async def _readable(db: AsyncSession, slug: str, staff: CurrentStaff | None = No
 @router.get("/api/pages/{slug}", responses=documented(403, 404))
 async def page(
     slug: str,
+    response: Response,
     staff: CurrentStaff | None = Depends(optional_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
@@ -264,6 +271,7 @@ async def page(
     shown = await _page(db, tenant, project, slug)
     if staff is not None:
         shown.staff = StaffView(project_id=project.id, status=project.status)
+        response.headers.update(STAFF_ONLY)
     return shown
 
 
@@ -280,7 +288,8 @@ async def page_cover(
     except ApiError:
         return Response(status_code=404, headers=PAGE_HEADERS)
     size = PREVIEW_SIZE if preview else BANNER_SIZE
-    return await serve_cover(request, db, project, size, COVER_HEADERS)
+    headers = COVER_HEADERS if staff is None else {**COVER_HEADERS, **STAFF_ONLY}
+    return await serve_cover(request, db, project, size, headers)
 
 
 def _origin(request: Request, tenant: CurrentTenant) -> str:
@@ -311,12 +320,13 @@ def _ics_text(value: str) -> str:
 async def meeting_ics(
     request: Request,
     slug: str,
+    staff: CurrentStaff | None = Depends(optional_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """For Apple Calendar, Outlook and others ("Adicionar à agenda")."""
     try:
-        project = await _readable(db, slug)
+        project = await _readable(db, slug, staff)
     except ApiError:
         return Response(status_code=404, headers=PAGE_HEADERS)
     meeting = await db.scalar(
@@ -423,5 +433,6 @@ async def shell(
             "Cache-Control": SHELL_CACHE,
             "Content-Security-Policy": CONTENT_SECURITY_POLICY,
             **PAGE_HEADERS,
+            **(STAFF_ONLY if staff is not None else {}),
         },
     )

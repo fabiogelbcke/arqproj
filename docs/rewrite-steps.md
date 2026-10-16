@@ -368,7 +368,7 @@ their drafts and protected pages there, with the prototype's dock ("Painel",
 status, "Copiar link", "Publicar" for a draft; `POST /api/projects/{id}/publish`);
 clients still get "not found" for a draft. "Editar" comes with edit mode. Then
 the page's edit mode (description, details,
-meeting, stages, progress, completion) and "Publicar". ~~2.7 Import of the
+meeting, stages, progress, completion). ~~2.7 Import of the
 current `_project` / `_stage` files~~: dropped 16 Oct 2026, Alinea has no real
 projects yet.
 

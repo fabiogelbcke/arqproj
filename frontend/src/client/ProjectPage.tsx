@@ -339,7 +339,7 @@ function Stage({
 
 /** For the office's signed-in staff only (the prototype's dock): back to the
  *  painel, the page's status, copy its link, and publish a draft. */
-function StaffBar({ page, onPublished }: { page: Page; onPublished: () => void }) {
+function StaffBar({ page, ready, onPublished }: { page: Page; ready: boolean; onPublished: () => void }) {
   const { t, i18n } = useTranslation();
   const [publishing, setPublishing] = useState(false);
   const staff = page.staff!;
@@ -374,7 +374,7 @@ function StaffBar({ page, onPublished }: { page: Page; onPublished: () => void }
         <button
           className="b b--primary b--small"
           type="button"
-          disabled={publishing}
+          disabled={publishing || !ready}
           onClick={async () => {
             setPublishing(true);
             try {
@@ -440,7 +440,17 @@ function Title({ name }: { name: string }) {
   );
 }
 
-export function ProjectPage({ page, slug, onChanged }: { page: Page; slug: string; onChanged?: () => void }) {
+export function ProjectPage({
+  page,
+  slug,
+  ready = false,
+  onChanged,
+}: {
+  page: Page;
+  slug: string;
+  ready?: boolean; // the staff session's CSRF token is in hand
+  onChanged?: () => void;
+}) {
   const { t } = useTranslation();
   const narrow = useNarrow();
   const cover = useRef<HTMLDivElement>(null);
@@ -503,7 +513,7 @@ export function ProjectPage({ page, slug, onChanged }: { page: Page; slug: strin
         ))}
         <footer className="client-footer">{page.office.name}</footer>
       </div>
-      {page.staff && <StaffBar page={page} onPublished={() => onChanged?.()} />}
+      {page.staff && <StaffBar page={page} ready={ready} onPublished={() => onChanged?.()} />}
       <Toaster />
     </div>
   );
