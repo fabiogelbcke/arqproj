@@ -126,7 +126,7 @@ export function ProjectsPage() {
         <p className={styles.kicker}>
           {me.data?.tenant_name} / {t("projects.kicker")}
         </p>
-        <h1 className={`${pageStyles.display} ${styles.title}`}>{t("projects.title")}</h1>
+        <h1 className={`${pageStyles.display} ${pageStyles.displayMedium}`}>{t("projects.title")}</h1>
         <div className={styles.tools}>
           {hasAny && (
             <>
