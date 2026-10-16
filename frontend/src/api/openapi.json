@@ -1417,6 +1417,7 @@
           "wrong_page_password",
           "too_many_attempts",
           "password_required",
+          "files_unavailable",
           "file_not_found"
         ],
         "title": "ErrorCode"
