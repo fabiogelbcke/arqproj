@@ -60,7 +60,7 @@ PROJECTS = {
                 DetailKey.START_DATE: date(2026, 3, 2),
                 DetailKey.RESPONSIBLE: "Arq. Marina Carvalho",
             },
-            "notes": {2: "Briefing aprovado. Seguimos para os estudos preliminares."},
+            "notes": {2: "Levantamento concluído. Seguimos para o estudo preliminar."},
             "folder": "Casa Jardim",
             "stage_folders": [
                 "01 - Briefing",
@@ -106,6 +106,8 @@ PROJECTS = {
             "current": 7,
             "password": "demo-senha",
             "folder": "Projeto Padrão",
+            # Folders kept from an earlier way of working: stage and folder names
+            # needn't match (staff may rename either).
             "stage_folders": [
                 "01 - Proposta",
                 "02 - Briefing e Levantamento",

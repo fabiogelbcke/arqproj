@@ -37,7 +37,8 @@ PROJECT_TYPE_LABELS = {
 }
 
 # In the order every project lists them; `about` is the general description,
-# used when a stage is chosen outside its type's usual list.
+# used when a stage is chosen outside its type's usual list. The general texts
+# were drafted from the partners' per-type texts, for them to confirm.
 STAGES = [
     {
         "key": "briefing",
@@ -123,8 +124,8 @@ STAGES = [
         "key": "complementary_projects",
         "titles": {"pt-BR": "Projetos Complementares", "en": "Complementary projects"},
         "about": {
-            "pt-BR": "Projetos de apoio, como irrigação, drenagem e iluminação, conforme o escopo.",
-            "en": "Supporting projects such as irrigation, drainage and lighting, as scoped.",
+            "pt-BR": "Projetos de outras disciplinas que apoiam o projeto, conforme o escopo.",
+            "en": "Projects from other disciplines that support the project, as scoped.",
         },
     },
     {

@@ -259,6 +259,14 @@ def test_data_migrations_run_as_an_owner_that_isolation_binds(migrated_url):
             ),
             {"t": tenant, "p": project},
         )
+        # A stage using an old built-in key: 0013 removes those definitions.
+        connection.execute(
+            text(
+                "INSERT INTO project_stages (tenant_id, project_id, position, builtin_key) "
+                "VALUES (:t, :p, 1, 'proposal')"
+            ),
+            {"t": tenant, "p": project},
+        )
         # Hand everything to a login like Cloud SQL's migration login.
         connection.execute(
             text(
@@ -291,6 +299,7 @@ def test_data_migrations_run_as_an_owner_that_isolation_binds(migrated_url):
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT count(*) FROM projects")) == 0
             assert connection.scalar(text("SELECT count(*) FROM project_details")) == 0
+            assert connection.scalar(text("SELECT count(*) FROM project_stages")) == 0
     finally:
         with engine.begin() as connection:
             # This throwaway database is dropped after the test anyway.
