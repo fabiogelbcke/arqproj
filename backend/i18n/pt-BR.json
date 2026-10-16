@@ -175,7 +175,8 @@
     "invalid_status_change": "Não foi possível mudar a situação deste projeto. Recarregue a página e tente de novo.",
     "project_has_no_folder": "Este projeto ainda não tem uma pasta no Google Drive, então não pode receber uma foto.",
     "cover_wrong_type": "Escolha uma imagem JPG, PNG ou WebP.",
-    "cover_too_large": "Escolha uma imagem de até 10 MB."
+    "cover_too_large": "Escolha uma imagem de até 10 MB.",
+    "project_archived": "Este projeto está arquivado e não recebe novos arquivos. Desarquive-o antes."
   },
   "projectStatus": {
     "draft": "Rascunho",

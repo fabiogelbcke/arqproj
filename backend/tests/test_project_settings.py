@@ -195,6 +195,13 @@ async def test_only_photos_up_to_10_mb_are_covers(client, owner, tmp_path, conte
     assert not (tmp_path / "Casa Jardim").exists()
 
 
+async def test_an_archived_project_takes_no_new_cover(client, owner, tmp_path):
+    archived = (await change(client, owner, await project(client), status="archived")).json()
+    response = await upload(client, owner, archived, PNG)
+    assert (response.status_code, response.json()["error"]) == (409, "project_archived")
+    assert not (tmp_path / "Casa Jardim").exists()
+
+
 async def test_a_project_without_a_folder_cannot_take_a_cover(client, owner):
     response = await upload(client, owner, await project(client, "casa-das-oliveiras"), PNG)
     assert (response.status_code, response.json()["error"]) == (409, "project_has_no_folder")

@@ -1080,6 +1080,7 @@
           "project_changed",
           "invalid_status_change",
           "project_has_no_folder",
+          "project_archived",
           "cover_wrong_type",
           "cover_too_large"
         ],

@@ -175,7 +175,8 @@
     "invalid_status_change": "This project's status couldn't be changed. Reload the page and try again.",
     "project_has_no_folder": "This project doesn't have a Google Drive folder yet, so it can't take a photo.",
     "cover_wrong_type": "Choose a JPG, PNG or WebP image.",
-    "cover_too_large": "Choose an image of up to 10 MB."
+    "cover_too_large": "Choose an image of up to 10 MB.",
+    "project_archived": "This project is archived and takes no new files. Restore it first."
   },
   "projectStatus": {
     "draft": "Draft",

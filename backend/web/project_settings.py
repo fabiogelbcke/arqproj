@@ -152,6 +152,8 @@ async def upload_cover(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
     project = await _project(db, project_id)
+    if project.status is ProjectStatus.ARCHIVED:
+        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
     content = await file.read(COVER_MAX_BYTES + 1)
     if len(content) > COVER_MAX_BYTES:
         raise ApiError(413, ErrorCode.COVER_TOO_LARGE)

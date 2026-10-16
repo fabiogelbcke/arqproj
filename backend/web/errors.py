@@ -47,6 +47,7 @@ class ErrorCode(StrEnum):
     PROJECT_CHANGED = "project_changed"  # someone else saved it meanwhile: reload
     INVALID_STATUS_CHANGE = "invalid_status_change"
     PROJECT_HAS_NO_FOLDER = "project_has_no_folder"
+    PROJECT_ARCHIVED = "project_archived"  # takes no new uploads (plan section 22)
     COVER_WRONG_TYPE = "cover_wrong_type"
     COVER_TOO_LARGE = "cover_too_large"  # `conflict_name` names the project that has it, when known
 
