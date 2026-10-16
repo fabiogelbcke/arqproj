@@ -68,8 +68,11 @@ async def page_status(client, slug=PROTECTED):
 async def test_the_right_password_unlocks_the_page_on_this_device(client, owner):
     Roles(client).visitor()
     assert await page_status(client) == 403
+    wrong = await unlock(client, "chute")
+    assert wrong.headers["cache-control"] == "private, no-store"
     response = await unlock(client, SEED_PASSWORD)
     assert response.status_code == 204
+    assert response.headers["cache-control"] == "private, no-store"
     cookie = response.headers["set-cookie"]
     assert "HttpOnly" in cookie and "Max-Age=7776000" in cookie  # 90 days
     page = await client.get(f"/api/pages/{PROTECTED}", headers=ALINEA)
@@ -287,3 +290,26 @@ async def test_a_faked_forwarded_address_doesnt_make_a_new_device():
     assert attempts.device(request) == "203.0.113.9"
     request.headers = {"x-forwarded-for": "5.6.7.8, 203.0.113.9"}
     assert attempts.device(request) == "203.0.113.9"  # same device, whatever it sends
+
+
+async def test_two_people_giving_the_same_new_address_at_once(client, owner, monkeypatch):
+    """The second loses with "address taken", not an error page."""
+    from backend.web import project_settings
+
+    real = project_settings._move_address
+
+    async def taken_meanwhile(db, project_id, slug):
+        from sqlalchemy import text
+
+        await db.execute(
+            text(
+                "INSERT INTO project_slugs (project_id, slug, is_current) "
+                "SELECT project_id, :s, false FROM project_slugs WHERE slug = 'casa-das-oliveiras'"
+            ),
+            {"s": slug},
+        )
+        await real(db, project_id, slug)
+
+    monkeypatch.setattr(project_settings, "_move_address", taken_meanwhile)
+    response = await change(client, owner, "casa-jardim", slug="nova-casa")
+    assert (response.status_code, response.json()["error"]) == (409, "slug_taken")

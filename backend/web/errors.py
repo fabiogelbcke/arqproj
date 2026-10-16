@@ -58,6 +58,7 @@ class ErrorCode(StrEnum):
     PASSWORD_REQUIRED = "password_required"  # password access needs a password
     INVALID_DETAIL = "invalid_detail"  # unknown, repeated, or a value of the wrong kind
     INVALID_MEETING = "invalid_meeting"  # title 1-40, ends after it starts, web link
+    FILES_UNAVAILABLE = "files_unavailable"  # Drive down or throttled: try again
     FILE_NOT_FOUND = "file_not_found"  # moved, deleted, or its link expired: reload
 
 
@@ -68,11 +69,18 @@ class ErrorOut(BaseModel):
 
 
 class ApiError(Exception):
-    def __init__(self, status_code: int, code: ErrorCode, conflict_name: str | None = None) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        code: ErrorCode,
+        conflict_name: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(code.value)
         self.status_code = status_code
         self.code = code
         self.conflict_name = conflict_name
+        self.headers = headers or {}
 
 
 def documented(*status_codes: int) -> dict:
@@ -93,4 +101,4 @@ async def handle_api_error(_request: Request, error: ApiError) -> JSONResponse:
     body = {"error": error.code.value}
     if error.conflict_name is not None:
         body["conflict_name"] = error.conflict_name
-    return JSONResponse(body, status_code=error.status_code)
+    return JSONResponse(body, status_code=error.status_code, headers=error.headers)

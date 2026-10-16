@@ -1838,6 +1838,7 @@
           "password_required",
           "invalid_detail",
           "invalid_meeting",
+          "files_unavailable",
           "file_not_found"
         ],
         "title": "ErrorCode"

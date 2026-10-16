@@ -191,7 +191,8 @@
     "password_required": "Set a password to protect the page.",
     "file_not_found": "This file is no longer available. Reload the page.",
     "invalid_detail": "Check the details: each appears once, areas are numbers and dates are dates.",
-    "invalid_meeting": "Check the meeting: a subject of up to 40 characters, a date ahead, an end after the start, and a link starting with https://."
+    "invalid_meeting": "Check the meeting: a subject of up to 40 characters, a date ahead, an end after the start, and a link starting with https://.",
+    "files_unavailable": "The file couldn't be opened just now. Try again in a moment."
   },
   "projectStatus": {
     "draft": "Draft",
