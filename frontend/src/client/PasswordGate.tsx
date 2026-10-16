@@ -32,30 +32,13 @@ export function PasswordGate({
             setBusy(true);
             setProblem(null);
             try {
-              await call(
-                api.POST("/api/pages/{slug}/unlock", {
-                  params: { path: { slug } },
-                  body: { password },
-                }),
-              );
+              await call(api.POST("/api/pages/{slug}/unlock", { params: { path: { slug } }, body: { password } }));
               onUnlocked();
             } catch (failure) {
-              const error =
-                failure instanceof ApiError
-                  ? failure
-                  : new ApiError("unexpected");
-              const message = i18n.exists(`errors.${error.code}`)
-                ? t(`errors.${error.code}`)
-                : t("errors.unexpected");
-              const known = [
-                "wrong_page_password",
-                "too_many_attempts",
-              ].includes(error.code);
-              setProblem(
-                known || !error.requestId
-                  ? message
-                  : `${message} ${t("errors.reference", { id: error.requestId })}`,
-              );
+              const error = failure instanceof ApiError ? failure : new ApiError("unexpected");
+              const message = i18n.exists(`errors.${error.code}`) ? t(`errors.${error.code}`) : t("errors.unexpected");
+              const known = ["wrong_page_password", "too_many_attempts"].includes(error.code);
+              setProblem(known || !error.requestId ? message : `${message} ${t("errors.reference", { id: error.requestId })}`);
             } finally {
               setBusy(false);
             }
@@ -73,11 +56,7 @@ export function PasswordGate({
               required
               autoFocus
             />
-            <button
-              className="b b--primary"
-              type="submit"
-              disabled={busy || !password}
-            >
+            <button className="b b--primary" type="submit" disabled={busy || !password}>
               {t("page.enter")}
             </button>
           </div>

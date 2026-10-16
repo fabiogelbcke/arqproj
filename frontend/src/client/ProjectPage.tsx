@@ -1,13 +1,6 @@
 // The client's project page, read-only (slice 2.3), after the fresh prototype's
 // markup: its stylesheet (prototype.css) styles these same class names.
-import {
-  Suspense,
-  lazy,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
@@ -15,26 +8,11 @@ import { Toaster, toast } from "../ui/Toast";
 import { EditButton } from "./EditButton";
 
 // Staff editing code loads only once staff press "Editar" (A20): visitors never get it.
-const DescriptionEditor = lazy(() =>
-  import("./Editors").then((m) => ({ default: m.DescriptionEditor })),
-);
-const DetailsEditor = lazy(() =>
-  import("./Editors").then((m) => ({ default: m.DetailsEditor })),
-);
-const MeetingEditor = lazy(() =>
-  import("./Editors").then((m) => ({ default: m.MeetingEditor })),
-);
-const NotesEditor = lazy(() =>
-  import("./Editors").then((m) => ({ default: m.NotesEditor })),
-);
-import {
-  day,
-  detailValue,
-  googleCalendarLink,
-  meetingWhen,
-  paragraphs,
-  type Page,
-} from "./format";
+const DescriptionEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DescriptionEditor })));
+const DetailsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DetailsEditor })));
+const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.MeetingEditor })));
+const NotesEditor = lazy(() => import("./Editors").then((m) => ({ default: m.NotesEditor })));
+import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -42,31 +20,16 @@ type StageFiles = Schemas["StageFilesOut"];
 type FileItem = Schemas["FileOut"];
 
 /** Every stage's files, read live from the office's Drive (2.5). */
-type FilesState = {
-  stages: StageFiles[];
-  reference: string | null;
-  failed: boolean;
-};
+type FilesState = { stages: StageFiles[]; reference: string | null; failed: boolean };
 
 function useStageFiles(slug: string, version: unknown): FilesState | null {
   const [state, setState] = useState<FilesState | null>(null); // null while loading
   useEffect(() => {
-    call(
-      api.GET("/api/pages/{slug}/files", { params: { path: { slug } } }),
-    ).then(
-      (found) =>
-        setState({
-          stages: found.stages,
-          reference: found.reference ?? null,
-          failed: false,
-        }),
+    call(api.GET("/api/pages/{slug}/files", { params: { path: { slug } } })).then(
+      (found) => setState({ stages: found.stages, reference: found.reference ?? null, failed: false }),
       // Couldn't be fetched at all: every stage says so, with the support code.
       (failure: { requestId?: string | null }) =>
-        setState({
-          stages: [],
-          reference: failure?.requestId ?? null,
-          failed: true,
-        }),
+        setState({ stages: [], reference: failure?.requestId ?? null, failed: true }),
     );
   }, [slug, version]);
   return state;
@@ -93,43 +56,22 @@ function fileSize(bytes: number | null | undefined, locale: string): string {
   return `${value.toLocaleString(locale, { maximumFractionDigits: unit ? 1 : 0 })} ${units[unit]}`;
 }
 
-function FileCard({
-  file,
-  slug,
-  timeZone,
-}: {
-  file: FileItem;
-  slug: string;
-  timeZone: string;
-}) {
+function FileCard({ file, slug, timeZone }: { file: FileItem; slug: string; timeZone: string }) {
   const { t, i18n } = useTranslation();
   // Only images and PDFs have previews (Drive's); other files show their type.
-  const [thumb, setThumb] = useState<"thumb" | "original" | "none">(
-    file.kind === "other" ? "none" : "thumb",
-  );
+  const [thumb, setThumb] = useState<"thumb" | "original" | "none">(file.kind === "other" ? "none" : "thumb");
   const url = `/api/pages/${slug}/files/${encodeURIComponent(file.key)}`;
   const opens = file.kind === "image" || file.kind === "pdf";
-  const extension = file.name.includes(".")
-    ? file.name.split(".").pop()!.toUpperCase()
-    : "";
+  const extension = file.name.includes(".") ? file.name.split(".").pop()!.toUpperCase() : "";
   // Drive's preview first; for an image without one (local folders), the image itself.
-  const src =
-    thumb === "thumb"
-      ? `${url}/thumb`
-      : thumb === "original"
-        ? `${url}?inline=true`
-        : null;
+  const src = thumb === "thumb" ? `${url}/thumb` : thumb === "original" ? `${url}?inline=true` : null;
   return (
     <div className="file">
       <a
         className="file__open"
         href={opens ? `${url}?inline=true` : url}
-        {...(opens
-          ? { target: "_blank", rel: "noopener" }
-          : { download: file.name })}
-        aria-label={t(opens ? "page.openFile" : "page.downloadFile", {
-          name: file.name,
-        })}
+        {...(opens ? { target: "_blank", rel: "noopener" } : { download: file.name })}
+        aria-label={t(opens ? "page.openFile" : "page.downloadFile", { name: file.name })}
       >
         <span className="file__thumb">
           {src ? (
@@ -137,13 +79,7 @@ function FileCard({
               src={src}
               alt=""
               loading="lazy"
-              onError={() =>
-                setThumb(
-                  thumb === "thumb" && file.kind === "image"
-                    ? "original"
-                    : "none",
-                )
-              }
+              onError={() => setThumb(thumb === "thumb" && file.kind === "image" ? "original" : "none")}
             />
           ) : file.kind === "pdf" ? (
             <span className="sheetthumb" aria-hidden="true" />
@@ -156,10 +92,7 @@ function FileCard({
             {file.name}
           </span>
           <span className="file__meta">
-            {[
-              fileSize(file.size, i18n.language),
-              day(file.modified_at, i18n.language, timeZone),
-            ]
+            {[fileSize(file.size, i18n.language), day(file.modified_at, i18n.language, timeZone)]
               .filter(Boolean)
               .join(", ")}
           </span>
@@ -189,23 +122,15 @@ function StageFilesList({
         {reference && ` ${t("errors.reference", { id: reference })}`}
       </p>
     );
-  if (!files.groups.length)
-    return <p className="empty-stage">{t("page.noFiles")}</p>;
+  if (!files.groups.length) return <p className="empty-stage">{t("page.noFiles")}</p>;
   return (
     <>
       {files.groups.map((group) => (
         <div key={group.folder ?? ""} className="file-group">
-          {group.folder && (
-            <h3 className="file-group__title">{group.folder}</h3>
-          )}
+          {group.folder && <h3 className="file-group__title">{group.folder}</h3>}
           <div className="files" data-view="grid">
             {group.files.map((file) => (
-              <FileCard
-                key={file.key}
-                file={file}
-                slug={slug}
-                timeZone={timeZone}
-              />
+              <FileCard key={file.key} file={file} slug={slug} timeZone={timeZone} />
             ))}
           </div>
         </div>
@@ -220,9 +145,7 @@ function countFiles(files: StageFiles | undefined): number {
 
 function useNarrow(): boolean {
   const query = "(max-width: 760px)";
-  const [narrow, setNarrow] = useState(
-    () => window.matchMedia?.(query).matches ?? false,
-  );
+  const [narrow, setNarrow] = useState(() => window.matchMedia?.(query).matches ?? false);
   useEffect(() => {
     const list = window.matchMedia?.(query);
     if (!list) return;
@@ -233,11 +156,7 @@ function useNarrow(): boolean {
   return narrow;
 }
 
-export function Icon({
-  name,
-}: {
-  name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left";
-}) {
+export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left" }) {
   const paths = {
     link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
     left: "M15 6l-6 6 6 6",
@@ -248,13 +167,7 @@ export function Icon({
     sun: "M12 4V2M12 22v-2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z",
   };
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
       <path d={paths[name]} />
     </svg>
   );
@@ -265,9 +178,7 @@ const THEME_KEY = "alinea-theme";
 /** Light by default; the choice is remembered on this device. */
 export function ThemeSwitch() {
   const { t } = useTranslation();
-  const [theme, setTheme] = useState(
-    () => document.documentElement.dataset.theme ?? "light",
-  );
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? "light");
   const next = theme === "dark" ? "light" : "dark";
   return (
     <button
@@ -285,37 +196,26 @@ export function ThemeSwitch() {
       }}
     >
       <Icon name={next === "dark" ? "moon" : "sun"} />
-      <span className="theme-switch__label">
-        {t(next === "dark" ? "page.themeDark" : "page.themeLight")}
-      </span>
+      <span className="theme-switch__label">{t(next === "dark" ? "page.themeDark" : "page.themeLight")}</span>
     </button>
   );
 }
 
 export function applyStoredTheme(): void {
   try {
-    if (localStorage.getItem(THEME_KEY) === "dark")
-      document.documentElement.dataset.theme = "dark";
+    if (localStorage.getItem(THEME_KEY) === "dark") document.documentElement.dataset.theme = "dark";
   } catch {
     // The default theme.
   }
 }
 
 /** The office's logo (it carries the name) or, without one, its name. */
-export function SiteHeader({
-  office,
-}: {
-  office: { name: string; logo_url?: string | null };
-}) {
+export function SiteHeader({ office }: { office: { name: string; logo_url?: string | null } }) {
   return (
     <div className="site">
       <div className="site__in">
         <div className="site__brand">
-          {office.logo_url ? (
-            <img src={office.logo_url} alt={office.name} />
-          ) : (
-            <span>{office.name}</span>
-          )}
+          {office.logo_url ? <img src={office.logo_url} alt={office.name} /> : <span>{office.name}</span>}
         </div>
         <div className="client-header-tools">
           <ThemeSwitch />
@@ -344,27 +244,12 @@ function Description({ text }: { text: string }) {
 }
 
 /** Cliente, type, the project's details, and the last update. */
-function Facts({
-  page,
-  skipClient = false,
-}: {
-  page: Page;
-  skipClient?: boolean;
-}) {
+function Facts({ page, skipClient = false }: { page: Page; skipClient?: boolean }) {
   const { t, i18n } = useTranslation();
   const rows: Array<[string, string]> = [
-    ...(skipClient
-      ? []
-      : [
-          [
-            t("page.client"),
-            page.client_name.toLocaleUpperCase(i18n.language),
-          ] as [string, string],
-        ]),
+    ...(skipClient ? [] : [[t("page.client"), page.client_name.toLocaleUpperCase(i18n.language)] as [string, string]]),
     [t("page.projectType"), page.project_type.toLocaleUpperCase(i18n.language)],
-    ...page.details.map(
-      (d) => [d.label, detailValue(d, i18n.language)] as [string, string],
-    ),
+    ...page.details.map((d) => [d.label, detailValue(d, i18n.language)] as [string, string]),
     [t("page.lastUpdate"), day(page.last_update, i18n.language, page.timezone)],
   ];
   return (
@@ -395,13 +280,7 @@ function MobileSummary({ page }: { page: Page }) {
         <Facts page={page} skipClient />
         <div className="mobile-project-description">
           <dt>{t("page.description")}</dt>
-          <dd>
-            {page.description ? (
-              <Description text={page.description} />
-            ) : (
-              <p>{t("page.noDescription")}</p>
-            )}
-          </dd>
+          <dd>{page.description ? <Description text={page.description} /> : <p>{t("page.noDescription")}</p>}</dd>
         </div>
       </dl>
     </details>
@@ -414,13 +293,7 @@ function stateOf(page: Page, index: number): "done" | "current" | "upcoming" {
   return index + 1 === current ? "current" : "upcoming";
 }
 
-function Timeline({
-  page,
-  onJump,
-}: {
-  page: Page;
-  onJump: (index: number) => void;
-}) {
+function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => void }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
   return (
@@ -428,24 +301,16 @@ function Timeline({
       <div className="journey-intro">
         <div>
           {narrow ? (
-            <span className="journey-kicker">
-              {t("page.timeline").toLocaleUpperCase()}
-            </span>
+            <span className="journey-kicker">{t("page.timeline").toLocaleUpperCase()}</span>
           ) : (
             <>
-              <span className="journey-kicker">
-                {t("page.journeyKicker").toLocaleUpperCase()}
-              </span>
+              <span className="journey-kicker">{t("page.journeyKicker").toLocaleUpperCase()}</span>
               <h2>{t("page.journeyTitle")}</h2>
             </>
           )}
         </div>
       </div>
-      <ol
-        className="tl"
-        style={{ "--n": page.stages.length } as React.CSSProperties}
-        aria-label={t("page.stages")}
-      >
+      <ol className="tl" style={{ "--n": page.stages.length } as React.CSSProperties} aria-label={t("page.stages")}>
         {page.stages.map((stage, i) => {
           const state = stateOf(page, i);
           return (
@@ -453,13 +318,7 @@ function Timeline({
               <button type="button" onClick={() => onJump(i)}>
                 <span className="n">{pad(i + 1)}</span>
                 <b>{stage.title}</b>
-                <span>
-                  {state === "done"
-                    ? t("page.stageDone")
-                    : state === "current"
-                      ? t("page.stageCurrent")
-                      : ""}
-                </span>
+                <span>{state === "done" ? t("page.stageDone") : state === "current" ? t("page.stageCurrent") : ""}</span>
               </button>
             </li>
           );
@@ -469,38 +328,17 @@ function Timeline({
   );
 }
 
-function MeetingCard({
-  page,
-  slug,
-  onEdit,
-}: {
-  page: Page;
-  slug: string;
-  onEdit?: () => void;
-}) {
+function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?: () => void }) {
   const { t, i18n } = useTranslation();
   const narrow = useNarrow();
   const meeting = page.next_meeting;
-  const when = meeting
-    ? meetingWhen(meeting, i18n.language, page.timezone)
-    : null;
-  const title = meeting
-    ? meeting.title || t("page.defaultMeetingTitle")
-    : t("page.noMeetingTitle");
+  const when = meeting ? meetingWhen(meeting, i18n.language, page.timezone) : null;
+  const title = meeting ? meeting.title || t("page.defaultMeetingTitle") : t("page.noMeetingTitle");
   return (
     <section className="meet" data-editable aria-label={t("page.nextMeeting")}>
-      {onEdit && (
-        <EditButton
-          label={meeting ? t("edit.meeting") : t("edit.schedule")}
-          onClick={onEdit}
-        />
-      )}
+      {onEdit && <EditButton label={meeting ? t("edit.meeting") : t("edit.schedule")} onClick={onEdit} />}
       <div>
-        <h2>
-          {narrow && meeting
-            ? t("page.meetingScheduled")
-            : t("page.nextMeeting")}
-        </h2>
+        <h2>{narrow && meeting ? t("page.meetingScheduled") : t("page.nextMeeting")}</h2>
         <p className="meet__title" title={title}>
           {title}
         </p>
@@ -521,12 +359,7 @@ function MeetingCard({
       {meeting && (
         <div className="meeting-actions">
           {meeting.link && (
-            <a
-              className="cbtn"
-              href={meeting.link}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a className="cbtn" href={meeting.link} target="_blank" rel="noopener noreferrer">
               {t("page.joinMeeting")}
             </a>
           )}
@@ -534,11 +367,7 @@ function MeetingCard({
             <summary className="b b--small">{t("page.addToCalendar")}</summary>
             <div className="calendar-menu">
               <a
-                href={googleCalendarLink(
-                  meeting,
-                  page.name,
-                  window.location.href,
-                )}
+                href={googleCalendarLink(meeting, page.name, window.location.href)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -580,16 +409,8 @@ function Stage({
   const stage = page.stages[index]!;
   const state = stateOf(page, index);
   const helpPanel = stage.about && (
-    <div
-      className={`stage-help-pop${narrow ? " stage-help-pop--inline" : ""}`}
-      hidden={!help}
-    >
-      <button
-        type="button"
-        className="iconbtn stage-help-close"
-        aria-label={t("page.closeAbout")}
-        onClick={() => setHelp(false)}
-      >
+    <div className={`stage-help-pop${narrow ? " stage-help-pop--inline" : ""}`} hidden={!help}>
+      <button type="button" className="iconbtn stage-help-close" aria-label={t("page.closeAbout")} onClick={() => setHelp(false)}>
         <Icon name="x" />
       </button>
       <p>{stage.about}</p>
@@ -631,9 +452,7 @@ function Stage({
               type="button"
               aria-controls={`stage-body-${index}`}
               aria-expanded={open}
-              aria-label={t(open ? "page.stageOpen" : "page.openStage", {
-                title: stage.title,
-              })}
+              aria-label={t(open ? "page.stageOpen" : "page.openStage", { title: stage.title })}
               onClick={onToggle}
             >
               <Icon name={open ? "up" : "down"} />
@@ -642,61 +461,35 @@ function Stage({
           </div>
         </div>
         <p className="stage__meta">
-          {state === "done" && (
-            <span className="pill">{t("page.stageDone")}</span>
-          )}
-          {state === "current" && (
-            <span className="pill pill--current">{t("page.stageCurrent")}</span>
-          )}
+          {state === "done" && <span className="pill">{t("page.stageDone")}</span>}
+          {state === "current" && <span className="pill pill--current">{t("page.stageCurrent")}</span>}
           {files && !files.unavailable && (
             <span>
               {countFiles(files)
-                ? t("page.fileCount", {
-                    count: countFiles(files),
-                    padded: pad(countFiles(files)),
-                  })
+                ? t("page.fileCount", { count: countFiles(files), padded: pad(countFiles(files)) })
                 : t("page.noFilesShort")}
             </span>
           )}
         </p>
       </div>
       {narrow && helpPanel}
-      <div
-        className="stage__body"
-        id={`stage-body-${index}`}
-        aria-hidden={!open}
-        inert={!open}
-      >
+      <div className="stage__body" id={`stage-body-${index}`} aria-hidden={!open} inert={!open}>
         <div className="stage__body-inner">
           {editor?.open ? (
             editor.render()
           ) : stage.notes ? (
             <div className="notes" data-editable>
-              {editor && (
-                <EditButton
-                  label={t("edit.notesShort")}
-                  onClick={editor.onOpen}
-                />
-              )}
+              {editor && <EditButton label={t("edit.notesShort")} onClick={editor.onOpen} />}
               <p>{stage.notes}</p>
             </div>
           ) : (
             editor && (
-              <button
-                className="ghostline addnote"
-                type="button"
-                onClick={editor.onOpen}
-              >
+              <button className="ghostline addnote" type="button" onClick={editor.onOpen}>
                 + {t("edit.addNote")}
               </button>
             )
           )}
-          <StageFilesList
-            files={files}
-            reference={reference}
-            slug={slug}
-            timeZone={page.timezone}
-          />
+          <StageFilesList files={files} reference={reference} slug={slug} timeZone={page.timezone} />
         </div>
       </div>
     </section>
@@ -734,25 +527,11 @@ function StaffBar({
         <small>{draft ? t("page.draftNote") : t("page.publishedNote")}</small>
       </span>
       {/* The prototype's switch: the page as the client sees it, or with controls. */}
-      <div
-        className="seg"
-        role="group"
-        aria-label={t("edit.mode")}
-        data-on={editing ? "edit" : "view"}
-      >
-        <button
-          type="button"
-          aria-pressed={!editing}
-          onClick={() => onMode(false)}
-        >
+      <div className="seg" role="group" aria-label={t("edit.mode")} data-on={editing ? "edit" : "view"}>
+        <button type="button" aria-pressed={!editing} onClick={() => onMode(false)}>
           {t("edit.asClient")}
         </button>
-        <button
-          type="button"
-          aria-pressed={editing}
-          disabled={!ready}
-          onClick={() => onMode(true)}
-        >
+        <button type="button" aria-pressed={editing} disabled={!ready} onClick={() => onMode(true)}>
           {t("edit.edit")}
         </button>
       </div>
@@ -780,24 +559,15 @@ function StaffBar({
             setPublishing(true);
             try {
               await call(
-                api.POST("/api/projects/{project_id}/publish", {
-                  params: { path: { project_id: staff.project_id } },
-                }),
+                api.POST("/api/projects/{project_id}/publish", { params: { path: { project_id: staff.project_id } } }),
               );
               toast(t("page.published"));
               onPublished();
             } catch (failure) {
               const code = (failure as { code?: string }).code ?? "unexpected";
-              const reference = (failure as { requestId?: string | null })
-                .requestId;
-              const message = i18n.exists(`errors.${code}`)
-                ? t(`errors.${code}`)
-                : t("errors.unexpected");
-              toast(
-                reference
-                  ? `${message} ${t("errors.reference", { id: reference })}`
-                  : message,
-              );
+              const reference = (failure as { requestId?: string | null }).requestId;
+              const message = i18n.exists(`errors.${code}`) ? t(`errors.${code}`) : t("errors.unexpected");
+              toast(reference ? `${message} ${t("errors.reference", { id: reference })}` : message);
             } finally {
               setPublishing(false);
             }
@@ -817,11 +587,7 @@ function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
     const update = () => {
       frame = 0;
       const image = ref.current;
-      if (
-        !image ||
-        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-      )
-        return;
+      if (!image || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
       const full = (image.clientWidth * 9) / 16;
       image.style.setProperty("--cover-image-height", `${full}px`);
       image.style.height = `${Math.max(0, full - window.scrollY)}px`;
@@ -846,13 +612,9 @@ function Title({ name }: { name: string }) {
   return (
     // The two parts are one name for screen readers ("/casa" + "jardim").
     <h1 className="client-project-title" title={name} aria-label={name}>
-      <span className="project-title__lead">
-        /{lead?.toLocaleLowerCase(i18n.language)}
-      </span>
+      <span className="project-title__lead">/{lead?.toLocaleLowerCase(i18n.language)}</span>
       {rest.length > 0 && (
-        <strong className="project-title__tail">
-          {rest.join(" ").toLocaleLowerCase(i18n.language)}
-        </strong>
+        <strong className="project-title__tail">{rest.join(" ").toLocaleLowerCase(i18n.language)}</strong>
       )}
     </h1>
   );
@@ -883,9 +645,7 @@ export function ProjectPage({
     if (saved) onChanged?.();
   };
   // One stage open at a time: the current one, until the client opens another.
-  const [openStage, setOpenStage] = useState(() =>
-    Math.max(0, (page.current_position ?? 1) - 1),
-  );
+  const [openStage, setOpenStage] = useState(() => Math.max(0, (page.current_position ?? 1) - 1));
 
   useEffect(() => {
     document.title = `${page.name} · ${page.office.name}`;
@@ -894,13 +654,8 @@ export function ProjectPage({
   const jump = (index: number) => {
     setOpenStage(index);
     const section = document.getElementById(`stage-${index}`);
-    const reduce = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    section?.scrollIntoView({
-      behavior: reduce ? "instant" : "smooth",
-      block: "start",
-    });
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    section?.scrollIntoView({ behavior: reduce ? "instant" : "smooth", block: "start" });
     section?.querySelector("h2")?.focus({ preventScroll: true });
   };
 
@@ -916,17 +671,12 @@ export function ProjectPage({
           {page.cover_url && (
             <figure className="banner">
               <div className="banner__img" ref={cover}>
-                <img
-                  src={page.cover_url}
-                  alt={t("page.cover", { name: page.name })}
-                />
+                <img src={page.cover_url} alt={t("page.cover", { name: page.name })} />
               </div>
             </figure>
           )}
         </div>
-        <section
-          className={`hero${narrow && !canEdit ? " mobile-view-hidden" : ""}`}
-        >
+        <section className={`hero${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
           <div>
             {canEdit && openEditor === "desc" ? (
               <Suspense fallback={null}>
@@ -934,18 +684,11 @@ export function ProjectPage({
               </Suspense>
             ) : (
               <div className="desc" data-editable>
-                {canEdit && (
-                  <EditButton
-                    label={t("edit.description")}
-                    onClick={() => setOpenEditor("desc")}
-                  />
-                )}
+                {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
                 {page.description ? (
                   <Description text={page.description} />
                 ) : (
-                  canEdit && (
-                    <p className="desc__empty">{t("edit.noDescription")}</p>
-                  )
+                  canEdit && <p className="desc__empty">{t("edit.noDescription")}</p>
                 )}
               </div>
             )}
@@ -957,20 +700,13 @@ export function ProjectPage({
               </Suspense>
             ) : (
               <dl className="facts" data-editable>
-                {canEdit && (
-                  <EditButton
-                    label={t("edit.details")}
-                    onClick={() => setOpenEditor("facts")}
-                  />
-                )}
+                {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
                 <Facts page={page} />
               </dl>
             )}
           </div>
         </section>
-        <div
-          className={`project-status${page.stages.length ? "" : " project-status--single"}`}
-        >
+        <div className={`project-status${page.stages.length ? "" : " project-status--single"}`}>
           {!narrow && page.stages.length > 0 && (
             <div className="project-status__timeline">
               <Timeline page={page} onJump={jump} />
@@ -982,19 +718,11 @@ export function ProjectPage({
                 <MeetingEditor page={page} staff={staff!} onDone={done} />
               </Suspense>
             ) : (
-              <MeetingCard
-                page={page}
-                slug={slug}
-                onEdit={canEdit ? () => setOpenEditor("meet") : undefined}
-              />
+              <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
             )}
           </div>
         </div>
-        {narrow && page.stages.length > 0 && (
-          <h2 className="stage-timeline-heading">
-            {t("page.timeline").toLocaleUpperCase()}
-          </h2>
-        )}
+        {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
         {page.stages.map((_, i) => (
           <Stage
             key={i}
@@ -1011,12 +739,7 @@ export function ProjectPage({
                     onOpen: () => setOpenEditor(`notes-${i}`),
                     render: () => (
                       <Suspense fallback={null}>
-                        <NotesEditor
-                          page={page}
-                          staff={staff!}
-                          index={i}
-                          onDone={done}
-                        />
+                        <NotesEditor page={page} staff={staff!} index={i} onDone={done} />
                       </Suspense>
                     ),
                   }
@@ -1044,15 +767,7 @@ export function ProjectPage({
 }
 
 /** Not found, or protected: the office's header and a short message. */
-export function PageMessage({
-  office,
-  title,
-  body,
-}: {
-  office: { name: string } | null;
-  title: string;
-  body: ReactNode;
-}) {
+export function PageMessage({ office, title, body }: { office: { name: string } | null; title: string; body: ReactNode }) {
   return (
     <div className="client">
       {office && <SiteHeader office={office} />}
