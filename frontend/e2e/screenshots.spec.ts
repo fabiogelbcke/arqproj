@@ -76,6 +76,13 @@ test("@screenshots staff app", async ({ page }) => {
   await page.getByRole("button", { name: "Editar o projeto Casa Jardim" }).click();
   await page.getByRole("dialog", { name: "Projeto" }).waitFor();
   await shoot(page, "03c-projeto");
+  const newEmail = page.getByLabel("Novo e-mail");
+  await newEmail.fill("lucia.oliveira@exemplo.com.br");
+  await newEmail.press("Enter");
+  await newEmail.fill("pedro.oliveira@exemplo.com.br");
+  await newEmail.press("Enter");
+  await newEmail.scrollIntoViewIfNeeded();
+  await shoot(page, "03d-projeto-emails");
   await page.keyboard.press("Escape");
 
   await page.goto("/painel/configuracoes/escritorio");
