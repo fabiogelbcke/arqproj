@@ -53,3 +53,9 @@
 .logoBlock { display: grid; gap: 10px; justify-items: start; }
 .logoBlock h3 { font-size: 16px; font-weight: 500; margin: 0; }
 .logo { max-width: 240px; max-height: 96px; object-fit: contain; background: var(--raise); padding: 8px; border: 1px solid var(--line); border-radius: var(--r); }
+.logoEmpty {
+  width: 160px; height: 96px; display: grid; place-items: center; align-content: center; gap: 4px;
+  border: 1px dashed var(--line-strong); border-radius: var(--r); color: var(--muted);
+}
+.logoEmpty span { font-size: 26px; font-weight: 300; letter-spacing: 0.08em; color: var(--ink); opacity: 0.55; }
+.logoEmpty small { font-size: 12px; }

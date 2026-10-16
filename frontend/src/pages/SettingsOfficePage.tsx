@@ -9,6 +9,15 @@ import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import styles from "./pages.module.css";
 
+/** "ALINEA ARQUITETOS" → "AA"; "Estúdio Norte (dev)" → "EN". */
+export function initials(name: string): string {
+  const words = name.replace(/\(.*?\)/g, "").trim().split(/\s+/).filter(Boolean);
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]!.toLocaleUpperCase("pt-BR"))
+    .join("");
+}
+
 export function SettingsOfficePage() {
   const { t } = useTranslation();
   const office = useOffice();
@@ -80,7 +89,11 @@ export function SettingsOfficePage() {
         {details.logo_url ? (
           <img className={styles.logo} src={details.logo_url} alt={t("office.logoAlt", { name: details.name })} />
         ) : (
-          <p className={styles.small}>{t("office.logoNone")}</p>
+          // An empty slot with the office's initials until a logo is uploaded.
+          <div className={styles.logoEmpty} role="img" aria-label={t("office.logoNone")}>
+            <span aria-hidden="true">{initials(details.name)}</span>
+            <small>{t("office.logoNone")}</small>
+          </div>
         )}
         <p className={styles.small}>{t("office.logoHint")}</p>
         {manage &&

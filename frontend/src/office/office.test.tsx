@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { initials } from "../pages/SettingsOfficePage";
 import { fakeApi, ME, renderAt, TENANT } from "../test/render";
 
 const OFFICE = { name: "Alinea", contact_email: null, logo_url: null, can_manage: true };
@@ -68,6 +69,13 @@ describe("Configurações → Escritório", () => {
     );
   });
 
+  it("shows the office's initials in an empty slot until there is a logo", async () => {
+    api({ ...OFFICE, name: "ALINEA ARQUITETOS" });
+    renderAt("/configuracoes/escritorio");
+    const slot = await screen.findByRole("img", { name: "Nenhum logo ainda." });
+    expect(slot).toHaveTextContent("AA");
+  });
+
   it("explains that the logo waits for Google Drive", async () => {
     api(OFFICE, NONE);
     renderAt("/configuracoes/escritorio");
@@ -86,5 +94,13 @@ describe("Configurações → Escritório", () => {
     renderAt("/configuracoes/escritorio");
     expect(await screen.findByText(/Só o responsável pelo escritório pode alterar/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
+  });
+});
+
+describe("initials", () => {
+  it("takes the first letters of the first two words, ignoring parentheses", () => {
+    expect(initials("ALINEA ARQUITETOS")).toBe("AA");
+    expect(initials("Estúdio Norte (dev)")).toBe("EN");
+    expect(initials("ateliê")).toBe("A");
   });
 });
