@@ -41,6 +41,8 @@ export class ApiError extends Error {
     readonly code: ErrorCode | "unexpected" | "network",
     readonly status?: number,
     readonly requestId?: string | null,
+    // Office content that explains the error, e.g. the project that has an address.
+    readonly conflictName?: string | null,
   ) {
     super(code);
   }
@@ -58,11 +60,12 @@ export async function call<T>(
   }
   const { data, error, response } = result;
   if (error !== undefined || !response.ok) {
-    const code = (error as { error?: unknown } | undefined)?.error;
+    const body = error as { error?: unknown; conflict_name?: unknown } | undefined;
     throw new ApiError(
-      typeof code === "string" ? (code as ErrorCode) : "unexpected",
+      typeof body?.error === "string" ? (body.error as ErrorCode) : "unexpected",
       response.status,
       response.headers.get("X-Request-ID"),
+      typeof body?.conflict_name === "string" ? body.conflict_name : null,
     );
   }
   return data as T;

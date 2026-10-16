@@ -35,9 +35,7 @@ export function FirstSteps() {
         </li>
         <li data-done={steps.has_project || undefined}>
           <span>{t("firstSteps.firstProject")}</span>
-          <span className={styles.stepDone}>
-            {steps.has_project ? t("firstSteps.done") : t("firstSteps.firstProjectSoon")}
-          </span>
+          {steps.has_project && <span className={styles.stepDone}>{t("firstSteps.done")}</span>}
         </li>
       </ol>
       {!owner && <p className={styles.small}>{t("firstSteps.membersNote")}</p>}

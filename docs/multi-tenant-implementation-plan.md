@@ -92,7 +92,7 @@ its affected tests before coding proceeds.
 | A04 | OAuth writes + service-account reads | Product choice, core flow reported tested by Fabio; remaining capability matrix below. **Hard ordering constraint on provisioning** — see section 9 |
 | A05 | Tenant and project checks on every resource path | Required even for public projects; public within one office does not mean cross-office access |
 | A06 | Public or password-protected project access | Agreed; no mandatory client account for the pilot |
-| A07 | Atomic DB creation plus recoverable Drive provisioning | Recommended implementation of an all-or-nothing customer experience |
+| A07 | All-or-nothing project creation | Pilot (15 Oct 2026): within the request, folders first, then every row in one transaction; on any failure the new project folder (with its stage folders) is trashed and nothing is saved; a one-time creation key makes retries safe. The durable provisioning operation in section 10 replaces it when there is a worker. See section 10 |
 | A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules. Revised by A25: clear `vN` names still group automatically |
 | A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: an authenticated maintenance endpoint in the web service, called every 10 minutes (15 Oct 2026, was hourly), with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
 | A10 | Incremental Drive sync, initially polled; reconciliation as repair | Recommended; webhooks can accelerate later without becoming a correctness dependency |
@@ -858,8 +858,19 @@ PostgreSQL and Google Drive do not share a transaction coordinator. A SQL rollba
 cannot undo a folder that Google already created, and Google may succeed even
 when our connection times out before receiving its response.
 
+**Pilot, as built (step P2, 15 Oct 2026):** creation runs within the request.
+It checks the form and the address first, creates the project folder in the
+office's folder (so it inherits the reader's access, section 9) and one folder
+per stage, then saves the project, its address and its stages in one database
+transaction, which is not held open during the Drive calls. If any step fails, the project
+folder is moved to the trash, which takes its stage folders with it, and nothing
+is saved. The form sends a one-time creation key, so a double click or a retry
+returns the project already created. What this gives up: a crash between the
+folders and the save leaves an empty folder in the office's Drive (no project
+is shown); the durable operation below is the eventual design.
+
 Do not hold a database transaction open during a sequence of network calls.
-Instead implement a durable provisioning operation:
+Eventually, implement a durable provisioning operation:
 
 ```text
 submitted → provisioning → ready
@@ -1621,7 +1632,7 @@ and external failures do not shrink simply because code generation is fast.
 | 0. Baseline | This decision doc and repeatable current local tests | Python/browser suite runs without Google; open issues recorded | Current work |
 | 1. New foundation | New FastAPI factory and Uvicorn entry point, local PostgreSQL, migrations, tenant routing, fake identity, two offices; staff app skeleton (Vite + React + TypeScript) served at `/painel` from the two-stage image | Wrong-host/ID tests; runtime-role isolation; production image boots locally and serves the staff app shell | 1–2 days |
 | 2. First useful vertical slice | Public/password project page at `/{slug}`, DB metadata, reused UI, read adapter and legacy import; staff bar on the page | Two branded offices; password protects every content endpoint; migration dry run; `alineaarquitetos.com` resolves to its office | 2–3 days |
-| 3. Project creation + editing | Minimal creation with durable provisioning; painel project list/settings and page edit mode for details, stages, progress, meeting (A24) | Crash/retry matrix; no duplicate creation; edits visible on the client page; row-version conflicts handled | 2–3 days |
+| 3. Project creation + editing | Minimal creation (pilot: within the request, A07); painel project list/settings and page edit mode for details, stages, progress, meeting (A24) | Crash/retry matrix; no duplicate creation; edits visible on the client page; row-version conflicts handled | 2–3 days |
 | 3b. Uploads + versions | Per-stage upload on the project page, resumable upload, version prompt and "send new version" (A25), capability-aware listing | Same-name upload becomes next `vN`; originals untouched; progress and failure UI | 1–2 days |
 | 4. Sync + revisions | Incremental index, repair, explicit versioning, preview fallback | External upload/overwrite/move scenarios; old-content honesty | 2–3 days |
 | 5. Notifications + operations | Outbox, batching, recipients, email sink, health panel, restore runbook | Virtual-clock/retry tests; restore exercise; no historical spam | 1–2 days |

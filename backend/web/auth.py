@@ -78,6 +78,8 @@ class MeOut(BaseModel):
     tenant_name: str
     # The language the screens show their own text in.
     tenant_locale: Locale
+    # Times are shown in the office's zone, wherever the viewer is.
+    tenant_timezone: str
     csrf_token: str
 
 
@@ -133,6 +135,7 @@ def _me(
         tenant_slug=tenant.slug,
         tenant_name=office,
         tenant_locale=tenant.locale,
+        tenant_timezone=tenant.timezone,
         csrf_token=csrf,
     )
 

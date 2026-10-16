@@ -19,6 +19,24 @@ a new entry too.
 
 ---
 
+## 2026-10-15 — A07: project creation within the request for the pilot
+
+**Was:** creation as a durable provisioning operation: the project saved as
+`provisioning`, a worker creating the Drive folders with checkpoints and leases,
+`202` plus an operation URL the painel polls.
+
+**Now:** for the pilot, creation runs within the request: folders first, then
+every row in one transaction; any failure trashes the new project folder and
+saves nothing. A one-time creation key makes a retried or double-sent request
+return the project already created. The durable operation stays the eventual
+design (plan section 10).
+
+**Why:** there is no worker yet (A09's maintenance endpoint is not built), a
+creation is about eight Drive calls that finish in seconds, and a handful of
+offices create a few projects a month. The remaining gap, a crash between the
+folders and the save, leaves only an empty folder in the office's Drive, which
+nobody sees as a project. Agreed with Fabio for step P2.
+
 ## 2026-10-15 — A26 refined: built-in content moves from code enums to reference tables
 
 **Was:** project types, detail types, built-in stages (with their explanations)

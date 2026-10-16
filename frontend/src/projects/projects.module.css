@@ -1,0 +1,122 @@
+/* The project list and the new-project dialog, after the prototype's painel
+   (arqprojprototypes, prototipo-v4: two-column cards, photo on top). */
+
+.head { display: grid; gap: 28px; }
+.tools {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+  border-top: 1px solid var(--line); padding-top: 20px;
+}
+.tools > :last-child { margin-left: auto; }
+.search { flex: 0 1 300px; min-width: 180px; }
+.searchInput {
+  width: 100%; min-height: 40px; padding: 8px 0; border: 0; border-bottom: 1px solid var(--line);
+  background: transparent; color: var(--ink); font: inherit;
+}
+.searchInput::placeholder { color: var(--muted); }
+.searchInput[data-focused] { outline: none; border-bottom-color: var(--ink); }
+.searchInput::-webkit-search-cancel-button { cursor: pointer; }
+.sort { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.select {
+  min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--raise); color: var(--ink); font: inherit; font-size: 14px;
+}
+
+.group { display: grid; gap: 24px; }
+.groupHead {
+  display: flex; align-items: baseline; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
+}
+.groupHead h2, .more { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; margin: 0; }
+.groupCount { margin-left: auto; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.more {
+  display: inline-flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none;
+  color: var(--ink); cursor: pointer; font-family: inherit;
+}
+.chevron {
+  width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  rotate: 45deg; translate: 0 -2px; transition: rotate 0.25s var(--ease);
+}
+.more[aria-expanded="false"] .chevron { rotate: -45deg; translate: 0 0; }
+
+.rows {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 36px;
+}
+.rows[hidden] { display: none; }
+@media (max-width: 720px) { .rows { grid-template-columns: 1fr; gap: 32px; } }
+
+.card {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, 0.7fr);
+  grid-template-areas: "cover cover" "title title" "prog meet" "upd upd";
+  gap: 16px 24px; align-items: start; min-width: 0; padding-bottom: 22px; border-bottom: 1px solid var(--line);
+}
+.cover {
+  grid-area: cover; position: relative; display: block; aspect-ratio: 16 / 10; overflow: hidden;
+  border-radius: 2px; background: var(--surface);
+}
+.cover img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  filter: blur(1px) saturate(0.6); transform: scale(1.04); transition: transform 0.9s var(--ease), filter 0.9s var(--ease);
+}
+.card:hover .cover img { transform: scale(1.07); filter: blur(1px) saturate(0.9); }
+.identity { grid-area: title; min-width: 0; }
+.name {
+  margin: 0; font-size: clamp(24px, 2.5vw, 34px); font-weight: 400; letter-spacing: -0.03em; line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+.tag {
+  display: inline-block; margin-left: 10px; padding: 2px 10px; border: 1px solid var(--line-strong); border-radius: 999px;
+  font-size: 12px; font-weight: 500; letter-spacing: 0; vertical-align: 5px;
+}
+.client { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 13px; color: var(--muted); }
+.client span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+
+.progress { grid-area: prog; min-width: 0; display: grid; gap: 6px; }
+.progressHead { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.count { color: var(--ink); font-variant-numeric: tabular-nums; }
+.stageTitle { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 3px; height: 3px; }
+.bar i { border-radius: 2px; background: var(--line); }
+.bar i[data-state="done"] { background: var(--ink); }
+.bar i[data-state="current"] { background: var(--accent); }
+.meta { grid-area: meet; text-align: right; font-size: 13px; }
+.meta small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+.muted { color: var(--muted); }
+.updated { grid-area: upd; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.updated small { font-size: inherit; }
+
+/* The dialog */
+.overlay {
+  position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+  background: rgb(8 9 9 / 55%); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.overlay[data-entering] { animation: fade 0.2s; }
+.modal {
+  width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--raise); color: var(--ink); box-shadow: var(--shadow);
+}
+.modal[data-entering] { animation: rise 0.3s var(--ease); }
+@keyframes fade { from { opacity: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+.dialog { padding: 28px; display: grid; gap: 20px; outline: none; }
+@media (max-width: 480px) { .dialog { padding: 20px; } }
+.dialogTitle { margin: 0; font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
+.form { display: grid; gap: 18px; }
+.label { font-size: 14px; font-weight: 500; }
+.templates { display: grid; gap: 8px; }
+.template {
+  display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r); cursor: pointer;
+}
+.template b { font-weight: 500; }
+.template small { color: var(--muted); font-size: 13px; }
+.template[data-hovered] { border-color: var(--line-strong); }
+.template[data-selected] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.template[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 2px; }
+.note { font-size: 13px; color: var(--muted); }
+.problem {
+  padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--r); background: var(--danger-soft);
+}
+.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.linkButton {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 18px; border-radius: 999px;
+  background: var(--primary); color: var(--on-primary); text-decoration: none; font-weight: 500; font-size: 14px;
+}
