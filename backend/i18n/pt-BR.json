@@ -389,5 +389,26 @@
     "advanced": "Avançou para “{{title}}”.",
     "complete": "Concluir projeto",
     "completed": "Projeto concluído."
+  },
+  "email": {
+      "subject": "Novidades em {{project}}",
+      "intro": "Há novidades no projeto {{project}}:",
+      "files_one": "1 arquivo novo em {{stage}}: {{names}}",
+      "files_other": "{{count}} arquivos novos em {{stage}}: {{names}}",
+      "andMore": "e mais {{count}}",
+      "stageAdvanced": "O projeto avançou para a etapa {{stage}}.",
+      "completed": "O projeto foi concluído.",
+      "meetingScheduled": "Reunião marcada: {{title}}, {{when}}.",
+      "meetingChanged": "Reunião alterada: {{title}}, {{when}}.",
+      "meetingCleared": "A reunião “{{title}}” foi cancelada.",
+      "when": "{{date}} às {{time}}",
+      "open": "Abrir a página do projeto",
+      "why": "Você recebe estes e-mails porque {{office}} cadastrou seu endereço no projeto {{project}}.",
+      "unsubscribe": "Não quero mais receber estes e-mails",
+      "unsubscribeTitle": "Cancelar os e-mails do projeto {{project}}",
+      "unsubscribeAsk": "{{email}} não vai mais receber as novidades do projeto {{project}} por e-mail.",
+      "unsubscribeConfirm": "Cancelar os e-mails",
+      "unsubscribed": "Pronto. {{email}} não vai mais receber as novidades do projeto {{project}}.",
+      "unsubscribeInvalid": "Este link não funciona mais. Se ainda recebe e-mails que não quer, fale com o escritório."
   }
 }

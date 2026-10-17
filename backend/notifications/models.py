@@ -7,7 +7,16 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, DateTime, Index, Text, UniqueConstraint, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKeyConstraint,
+    Index,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.base import Base, IdMixin, TimestampsMixin
@@ -68,6 +77,16 @@ class ProjectEvent(IdMixin, TenantOwned, Base):
         _project_fk("project_events"),
         enum_check("kind", EventKind),
         Index("ix_project_events_project_id_occurred_at", "project_id", "occurred_at"),
+        # Its email is the same office's and the same project's (section 7).
+        ForeignKeyConstraint(
+            ["tenant_id", "project_id", "batch_id"],
+            [
+                "notification_batches.tenant_id",
+                "notification_batches.project_id",
+                "notification_batches.id",
+            ],
+            name="fk_project_events_batch",
+        ),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column()
@@ -78,6 +97,8 @@ class ProjectEvent(IdMixin, TenantOwned, Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # The email it went into; None until batched (a note never is: A32).
+    batch_id: Mapped[uuid.UUID | None] = mapped_column()
 
 
 class ProjectFileSeen(IdMixin, TenantOwned, Base):
@@ -95,3 +116,72 @@ class ProjectFileSeen(IdMixin, TenantOwned, Base):
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class BatchState(StrEnum):
+    OPEN = "open"  # gathering changes until it is due (A12)
+    # Due, and going out: frozen, retried as it is until every address has it;
+    # newer changes gather in a new open batch.
+    SENDING = "sending"
+    SENT = "sent"
+    DROPPED = "dropped"  # nothing left to tell, or nobody to tell it to
+
+
+class NotificationBatch(IdMixin, TimestampsMixin, TenantOwned, Base):
+    """One email's worth of a project's changes (A12): due 45 minutes after the
+    last change, or 2 hours after the first, whichever comes first."""
+
+    __tablename__ = "notification_batches"
+    __table_args__ = (
+        _project_fk("notification_batches"),
+        enum_check("state", BatchState),
+        # What its events and deliveries reference: the office and project too.
+        UniqueConstraint("tenant_id", "id", name="uq_notification_batches_tenant_id_id"),
+        UniqueConstraint(
+            "tenant_id", "project_id", "id", name="uq_notification_batches_tenant_id_project_id_id"
+        ),
+        # At most one batch gathering changes per project.
+        Index(
+            "uq_notification_batches_open_per_project",
+            "project_id",
+            unique=True,
+            postgresql_where=text("state = 'open'"),
+        ),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    state: Mapped[BatchState] = mapped_column(TextEnum(BatchState), server_default=text("'open'"))
+    first_event_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_event_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DeliveryStatus(StrEnum):
+    PENDING = "pending"  # to go: the addresses are fixed when the batch starts sending
+    SENT = "sent"
+    FAILED = "failed"  # tried again on the next pass, with the same idempotency key
+
+
+class NotificationDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
+    """A batch's email to one address: sent once, whatever the retries. Kept by
+    address, not by the recipient row, so removing an address and adding it back
+    can't send the same email again."""
+
+    __tablename__ = "notification_deliveries"
+    __table_args__ = (
+        UniqueConstraint("batch_id", "email", name="uq_notification_deliveries_batch_id_email"),
+        enum_check("status", DeliveryStatus),
+        # The same office's batch (section 7).
+        ForeignKeyConstraint(
+            ["tenant_id", "batch_id"],
+            ["notification_batches.tenant_id", "notification_batches.id"],
+            name="fk_notification_deliveries_batch",
+            ondelete="CASCADE",
+        ),
+    )
+
+    batch_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    email: Mapped[str] = mapped_column(Text)
+    status: Mapped[DeliveryStatus] = mapped_column(TextEnum(DeliveryStatus))
+    provider_id: Mapped[str | None] = mapped_column(Text)  # Resend's id for the email
+    attempts: Mapped[int] = mapped_column(server_default=text("0"))

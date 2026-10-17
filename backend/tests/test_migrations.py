@@ -306,3 +306,70 @@ def test_data_migrations_run_as_an_owner_that_isolation_binds(migrated_url):
             connection.execute(text(f'DROP OWNED BY "{owner}"'))
             connection.execute(text(f'DROP ROLE "{owner}"'))
         engine.dispose()
+
+
+def test_changes_recorded_before_emails_existed_are_never_emailed(migrated_url):
+    """0019 closes every existing change into a dropped batch, every office's, even
+    as an owner that tenant isolation binds (Cloud SQL's migration login)."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0019"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0018")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        for slug in ("alinea", "norte"):
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES (:s, 'X') RETURNING id"), {"s": slug}
+            )
+            project = connection.scalar(
+                text(
+                    "INSERT INTO projects (tenant_id, name, client_name, project_type) "
+                    "VALUES (:t, 'Casa', 'Cliente', 'architecture') RETURNING id"
+                ),
+                {"t": tenant},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO project_events (tenant_id, project_id, kind) "
+                    "VALUES (:t, :p, 'stage_advanced'), (:t, :p, 'meeting_scheduled')"
+                ),
+                {"t": tenant, "p": project},
+            )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    try:
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0019",
+        )
+        with engine.connect() as connection:
+            assert (
+                connection.scalar(
+                    text("SELECT count(*) FROM project_events WHERE batch_id IS NULL")
+                )
+                == 0
+            )
+            states = connection.execute(
+                text("SELECT state, count(*) FROM notification_batches GROUP BY state")
+            ).all()
+            assert states == [("dropped", 2)]  # one per project, both offices
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()

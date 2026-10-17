@@ -175,8 +175,32 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Upload Logo */
+        /**
+         * Upload Logo
+         * @description The logo; with an SVG, also `png`, the painel's drawing of it (for email).
+         */
         put: operations["upload_logo_api_office_logo_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/office/logo/png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Add Logo Png
+         * @description The PNG of an SVG logo uploaded before PNGs were drawn (the painel sends it
+         *     when it sees `logo_needs_png`).
+         */
+        put: operations["add_logo_png_api_office_logo_png_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -560,6 +584,11 @@ export interface components {
          * @enum {string}
          */
         AccessMode: "public" | "password";
+        /** Body_add_logo_png_api_office_logo_png_put */
+        Body_add_logo_png_api_office_logo_png_put: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_cover_api_projects__project_id__cover_put */
         Body_upload_cover_api_projects__project_id__cover_put: {
             /** File */
@@ -569,6 +598,8 @@ export interface components {
         Body_upload_logo_api_office_logo_put: {
             /** File */
             file: string;
+            /** Png */
+            png?: string | null;
         };
         /** ChoosePasswordIn */
         ChoosePasswordIn: {
@@ -1106,6 +1137,8 @@ export interface components {
             contact_email: string | null;
             /** Logo Url */
             logo_url: string | null;
+            /** Logo Needs Png */
+            logo_needs_png: boolean;
             /** Can Manage */
             can_manage: boolean;
         };
@@ -1558,6 +1591,93 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": components["schemas"]["Body_upload_logo_api_office_logo_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["backend__web__office__OfficeOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    add_logo_png_api_office_logo_png_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_add_logo_png_api_office_logo_png_put"];
             };
         };
         responses: {

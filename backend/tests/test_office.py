@@ -274,3 +274,62 @@ async def test_without_a_connection_the_logo_waits_for_drive(client, db_session,
     await db_session.execute(text("DELETE FROM storage_connections WHERE tenant_id = :t"), {"t": t})
     response = await upload(client, owner, PNG)
     assert (response.status_code, response.json()) == (409, {"error": "drive_not_connected"})
+
+
+# -- an SVG logo's PNG, for emails (A32) ----------------------------------------------
+
+
+async def upload_svg(client, headers, png=PNG):
+    files = {"file": ("logo.svg", SVG)} | ({"png": ("logo.png", png)} if png else {})
+    return await client.put("/api/office/logo", files=files, headers=headers)
+
+
+async def test_an_svg_logo_keeps_the_painels_png_beside_it(client, owner, tmp_path):
+    saved = await upload_svg(client, owner)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["logo_needs_png"] is False
+    assert (tmp_path / "_marca" / "logo.svg").read_bytes() == SVG
+    assert (tmp_path / "_marca" / "logo.png").read_bytes() == PNG
+    served = await client.get("/api/office/logo?png=true", headers=ALINEA)
+    assert (served.status_code, served.content) == (200, PNG)
+    assert served.headers["content-type"] == "image/png"
+
+
+async def test_an_svg_without_its_png_asks_the_painel_for_one(client, owner):
+    saved = await upload_svg(client, owner, png=None)
+    assert saved.json()["logo_needs_png"] is True
+    assert (await client.get("/api/office/logo?png=true", headers=ALINEA)).status_code == 404
+    added = await client.put(
+        "/api/office/logo/png", files={"file": ("logo.png", PNG)}, headers=owner
+    )
+    assert (added.status_code, added.json()["logo_needs_png"]) == (200, False)
+    assert (await client.get("/api/office/logo?png=true", headers=ALINEA)).content == PNG
+
+
+async def test_the_png_must_be_a_png(client, owner):
+    response = await upload_svg(client, owner, png=SVG)  # an SVG passed off as the PNG
+    assert (response.status_code, response.json()["error"]) == (415, "logo_wrong_type")
+    added = await client.put(
+        "/api/office/logo/png", files={"file": ("x.png", b"not a png")}, headers=owner
+    )
+    assert added.status_code in (409, 415)
+
+
+async def test_only_an_svg_logo_takes_a_png_and_a_new_logo_drops_the_old_png(client, owner):
+    await upload_svg(client, owner)
+    replaced = await upload(client, owner, PNG)  # a PNG logo: no separate PNG needed
+    assert replaced.json()["logo_needs_png"] is False
+    assert (await client.get("/api/office/logo?png=true", headers=ALINEA)).status_code == 404
+    refused = await client.put(
+        "/api/office/logo/png", files={"file": ("logo.png", PNG)}, headers=owner
+    )
+    assert (refused.status_code, refused.json()["error"]) == (409, "logo_wrong_type")
+
+
+async def test_only_owners_add_the_png(client, db_session, owner):
+    await upload_svg(client, owner, png=None)
+    member = await sign_in_as(client, db_session, "membro@alinea.example", Role.MEMBER)
+    response = await client.put(
+        "/api/office/logo/png", files={"file": ("logo.png", PNG)}, headers=member
+    )
+    assert response.status_code == 403

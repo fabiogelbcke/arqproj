@@ -1,9 +1,11 @@
 // The office's details (Configurações → Escritório).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 import { api, call } from "../api/client";
 import { ONBOARDING } from "../drive/drive";
 import { ME, TENANT } from "../session/session";
+import { isSvg, svgToPng } from "./svgToPng";
 
 export const OFFICE = ["office"] as const;
 
@@ -34,18 +36,56 @@ export function useSaveOffice() {
 export function useUploadLogo() {
   const refresh = useRefreshAfterChange();
   return useMutation({
-    mutationFn: (file: File) =>
-      call(
+    mutationFn: async (file: File) => {
+      // An SVG also goes as a PNG drawn here, for emails. If drawing fails, the
+      // logo still goes; the painel tries the PNG again later (LogoPng).
+      const png = isSvg(file) ? await svgToPng(file).catch(() => null) : null;
+      return call(
         api.PUT("/api/office/logo", {
           // OpenAPI describes an uploaded file as a binary string; it is the File.
           body: { file: file as unknown as string },
           bodySerializer: (body) => {
             const form = new FormData();
             form.append("file", body.file as unknown as Blob);
+            if (png) form.append("png", png, "logo.png");
             return form;
           },
         }),
-      ),
+      );
+    },
     onSuccess: refresh,
   });
+}
+
+/** An SVG logo uploaded before PNGs were drawn gets its PNG, quietly, the next
+ *  time its owner opens the painel. */
+export function LogoPng() {
+  const office = useOffice();
+  const client = useQueryClient();
+  const needed = office.data?.can_manage && office.data.logo_needs_png ? office.data.logo_url : null;
+  const tried = useRef<string | null>(null);
+  useEffect(() => {
+    if (!needed || tried.current === needed) return;
+    tried.current = needed; // once per logo, even if it fails
+    void (async () => {
+      try {
+        const svg = await (await fetch(new Request(new URL(needed, window.location.href)))).blob();
+        const png = await svgToPng(svg);
+        const updated = await call(
+          api.PUT("/api/office/logo/png", {
+            body: { file: png as unknown as string },
+            bodySerializer: (body) => {
+              const form = new FormData();
+              form.append("file", body.file as unknown as Blob, "logo.png");
+              return form;
+            },
+          }),
+        );
+        client.setQueryData(OFFICE, updated);
+      } catch {
+        // Nothing to tell anyone: emails show the name until it works.
+      }
+    })();
+  }, [needed, client]);
+  return null;
 }

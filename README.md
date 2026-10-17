@@ -287,6 +287,32 @@ production. Tests only ever use local databases. New migration:
 review it by hand; `backend/tests/test_migrations.py` fails if models and
 migrations disagree.
 
+### Client emails locally
+
+Client emails (decision A32) go out from the maintenance pass, which notices new
+files and sends the emails that are due. Run one pass by hand:
+
+```bash
+uv run python -m backend.commands.maintenance
+```
+
+Without `RESEND_API_KEY`, each email is written to `local-test-data/outbox/` as
+an `.html` file to open in a browser, with a `.txt` beside it. Nothing leaves the
+machine. Outside production, emails only go to addresses that belong to the
+office's own staff accounts, so put a staff address among a project's "E-mails do
+cliente" to see one. An email is sent 45 minutes after a project's last change
+(2 hours at most after its first). To see one at once, move the open batch back
+in time:
+
+```bash
+psql -d arqproj_dev -c "UPDATE notification_batches SET first_event_at = first_event_at - interval '1 hour', last_event_at = last_event_at - interval '1 hour' WHERE state = 'open'"
+```
+
+Staging reads its key from the secret `portal-staging-resend-api-key`.
+Production's is `portal-resend-api-key`. Until a domain is verified in Resend,
+emails come from Resend's test sender, which delivers only to the Resend
+account's own address.
+
 ## Run all automated tests locally
 
 No Google account, `.env`, or manually started website is required. Install the

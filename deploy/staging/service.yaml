@@ -56,6 +56,12 @@ spec:
                 secretKeyRef:
                   name: portal-staging-app-secret
                   key: latest
+            # Client emails (A32): staging sends only to the office's staff accounts.
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: portal-staging-resend-api-key
+                  key: latest
           resources:
             limits:
               cpu: "1"

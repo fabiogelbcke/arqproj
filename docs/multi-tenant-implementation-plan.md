@@ -1723,7 +1723,7 @@ choices need an owner before their corresponding feature ships:
 | Office address scheme (A21) | Two options in section 4: A, office subdomains behind a load balancer; B, one domain with office paths. Recommended default: A for anything clients see, `run.app` paths for internal testing | Before DNS/OAuth registration and before any client link is shared |
 | Staff app building blocks | Evaluate SVAR React File Manager, Uppy and the Google Picker (section 11) against a custom screen | Slice 3 |
 | Password setter | Office owner/member; viewers cannot change it | Access UI implementation |
-| Digest semantics | Trailing 45-minute quiet period with a 2-hour maximum hold; quiet period configurable 5–120 minutes | Confirmed for the pilot by Fabio, 16 Oct 2026 (A32); revisit with the first office's real upload sessions |
+| Digest semantics | Trailing 45-minute quiet period with a 2-hour maximum hold; quiet period configurable 5–120 minutes | Confirmed for the pilot by Fabio, 16 Oct 2026 (A32); revisit with the first office's real upload sessions. The per-office setting is deferred: the pilot uses 45 minutes and 2 hours for every office (`QUIET`, `HOLD` in `backend/notifications/digest.py`) |
 | External file write limitations | Disable unsupported actions + Open in Drive / explicit authorization | Live Google acceptance |
 | Revision retention promise | Separate `vN` files for website revisions (A25); no guarantee for overwritten Drive history | Versioning UI copy |
 | Download model | Streaming proxy by default, optional authorized Drive link | Hosting/load test |

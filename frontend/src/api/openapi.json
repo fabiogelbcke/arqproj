@@ -436,12 +436,112 @@
     "/api/office/logo": {
       "put": {
         "summary": "Upload Logo",
+        "description": "The logo; with an SVG, also `png`, the painel's drawing of it (for email).",
         "operationId": "upload_logo_api_office_logo_put",
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_upload_logo_api_office_logo_put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/backend__web__office__OfficeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/office/logo/png": {
+      "put": {
+        "summary": "Add Logo Png",
+        "description": "The PNG of an SVG logo uploaded before PNGs were drawn (the painel sends it\nwhen it sees `logo_needs_png`).",
+        "operationId": "add_logo_png_api_office_logo_png_put",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_logo_png_api_office_logo_png_put"
               }
             }
           },
@@ -2215,6 +2315,20 @@
         ],
         "title": "AccessMode"
       },
+      "Body_add_logo_png_api_office_logo_png_put": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_add_logo_png_api_office_logo_png_put"
+      },
       "Body_upload_cover_api_projects__project_id__cover_put": {
         "properties": {
           "file": {
@@ -2235,6 +2349,18 @@
             "type": "string",
             "contentMediaType": "application/octet-stream",
             "title": "File"
+          },
+          "png": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Png"
           }
         },
         "type": "object",
@@ -3862,6 +3988,10 @@
             ],
             "title": "Logo Url"
           },
+          "logo_needs_png": {
+            "type": "boolean",
+            "title": "Logo Needs Png"
+          },
           "can_manage": {
             "type": "boolean",
             "title": "Can Manage"
@@ -3872,6 +4002,7 @@
           "name",
           "contact_email",
           "logo_url",
+          "logo_needs_png",
           "can_manage"
         ],
         "title": "OfficeOut"
