@@ -250,3 +250,25 @@ async def test_a_pass_out_of_time_leaves_the_rest_for_the_next(app, db_session, 
     report = await run(app)
     assert report.unfinished == 0
     assert await casa(db_session, "files_scanned_at") is not None
+
+
+async def test_each_pass_records_when_it_last_ran_to_the_end(app, db_session, owner, folders):
+    """Plan section 4: a stopped scheduler must show."""
+    await run_maintenance(app.state.sessionmaker, app.state.settings, None, budget=0)
+    row = (
+        await db_session.execute(
+            text("SELECT last_run_at, last_success_at, last_report FROM maintenance_runs")
+        )
+    ).one()
+    assert row.last_run_at is not None and row.last_success_at is None  # out of time
+    assert row.last_report["unfinished"] == 4
+    await run(app)  # the seed's other projects have no folders on disk: they fail
+    failed = (
+        await db_session.execute(text("SELECT last_success_at FROM maintenance_runs"))
+    ).scalar()
+    assert failed is None
+    await db_session.execute(
+        text("UPDATE projects SET folder_id = NULL WHERE name <> 'Casa Jardim'")
+    )
+    await run(app)
+    assert (await db_session.execute(text("SELECT last_success_at FROM maintenance_runs"))).scalar()

@@ -465,6 +465,8 @@ Deferred: the office setting for the quiet period (A12). The pilot uses 45 minut
 - It accepts only a Google-signed ID token whose audience is `MAINTENANCE_AUDIENCE` and whose verified email is `MAINTENANCE_CALLER`. Anything else is a 404.
 - Staging's Cloud Scheduler job `portal-staging-maintenance` calls it every 10 minutes as `portal-scheduler@`; README "Client emails locally" has the setup commands.
 - Staging sends from `alineaarquitetos.com` (`EMAIL_OFFICE_DOMAINS`), verified in Resend on 17 Oct 2026, and only to the office's staff.
+- A pass started by the scheduler stops starting projects after 240 s and leaves the rest for the next. Offices and projects go in random order.
+- `maintenance_runs` (migration 0021, one row) records each pass's report and when one last ran to the end (`last_success_at`), so a stopped scheduler shows.
 
 ### Slice 6: real Google login and live checks
 

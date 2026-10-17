@@ -52,7 +52,8 @@ async def maintenance(request: Request) -> Response:
     try:
         claims = await anyio.to_thread.run_sync(_verify, token, settings.maintenance_audience)
     except ValueError as error:
-        log.warning("maintenance: refused a token: %s", error)
+        # Only the kind: google-auth's messages can quote the token itself.
+        log.warning("maintenance: refused a token (%s)", type(error).__name__)
         return Response(status_code=404)
     if claims.get("email") != settings.maintenance_caller or not claims.get("email_verified"):
         log.warning("maintenance: refused a token from %s", claims.get("email"))

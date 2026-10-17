@@ -17,6 +17,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.base import Base, IdMixin, TimestampsMixin
@@ -185,3 +186,18 @@ class NotificationDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
     status: Mapped[DeliveryStatus] = mapped_column(TextEnum(DeliveryStatus))
     provider_id: Mapped[str | None] = mapped_column(Text)  # Resend's id for the email
     attempts: Mapped[int] = mapped_column(server_default=text("0"))
+
+
+class MaintenanceRun(Base):
+    """The maintenance pass's last results, one row for the whole service (not an
+    office's): when it last ran to the end, so a stopped scheduler shows (plan
+    section 4: "record a last-success time so failures are visible")."""
+
+    __tablename__ = "maintenance_runs"
+    __table_args__ = (CheckConstraint("id = 1", name="one_row"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    last_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Every office and project reached, none failed.
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_report: Mapped[dict] = mapped_column(JSONB)

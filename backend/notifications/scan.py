@@ -20,10 +20,11 @@ from __future__ import annotations
 import logging
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import select, text, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.db.isolation import scope_to_tenant
@@ -32,6 +33,7 @@ from backend.notifications.email import EmailSender
 from backend.notifications.events import CLIENT_VISIBLE, record
 from backend.notifications.models import (
     EventKind,
+    MaintenanceRun,
     NotificationBatch,
     ProjectFileSeen,
 )
@@ -212,4 +214,22 @@ async def run_maintenance(
     for tenant_id in offices:
         await _scan_office(sessionmaker, settings, google, sender, tenant_id, report, deadline)
     log.info("maintenance: %s", report)
+    await _record(sessionmaker, report)
     return report
+
+
+async def _record(sessionmaker, report: Report) -> None:
+    """When it ran, and when it last ran to the end (plan section 4)."""
+    now = datetime.now(UTC)
+    complete = not report.unfinished and not report.failed
+    values = {"last_run_at": now, "last_report": asdict(report)}
+    async with sessionmaker() as db:
+        await db.execute(
+            insert(MaintenanceRun)
+            .values(id=1, last_success_at=now if complete else None, **values)
+            .on_conflict_do_update(
+                index_elements=[MaintenanceRun.id],
+                set_=values | ({"last_success_at": now} if complete else {}),
+            )
+        )
+        await db.commit()

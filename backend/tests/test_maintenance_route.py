@@ -68,3 +68,17 @@ async def test_only_the_schedulers_account_may_call(client, owner, configured, m
 
 async def test_unconfigured_the_address_does_not_exist(client, owner):
     assert (await call(client)).status_code == 404
+
+
+async def test_a_refused_token_never_reaches_the_logs(
+    client, owner, configured, monkeypatch, caplog
+):
+    """google-auth's messages can quote the token: only the kind of error is logged."""
+
+    def leaks(token, audience):
+        raise ValueError(f"Wrong number of segments in token: {token}")
+
+    monkeypatch.setattr(maintenance, "_verify", leaks)
+    secret = "ya29.a0-access-token-not-a-jwt"
+    assert (await call(client, token=secret)).status_code == 404
+    assert caplog.records and all(secret not in r.getMessage() for r in caplog.records)
