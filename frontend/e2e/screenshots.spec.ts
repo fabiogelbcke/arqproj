@@ -99,6 +99,15 @@ test("@screenshots staff app", async ({ page }) => {
   await page.getByRole("heading", { name: "Etapas e próximos passos" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
+  // The file tools: the list view, then a file's preview.
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("button", { name: "Visualizar em lista" }).first().click();
+  await shoot(page, "06d-arquivos-em-lista");
+  await page.getByRole("button", { name: "Visualizar miniaturas" }).first().click();
+  await page.getByRole("button", { name: /^Abrir Plantas v2/ }).click();
+  await page.getByRole("dialog").waitFor();
+  await shoot(page, "06e-pre-visualizacao");
+  await page.getByRole("button", { name: "Fechar" }).click();
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar reunião" }).click();

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fakeApi, TENANT } from "../test/render";
 import { ClientApp, slugFromPath } from "./ClientApp";
 import { detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
+import { shownFiles, sortFiles } from "./FileTools";
 
 const PAGE: Page = {
   office: { name: "Alinea", logo_url: null },
@@ -149,10 +150,7 @@ describe("the files", () => {
       }),
     });
     const current = await screen.findByRole("region", { name: "Levantamento" });
-    expect(await within(current).findByRole("link", { name: "Abrir Planta.pdf" })).toHaveAttribute(
-      "href",
-      "/api/pages/casa-jardim/files/k1?inline=true",
-    );
+    expect(await within(current).findByRole("button", { name: "Abrir Planta.pdf" })).toBeInTheDocument();
     expect(within(current).getByRole("heading", { name: "Fotos" })).toBeInTheDocument();
     expect(within(current).getByText("02 arquivos")).toBeInTheDocument();
     expect(within(current).getByText("2 KB, 10/10/2026")).toBeInTheDocument();
@@ -517,7 +515,7 @@ describe("edit mode", () => {
 
     it("shows neither to someone viewing as the client", async () => {
       asEditor();
-      await screen.findByRole("link", { name: "Abrir Planta.pdf" });
+      await screen.findByRole("button", { name: "Abrir Planta.pdf" });
       expect(screen.queryByLabelText("escolha no computador")).toBeNull();
       expect(screen.queryByRole("button", { name: "Ações para Planta.pdf" })).toBeNull();
     });
@@ -579,5 +577,94 @@ describe("formatting", () => {
       { kind: "p", text: "Residência no alto." },
       { kind: "ul", items: ["Concreto aparente", "Brises de madeira"] },
     ]);
+  });
+});
+
+
+describe("the page's file tools", () => {
+  const file = (key: string, name: string, kind: string, at: string) =>
+    ({ key, name, kind, size: 10, modified_at: at }) as never;
+  const FILES = {
+    stages: [
+      { position: 1, groups: [{ folder: null, files: [file("a", "Programa.pdf", "pdf", "2026-10-01T12:00:00Z")] }] },
+      {
+        position: 2,
+        groups: [
+          {
+            folder: null,
+            files: [
+              file("b", "Planta baixa.pdf", "pdf", "2026-10-05T12:00:00Z"),
+              file("c", "Implantação.dwg", "other", "2026-10-09T12:00:00Z"),
+              file("d", "Terreno.jpg", "image", "2026-10-02T12:00:00Z"),
+            ],
+          },
+        ],
+      },
+      { position: 3, groups: [] },
+    ],
+    updates: [],
+  };
+
+  it("sorts by date, newest first, by type, or by name", () => {
+    const files = FILES.stages[1]!.groups[0]!.files as never[];
+    const names = (sort: "updated" | "type" | "name") => sortFiles(files, sort).map((f: { name: string }) => f.name);
+    expect(names("updated")).toEqual(["Implantação.dwg", "Planta baixa.pdf", "Terreno.jpg"]);
+    expect(names("type")).toEqual(["Implantação.dwg", "Terreno.jpg", "Planta baixa.pdf"]);
+    expect(names("name")).toEqual(["Implantação.dwg", "Planta baixa.pdf", "Terreno.jpg"]);
+  });
+
+  it("finds files by name or by their stage, without minding accents or case", () => {
+    const stage = FILES.stages[1] as never;
+    const prefs = { type: "all", sort: "name", view: "grid" } as const;
+    expect(shownFiles(stage, "Levantamento", "implantacao", prefs).count).toBe(1);
+    expect(shownFiles(stage, "Levantamento", "LEVANTAMENTO", prefs).count).toBe(3);
+    expect(shownFiles(stage, "Levantamento", "", { ...prefs, type: "pdf" }).count).toBe(1);
+    expect(shownFiles(stage, "Levantamento", "", { ...prefs, type: "dwg" }).count).toBe(1);
+  });
+
+  it("searching hides stages without a match and says how many were found", async () => {
+    localStorage.clear();
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    await userEvent.type(await screen.findByLabelText("Pesquisar arquivos"), "baixa"); // "planta" would also find "Implantação"
+    expect(screen.getByText("1 arquivo encontrado")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Levantamento" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Briefing" })).toBeNull(); // hidden
+  });
+
+  it("switches to a list, and remembers it", async () => {
+    localStorage.clear();
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Visualizar em lista" }));
+    expect(document.querySelector(".files")).toHaveAttribute("data-view", "list");
+    expect(JSON.parse(localStorage.getItem("file-prefs")!)).toMatchObject({ view: "list" });
+  });
+
+  it("opens a file's preview, with its actions", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Abrir Terreno.jpg" }));
+    const preview = screen.getByRole("dialog", { name: "Terreno.jpg" });
+    expect(within(preview).getByRole("img", { name: "Terreno.jpg" })).toHaveAttribute(
+      "src",
+      "/api/pages/casa-jardim/files/d?inline=true",
+    );
+    expect(within(preview).getByRole("link", { name: "Abrir original" })).toHaveAttribute(
+      "href",
+      "/api/pages/casa-jardim/files/d?inline=true",
+    );
+    await userEvent.click(within(preview).getByRole("button", { name: "Enviar" }));
+    const whatsapp = within(preview).getByRole("link", { name: "WhatsApp" });
+    // The page's address, not the file's (which works only for a while).
+    expect(decodeURIComponent(whatsapp.getAttribute("href")!)).toContain(`${window.location.origin}/casa-jardim`);
+    await userEvent.click(within(preview).getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
