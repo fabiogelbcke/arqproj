@@ -19,6 +19,19 @@ a new entry too.
 
 ---
 
+## 2026-10-17 — A33 added: the product is Unio, on myunio.app
+
+**Was:** the product name and domain were open (section 24); the plan wrote
+`{product-domain}` throughout, and A23 kept the first office on
+`alineaarquitetos.com` partly because there was no product domain yet.
+
+**Now:** the product is Unio and its domain is `myunio.app`, registered at
+GoDaddy. Alinea stays on `alineaarquitetos.com`; later offices go on
+`myunio.app`. Whether they get subdomains or paths there (A21) is still open, as
+is the hosting region.
+
+**Why:** Fabio, 17 Oct 2026: "Unio and myunio.app".
+
 ## 2026-10-16 — A10: new files found by a scan for the pilot, not the changes feed
 
 **Was:** section 13 had the sync job read the reader identity's Drive changes
