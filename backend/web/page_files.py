@@ -27,7 +27,8 @@ import html
 import json
 import logging
 import time
-from datetime import datetime
+import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 
@@ -38,7 +39,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
-from backend.projects.enums import AccessMode
+from backend.notifications.models import EventKind, ProjectEvent
+from backend.projects.enums import AccessMode, ProjectStatus
 from backend.projects.models import Project, ProjectStage
 from backend.security import keys
 from backend.storage.base import StorageError, StorageItem, StorageProblem
@@ -88,10 +90,24 @@ class StageFilesOut(BaseModel):
     unavailable: bool = False  # Drive couldn't be read just now
 
 
+class UpdateOut(BaseModel):
+    """One entry of the page's "Atualizações" (A28), newest first. The page words
+    it from what it shows now (the stage's title and note, the meeting)."""
+
+    id: uuid.UUID  # what the visitor's browser remembers as read
+    kind: EventKind
+    occurred_at: datetime
+    stage_position: int | None  # a file's: the stage it is in now
+    # A file's name as the page shows it now; a cancelled meeting's title.
+    name: str | None = None
+
+
 class PageFilesOut(BaseModel):
     stages: list[StageFilesOut]
     # The support code, when a stage couldn't be read (its detail is in the log).
     reference: str | None = None
+    # The latest client-visible changes (A28): files only while the page shows them.
+    updates: list[UpdateOut] = []
 
 
 def _hidden(item: StorageItem) -> bool:
@@ -227,6 +243,7 @@ async def page_files(
         )
     )
     stages = []
+    visible: dict[str, tuple[int, str]] = {}  # each file shown: its stage and name
     in_project: set[str] | None = None
     if storage is not None and any(folders):
         try:
@@ -261,6 +278,9 @@ async def page_files(
             continue
         try:
             for group, parent, files in await stage_groups(storage, folder):
+                for item in files:
+                    name = f"{item.name}.pdf" if item.is_native else item.name
+                    visible.setdefault(item.identity, (position, name))
                 shown.groups.append(
                     GroupOut(
                         folder=group,
@@ -281,7 +301,86 @@ async def page_files(
             shown.groups = []
         stages.append(shown)
     unavailable = any(stage.unavailable for stage in stages)
-    return PageFilesOut(stages=stages, reference=current_request_id() if unavailable else None)
+    return PageFilesOut(
+        stages=stages,
+        reference=current_request_id() if unavailable else None,
+        updates=await _updates(db, project, visible),
+    )
+
+
+UPDATES_SHOWN = 30
+UPDATES_DAYS = 180
+
+
+async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[UpdateOut]:
+    """The latest changes the client can see now. A file appears only while the
+    page shows it, under its current name and stage; one taken down, or in a stage
+    that couldn't be read just now, is left out. A note or a stage advance points at
+    where its stage is now, and is left out if the stage was removed. Like the
+    panel, only a stage's latest note, the latest advance that still holds and the
+    latest meeting change count, so repeated edits never crowd out older news."""
+    since = datetime.now(UTC) - timedelta(days=UPDATES_DAYS)
+    stages = (
+        await db.execute(
+            select(ProjectStage.id, ProjectStage.position, ProjectStage.notes).where(
+                ProjectStage.project_id == project.id
+            )
+        )
+    ).all()
+    positions = {stage.id: stage.position for stage in stages}
+    with_notes = {stage.id for stage in stages if stage.notes}
+    events = await db.stream_scalars(
+        select(ProjectEvent)
+        .where(ProjectEvent.project_id == project.id, ProjectEvent.occurred_at >= since)
+        .order_by(ProjectEvent.occurred_at.desc())
+    )
+    updates = []
+    counted = set()  # the notes, advance and meeting already listed
+    async for event in events:  # until 30 survive the filtering, however many it takes
+        position, name = event.stage_position, None
+        if event.kind is EventKind.FILE_PUBLISHED:
+            if event.item_id not in visible:
+                continue
+            position, name = visible[event.item_id]
+        elif event.stage_id is not None:
+            if event.stage_id not in positions:
+                continue  # its stage was removed
+            position = positions[event.stage_id]
+        if event.kind is EventKind.NOTE_CHANGED:
+            if event.stage_id is not None and event.stage_id not in with_notes:
+                continue  # removed since: the panel shows a note as it is now
+            once = ("note", event.stage_id or position)  # older events: by position
+        elif event.kind is EventKind.STAGE_ADVANCED:
+            if position is None or position > (project.current_position or 0):
+                continue  # taken back since
+            once = "advance"
+        elif event.kind is EventKind.PROJECT_COMPLETED:
+            if project.status is not ProjectStatus.COMPLETED:
+                continue
+            once = "completed"
+        elif event.kind is not EventKind.FILE_PUBLISHED:
+            once = "meeting"  # the latest change says what the meeting is now
+        else:
+            once = None
+        if once is not None:
+            if once in counted:
+                continue
+            counted.add(once)
+        if event.kind is EventKind.MEETING_CLEARED:
+            name = event.title
+        updates.append(
+            UpdateOut(
+                id=event.id,
+                kind=event.kind,
+                occurred_at=event.occurred_at,
+                stage_position=position,
+                name=name,
+            )
+        )
+        if len(updates) == UPDATES_SHOWN:
+            break
+    await events.close()
+    return updates
 
 
 async def _item(request: Request, db: AsyncSession, project: Project, key: str):

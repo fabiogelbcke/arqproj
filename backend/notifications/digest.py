@@ -279,14 +279,30 @@ async def lines_for(
     # The latest advance that still holds: 1 → 2 → 3, then back to 2, is still news
     # of stage 2.
     current = project.current_position or 0
+    # Where each stage is now: reordered meanwhile, a stage keeps its identity; a
+    # removed one takes its news with it.
+    stages = {
+        s.id: s
+        for s in await db.scalars(select(ProjectStage).where(ProjectStage.project_id == project.id))
+    }
+
+    def position_of(event: ProjectEvent) -> int | None:
+        if event.stage_id is None:
+            return event.stage_position  # recorded before stages were named by identity
+        stage = stages.get(event.stage_id)
+        return stage.position if stage else None
+
     holding = [
-        e
+        (position, e)
         for e in events
-        if e.kind is EventKind.STAGE_ADVANCED and (e.stage_position or 0) <= current
+        if e.kind is EventKind.STAGE_ADVANCED
+        and (position := position_of(e)) is not None
+        and position <= current
     ]
     if holding:
-        last = max(holding, key=lambda e: e.stage_position or 0)
-        lines.append(t(locale, "stageAdvanced", stage=f"{last.stage_position:02d} {last.title}"))
+        position, last = max(holding, key=lambda pair: pair[0])
+        title = await _title(db, stages[last.stage_id], locale) if last.stage_id else last.title
+        lines.append(t(locale, "stageAdvanced", stage=f"{position:02d} {title}"))
     if project.status is ProjectStatus.COMPLETED and any(
         e.kind is EventKind.PROJECT_COMPLETED for e in events
     ):
