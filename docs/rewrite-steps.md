@@ -457,6 +457,8 @@ window and 2-hour hold (A12), recipients in the Projeto dialog and unsubscribe
 - **Sending:** through Resend (`RESEND_API_KEY`), or to `local-test-data/outbox/` without a key.
 - **Sender:** each office's domain from `EMAIL_OFFICE_DOMAINS`, else `EMAIL_DOMAIN`, else Resend's test sender.
 
+Deferred: the office setting for the quiet period (A12). The pilot uses 45 minutes and 2 hours for everyone (A32, section 24).
+
 5.4: the `/internal/maintenance` endpoint and the Cloud Scheduler job.
 
 ### Slice 6: real Google login and live checks

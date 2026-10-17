@@ -146,22 +146,20 @@ class DeliveryStatus(StrEnum):
 
 
 class NotificationDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
-    """A batch's email to one address: sent once, whatever the retries."""
+    """A batch's email to one address: sent once, whatever the retries. Kept by
+    address, not by the recipient row, so removing an address and adding it back
+    can't send the same email again."""
 
     __tablename__ = "notification_deliveries"
     __table_args__ = (
-        UniqueConstraint(
-            "batch_id", "recipient_id", name="uq_notification_deliveries_batch_id_recipient_id"
-        ),
+        UniqueConstraint("batch_id", "email", name="uq_notification_deliveries_batch_id_email"),
         enum_check("status", DeliveryStatus),
     )
 
     batch_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("notification_batches.id", ondelete="CASCADE"), index=True
     )
-    recipient_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("project_recipients.id", ondelete="CASCADE")
-    )
+    email: Mapped[str] = mapped_column(Text)
     status: Mapped[DeliveryStatus] = mapped_column(TextEnum(DeliveryStatus))
     provider_id: Mapped[str | None] = mapped_column(Text)  # Resend's id for the email
     attempts: Mapped[int] = mapped_column(server_default=text("0"))

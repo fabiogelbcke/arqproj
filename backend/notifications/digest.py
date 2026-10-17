@@ -15,6 +15,7 @@ Each maintenance pass, for each published project:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import uuid
@@ -67,6 +68,10 @@ _TEMPLATE = Template((Path(__file__).parent / "templates" / "update.html").read_
 
 
 # -- unsubscribe links ----------------------------------------------------------------
+
+
+def _hashed(email: str) -> str:
+    return hashlib.sha256(email.encode()).hexdigest()[:24]
 
 
 def unsubscribe_token(settings: Settings, recipient_id: uuid.UUID) -> str:
@@ -191,18 +196,21 @@ class Wait(Exception):
 
 
 async def _visible_files(db: AsyncSession, storage, project: Project) -> dict:
-    """Every file the page shows now, by id, with its last change."""
+    """Every file the page shows now, by identity, with the stage it is in now."""
     inside = await _in_project(storage, project)
-    folders = await db.scalars(
-        select(ProjectStage.folder_id).where(
-            ProjectStage.project_id == project.id, ProjectStage.folder_id.is_not(None)
+    stages = (
+        await db.execute(
+            select(ProjectStage.position, ProjectStage.folder_id)
+            .where(ProjectStage.project_id == project.id, ProjectStage.folder_id.is_not(None))
+            .order_by(ProjectStage.position)
         )
-    )
+    ).all()
     visible = {}
-    for folder in folders:
+    for position, folder in stages:
         if folder in inside:
             for _group, _listed, items in await stage_groups(storage, folder):
-                visible.update({item.id: item for item in items})
+                for item in items:
+                    visible.setdefault(item.identity, (position, item))
     return visible
 
 
@@ -223,8 +231,10 @@ async def lines_for(
         if storage is None:
             raise Wait  # the page can't show its files now either
         visible = await _visible_files(db, storage, project)
-        shown = [e for e in files if e.item_id in visible]
-        if any(visible[e.item_id].modified_at > now - SETTLE for e in shown):
+        # As the page shows them now: renamed or moved meanwhile, by their current
+        # name and stage; taken down, left out (section 14).
+        shown = {e.item_id: visible[e.item_id] for e in files if e.item_id in visible}
+        if any(item.modified_at > now - SETTLE for _position, item in shown.values()):
             raise Wait
         titles = {
             s.position: f"{s.position:02d} {await _title(db, s, locale)}"
@@ -233,8 +243,9 @@ async def lines_for(
             )
         }
         by_stage: dict[int, list[str]] = {}
-        for event in shown:
-            by_stage.setdefault(event.stage_position or 0, []).append(event.title or "")
+        for position, item in shown.values():
+            name = f"{item.name}.pdf" if item.is_native else item.name  # as the page names it
+            by_stage.setdefault(position, []).append(name)
         for position in sorted(by_stage):
             names = by_stage[position]
             listed = ", ".join(names[:FILES_LISTED])
@@ -244,9 +255,16 @@ async def lines_for(
             lines.append(t(locale, "files", count=len(names), stage=stage, names=listed))
     # Progress as it is now: an advance taken back, or a completion reopened,
     # within the quiet period is no news (section 14).
-    advanced = [e for e in events if e.kind is EventKind.STAGE_ADVANCED]
-    if advanced and (project.current_position or 0) >= (advanced[-1].stage_position or 0):
-        last = advanced[-1]
+    # The latest advance that still holds: 1 → 2 → 3, then back to 2, is still news
+    # of stage 2.
+    current = project.current_position or 0
+    holding = [
+        e
+        for e in events
+        if e.kind is EventKind.STAGE_ADVANCED and (e.stage_position or 0) <= current
+    ]
+    if holding:
+        last = max(holding, key=lambda e: e.stage_position or 0)
         lines.append(t(locale, "stageAdvanced", stage=f"{last.stage_position:02d} {last.title}"))
     if project.status is ProjectStatus.COMPLETED and any(
         e.kind is EventKind.PROJECT_COMPLETED for e in events
@@ -367,14 +385,14 @@ async def deliver(
     )
     link = f"{office.base}/{slug}"
     done = {
-        d.recipient_id: d
+        d.email: d
         for d in await db.scalars(
             select(NotificationDelivery).where(NotificationDelivery.batch_id == batch.id)
         )
     }
     sent, pending = 0, False
     for recipient in recipients:
-        delivery = done.get(recipient.id)
+        delivery = done.get(recipient.email)
         if delivery is not None and (
             delivery.status is DeliveryStatus.SENT or delivery.attempts >= MAX_ATTEMPTS
         ):
@@ -382,7 +400,7 @@ async def deliver(
         if delivery is None:
             delivery = NotificationDelivery(
                 batch_id=batch.id,
-                recipient_id=recipient.id,
+                email=recipient.email,
                 status=DeliveryStatus.FAILED,
                 attempts=0,
             )
@@ -401,7 +419,8 @@ async def deliver(
                     html=html,
                     text=text,
                     reply_to=office.reply_to,
-                    idempotency_key=f"batch-{batch.id}-{recipient.id}",
+                    # The address hashed: Resend keeps keys in its logs.
+                    idempotency_key=f"batch-{batch.id}-{_hashed(recipient.email)}",
                     # Gmail's and Outlook's own "unsubscribe" button (RFC 8058).
                     headers={
                         "List-Unsubscribe": f"<{unsubscribe}>",

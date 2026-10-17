@@ -98,7 +98,7 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
                 project,
                 EventKind.FILE_PUBLISHED,
                 stage_position=position,
-                item_id=item.id,
+                item_id=item.identity,  # what the email finds it by, renamed or not
                 title=name,
             )
     values: dict = {"files_scanned_at": project.files_scanned_at or now}

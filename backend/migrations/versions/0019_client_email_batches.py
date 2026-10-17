@@ -3,9 +3,10 @@
 `notification_batches` gathers a project's changes into one email: at most one
 open per project, due 45 minutes after the last change or 2 hours after the
 first. `notification_deliveries` is that email to each address, sent once
-whatever the retries. `project_events.batch_id` says which email a change went
-into. The app reads, adds and updates these; it never deletes them. Changes
-recorded before this migration are marked as already handled: never emailed.
+whatever the retries; kept by address, so editing the recipients can't resend
+it. `project_events.batch_id` says which email a change went into. The app
+reads, adds and updates these; it never deletes them. Changes recorded before
+this migration are marked as already handled: never emailed.
 
 Revision: 0019
 Previous: 0018
@@ -106,7 +107,7 @@ def upgrade() -> None:
     op.create_table(
         "notification_deliveries",
         sa.Column("batch_id", sa.Uuid(), nullable=False),
-        sa.Column("recipient_id", sa.Uuid(), nullable=False),
+        sa.Column("email", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False),
         sa.Column("provider_id", sa.Text(), nullable=True),
         sa.Column("attempts", sa.Integer(), server_default=sa.text("0"), nullable=False),
@@ -125,12 +126,6 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
-            ["recipient_id"],
-            ["project_recipients.id"],
-            name=op.f("fk_notification_deliveries_recipient_id_project_recipients"),
-            ondelete="CASCADE",
-        ),
-        sa.ForeignKeyConstraint(
             ["tenant_id"],
             ["tenants.id"],
             name=op.f("fk_notification_deliveries_tenant_id_tenants"),
@@ -138,8 +133,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_notification_deliveries")),
         sa.UniqueConstraint(
             "batch_id",
-            "recipient_id",
-            name="uq_notification_deliveries_batch_id_recipient_id",
+            "email",
+            name="uq_notification_deliveries_batch_id_email",
         ),
     )
     op.create_index(

@@ -205,6 +205,35 @@ async def test_archiving_drops_a_waiting_email_for_good(app, db_session, outbox,
     assert outbox.sent == []  # back from the archive, the old news stays unsent
 
 
+async def test_a_file_renamed_or_moved_meanwhile_shows_as_it_is_now(app, db_session, outbox, ready):
+    path = await new_file(app, outbox, ready, "Croqui v1.pdf", "02 - Conceito")
+    moved = ready / "01 - Briefing" / "Croqui final.pdf"
+    path.rename(moved)  # renamed, and into the first stage
+    age(moved)
+    await make_due(db_session)
+    await run(app, outbox)
+    text_ = outbox.sent[0].text
+    assert "1 arquivo novo em 01 " in text_ and "Croqui final.pdf" in text_
+    assert "Croqui v1.pdf" not in text_
+
+
+async def test_the_latest_advance_that_still_holds_is_news(
+    app, client, db_session, owner, outbox, ready
+):
+    """1 → 2 → 3, then back to 2: still news, of stage 2."""
+    from backend.tests.test_maintenance_scan import call
+
+    await db_session.execute(text(f"UPDATE projects SET current_position = 1 WHERE id = {CASA}"))
+    await call(client, owner, "POST", "/progress", action="advance")
+    await call(client, owner, "POST", "/progress", action="advance")
+    await call(client, owner, "POST", "/progress", action="back")
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    lines = [line for line in outbox.sent[0].text.splitlines() if "etapa" in line]
+    assert len(lines) == 1 and "avançou para a etapa 02 " in lines[0]
+
+
 # -- who gets it ----------------------------------------------------------------------
 
 
@@ -362,6 +391,25 @@ async def test_a_failed_send_is_retried_and_nothing_goes_twice(
     assert await batches(db_session) == [("sent",)]
     keys = [e.idempotency_key for e in outbox.sent]
     assert len(set(keys)) == 2  # one key per address
+
+
+async def test_removing_and_adding_back_an_address_sends_nothing_twice(
+    app, client, db_session, owner, outbox, ready, monkeypatch
+):
+    """Kept by address: the retry of a half-sent email skips who already got it."""
+    from backend.tests.test_project_settings import change, project
+
+    as_production(monkeypatch)
+    await new_file(app, outbox, ready)
+    await make_due(db_session)
+    outbox.fail = 1  # the first address (staff) fails, the client's goes
+    await run(app, outbox)
+    assert [e.to for e in outbox.sent] == [CLIENT]
+    found = await project(client)
+    removed = (await change(client, owner, found, recipients=[STAFF])).json()
+    await change(client, owner, removed, recipients=[STAFF, CLIENT])  # back again
+    await run(app, outbox)
+    assert [e.to for e in outbox.sent] == [CLIENT, STAFF]  # not the client twice
 
 
 # -- unsubscribing --------------------------------------------------------------------
