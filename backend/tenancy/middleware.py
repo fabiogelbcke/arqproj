@@ -17,7 +17,8 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend.tenancy.resolve import resolve
 
-EXEMPT_PATHS = frozenset({"/health", "/api/docs", "/api/openapi.json"})
+# The maintenance pass is every office's: called by the scheduler, never a page.
+EXEMPT_PATHS = frozenset({"/health", "/api/docs", "/api/openapi.json", "/internal/maintenance"})
 # The staff app's built files are the same for every tenant: no lookup per file.
 EXEMPT_PREFIXES = ("/painel/assets/",)
 # Google's shared return address is no office's: let it through without a tenant

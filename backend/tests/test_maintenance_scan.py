@@ -240,3 +240,55 @@ async def test_a_drafts_changes_are_not_recorded(client, db_session, owner, fold
     await call(client, owner, "POST", "/progress", action="advance")
     await call(client, owner, "PUT", "/stages/2/notes", notes="Rascunho.")
     assert await events(db_session) == []
+
+
+async def test_a_pass_out_of_time_leaves_the_rest_for_the_next(app, db_session, owner, folders):
+    """Bounded work (section 4): no project starts after the budget; none is lost."""
+    report = await run_maintenance(app.state.sessionmaker, app.state.settings, None, budget=0)
+    assert (report.projects, report.unfinished) == (0, 4)  # the seed's 4 published projects
+    assert await casa(db_session, "files_scanned_at") is None
+    report = await run(app)
+    assert report.unfinished == 0
+    assert await casa(db_session, "files_scanned_at") is not None
+
+
+async def test_each_pass_records_when_it_last_ran_to_the_end(app, db_session, owner, folders):
+    """Plan section 4: a stopped scheduler must show."""
+    await run_maintenance(app.state.sessionmaker, app.state.settings, None, budget=0)
+    row = (
+        await db_session.execute(
+            text("SELECT last_run_at, last_success_at, last_report FROM maintenance_runs")
+        )
+    ).one()
+    assert row.last_run_at is not None and row.last_success_at is None  # out of time
+    assert row.last_report["unfinished"] == 4
+    await run(app)  # the seed's other projects have no folders on disk: they fail
+    failed = (
+        await db_session.execute(text("SELECT last_success_at FROM maintenance_runs"))
+    ).scalar()
+    assert failed is None
+    await db_session.execute(
+        text("UPDATE projects SET folder_id = NULL WHERE name <> 'Casa Jardim'")
+    )
+    await run(app)
+    assert (await db_session.execute(text("SELECT last_success_at FROM maintenance_runs"))).scalar()
+
+
+async def test_a_pass_that_skipped_busy_projects_is_not_a_success(app, db_session, owner, folders):
+    await db_session.execute(
+        text("UPDATE projects SET folder_id = NULL WHERE name <> 'Casa Jardim'")
+    )
+    other = create_async_engine(TEST_DATABASE_URL)
+    try:
+        async with other.connect() as holder, holder.begin():
+            project = await db_session.scalar(text(f"SELECT {CASA}"))
+            await holder.execute(
+                text("SELECT pg_advisory_xact_lock(:key, hashtext(:project))"),
+                {"key": MAINTENANCE_LOCK, "project": str(project)},
+            )
+            assert (await run(app)).busy == 1
+    finally:
+        await other.dispose()
+    assert (
+        await db_session.execute(text("SELECT last_success_at FROM maintenance_runs"))
+    ).scalar() is None

@@ -18,10 +18,13 @@ whole pass.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+import random
+import time
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import select, text, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.db.isolation import scope_to_tenant
@@ -30,6 +33,7 @@ from backend.notifications.email import EmailSender
 from backend.notifications.events import CLIENT_VISIBLE, record
 from backend.notifications.models import (
     EventKind,
+    MaintenanceRun,
     NotificationBatch,
     ProjectFileSeen,
 )
@@ -52,6 +56,7 @@ class Report:
     failed: int = 0  # projects whose folders couldn't be read: logged, tried next pass
     busy: int = 0  # being scanned by another pass just then
     emails: int = 0
+    unfinished: int = 0  # not reached before the time budget ran out: the next pass
 
 
 class Busy(Exception):
@@ -135,7 +140,9 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
     await db.commit()
 
 
-async def _scan_office(sessionmaker, settings, google, sender, tenant_id, report: Report) -> None:
+async def _scan_office(
+    sessionmaker, settings, google, sender, tenant_id, report: Report, deadline: float
+) -> None:
     async with sessionmaker() as db:
         scope_to_tenant(db.sync_session, tenant_id)
         # Published projects, and any with an email waiting (to drop it if the
@@ -153,7 +160,11 @@ async def _scan_office(sessionmaker, settings, google, sender, tenant_id, report
         )
         office = await digest.office_of(db, settings, tenant_id) if project_ids else None
     report.offices += 1
-    for project_id in project_ids:
+    random.shuffle(project_ids)  # if passes keep running out of time, not always the same last
+    for index, project_id in enumerate(project_ids):
+        if time.monotonic() >= deadline:
+            report.unfinished += len(project_ids) - index
+            return
         report.projects += 1
         # Its own session: a project that fails leaves the others' work alone.
         async with sessionmaker() as db:
@@ -187,15 +198,39 @@ async def run_maintenance(
     settings,
     google,
     sender: EmailSender | None = None,
+    budget: float | None = None,
 ) -> Report:
     """One pass over every active office: new files, then the emails that are due
-    (none without a `sender`)."""
+    (none without a `sender`). With a `budget` in seconds, no new project starts
+    after it: each project's work is saved as it finishes, and the rest is the
+    next pass's (section 4: bounded work)."""
     async with sessionmaker() as db:
         offices = list(
             await db.scalars(select(Tenant.id).where(Tenant.status == TenantStatus.ACTIVE))
         )
     report = Report()
+    deadline = time.monotonic() + budget if budget is not None else float("inf")
+    random.shuffle(offices)
     for tenant_id in offices:
-        await _scan_office(sessionmaker, settings, google, sender, tenant_id, report)
+        await _scan_office(sessionmaker, settings, google, sender, tenant_id, report, deadline)
     log.info("maintenance: %s", report)
+    await _record(sessionmaker, report)
     return report
+
+
+async def _record(sessionmaker, report: Report) -> None:
+    """When it ran, and when it last ran to the end (plan section 4)."""
+    now = datetime.now(UTC)
+    # Every project done by this pass: none left, failed, or held by another pass.
+    complete = not (report.unfinished or report.failed or report.busy)
+    values = {"last_run_at": now, "last_report": asdict(report)}
+    async with sessionmaker() as db:
+        await db.execute(
+            insert(MaintenanceRun)
+            .values(id=1, last_success_at=now if complete else None, **values)
+            .on_conflict_do_update(
+                index_elements=[MaintenanceRun.id],
+                set_=values | ({"last_success_at": now} if complete else {}),
+            )
+        )
+        await db.commit()
