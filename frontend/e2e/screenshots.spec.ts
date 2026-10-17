@@ -41,7 +41,7 @@ async function shoot(page: Page, name: string, theme: "light" | "dark" = "light"
   }
 }
 
-test("@screenshots staff app", async ({ page }) => {
+test("@screenshots staff app", async ({ page, browser }) => {
   await page.emulateMedia({ reducedMotion: "reduce" }); // no half-faded dialogs
   mkdirSync(OUT, { recursive: true });
   await page.goto("/painel/entrar");
@@ -103,4 +103,19 @@ test("@screenshots staff app", async ({ page }) => {
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar reunião" }).click();
   await shoot(page, "06b-pagina-editando");
+
+  // A note to the client is news for "Atualizações" (A28): seen as a visitor.
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await page.locator("#stage-2").getByRole("button", { name: "Recado para o cliente" }).click();
+  await page.getByLabel("Recado da etapa").fill("As plantas da sala estão prontas para a sua revisão.");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await page.getByText("As plantas da sala estão prontas para a sua revisão.").waitFor();
+  const visitor = await browser.newPage();
+  await visitor.emulateMedia({ reducedMotion: "reduce" });
+  await visitor.goto("/casa-jardim");
+  await visitor.getByLabel(/Últimas atualizações, 1 não lida/).click();
+  await visitor.getByRole("region", { name: "Últimas atualizações" }).waitFor();
+  await shoot(visitor, "06c-atualizacoes");
+  await visitor.close();
 });

@@ -2696,6 +2696,20 @@
         ],
         "title": "ErrorOut"
       },
+      "EventKind": {
+        "type": "string",
+        "enum": [
+          "file_published",
+          "stage_advanced",
+          "project_completed",
+          "meeting_scheduled",
+          "meeting_changed",
+          "meeting_cleared",
+          "note_changed"
+        ],
+        "title": "EventKind",
+        "description": "What a client can notice on the page (A28). All but a note email (A32)."
+      },
       "FileOut": {
         "properties": {
           "key": {
@@ -3177,6 +3191,14 @@
               }
             ],
             "title": "Reference"
+          },
+          "updates": {
+            "items": {
+              "$ref": "#/components/schemas/UpdateOut"
+            },
+            "type": "array",
+            "title": "Updates",
+            "default": []
           }
         },
         "type": "object",
@@ -3834,6 +3856,54 @@
           "password"
         ],
         "title": "UnlockIn"
+      },
+      "UpdateOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EventKind"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          },
+          "stage_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage Position"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "occurred_at",
+          "stage_position"
+        ],
+        "title": "UpdateOut",
+        "description": "One entry of the page's \"Atualizações\" (A28), newest first. The page words\nit from what it shows now (the stage's title and note, the meeting)."
       },
       "UploadFailedIn": {
         "properties": {

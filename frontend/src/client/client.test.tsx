@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fakeApi, TENANT } from "../test/render";
 import { ClientApp, slugFromPath } from "./ClientApp";
 import { detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
+import { entriesFor } from "./Updates";
 
 const PAGE: Page = {
   office: { name: "Alinea", logo_url: null },
@@ -579,5 +580,77 @@ describe("formatting", () => {
       { kind: "p", text: "Residência no alto." },
       { kind: "ul", items: ["Concreto aparente", "Brises de madeira"] },
     ]);
+  });
+});
+
+
+describe("Atualizações (A28)", () => {
+  const update = (id: string, kind: string, stage: number | null, name: string | null = null, at = "2026-10-15T12:00:00Z") => ({
+    id,
+    kind,
+    occurred_at: at,
+    stage_position: stage,
+    name,
+  }) as never;
+  const t = (key: string) => key;
+
+  it("words each change as the page shows it now", () => {
+    const entries = entriesFor(
+      PAGE,
+      [
+        update("1", "file_published", 2, "Planta.pdf"),
+        update("2", "note_changed", 2), // stage 2's note: "Medidas conferidas."
+        update("3", "note_changed", 2), // an older note of the same stage: once
+        update("4", "meeting_changed", null),
+        update("5", "meeting_scheduled", null), // older meeting news: once
+        update("6", "stage_advanced", 3), // stage 3 isn't reached (current is 2): left out
+        update("7", "stage_advanced", 2),
+        update("8", "project_completed", null), // not completed now: left out
+        update("9", "note_changed", 1), // stage 1 has no note now: left out
+      ],
+      t,
+      "pt-BR",
+    );
+    expect(entries.map((e) => [e.title, e.context, e.target])).toEqual([
+      ["Planta.pdf", "02 Levantamento", 1],
+      ["updates.note", "Medidas conferidas.", 1],
+      ["updates.meetingChanged", expect.stringContaining("Apresentação"), "meeting"],
+      ["updates.advanced", "02 Levantamento", 1],
+    ]);
+  });
+
+  it("says a meeting was cancelled when there is none now", () => {
+    const entries = entriesFor({ ...PAGE, next_meeting: null }, [update("1", "meeting_cleared", null, "Visita")], t, "pt-BR");
+    expect(entries.map((e) => [e.title, e.context, e.target])).toEqual([["updates.meetingCancelled", "Visita", null]]);
+  });
+
+  it("shows how many are unread, opens a stage, and remembers what was read", async () => {
+    localStorage.clear();
+    const files = {
+      stages: [],
+      updates: [update("u1", "file_published", 1, "Briefing.pdf"), update("u2", "note_changed", 2)],
+    };
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: files }),
+    });
+    const bell = await screen.findByLabelText("Últimas atualizações, 2 não lidas");
+    await userEvent.click(bell);
+    const panel = screen.getByRole("region", { name: "Últimas atualizações" });
+    await userEvent.click(within(panel).getAllByRole("button", { name: /Ver etapa/ })[0]!);
+    expect(screen.getByRole("button", { name: "Etapa aberta: Briefing" })).toBeInTheDocument(); // stage 1 now open
+    await userEvent.click(bell);
+    await userEvent.click(within(panel).getByRole("button", { name: "Marcar todas como lidas" }));
+    expect(screen.getByLabelText("Últimas atualizações, nenhuma não lida")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("updates-read:casa-jardim")!)).toEqual(["u1", "u2"]);
+  });
+
+  it("says when there is nothing yet", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
+    });
+    await userEvent.click(await screen.findByLabelText("Últimas atualizações, nenhuma não lida"));
+    expect(screen.getByText(/Ainda não há atualizações/)).toBeInTheDocument();
   });
 });

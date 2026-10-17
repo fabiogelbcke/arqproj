@@ -27,7 +27,8 @@ import html
 import json
 import logging
 import time
-from datetime import datetime
+import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 
@@ -38,6 +39,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.notifications.models import EventKind, ProjectEvent
 from backend.projects.enums import AccessMode
 from backend.projects.models import Project, ProjectStage
 from backend.security import keys
@@ -88,10 +90,24 @@ class StageFilesOut(BaseModel):
     unavailable: bool = False  # Drive couldn't be read just now
 
 
+class UpdateOut(BaseModel):
+    """One entry of the page's "Atualizações" (A28), newest first. The page words
+    it from what it shows now (the stage's title and note, the meeting)."""
+
+    id: uuid.UUID  # what the visitor's browser remembers as read
+    kind: EventKind
+    occurred_at: datetime
+    stage_position: int | None  # a file's: the stage it is in now
+    # A file's name as the page shows it now; a cancelled meeting's title.
+    name: str | None = None
+
+
 class PageFilesOut(BaseModel):
     stages: list[StageFilesOut]
     # The support code, when a stage couldn't be read (its detail is in the log).
     reference: str | None = None
+    # The latest client-visible changes (A28): files only while the page shows them.
+    updates: list[UpdateOut] = []
 
 
 def _hidden(item: StorageItem) -> bool:
@@ -227,6 +243,7 @@ async def page_files(
         )
     )
     stages = []
+    visible: dict[str, tuple[int, str]] = {}  # each file shown: its stage and name
     in_project: set[str] | None = None
     if storage is not None and any(folders):
         try:
@@ -261,6 +278,9 @@ async def page_files(
             continue
         try:
             for group, parent, files in await stage_groups(storage, folder):
+                for item in files:
+                    name = f"{item.name}.pdf" if item.is_native else item.name
+                    visible.setdefault(item.identity, (position, name))
                 shown.groups.append(
                     GroupOut(
                         folder=group,
@@ -281,7 +301,53 @@ async def page_files(
             shown.groups = []
         stages.append(shown)
     unavailable = any(stage.unavailable for stage in stages)
-    return PageFilesOut(stages=stages, reference=current_request_id() if unavailable else None)
+    return PageFilesOut(
+        stages=stages,
+        reference=current_request_id() if unavailable else None,
+        updates=await _updates(db, project, visible),
+    )
+
+
+UPDATES_SHOWN = 30
+UPDATES_DAYS = 180
+
+
+async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[UpdateOut]:
+    """The latest changes the client can see now. A file appears only while the
+    page shows it, under its current name and stage; one taken down, or in a stage
+    that couldn't be read just now, is left out."""
+    since = datetime.now(UTC) - timedelta(days=UPDATES_DAYS)
+    events = await db.scalars(
+        select(ProjectEvent)
+        .where(ProjectEvent.project_id == project.id, ProjectEvent.occurred_at >= since)
+        .order_by(ProjectEvent.occurred_at.desc())
+        .limit(UPDATES_SHOWN * 3)
+    )
+    updates = []
+    for event in events:
+        if event.kind is EventKind.FILE_PUBLISHED:
+            if event.item_id not in visible:
+                continue
+            position, name = visible[event.item_id]
+            update = UpdateOut(
+                id=event.id,
+                kind=event.kind,
+                occurred_at=event.occurred_at,
+                stage_position=position,
+                name=name,
+            )
+        else:
+            update = UpdateOut(
+                id=event.id,
+                kind=event.kind,
+                occurred_at=event.occurred_at,
+                stage_position=event.stage_position,
+                name=event.title if event.kind is EventKind.MEETING_CLEARED else None,
+            )
+        updates.append(update)
+        if len(updates) == UPDATES_SHOWN:
+            break
+    return updates
 
 
 async def _item(request: Request, db: AsyncSession, project: Project, key: str):

@@ -684,6 +684,12 @@ export interface components {
             /** Conflict Name */
             conflict_name?: string | null;
         };
+        /**
+         * EventKind
+         * @description What a client can notice on the page (A28). All but a note email (A32).
+         * @enum {string}
+         */
+        EventKind: "file_published" | "stage_advanced" | "project_completed" | "meeting_scheduled" | "meeting_changed" | "meeting_cleared" | "note_changed";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -861,6 +867,11 @@ export interface components {
             stages: components["schemas"]["StageFilesOut"][];
             /** Reference */
             reference?: string | null;
+            /**
+             * Updates
+             * @default []
+             */
+            updates: components["schemas"]["UpdateOut"][];
         };
         /** PageOut */
         PageOut: {
@@ -1076,6 +1087,28 @@ export interface components {
         UnlockIn: {
             /** Password */
             password: string;
+        };
+        /**
+         * UpdateOut
+         * @description One entry of the page's "Atualizações" (A28), newest first. The page words
+         *     it from what it shows now (the stage's title and note, the meeting).
+         */
+        UpdateOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["EventKind"];
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Stage Position */
+            stage_position: number | null;
+            /** Name */
+            name?: string | null;
         };
         /** UploadFailedIn */
         UploadFailedIn: {

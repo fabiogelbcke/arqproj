@@ -410,5 +410,24 @@
       "unsubscribeConfirm": "Stop the emails",
       "unsubscribed": "Done. {{email}} will no longer get news on the {{project}} project.",
       "unsubscribeInvalid": "This link no longer works. If you still get emails you don't want, contact the office."
+  },
+  "updates": {
+      "label": "Updates",
+      "title": "Latest updates",
+      "unread_one": "Latest updates, {{count}} unread",
+      "unread_other": "Latest updates, {{count}} unread",
+      "noneUnread": "Latest updates, none unread",
+      "close": "Close updates",
+      "markRead": "Mark all as read",
+      "allRead": "All read",
+      "empty": "No updates yet. New files, notes and meetings will show here.",
+      "seeStage": "See stage",
+      "seeMeeting": "See meeting",
+      "note": "Note from the office",
+      "advanced": "The project moved on to a new stage",
+      "completed": "Project completed",
+      "meetingScheduled": "Meeting scheduled",
+      "meetingChanged": "Meeting changed",
+      "meetingCancelled": "Meeting cancelled"
   }
 }
