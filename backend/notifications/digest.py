@@ -312,7 +312,11 @@ async def lines_for(
                     ),
                 )
             )
-        elif cleared := [e for e in meetings if e.kind is EventKind.MEETING_CLEARED]:
+        elif (cleared := [e for e in meetings if e.kind is EventKind.MEETING_CLEARED]) and not any(
+            e.kind is EventKind.MEETING_SCHEDULED for e in meetings
+        ):
+            # Only a meeting the client heard of: one scheduled and cancelled within
+            # this quiet period was never news (section 14).
             lines.append(t(locale, "meetingCleared", title=cleared[-1].title))
     return lines
 
@@ -372,8 +376,8 @@ async def deliver(
     batch: NotificationBatch,
     now: datetime,
 ) -> int:
-    """Send a due batch; how many emails went. A batch with a failure stays open,
-    to be retried by the next pass."""
+    """Send a due batch; how many emails went. A batch with a failure stays
+    `sending`, retried by the next pass for the addresses it started with."""
     if project.status not in CLIENT_VISIBLE or project.deleted_at is not None:
         batch.state, batch.closed_at = BatchState.DROPPED, now
         return 0
@@ -385,51 +389,50 @@ async def deliver(
         )
     )
     lines = await lines_for(db, storage, project, events, office, now)  # may raise Wait
-    recipients = [
-        r
+    # Who may get it now: subscribed, and outside production staff only (section 14).
+    allowed = {
+        r.email
         for r in await db.scalars(
-            select(ProjectRecipient)
-            .where(
+            select(ProjectRecipient).where(
                 ProjectRecipient.project_id == project.id,
                 ProjectRecipient.status == RecipientStatus.SUBSCRIBED,
             )
-            .order_by(ProjectRecipient.created_at)
         )
-        # Outside production, never a client (section 14).
         if not settings.email_staff_only or r.email in office.staff
-    ]
-    if not lines or not recipients:
+    }
+    if batch.state is BatchState.OPEN:
+        if not lines or not allowed:
+            batch.state, batch.closed_at = BatchState.DROPPED, now
+            return 0
+        # Going out: frozen from now on. Later changes start a new batch, and its
+        # addresses are fixed: one added later never gets this old news.
+        batch.state = BatchState.SENDING
+        for email in sorted(allowed):
+            db.add(
+                NotificationDelivery(batch_id=batch.id, email=email, status=DeliveryStatus.PENDING)
+            )
+        await db.flush()
+    elif not lines:
         batch.state, batch.closed_at = BatchState.DROPPED, now
         return 0
-    # Going out: frozen from now on, so later changes start a new batch even if
-    # an address fails and this one is retried.
-    batch.state = BatchState.SENDING
     slug = await db.scalar(
         select(ProjectSlug.slug).where(ProjectSlug.project_id == project.id, ProjectSlug.is_current)
     )
     link = f"{office.base}/{slug}"
-    done = {
-        d.email: d
-        for d in await db.scalars(
-            select(NotificationDelivery).where(NotificationDelivery.batch_id == batch.id)
+    deliveries = list(
+        await db.scalars(
+            select(NotificationDelivery)
+            .where(NotificationDelivery.batch_id == batch.id)
+            .order_by(NotificationDelivery.email)
         )
-    }
+    )
     sent, pending = 0, False
-    for recipient in recipients:
-        delivery = done.get(recipient.email)
-        if delivery is not None and (
-            delivery.status is DeliveryStatus.SENT or delivery.attempts >= MAX_ATTEMPTS
-        ):
+    for delivery in deliveries:
+        if delivery.status is DeliveryStatus.SENT or delivery.attempts >= MAX_ATTEMPTS:
             continue
-        if delivery is None:
-            delivery = NotificationDelivery(
-                batch_id=batch.id,
-                email=recipient.email,
-                status=DeliveryStatus.FAILED,
-                attempts=0,
-            )
-            db.add(delivery)
-        token = unsubscribe_token(settings, project.id, recipient.email)
+        if delivery.email not in allowed:
+            continue  # unsubscribed (or removed) since it started: not sent
+        token = unsubscribe_token(settings, project.id, delivery.email)
         unsubscribe = f"{office.base}/api/emails/unsubscribe/{token}"
         html, text = render(office, project, link, lines, unsubscribe)
         delivery.attempts += 1
@@ -437,13 +440,13 @@ async def deliver(
             delivery.provider_id = await sender.send(
                 Email(
                     sender=office.sender,
-                    to=recipient.email,
+                    to=delivery.email,
                     subject=t(office.locale, "subject", project=project.name),
                     html=html,
                     text=text,
                     reply_to=office.reply_to,
                     # The address hashed: Resend keeps keys in its logs.
-                    idempotency_key=f"batch-{batch.id}-{_hashed(recipient.email)}",
+                    idempotency_key=f"batch-{batch.id}-{_hashed(delivery.email)}",
                     # Gmail's and Outlook's own "unsubscribe" button (RFC 8058).
                     headers={
                         "List-Unsubscribe": f"<{unsubscribe}>",
@@ -454,6 +457,7 @@ async def deliver(
             delivery.status = DeliveryStatus.SENT
             sent += 1
         except EmailError as error:
+            delivery.status = DeliveryStatus.FAILED
             # AGENTS.md: the detail in the log at ERROR, with office and operation.
             log.error(
                 "emails: sending batch %s of %s/%s failed (attempt %s): %s",

@@ -32,15 +32,15 @@ PDF = b"%PDF-1.4"
 
 
 class Outbox:
-    """A sender that keeps the emails; `fail` makes the next sends fail."""
+    """A sender that keeps the emails; the next send to an address in `fail` fails."""
 
     def __init__(self):
         self.sent: list[Email] = []
-        self.fail = 0
+        self.fail: set[str] = set()
 
     async def send(self, email: Email) -> str:
-        if self.fail:
-            self.fail -= 1
+        if email.to in self.fail:
+            self.fail.discard(email.to)
             raise EmailError("resend 503: busy")
         self.sent.append(email)
         return f"id-{len(self.sent)}"
@@ -370,6 +370,29 @@ async def test_several_meeting_changes_read_as_the_latest(
     ]
 
 
+async def test_a_meeting_scheduled_and_cancelled_meanwhile_is_not_news(
+    app, client, db_session, owner, outbox, ready
+):
+    from datetime import date, timedelta
+
+    from backend.tests.test_maintenance_scan import call
+
+    # Casa Jardim's seed meeting is cleared first, so the next one is new.
+    await call(client, owner, "DELETE", "/meeting")
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    cancelled = [e.text for e in outbox.sent]
+    assert any("foi cancelada" in t_ for t_ in cancelled)  # it was announced before: news
+    day = (date.today() + timedelta(days=5)).isoformat()
+    await call(client, owner, "PUT", "/meeting", title="Visita", day=day, start="10:00")
+    await call(client, owner, "DELETE", "/meeting")
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    assert len(outbox.sent) == len(cancelled)  # scheduled and cancelled: nothing to say
+
+
 # -- sending once ---------------------------------------------------------------------
 
 
@@ -379,7 +402,7 @@ async def test_a_failed_send_is_retried_and_nothing_goes_twice(
     as_production(monkeypatch)
     await new_file(app, outbox, ready)
     await make_due(db_session)
-    outbox.fail = 1  # the first address fails, the second goes
+    outbox.fail = {STAFF}  # the staff address fails once
     await run(app, outbox)
     assert [e.to for e in outbox.sent] == [CLIENT]
     assert await batches(db_session) == [("sending",)]  # kept for the retry, as it was
@@ -402,7 +425,7 @@ async def test_removing_and_adding_back_an_address_sends_nothing_twice(
     as_production(monkeypatch)
     await new_file(app, outbox, ready)
     await make_due(db_session)
-    outbox.fail = 1  # the first address (staff) fails, the client's goes
+    outbox.fail = {STAFF}  # the staff address fails once
     await run(app, outbox)
     assert [e.to for e in outbox.sent] == [CLIENT]
     found = await project(client)
@@ -419,7 +442,7 @@ async def test_a_half_sent_email_is_retried_as_it_was_and_new_changes_wait(
     as_production(monkeypatch)
     await new_file(app, outbox, ready, "Croqui.pdf")
     await make_due(db_session)
-    outbox.fail = 1  # the staff address fails
+    outbox.fail = {STAFF}  # the staff address fails once
     await run(app, outbox)  # the client gets Croqui
     path = ready / "02 - Conceito" / "Fachada.pdf"
     path.write_bytes(PDF)
@@ -432,6 +455,47 @@ async def test_a_half_sent_email_is_retried_as_it_was_and_new_changes_wait(
     await run(app, outbox)
     later = [e for e in outbox.sent if "Fachada.pdf" in e.text]
     assert sorted(e.to for e in later) == sorted([CLIENT, STAFF])  # both hear of it
+
+
+async def test_an_address_added_while_retrying_doesnt_get_the_old_news(
+    app, client, db_session, owner, outbox, ready, monkeypatch
+):
+    """The addresses are fixed when the email starts going out (section 14)."""
+    as_production(monkeypatch)
+    await new_file(app, outbox, ready)
+    await make_due(db_session)
+    outbox.fail = {STAFF}  # the staff address fails once
+    await run(app, outbox)
+    await add_recipients(db_session, "novo@exemplo.com.br")
+    await run(app, outbox)  # the retry
+    assert sorted(e.to for e in outbox.sent) == sorted([CLIENT, STAFF])
+
+
+async def test_the_database_refuses_linking_a_change_to_another_projects_email(
+    app, db_session, outbox, ready
+):
+    """Section 7: a link names the office and project too, so a mistake can't
+    attach one project's change to another's email."""
+    from sqlalchemy.exc import IntegrityError
+
+    await new_file(app, outbox, ready)
+    other = (
+        "(SELECT id FROM projects WHERE name = 'Refúgio da Mantiqueira' AND tenant_id = "
+        "(SELECT id FROM tenants WHERE slug = 'alinea'))"
+    )
+    await db_session.execute(
+        text(f"INSERT INTO project_events (tenant_id, project_id, kind) SELECT tenant_id, id, "
+             f"'project_completed' FROM projects WHERE id = {other}")
+    )  # fmt: skip
+    nested = await db_session.begin_nested()
+    with pytest.raises(IntegrityError):
+        await db_session.execute(
+            text(
+                f"UPDATE project_events SET batch_id = (SELECT id FROM notification_batches "
+                f"LIMIT 1) WHERE project_id = {other}"
+            )
+        )
+    await nested.rollback()
 
 
 # -- unsubscribing --------------------------------------------------------------------

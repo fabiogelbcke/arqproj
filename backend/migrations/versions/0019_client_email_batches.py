@@ -84,6 +84,12 @@ def upgrade() -> None:
             ["tenant_id"], ["tenants.id"], name=op.f("fk_notification_batches_tenant_id_tenants")
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_notification_batches")),
+        # What its events and deliveries reference: the office and project too
+        # (section 7: a mismatched link is refused by the database).
+        sa.UniqueConstraint("tenant_id", "id", name="uq_notification_batches_tenant_id_id"),
+        sa.UniqueConstraint(
+            "tenant_id", "project_id", "id", name="uq_notification_batches_tenant_id_project_id_id"
+        ),
     )
     op.create_index(
         op.f("ix_notification_batches_project_id"), "notification_batches", ["project_id"]
@@ -117,12 +123,13 @@ def upgrade() -> None:
             "tenant_id", sa.Uuid(), server_default=sa.text("current_tenant_id()"), nullable=False
         ),
         sa.CheckConstraint(
-            "status IN ('sent', 'failed')", name=op.f("ck_notification_deliveries_status_known")
+            "status IN ('pending', 'sent', 'failed')",
+            name=op.f("ck_notification_deliveries_status_known"),
         ),
         sa.ForeignKeyConstraint(
-            ["batch_id"],
-            ["notification_batches.id"],
-            name=op.f("fk_notification_deliveries_batch_id_notification_batches"),
+            ["tenant_id", "batch_id"],
+            ["notification_batches.tenant_id", "notification_batches.id"],
+            name="fk_notification_deliveries_batch",
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
@@ -151,12 +158,11 @@ def upgrade() -> None:
 
     op.add_column("project_events", sa.Column("batch_id", sa.Uuid(), nullable=True))
     op.create_foreign_key(
-        op.f("fk_project_events_batch_id_notification_batches"),
+        "fk_project_events_batch",
         "project_events",
         "notification_batches",
-        ["batch_id"],
-        ["id"],
-        ondelete="SET NULL",
+        ["tenant_id", "project_id", "batch_id"],
+        ["tenant_id", "project_id", "id"],
     )
     op.execute(
         "DO $$ BEGIN EXECUTE format("
@@ -186,11 +192,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        op.f("fk_project_events_batch_id_notification_batches"),
-        "project_events",
-        type_="foreignkey",
-    )
+    op.drop_constraint("fk_project_events_batch", "project_events", type_="foreignkey")
     op.drop_column("project_events", "batch_id")
     op.drop_table("notification_deliveries")
     op.drop_table("notification_batches")

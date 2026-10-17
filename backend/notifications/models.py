@@ -10,7 +10,7 @@ from enum import StrEnum
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
-    ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Text,
     UniqueConstraint,
@@ -77,6 +77,16 @@ class ProjectEvent(IdMixin, TenantOwned, Base):
         _project_fk("project_events"),
         enum_check("kind", EventKind),
         Index("ix_project_events_project_id_occurred_at", "project_id", "occurred_at"),
+        # Its email is the same office's and the same project's (section 7).
+        ForeignKeyConstraint(
+            ["tenant_id", "project_id", "batch_id"],
+            [
+                "notification_batches.tenant_id",
+                "notification_batches.project_id",
+                "notification_batches.id",
+            ],
+            name="fk_project_events_batch",
+        ),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column()
@@ -88,9 +98,7 @@ class ProjectEvent(IdMixin, TenantOwned, Base):
         DateTime(timezone=True), server_default=func.now()
     )
     # The email it went into; None until batched (a note never is: A32).
-    batch_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("notification_batches.id", ondelete="SET NULL")
-    )
+    batch_id: Mapped[uuid.UUID | None] = mapped_column()
 
 
 class ProjectFileSeen(IdMixin, TenantOwned, Base):
@@ -127,6 +135,11 @@ class NotificationBatch(IdMixin, TimestampsMixin, TenantOwned, Base):
     __table_args__ = (
         _project_fk("notification_batches"),
         enum_check("state", BatchState),
+        # What its events and deliveries reference: the office and project too.
+        UniqueConstraint("tenant_id", "id", name="uq_notification_batches_tenant_id_id"),
+        UniqueConstraint(
+            "tenant_id", "project_id", "id", name="uq_notification_batches_tenant_id_project_id_id"
+        ),
         # At most one batch gathering changes per project.
         Index(
             "uq_notification_batches_open_per_project",
@@ -144,6 +157,7 @@ class NotificationBatch(IdMixin, TimestampsMixin, TenantOwned, Base):
 
 
 class DeliveryStatus(StrEnum):
+    PENDING = "pending"  # to go: the addresses are fixed when the batch starts sending
     SENT = "sent"
     FAILED = "failed"  # tried again on the next pass, with the same idempotency key
 
@@ -157,11 +171,16 @@ class NotificationDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
     __table_args__ = (
         UniqueConstraint("batch_id", "email", name="uq_notification_deliveries_batch_id_email"),
         enum_check("status", DeliveryStatus),
+        # The same office's batch (section 7).
+        ForeignKeyConstraint(
+            ["tenant_id", "batch_id"],
+            ["notification_batches.tenant_id", "notification_batches.id"],
+            name="fk_notification_deliveries_batch",
+            ondelete="CASCADE",
+        ),
     )
 
-    batch_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("notification_batches.id", ondelete="CASCADE"), index=True
-    )
+    batch_id: Mapped[uuid.UUID] = mapped_column(index=True)
     email: Mapped[str] = mapped_column(Text)
     status: Mapped[DeliveryStatus] = mapped_column(TextEnum(DeliveryStatus))
     provider_id: Mapped[str | None] = mapped_column(Text)  # Resend's id for the email
