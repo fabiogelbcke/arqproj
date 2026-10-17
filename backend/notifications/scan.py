@@ -221,7 +221,8 @@ async def run_maintenance(
 async def _record(sessionmaker, report: Report) -> None:
     """When it ran, and when it last ran to the end (plan section 4)."""
     now = datetime.now(UTC)
-    complete = not report.unfinished and not report.failed
+    # Every project done by this pass: none left, failed, or held by another pass.
+    complete = not (report.unfinished or report.failed or report.busy)
     values = {"last_run_at": now, "last_report": asdict(report)}
     async with sessionmaker() as db:
         await db.execute(

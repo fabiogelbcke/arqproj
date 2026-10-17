@@ -272,3 +272,23 @@ async def test_each_pass_records_when_it_last_ran_to_the_end(app, db_session, ow
     )
     await run(app)
     assert (await db_session.execute(text("SELECT last_success_at FROM maintenance_runs"))).scalar()
+
+
+async def test_a_pass_that_skipped_busy_projects_is_not_a_success(app, db_session, owner, folders):
+    await db_session.execute(
+        text("UPDATE projects SET folder_id = NULL WHERE name <> 'Casa Jardim'")
+    )
+    other = create_async_engine(TEST_DATABASE_URL)
+    try:
+        async with other.connect() as holder, holder.begin():
+            project = await db_session.scalar(text(f"SELECT {CASA}"))
+            await holder.execute(
+                text("SELECT pg_advisory_xact_lock(:key, hashtext(:project))"),
+                {"key": MAINTENANCE_LOCK, "project": str(project)},
+            )
+            assert (await run(app)).busy == 1
+    finally:
+        await other.dispose()
+    assert (
+        await db_session.execute(text("SELECT last_success_at FROM maintenance_runs"))
+    ).scalar() is None
