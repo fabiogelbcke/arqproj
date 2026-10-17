@@ -21,6 +21,13 @@
 
 /* Files (2.5): the prototype's cards; subfolders as small titled groups. */
 .file__open { display: grid; grid-template-rows: auto 1fr; color: inherit; text-decoration: none; }
+/* In the list, the open button is the row's thumbnail and name together. */
+.client .files[data-view="list"] .file__open {
+  grid-column: 1 / 3;
+  grid-template-columns: 50px minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: center;
+}
 .file__thumb > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .file-group + .file-group { margin-top: 22px; }
 .file-group__title { margin: 18px 0 0; font: 500 11px/1.4 var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-muted, var(--muted)); }

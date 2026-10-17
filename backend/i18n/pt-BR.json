@@ -429,5 +429,32 @@
       "meetingScheduled": "Reunião marcada",
       "meetingChanged": "Reunião alterada",
       "meetingCancelled": "Reunião cancelada"
+    },
+  "files": {
+      "search": "Pesquisar arquivos",
+      "searchPlaceholder": "Pesquisar arquivos ou etapas",
+      "type": "Tipo",
+      "allTypes": "Todos os tipos",
+      "images": "Imagens",
+      "others": "Outros",
+      "sortBy": "Ordenar por",
+      "byUpdated": "Última atualização",
+      "byType": "Tipo de arquivo",
+      "byName": "Nome",
+      "view": "Visualização dos documentos",
+      "asList": "Visualizar em lista",
+      "list": "Lista",
+      "asGrid": "Visualizar miniaturas",
+      "grid": "Miniaturas",
+      "filterAndSort": "Filtrar e ordenar",
+      "found_one": "{{count}} arquivo encontrado",
+      "found_other": "{{count}} arquivos encontrados",
+      "close": "Fechar",
+      "pdfHint": "Documento PDF. Use “Abrir original” para ver o arquivo completo.",
+      "otherHint": "Abra o arquivo para vê-lo no aplicativo compatível.",
+      "save": "Salvar",
+      "openOriginal": "Abrir original",
+      "send": "Enviar",
+      "byEmail": "E-mail"
   }
 }
