@@ -255,7 +255,10 @@ export function FilePreview({
     // On a phone, the share sheet saves to Files or Photos; elsewhere a download.
     try {
       if (window.matchMedia?.("(pointer: coarse)").matches && navigator.canShare) {
-        const blob = await (await fetch(url)).blob();
+        const response = await fetch(url);
+        // Gone, moved or expired: the link below shows the page's own message.
+        if (!response.ok) throw new Error(`file ${response.status}`);
+        const blob = await response.blob();
         const shared = new File([blob], file.name, { type: blob.type || "application/octet-stream" });
         if (navigator.canShare({ files: [shared] })) {
           await navigator.share({ files: [shared], title: file.name });

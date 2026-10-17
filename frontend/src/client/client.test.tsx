@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { fakeApi, TENANT } from "../test/render";
 import { ClientApp, slugFromPath } from "./ClientApp";
@@ -649,6 +649,37 @@ describe("the page's file tools", () => {
     expect(screen.getByRole("region", { name: "Briefing" })).toBeVisible();
     expect(search).toHaveValue(""); // the search let go, so nothing stays hidden
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it("on a phone, never shares a file that's no longer there", async () => {
+    const share = vi.fn();
+    Object.assign(navigator, { canShare: () => true, share });
+    const matchMedia = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      media: query,
+      matches: query === "(pointer: coarse)", // a touch screen
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+    })) as never;
+    onTestFinished(() => {
+      window.matchMedia = matchMedia;
+      Object.assign(navigator, { canShare: undefined, share: undefined });
+    });
+    let status = 404; // removed, moved, or its address expired while the page stayed open
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+      "GET /api/pages/casa-jardim/files/d": () => ({ status, body: "não encontrado" }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Abrir Terreno.jpg" }));
+    const preview = screen.getByRole("dialog", { name: "Terreno.jpg" });
+    await userEvent.click(within(preview).getByRole("button", { name: "Salvar" }));
+    expect(share).not.toHaveBeenCalled(); // the page's own message shows instead
+    status = 200;
+    await userEvent.click(within(preview).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(share).toHaveBeenCalled());
   });
 
   it("switches to a list, and remembers it", async () => {
