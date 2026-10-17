@@ -240,3 +240,13 @@ async def test_a_drafts_changes_are_not_recorded(client, db_session, owner, fold
     await call(client, owner, "POST", "/progress", action="advance")
     await call(client, owner, "PUT", "/stages/2/notes", notes="Rascunho.")
     assert await events(db_session) == []
+
+
+async def test_a_pass_out_of_time_leaves_the_rest_for_the_next(app, db_session, owner, folders):
+    """Bounded work (section 4): no project starts after the budget; none is lost."""
+    report = await run_maintenance(app.state.sessionmaker, app.state.settings, None, budget=0)
+    assert (report.projects, report.unfinished) == (0, 4)  # the seed's 4 published projects
+    assert await casa(db_session, "files_scanned_at") is None
+    report = await run(app)
+    assert report.unfinished == 0
+    assert await casa(db_session, "files_scanned_at") is not None

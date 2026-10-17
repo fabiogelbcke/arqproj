@@ -28,6 +28,10 @@ from backend.notifications.scan import run_maintenance
 log = logging.getLogger(__name__)
 router = APIRouter(include_in_schema=False)
 
+# Cloud Run and the scheduler give a request 300 seconds: no new project starts
+# after 240, leaving a minute for the one under way (each Drive call may take 30).
+BUDGET_SECONDS = 240
+
 
 def _verify(token: str, audience: str) -> dict:
     """The token's claims, if Google signed it for `audience`; ValueError if not."""
@@ -58,5 +62,10 @@ async def maintenance(request: Request) -> Response:
         settings,
         getattr(request.app.state, "google", None),
         sender_for(settings, request.app.state.http),
+        budget=BUDGET_SECONDS,
     )
+    if report.unfinished:
+        log.warning(
+            "maintenance: out of time, %s projects left for the next pass", report.unfinished
+        )
     return JSONResponse(asdict(report))
