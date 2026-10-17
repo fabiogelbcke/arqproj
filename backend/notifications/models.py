@@ -112,6 +112,9 @@ class ProjectFileSeen(IdMixin, TenantOwned, Base):
 
 class BatchState(StrEnum):
     OPEN = "open"  # gathering changes until it is due (A12)
+    # Due, and going out: frozen, retried as it is until every address has it;
+    # newer changes gather in a new open batch.
+    SENDING = "sending"
     SENT = "sent"
     DROPPED = "dropped"  # nothing left to tell, or nobody to tell it to
 

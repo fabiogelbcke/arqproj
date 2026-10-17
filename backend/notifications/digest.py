@@ -74,16 +74,17 @@ def _hashed(email: str) -> str:
     return hashlib.sha256(email.encode()).hexdigest()[:24]
 
 
-def unsubscribe_token(settings: Settings, recipient_id: uuid.UUID) -> str:
-    """No expiry: an old email's link keeps working (section 14)."""
-    plain = json.dumps({"r": str(recipient_id)})
+def unsubscribe_token(settings: Settings, project_id: uuid.UUID, email: str) -> str:
+    """The project and the address, never a row: an old email's link keeps working
+    even if staff removed the address and added it back (section 14)."""
+    plain = json.dumps({"p": str(project_id), "e": email})
     return keys.encrypt(settings.app_secret, UNSUBSCRIBE_PURPOSE, plain)
 
 
-def recipient_of(settings: Settings, token: str) -> uuid.UUID | None:
+def unsubscribing(settings: Settings, token: str) -> tuple[uuid.UUID, str] | None:
     try:
         found = json.loads(keys.decrypt(settings.app_secret, UNSUBSCRIBE_PURPOSE, token))
-        return uuid.UUID(found["r"])
+        return uuid.UUID(found["p"]), str(found["e"])
     except (keys.BadToken, ValueError, KeyError, TypeError):
         return None
 
@@ -99,8 +100,28 @@ async def open_batch(db: AsyncSession, project: Project) -> NotificationBatch | 
     )
 
 
-async def drop_open(db: AsyncSession, project: Project) -> None:
-    if (batch := await open_batch(db, project)) is not None:
+UNSENT = (BatchState.OPEN, BatchState.SENDING)
+
+
+async def to_send(db: AsyncSession, project: Project, now: datetime) -> list[NotificationBatch]:
+    """Batches going out: any still sending (retried as they are), then the open
+    one if it has come due."""
+    batches = list(
+        await db.scalars(
+            select(NotificationBatch)
+            .where(NotificationBatch.project_id == project.id, NotificationBatch.state.in_(UNSENT))
+            .order_by(NotificationBatch.first_event_at)
+        )
+    )
+    return [b for b in batches if b.state is BatchState.SENDING or is_due(b, now)]
+
+
+async def drop_unsent(db: AsyncSession, project: Project) -> None:
+    for batch in await db.scalars(
+        select(NotificationBatch).where(
+            NotificationBatch.project_id == project.id, NotificationBatch.state.in_(UNSENT)
+        )
+    ):
         batch.state, batch.closed_at = BatchState.DROPPED, datetime.now(batch.first_event_at.tzinfo)
 
 
@@ -380,6 +401,9 @@ async def deliver(
     if not lines or not recipients:
         batch.state, batch.closed_at = BatchState.DROPPED, now
         return 0
+    # Going out: frozen from now on, so later changes start a new batch even if
+    # an address fails and this one is retried.
+    batch.state = BatchState.SENDING
     slug = await db.scalar(
         select(ProjectSlug.slug).where(ProjectSlug.project_id == project.id, ProjectSlug.is_current)
     )
@@ -405,9 +429,8 @@ async def deliver(
                 attempts=0,
             )
             db.add(delivery)
-        unsubscribe = (
-            f"{office.base}/api/emails/unsubscribe/{unsubscribe_token(settings, recipient.id)}"
-        )
+        token = unsubscribe_token(settings, project.id, recipient.email)
+        unsubscribe = f"{office.base}/api/emails/unsubscribe/{token}"
         html, text = render(office, project, link, lines, unsubscribe)
         delivery.attempts += 1
         try:

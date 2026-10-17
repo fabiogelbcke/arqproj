@@ -71,7 +71,7 @@ def upgrade() -> None:
             "tenant_id", sa.Uuid(), server_default=sa.text("current_tenant_id()"), nullable=False
         ),
         sa.CheckConstraint(
-            "state IN ('open', 'sent', 'dropped')",
+            "state IN ('open', 'sending', 'sent', 'dropped')",
             name=op.f("ck_notification_batches_state_known"),
         ),
         sa.ForeignKeyConstraint(

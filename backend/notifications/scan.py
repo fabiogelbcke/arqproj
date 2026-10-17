@@ -29,7 +29,6 @@ from backend.notifications import digest
 from backend.notifications.email import EmailSender
 from backend.notifications.events import CLIENT_VISIBLE, record
 from backend.notifications.models import (
-    BatchState,
     EventKind,
     NotificationBatch,
     ProjectFileSeen,
@@ -116,16 +115,15 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
     if project.status not in CLIENT_VISIBLE:
         # Archived (or back to draft) while an email waited: it is never sent,
         # even if the project comes back later (section 14).
-        await digest.drop_open(db, project)
+        await digest.drop_unsent(db, project)
         await db.commit()
         return
     if storage is not None and project.folder_id is not None:
         report.new_files += await scan_project(db, storage, project)
     now = datetime.now(UTC)
-    # A batch that came due since the last pass goes as it was: changes made
+    # Batches that came due, or are being retried, go as they were: changes made
     # after start the next one, with its own quiet period (section 14).
-    due = await digest.open_batch(db, project)
-    if sender is not None and due is not None and digest.is_due(due, now):
+    for due in await digest.to_send(db, project, now) if sender is not None else []:
         try:
             report.emails += await digest.deliver(
                 db, settings, sender, storage, office, project, due, now
@@ -143,7 +141,7 @@ async def _scan_office(sessionmaker, settings, google, sender, tenant_id, report
         # Published projects, and any with an email waiting (to drop it if the
         # project was archived meanwhile).
         waiting = select(NotificationBatch.project_id).where(
-            NotificationBatch.state == BatchState.OPEN
+            NotificationBatch.state.in_(digest.UNSENT)
         )
         project_ids = list(
             await db.scalars(

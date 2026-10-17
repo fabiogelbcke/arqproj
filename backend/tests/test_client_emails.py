@@ -382,7 +382,7 @@ async def test_a_failed_send_is_retried_and_nothing_goes_twice(
     outbox.fail = 1  # the first address fails, the second goes
     await run(app, outbox)
     assert [e.to for e in outbox.sent] == [CLIENT]
-    assert await batches(db_session) == [("open",)]  # kept for the retry
+    assert await batches(db_session) == [("sending",)]  # kept for the retry, as it was
     assert any(
         "sending batch" in r.getMessage() and "busy" in r.getMessage() for r in caplog.records
     )
@@ -410,6 +410,28 @@ async def test_removing_and_adding_back_an_address_sends_nothing_twice(
     await change(client, owner, removed, recipients=[STAFF, CLIENT])  # back again
     await run(app, outbox)
     assert [e.to for e in outbox.sent] == [CLIENT, STAFF]  # not the client twice
+
+
+async def test_a_half_sent_email_is_retried_as_it_was_and_new_changes_wait(
+    app, db_session, outbox, ready, monkeypatch
+):
+    """Who already got it isn't skipped for the news that came after."""
+    as_production(monkeypatch)
+    await new_file(app, outbox, ready, "Croqui.pdf")
+    await make_due(db_session)
+    outbox.fail = 1  # the staff address fails
+    await run(app, outbox)  # the client gets Croqui
+    path = ready / "02 - Conceito" / "Fachada.pdf"
+    path.write_bytes(PDF)
+    age(path)
+    await run(app, outbox)  # the retry, and Fachada found
+    retry = [e for e in outbox.sent if e.to == STAFF]
+    assert len(retry) == 1 and "Fachada.pdf" not in retry[0].text  # as it was
+    assert await batches(db_session) == [("sent",), ("open",)]  # Fachada waits its turn
+    await make_due(db_session)
+    await run(app, outbox)
+    later = [e for e in outbox.sent if "Fachada.pdf" in e.text]
+    assert sorted(e.to for e in later) == sorted([CLIENT, STAFF])  # both hear of it
 
 
 # -- unsubscribing --------------------------------------------------------------------
@@ -458,6 +480,34 @@ async def test_a_bad_or_another_offices_link_changes_nothing(
     assert (await client.post(path[:-5] + "AAAAA", headers=ALINEA)).status_code == 404
     assert (await client.post(path, headers=NORTE)).status_code == 404  # isolation
     assert await status(db_session) == "subscribed"
+
+
+async def test_an_old_link_still_works_after_the_address_was_removed_and_added_back(
+    app, client, db_session, owner, outbox, ready
+):
+    from backend.tests.test_project_settings import change, project
+
+    path = "/" + await unsubscribe_link(app, db_session, outbox, ready)
+    found = await project(client)
+    removed = (await change(client, owner, found, recipients=[CLIENT])).json()
+    await change(client, owner, removed, recipients=[CLIENT, STAFF])  # a new row
+    assert (await client.post(path, headers=ALINEA)).status_code == 200
+    assert await status(db_session) == "unsubscribed"
+
+
+async def test_unsubscribing_a_removed_address_keeps_it_off(
+    app, client, db_session, owner, outbox, ready
+):
+    """Removed by staff, then the client's link: kept as unsubscribed, so adding it
+    back can't override them."""
+    from backend.tests.test_project_settings import change, project
+
+    path = "/" + await unsubscribe_link(app, db_session, outbox, ready)
+    found = await project(client)
+    removed = (await change(client, owner, found, recipients=[CLIENT])).json()
+    assert (await client.post(path, headers=ALINEA)).status_code == 200
+    added = (await change(client, owner, removed, recipients=[CLIENT, STAFF])).json()
+    assert {r["email"]: r["subscribed"] for r in added["recipients"]}[STAFF] is False
 
 
 async def test_after_unsubscribing_nothing_more_is_sent(app, client, db_session, outbox, ready):

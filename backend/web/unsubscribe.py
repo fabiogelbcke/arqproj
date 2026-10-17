@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
-from backend.notifications.digest import recipient_of
+from backend.notifications.digest import unsubscribing
 from backend.notifications.models import ProjectRecipient, RecipientStatus
 from backend.notifications.texts import t
 from backend.projects.models import Project
@@ -50,18 +50,22 @@ def _page(tenant: CurrentTenant, title: str, body: str, status: int = 200) -> HT
     )
 
 
-async def _recipient(request: Request, token: str, db: AsyncSession):
-    """The address and its project, if the token names one of this office's."""
-    recipient_id = recipient_of(request.app.state.settings, token)
-    if recipient_id is None:
+async def _target(request: Request, token: str, db: AsyncSession):
+    """The project (of this office) and the address a token names, with the
+    address's row if it is still listed."""
+    found = unsubscribing(request.app.state.settings, token)
+    if found is None:
         return None
-    return (
-        await db.execute(
-            select(ProjectRecipient, Project.name)
-            .join(Project, Project.id == ProjectRecipient.project_id)
-            .where(ProjectRecipient.id == recipient_id)
+    project_id, email = found
+    project = await db.scalar(select(Project.name).where(Project.id == project_id))
+    if project is None:  # another office's, or gone
+        return None
+    recipient = await db.scalar(
+        select(ProjectRecipient).where(
+            ProjectRecipient.project_id == project_id, ProjectRecipient.email == email
         )
-    ).first()
+    )
+    return project_id, email, project, recipient
 
 
 def _invalid(tenant: CurrentTenant) -> HTMLResponse:
@@ -76,15 +80,15 @@ async def ask(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> HTMLResponse:
-    found = await _recipient(request, token, db)
+    found = await _target(request, token, db)
     if found is None:
         return _invalid(tenant)
-    recipient, project = found
+    _project_id, email, project, recipient = found
     title = t(tenant.locale, "unsubscribeTitle", project=project)
-    if recipient.status is RecipientStatus.UNSUBSCRIBED:
-        done = t(tenant.locale, "unsubscribed", email=recipient.email, project=project)
+    if recipient is not None and recipient.status is RecipientStatus.UNSUBSCRIBED:
+        done = t(tenant.locale, "unsubscribed", email=email, project=project)
         return _page(tenant, title, f"<p>{escape(done)}</p>")
-    ask_text = t(tenant.locale, "unsubscribeAsk", email=recipient.email, project=project)
+    ask_text = t(tenant.locale, "unsubscribeAsk", email=email, project=project)
     button = escape(t(tenant.locale, "unsubscribeConfirm"))
     return _page(
         tenant,
@@ -102,15 +106,24 @@ async def confirm(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> HTMLResponse:
-    found = await _recipient(request, token, db)
+    found = await _target(request, token, db)
     if found is None:
         return _invalid(tenant)
-    recipient, project = found
-    if recipient.status is not RecipientStatus.UNSUBSCRIBED:
+    project_id, email, project, recipient = found
+    if recipient is None:
+        # Removed by staff meanwhile: kept as unsubscribed, so adding it back
+        # can't override the client's choice.
+        db.add(
+            ProjectRecipient(
+                project_id=project_id, email=email, status=RecipientStatus.UNSUBSCRIBED
+            )
+        )
+        await db.commit()
+    elif recipient.status is not RecipientStatus.UNSUBSCRIBED:
         recipient.status = RecipientStatus.UNSUBSCRIBED
         await db.commit()
-        log.info("emails: %s unsubscribed from project %s", recipient.id, recipient.project_id)
-    done = t(tenant.locale, "unsubscribed", email=recipient.email, project=project)
+    log.info("emails: an address unsubscribed from project %s", project_id)
+    done = t(tenant.locale, "unsubscribed", email=email, project=project)
     return _page(
         tenant, t(tenant.locale, "unsubscribeTitle", project=project), f"<p>{escape(done)}</p>"
     )
