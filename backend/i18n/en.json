@@ -410,5 +410,32 @@
       "unsubscribeConfirm": "Stop the emails",
       "unsubscribed": "Done. {{email}} will no longer get news on the {{project}} project.",
       "unsubscribeInvalid": "This link no longer works. If you still get emails you don't want, contact the office."
+  },
+  "files": {
+      "search": "Search files",
+      "searchPlaceholder": "Search files or stages",
+      "type": "Type",
+      "allTypes": "All types",
+      "images": "Images",
+      "others": "Others",
+      "sortBy": "Sort by",
+      "byUpdated": "Last updated",
+      "byType": "File type",
+      "byName": "Name",
+      "view": "How documents are shown",
+      "asList": "Show as a list",
+      "list": "List",
+      "asGrid": "Show thumbnails",
+      "grid": "Thumbnails",
+      "filterAndSort": "Filter and sort",
+      "found_one": "{{count}} file found",
+      "found_other": "{{count}} files found",
+      "close": "Close",
+      "pdfHint": "PDF document. Use “Open original” to see the whole file.",
+      "otherHint": "Open the file to view it in a suitable app.",
+      "save": "Save",
+      "openOriginal": "Open original",
+      "send": "Send",
+      "byEmail": "Email"
   }
 }
