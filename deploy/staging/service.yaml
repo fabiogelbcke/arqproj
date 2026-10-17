@@ -45,6 +45,16 @@ spec:
               value: https://portal-staging-496714293251.us-east1.run.app/api/drive/callback
             - name: DRIVE_READER_IDENTITY
               value: portal-staging@arq-proj.iam.gserviceaccount.com
+            # Cloud Scheduler's call to /internal/maintenance (A09, A19): the token must
+            # be Google-signed for this service, from the scheduler's own account.
+            - name: MAINTENANCE_AUDIENCE
+              value: https://portal-staging-496714293251.us-east1.run.app
+            - name: MAINTENANCE_CALLER
+              value: portal-scheduler@arq-proj.iam.gserviceaccount.com
+            # Offices whose own domain is verified in Resend send from it (A32);
+            # staging emails only the office's staff accounts.
+            - name: EMAIL_OFFICE_DOMAINS
+              value: '{"alinea": "alineaarquitetos.com"}'
             # Secrets, read from Secret Manager by name; values never in the repo.
             - name: GOOGLE_OAUTH_CLIENT_SECRET
               valueFrom:

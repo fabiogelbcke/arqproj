@@ -459,7 +459,12 @@ window and 2-hour hold (A12), recipients in the Projeto dialog and unsubscribe
 
 Deferred: the office setting for the quiet period (A12). The pilot uses 45 minutes and 2 hours for everyone (A32, section 24).
 
-5.4: the `/internal/maintenance` endpoint and the Cloud Scheduler job.
+**5.4 as built:**
+- `POST /internal/maintenance` runs one pass.
+- It's exempt from the office lookup, since the scheduler calls the service's own `run.app` address.
+- It accepts only a Google-signed ID token whose audience is `MAINTENANCE_AUDIENCE` and whose verified email is `MAINTENANCE_CALLER`. Anything else is a 404.
+- Staging's Cloud Scheduler job `portal-staging-maintenance` calls it every 10 minutes as `portal-scheduler@`; README "Client emails locally" has the setup commands.
+- Staging sends from `alineaarquitetos.com` (`EMAIL_OFFICE_DOMAINS`), verified in Resend on 17 Oct 2026, and only to the office's staff.
 
 ### Slice 6: real Google login and live checks
 

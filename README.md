@@ -308,6 +308,27 @@ in time:
 psql -d arqproj_dev -c "UPDATE notification_batches SET first_event_at = first_event_at - interval '1 hour', last_event_at = last_event_at - interval '1 hour' WHERE state = 'open'"
 ```
 
+On staging, Cloud Scheduler runs the pass every 10 minutes by calling
+`POST /internal/maintenance` with a Google-signed token for its own service
+account. The app refuses any other caller (`backend/web/maintenance.py`). The
+one-time setup, done by the project owner since it changes Google Cloud:
+
+```bash
+gcloud services enable cloudscheduler.googleapis.com --project arq-proj
+gcloud iam service-accounts create portal-scheduler --project arq-proj \
+  --display-name "Calls the portal's maintenance pass"
+gcloud scheduler jobs create http portal-staging-maintenance --project arq-proj \
+  --location us-east1 --schedule "*/10 * * * *" --time-zone "America/Sao_Paulo" \
+  --uri https://portal-staging-496714293251.us-east1.run.app/internal/maintenance \
+  --http-method POST --attempt-deadline 300s \
+  --oidc-service-account-email portal-scheduler@arq-proj.iam.gserviceaccount.com \
+  --oidc-token-audience https://portal-staging-496714293251.us-east1.run.app
+```
+
+Its address and account match `MAINTENANCE_AUDIENCE` and `MAINTENANCE_CALLER` in
+`deploy/staging/service.yaml`. To run a pass at once: `gcloud scheduler jobs run
+portal-staging-maintenance --project arq-proj --location us-east1`.
+
 Staging reads its key from the secret `portal-staging-resend-api-key`.
 Production's is `portal-resend-api-key`. Until a domain is verified in Resend,
 emails come from Resend's test sender, which delivers only to the Resend

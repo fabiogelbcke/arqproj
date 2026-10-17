@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     email_office_domains: dict[str, str] = {}
     # Where links in locally written emails point (the dev server's port).
     local_site_port: int = 5173
+    # The scheduler's call to /internal/maintenance (A09, A19): the service's own
+    # URL as the token's audience, and the scheduler's service account. Unset
+    # (locally), that address doesn't exist; run backend.commands.maintenance.
+    maintenance_audience: str | None = None
+    maintenance_caller: str | None = None
 
     @field_validator("log_level")
     @classmethod
