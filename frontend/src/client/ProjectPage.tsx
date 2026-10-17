@@ -2,6 +2,7 @@
 // markup: its stylesheet (prototype.css) styles these same class names.
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
 import { Toaster, toast } from "../ui/Toast";
@@ -730,7 +731,14 @@ export function ProjectPage({
   }, [page.name, page.office.name]);
 
   const jump = (index: number) => {
-    setOpenStage(index);
+    // A stage hidden by the search or the type filter must show before it is reached.
+    flushSync(() => {
+      if (filtering) {
+        setQuery("");
+        setPrefs({ type: "all" });
+      }
+      setOpenStage(index);
+    });
     const section = document.getElementById(`stage-${index}`);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     section?.scrollIntoView({ behavior: reduce ? "instant" : "smooth", block: "start" });

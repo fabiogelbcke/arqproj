@@ -634,6 +634,23 @@ describe("the page's file tools", () => {
     expect(screen.queryByRole("region", { name: "Briefing" })).toBeNull(); // hidden
   });
 
+  it("a stage chosen in the timeline shows even when the search hid it", async () => {
+    localStorage.clear();
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    const search = await screen.findByLabelText("Pesquisar arquivos");
+    await userEvent.type(search, "baixa");
+    expect(screen.queryByRole("region", { name: "Briefing" })).toBeNull();
+    Element.prototype.scrollIntoView = vi.fn();
+    const timeline = screen.getByRole("list", { name: "Etapas" });
+    await userEvent.click(within(timeline).getByRole("button", { name: /Briefing/ }));
+    expect(screen.getByRole("region", { name: "Briefing" })).toBeVisible();
+    expect(search).toHaveValue(""); // the search let go, so nothing stays hidden
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
   it("switches to a list, and remembers it", async () => {
     localStorage.clear();
     at("/casa-jardim", {
