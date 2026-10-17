@@ -739,10 +739,14 @@ export function ProjectPage({
   const [prefs, setPrefs] = usePrefs();
   const [preview, setPreview] = useState<FileItem | null>(null);
   const filtering = query.trim() !== "" || prefs.type !== "all";
+  // While filtering, every stage with a match opens; these are the ones closed since.
+  const [closed, setClosed] = useState<ReadonlySet<number>>(new Set());
+  useEffect(() => setClosed(new Set()), [query, prefs.type]);
   const shown = page.stages.map((stage, i) => {
     const files = filesFor(stageFiles, i + 1).files;
     return files ? shownFiles(files, stage.title, query, prefs) : { files: undefined, count: 0 };
   });
+  const unreadable = (i: number) => Boolean(filesFor(stageFiles, i + 1).files?.unavailable);
   const hasFiles = shown.some((_, i) => countFiles(filesFor(stageFiles, i + 1).files) > 0);
 
   useEffect(() => {
@@ -847,7 +851,7 @@ export function ProjectPage({
             <ProgressRail page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
           </Suspense>
         )}
-        {hasFiles && (
+        {(hasFiles || filtering) && (
           <FileToolbar
             query={query}
             onQuery={setQuery}
@@ -863,10 +867,23 @@ export function ProjectPage({
             key={i}
             page={page}
             index={i}
-            // Searching or filtering opens every stage with a match and hides the rest.
-            open={filtering ? shown[i]!.count > 0 : i === openStage}
-            hidden={filtering && shown[i]!.count === 0}
-            onToggle={() => setOpenStage(i === openStage ? -1 : i)}
+            // Searching or filtering opens every stage with a match and hides the rest,
+            // except one whose files couldn't be read: it says so.
+            open={
+              filtering
+                ? (shown[i]!.count > 0 || unreadable(i)) && !closed.has(i)
+                : i === openStage
+            }
+            hidden={filtering && shown[i]!.count === 0 && !unreadable(i)}
+            onToggle={() =>
+              filtering
+                ? setClosed((was) => {
+                    const next = new Set(was);
+                    if (!next.delete(i)) next.add(i);
+                    return next;
+                  })
+                : setOpenStage(i === openStage ? -1 : i)
+            }
             {...filesFor(stageFiles, i + 1)}
             files={shown[i]!.files}
             total={countFiles(filesFor(stageFiles, i + 1).files)}

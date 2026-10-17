@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -752,6 +752,47 @@ describe("the page's file tools", () => {
     status = 200;
     await userEvent.click(within(preview).getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(share).toHaveBeenCalled());
+  });
+
+  it("while searching, a stage whose files couldn't be read still says so", async () => {
+    localStorage.clear();
+    const stages = [...FILES.stages.slice(0, 2), { position: 3, groups: [], unavailable: true }];
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { ...FILES, stages } }),
+    });
+    await userEvent.type(await screen.findByLabelText("Pesquisar arquivos"), "baixa");
+    expect(screen.queryByRole("region", { name: "Briefing" })).toBeNull(); // no match: hidden
+    const unread = screen.getByRole("region", { name: "Estudo Preliminar" });
+    expect(within(unread).getByText(/Não foi possível carregar os arquivos/)).toBeVisible();
+  });
+
+  it("while searching, a stage with matches can still be closed", async () => {
+    localStorage.clear();
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    const search = await screen.findByLabelText("Pesquisar arquivos");
+    await userEvent.type(search, "baixa");
+    await userEvent.click(screen.getByRole("button", { name: "Etapa aberta: Levantamento" }));
+    expect(screen.getByRole("button", { name: "Abrir etapa Levantamento" })).toHaveAttribute("aria-expanded", "false");
+    // A new search opens every match again.
+    await userEvent.clear(search);
+    await userEvent.type(search, "planta");
+    expect(screen.getByRole("button", { name: "Etapa aberta: Levantamento" })).toBeInTheDocument();
+  });
+
+  it("an image that won't load shows the file's card, not a broken image", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Abrir Terreno.jpg" }));
+    const preview = screen.getByRole("dialog", { name: "Terreno.jpg" });
+    fireEvent.error(within(preview).getByRole("img", { name: "Terreno.jpg" }));
+    expect(within(preview).queryByRole("img")).toBeNull();
+    expect(within(preview).getByRole("link", { name: "Abrir original" })).toBeInTheDocument();
   });
 
   it("switches to a list, and remembers it", async () => {

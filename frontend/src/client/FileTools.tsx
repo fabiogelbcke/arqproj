@@ -238,6 +238,7 @@ export function FilePreview({
   const { t } = useTranslation();
   const dialog = useRef<HTMLDialogElement>(null);
   const [sending, setSending] = useState(false);
+  const [broken, setBroken] = useState(false); // gone, expired, or not an image after all
   const url = `/api/pages/${slug}/files/${encodeURIComponent(file.key)}`;
   const inline = file.kind === "image" || file.kind === "pdf";
   const pageUrl = `${window.location.origin}/${slug}`;
@@ -281,8 +282,8 @@ export function FilePreview({
         </button>
       </div>
       <div className="file-preview__content">
-        {file.kind === "image" ? (
-          <img src={`${url}?inline=true`} alt={file.name} />
+        {file.kind === "image" && !broken ? (
+          <img src={`${url}?inline=true`} alt={file.name} onError={() => setBroken(true)} />
         ) : (
           <p>{file.kind === "pdf" ? t("files.pdfHint") : t("files.otherHint")}</p>
         )}
