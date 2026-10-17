@@ -14,7 +14,8 @@ export function fakeApi(handlers: Record<string, Handler>) {
   const sent: { method: string; path: string; body: unknown; headers: Headers }[] = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: Request) => {
+    vi.fn(async (given: Request | string) => {
+      const input = typeof given === "string" ? new Request(new URL(given, window.location.origin)) : given;
       const path = new URL(input.url).pathname;
       const body = input.method === "GET" ? undefined : await input.clone().json().catch(() => undefined);
       sent.push({ method: input.method, path, body, headers: input.headers });
