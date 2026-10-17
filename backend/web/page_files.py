@@ -315,38 +315,48 @@ UPDATES_DAYS = 180
 async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[UpdateOut]:
     """The latest changes the client can see now. A file appears only while the
     page shows it, under its current name and stage; one taken down, or in a stage
-    that couldn't be read just now, is left out."""
+    that couldn't be read just now, is left out. A note or a stage advance points at
+    where its stage is now, and is left out if the stage was removed."""
     since = datetime.now(UTC) - timedelta(days=UPDATES_DAYS)
-    events = await db.scalars(
+    positions = dict(
+        (
+            await db.execute(
+                select(ProjectStage.id, ProjectStage.position).where(
+                    ProjectStage.project_id == project.id
+                )
+            )
+        ).all()
+    )
+    events = await db.stream_scalars(
         select(ProjectEvent)
         .where(ProjectEvent.project_id == project.id, ProjectEvent.occurred_at >= since)
         .order_by(ProjectEvent.occurred_at.desc())
-        .limit(UPDATES_SHOWN * 3)
     )
     updates = []
-    for event in events:
+    async for event in events:  # until 30 survive the filtering, however many it takes
+        position, name = event.stage_position, None
         if event.kind is EventKind.FILE_PUBLISHED:
             if event.item_id not in visible:
                 continue
             position, name = visible[event.item_id]
-            update = UpdateOut(
+        elif event.stage_id is not None:
+            if event.stage_id not in positions:
+                continue  # its stage was removed
+            position = positions[event.stage_id]
+        if event.kind is EventKind.MEETING_CLEARED:
+            name = event.title
+        updates.append(
+            UpdateOut(
                 id=event.id,
                 kind=event.kind,
                 occurred_at=event.occurred_at,
                 stage_position=position,
                 name=name,
             )
-        else:
-            update = UpdateOut(
-                id=event.id,
-                kind=event.kind,
-                occurred_at=event.occurred_at,
-                stage_position=event.stage_position,
-                name=event.title if event.kind is EventKind.MEETING_CLEARED else None,
-            )
-        updates.append(update)
+        )
         if len(updates) == UPDATES_SHOWN:
             break
+    await events.close()
     return updates
 
 

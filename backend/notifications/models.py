@@ -93,6 +93,9 @@ class ProjectEvent(IdMixin, TenantOwned, Base):
     project_id: Mapped[uuid.UUID] = mapped_column()
     kind: Mapped[EventKind] = mapped_column(TextEnum(EventKind))
     stage_position: Mapped[int | None] = mapped_column()  # the stage it is about, from 1
+    # That stage itself, which keeps its identity when stages are reordered: where it
+    # is now is looked up from it; gone, the event no longer points anywhere.
+    stage_id: Mapped[uuid.UUID | None] = mapped_column()
     item_id: Mapped[str | None] = mapped_column(Text)  # a file's id in storage
     title: Mapped[str | None] = mapped_column(Text)  # the file's, stage's or meeting's name
     occurred_at: Mapped[datetime] = mapped_column(

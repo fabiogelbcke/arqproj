@@ -234,6 +234,22 @@ async def test_the_latest_advance_that_still_holds_is_news(
     assert len(lines) == 1 and "avançou para a etapa 02 " in lines[0]
 
 
+async def test_an_advance_is_named_by_where_its_stage_is_now(
+    app, client, db_session, owner, outbox, ready
+):
+    """Reordered within the quiet period, the reached stage keeps its news."""
+    from backend.tests.test_maintenance_scan import call
+
+    await db_session.execute(text(f"UPDATE projects SET current_position = 1 WHERE id = {CASA}"))
+    await call(client, owner, "POST", "/progress", action="advance")  # to stage 2
+    await call(client, owner, "POST", "/stages/2/move", direction=-1)  # it becomes stage 1
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    lines = [line for line in outbox.sent[0].text.splitlines() if "etapa" in line]
+    assert len(lines) == 1 and "avançou para a etapa 01 " in lines[0]
+
+
 # -- who gets it ----------------------------------------------------------------------
 
 

@@ -300,6 +300,6 @@ async def set_notes(
     )
     # Written or removed, the client sees it change: for the updates panel; a note
     # never emails (A32).
-    record(db, project, EventKind.NOTE_CHANGED, stage_position=position)
+    record(db, project, EventKind.NOTE_CHANGED, stage_position=position, stage_id=stage.id)
     await db.commit()
     return Response(status_code=204)

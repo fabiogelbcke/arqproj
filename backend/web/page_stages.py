@@ -413,6 +413,7 @@ async def progress(
             project,
             EventKind.STAGE_ADVANCED,
             stage_position=current + 1,
+            stage_id=reached.id,
             title=await _title(db, reached, tenant.locale),
         )
     elif body.action == "complete":

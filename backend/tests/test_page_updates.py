@@ -71,3 +71,37 @@ async def test_visitors_of_a_protected_page_see_nothing_without_its_password(
     Roles(client).visitor()
     response = await client.get("/api/pages/casa-jardim/files", headers=ALINEA)
     assert response.status_code == 403
+
+
+async def test_a_note_follows_its_stage_when_stages_move_and_goes_with_it(
+    app,
+    client,
+    db_session,
+    owner,
+    folders,  # noqa: F811
+):
+    await call(client, owner, "PUT", "/stages/2/notes", notes="Confira as medidas.")
+    assert await updates(client) == [("note_changed", 2, None)]
+    await call(client, owner, "POST", "/stages/2/move", direction=-1)  # now first
+    assert await updates(client) == [("note_changed", 1, None)]
+    await call(client, owner, "DELETE", "/stages/1")  # removed, with its note
+    assert await updates(client) == []
+
+
+async def test_hidden_files_never_crowd_out_the_real_news(
+    app,
+    client,
+    db_session,
+    owner,
+    folders,  # noqa: F811
+):
+    await call(client, owner, "PUT", "/stages/2/notes", notes="Confira as medidas.")
+    await db_session.execute(
+        text(
+            "INSERT INTO project_events (tenant_id, project_id, kind, item_id, occurred_at) "
+            "SELECT tenant_id, id, 'file_published', 'gone-' || n, "
+            "now() + n * interval '1 second' "
+            f"FROM projects, generate_series(1, 100) n WHERE id = {CASA}"
+        )
+    )  # 100 newer files, none on the page any more
+    assert await updates(client) == [("note_changed", 2, None)]
