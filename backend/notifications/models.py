@@ -7,7 +7,16 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, DateTime, Index, Text, UniqueConstraint, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.base import Base, IdMixin, TimestampsMixin
@@ -78,6 +87,10 @@ class ProjectEvent(IdMixin, TenantOwned, Base):
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # The email it went into; None until batched (a note never is: A32).
+    batch_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("notification_batches.id", ondelete="SET NULL")
+    )
 
 
 class ProjectFileSeen(IdMixin, TenantOwned, Base):
@@ -95,3 +108,60 @@ class ProjectFileSeen(IdMixin, TenantOwned, Base):
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class BatchState(StrEnum):
+    OPEN = "open"  # gathering changes until it is due (A12)
+    SENT = "sent"
+    DROPPED = "dropped"  # nothing left to tell, or nobody to tell it to
+
+
+class NotificationBatch(IdMixin, TimestampsMixin, TenantOwned, Base):
+    """One email's worth of a project's changes (A12): due 45 minutes after the
+    last change, or 2 hours after the first, whichever comes first."""
+
+    __tablename__ = "notification_batches"
+    __table_args__ = (
+        _project_fk("notification_batches"),
+        enum_check("state", BatchState),
+        # At most one batch gathering changes per project.
+        Index(
+            "uq_notification_batches_open_per_project",
+            "project_id",
+            unique=True,
+            postgresql_where=text("state = 'open'"),
+        ),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    state: Mapped[BatchState] = mapped_column(TextEnum(BatchState), server_default=text("'open'"))
+    first_event_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_event_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DeliveryStatus(StrEnum):
+    SENT = "sent"
+    FAILED = "failed"  # tried again on the next pass, with the same idempotency key
+
+
+class NotificationDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
+    """A batch's email to one address: sent once, whatever the retries."""
+
+    __tablename__ = "notification_deliveries"
+    __table_args__ = (
+        UniqueConstraint(
+            "batch_id", "recipient_id", name="uq_notification_deliveries_batch_id_recipient_id"
+        ),
+        enum_check("status", DeliveryStatus),
+    )
+
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("notification_batches.id", ondelete="CASCADE"), index=True
+    )
+    recipient_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("project_recipients.id", ondelete="CASCADE")
+    )
+    status: Mapped[DeliveryStatus] = mapped_column(TextEnum(DeliveryStatus))
+    provider_id: Mapped[str | None] = mapped_column(Text)  # Resend's id for the email
+    attempts: Mapped[int] = mapped_column(server_default=text("0"))

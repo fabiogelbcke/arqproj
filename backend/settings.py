@@ -66,6 +66,17 @@ class Settings(BaseSettings):
     )
     # The staff app's build (`npm run build` in frontend/).
     frontend_dist: str = str(Path(__file__).resolve().parent.parent / "frontend" / "dist")
+    # Client email updates (A32, plan section 14). With a Resend key, emails go
+    # through Resend; without one they are written to `email_outbox` to open by hand.
+    resend_api_key: str | None = None
+    email_outbox: str = str(Path(__file__).resolve().parent.parent / "local-test-data" / "outbox")
+    # The product's general sender domain, once verified with Resend; until then
+    # Resend's test sender, which delivers only to the Resend account's own address.
+    email_domain: str | None = None
+    # Offices that send from their own verified domain, as JSON: {"alinea": "alineaarquitetos.com"}.
+    email_office_domains: dict[str, str] = {}
+    # Where links in locally written emails point (the dev server's port).
+    local_site_port: int = 5173
 
     @field_validator("log_level")
     @classmethod
@@ -124,6 +135,13 @@ class Settings(BaseSettings):
     @property
     def deployed(self) -> bool:
         return self.environment in (Environment.STAGING, Environment.PRODUCTION)
+
+    @property
+    def email_staff_only(self) -> bool:
+        """Outside production, emails go only to the office's own staff accounts, so
+        a test can never reach a client (section 14). Not a setting: nothing can
+        switch it off by mistake."""
+        return self.environment is not Environment.PRODUCTION
 
     @property
     def show_api_docs(self) -> bool:

@@ -442,6 +442,20 @@ Email on new files, a stage advanced or the project completed, and a meeting
 scheduled, changed or removed (not a stage's note), with the 45-minute quiet
 window and 2-hour hold (A12), recipients in the Projeto dialog and unsubscribe
 (A32).
+**5.1 (#41), 5.2 (#42) and 5.3 as built:**
+- **The maintenance pass** (`backend/notifications/scan.py`, run by hand with `backend.commands.maintenance`, by the scheduler from 5.4) handles each published project in one transaction under its lock: it records new files, gathers changes into the project's open batch, and sends the batch once due.
+- **Just before sending** (`backend/notifications/digest.py`), it checks again that:
+  - the project is still published;
+  - the files are still on the page and unchanged for a minute;
+  - the addresses are still subscribed, and outside production belong to staff.
+  Otherwise the batch is dropped, or waits if a file is still changing.
+- **One email per address,** each with an idempotency key, recorded in `notification_deliveries`. A failure is retried on the next pass, up to 5 times.
+- **The email** is HTML and text, in the office's language. It shows the office's logo, or its name for SVG logos, which Gmail doesn't display.
+- **Unsubscribe** is a link that asks for confirmation (`/api/emails/unsubscribe/{token}`) plus the one-click headers of RFC 8058.
+- **Sending:** through Resend (`RESEND_API_KEY`), or to `local-test-data/outbox/` without a key.
+- **Sender:** each office's domain from `EMAIL_OFFICE_DOMAINS`, else `EMAIL_DOMAIN`, else Resend's test sender.
+
+5.4: the `/internal/maintenance` endpoint and the Cloud Scheduler job.
 
 ### Slice 6: real Google login and live checks
 

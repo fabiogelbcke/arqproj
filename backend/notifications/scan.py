@@ -25,6 +25,8 @@ from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.db.isolation import scope_to_tenant
+from backend.notifications import digest
+from backend.notifications.email import EmailSender
 from backend.notifications.events import CLIENT_VISIBLE, record
 from backend.notifications.models import EventKind, ProjectFileSeen
 from backend.projects.models import Project, ProjectStage
@@ -45,6 +47,7 @@ class Report:
     new_files: int = 0
     failed: int = 0  # projects whose folders couldn't be read: logged, tried next pass
     busy: int = 0  # being scanned by another pass just then
+    emails: int = 0
 
 
 class Busy(Exception):
@@ -52,9 +55,8 @@ class Busy(Exception):
 
 
 async def scan_project(db: AsyncSession, storage, project: Project) -> int:
-    """Record the files shown for the first time; how many (0 on a first scan)."""
-    if not await db.scalar(_LOCK_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project.id)}):
-        raise Busy
+    """Record the files shown for the first time; how many (0 on a first scan).
+    The caller holds the project's lock and commits."""
     folders = (
         await db.execute(
             select(ProjectStage.position, ProjectStage.folder_id)
@@ -98,24 +100,39 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
     if new and not first:
         values["last_activity_at"] = now  # "Atualizado" (A28)
     await db.execute(update(Project).where(Project.id == project.id).values(**values))
-    await db.commit()
     return 0 if first else len(new)
 
 
-async def _scan_office(sessionmaker, settings, google, tenant_id, report: Report) -> None:
+async def _project_pass(db, settings, sender, storage, office, project, report) -> None:
+    """One project, under its lock, in one transaction: its new files, then its
+    email if one is due."""
+    if not await db.scalar(_LOCK_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project.id)}):
+        raise Busy
+    if storage is not None and project.folder_id is not None:
+        report.new_files += await scan_project(db, storage, project)
+    batch = await digest.gather(db, project)
+    now = datetime.now(UTC)
+    if sender is not None and batch is not None and digest.is_due(batch, now):
+        try:
+            report.emails += await digest.deliver(
+                db, settings, sender, storage, office, project, batch, now
+            )
+        except digest.Wait:
+            pass  # a file still changing, or files unreadable: the next pass
+    await db.commit()
+
+
+async def _scan_office(sessionmaker, settings, google, sender, tenant_id, report: Report) -> None:
     async with sessionmaker() as db:
         scope_to_tenant(db.sync_session, tenant_id)
-        if await storage_view(db, settings, google) is None:
-            return  # no Drive connected, or disconnected: nothing to read
         project_ids = list(
             await db.scalars(
                 select(Project.id).where(
-                    Project.deleted_at.is_(None),
-                    Project.status.in_(CLIENT_VISIBLE),
-                    Project.folder_id.is_not(None),
+                    Project.deleted_at.is_(None), Project.status.in_(CLIENT_VISIBLE)
                 )
             )
         )
+        office = await digest.office_of(db, settings, tenant_id) if project_ids else None
     report.offices += 1
     for project_id in project_ids:
         report.projects += 1
@@ -123,10 +140,11 @@ async def _scan_office(sessionmaker, settings, google, tenant_id, report: Report
         async with sessionmaker() as db:
             scope_to_tenant(db.sync_session, tenant_id)
             try:
+                # None without Drive: meetings and stages still email.
                 storage = await storage_view(db, settings, google)
                 project = await db.scalar(select(Project).where(Project.id == project_id))
-                if storage is not None and project is not None:
-                    report.new_files += await scan_project(db, storage, project)
+                if project is not None:
+                    await _project_pass(db, settings, sender, storage, office, project, report)
             except Busy:
                 report.busy += 1
             except StorageError as error:
@@ -146,15 +164,19 @@ async def _scan_office(sessionmaker, settings, google, tenant_id, report: Report
 
 
 async def run_maintenance(
-    sessionmaker: async_sessionmaker[AsyncSession], settings, google
+    sessionmaker: async_sessionmaker[AsyncSession],
+    settings,
+    google,
+    sender: EmailSender | None = None,
 ) -> Report:
-    """One pass over every active office."""
+    """One pass over every active office: new files, then the emails that are due
+    (none without a `sender`)."""
     async with sessionmaker() as db:
         offices = list(
             await db.scalars(select(Tenant.id).where(Tenant.status == TenantStatus.ACTIVE))
         )
     report = Report()
     for tenant_id in offices:
-        await _scan_office(sessionmaker, settings, google, tenant_id, report)
+        await _scan_office(sessionmaker, settings, google, sender, tenant_id, report)
     log.info("maintenance: %s", report)
     return report

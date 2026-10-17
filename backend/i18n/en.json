@@ -389,5 +389,26 @@
     "advanced": "Advanced to “{{title}}”.",
     "complete": "Complete the project",
     "completed": "Project completed."
+  },
+  "email": {
+      "subject": "News on {{project}}",
+      "intro": "There's news on the {{project}} project:",
+      "files_one": "1 new file in {{stage}}: {{names}}",
+      "files_other": "{{count}} new files in {{stage}}: {{names}}",
+      "andMore": "and {{count}} more",
+      "stageAdvanced": "The project moved on to the {{stage}} stage.",
+      "completed": "The project is complete.",
+      "meetingScheduled": "Meeting scheduled: {{title}}, {{when}}.",
+      "meetingChanged": "Meeting changed: {{title}}, {{when}}.",
+      "meetingCleared": "The meeting “{{title}}” was cancelled.",
+      "when": "{{date}} at {{time}}",
+      "open": "Open the project's page",
+      "why": "You get these emails because {{office}} added your address to the {{project}} project.",
+      "unsubscribe": "I don't want these emails anymore",
+      "unsubscribeTitle": "Stop emails about {{project}}",
+      "unsubscribeAsk": "{{email}} will no longer get news on the {{project}} project by email.",
+      "unsubscribeConfirm": "Stop the emails",
+      "unsubscribed": "Done. {{email}} will no longer get news on the {{project}} project.",
+      "unsubscribeInvalid": "This link no longer works. If you still get emails you don't want, contact the office."
   }
 }

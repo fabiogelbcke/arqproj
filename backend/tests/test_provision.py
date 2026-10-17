@@ -94,6 +94,12 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("project_events", "INSERT"),
         ("project_files_seen", "SELECT"),
         ("project_files_seen", "INSERT"),
+        ("notification_batches", "SELECT"),
+        ("notification_batches", "INSERT"),
+        ("notification_batches", "UPDATE"),
+        ("notification_deliveries", "SELECT"),
+        ("notification_deliveries", "INSERT"),
+        ("notification_deliveries", "UPDATE"),
         ("storage_connections", "SELECT"),
         ("storage_connections", "INSERT"),
         ("storage_connections", "UPDATE"),
@@ -137,6 +143,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("project_stages", "notes", "UPDATE"),
         ("project_stages", "notes_updated_at", "UPDATE"),
         ("project_slugs", "is_current", "UPDATE"),
+        ("project_events", "batch_id", "UPDATE"),
     }
     assert _grants(migrated_url, RUNTIME_ROLE) == set()
     assert _column_grants(migrated_url, RUNTIME_ROLE) == set()
