@@ -40,7 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.notifications.models import EventKind, ProjectEvent
-from backend.projects.enums import AccessMode
+from backend.projects.enums import AccessMode, ProjectStatus
 from backend.projects.models import Project, ProjectStage
 from backend.security import keys
 from backend.storage.base import StorageError, StorageItem, StorageProblem
@@ -316,23 +316,26 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
     """The latest changes the client can see now. A file appears only while the
     page shows it, under its current name and stage; one taken down, or in a stage
     that couldn't be read just now, is left out. A note or a stage advance points at
-    where its stage is now, and is left out if the stage was removed."""
+    where its stage is now, and is left out if the stage was removed. Like the
+    panel, only a stage's latest note, the latest advance that still holds and the
+    latest meeting change count, so repeated edits never crowd out older news."""
     since = datetime.now(UTC) - timedelta(days=UPDATES_DAYS)
-    positions = dict(
-        (
-            await db.execute(
-                select(ProjectStage.id, ProjectStage.position).where(
-                    ProjectStage.project_id == project.id
-                )
+    stages = (
+        await db.execute(
+            select(ProjectStage.id, ProjectStage.position, ProjectStage.notes).where(
+                ProjectStage.project_id == project.id
             )
-        ).all()
-    )
+        )
+    ).all()
+    positions = {stage.id: stage.position for stage in stages}
+    with_notes = {stage.id for stage in stages if stage.notes}
     events = await db.stream_scalars(
         select(ProjectEvent)
         .where(ProjectEvent.project_id == project.id, ProjectEvent.occurred_at >= since)
         .order_by(ProjectEvent.occurred_at.desc())
     )
     updates = []
+    counted = set()  # the notes, advance and meeting already listed
     async for event in events:  # until 30 survive the filtering, however many it takes
         position, name = event.stage_position, None
         if event.kind is EventKind.FILE_PUBLISHED:
@@ -343,6 +346,26 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
             if event.stage_id not in positions:
                 continue  # its stage was removed
             position = positions[event.stage_id]
+        if event.kind is EventKind.NOTE_CHANGED:
+            if event.stage_id is not None and event.stage_id not in with_notes:
+                continue  # removed since: the panel shows a note as it is now
+            once = ("note", event.stage_id or position)  # older events: by position
+        elif event.kind is EventKind.STAGE_ADVANCED:
+            if position is None or position > (project.current_position or 0):
+                continue  # taken back since
+            once = "advance"
+        elif event.kind is EventKind.PROJECT_COMPLETED:
+            if project.status is not ProjectStatus.COMPLETED:
+                continue
+            once = "completed"
+        elif event.kind is not EventKind.FILE_PUBLISHED:
+            once = "meeting"  # the latest change says what the meeting is now
+        else:
+            once = None
+        if once is not None:
+            if once in counted:
+                continue
+            counted.add(once)
         if event.kind is EventKind.MEETING_CLEARED:
             name = event.title
         updates.append(

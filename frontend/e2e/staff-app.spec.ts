@@ -358,13 +358,13 @@ test("staff edit the page in place and the client sees it", async ({ page, brows
   await page.locator("#stage-2").getByRole("button", { name: "Recado para o cliente" }).click();
   await page.getByLabel("Recado da etapa").fill("Confira as plantas v2 antes de sexta.");
   await page.getByRole("button", { name: "Salvar" }).click();
-  await expect(page.getByText("Confira as plantas v2 antes de sexta.")).toBeVisible();
+  await expect(page.locator("#stage-2").getByText("Confira as plantas v2 antes de sexta.")).toBeVisible();
 
   const client = await browser.newPage();
   await client.goto("/casa-jardim");
   await expect(client.getByText("Casa revisada.")).toBeVisible();
   await expect(client.getByText("Pátio com jabuticabeira")).toBeVisible();
-  await expect(client.getByText("Confira as plantas v2 antes de sexta.")).toBeVisible();
+  await expect(client.locator("#stage-2").getByText("Confira as plantas v2 antes de sexta.")).toBeVisible();
   await expect(client.getByRole("button", { name: "Editar descrição" })).toHaveCount(0);
   await client.close();
 });

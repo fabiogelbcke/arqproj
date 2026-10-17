@@ -105,3 +105,32 @@ async def test_hidden_files_never_crowd_out_the_real_news(
         )
     )  # 100 newer files, none on the page any more
     assert await updates(client) == [("note_changed", 2, None)]
+
+
+async def test_repeated_changes_take_one_place_and_never_crowd_out_older_news(
+    app,
+    client,
+    db_session,
+    owner,
+    folders,  # noqa: F811
+):
+    await run(app)
+    (folders / "02 - Conceito" / "Croqui.pdf").write_bytes(PDF)
+    await run(app)  # the oldest news: a file
+    for n in range(40):  # a note saved over and over, and the meeting moved about
+        await call(client, owner, "PUT", "/stages/2/notes", notes=f"Versão {n}.")
+    await db_session.execute(
+        text(
+            "INSERT INTO project_events (tenant_id, project_id, kind, occurred_at) "
+            "SELECT tenant_id, id, 'meeting_changed', now() + n * interval '1 second' "
+            f"FROM projects, generate_series(1, 40) n WHERE id = {CASA}"
+        )
+    )
+    assert sorted(await updates(client)) == [
+        ("file_published", 2, "Croqui.pdf"),
+        ("meeting_changed", None, None),
+        ("note_changed", 2, None),
+    ]
+    # A note emptied since is no news.
+    await call(client, owner, "PUT", "/stages/2/notes", notes="")
+    assert ("note_changed", 2, None) not in await updates(client)
