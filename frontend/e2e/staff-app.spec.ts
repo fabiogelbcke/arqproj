@@ -13,10 +13,10 @@ test.beforeEach(({ page }) => {
 import { E2E_ENV, PORT } from "../playwright.config";
 
 /** An account made the real way, with the staff command; returns its invite link. */
-function invite(email: string): string {
+function invite(email: string, role: "owner" | "member" = "member"): string {
   const output = execFileSync(
     "uv",
-    ["run", "python", "-m", "backend.commands.staff", "add", "--tenant", "alinea", "--email", email, "--name", "Teste"],
+    ["run", "python", "-m", "backend.commands.staff", "add", "--tenant", "alinea", "--email", email, "--name", "Teste", "--role", role],
     { cwd: "..", env: { ...process.env, ...E2E_ENV }, encoding: "utf-8" },
   );
   const link = output.match(/http\S+#token=\S+/)?.[0];
@@ -59,6 +59,34 @@ test("invite → choose password → projects → deep link → sign out → sig
   // The invite link was spent.
   await page.goto(link);
   await expect(page.getByRole("heading", { name: "Este link não funciona mais" })).toBeVisible();
+});
+
+test("an SVG logo also goes up as a PNG drawn in the browser, for emails", async ({ page }) => {
+  const link = invite("marca@alinea.example", "owner"); // only owners change the logo
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await page.getByRole("heading", { name: "Projetos" }).waitFor();
+
+  // Wider than tall, with lettering: the PNG keeps its shape and draws the text.
+  const svg = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">' +
+      '<rect width="300" height="100" fill="#43543b"/>' +
+      '<text x="20" y="65" font-size="48" fill="#ffffff" font-family="sans-serif">ALINEA</text></svg>',
+  );
+  await page.goto("/painel/configuracoes/escritorio");
+  await page.getByRole("button", { name: "Escolher imagem" }).waitFor();
+  await page.locator('input[type="file"]').setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: svg });
+  await page.getByText("Logo atualizado.").waitFor();
+
+  const png = await page.request.get("/api/office/logo?png=true");
+  expect(png.status()).toBe(200);
+  expect(png.headers()["content-type"]).toBe("image/png");
+  const bytes = await png.body();
+  expect(bytes.subarray(1, 4).toString()).toBe("PNG");
+  // Width and height from the PNG's header: 600 × 200, the SVG's 3:1.
+  expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([600, 200]);
 });
 
 test("a session belongs to its office's address", async ({ page }) => {

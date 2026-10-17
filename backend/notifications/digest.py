@@ -44,6 +44,7 @@ from backend.notifications.models import (
 )
 from backend.notifications.texts import t
 from backend.office.models import LogoType, OfficeProfile
+from backend.projects.enums import ProjectStatus
 from backend.projects.models import Meeting, Project, ProjectSlug, ProjectStage
 from backend.security import keys
 from backend.settings import Settings
@@ -85,13 +86,22 @@ def recipient_of(settings: Settings, token: str) -> uuid.UUID | None:
 # -- batches --------------------------------------------------------------------------
 
 
-async def gather(db: AsyncSession, project: Project) -> NotificationBatch | None:
-    """Changes not yet in an email join the project's open batch (made if none)."""
-    batch = await db.scalar(
+async def open_batch(db: AsyncSession, project: Project) -> NotificationBatch | None:
+    return await db.scalar(
         select(NotificationBatch).where(
             NotificationBatch.project_id == project.id, NotificationBatch.state == BatchState.OPEN
         )
     )
+
+
+async def drop_open(db: AsyncSession, project: Project) -> None:
+    if (batch := await open_batch(db, project)) is not None:
+        batch.state, batch.closed_at = BatchState.DROPPED, datetime.now(batch.first_event_at.tzinfo)
+
+
+async def gather(db: AsyncSession, project: Project) -> NotificationBatch | None:
+    """Changes not yet in an email join the project's open batch (made if none)."""
+    batch = await open_batch(db, project)
     loose = list(
         await db.scalars(
             select(ProjectEvent)
@@ -154,9 +164,13 @@ async def office_of(db: AsyncSession, settings: Settings, tenant_id: uuid.UUID) 
     # test sender (A32).
     domain = settings.email_office_domains.get(tenant.slug) or settings.email_domain
     logo = None
-    # Gmail and Outlook don't show SVG images: an SVG logo leaves the name in text.
+    version = f"v={profile.updated_at.timestamp():.0f}" if profile else ""
     if profile and profile.logo_file_id and profile.logo_type is not LogoType.SVG:
-        logo = f"{base}/api/office/logo?v={profile.updated_at.timestamp():.0f}"
+        logo = f"{base}/api/office/logo?{version}"
+    elif profile and profile.logo_png_file_id:
+        # Gmail and Outlook don't show SVG: the PNG the painel drew of it. Without
+        # one yet (an SVG uploaded before PNGs), the office's name in text.
+        logo = f"{base}/api/office/logo?png=true&{version}"
     return Office(
         name=name,
         locale=tenant.locale,
@@ -228,11 +242,15 @@ async def lines_for(
                 listed += " " + t(locale, "andMore", count=len(names) - FILES_LISTED)
             stage = titles.get(position, f"{position:02d}")
             lines.append(t(locale, "files", count=len(names), stage=stage, names=listed))
+    # Progress as it is now: an advance taken back, or a completion reopened,
+    # within the quiet period is no news (section 14).
     advanced = [e for e in events if e.kind is EventKind.STAGE_ADVANCED]
-    if advanced:
+    if advanced and (project.current_position or 0) >= (advanced[-1].stage_position or 0):
         last = advanced[-1]
         lines.append(t(locale, "stageAdvanced", stage=f"{last.stage_position:02d} {last.title}"))
-    if any(e.kind is EventKind.PROJECT_COMPLETED for e in events):
+    if project.status is ProjectStatus.COMPLETED and any(
+        e.kind is EventKind.PROJECT_COMPLETED for e in events
+    ):
         lines.append(t(locale, "completed"))
     meetings = [e for e in events if e.kind in MEETINGS]
     if meetings:

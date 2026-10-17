@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 
 import { api, call } from "../api/client";
-import { useOffice } from "../office/office";
+import { LogoPng, useOffice } from "../office/office";
 import { useMe, useSignedOut } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
@@ -62,6 +62,7 @@ export function SignedInLayout() {
         <ErrorNotice error={signOut.error} />
         <Outlet />
       </main>
+      <LogoPng />
     </>
   );
 }

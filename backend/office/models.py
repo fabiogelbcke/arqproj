@@ -49,5 +49,8 @@ class OfficeProfile(IdMixin, TimestampsMixin, TenantOwned, Base):
     # The logo, in the office's storage: a Drive file id, or a local path.
     logo_file_id: Mapped[str | None] = mapped_column(Text)
     logo_type: Mapped[LogoType | None] = mapped_column(TextEnum(LogoType))
+    # For an SVG logo, a PNG of it drawn by the painel's browser: email programs
+    # don't show SVG (A32). None for other logos, which email as they are.
+    logo_png_file_id: Mapped[str | None] = mapped_column(Text)
     # The `_marca` folder holding it, inside the office's root folder.
     brand_folder_id: Mapped[str | None] = mapped_column(Text)

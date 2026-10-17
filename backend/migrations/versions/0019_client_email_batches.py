@@ -4,7 +4,8 @@
 open per project, due 45 minutes after the last change or 2 hours after the
 first. `notification_deliveries` is that email to each address, sent once
 whatever the retries. `project_events.batch_id` says which email a change went
-into. The app reads, adds and updates these; it never deletes them.
+into. The app reads, adds and updates these; it never deletes them. Changes
+recorded before this migration are marked as already handled: never emailed.
 
 Revision: 0019
 Previous: 0018
@@ -167,6 +168,26 @@ def upgrade() -> None:
         "'GRANT UPDATE (batch_id) ON project_events TO %I', current_database() || '_app'"
         "); END $$"
     )
+
+    # Changes recorded before emails existed (0018 onwards) are history, not news:
+    # each project's go into one batch already closed, so the first pass emails
+    # none of them. On Cloud SQL the migration login is no superuser, so the forced
+    # tenant policy would hide every office's rows: lifted for these statements,
+    # inside this transaction, then restored (as 0008).
+    for table in ("project_events", "notification_batches"):
+        op.execute(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY")
+    op.execute(
+        "INSERT INTO notification_batches "
+        "(tenant_id, project_id, state, first_event_at, last_event_at, closed_at) "
+        "SELECT tenant_id, project_id, 'dropped', min(occurred_at), max(occurred_at), now() "
+        "FROM project_events GROUP BY tenant_id, project_id"
+    )
+    op.execute(
+        "UPDATE project_events e SET batch_id = b.id "
+        "FROM notification_batches b WHERE b.project_id = e.project_id"
+    )
+    for table in ("project_events", "notification_batches"):
+        op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
 
 
 def downgrade() -> None:

@@ -28,7 +28,12 @@ from backend.db.isolation import scope_to_tenant
 from backend.notifications import digest
 from backend.notifications.email import EmailSender
 from backend.notifications.events import CLIENT_VISIBLE, record
-from backend.notifications.models import EventKind, ProjectFileSeen
+from backend.notifications.models import (
+    BatchState,
+    EventKind,
+    NotificationBatch,
+    ProjectFileSeen,
+)
 from backend.projects.models import Project, ProjectStage
 from backend.storage.base import StorageError, StorageProblem
 from backend.tenancy.models import Tenant, TenantStatus
@@ -108,27 +113,43 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
     email if one is due."""
     if not await db.scalar(_LOCK_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project.id)}):
         raise Busy
+    if project.status not in CLIENT_VISIBLE:
+        # Archived (or back to draft) while an email waited: it is never sent,
+        # even if the project comes back later (section 14).
+        await digest.drop_open(db, project)
+        await db.commit()
+        return
     if storage is not None and project.folder_id is not None:
         report.new_files += await scan_project(db, storage, project)
-    batch = await digest.gather(db, project)
     now = datetime.now(UTC)
-    if sender is not None and batch is not None and digest.is_due(batch, now):
+    # A batch that came due since the last pass goes as it was: changes made
+    # after start the next one, with its own quiet period (section 14).
+    due = await digest.open_batch(db, project)
+    if sender is not None and due is not None and digest.is_due(due, now):
         try:
             report.emails += await digest.deliver(
-                db, settings, sender, storage, office, project, batch, now
+                db, settings, sender, storage, office, project, due, now
             )
         except digest.Wait:
-            pass  # a file still changing, or files unreadable: the next pass
+            await db.commit()  # a file still changing, or files unreadable: next pass
+            return
+    await digest.gather(db, project)
     await db.commit()
 
 
 async def _scan_office(sessionmaker, settings, google, sender, tenant_id, report: Report) -> None:
     async with sessionmaker() as db:
         scope_to_tenant(db.sync_session, tenant_id)
+        # Published projects, and any with an email waiting (to drop it if the
+        # project was archived meanwhile).
+        waiting = select(NotificationBatch.project_id).where(
+            NotificationBatch.state == BatchState.OPEN
+        )
         project_ids = list(
             await db.scalars(
                 select(Project.id).where(
-                    Project.deleted_at.is_(None), Project.status.in_(CLIENT_VISIBLE)
+                    Project.deleted_at.is_(None),
+                    Project.status.in_(CLIENT_VISIBLE) | Project.id.in_(waiting),
                 )
             )
         )

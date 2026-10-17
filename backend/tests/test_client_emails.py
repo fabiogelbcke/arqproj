@@ -151,6 +151,60 @@ async def test_a_note_never_emails(app, client, db_session, owner, outbox, ready
     assert await batches(db_session) == []
 
 
+async def test_a_due_batch_goes_as_it_was_and_later_changes_wait_their_turn(
+    app, db_session, outbox, ready
+):
+    """Due between two passes, then a new file: the email has only the old file,
+    and the new one starts its own 45 minutes (section 14)."""
+    await new_file(app, outbox, ready, "Croqui.pdf")
+    await make_due(db_session)
+    path = ready / "02 - Conceito" / "Fachada.pdf"
+    path.write_bytes(PDF)
+    age(path)
+    await run(app, outbox)
+    assert len(outbox.sent) == 1
+    assert "Croqui.pdf" in outbox.sent[0].text and "Fachada.pdf" not in outbox.sent[0].text
+    assert await batches(db_session) == [("sent",), ("open",)]
+
+
+@pytest.mark.parametrize(
+    ("setup", "forward", "back"),
+    [
+        (None, "advance", "back"),  # moved on, then taken back
+        ("UPDATE projects SET current_position = 7", "complete", "reopen"),  # completed, reopened
+    ],
+)
+async def test_progress_taken_back_within_the_quiet_period_is_not_news(
+    app, client, db_session, owner, outbox, ready, setup, forward, back
+):
+    from backend.tests.test_maintenance_scan import call
+
+    if setup:
+        await db_session.execute(text(f"{setup} WHERE id = {CASA}"))
+    await call(client, owner, "POST", "/progress", action=forward)
+    await call(client, owner, "POST", "/progress", action=back)
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    assert outbox.sent == []  # nothing left to say
+    assert await batches(db_session) == [("dropped",)]
+
+
+async def test_archiving_drops_a_waiting_email_for_good(app, db_session, outbox, ready):
+    await new_file(app, outbox, ready)
+    await db_session.execute(
+        text(f"UPDATE projects SET status = 'archived', archived_from = 'active' WHERE id = {CASA}")
+    )
+    await make_due(db_session)
+    await run(app, outbox)
+    assert await batches(db_session) == [("dropped",)]
+    await db_session.execute(
+        text(f"UPDATE projects SET status = 'active', archived_from = NULL WHERE id = {CASA}")
+    )
+    await run(app, outbox)
+    assert outbox.sent == []  # back from the archive, the old news stays unsent
+
+
 # -- who gets it ----------------------------------------------------------------------
 
 
@@ -229,25 +283,35 @@ async def test_a_file_still_changing_waits_for_the_next_pass(app, db_session, ou
     assert len(outbox.sent) == 1
 
 
-@pytest.mark.parametrize(("logo_type", "shown"), [("image/png", True), ("image/svg+xml", False)])
-async def test_the_logo_shows_unless_email_programs_cant_show_it(
-    app, db_session, outbox, ready, logo_type, shown
+@pytest.mark.parametrize(
+    ("logo_type", "png", "shown"),
+    [
+        ("image/png", None, "/api/office/logo?v="),
+        ("image/svg+xml", "_marca/logo.png", "/api/office/logo?png=true&amp;v="),  # its PNG
+        ("image/svg+xml", None, None),  # no PNG yet: the name, in text
+    ],
+)
+async def test_the_email_shows_a_logo_email_programs_can_show(
+    app, db_session, outbox, ready, logo_type, png, shown
 ):
-    """Gmail and Outlook don't show SVG images: then the office's name, in text."""
+    """Gmail and Outlook don't show SVG images: an SVG logo emails as its PNG."""
     await db_session.execute(
         text(
-            "INSERT INTO office_profiles (tenant_id, display_name, logo_file_id, logo_type) "
-            "SELECT id, 'Alinea', '_marca/logo', :t FROM tenants WHERE slug = 'alinea' "
-            "ON CONFLICT (tenant_id) DO UPDATE SET logo_file_id = '_marca/logo', logo_type = :t"
+            "INSERT INTO office_profiles "
+            "(tenant_id, display_name, logo_file_id, logo_type, logo_png_file_id) "
+            "SELECT id, 'Alinea', '_marca/logo', :t, :png FROM tenants WHERE slug = 'alinea' "
+            "ON CONFLICT (tenant_id) DO UPDATE SET logo_file_id = '_marca/logo', "
+            "logo_type = :t, logo_png_file_id = :png"
         ),
-        {"t": logo_type},
+        {"t": logo_type, "png": png},
     )
     await new_file(app, outbox, ready)
     await make_due(db_session)
     await run(app, outbox)
     html = outbox.sent[0].html
-    assert ("/api/office/logo?v=" in html) is shown
-    assert ("<img" in html) is shown
+    assert ("<img" in html) is (shown is not None)
+    if shown:
+        assert shown in html
 
 
 async def test_names_from_files_cant_inject_html(app, db_session, outbox, ready):
