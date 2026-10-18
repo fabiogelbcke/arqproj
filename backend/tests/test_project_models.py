@@ -91,6 +91,7 @@ async def test_a_project_has_one_current_slug(db_session, alinea):
         ("healthz", "slug_not_reserved"),  # answered by Cloud Run, never the app
         ("privacidade", "slug_not_reserved"),  # Unio's legal pages (A33)
         ("termos", "slug_not_reserved"),
+        ("tour-projeto", "slug_not_reserved"),  # the example project (plan section 16)
         ("Casa Jardim", "slug_format"),
     ],
 )

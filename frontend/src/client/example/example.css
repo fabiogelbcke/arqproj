@@ -1,0 +1,10 @@
+/* The example project's banner: a quiet strip above the page (ExampleApp.tsx). */
+.example-banner {
+  padding: 10px 16px; text-align: center; font-size: 13px; line-height: 1.4;
+  background: var(--surface); color: var(--ink); border-bottom: 1px solid var(--line);
+}
+.example-banner strong { font-weight: 600; }
+.example-banner span { color: var(--muted); }
+
+/* "Pular" in the explore tour, at the footer's left (ExploreTour.ts). */
+.driver-popover-footer .explore-skip { margin-right: auto; border-color: transparent; color: #66686b; }

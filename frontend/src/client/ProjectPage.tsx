@@ -24,7 +24,7 @@ const StageControls = lazy(() => import("./StageEditing").then((m) => ({ default
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
 const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
-import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
+import { day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -94,11 +94,13 @@ function FileCard({
 }) {
   const { t, i18n } = useTranslation();
   // Only images and PDFs have previews (Drive's); other files show their type.
-  const [thumb, setThumb] = useState<"thumb" | "original" | "none">(file.kind === "other" ? "none" : "thumb");
-  const url = `/api/pages/${slug}/files/${encodeURIComponent(file.key)}`;
+  const preview = fileSource.address(slug, file.key, "thumb");
+  const [thumb, setThumb] = useState<"thumb" | "original" | "none">(
+    file.kind === "other" ? "none" : preview ? "thumb" : file.kind === "image" ? "original" : "none",
+  );
   const extension = file.name.includes(".") ? file.name.split(".").pop()!.toUpperCase() : "";
   // Drive's preview first; for an image without one (local folders), the image itself.
-  const src = thumb === "thumb" ? `${url}/thumb` : thumb === "original" ? `${url}?inline=true` : null;
+  const src = thumb === "thumb" ? preview : thumb === "original" ? fileSource.address(slug, file.key, "inline") : null;
   return (
     <div className="file" data-file={file.key}>
       <button className="file__open" type="button" onClick={onOpen} aria-label={t("page.openFile", { name: file.name })}>
@@ -386,6 +388,7 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
   const meeting = page.next_meeting;
   const when = meeting ? meetingWhen(meeting, i18n.language, page.timezone) : null;
   const title = meeting ? meeting.title || t("page.defaultMeetingTitle") : t("page.noMeetingTitle");
+  const calendar = fileSource.calendar(slug);
   return (
     <section className="meet" data-editable aria-label={t("page.nextMeeting")}>
       {onEdit && <EditButton label={meeting ? t("edit.meeting") : t("edit.schedule")} onClick={onEdit} />}
@@ -425,9 +428,11 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
               >
                 {t("page.googleCalendar")}
               </a>
-              <a href={`/api/pages/${slug}/meeting.ics`} download="reuniao.ics">
-                {t("page.otherCalendar")}
-              </a>
+              {calendar && (
+                <a href={calendar} download="reuniao.ics">
+                  {t("page.otherCalendar")}
+                </a>
+              )}
             </div>
           </details>
         </div>
@@ -726,12 +731,14 @@ export function ProjectPage({
   ready = false,
   tourSeen = true,
   onChanged,
+  onTour,
 }: {
   page: Page;
   slug: string;
   ready?: boolean; // the staff session's CSRF token is in hand
   tourSeen?: boolean; // false: this staff account hasn't had the tour yet
   onChanged?: () => void;
+  onTour?: () => void; // "?" runs this tour instead (the example project's)
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -1046,7 +1053,7 @@ export function ProjectPage({
             setOpenEditor(null);
           }}
           onPublished={() => onChanged?.()}
-          onTour={() => tour(false)}
+          onTour={onTour ?? (() => tour(false))}
         />
       )}
       {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}
