@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 
 import { ApiError, type ErrorCode } from "../api/client";
-import { useConnectDrive, useDisconnectDrive, useDrive } from "../drive/drive";
+import { SPACE_LOW, bytes, useConnectDrive, useDisconnectDrive, useDrive, useDriveSpace } from "../drive/drive";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { toast } from "../ui/Toast";
@@ -63,6 +63,7 @@ export function SettingsDrivePage() {
                 {t("drive.openFolder")}
               </a>
             )}
+            {!expired && <Space />}
           </div>
         ) : (
           <div className={styles.conn} data-state="none">
@@ -107,5 +108,57 @@ export function SettingsDrivePage() {
         <ErrorNotice error={connect.error ?? disconnect.error} />
       </section>
     </>
+  );
+}
+
+/** The Google account's space, as the old site showed it: used of total, with a
+ *  bar; a warning from 80% (uploads fail once Drive is full). */
+function Space() {
+  const { t, i18n } = useTranslation();
+  const space = useDriveSpace(true);
+  if (space.isPending) return null;
+  if (!space.data) {
+    // Its own words, plus the support code the log line carries.
+    const reference = space.error instanceof ApiError ? space.error.requestId : null;
+    return (
+      <p className={styles.small}>
+        {t("drive.spaceUnknown")}
+        {reference && ` ${t("errors.reference", { id: reference })}`}
+      </p>
+    );
+  }
+  const { used, total } = space.data;
+  const lang = i18n.language;
+  if (total == null)
+    return (
+      <div className={styles.space}>
+        <strong>{t("drive.space")}</strong>
+        <p>{t("drive.spacePooled", { used: bytes(used, lang) })}</p>
+      </div>
+    );
+  const share = Math.min(1, used / total);
+  const low = share >= SPACE_LOW;
+  return (
+    <div className={styles.space} data-low={low || undefined}>
+      <strong>{t("drive.space")}</strong>
+      <p>
+        {t("drive.spaceUsed", {
+          used: bytes(used, lang),
+          total: bytes(total, lang),
+          percent: Math.round(share * 100),
+        })}
+      </p>
+      <span
+        className={styles.spaceBar}
+        role="meter"
+        aria-label={t("drive.space")}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(share * 100)}
+      >
+        <i style={{ width: `${share * 100}%` }} />
+      </span>
+      {low && <p role="status">{t("drive.spaceLow")}</p>}
+    </div>
   );
 }

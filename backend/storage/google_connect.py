@@ -142,6 +142,19 @@ class DriveWriter:
             return None
         return response.json().get("user", {}).get("emailAddress")
 
+    async def storage(self) -> tuple[int, int | None]:
+        """The Google account's space: bytes used, and its limit (None when Google
+        sets none, as for Workspace pooled storage)."""
+        response = await self._call(
+            "GET",
+            f"{DRIVE}/about",
+            ConnectProblem.FOLDER_FAILED,
+            params={"fields": "storageQuota(limit,usage)"},
+        )
+        quota = response.json().get("storageQuota", {})
+        limit = int(quota.get("limit") or 0)
+        return int(quota.get("usage") or 0), limit or None
+
     async def can_open(self, folder_id: str) -> bool:
         """Whether this grant reaches a folder the app created before: False when
         Google says it cannot (another account, deleted, trashed). A failure that

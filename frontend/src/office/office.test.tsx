@@ -149,17 +149,48 @@ describe("Configurações → Escritório", () => {
     expect(slot).toHaveTextContent("AA");
   });
 
-  it("explains that the logo waits for Google Drive", async () => {
-    api(OFFICE, NONE);
+  it("says first that the logo needs Google Drive, with the way to connect it", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign, origin: window.location.origin });
+    api(OFFICE, NONE, ME, {
+      "POST /api/drive/connect": () => ({ body: { url: "https://accounts.google.com/o/oauth2/v2/auth?x" } }),
+    });
     renderAt("/configuracoes/escritorio");
-    expect(await screen.findByText(/Conecte o Google Drive para enviar o logo/)).toBeInTheDocument();
+    const warning = await screen.findByText(/Para enviar o logo, conecte primeiro o Google Drive/);
+    // No empty slot or file specs for a logo that can't go up yet.
+    expect(screen.queryByText(/PNG, JPG, WebP ou SVG/)).toBeNull();
+    expect(screen.queryByRole("img", { name: "Nenhum logo ainda." })).toBeNull();
     expect(screen.queryByRole("button", { name: "Escolher imagem" })).toBeNull();
+    await userEvent.click(within(warning.parentElement!).getByRole("button", { name: "Conectar Google Drive" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?x"));
   });
 
-  it("waits while the portal cannot read the Drive folder", async () => {
+  it("says so, with the support code, when the Drive status can't be loaded", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+      "GET /api/office": () => ({ body: OFFICE }),
+      "GET /api/drive": () => ({ status: 500, body: {}, headers: { "X-Request-ID": "req8" } }),
+      "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: false, has_project: false } }),
+    });
+    renderAt("/configuracoes/escritorio");
+    expect(await screen.findByRole("alert", {}, { timeout: 4000 })).toHaveTextContent("req8");
+  });
+
+  it("offers to reconnect an expired connection", async () => {
+    api(OFFICE, { ...LOCAL, kind: "google", writer_status: "expired", reader_status: "ok" });
+    renderAt("/configuracoes/escritorio");
+    expect(await screen.findByRole("button", { name: "Reconectar" })).toBeInTheDocument();
+  });
+
+  it("sends to the Drive settings while the portal cannot read the folder", async () => {
     api(OFFICE, { ...LOCAL, kind: "google", writer_status: "connected", reader_status: "no_access" });
     renderAt("/configuracoes/escritorio");
-    expect(await screen.findByText(/Conecte o Google Drive para enviar o logo/)).toBeInTheDocument();
+    const warning = await screen.findByText(/O portal não consegue ler a pasta do escritório/);
+    expect(within(warning.parentElement!).getByRole("link", { name: "Google Drive" })).toHaveAttribute(
+      "href",
+      "/configuracoes/drive",
+    );
   });
 
   it("is read-only for members", async () => {

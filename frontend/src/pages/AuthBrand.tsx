@@ -26,10 +26,19 @@ export function AuthBrand() {
           {office.logo_url ? (
             <OfficeLogo light={office.logo_url} dark={office.logo_dark_url} alt={office.name} />
           ) : (
-            <span className={styles.authOffice}>{office.name}</span>
+            // Its name instead, about as tall as Unio's: smaller as it gets longer,
+            // at most two lines (office names have at most 28 characters).
+            <span className={styles.authOffice} data-length={nameLength(office.name)}>
+              {office.name}
+            </span>
           )}
         </>
       )}
     </div>
   );
+}
+
+function nameLength(name: string): "short" | "long" | "longer" {
+  const length = name.trim().length;
+  return length <= 12 ? "short" : length <= 20 ? "long" : "longer";
 }

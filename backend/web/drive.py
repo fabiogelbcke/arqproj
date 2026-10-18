@@ -3,6 +3,7 @@
     POST   /api/drive/connect    start: returns Google's sign-in address
     GET    /api/drive/callback   Google returns here (see below)
     GET    /api/drive            the office's storage: kind, account, health
+    GET    /api/drive/space      the Google account's space, used and in all
     DELETE /api/drive            forget the office's grant (files stay in Drive)
 
 Google only accepts return addresses registered in the app registration, and an
@@ -70,6 +71,11 @@ class DriveOut(BaseModel):
     can_manage: bool  # owners connect and disconnect; members only see
 
 
+class SpaceOut(BaseModel):
+    used: int  # bytes
+    total: int | None  # None: no limit set by Google (Workspace pooled storage)
+
+
 def _require_owner(staff: CurrentStaff) -> None:
     if staff.role is not Role.OWNER:
         raise ApiError(403, ErrorCode.OWNER_ONLY)
@@ -106,6 +112,24 @@ async def drive_status(
         ),
         can_manage=staff.role is Role.OWNER,
     )
+
+
+@router.get("/drive/space", responses=documented(401, 409, 503))
+async def drive_space(
+    request: Request,
+    _staff: CurrentStaff = Depends(current_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> SpaceOut:
+    """How full the office's Google account is, as the old site showed: asked
+    of Google on each visit to the Drive settings, never stored."""
+    _connection, writer = await writer_for(request, db)
+    try:
+        used, total = await writer.storage()
+    except ConnectError as error:
+        log.error("drive space: route=/api/drive/space tenant=%s %s", tenant.slug, error.detail)
+        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    return SpaceOut(used=used, total=total)
 
 
 @router.post("/drive/connect", responses=documented(401, 403, 503))
@@ -282,7 +306,12 @@ async def writer_for(request: Request, db: AsyncSession) -> tuple[StorageConnect
         access = await _oauth(request).access_token(request.app.state.http, refresh)
     except ConnectError as error:
         if error.problem is not ConnectProblem.EXPIRED:
-            log.warning("Google token service unavailable: %s", error.detail)
+            log.error(
+                "Google token service unavailable: route=%s tenant=%s %s",
+                request.url.path,
+                connection.tenant_id,
+                error.detail,
+            )
             raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
         log.error("office Drive grant refused: %s", error.detail)
         connection.writer_status = WriterStatus.EXPIRED
