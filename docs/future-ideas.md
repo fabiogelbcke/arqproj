@@ -108,6 +108,9 @@ decision in the [decision changelog](decision-changelog.md).
 
 ## Guided tours and an example project
 
+- Agreed and designed: see the plan, section 16, "Onboarding help". Kept here
+  as a reminder that Fabio's partners may still weigh in.
+
 - Agreed to try (Fabio, 18 Oct 2026; may be rediscussed with his partners): an
   example project that is static (fictional data in the browser, nothing in
   the office's Drive, nothing saved), offered in Primeiros passos, with a tour
