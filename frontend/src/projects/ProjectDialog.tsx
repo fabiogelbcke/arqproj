@@ -7,8 +7,9 @@ import { ApiError, api, call } from "../api/client";
 import { Button } from "../ui/Button";
 import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { TextField } from "../ui/TextField";
-import { toast } from "../ui/Toast";
+import { toast, toastError } from "../ui/Toast";
 import { Cover } from "./Cover";
 import {
   COVER_MAX_BYTES,
@@ -34,7 +35,7 @@ type CoverChoice = { kind: "keep" } | { kind: "new"; file: File; preview: string
  *  from the card's pencil. Name, client and cover are saved together by Salvar.
  *  The client link and access join it with the client page (slice 2). */
 export function ProjectDialog({ project, onClose }: { project: ProjectSummary; onClose: () => void }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const change = useChangeProject();
   const archive = useChangeProject();
@@ -64,13 +65,19 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
   const preview = cover.kind === "new" ? cover.preview : null;
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
 
+  // The chosen photo is cropped to the cover's shape first (3:2), which also makes
+  // a large photo small enough to send.
+  const [cropping, setCropping] = useState<string | null>(null);
   const choose = (file: File | undefined) => {
     setCoverProblem(null);
     if (!file) return;
     // Checked here for a quick answer; the server checks the bytes again.
     if (!COVER_TYPES.includes(file.type)) return setCoverProblem(t("errors.cover_wrong_type"));
-    if (file.size > COVER_MAX_BYTES) return setCoverProblem(t("errors.cover_too_large"));
-    setCover({ kind: "new", file, preview: URL.createObjectURL(file) });
+    setCropping(URL.createObjectURL(file));
+  };
+  const stopCropping = () => {
+    if (cropping) URL.revokeObjectURL(cropping);
+    setCropping(null);
   };
 
   const save = async () => {
@@ -133,11 +140,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
               );
               toast(t("projectSettings.restored", { name: back.name }));
             } catch (failure) {
-              // As ErrorNotice: the message, plus the support code the log line carries.
-              const error = failure instanceof ApiError ? failure : new ApiError("unexpected");
-              const message = i18n.exists(`errors.${error.code}`) ? t(`errors.${error.code}`) : t("errors.unexpected");
-              const reference = error.requestId ? ` ${t("errors.reference", { id: error.requestId })}` : "";
-              toast(message + reference);
+              toastError(failure);
             }
             void queryClient.invalidateQueries({ queryKey: PROJECTS });
           });
@@ -237,6 +240,19 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
                 </p>
               )}
               <ErrorNotice error={upload.error ?? remove.error} />
+              {cropping && (
+                <ImageCropDialog
+                  source={cropping}
+                  kind="cover"
+                  name="capa.jpg"
+                  onCancel={stopCropping}
+                  onCropped={(file) => {
+                    stopCropping();
+                    if (file.size > COVER_MAX_BYTES) return setCoverProblem(t("errors.cover_too_large"));
+                    setCover({ kind: "new", file, preview: URL.createObjectURL(file) });
+                  }}
+                />
+              )}
             </fieldset>
 
             <TextField

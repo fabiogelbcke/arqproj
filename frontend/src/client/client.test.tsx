@@ -3,13 +3,22 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { fakeApi, TENANT } from "../test/render";
+import * as imageCrop from "../ui/imageCrop";
 import { ClientApp, slugFromPath } from "./ClientApp";
 import { detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 import { entriesFor } from "./Updates";
 import { shownFiles, sortFiles } from "./FileTools";
 
+// The browser's image decoding and canvas aren't in the test DOM: an image of 1200×800.
+vi.mock("../ui/imageCrop", async (original) => ({
+  ...(await original<typeof import("../ui/imageCrop")>()),
+  loadImage: vi.fn(async () => ({ naturalWidth: 1200, naturalHeight: 800 }) as HTMLImageElement),
+  withoutBackground: vi.fn(async () => null),
+  cropToFile: vi.fn(async (_image: unknown, _box: unknown, output: { type: string }, name: string) => new File(["x"], name, { type: output.type })),
+}));
+
 const PAGE: Page = {
-  office: { name: "Alinea", logo_url: null },
+  office: { name: "Alinea", logo_url: null, logo_dark_url: null },
   locale: "pt-BR",
   timezone: "America/Sao_Paulo",
   name: "Casa Jardim",
@@ -619,15 +628,20 @@ describe("edit mode", () => {
       };
       const { sent } = asEditor({
         "GET /api/pages/casa-jardim/files": () => ({ body: withImage }),
-        "POST /api/pages/casa-jardim/files/k2/cover": () => ({ status: 204 }),
+        "PUT /api/projects/p-1/cover": () => ({ body: {} }),
       });
       await startEditing();
       await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
       expect(screen.queryByRole("menuitem", { name: "Definir como capa" })).toBeNull(); // a PDF
       await userEvent.click(screen.getByRole("button", { name: "Ações para Terreno.jpg" }));
       await userEvent.click(screen.getByRole("menuitem", { name: "Definir como capa" }));
+      // Cropped to the cover's shape first, from the image on the page.
+      const crop = await screen.findByRole("dialog", { name: "Ajustar a capa" });
+      expect(imageCrop.loadImage).toHaveBeenCalledWith(expect.stringContaining("/api/pages/casa-jardim/files/k2?inline=true"));
+      await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
       expect(await screen.findByText("“Terreno.jpg” agora é a capa do projeto.")).toBeInTheDocument();
-      expect(sent.some((r) => r.method === "POST" && r.path.endsWith("/k2/cover"))).toBe(true);
+      expect(sent.some((r) => r.method === "PUT" && r.path === "/api/projects/p-1/cover")).toBe(true);
+      expect(imageCrop.cropToFile).toHaveBeenCalledWith(expect.anything(), expect.anything(), imageCrop.COVER_OUTPUT, "capa.jpg");
     });
 
     it("shows neither to someone viewing as the client", async () => {
@@ -868,6 +882,73 @@ describe("the page's file tools", () => {
     status = 200;
     await userEvent.click(within(preview).getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(share).toHaveBeenCalled());
+  });
+
+  it("sends a file as the page's address at that file", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Abrir Terreno.jpg" }));
+    const preview = screen.getByRole("dialog", { name: "Terreno.jpg" });
+    await userEvent.click(within(preview).getByRole("button", { name: "Enviar" }));
+    const whatsapp = within(preview).getByRole("link", { name: "WhatsApp" }).getAttribute("href")!;
+    // By its stage and name: a file's key expires, and Drive's ids stay off the page.
+    expect(decodeURIComponent(whatsapp)).toContain(`${window.location.origin}/casa-jardim?etapa=2&arquivo=Terreno.jpg`);
+  });
+
+  it("a file's address opens its stage, at the file, with its preview open", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    at("/casa-jardim?etapa=1&arquivo=Programa.pdf", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    // "Programa.pdf" is in Briefing, not the current stage.
+    const preview = await screen.findByRole("dialog", { name: "Programa.pdf" });
+    expect(screen.getByRole("button", { name: "Etapa aberta: Briefing" })).toBeInTheDocument();
+    await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled());
+    await userEvent.click(within(preview).getByRole("button", { name: "Fechar" }));
+    expect(window.location.search).toBe(""); // closed: reloading shows the page as usual
+  });
+
+  it("a file's address for a file no longer there shows the page as usual", async () => {
+    at("/casa-jardim?etapa=2&arquivo=Programa.pdf", { // renamed, moved or removed
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    expect(await screen.findByRole("button", { name: "Abrir Terreno.jpg" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a file's address finds it in a second subfolder of the same name", async () => {
+    const other = file("e", "Corte.pdf", "pdf", "2026-10-03T12:00:00Z");
+    const stages = [
+      // Drive allows sibling folders with the same name.
+      { position: 1, groups: [{ folder: "Revisão", files: FILES.stages[0]!.groups[0]!.files }, { folder: "Revisão", files: [other] }] },
+      ...FILES.stages.slice(1),
+    ];
+    at("/casa-jardim?etapa=1&pasta=Revis%C3%A3o&arquivo=Corte.pdf", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { ...FILES, stages } }),
+    });
+    expect(await screen.findByRole("dialog", { name: "Corte.pdf" })).toBeInTheDocument();
+  });
+
+  it("a file's address names its subfolder, so a file of the same name elsewhere isn't opened", async () => {
+    const twin = file("e", "Programa.pdf", "image", "2026-10-03T12:00:00Z");
+    const stages = [
+      { position: 1, groups: [FILES.stages[0]!.groups[0], { folder: "Revisão", files: [twin] }] },
+      ...FILES.stages.slice(1),
+    ];
+    at("/casa-jardim?etapa=1&pasta=Revis%C3%A3o&arquivo=Programa.pdf", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { ...FILES, stages } }),
+    });
+    const preview = await screen.findByRole("dialog", { name: "Programa.pdf" });
+    expect(within(preview).getByRole("img")).toHaveAttribute("src", expect.stringContaining("/files/e")); // the image one
+    await userEvent.click(within(preview).getByRole("button", { name: "Enviar" }));
+    const whatsapp = within(preview).getByRole("link", { name: "WhatsApp" }).getAttribute("href")!;
+    expect(decodeURIComponent(whatsapp)).toContain("?etapa=1&pasta=Revis%C3%A3o&arquivo=Programa.pdf");
   });
 
   it("while searching, a stage whose files couldn't be read still says so", async () => {

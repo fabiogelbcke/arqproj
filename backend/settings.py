@@ -75,7 +75,8 @@ class Settings(BaseSettings):
     email_domain: str | None = None
     # Offices that send from their own verified domain, as JSON: {"alinea": "alineaarquitetos.com"}.
     email_office_domains: dict[str, str] = {}
-    # Where links in locally written emails point (the dev server's port).
+    # Where links in locally written emails point: `make dev`'s port (`make serve`
+    # sets 8000).
     local_site_port: int = 5173
     # The scheduler's call to /internal/maintenance (A09, A19): the service's own
     # URL as the token's audience, and the scheduler's service account. Unset

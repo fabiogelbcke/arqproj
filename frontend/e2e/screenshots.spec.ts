@@ -48,6 +48,14 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("heading", { name: "Entrar" }).waitFor();
   await shoot(page, "01-entrar");
 
+  await page.getByRole("link", { name: "Esqueceu a senha?" }).click();
+  await page.getByRole("heading", { name: "Esqueceu a senha?" }).waitFor();
+  await shoot(page, "01b-esqueci-a-senha");
+  await page.getByLabel("E-mail").fill("ana@alinea.example");
+  await page.getByRole("button", { name: "Enviar link" }).click();
+  await page.getByRole("heading", { name: "Confira seu e-mail" }).waitFor();
+  await shoot(page, "01c-link-enviado");
+
   await page.goto(invite("screens@alinea.example"));
   await page.getByRole("heading", { name: "Escolha sua senha" }).waitFor();
   await shoot(page, "02-definir-senha");
@@ -62,6 +70,10 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.goto("/painel/configuracoes/escritorio");
   await page.getByRole("button", { name: "Escolher imagem" }).waitFor();
   await page.locator('input[type="file"]').setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: LOGO });
+  // Cropped first, its empty margins trimmed already.
+  await page.getByText("Assim ele aparece no topo das páginas").waitFor();
+  await shoot(page, "04b-recortar-logo");
+  await page.getByRole("button", { name: "Usar recorte" }).click();
   await page.getByText("Logo atualizado.").waitFor();
   await page.goto("/painel");
   await page.getByRole("heading", { name: "Projetos" }).waitFor();

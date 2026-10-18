@@ -269,7 +269,9 @@ Staff accounts belong to one office each, and people choose their own passwords.
 `backend.commands.staff add` creates an account without a password and prints a
 one-time invite link (7 days); `reset-link` prints a link to choose a new one
 (1 day). Send the link to the person; it opens the painel's "choose your
-password" screen.
+password" screen. People can also get a reset link themselves: "Esqueceu a
+senha?" on the sign-in screen emails one (`POST /api/password-reset`; locally the
+email is written to `local-test-data/outbox`).
 
 Two logins: the app connects as `arqproj_app` (`DATABASE_URL`), a restricted role
 that PostgreSQL row-level security applies to; migrations and the seed command use

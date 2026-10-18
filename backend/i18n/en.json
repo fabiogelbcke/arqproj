@@ -24,7 +24,16 @@
     "email": "Email",
     "password": "Password",
     "submit": "Sign in",
-    "forgot": "Forgot your password? Ask your office's owner for a new link."
+    "forgot": "Forgot your password?",
+    "with": "with"
+  },
+  "forgot": {
+    "title": "Forgot your password?",
+    "intro": "Enter the email you use for {{office}}'s panel. We'll send a link to choose a new password.",
+    "submit": "Send link",
+    "sentTitle": "Check your email",
+    "sent": "If {{email}} has an account on {{office}}'s panel, we sent a link to choose a new password. It works for 24 hours. Not there? Check your spam folder.",
+    "back": "Back to sign in"
   },
   "choosePassword": {
     "titleInvite": "Choose your password",
@@ -36,7 +45,8 @@
     "mismatch": "The passwords do not match.",
     "submit": "Save password and sign in",
     "invalidTitle": "This link no longer works",
-    "invalidBody": "Password links work once and expire. Ask your office's owner for a new one.",
+    "invalidBody": "Links to choose a password work once and expire.",
+    "askAgain": "Ask for a new link",
     "toSignIn": "Go to the sign-in page"
   },
   "projects": {
@@ -263,6 +273,7 @@
     "office": "Personalize the office's details",
     "officeHint": "Add the contact email and the logo (optional). They appear on the pages and emails clients receive.",
     "officeAction": "Personalize",
+    "officeDialogTitle": "Office details",
     "firstProject": "Create the first project",
     "firstProjectHint": "Each project gets a page where the client follows stages, files and meetings.",
     "firstProjectAction": "Create project",
@@ -277,13 +288,33 @@
     "save": "Save",
     "saved": "Saved.",
     "logo": "Logo",
-    "logoHint": "PNG, JPG, WebP or SVG, up to 5 MB.",
+    "logoHint": "PNG, JPG, WebP or SVG, up to 5 MB. After choosing, you adjust the crop.",
     "logoNone": "No logo yet.",
     "chooseLogo": "Choose image",
     "logoSaved": "Logo updated.",
     "logoNeedsDrive": "Connect Google Drive to upload the logo; it is kept in the office's Drive.",
     "logoAlt": "{{name}} logo",
-    "ownerOnly": "Only the office's owner can change these details."
+    "ownerOnly": "Only the office's owner can change these details.",
+    "darkSame": "Use the same logo in dark mode",
+    "darkLogo": "Dark mode logo",
+    "darkHint": "For dark backgrounds, such as a light version of the logo.",
+    "chooseDarkLogo": "Choose dark mode image",
+    "darkLogoSaved": "Dark mode logo updated.",
+    "darkLogoRemoved": "Dark mode uses the same logo."
+  },
+  "crop": {
+    "logoTitle": "Adjust the logo",
+    "darkLogoTitle": "Adjust the dark mode logo",
+    "coverTitle": "Adjust the cover",
+    "logoHint": "Drag the edges so only the logo is inside, with no margins. Empty margins were already trimmed.",
+    "coverHint": "Drag to choose the part of the photo that shows. The cover has the same shape on every screen.",
+    "removeBackground": "Remove background",
+    "inTheBar": "How it looks at the top of the pages",
+    "imageAlt": "Image to crop",
+    "previewAlt": "Logo preview",
+    "unreadable": "This image couldn't be opened. Choose a PNG, JPG, WebP or SVG file.",
+    "cancel": "Cancel",
+    "apply": "Use crop"
   },
   "page": {
     "loading": "Loading…",
@@ -433,7 +464,13 @@
       "unsubscribeAsk": "{{email}} will no longer get news on the {{project}} project by email.",
       "unsubscribeConfirm": "Stop the emails",
       "unsubscribed": "Done. {{email}} will no longer get news on the {{project}} project.",
-      "unsubscribeInvalid": "This link no longer works. If you still get emails you don't want, contact the office."
+      "unsubscribeInvalid": "This link no longer works. If you still get emails you don't want, contact the office.",
+      "resetSubject": "Reset your password for {{office}}'s panel",
+      "resetHello": "Hello, {{name}}.",
+      "resetIntro": "We received a request to reset your password for {{office}}'s panel. Use the button below to choose a new one.",
+      "resetButton": "Choose a new password",
+      "resetExpiry": "The link works once and expires in 24 hours.",
+      "resetIgnore": "If you didn't ask for this, ignore this email: your password stays the same."
   },
   "updates": {
       "label": "Updates",

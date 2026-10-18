@@ -68,8 +68,32 @@ decision in the [decision changelog](decision-changelog.md).
 - Decide whether recipients choose one channel or can receive both, and how to
   avoid unwanted duplicate notifications.
 
+
+## What an office's own address shows at its root
+
+- Today `/` shows Unio's public landing page on every address, an office's own
+  domain included (`alineaarquitetos.com/`), because the page needs no office.
+- On an office's address, `/` could instead belong to the office: options, from
+  simplest, are a redirect to the office's own website (a new "site do
+  escritório" setting), a redirect to the painel sign-in, or a simple page with
+  the office's name and logo (later perhaps its public projects).
+- `myunio.app` itself keeps the Unio landing page. Raised by Fabio, 17 Oct 2026;
+  not urgent.
+
+
 ## Account settings in the phone menu
 
 - The painel's ☰ drawer on phones (greeting, Modo escuro, Sair) is the natural
   home for a staff member's own account: change password, change email, maybe
   notification preferences. Fabio, 18 Oct 2026: "later".
+
+
+## A file's link that survives renames
+
+- "Enviar" on a file shares the page at that file by its stage, subfolder and
+  name (`/casa-jardim?etapa=3&pasta=Renders&arquivo=Fachada.jpg`), since pages
+  read Drive live and keep no file rows (A10); a renamed or moved file's link
+  opens the page as usual, and where Drive holds two of the same name in one
+  place, the link opens the first. When the document index for versions (A25) stores
+  files, the link can name the file by its id there instead. Fabio, 18 Oct 2026:
+  "we can wait for A25".

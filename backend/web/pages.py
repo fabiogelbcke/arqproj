@@ -35,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity.passwords import verify_password
+from backend.office.profile import logo_urls
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import RESERVED_SLUGS, AccessMode, DetailType, ProjectStatus
 from backend.projects.models import (
@@ -90,21 +91,22 @@ async def _find(
 ) -> tuple[Project | None, str | None]:
     """The project at this address that this visitor may see (published, or
     any for the office's staff), and its current address (which differs when
-    `slug` is one it had before)."""
+    `slug` is one it had before, or typed in capitals: addresses are lowercase,
+    and `/Casa-Jardim` reaches `/casa-jardim`)."""
     shown = Project.deleted_at.is_(None)
     if staff is None:
         shown &= PUBLISHED
     found = await db.execute(
         select(Project, ProjectSlug.is_current)
         .join(ProjectSlug, ProjectSlug.project_id == Project.id)
-        .where(ProjectSlug.slug == slug, shown)
+        .where(ProjectSlug.slug == slug.lower(), shown)
     )
     row = found.first()
     if row is None:
         return None, None
     project, is_current = row
     if is_current:
-        return project, slug
+        return project, slug.lower()
     current = await db.scalar(
         select(ProjectSlug.slug).where(ProjectSlug.project_id == project.id, ProjectSlug.is_current)
     )
@@ -117,6 +119,7 @@ async def _find(
 class OfficeOut(BaseModel):
     name: str
     logo_url: str | None
+    logo_dark_url: str | None  # None: the logo shows in dark mode too
 
 
 class DetailOut(BaseModel):
@@ -173,10 +176,11 @@ class PageOut(BaseModel):
 
 async def _office(db: AsyncSession, tenant: CurrentTenant) -> OfficeOut:
     found = await load_profile(db)
-    has_logo = found is not None and found.logo_file_id is not None
+    logo_url, logo_dark_url = logo_urls(found)
     return OfficeOut(
         name=found.display_name if found else tenant.name,
-        logo_url=f"/api/office/logo?v={found.updated_at.timestamp():.6f}" if has_logo else None,
+        logo_url=logo_url,
+        logo_dark_url=logo_dark_url,
     )
 
 
@@ -493,18 +497,21 @@ async def shell(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    if slug in RESERVED_SLUGS:
-        return PlainTextResponse("Not found", status_code=404)
-    # An old address redirects before anything else: it needs no page.
-    project, current = await _find(db, slug, staff)
-    if project is not None and current != slug:
+    def moved(to: str) -> Response:
         query = f"?{request.url.query}" if request.url.query else ""
         # Permanent, but not cached forever: a slug may later point back here.
-        return RedirectResponse(
-            f"/{current}{query}",
-            status_code=301,
-            headers={"Cache-Control": "no-cache", **PAGE_HEADERS},
-        )
+        headers = {"Cache-Control": "no-cache", **PAGE_HEADERS}
+        return RedirectResponse(f"/{to}{query}", status_code=301, headers=headers)
+
+    if slug.lower() in RESERVED_SLUGS:
+        # Addresses are lowercase: `/Painel` typed in capitals goes to `/painel`.
+        if slug != slug.lower():
+            return moved(slug.lower())
+        return PlainTextResponse("Not found", status_code=404)
+    # An old address, or one typed in capitals, redirects before anything else.
+    project, current = await _find(db, slug, staff)
+    if project is not None and current != slug:
+        return moved(current)
 
     shell_file = Path(request.app.state.settings.frontend_dist) / "client.html"
     if not shell_file.is_file():

@@ -52,7 +52,7 @@ dev: api-types ## Backend + staff app with live reload → http://alinea.localho
 	wait
 
 serve: build ## The built app, as deployed → http://alinea.localhost:8000/painel
-	uv run uvicorn backend.app:create_app --factory --port 8000
+	LOCAL_SITE_PORT=8000 uv run uvicorn backend.app:create_app --factory --port 8000
 
 build: ## Build the staff app into frontend/dist
 	cd $(FRONTEND) && npm run build

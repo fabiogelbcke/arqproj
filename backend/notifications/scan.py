@@ -37,6 +37,7 @@ from backend.notifications.models import (
     NotificationBatch,
     ProjectFileSeen,
 )
+from backend.notifications.office import office_of
 from backend.projects.models import Project, ProjectStage
 from backend.storage.base import StorageError, StorageProblem
 from backend.tenancy.models import Tenant, TenantStatus
@@ -158,7 +159,7 @@ async def _scan_office(
                 )
             )
         )
-        office = await digest.office_of(db, settings, tenant_id) if project_ids else None
+        office = await office_of(db, settings, tenant_id) if project_ids else None
     report.offices += 1
     random.shuffle(project_ids)  # if passes keep running out of time, not always the same last
     for index, project_id in enumerate(project_ids):

@@ -24,7 +24,16 @@
     "email": "E-mail",
     "password": "Senha",
     "submit": "Entrar",
-    "forgot": "Esqueceu a senha? Peça um novo link ao responsável pelo escritório."
+    "forgot": "Esqueceu a senha?",
+    "with": "com"
+  },
+  "forgot": {
+    "title": "Esqueceu a senha?",
+    "intro": "Informe o e-mail que você usa no painel de {{office}}. Enviaremos um link para escolher uma nova senha.",
+    "submit": "Enviar link",
+    "sentTitle": "Confira seu e-mail",
+    "sent": "Se {{email}} tiver uma conta no painel de {{office}}, enviamos um link para escolher uma nova senha. Ele funciona por 24 horas. Não chegou? Veja a caixa de spam.",
+    "back": "Voltar para a entrada"
   },
   "choosePassword": {
     "titleInvite": "Escolha sua senha",
@@ -36,7 +45,8 @@
     "mismatch": "As senhas não são iguais.",
     "submit": "Salvar senha e entrar",
     "invalidTitle": "Este link não funciona mais",
-    "invalidBody": "Links para escolher a senha funcionam uma única vez e expiram. Peça um novo ao responsável pelo escritório.",
+    "invalidBody": "Links para escolher a senha funcionam uma única vez e expiram.",
+    "askAgain": "Pedir um novo link",
     "toSignIn": "Ir para a página de entrada"
   },
   "projects": {
@@ -263,6 +273,7 @@
     "office": "Personalizar os dados do escritório",
     "officeHint": "Adicione o e-mail de contato e o logo (opcional). Eles aparecem nas páginas e nos e-mails que os clientes recebem.",
     "officeAction": "Personalizar",
+    "officeDialogTitle": "Dados do escritório",
     "firstProject": "Criar o primeiro projeto",
     "firstProjectHint": "Cada projeto ganha uma página para o cliente acompanhar etapas, arquivos e reuniões.",
     "firstProjectAction": "Criar projeto",
@@ -277,13 +288,33 @@
     "save": "Salvar",
     "saved": "Salvo.",
     "logo": "Logo",
-    "logoHint": "PNG, JPG, WebP ou SVG, até 5 MB.",
+    "logoHint": "PNG, JPG, WebP ou SVG, até 5 MB. Depois de escolher, você ajusta o recorte.",
     "logoNone": "Nenhum logo ainda.",
     "chooseLogo": "Escolher imagem",
     "logoSaved": "Logo atualizado.",
     "logoNeedsDrive": "Conecte o Google Drive para enviar o logo; ele fica guardado no Drive do escritório.",
     "logoAlt": "Logo de {{name}}",
-    "ownerOnly": "Só o responsável pelo escritório pode alterar estes dados."
+    "ownerOnly": "Só o responsável pelo escritório pode alterar estes dados.",
+    "darkSame": "Usar o mesmo logo no modo escuro",
+    "darkLogo": "Logo no modo escuro",
+    "darkHint": "Para fundos escuros, por exemplo uma versão clara do logo.",
+    "chooseDarkLogo": "Escolher imagem para o modo escuro",
+    "darkLogoSaved": "Logo do modo escuro atualizado.",
+    "darkLogoRemoved": "O modo escuro usa o mesmo logo."
+  },
+  "crop": {
+    "logoTitle": "Ajustar o logo",
+    "darkLogoTitle": "Ajustar o logo do modo escuro",
+    "coverTitle": "Ajustar a capa",
+    "logoHint": "Arraste as bordas para deixar só o logo, sem margens. As margens vazias já foram cortadas.",
+    "coverHint": "Arraste para escolher a parte da foto que aparece. A capa tem o mesmo formato em todas as telas.",
+    "removeBackground": "Remover fundo",
+    "inTheBar": "Assim ele aparece no topo das páginas",
+    "imageAlt": "Imagem a recortar",
+    "previewAlt": "Prévia do logo",
+    "unreadable": "Não foi possível abrir esta imagem. Escolha um arquivo PNG, JPG, WebP ou SVG.",
+    "cancel": "Cancelar",
+    "apply": "Usar recorte"
   },
   "page": {
     "loading": "Carregando…",
@@ -433,7 +464,13 @@
       "unsubscribeAsk": "{{email}} não vai mais receber as novidades do projeto {{project}} por e-mail.",
       "unsubscribeConfirm": "Cancelar os e-mails",
       "unsubscribed": "Pronto. {{email}} não vai mais receber as novidades do projeto {{project}}.",
-      "unsubscribeInvalid": "Este link não funciona mais. Se ainda recebe e-mails que não quer, fale com o escritório."
+      "unsubscribeInvalid": "Este link não funciona mais. Se ainda recebe e-mails que não quer, fale com o escritório.",
+      "resetSubject": "Redefinir sua senha no painel de {{office}}",
+      "resetHello": "Olá, {{name}}.",
+      "resetIntro": "Recebemos um pedido para redefinir a sua senha no painel de {{office}}. Use o botão abaixo para escolher uma nova.",
+      "resetButton": "Escolher uma nova senha",
+      "resetExpiry": "O link funciona uma única vez e expira em 24 horas.",
+      "resetIgnore": "Se não foi você quem pediu, ignore este e-mail: sua senha continua a mesma."
   },
   "updates": {
       "label": "Atualizações",
