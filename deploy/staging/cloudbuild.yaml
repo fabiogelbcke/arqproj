@@ -40,13 +40,6 @@ steps:
     name: gcr.io/cloud-builders/docker
     args: [push, "$_IMAGE:$SHORT_SHA"]
 
-  - id: fingerprint
-    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    entrypoint: bash
-    args:
-      - -c
-      - gcloud artifacts docker tags add "$_IMAGE:$SHORT_SHA" "$_IMAGE:tree-$$(cat /workspace/tree)"
-
   # The database, reached as this build's identity (the deploy account, the
   # schema's owner) through the Cloud SQL Auth Proxy, for the next step only.
   - id: database
@@ -95,3 +88,14 @@ steps:
         sed -e "s|IMAGE_PLACEHOLDER|$_IMAGE:$SHORT_SHA|" -e "s|BUILD_ID_PLACEHOLDER|$SHORT_SHA|"
         deploy/staging/service.yaml > /workspace/service.yaml &&
         gcloud run services replace /workspace/service.yaml --region "$_REGION"
+
+  # Only now, deployed and not superseded, is this image staging-tested: the
+  # fingerprint tag is what production accepts as proof (plan section 19).
+  - id: fingerprint
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - >-
+        if [ -f /workspace/superseded ]; then echo "superseded: not marked as tested"; exit 0; fi;
+        gcloud artifacts docker tags add "$_IMAGE:$SHORT_SHA" "$_IMAGE:tree-$$(cat /workspace/tree)"

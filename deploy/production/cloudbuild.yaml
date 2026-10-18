@@ -39,7 +39,7 @@ steps:
     args:
       - -c
       - >-
-        digest=$$(gcloud artifacts docker images describe "$_IMAGE:tree-$$(cat /workspace/tree)" --format='value(image_summary.digest)' 2>/dev/null);
+        digest=$$(gcloud artifacts docker tags list "$_IMAGE" --filter="tag~/tags/tree-$$(cat /workspace/tree)$$" --format='value(version)' 2>/dev/null);
         test -n "$$digest" || { echo "This code never ran on staging (no image tagged tree-$$(cat /workspace/tree)); merge staging into main and nothing else."; exit 1; };
         build=$$(gcloud artifacts docker tags list "$_IMAGE" --filter="version~$$digest" --format='value(tag)' 2>/dev/null | sed 's#.*/##' | grep -v '^tree-' | head -1);
         test -n "$$build" || { echo "No build tag on the staged image $$digest"; exit 1; };

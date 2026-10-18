@@ -16,7 +16,7 @@ Project `arq-proj`, region `us-east1`.
 | Branch | Trigger | Does |
 | --- | --- | --- |
 | `staging` | Cloud Build `portal-staging-deploy` (runs as `portal-staging-deploy@`) | `deploy/staging/cloudbuild.yaml`: build `deploy/Dockerfile`, push, migrate `arqproj_staging`, provision, deploy `portal-staging` from `deploy/staging/service.yaml` |
-| `main` | `portal-production-deploy` (runs as `portal-production-deploy@`) | `deploy/production/cloudbuild.yaml`: **no build**. Finds the image staging built from exactly this code (tagged `tree-<git tree hash>` by the staging build), migrates `arqproj_production` with it and deploys it to `portal` by digest (plan section 19). Stops if staging never ran this code: merge `staging` into `main` and nothing else |
+| `main` | `portal-production-deploy` (runs as `portal-production-deploy@`) | `deploy/production/cloudbuild.yaml`: **no build**. Finds the image staging built from exactly this code (tagged `tree-<git tree hash>` by the staging build once it has deployed), migrates `arqproj_production` with it and deploys it to `portal` by digest (plan section 19). Stops if staging never ran this code: merge `staging` into `main` and nothing else |
 | `main` | `rmgpgab-alinea-arquitetos-…` (old site, buildpacks) | **Disabled**: it would deploy the old site over the new app. Delete once the new app has run a while |
 
 A failed step stops the deploy; the running revision keeps serving. Settings
