@@ -536,15 +536,52 @@ async def test_the_status_says_there_is_a_folder_from_before(client, owner, goog
     assert (status["writer_status"], status["has_folder"]) == ("none", True)
 
 
-async def test_switching_while_connected_lets_go_of_the_old_grant_once_saved(
+async def expire(db_session):
+    """The office's grant lapsed (still stored): it can switch from here."""
+    saved = await connection(db_session)
+    saved.writer_status = WriterStatus.EXPIRED
+    await db_session.flush()
+
+
+async def test_no_switch_while_connected(client, db_session, owner, google):
+    """Disconnect first: while connected, staff could create projects or stages in
+    the old account during the switch, and those would be left behind."""
+    await come_back(client, await start(client, owner))
+    google.writer_reaches.clear()  # this sign-in is another account
+    refused = await come_back(client, await start(client, owner, fresh=True))
+    assert "erro=drive_other_account" in refused.headers["location"]
+    assert (await connection(db_session)).root_id == "root1"
+
+
+async def test_switching_from_an_expired_grant_lets_go_of_it_once_saved(
     client, db_session, owner, google
 ):
     await come_back(client, await start(client, owner))
-    google.writer_reaches.clear()  # still connected, but this sign-in is another account
+    await expire(db_session)
+    google.writer_reaches.clear()
     revoked = google.calls.count("POST oauth2.googleapis.com/revoke")
     done = await come_back(client, await start(client, owner, fresh=True))
     assert done.headers["location"].endswith("resultado=conectado")
     assert google.calls.count("POST oauth2.googleapis.com/revoke") == revoked + 1
+
+
+async def test_a_database_failure_while_starting_afresh_leaves_nothing_behind(
+    client, db_session, owner, google, monkeypatch
+):
+    from backend.web import page_stages
+
+    await other_account(client, db_session, owner, google)
+    before = await folders_of(db_session)
+
+    async def broken(*_args):
+        raise RuntimeError("database went away")
+
+    monkeypatch.setattr(page_stages, "_title", broken)
+    failed = await come_back(client, await start(client, owner, fresh=True))
+    assert failed.status_code == 500
+    assert any(c.startswith("PATCH") and "/new" in c for c in google.calls)  # trashed
+    db_session.expire_all()
+    assert await folders_of(db_session) == before
 
 
 async def test_if_the_switch_cannot_be_saved_the_old_grant_stays_and_the_new_root_goes(
@@ -553,6 +590,7 @@ async def test_if_the_switch_cannot_be_saved_the_old_grant_stays_and_the_new_roo
     from sqlalchemy.ext.asyncio import AsyncSession
 
     await come_back(client, await start(client, owner))
+    await expire(db_session)
     google.writer_reaches.clear()
     revoked = google.calls.count("POST oauth2.googleapis.com/revoke")
     commit = AsyncSession.commit

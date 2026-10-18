@@ -164,6 +164,13 @@ describe("another Google account", () => {
     expect(await screen.findByRole("button", { name: "Usar esta outra conta mesmo assim" })).toBeInTheDocument();
   });
 
+  it("while connected, offers to disconnect first rather than to switch", async () => {
+    api({ ...CONNECTED, has_folder: true });
+    renderAt("/configuracoes/drive");
+    expect(await screen.findByRole("button", { name: "Desconectar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Usar outra conta/ })).toBeNull();
+  });
+
   it("a first connection has no switch to offer", async () => {
     api(NOT_CONNECTED);
     renderAt("/configuracoes/drive");

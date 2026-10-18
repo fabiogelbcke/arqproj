@@ -267,7 +267,10 @@ async def _complete(
         # the warning, nothing changes and they are told (plan section 9).
         if await writer.can_open(connection.root_id):
             root = connection.root_id
-        elif not fresh:
+        elif not fresh or connection.writer_status is WriterStatus.CONNECTED:
+            # Only while disconnected or expired: then nothing else can create or
+            # change folders (projects, stages, uploads need the connection), so
+            # every project and stage is moved, none in the meantime.
             raise ConnectError(ConnectProblem.OTHER_ACCOUNT)
         else:
             switching = True
@@ -278,12 +281,12 @@ async def _complete(
             await writer.share_with_reader(root, reader)
             if switching:
                 await _start_afresh(db, writer, root, locale)
-        except ConnectError:
+        except Exception:  # a Drive or a database failure alike: all or nothing
             await db.rollback()
             await writer.trash(root)  # never leave a folder the reader cannot see
             raise
 
-    # The old account's grant, let go of only once the switch is saved.
+    # An expired old grant, let go of only once the switch is saved.
     old_token = connection.writer_token if switching and connection else None
     if connection is None:
         connection = StorageConnection(kind=StorageKind.GOOGLE)

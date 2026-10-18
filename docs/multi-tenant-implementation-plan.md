@@ -780,10 +780,13 @@ give the reader access to files others had already put inside?
 folder when the new grant reaches it, i.e. the same account. Another account
 cannot reach anything the app made with the first one (drive.file is per
 account), so it is refused unless the owner chooses "Usar outra conta" after a
-clear warning that the files stay behind. Then the office **starts afresh** in
+clear warning that the files stay behind. That choice is offered only while the
+office is disconnected (or its grant expired): then nothing else can create or
+change folders, so every project and stage moves, none in the meantime. Then the office **starts afresh** in
 the new account: a new root folder shared with the reader while empty, a new
-empty folder for every project and stage (all-or-nothing: a failure rolls back
-and trashes the new root), covers and the logo dropped (they were files in the
+empty folder for every project and stage (all-or-nothing: any failure, Drive's
+or the database's, rolls back and trashes the new root; an expired old grant is
+revoked only once the switch is saved), covers and the logo dropped (they were files in the
 old account), and each project's next scan set to only note what is there, so
 re-uploaded files don't email clients. Names, stages, notes, details, meetings,
 addresses and recipients are kept. The old account's folders are left untouched.

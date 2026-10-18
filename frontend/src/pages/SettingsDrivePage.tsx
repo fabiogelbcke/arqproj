@@ -87,8 +87,9 @@ export function SettingsDrivePage() {
                   {t(expired ? "drive.reconnect" : status.has_folder ? "drive.reconnectSame" : "drive.connect")}
                 </Button>
               )}
-              {/* Another account: its own folder, the projects' files left behind. */}
-              {status.has_folder && (
+              {/* Another account: its own folder, the projects' files left behind.
+                  Only once disconnected (or expired), so nothing changes meanwhile. */}
+              {status.has_folder && (!google || expired) && (
                 <SwitchAccount
                   onConfirm={() => connect.mutate(true)}
                   busy={connect.isPending}
