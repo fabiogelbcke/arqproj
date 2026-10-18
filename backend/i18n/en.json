@@ -10,6 +10,7 @@
     "signedInAs": "Signed in as {{name}}",
     "settings": "Settings",
     "menu": "Menu",
+    "sections": "Navigation",
     "hello": "Hi, {{name}}"
   },
   "theme": {
@@ -56,6 +57,9 @@
     },
     "groupActive": "In progress",
     "groupCompleted": "Completed",
+    "groups": "Project groups",
+    "noneActive": "No projects in progress.",
+    "noneCompleted": "No completed projects.",
     "groupCount": "{{shown}}/{{total}}",
     "stage": "Stage {{current}} of {{total}}",
     "noStages": "No stages set",
@@ -63,7 +67,7 @@
     "nextMeeting": "Next meeting",
     "updated": "Updated",
     "needsDrive": "To create projects, connect the office's Google Drive.",
-    "needsDriveLink": "Go to Settings → Google Drive",
+    "needsDriveMember": "To create projects, the office's Google Drive needs to be connected. Ask the office's owner.",
     "noMeeting": "None",
     "done": "Project completed",
     "stageCaption": "Current stage",
@@ -245,16 +249,23 @@
     "connectedNow": "Google Drive connected.",
     "disconnectedNow": "Google Drive disconnected.",
     "ownerOnly": "Only the office's owner can connect or disconnect.",
-    "noticeNone": "Connect Google Drive to create projects and upload files from here.",
     "noticeExpired": "The Google Drive connection expired. Client pages stay up; uploads and new projects wait until you reconnect."
   },
   "firstSteps": {
     "title": "First steps",
-    "storage": "Connect where project files live (Google Drive)",
+    "progress": "{{done}} of {{total}}",
+    "progressLabel": "{{done}} of {{total}} steps done",
+    "storage": "Connect Google Drive",
+    "storageHint": "Choose the folder for the projects' files. The site makes a folder for each project inside it.",
+    "storageAction": "Connect",
+    "office": "Personalize the office's details",
+    "officeHint": "Add the logo and contact email. They appear on the pages and emails clients receive.",
+    "officeAction": "Personalize",
     "firstProject": "Create the first project",
+    "firstProjectHint": "Each project gets a page where the client follows stages, files and meetings.",
+    "firstProjectAction": "Create project",
     "done": "Done",
-    "membersNote": "The office's owner needs to complete these steps.",
-    "office": "Fill in the office's details (contact email and logo)"
+    "membersNote": "Only the office's owner can complete these steps."
   },
   "office": {
     "name": "Office name",

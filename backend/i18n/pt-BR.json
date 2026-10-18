@@ -10,6 +10,7 @@
     "signedInAs": "Conectado como {{name}}",
     "settings": "Configurações",
     "menu": "Menu",
+    "sections": "Navegação",
     "hello": "Olá, {{name}}"
   },
   "theme": {
@@ -56,6 +57,9 @@
     },
     "groupActive": "Em andamento",
     "groupCompleted": "Concluídos",
+    "groups": "Grupos de projetos",
+    "noneActive": "Nenhum projeto em andamento.",
+    "noneCompleted": "Nenhum projeto concluído.",
     "groupCount": "{{shown}}/{{total}}",
     "stage": "Etapa {{current}} de {{total}}",
     "noStages": "Nenhuma etapa definida",
@@ -63,7 +67,7 @@
     "nextMeeting": "Próxima reunião",
     "updated": "Atualizado",
     "needsDrive": "Para criar projetos, conecte o Google Drive do escritório.",
-    "needsDriveLink": "Ir para Configurações → Google Drive",
+    "needsDriveMember": "Para criar projetos, o Google Drive do escritório precisa estar conectado. Peça ao responsável pelo escritório.",
     "noMeeting": "Nenhuma",
     "done": "Projeto concluído",
     "stageCaption": "Etapa atual",
@@ -245,16 +249,23 @@
     "connectedNow": "Google Drive conectado.",
     "disconnectedNow": "Google Drive desconectado.",
     "ownerOnly": "Só o responsável pelo escritório pode conectar ou desconectar.",
-    "noticeNone": "Conecte o Google Drive para criar projetos e enviar arquivos daqui.",
     "noticeExpired": "A conexão com o Google Drive expirou. As páginas dos clientes continuam no ar; envios e novos projetos ficam parados até reconectar."
   },
   "firstSteps": {
     "title": "Primeiros passos",
-    "storage": "Conectar onde ficam os arquivos dos projetos (Google Drive)",
+    "progress": "{{done}} de {{total}}",
+    "progressLabel": "{{done}} de {{total}} passos concluídos",
+    "storage": "Conectar o Google Drive",
+    "storageHint": "Escolha a pasta onde ficarão os arquivos dos projetos. O site cria uma pasta para cada projeto ali dentro.",
+    "storageAction": "Conectar",
+    "office": "Personalizar os dados do escritório",
+    "officeHint": "Adicione o logo e o e-mail de contato. Eles aparecem nas páginas e nos e-mails que os clientes recebem.",
+    "officeAction": "Personalizar",
     "firstProject": "Criar o primeiro projeto",
-    "done": "Feito",
-    "membersNote": "O responsável pelo escritório precisa concluir estes passos.",
-    "office": "Preencher os dados do escritório (e-mail de contato e logo)"
+    "firstProjectHint": "Cada projeto ganha uma página para o cliente acompanhar etapas, arquivos e reuniões.",
+    "firstProjectAction": "Criar projeto",
+    "done": "Concluído",
+    "membersNote": "Só o responsável pelo escritório pode concluir estes passos."
   },
   "office": {
     "name": "Nome do escritório",

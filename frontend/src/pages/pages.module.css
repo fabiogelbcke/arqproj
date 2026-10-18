@@ -54,12 +54,48 @@
   padding: 14px 18px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--raise);
 }
 .noticeAction { font-weight: 500; }
-.steps { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 24px; display: grid; gap: 12px; background: var(--raise); }
+/* The painel's first steps: progress, then one row per step with a box that
+   ticks itself (not a control) and the step's button. */
+.steps { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 24px; display: grid; gap: 14px; background: var(--raise); }
+.stepsHead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .steps h2 { font-size: 18px; font-weight: 500; }
-.steps ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
-.steps li { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
-.steps li[data-done] > :first-child { color: var(--muted); text-decoration: line-through; }
+.stepsCount { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stepsBar { height: 1px; background: var(--line); } /* a hairline like the page's others */
+.stepsBar i { display: block; height: 100%; background: var(--ink); transition: width 0.3s ease; }
+.steps ol { margin: 0; padding: 0; list-style: none; display: grid; }
+.step {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 4px 14px;
+  padding: 14px 0; border-top: 1px solid var(--line);
+}
+.step:first-child { border-top: 0; }
+.stepBox {
+  width: 20px; height: 20px; border: 1.5px solid var(--line-strong, var(--muted)); border-radius: 5px;
+  display: grid; place-items: center;
+}
+.step[data-done] .stepBox { background: var(--ink); border-color: var(--ink); }
+.step[data-done] .stepBox::after {
+  content: ""; width: 5px; height: 10px; margin-top: -2px;
+  border: solid var(--bg); border-width: 0 2px 2px 0; rotate: 45deg;
+}
+.stepText { display: grid; gap: 2px; min-width: 0; }
+.stepText strong { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 15px; }
+.stepIcon { width: 18px; height: 18px; flex: none; }
+.stepText small { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.step[data-done] .stepText strong { color: var(--muted); }
+/* One width for every step's button, wide enough for the longest label. */
+.stepAction {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 148px; min-height: 36px; padding: 0 12px;
+  border: 1px solid var(--ink); border-radius: var(--r); background: transparent; color: var(--ink);
+  font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.stepAction:hover { background: var(--ink); color: var(--bg); }
 .stepDone { font-size: 13px; color: var(--muted); }
+@media (max-width: 560px) {
+  /* The button goes under the text, beside the box's column. */
+  .step { grid-template-columns: 22px minmax(0, 1fr); }
+  .step > .stepAction, .step > .stepDone { grid-column: 2; justify-self: start; }
+  .steps { padding: 18px; }
+}
 .panel { display: grid; gap: 16px; max-width: 640px; }
 .panel h2 { font-size: 22px; font-weight: 500; }
 .conn { border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; display: grid; gap: 6px; background: var(--raise); }
@@ -116,12 +152,18 @@
 }
 .drawerGreeting { font: 400 22px/1.2 var(--display-font); letter-spacing: -0.01em; }
 .menuPanel { display: grid; align-content: start; padding: 0 10px 16px; outline: none; }
-.menuItem, .switch {
+.menuNav { display: grid; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.menuLabel {
+  margin: 0; padding: 4px 12px 6px; font: 500 11px/1.4 var(--font); letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.menuNav a[aria-current="page"] { font-weight: 600; }
+.menuNav a, .menuItem, .switch {
   display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 52px;
   padding: 0 12px; border: 0; border-radius: 8px; background: none; color: var(--ink);
   font: inherit; font-size: 17px; text-align: left; text-decoration: none; cursor: pointer;
 }
-.menuItem[data-hovered], .switch[data-hovered] { background: var(--mark-soft, rgb(0 0 0 / 5%)); }
+.menuNav a:hover, .menuItem[data-hovered], .switch[data-hovered] { background: var(--mark-soft, rgb(0 0 0 / 5%)); }
 .menuItem[data-focus-visible], .switch[data-focus-visible] .switchTrack {
   outline: 2px solid var(--ink); outline-offset: 2px;
 }
@@ -140,11 +182,6 @@
 @media (max-width: 720px) {
   .actions { display: none; } /* in the ☰ menu instead */
   .menuButton { display: grid; }
-  .topbarIn { padding-bottom: 0; }
-  /* Two tabs, half the width each. */
-  .nav { gap: 0; }
-  .nav a {
-    flex: 1 1 50%; text-align: center; padding: 12px 0; font-size: 12px; font-weight: 500;
-    letter-spacing: 0.08em; text-transform: uppercase;
-  }
+  .navInMenu { display: none; } /* the sections are in the ☰ drawer */
+  .topbarIn { padding-block: 8px; }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Input, SearchField } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
@@ -48,7 +48,7 @@ function Group({
   timeZone: string;
 }) {
   return (
-    <section className={styles.group} aria-labelledby={id}>
+    <section className={`${styles.group} ${styles.activeGroup}`} aria-labelledby={id}>
       <div className={styles.groupHead}>
         <h2 id={id}>{title}</h2>
         <span className={styles.groupCount} aria-label={countLabel}>
@@ -70,7 +70,7 @@ function CompletedGroup({ projects, timeZone }: { projects: ProjectSummary[]; ti
   const [open, setOpen] = useState(false);
   const listId = useId();
   return (
-    <section className={styles.group}>
+    <section className={`${styles.group} ${styles.completedGroup}`}>
       <div className={styles.groupHead}>
         <h2>
           <button
@@ -101,6 +101,8 @@ export function ProjectsPage() {
   const me = useMe();
   const timeZone = me.data?.tenant_timezone ?? "America/Sao_Paulo";
   const [query, setQuery] = useState("");
+  // Phones: one group at a time, chosen with two tabs (desktop shows both).
+  const [phoneGroup, setPhoneGroup] = useState<"active" | "completed">("active");
   const [sort, setSort] = useState<Sort>(loadSort);
   const sortId = useId();
 
@@ -118,13 +120,6 @@ export function ProjectsPage() {
   // No drafts for now (A35); one left in the database is listed with the live ones.
   const active = shown.filter((p) => p.status === "active" || p.status === "draft");
   const completed = shown.filter((p) => p.status === "completed");
-  const searchId = useId();
-  const searchInput = useRef<HTMLInputElement>(null);
-  // Phones only: closed until asked for, and kept open while it holds a search.
-  const [searchOpen, setSearchOpen] = useState(false);
-  useEffect(() => {
-    if (searchOpen) searchInput.current?.focus();
-  }, [searchOpen]);
   const hasAny = (projects.data?.length ?? 0) > 0;
 
   return (
@@ -135,29 +130,28 @@ export function ProjectsPage() {
           {me.data?.tenant_name} / {t("projects.kicker")}
         </p>
         <h1 className={`${pageStyles.display} ${pageStyles.displayMedium} ${styles.title}`}>{t("projects.title")}</h1>
+        {hasAny && (
+          <div className={styles.groupTabs} role="group" aria-label={t("projects.groups")}>
+            <button type="button" aria-pressed={phoneGroup === "active"} onClick={() => setPhoneGroup("active")}>
+              {t("projects.groupActive")} {active.length > 0 && <span>{active.length}</span>}
+            </button>
+            <button type="button" aria-pressed={phoneGroup === "completed"} onClick={() => setPhoneGroup("completed")}>
+              {t("projects.groupCompleted")} {completed.length > 0 && <span>{completed.length}</span>}
+            </button>
+          </div>
+        )}
         <div className={styles.tools}>
           {hasAny && (
             <>
-              {/* Phones: search sits behind this button, beside "Novo projeto" (desktop: hidden). */}
-              <Button
-                className={styles.searchToggle}
-                aria-label={t("projects.search")}
-                aria-expanded={searchOpen}
-                aria-controls={searchId}
-                onPress={() => setSearchOpen(!searchOpen)}
-              >
-                <span className={styles.searchIcon} aria-hidden="true" />
-              </Button>
+              {/* Phones: a floating pill at the bottom, beside the + (iOS Contacts). */}
               <SearchField
-                id={searchId}
                 className={styles.search}
-                data-open={searchOpen || undefined}
                 value={query}
                 onChange={setQuery}
                 aria-label={t("projects.search")}
               >
                 <span className={styles.searchIcon} aria-hidden="true" />
-                <Input ref={searchInput} className={styles.searchInput} placeholder={t("projects.searchPlaceholder")} />
+                <Input className={styles.searchInput} placeholder={t("projects.searchPlaceholder")} />
               </SearchField>
               <div className={styles.sort}>
                 <label htmlFor={sortId}>{t("projects.sortBy")}</label>
@@ -203,8 +197,8 @@ export function ProjectsPage() {
       ) : shown.length === 0 ? (
         <p className={pageStyles.lead}>{t("projects.noResults", { query })}</p>
       ) : (
-        <>
-          {active.length > 0 && (
+        <div className={styles.groups} data-phone-group={phoneGroup}>
+          {active.length > 0 ? (
             <Group
               id="group-active"
               title={t("projects.groupActive")}
@@ -213,9 +207,19 @@ export function ProjectsPage() {
               projects={active}
               timeZone={timeZone}
             />
+          ) : (
+            <p className={`${pageStyles.lead} ${styles.phoneEmpty}`} data-group="active">
+              {t("projects.noneActive")}
+            </p>
           )}
-          {completed.length > 0 && <CompletedGroup projects={completed} timeZone={timeZone} />}
-        </>
+          {completed.length > 0 ? (
+            <CompletedGroup projects={completed} timeZone={timeZone} />
+          ) : (
+            <p className={`${pageStyles.lead} ${styles.phoneEmpty}`} data-group="completed">
+              {t("projects.noneCompleted")}
+            </p>
+          )}
+        </div>
       )}
     </>
   );

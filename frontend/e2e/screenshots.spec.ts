@@ -66,6 +66,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.goto("/painel");
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
   await page.locator("header img").waitFor();
+  await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
   // Phones: the ☰ menu, open (a phone-only screen).
