@@ -24,7 +24,7 @@ const StageControls = lazy(() => import("./StageEditing").then((m) => ({ default
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
 const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
-import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
+import { day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -94,11 +94,13 @@ function FileCard({
 }) {
   const { t, i18n } = useTranslation();
   // Only images and PDFs have previews (Drive's); other files show their type.
-  const [thumb, setThumb] = useState<"thumb" | "original" | "none">(file.kind === "other" ? "none" : "thumb");
-  const url = `/api/pages/${slug}/files/${encodeURIComponent(file.key)}`;
+  const preview = fileSource.address(slug, file.key, "thumb");
+  const [thumb, setThumb] = useState<"thumb" | "original" | "none">(
+    file.kind === "other" ? "none" : preview ? "thumb" : file.kind === "image" ? "original" : "none",
+  );
   const extension = file.name.includes(".") ? file.name.split(".").pop()!.toUpperCase() : "";
   // Drive's preview first; for an image without one (local folders), the image itself.
-  const src = thumb === "thumb" ? `${url}/thumb` : thumb === "original" ? `${url}?inline=true` : null;
+  const src = thumb === "thumb" ? preview : thumb === "original" ? fileSource.address(slug, file.key, "inline") : null;
   return (
     <div className="file" data-file={file.key}>
       <button className="file__open" type="button" onClick={onOpen} aria-label={t("page.openFile", { name: file.name })}>
@@ -386,6 +388,7 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
   const meeting = page.next_meeting;
   const when = meeting ? meetingWhen(meeting, i18n.language, page.timezone) : null;
   const title = meeting ? meeting.title || t("page.defaultMeetingTitle") : t("page.noMeetingTitle");
+  const calendar = fileSource.calendar(slug);
   return (
     <section className="meet" data-editable aria-label={t("page.nextMeeting")}>
       {onEdit && <EditButton label={meeting ? t("edit.meeting") : t("edit.schedule")} onClick={onEdit} />}
@@ -425,9 +428,11 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
               >
                 {t("page.googleCalendar")}
               </a>
-              <a href={`/api/pages/${slug}/meeting.ics`} download="reuniao.ics">
-                {t("page.otherCalendar")}
-              </a>
+              {calendar && (
+                <a href={calendar} download="reuniao.ics">
+                  {t("page.otherCalendar")}
+                </a>
+              )}
             </div>
           </details>
         </div>
@@ -584,12 +589,14 @@ function StaffBar({
   editing,
   onMode,
   onPublished,
+  onTour,
 }: {
   page: Page;
   ready: boolean;
   editing: boolean;
   onMode: (editing: boolean) => void;
   onPublished: () => void;
+  onTour: () => void; // "?": the guided tour again
 }) {
   const { t } = useTranslation();
   const [publishing, setPublishing] = useState(false);
@@ -608,7 +615,7 @@ function StaffBar({
         <small>{draft ? t("page.draftNote") : t("page.publishedNote")}</small>
       </span>
       {/* The prototype's switch: the page as the client sees it, or with controls. */}
-      <div className="seg" role="group" aria-label={t("edit.mode")} data-on={editing ? "edit" : "view"}>
+      <div className="seg" role="group" aria-label={t("edit.mode")} data-on={editing ? "edit" : "view"} data-tour="mode">
         <button type="button" aria-pressed={!editing} onClick={() => onMode(false)}>
           {t("edit.asClient")}
         </button>
@@ -625,6 +632,7 @@ function StaffBar({
       <button
         className="iconbtn"
         type="button"
+        data-tour="link"
         aria-label={t("page.copyLink")}
         title={t("page.copyLink")}
         onClick={() => {
@@ -637,6 +645,11 @@ function StaffBar({
       >
         <Icon name="link" />
       </button>
+      {!archived && (
+        <button className="iconbtn dock__help" type="button" aria-label={t("tour.again")} title={t("tour.again")} onClick={onTour}>
+          ?
+        </button>
+      )}
       {draft && (
         <button
           className="b b--primary b--small"
@@ -710,16 +723,22 @@ function Title({ name }: { name: string }) {
   );
 }
 
+let tourOffered = false;
+
 export function ProjectPage({
   page,
   slug,
   ready = false,
+  tourSeen = true,
   onChanged,
+  onTour,
 }: {
   page: Page;
   slug: string;
   ready?: boolean; // the staff session's CSRF token is in hand
+  tourSeen?: boolean; // false: this staff account hasn't had the tour yet
   onChanged?: () => void;
+  onTour?: () => void; // "?" runs this tour instead (the example project's)
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -727,6 +746,17 @@ export function ProjectPage({
   useCoverWipe(cover);
   const stageFiles = useStageFiles(slug, page);
   const [editing, setEditing] = useState(false);
+  // The guided tour (Tour.ts, loaded only for staff): once per account, then from "?".
+  const tour = (first: boolean) =>
+    void import("./Tour").then(({ startTour }) =>
+      startTour({ t, enterEdit: () => setEditing(true), markSeen: first }),
+    );
+  useEffect(() => {
+    const archived = page.staff?.status === "archived";
+    if (!page.staff || !ready || tourSeen || archived || tourOffered) return;
+    tourOffered = true; // once per visit, even if the page mounts again
+    tour(true);
+  }, [ready, tourSeen, page.staff]); // once, when the session is ready
   const [openEditor, setOpenEditor] = useState<string | null>(null);
   const staff = page.staff;
   // Stage controls wait for the reloaded page after each change (a new row version).
@@ -1023,6 +1053,7 @@ export function ProjectPage({
             setOpenEditor(null);
           }}
           onPublished={() => onChanged?.()}
+          onTour={onTour ?? (() => tour(false))}
         />
       )}
       {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}

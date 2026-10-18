@@ -3,6 +3,7 @@ import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
+import { EXAMPLE_SLUG } from "../client/example/address";
 import { OfficeDetails } from "../pages/SettingsOfficePage";
 import { NewProjectDialog } from "../projects/NewProjectDialog";
 import dialogs from "../projects/projects.module.css";
@@ -22,7 +23,15 @@ export function FirstSteps() {
   const onboarding = useOnboarding();
   const me = useMe();
   const steps = onboarding.data;
-  if (!steps || (steps.storage_connected && steps.office_details && steps.has_project)) return null;
+  if (!steps) return null;
+  // Not one of the steps: the example project stays at hand once they are done.
+  const example = (
+    <a className={styles.exampleLink} href={`/${EXAMPLE_SLUG}`}>
+      {t("firstSteps.example")}
+    </a>
+  );
+  if (steps.storage_connected && steps.office_details && steps.has_project)
+    return <p className={styles.exampleAfter}>{example}</p>;
   const owner = me.data?.role === "owner";
   const done = [steps.storage_connected, steps.office_details, steps.has_project].filter(Boolean).length;
   const total = 3;
@@ -74,6 +83,7 @@ export function FirstSteps() {
           )}
         />
       </ol>
+      <p className={styles.exampleLine}>{example}</p>
       {!owner && <p className={styles.small}>{t("firstSteps.membersNote")}</p>}
     </section>
   );

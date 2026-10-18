@@ -97,3 +97,24 @@ decision in the [decision changelog](decision-changelog.md).
   place, the link opens the first. When the document index for versions (A25) stores
   files, the link can name the file by its id there instead. Fabio, 18 Oct 2026:
   "we can wait for A25".
+
+## Moving projects to another Google Drive account
+
+- Switching an office's Drive account starts it fresh in the new account (the
+  old account's files stay where they are; see the plan's section 9). A tool
+  could later carry projects across: copy each project's files into the new
+  account's folders, through the site, so the new grant can reach them. Fabio,
+  18 Oct 2026: "We could also plan a migration tool for later".
+
+## Guided tours and an example project
+
+- Agreed and designed: see the plan, section 16, "Onboarding help". Kept here
+  as a reminder that Fabio's partners may still weigh in.
+
+- Agreed to try (Fabio, 18 Oct 2026; may be rediscussed with his partners): an
+  example project that is static (fictional data in the browser, nothing in
+  the office's Drive, nothing saved), offered in Primeiros passos, with a tour
+  that shows where things appear (files, description, details…) every time it
+  opens, skippable. The first real project page has its own tour, focused on
+  setting the project up, once per account (built: Driver.js,
+  `users.tour_seen_at`, "?" in the staff bar replays it).

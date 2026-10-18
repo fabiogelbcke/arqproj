@@ -120,12 +120,25 @@ async def test_a_reset_link_is_for_that_tenants_account_only(database):
         await run(database, "reset-link", "--tenant", "alinea", "--email", "ana@example.com")
 
 
+async def test_reset_tour_shows_the_tour_again_for_that_account(database):
+    await run(database, "add", "--tenant", "alinea", "--email", "ana@example.com", "--name", "A")
+    engine = create_engine(database)
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE users SET tour_seen_at = now()"))
+    engine.dispose()
+    output = await run(database, "reset-tour", "--tenant", "alinea", "--email", "ana@example.com")
+    assert "starts again" in output
+    [(seen,)] = rows(database, "SELECT tour_seen_at FROM users WHERE email = 'ana@example.com'")
+    assert seen is None
+
+
 @pytest.mark.parametrize(
     ("argv", "error"),
     [
         (["add", "--tenant", "nowhere", "--email", "a@b.c", "--name", "A"], "No tenant"),
         (["add", "--tenant", "alinea", "--email", "a@b.c", "--name", "A", "--role", "admin"], "2"),
         (["reset-link", "--tenant", "alinea", "--email", "who@b.c"], "No account"),
+        (["reset-tour", "--tenant", "alinea", "--email", "who@b.c"], "No account"),
     ],
 )
 async def test_mistakes_are_refused_and_change_nothing(database, argv, error):

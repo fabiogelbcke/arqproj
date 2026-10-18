@@ -2,6 +2,7 @@
 
     uv run python -m backend.commands.staff add --tenant alinea --email ana@x.com --name Ana
     uv run python -m backend.commands.staff reset-link --tenant alinea --email ana@x.com
+    uv run python -m backend.commands.staff reset-tour --tenant alinea --email ana@x.com
 
 Nobody types someone else's password: `add` creates the account without one and
 prints an invite link, `reset-link` prints a link to choose a new one. Send the
@@ -38,6 +39,9 @@ async def run(argv: list[str], database_url: str) -> str:
     reset = commands.add_parser("reset-link", help="print a link to choose a new password")
     reset.add_argument("--tenant", required=True)
     reset.add_argument("--email", required=True)
+    tour = commands.add_parser("reset-tour", help="show the project page's tour again")
+    tour.add_argument("--tenant", required=True)
+    tour.add_argument("--email", required=True)
     args = parser.parse_args(argv)
 
     engine = create_async_engine(database_url)
@@ -70,6 +74,11 @@ async def run(argv: list[str], database_url: str) -> str:
                     user = await accounts.find_user(session, args.email)
                     if user is None:
                         raise accounts.AccountError(f"No account for {args.email.strip().lower()}")
+                    if args.command == "reset-tour":
+                        # For trying the first-visit tour again, here or on staging.
+                        user.tour_seen_at = None
+                        await session.commit()
+                        return f"The tour starts again on {user.email}'s next project page."
                     token = await links.create(session, user, LinkKind.RESET)
                     done = f"Reset link for {user.email} in {args.tenant}"
             except accounts.AccountError as error:

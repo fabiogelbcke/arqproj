@@ -117,6 +117,20 @@ test("@screenshots staff app", async ({ page, browser }) => {
   // The client's page (no sign-in needed; the staff session doesn't change it).
   await page.setViewportSize(SIZES[0]!);
   await page.goto("/casa-jardim");
+  // A new account's first project page: the tour, in edit mode. Then closed (seen)
+  // and back to the client's view.
+  const tour = page.locator(".driver-popover");
+  await tour.waitFor();
+  await page.waitForTimeout(400); // its fade-in
+  await shoot(page, "06i-tour");
+  await tour.getByRole("button", { name: /Próximo/ }).click();
+  await page.waitForTimeout(400);
+  await shoot(page, "06j-tour-lapis");
+  const seen = page.waitForResponse((r) => r.url().endsWith("/api/me/tour-seen"));
+  await page.keyboard.press("Escape");
+  await seen;
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Ver como cliente" }).click();
   await page.getByRole("heading", { name: "Etapas e próximos passos" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
@@ -160,5 +174,14 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await visitor.getByLabel(/Últimas atualizações, 1 não lida/).click();
   await visitor.getByRole("region", { name: "Últimas atualizações" }).waitFor();
   await shoot(visitor, "06c-atualizacoes");
+
+  // The example project (plan section 16): its explore tour, then the page.
+  await visitor.goto("/tour-projeto");
+  const explore = visitor.locator(".driver-popover");
+  await explore.waitFor();
+  await visitor.waitForTimeout(400); // its fade-in
+  await shoot(visitor, "07-exemplo-tour");
+  await explore.getByRole("button", { name: "Pular" }).click();
+  await shoot(visitor, "07b-projeto-de-exemplo");
   await visitor.close();
 });

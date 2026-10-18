@@ -118,6 +118,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
     }
     assert _column_grants(migrated_url, group) == {
         ("users", "password_hash", "UPDATE"),
+        ("users", "tour_seen_at", "UPDATE"),  # the project page's tour, once per account
         ("password_links", "used_at", "UPDATE"),
         *(
             ("projects", column, "UPDATE")

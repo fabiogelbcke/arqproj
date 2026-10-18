@@ -8,7 +8,7 @@ import { ApiError, api, call, type Schemas } from "../api/client";
 import { errorMessage } from "../ui/ErrorNotice";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { toast, toastError } from "../ui/Toast";
-import type { Page } from "./format";
+import { fileSource, type Page } from "./format";
 
 type Staff = NonNullable<Page["staff"]>;
 type FileItem = Schemas["FileOut"];
@@ -174,6 +174,7 @@ export function StageDrop({
     <>
       <div
         className={`drop${over ? " over" : ""}`}
+        data-tour="upload"
         onDragOver={(event) => {
           event.preventDefault();
           setOver(true);
@@ -364,7 +365,7 @@ export function FileMenu({
       )}
       {cropping && (
         <ImageCropDialog
-          source={`/api/pages/${slug}/files/${encodeURIComponent(file.key)}?inline=true`}
+          source={fileSource.address(slug, file.key, "inline")!}
           kind="cover"
           name="capa.jpg"
           onCancel={() => setCropping(false)}

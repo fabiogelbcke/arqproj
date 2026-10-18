@@ -79,6 +79,26 @@ async def test_me_answers_for_the_signed_in_staff_member(client, staff):
     assert me.json()["email"] == "ana@alinea.example"
 
 
+async def test_the_project_page_tour_is_seen_once_per_account(client, staff):
+    signed = (await sign_in(client)).json()
+    assert signed["page_tour_seen"] is False
+    alinea = {"host": "alinea.localhost"}
+    marked = await client.post(
+        "/api/me/tour-seen", headers={**alinea, auth.CSRF_HEADER: signed["csrf_token"]}
+    )
+    assert marked.status_code == 204
+    assert (await client.get("/api/me", headers=alinea)).json()["page_tour_seen"] is True
+    # On another device (a new session) too.
+    client.cookies.clear()
+    assert (await sign_in(client)).json()["page_tour_seen"] is True
+
+
+async def test_marking_the_tour_seen_needs_the_csrf_token(client, staff):
+    await sign_in(client)
+    refused = await client.post("/api/me/tour-seen", headers={"host": "alinea.localhost"})
+    assert refused.status_code == 403
+
+
 async def test_email_is_not_case_sensitive(client, staff):
     assert (await sign_in(client, email="  ANA@Alinea.Example ")).status_code == 200
 

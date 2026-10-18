@@ -80,6 +80,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/tour-seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tour Seen
+         * @description The project page's tour, finished or closed: not offered again to this account
+         *     on any device ("Ver tour" in the staff bar replays it).
+         */
+        post: operations["tour_seen_api_me_tour_seen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/password-reset": {
         parameters: {
             query?: never;
@@ -862,6 +883,8 @@ export interface components {
             tenant_timezone: string;
             /** Csrf Token */
             csrf_token: string;
+            /** Page Tour Seen */
+            page_tour_seen: boolean;
         };
         /** MeetingIn */
         MeetingIn: {
@@ -1496,6 +1519,42 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    tour_seen_api_me_tour_seen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
