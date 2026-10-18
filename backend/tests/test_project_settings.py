@@ -37,6 +37,22 @@ async def change(client, headers, found, **body):
 # -- name, client, archiving --------------------------------------------------------
 
 
+async def test_a_client_name_from_before_the_30_limit_can_be_kept_not_lengthened(
+    client, db_session, owner
+):
+    """The Projeto dialog sends every field: a project saved with a longer client
+    name must still save its other settings."""
+    long = "Família Albuquerque de Oliveira Neto"  # 36 characters
+    await db_session.execute(
+        text("UPDATE projects SET client_name = :c WHERE name = 'Casa Jardim'"), {"c": long}
+    )
+    found = await project(client)
+    kept = await change(client, owner, found, client_name=long, name="Casa Jardim II")
+    assert kept.status_code == 200, kept.text
+    changed = await change(client, owner, kept.json(), client_name=long + "!")
+    assert (changed.status_code, changed.json()["error"]) == (422, "invalid_client_name")
+
+
 async def test_name_and_client_can_be_changed(client, owner):
     found = await project(client)
     response = await change(client, owner, found, name=" Casa Jardim II ", client_name="Família R.")
@@ -71,7 +87,7 @@ async def test_a_name_another_project_has_is_refused_but_its_own_is_fine(client,
     ("body", "error"),
     [
         ({"name": "  "}, "invalid_project_name"),
-        ({"client_name": "x" * 49}, "invalid_client_name"),
+        ({"client_name": "x" * 31}, "invalid_client_name"),  # 30 for now
     ],
 )
 async def test_bad_values_are_refused(client, owner, body, error):

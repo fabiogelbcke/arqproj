@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -48,6 +48,14 @@ beforeEach(() => localStorage.clear());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the Projeto dialog", () => {
+  it("closes from its × without saving", async () => {
+    const sent = api();
+    const dialog = await openSettings();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(sent.some((r) => r.method === "PATCH")).toBe(false);
+  });
+
   it("saves the name and client with the version it loaded", async () => {
     const sent = api({ [`PATCH ${PATH}`]: (body: unknown) => ({ body: { ...CASA, ...(body as object), row_version: 5 } }) });
     const dialog = await openSettings();

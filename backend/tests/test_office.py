@@ -73,13 +73,27 @@ async def test_the_name_starts_as_the_registrys_and_can_be_changed(client, owner
     ("body", "error"),
     [
         ({"name": "   "}, "invalid_office_name"),
-        ({"name": "x" * 81}, "invalid_office_name"),
+        ({"name": "x" * 29}, "invalid_office_name"),  # 28 for now
         ({"contact_email": "not-an-email"}, "invalid_email"),
     ],
 )
 async def test_bad_details_are_refused(client, owner, body, error):
     response = await client.patch("/api/office", json=body, headers=owner)
     assert (response.status_code, response.json()) == (422, {"error": error})
+
+
+async def test_an_office_name_from_before_the_28_limit_can_be_kept_not_lengthened(
+    client, db_session, owner
+):
+    long = "Escritório de Arquitetura Alinea Ltda"  # 37 characters
+    await client.patch("/api/office", json={"contact_email": "x@y.com"}, headers=owner)  # saved
+    await db_session.execute(text("UPDATE office_profiles SET display_name = :n"), {"n": long})
+    kept = await client.patch(
+        "/api/office", json={"name": long, "contact_email": "a@b.com"}, headers=owner
+    )
+    assert kept.status_code == 200, kept.text
+    changed = await client.patch("/api/office", json={"name": long + "!"}, headers=owner)
+    assert (changed.status_code, changed.json()["error"]) == (422, "invalid_office_name")
 
 
 async def test_members_see_the_details_but_cannot_change_them(client, db_session, owner):
@@ -129,11 +143,11 @@ async def test_only_small_images_are_accepted_as_a_logo(client, owner, content, 
     assert (response.status_code, response.json()) == (status, {"error": error})
 
 
-async def test_first_steps_tick_office_details_once_email_and_logo_are_set(client, owner):
+async def test_first_steps_tick_office_details_once_the_email_is_set(client, owner):
+    assert (await client.get("/api/onboarding", headers=ALINEA)).json()["office_details"] is False
+    await upload(client, owner, PNG)  # a logo alone isn't enough: it's optional
     assert (await client.get("/api/onboarding", headers=ALINEA)).json()["office_details"] is False
     await client.patch("/api/office", json={"contact_email": "a@b.com"}, headers=owner)
-    assert (await client.get("/api/onboarding", headers=ALINEA)).json()["office_details"] is False
-    await upload(client, owner, PNG)
     assert (await client.get("/api/onboarding", headers=ALINEA)).json()["office_details"] is True
 
 

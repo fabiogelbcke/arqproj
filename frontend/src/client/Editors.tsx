@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
+import { TextInput } from "../ui/TextInput";
 import { toast } from "../ui/Toast";
 import type { Page } from "./format";
 
@@ -75,6 +76,38 @@ function Editor({
         </button>
       </div>
     </form>
+  );
+}
+
+/** The project's name, from its title (the same change as the painel's "Projeto"). */
+export function NameEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
+  const { t } = useTranslation();
+  const [name, setName] = useState(page.name);
+  const save = useSave(() => onDone(true));
+  return (
+    <Editor
+      title={t("edit.name")}
+      {...save}
+      onCancel={() => onDone(false)}
+      onSubmit={() =>
+        save.run(() =>
+          call(
+            api.PATCH("/api/projects/{project_id}", {
+              params: { path: { project_id: staff.project_id } },
+              body: { row_version: staff.row_version, name: name.trim() },
+            }),
+          ),
+        )
+      }
+    >
+      <div className="field">
+        <label className="sr" htmlFor="ed-name">
+          {t("edit.name")}
+        </label>
+        <TextInput className="input" id="ed-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} autoFocus />
+        <p className="hint">{t("edit.nameHint")}</p>
+      </div>
+    </Editor>
   );
 }
 
@@ -290,8 +323,7 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
     >
       <div className="field">
         <label htmlFor="m-title">{t("edit.subject")}</label>
-        <input className="input" id="m-title" value={form.title} onChange={set("title")} maxLength={40} required autoFocus />
-        <p className="hint">{t("edit.subjectHint")}</p>
+        <TextInput className="input" id="m-title" value={form.title} onChange={set("title")} maxLength={40} required autoFocus />
       </div>
       <div className="row3">
         <div className="field">
@@ -310,7 +342,7 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
       <div className="row2">
         <div className="field">
           <label htmlFor="m-loc">{t("edit.location")}</label>
-          <input className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={60} />
+          <TextInput className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={60} />
         </div>
         <div className="field">
           <label htmlFor="m-link">{t("edit.link")}</label>

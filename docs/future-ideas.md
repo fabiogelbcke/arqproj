@@ -67,3 +67,9 @@ decision in the [decision changelog](decision-changelog.md).
   consent/template requirements before choosing an implementation.
 - Decide whether recipients choose one channel or can receive both, and how to
   avoid unwanted duplicate notifications.
+
+## Account settings in the phone menu
+
+- The painel's ☰ drawer on phones (greeting, Modo escuro, Sair) is the natural
+  home for a staff member's own account: change password, change email, maybe
+  notification preferences. Fabio, 18 Oct 2026: "later".

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call } from "../api/client";
 import { Button } from "../ui/Button";
+import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { toast } from "../ui/Toast";
@@ -21,7 +22,7 @@ import {
 import styles from "./projects.module.css";
 
 const NAME_MAX = 120;
-const CLIENT_MAX = 48;
+const CLIENT_MAX = 30; // for now (Fabio, 18 Oct 2026); the API checks the same
 const RECIPIENTS_MAX = 20; // the server checks it too
 
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -164,6 +165,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           <Heading slot="title" className={styles.dialogTitle}>
             {t("projectSettings.title")}
           </Heading>
+          <CloseButton onPress={onClose} />
           <Form
             className={styles.form}
             onSubmit={(event) => {

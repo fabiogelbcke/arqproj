@@ -249,10 +249,12 @@ How many rounds:
 - Stop when a round brings only declined or marginal findings, or comes back
   clean (👍).
 - A serious (P1) finding always gets one more round after its fix.
-- Hard stop after 4 rounds. If real issues are still appearing, the pull request
-  is too big or its design is unsettled: pause and discuss it with Fabio.
-- Scale with the risk: security and data-isolation work follows the rules above;
-  documentation-only or file-move pull requests get one review, and a
+- At most 2 rounds for UI changes and for low-risk backend changes, and at most
+  4 for high-risk changes to anything (security, data isolation, migrations,
+  deploys, money or email sending) (Fabio, 18 Oct 2026: reviews cost tokens).
+  If real issues are still appearing at the limit, the pull request is too big
+  or its design is unsettled: pause and discuss it with Fabio.
+- Documentation-only or file-move pull requests get one review, and a
   documentation-only change after a clean review needs none.
 
 - Fix serious findings and those realistic for our actual setup.

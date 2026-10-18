@@ -5,7 +5,8 @@ import styles from "../pages/pages.module.css";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { useDrive } from "./drive";
 
-/** Office-wide: Drive not connected yet, or the connection expired. */
+/** Office-wide: the Drive connection expired, or its folder can't be read. (Not
+ *  connected yet is the first of the painel's first steps, not a notice.) */
 export function DriveNotice() {
   const { t } = useTranslation();
   const drive = useDrive();
@@ -15,13 +16,13 @@ export function DriveNotice() {
   const expired = status.kind === "google" && status.writer_status === "expired";
   const missing = status.kind === null || status.writer_status === "none";
   const unreadable = status.kind === "google" && !missing && status.reader_status === "no_access";
-  if (!expired && !missing && !unreadable) return null;
-  const message = expired ? "drive.noticeExpired" : missing ? "drive.noticeNone" : "drive.readerProblem";
+  if (!expired && !unreadable) return null;
+  const message = expired ? "drive.noticeExpired" : "drive.readerProblem";
   return (
     <div className={styles.notice} role="status">
       <p>{t(message)}</p>
       <Link className={styles.noticeAction} to="/configuracoes/drive">
-        {t(expired ? "drive.reconnect" : missing ? "drive.connect" : "settings.drive")}
+        {t(expired ? "drive.reconnect" : "settings.drive")}
       </Link>
     </div>
   );

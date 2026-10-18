@@ -7,11 +7,13 @@ import { flushSync } from "react-dom";
 import { api, call, type Schemas } from "../api/client";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton } from "./EditButton";
+import { splitTitle } from "./titleLead";
 import { UpdatesBell } from "./Updates";
 import { FilePreview, FileToolbar, shownFiles, usePrefs, type FileView } from "./FileTools";
 
 // Staff editing code loads only once staff press "Editar" (A20): visitors never get it.
 const DescriptionEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DescriptionEditor })));
+const NameEditor = lazy(() => import("./Editors").then((m) => ({ default: m.NameEditor })));
 const DetailsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DetailsEditor })));
 const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.MeetingEditor })));
 const NotesEditor = lazy(() => import("./Editors").then((m) => ({ default: m.NotesEditor })));
@@ -290,11 +292,10 @@ function Description({ text }: { text: string }) {
 }
 
 /** Cliente, type, the project's details, and the last update. */
-function Facts({ page, skipClient = false }: { page: Page; skipClient?: boolean }) {
+function Facts({ page }: { page: Page }) {
   const { t, i18n } = useTranslation();
   const rows: Array<[string, string]> = [
-    ...(skipClient ? [] : [[t("page.client"), page.client_name.toLocaleUpperCase(i18n.language)] as [string, string]]),
-    [t("page.projectType"), page.project_type.toLocaleUpperCase(i18n.language)],
+    [t("page.client"), page.client_name.toLocaleUpperCase(i18n.language)],
     ...page.details.map((d) => [d.label, detailValue(d, i18n.language)] as [string, string]),
     [t("page.lastUpdate"), day(page.last_update, i18n.language, page.timezone)],
   ];
@@ -310,24 +311,26 @@ function Facts({ page, skipClient = false }: { page: Page; skipClient?: boolean 
   );
 }
 
-/** On phones: the client's name, opening to the details and the description. */
+/** On phones: "Detalhes do projeto", opening to the details (the client first) and
+ *  the description. The arrow keeps to the right edge, whatever the names' length. */
 function MobileSummary({ page }: { page: Page }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   return (
     <details className="facts-disclosure mobile-project-summary">
       <summary>
-        <span className="facts-summary-label">{t("page.client")}</span>
-        <strong>{page.client_name.toLocaleUpperCase(i18n.language)}</strong>
+        <span className="facts-summary-label">{t("page.projectDetails")}</span>
         <span className="facts-summary-action" aria-hidden="true">
           <Icon name="down" />
         </span>
       </summary>
       <dl className="facts">
-        <Facts page={page} skipClient />
-        <div className="mobile-project-description">
-          <dt>{t("page.description")}</dt>
-          <dd>{page.description ? <Description text={page.description} /> : <p>{t("page.noDescription")}</p>}</dd>
-        </div>
+        <Facts page={page} />
+        {page.description && (
+          <div className="mobile-project-description">
+            <dt>{t("page.description")}</dt>
+            <dd><Description text={page.description} /></dd>
+          </div>
+        )}
       </dl>
     </details>
   );
@@ -349,10 +352,7 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
           {narrow ? (
             <span className="journey-kicker">{t("page.timeline").toLocaleUpperCase()}</span>
           ) : (
-            <>
-              <span className="journey-kicker">{t("page.journeyKicker").toLocaleUpperCase()}</span>
-              <h2>{t("page.journeyTitle")}</h2>
-            </>
+            <h2>{t("page.journeyTitle")}</h2>
           )}
         </div>
       </div>
@@ -687,15 +687,21 @@ function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
+/** "/casa de praia" (the property or work type, else the first word) then the rest
+ *  in bold, on two lines; a short name (under 15 characters) on one. */
 function Title({ name }: { name: string }) {
   const { i18n } = useTranslation();
-  const [lead, ...rest] = name.trim().split(/\s+/);
+  const { lead, rest } = splitTitle(name);
+  const oneLine = name.trim().length < 15;
   return (
     // The two parts are one name for screen readers ("/casa" + "jardim").
-    <h1 className="client-project-title" title={name} aria-label={name}>
-      <span className="project-title__lead">/{lead?.toLocaleLowerCase(i18n.language)}</span>
-      {rest.length > 0 && (
-        <strong className="project-title__tail">{rest.join(" ").toLocaleLowerCase(i18n.language)}</strong>
+    <h1 className={`client-project-title${oneLine ? " client-project-title--one-line" : ""}`} title={name} aria-label={name}>
+      <span className="project-title__lead">/{lead.toLocaleLowerCase(i18n.language)}</span>
+      {rest && (
+        <>
+          {oneLine && " "}
+          <strong className="project-title__tail">{rest.toLocaleLowerCase(i18n.language)}</strong>
+        </>
       )}
     </h1>
   );
@@ -786,7 +792,18 @@ export function ProjectPage({
       <div className="cwrap">
         <div className="project-opening">
           <header className="project-heading">
-            <Title name={page.name} />
+            {canEdit && openEditor === "name" ? (
+              <Suspense fallback={null}>
+                <NameEditor page={page} staff={staff!} onDone={done} />
+              </Suspense>
+            ) : (
+              <div className="project-heading__title" data-editable>
+                {canEdit && <EditButton label={t("edit.name")} onClick={() => setOpenEditor("name")} />}
+                <Title name={page.name} />
+              </div>
+            )}
+            {/* The kind of project, under its name (edited with the details). */}
+            {page.project_type && <p className="project-kind">{page.project_type}</p>}
           </header>
           {narrow && <MobileSummary page={page} />}
           {page.cover_url && (
@@ -797,50 +814,58 @@ export function ProjectPage({
             </figure>
           )}
         </div>
-        <section className={`hero${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
-          <div>
-            {canEdit && openEditor === "desc" ? (
-              <Suspense fallback={null}>
-                <DescriptionEditor page={page} staff={staff!} onDone={done} />
-              </Suspense>
-            ) : (
-              <div className="desc" data-editable>
-                {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
-                {page.description ? (
-                  <Description text={page.description} />
+        {/* Two columns that stack on their own: the description then the timeline,
+            the details then the meeting. A short description lets the timeline rise;
+            without a cover, both start under the title. Phones: one column. */}
+        <div className="project-status project-layout">
+          <div className="project-layout__main">
+            {/* No description: nothing for the client (staff in edit mode can add one). */}
+            {(page.description || canEdit) && (
+              <div className={`project-layout__desc${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
+                {canEdit && openEditor === "desc" ? (
+                  <Suspense fallback={null}>
+                    <DescriptionEditor page={page} staff={staff!} onDone={done} />
+                  </Suspense>
                 ) : (
-                  canEdit && <p className="desc__empty">{t("edit.noDescription")}</p>
+                  <div className="desc" data-editable>
+                    {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
+                    {page.description ? (
+                      <Description text={page.description} />
+                    ) : (
+                      canEdit && <p className="desc__empty">{t("edit.noDescription")}</p>
+                    )}
+                  </div>
                 )}
               </div>
             )}
-          </div>
-          <div>
-            {canEdit && openEditor === "facts" ? (
-              <Suspense fallback={null}>
-                <DetailsEditor page={page} staff={staff!} onDone={done} />
-              </Suspense>
-            ) : (
-              <dl className="facts" data-editable>
-                {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
-                <Facts page={page} />
-              </dl>
+            {!narrow && page.stages.length > 0 && (
+              <div className="project-status__timeline">
+                <Timeline page={page} onJump={jump} />
+              </div>
             )}
           </div>
-        </section>
-        <div className={`project-status${page.stages.length ? "" : " project-status--single"}`}>
-          {!narrow && page.stages.length > 0 && (
-            <div className="project-status__timeline">
-              <Timeline page={page} onJump={jump} />
+          <div className="project-layout__side">
+            <div className={narrow && !canEdit ? "mobile-view-hidden" : undefined}>
+              {canEdit && openEditor === "facts" ? (
+                <Suspense fallback={null}>
+                  <DetailsEditor page={page} staff={staff!} onDone={done} />
+                </Suspense>
+              ) : (
+                <dl className="facts" data-editable>
+                  {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
+                  <Facts page={page} />
+                </dl>
+              )}
             </div>
-          )}
-          <div className="project-status__meeting">
-            {canEdit && openEditor === "meet" ? (
-              <Suspense fallback={null}>
-                <MeetingEditor page={page} staff={staff!} onDone={done} />
-              </Suspense>
-            ) : (
-              <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
-            )}
+            <div className="project-status__meeting">
+              {canEdit && openEditor === "meet" ? (
+                <Suspense fallback={null}>
+                  <MeetingEditor page={page} staff={staff!} onDone={done} />
+                </Suspense>
+              ) : (
+                <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
+              )}
+            </div>
           </div>
         </div>
         {canEdit && (
