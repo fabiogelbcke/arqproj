@@ -19,6 +19,21 @@ a new entry too.
 
 ---
 
+## 2026-10-18 — A24: the project's name also editable from its title; shorter client names
+
+**Was:** A24 had the painel's "Projeto" dialog alone edit the project's name; the
+client name took up to 48 characters, the office's name up to 80.
+
+**Now:** in the project page's edit mode the title has its own edit button (the
+same change as the dialog's; the page's address stays). Client names take up to
+30 characters and office names up to 28, checked only when a name changes, so
+names saved before stay; the database keeps 48 and 80.
+
+**Why:** Fabio, 18 Oct 2026, reviewing the client page: "Let's make the title
+editable in the project page", and "We can make it 30 chars for clients, and if
+there's a problem we will expand" (and 28 for the office's name), so names fit
+the page on a phone without being cut off.
+
 ## 2026-10-17 — A35: no drafts for now; a new project is published at once
 
 **Was:** a new project started as a draft ("Rascunho", 15 Oct): staff saw it,

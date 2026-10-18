@@ -88,3 +88,34 @@
     position: fixed; z-index: 55; left: 12px; right: 12px; top: auto; bottom: 88px; min-width: 0;
   }
 }
+
+/* Phones show the details in the client summary instead (MobileSummary). */
+.client .mobile-view-hidden { display: none; }
+
+/* The project's opening, after the title: two columns that stack independently
+   (description then timeline; details then meeting). Phones: one column. */
+.client .project-layout { margin-top: 40px; }
+.client .project-layout__main, .client .project-layout__side {
+  display: grid; align-content: start; gap: 48px; min-width: 0;
+}
+@media (max-width: 860px) {
+  .client .project-layout { margin-top: 0; }
+  .client .project-layout__main, .client .project-layout__side { gap: 28px; }
+  .client .project-layout__main:not(:has(> :not(.mobile-view-hidden))) { display: none; }
+}
+
+/* The meeting's title and subtext wrap to two lines at most, instead of "…" (the
+   date-and-time row keeps its own layout). */
+.client .project-status .meet__title, .client .project-status .meet__meta:not(.meet__schedule) {
+  white-space: normal; overflow: hidden; text-overflow: clip;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+}
+
+/* Phones: the summary row is just "Detalhes do projeto" and its arrow, at the edge. */
+.client .mobile-project-summary > summary { grid-template-columns: minmax(0, 1fr) 22px; }
+
+/* The project's title: a little smaller on desktop; editable in edit mode. */
+@media (min-width: 861px) {
+  .client .project-heading .client-project-title { font-size: clamp(36px, 4vw, 54px) !important; }
+}
+.client .project-heading__title { position: relative; }

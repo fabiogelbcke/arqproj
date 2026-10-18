@@ -25,7 +25,7 @@ import { TextField } from "../ui/TextField";
 import { suggestedSlug, useCreateProject, useCreationOptions, type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
-const CLIENT_MAX = 48;
+const CLIENT_MAX = 30; // for now (Fabio, 18 Oct 2026); the API checks the same
 const NAME_MAX = 120;
 
 function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: ProjectSummary) => void }) {
@@ -88,6 +88,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         onChange={setClient}
         isRequired
         maxLength={CLIENT_MAX}
+        showCount
         autoComplete="off"
       />
       <RadioGroup

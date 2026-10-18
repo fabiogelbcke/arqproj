@@ -78,6 +78,38 @@ function Editor({
   );
 }
 
+/** The project's name, from its title (the same change as the painel's "Projeto"). */
+export function NameEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
+  const { t } = useTranslation();
+  const [name, setName] = useState(page.name);
+  const save = useSave(() => onDone(true));
+  return (
+    <Editor
+      title={t("edit.name")}
+      {...save}
+      onCancel={() => onDone(false)}
+      onSubmit={() =>
+        save.run(() =>
+          call(
+            api.PATCH("/api/projects/{project_id}", {
+              params: { path: { project_id: staff.project_id } },
+              body: { row_version: staff.row_version, name: name.trim() },
+            }),
+          ),
+        )
+      }
+    >
+      <div className="field">
+        <label className="sr" htmlFor="ed-name">
+          {t("edit.name")}
+        </label>
+        <input className="input" id="ed-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} autoFocus />
+        <p className="hint">{t("edit.nameHint")}</p>
+      </div>
+    </Editor>
+  );
+}
+
 export function DescriptionEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
   const { t } = useTranslation();
   const [text, setText] = useState(page.description);

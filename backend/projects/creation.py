@@ -23,7 +23,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.projects.enums import RESERVED_SLUGS, ProjectStatus
 from backend.projects.models import (
-    CLIENT_NAME_MAX,
     Project,
     ProjectSlug,
     ProjectStage,
@@ -35,6 +34,9 @@ from backend.tenancy.models import Locale
 log = logging.getLogger(__name__)
 
 NAME_MAX = 120
+# The client's name as shown on the page: 30 characters for now (Fabio, 18 Oct
+# 2026). The database allows CLIENT_NAME_MAX (48), so this can grow without a migration.
+CLIENT_NAME_LIMIT = 30
 _SLUG = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
 
 
@@ -133,7 +135,7 @@ async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
     """The project's stages, in order, once everything in `new` checks out."""
     if not new.name.strip() or len(new.name.strip()) > NAME_MAX:
         raise CreationProblem("invalid_project_name")
-    if not new.client_name.strip() or len(new.client_name.strip()) > CLIENT_NAME_MAX:
+    if not new.client_name.strip() or len(new.client_name.strip()) > CLIENT_NAME_LIMIT:
         raise CreationProblem("invalid_client_name")
     if await db.get(ProjectTypeDef, new.project_type) is None:
         raise CreationProblem("unknown_project_type")

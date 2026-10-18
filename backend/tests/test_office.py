@@ -82,6 +82,20 @@ async def test_bad_details_are_refused(client, owner, body, error):
     assert (response.status_code, response.json()) == (422, {"error": error})
 
 
+async def test_an_office_name_from_before_the_28_limit_can_be_kept_not_lengthened(
+    client, db_session, owner
+):
+    long = "Escritório de Arquitetura Alinea Ltda"  # 37 characters
+    await client.patch("/api/office", json={"contact_email": "x@y.com"}, headers=owner)  # saved
+    await db_session.execute(text("UPDATE office_profiles SET display_name = :n"), {"n": long})
+    kept = await client.patch(
+        "/api/office", json={"name": long, "contact_email": "a@b.com"}, headers=owner
+    )
+    assert kept.status_code == 200, kept.text
+    changed = await client.patch("/api/office", json={"name": long + "!"}, headers=owner)
+    assert (changed.status_code, changed.json()["error"]) == (422, "invalid_office_name")
+
+
 async def test_members_see_the_details_but_cannot_change_them(client, db_session, owner):
     client.cookies.clear()
     member = await sign_in_as(client, db_session, "membro@alinea.example", Role.MEMBER)

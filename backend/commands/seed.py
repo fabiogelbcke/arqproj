@@ -75,7 +75,7 @@ PROJECTS = {
             "slug": "apartamento-atlantico",
             "old_slugs": ["apto-atlantico"],
             "name": "Apartamento Atlântico — Copacabana",
-            "client": "Clara Martins e Rafael Nogueira de Albuquerque",
+            "client": "Clara e Rafael Nogueira",
             "type": ProjectType.INTERIORS,
             "status": ProjectStatus.ACTIVE,
             "current": 3,
