@@ -49,6 +49,16 @@ describe("Configurações → Escritório", () => {
     expect(await screen.findByText("Salvo.")).toBeInTheDocument();
   });
 
+  it("limits the name to 28 characters, counting as you type", async () => {
+    api();
+    renderAt("/configuracoes");
+    const name = await screen.findByLabelText(/Nome do escritório/);
+    expect(name).toHaveAttribute("maxLength", "28");
+    await userEvent.clear(name);
+    await userEvent.type(name, "Studio Alínea");
+    expect(screen.getByText("13/28")).toBeInTheDocument();
+  });
+
   it("shows a refused email in Portuguese", async () => {
     api(OFFICE, LOCAL, ME, {
       "PATCH /api/office": () => ({ status: 422, body: { error: "invalid_email" } }),

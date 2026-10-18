@@ -31,15 +31,47 @@
 .sort { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
 .sort label { font-size: 12px; color: var(--muted); }
 .select {
-  min-width: 165px; min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r);
+  min-width: 165px; min-height: 36px; padding: 6px 30px 6px 10px; border: 1px solid var(--line); border-radius: var(--r);
   background: transparent; color: var(--ink); font: inherit; font-size: 14px;
+  /* Our own chevron, a little in from the edge (the browser's sits against it). */
+  appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+  background-size: 5px 5px; background-repeat: no-repeat;
 }
 .direction { padding-inline: 16px; }
 .newButton { gap: 20px; min-height: 52px; padding-inline: 32px; font-size: 15px; }
 .newButton > span { font-size: 20px; font-weight: 300; }
 @media (max-width: 720px) {
-  .sort { order: 3; width: 100%; margin-left: 0; }
-  .select { flex: 1; min-width: 0; }
+  /* No big head on phones: the tabs say where you are. The title stays for screen readers. */
+  .head { gap: 12px; }
+  .head::after, .kicker { display: none; }
+  .title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* Search and "Novo projeto" float at the bottom (iOS Contacts); no sorting for now. */
+  .tools { border-top: 0; padding-top: 0; }
+  .sort { display: none; }
+  .search {
+    position: fixed; z-index: 40; left: 16px; right: 84px; bottom: calc(20px + env(safe-area-inset-bottom));
+    height: 56px; border: 1px solid var(--line); border-radius: 28px;
+    /* Glass, like iOS: the page shows through, blurred; solid while you type. */
+    background: color-mix(in srgb, var(--raise) 10%, transparent);
+    backdrop-filter: blur(8px) saturate(1.6); -webkit-backdrop-filter: blur(8px) saturate(1.6);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 14%); transition: background-color 0.2s ease;
+  }
+  .search:focus-within { background: color-mix(in srgb, var(--raise) 96%, transparent); }
+  @media (prefers-reduced-motion: reduce) { .search { transition: none; } }
+  .search .searchIcon { left: 20px; }
+  .search .searchInput { height: 100%; min-height: 0; padding: 0 20px 0 46px; border: 0; font-size: 17px; }
+  .search .searchInput[data-focused] { border: 0; }
+  .search:focus-within { border-color: var(--ink); }
+  /* "Novo projeto" is the round + beside it (its name stays for screen readers). */
+  .newButton {
+    position: fixed; z-index: 40; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
+    display: grid; place-items: center; width: 56px; height: 56px; min-height: 0; padding: 0; gap: 0;
+    border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
+  }
+  .newButton > span:first-child { font-size: 30px; font-weight: 300; line-height: 1; translate: 0 -2px; }
+  .newLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 
 .group { display: grid; gap: 24px; }
@@ -152,7 +184,8 @@
 
 /* The dialog */
 .overlay {
-  position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+  /* Above the phone's floating search and + (z-index 40). */
+  position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 16px;
   background: rgb(8 9 9 / 55%); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
 .overlay[data-entering] { animation: fade 0.2s; }
@@ -163,9 +196,9 @@
 .modal[data-entering] { animation: rise 0.3s var(--ease); }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
-.dialog { padding: 28px; display: grid; gap: 20px; outline: none; }
+.dialog { position: relative; padding: 28px; display: grid; gap: 20px; outline: none; }
 @media (max-width: 480px) { .dialog { padding: 20px; } }
-.dialogTitle { margin: 0; font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
+.dialogTitle { margin: 0; padding-right: 40px; font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
 .form { display: grid; gap: 18px; }
 .label { font-size: 14px; font-weight: 500; }
 /* Project type: four choices; its usual stages come ticked below. */
@@ -240,3 +273,44 @@
 .recipient .choiceNote { margin: 0 12px 0 0; }
 .recipientAdd { display: flex; align-items: flex-end; gap: 8px; }
 .recipientAdd > :first-child { flex: 1; min-width: 0; }
+
+/* Phones: "Em andamento" and "Concluídos" are two half-width tabs at the top of
+   the page (above search), one group at a time. Desktop: no tabs, both groups
+   (the completed one folded). */
+.groups { display: grid; gap: 32px; }
+.groupTabs, .phoneEmpty { display: none; }
+@media (max-width: 720px) {
+  .groups { gap: 16px; }
+  .groupTabs { display: flex; border-bottom: 1px solid var(--line); margin-top: -8px; }
+  .groupTabs button {
+    flex: 1 1 50%; padding: 12px 0; border: 0; background: none; color: var(--muted); cursor: pointer;
+    font: 500 12px/1.4 var(--font); letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  /* The count in a small pill: dark on the chosen tab, light on the other; none at 0. */
+  .groupTabs button span {
+    display: inline-block; min-width: 20px; margin-left: 6px; padding: 2px 6px; border-radius: 10px;
+    background: var(--line); color: var(--ink); font-size: 11px; font-weight: 500; letter-spacing: 0;
+    line-height: 16px; vertical-align: 1px;
+  }
+  .groupTabs button[aria-pressed="true"] { color: var(--ink); box-shadow: inset 0 -1.5px 0 var(--ink); }
+  .groupTabs button[aria-pressed="true"] span { background: var(--ink); color: var(--bg); }
+  .groupTabs button:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  /* The tabs name the group: no heads; the chosen group only, the completed one unfolded. */
+  .groups .groupHead { display: none; }
+  .groups[data-phone-group="active"] .completedGroup,
+  .groups[data-phone-group="completed"] .activeGroup { display: none; }
+  .groups[data-phone-group="completed"] .completedGroup ul[hidden] { display: grid; }
+  .groups[data-phone-group="active"] .phoneEmpty[data-group="active"],
+  .groups[data-phone-group="completed"] .phoneEmpty[data-group="completed"] { display: block; }
+}
+
+/* Phones, before the first project: a welcome at the top (desktop has its title). */
+.welcome { display: none; }
+@media (max-width: 720px) {
+  .welcome { display: grid; gap: 6px; padding-top: 8px; }
+  /* One line on any phone: the size follows the screen's width. */
+  .welcomeTitle {
+    margin: 0; font: 700 min(28px, 6.6vw)/1.15 var(--display-font); letter-spacing: -0.02em; white-space: nowrap;
+  }
+  .welcomeText { margin: 0; font-size: 13px; color: var(--muted); }
+}

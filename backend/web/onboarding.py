@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api")
 
 class OnboardingOut(BaseModel):
     storage_connected: bool  # where project files live (Google Drive for now)
-    office_details: bool  # contact email and logo set (the name always has one)
+    office_details: bool  # contact email set (the logo is optional; the name always has one)
     has_project: bool
 
 
@@ -41,7 +41,7 @@ async def onboarding(
     )
     has_project = await db.scalar(select(exists().where(Project.deleted_at.is_(None))))
     office = await profile(db)
-    details = office is not None and bool(office.contact_email and office.logo_file_id)
+    details = office is not None and bool(office.contact_email)
     return OnboardingOut(
         storage_connected=connected, office_details=details, has_project=bool(has_project)
     )

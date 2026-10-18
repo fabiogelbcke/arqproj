@@ -276,7 +276,7 @@ office. So the painel comes next, then the client page once its design settles:
    replacing the previous one, and is served with a policy that lets nothing in
    it run. The checklist item ticks once the email and logo are set.
 2. **P2 Creating a project and the project list** (as built, combined with the
-   list): "Novo projeto" asks for the name, client (up to 48 characters), stage
+   list): "Novo projeto" asks for the name, client (up to 48 characters then; 30 since 18 Oct 2026), stage
    template (Padrão, Interiores, Sem etapas; replaced by the project type and
    its ticked stages in P3b) and the page address, suggested from the name and
    editable; an address in use names the project that has it. The project

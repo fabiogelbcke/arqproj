@@ -48,7 +48,7 @@ function Group({
   timeZone: string;
 }) {
   return (
-    <section className={styles.group} aria-labelledby={id}>
+    <section className={`${styles.group} ${styles.activeGroup}`} aria-labelledby={id}>
       <div className={styles.groupHead}>
         <h2 id={id}>{title}</h2>
         <span className={styles.groupCount} aria-label={countLabel}>
@@ -70,7 +70,7 @@ function CompletedGroup({ projects, timeZone }: { projects: ProjectSummary[]; ti
   const [open, setOpen] = useState(false);
   const listId = useId();
   return (
-    <section className={styles.group}>
+    <section className={`${styles.group} ${styles.completedGroup}`}>
       <div className={styles.groupHead}>
         <h2>
           <button
@@ -101,6 +101,8 @@ export function ProjectsPage() {
   const me = useMe();
   const timeZone = me.data?.tenant_timezone ?? "America/Sao_Paulo";
   const [query, setQuery] = useState("");
+  // Phones: one group at a time, chosen with two tabs (desktop shows both).
+  const [phoneGroup, setPhoneGroup] = useState<"active" | "completed">("active");
   const [sort, setSort] = useState<Sort>(loadSort);
   const sortId = useId();
 
@@ -123,14 +125,38 @@ export function ProjectsPage() {
   return (
     <>
       <div className={styles.head}>
+        {/* On phones the tabs say where you are: the big title is for screen readers only. */}
         <p className={styles.kicker}>
           {me.data?.tenant_name} / {t("projects.kicker")}
         </p>
-        <h1 className={`${pageStyles.display} ${pageStyles.displayMedium}`}>{t("projects.title")}</h1>
+        <h1 className={`${pageStyles.display} ${pageStyles.displayMedium} ${styles.title}`}>{t("projects.title")}</h1>
+        {/* Phones, before the first project: a welcome where the tabs will be. */}
+        {projects.data && !hasAny && (
+          <div className={styles.welcome}>
+            <p className={styles.welcomeTitle}>{t("projects.welcomeTitle")}</p>
+            <p className={styles.welcomeText}>{t("projects.welcomeText")}</p>
+          </div>
+        )}
+        {hasAny && (
+          <div className={styles.groupTabs} role="group" aria-label={t("projects.groups")}>
+            <button type="button" aria-pressed={phoneGroup === "active"} onClick={() => setPhoneGroup("active")}>
+              {t("projects.groupActive")} {active.length > 0 && <span>{active.length}</span>}
+            </button>
+            <button type="button" aria-pressed={phoneGroup === "completed"} onClick={() => setPhoneGroup("completed")}>
+              {t("projects.groupCompleted")} {completed.length > 0 && <span>{completed.length}</span>}
+            </button>
+          </div>
+        )}
         <div className={styles.tools}>
           {hasAny && (
             <>
-              <SearchField className={styles.search} value={query} onChange={setQuery} aria-label={t("projects.search")}>
+              {/* Phones: a floating pill at the bottom, beside the + (iOS Contacts). */}
+              <SearchField
+                className={styles.search}
+                value={query}
+                onChange={setQuery}
+                aria-label={t("projects.search")}
+              >
                 <span className={styles.searchIcon} aria-hidden="true" />
                 <Input className={styles.searchInput} placeholder={t("projects.searchPlaceholder")} />
               </SearchField>
@@ -178,8 +204,8 @@ export function ProjectsPage() {
       ) : shown.length === 0 ? (
         <p className={pageStyles.lead}>{t("projects.noResults", { query })}</p>
       ) : (
-        <>
-          {active.length > 0 && (
+        <div className={styles.groups} data-phone-group={phoneGroup}>
+          {active.length > 0 ? (
             <Group
               id="group-active"
               title={t("projects.groupActive")}
@@ -188,9 +214,19 @@ export function ProjectsPage() {
               projects={active}
               timeZone={timeZone}
             />
+          ) : (
+            <p className={`${pageStyles.lead} ${styles.phoneEmpty}`} data-group="active">
+              {t("projects.noneActive")}
+            </p>
           )}
-          {completed.length > 0 && <CompletedGroup projects={completed} timeZone={timeZone} />}
-        </>
+          {completed.length > 0 ? (
+            <CompletedGroup projects={completed} timeZone={timeZone} />
+          ) : (
+            <p className={`${pageStyles.lead} ${styles.phoneEmpty}`} data-group="completed">
+              {t("projects.noneCompleted")}
+            </p>
+          )}
+        </div>
       )}
     </>
   );

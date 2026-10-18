@@ -14,18 +14,18 @@ import {
   Text,
 } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
 
 import { ApiError } from "../api/client";
-import { useDrive } from "../drive/drive";
+import { useConnectDrive, useDrive } from "../drive/drive";
 import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
+import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { suggestedSlug, useCreateProject, useCreationOptions, type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
-const CLIENT_MAX = 48;
+const CLIENT_MAX = 30; // for now (Fabio, 18 Oct 2026); the API checks the same
 const NAME_MAX = 120;
 
 function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: ProjectSummary) => void }) {
@@ -88,6 +88,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         onChange={setClient}
         isRequired
         maxLength={CLIENT_MAX}
+        showCount
         autoComplete="off"
       />
       <RadioGroup
@@ -158,26 +159,38 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
   );
 }
 
+/** No Drive yet: the owner connects it from here, straight to Google's consent;
+ *  a member is told who can. */
 function NeedsDrive({ close }: { close: () => void }) {
   const { t } = useTranslation();
   const me = useMe();
+  const connect = useConnectDrive();
+  const owner = me.data?.role === "owner";
   return (
     <div className={styles.form}>
-      <p>{t("projects.needsDrive")}</p>
+      <p>{t(owner ? "projects.needsDrive" : "projects.needsDriveMember")}</p>
+      <ErrorNotice error={connect.error} />
       <div className={styles.actions}>
         <Button onPress={close}>{t("newProject.cancel")}</Button>
-        {me.data?.role === "owner" && (
-          <Link className={styles.linkButton} to="/configuracoes/drive" onClick={close}>
-            {t("projects.needsDriveLink")}
-          </Link>
+        {owner && (
+          <Button variant="primary" onPress={() => connect.mutate()} isDisabled={connect.isPending}>
+            {t("drive.connect")}
+          </Button>
         )}
       </div>
     </div>
   );
 }
 
-/** "Novo projeto": the button and its dialog. */
-export function NewProjectDialog({ onCreated }: { onCreated: (p: ProjectSummary) => void }) {
+/** The "Novo projeto" button and its dialog. `trigger` replaces the usual button
+ *  (the first steps' "Criar projeto"). */
+export function NewProjectDialog({
+  onCreated,
+  trigger,
+}: {
+  onCreated: (p: ProjectSummary) => void;
+  trigger?: { label: string; className: string };
+}) {
   const { t } = useTranslation();
   const drive = useDrive();
   // New folders are made with the office's grant and shown through the reader.
@@ -188,10 +201,16 @@ export function NewProjectDialog({ onCreated }: { onCreated: (p: ProjectSummary)
       drive.data.reader_status === "ok");
   return (
     <DialogTrigger>
-      <Button variant="primary" className={styles.newButton}>
-        <span aria-hidden="true">+</span>
-        {t("projects.new")}
-      </Button>
+      {trigger ? (
+        <Button variant="primary" className={trigger.className}>
+          {trigger.label}
+        </Button>
+      ) : (
+        <Button variant="primary" className={styles.newButton}>
+          <span aria-hidden="true">+</span>
+          <span className={styles.newLabel}>{t("projects.new")}</span>
+        </Button>
+      )}
       <ModalOverlay className={styles.overlay} isDismissable>
         <Modal className={styles.modal}>
           <Dialog className={styles.dialog}>
@@ -200,6 +219,7 @@ export function NewProjectDialog({ onCreated }: { onCreated: (p: ProjectSummary)
                 <Heading slot="title" className={styles.dialogTitle}>
                   {t("newProject.title")}
                 </Heading>
+                <CloseButton onPress={close} />
                 {!drive.data ? (
                   <ErrorNotice error={drive.error} />
                 ) : storageReady ? (

@@ -1,17 +1,22 @@
 {
   "app": {
     "name": "Painel",
-    "loading": "Carregando…"
+    "loading": "Carregando…",
+    "close": "Fechar"
   },
   "nav": {
     "projects": "Projetos",
     "signOut": "Sair",
     "signedInAs": "Conectado como {{name}}",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "menu": "Menu",
+    "sections": "Navegação",
+    "hello": "Olá, {{name}}"
   },
   "theme": {
     "useLight": "Usar tema claro",
-    "useDark": "Usar tema escuro"
+    "useDark": "Usar tema escuro",
+    "dark": "Modo escuro"
   },
   "signIn": {
     "title": "Entrar",
@@ -38,13 +43,15 @@
     "title": "Projetos",
     "emptyTitle": "Nenhum projeto por aqui ainda",
     "emptyBody": "Crie o primeiro projeto para começar.",
+    "welcomeTitle": "Seu escritório no Unio",
+    "welcomeText": "Siga os passos abaixo para começar.",
     "new": "Novo projeto",
     "search": "Buscar projetos",
     "searchPlaceholder": "Projeto ou cliente",
     "noResults": "Nenhum projeto encontrado para “{{query}}”.",
     "sortBy": "Ordenar por",
     "sort": {
-      "updated": "Última atualização",
+      "updated": "Atualizado",
       "created": "Data de criação",
       "name": "Nome",
       "client": "Cliente",
@@ -52,6 +59,9 @@
     },
     "groupActive": "Em andamento",
     "groupCompleted": "Concluídos",
+    "groups": "Grupos de projetos",
+    "noneActive": "Nenhum projeto em andamento.",
+    "noneCompleted": "Nenhum projeto concluído.",
     "groupCount": "{{shown}}/{{total}}",
     "stage": "Etapa {{current}} de {{total}}",
     "noStages": "Nenhuma etapa definida",
@@ -59,7 +69,7 @@
     "nextMeeting": "Próxima reunião",
     "updated": "Atualizado",
     "needsDrive": "Para criar projetos, conecte o Google Drive do escritório.",
-    "needsDriveLink": "Ir para Configurações → Google Drive",
+    "needsDriveMember": "Para criar projetos, o Google Drive do escritório precisa estar conectado. Peça ao responsável pelo escritório.",
     "noMeeting": "Nenhuma",
     "done": "Projeto concluído",
     "stageCaption": "Etapa atual",
@@ -68,8 +78,8 @@
     "kicker": "Espaço de projetos",
     "az": "A–Z ↑",
     "za": "Z–A ↓",
-    "newestFirst": "Recentes primeiro ↓",
-    "oldestFirst": "Antigos primeiro ↑",
+    "newestFirst": "Recentes ↓",
+    "oldestFirst": "Antigos ↑",
     "directionAsc": "Ordem crescente. Alterar para decrescente",
     "directionDesc": "Ordem decrescente. Alterar para crescente"
   },
@@ -77,7 +87,7 @@
     "title": "Novo projeto",
     "name": "Nome do projeto",
     "client": "Cliente",
-    "clientHint": "Como aparece na página do cliente. Até 48 caracteres.",
+    "clientHint": "Como aparece na página do cliente.",
     "slug": "Endereço da página",
     "slugHint": "Letras minúsculas, números e hífens. A página será {{address}}",
     "slugTakenBy": "Este endereço já é do projeto “{{name}}”. Escolha outro.",
@@ -170,13 +180,13 @@
     "drive_other_account": "Esta conta Google não acessa a pasta do escritório. Reconecte com a mesma conta usada antes; nada foi alterado.",
     "drive_not_connected": "Conecte o Google Drive do escritório antes de fazer isso.",
     "drive_expired": "A conexão com o Google Drive expirou. Reconecte em Configurações → Google Drive.",
-    "invalid_office_name": "Informe um nome de até 80 caracteres.",
+    "invalid_office_name": "Informe um nome de até 28 caracteres.",
     "invalid_email": "Informe um e-mail válido, como contato@escritorio.com.br.",
     "logo_wrong_type": "Use uma imagem PNG, JPG, WebP ou SVG.",
     "logo_too_large": "Use uma imagem de até 5 MB.",
     "drive_unreadable": "O portal não consegue ler a pasta do escritório no Google Drive. Verifique o compartilhamento em Configurações → Google Drive.",
     "invalid_project_name": "Informe o nome do projeto, com até 120 caracteres.",
-    "invalid_client_name": "Informe o cliente, com até 48 caracteres.",
+    "invalid_client_name": "Informe o cliente, com até 30 caracteres.",
     "invalid_slug": "Use só letras minúsculas, números e hífens, sem hífen no começo ou no fim. Algumas palavras são reservadas pelo portal.",
     "slug_taken": "Este endereço já está em uso. Escolha outro.",
     "project_name_taken": "Já existe um projeto com este nome. Escolha outro.",
@@ -241,16 +251,23 @@
     "connectedNow": "Google Drive conectado.",
     "disconnectedNow": "Google Drive desconectado.",
     "ownerOnly": "Só o responsável pelo escritório pode conectar ou desconectar.",
-    "noticeNone": "Conecte o Google Drive para criar projetos e enviar arquivos daqui.",
     "noticeExpired": "A conexão com o Google Drive expirou. As páginas dos clientes continuam no ar; envios e novos projetos ficam parados até reconectar."
   },
   "firstSteps": {
     "title": "Primeiros passos",
-    "storage": "Conectar onde ficam os arquivos dos projetos (Google Drive)",
+    "progress": "{{done}} de {{total}}",
+    "progressLabel": "{{done}} de {{total}} passos concluídos",
+    "storage": "Conectar o Google Drive",
+    "storageHint": "Ao conectar, o site cria no seu Google Drive a pasta “Portal Clientes”, com uma subpasta para cada projeto.",
+    "storageAction": "Conectar",
+    "office": "Personalizar os dados do escritório",
+    "officeHint": "Adicione o e-mail de contato e o logo (opcional). Eles aparecem nas páginas e nos e-mails que os clientes recebem.",
+    "officeAction": "Personalizar",
     "firstProject": "Criar o primeiro projeto",
-    "done": "Feito",
-    "membersNote": "O responsável pelo escritório precisa concluir estes passos.",
-    "office": "Preencher os dados do escritório (e-mail de contato e logo)"
+    "firstProjectHint": "Cada projeto ganha uma página para o cliente acompanhar etapas, arquivos e reuniões.",
+    "firstProjectAction": "Criar projeto",
+    "done": "Concluído",
+    "membersNote": "Só o responsável pelo escritório pode concluir estes passos."
   },
   "office": {
     "name": "Nome do escritório",
@@ -284,6 +301,7 @@
     "stageOpen": "Etapa aberta: {{title}}",
     "client": "Cliente",
     "backToProject": "Voltar ao projeto",
+    "projectDetails": "Detalhes do projeto",
     "projectType": "Tipo de projeto",
     "lastUpdate": "Última atualização",
     "notInformed": "Não informado",
@@ -327,6 +345,8 @@
     "downloadFile": "Baixar {{name}}"
   },
   "edit": {
+    "name": "Nome do projeto",
+    "nameHint": "Aparece no topo da página do cliente e no painel. O endereço da página não muda.",
     "dropFiles": "Solte arquivos aqui ou",
     "chooseFiles": "escolha no computador",
     "dropNote": "Vão para a pasta “{{folder}}” no seu Drive e aparecem para o cliente. Até {{max}} MB por arquivo.",

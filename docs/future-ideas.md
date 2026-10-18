@@ -68,6 +68,7 @@ decision in the [decision changelog](decision-changelog.md).
 - Decide whether recipients choose one channel or can receive both, and how to
   avoid unwanted duplicate notifications.
 
+
 ## What an office's own address shows at its root
 
 - Today `/` shows Unio's public landing page on every address, an office's own
@@ -78,3 +79,11 @@ decision in the [decision changelog](decision-changelog.md).
   the office's name and logo (later perhaps its public projects).
 - `myunio.app` itself keeps the Unio landing page. Raised by Fabio, 17 Oct 2026;
   not urgent.
+
+
+## Account settings in the phone menu
+
+- The painel's ☰ drawer on phones (greeting, Modo escuro, Sair) is the natural
+  home for a staff member's own account: change password, change email, maybe
+  notification preferences. Fabio, 18 Oct 2026: "later".
+

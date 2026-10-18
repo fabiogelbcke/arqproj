@@ -1,17 +1,22 @@
 {
   "app": {
     "name": "Dashboard",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "close": "Close"
   },
   "nav": {
     "projects": "Projects",
     "signOut": "Sign out",
     "signedInAs": "Signed in as {{name}}",
-    "settings": "Settings"
+    "settings": "Settings",
+    "menu": "Menu",
+    "sections": "Navigation",
+    "hello": "Hi, {{name}}"
   },
   "theme": {
     "useLight": "Use light theme",
-    "useDark": "Use dark theme"
+    "useDark": "Use dark theme",
+    "dark": "Dark mode"
   },
   "signIn": {
     "title": "Sign in",
@@ -38,13 +43,15 @@
     "title": "Projects",
     "emptyTitle": "No projects here yet",
     "emptyBody": "Create the first project to get started.",
+    "welcomeTitle": "Your office on Unio",
+    "welcomeText": "Follow the steps below to get started.",
     "new": "New project",
     "search": "Search projects",
     "searchPlaceholder": "Project or client",
     "noResults": "No projects found for “{{query}}”.",
     "sortBy": "Sort by",
     "sort": {
-      "updated": "Last update",
+      "updated": "Updated",
       "created": "Date created",
       "name": "Name",
       "client": "Client",
@@ -52,6 +59,9 @@
     },
     "groupActive": "In progress",
     "groupCompleted": "Completed",
+    "groups": "Project groups",
+    "noneActive": "No projects in progress.",
+    "noneCompleted": "No completed projects.",
     "groupCount": "{{shown}}/{{total}}",
     "stage": "Stage {{current}} of {{total}}",
     "noStages": "No stages set",
@@ -59,7 +69,7 @@
     "nextMeeting": "Next meeting",
     "updated": "Updated",
     "needsDrive": "To create projects, connect the office's Google Drive.",
-    "needsDriveLink": "Go to Settings → Google Drive",
+    "needsDriveMember": "To create projects, the office's Google Drive needs to be connected. Ask the office's owner.",
     "noMeeting": "None",
     "done": "Project completed",
     "stageCaption": "Current stage",
@@ -68,8 +78,8 @@
     "kicker": "Project space",
     "az": "A–Z ↑",
     "za": "Z–A ↓",
-    "newestFirst": "Newest first ↓",
-    "oldestFirst": "Oldest first ↑",
+    "newestFirst": "Newest ↓",
+    "oldestFirst": "Oldest ↑",
     "directionAsc": "Ascending order. Change to descending",
     "directionDesc": "Descending order. Change to ascending"
   },
@@ -77,7 +87,7 @@
     "title": "New project",
     "name": "Project name",
     "client": "Client",
-    "clientHint": "As shown on the client's page. Up to 48 characters.",
+    "clientHint": "As shown on the client's page.",
     "slug": "Page address",
     "slugHint": "Lowercase letters, numbers and hyphens. The page will be {{address}}",
     "slugTakenBy": "This address already belongs to “{{name}}”. Choose another.",
@@ -170,13 +180,13 @@
     "drive_other_account": "This Google account cannot reach the office's folder. Reconnect with the account used before; nothing was changed.",
     "drive_not_connected": "Connect the office's Google Drive before doing this.",
     "drive_expired": "The Google Drive connection expired. Reconnect in Settings → Google Drive.",
-    "invalid_office_name": "Enter a name of up to 80 characters.",
+    "invalid_office_name": "Enter a name of up to 28 characters.",
     "invalid_email": "Enter a valid email address, like contact@office.com.",
     "logo_wrong_type": "Use a PNG, JPG, WebP or SVG image.",
     "logo_too_large": "Use an image of up to 5 MB.",
     "drive_unreadable": "The portal cannot read the office's Google Drive folder. Check its sharing in Settings → Google Drive.",
     "invalid_project_name": "Enter the project's name, up to 120 characters.",
-    "invalid_client_name": "Enter the client, up to 48 characters.",
+    "invalid_client_name": "Enter the client, up to 30 characters.",
     "invalid_slug": "Use only lowercase letters, numbers and hyphens, with no hyphen at the start or end. Some words are reserved by the portal.",
     "slug_taken": "This address is already in use. Choose another.",
     "project_name_taken": "A project with this name already exists. Choose another.",
@@ -241,16 +251,23 @@
     "connectedNow": "Google Drive connected.",
     "disconnectedNow": "Google Drive disconnected.",
     "ownerOnly": "Only the office's owner can connect or disconnect.",
-    "noticeNone": "Connect Google Drive to create projects and upload files from here.",
     "noticeExpired": "The Google Drive connection expired. Client pages stay up; uploads and new projects wait until you reconnect."
   },
   "firstSteps": {
     "title": "First steps",
-    "storage": "Connect where project files live (Google Drive)",
+    "progress": "{{done}} of {{total}}",
+    "progressLabel": "{{done}} of {{total}} steps done",
+    "storage": "Connect Google Drive",
+    "storageHint": "Connecting creates a “Portal Clientes” folder in your Google Drive, with a subfolder for each project.",
+    "storageAction": "Connect",
+    "office": "Personalize the office's details",
+    "officeHint": "Add the contact email and the logo (optional). They appear on the pages and emails clients receive.",
+    "officeAction": "Personalize",
     "firstProject": "Create the first project",
+    "firstProjectHint": "Each project gets a page where the client follows stages, files and meetings.",
+    "firstProjectAction": "Create project",
     "done": "Done",
-    "membersNote": "The office's owner needs to complete these steps.",
-    "office": "Fill in the office's details (contact email and logo)"
+    "membersNote": "Only the office's owner can complete these steps."
   },
   "office": {
     "name": "Office name",
@@ -284,6 +301,7 @@
     "stageOpen": "Stage open: {{title}}",
     "client": "Client",
     "backToProject": "Back to the project",
+    "projectDetails": "Project details",
     "projectType": "Project type",
     "lastUpdate": "Last update",
     "notInformed": "Not provided",
@@ -327,6 +345,8 @@
     "downloadFile": "Download {{name}}"
   },
   "edit": {
+    "name": "Project name",
+    "nameHint": "Shown at the top of the client's page and in the painel. The page's address stays the same.",
     "dropFiles": "Drop files here or",
     "chooseFiles": "choose from your computer",
     "dropNote": "They go to the “{{folder}}” folder in your Drive and show to the client. Up to {{max}} MB a file.",

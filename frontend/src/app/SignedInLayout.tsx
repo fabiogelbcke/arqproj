@@ -9,6 +9,7 @@ import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import styles from "../pages/pages.module.css";
+import { MobileMenu } from "./MobileMenu";
 
 /** Every screen behind sign-in: the top bar, or a redirect to sign-in. */
 export function SignedInLayout() {
@@ -44,7 +45,7 @@ export function SignedInLayout() {
               me.data.tenant_name
             )}
           </span>
-          <nav className={styles.nav} aria-label={t("app.name")}>
+          <nav className={`${styles.nav} ${styles.navInMenu}`} aria-label={t("app.name")}>
             <NavLink to="/" end>
               {t("nav.projects")}
             </NavLink>
@@ -52,10 +53,18 @@ export function SignedInLayout() {
           </nav>
           <span className={styles.spacer} />
           <span className={styles.who}>{t("nav.signedInAs", { name: me.data.name })}</span>
-          <ThemeToggle />
-          <Button variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
-            {t("nav.signOut")}
-          </Button>
+          <div className={styles.barActions}>
+            <ThemeToggle className={styles.theme} />
+            <Button variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
+              {t("nav.signOut")}
+            </Button>
+          </div>
+          <MobileMenu
+            name={me.data.name}
+            onSignOut={() => signOut.mutate()}
+            signingOut={signOut.isPending}
+            signOutError={signOut.error}
+          />
         </div>
       </header>
       <main className={styles.main}>
