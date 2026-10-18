@@ -778,10 +778,7 @@ export function ProjectPage({
               page={page}
               slug={slug}
               updates={stageFiles.updates}
-              onStage={(index) => {
-                setOpenStage(index);
-                document.getElementById(`stage-${index}`)?.scrollIntoView({ block: "start" });
-              }}
+              onStage={jump}
             />
           )
         }

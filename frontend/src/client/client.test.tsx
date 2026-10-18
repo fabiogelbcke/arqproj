@@ -795,6 +795,22 @@ describe("the page's file tools", () => {
     expect(within(preview).getByRole("link", { name: "Abrir original" })).toBeInTheDocument();
   });
 
+  it("a stage chosen in the updates shows even when the search hid it", async () => {
+    localStorage.clear();
+    const news = { id: "u1", kind: "file_published", occurred_at: "2026-10-15T12:00:00Z", stage_position: 1, name: "Programa.pdf" };
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { ...FILES, updates: [news] } }),
+    });
+    await userEvent.type(await screen.findByLabelText("Pesquisar arquivos"), "baixa");
+    expect(screen.queryByRole("region", { name: "Briefing" })).toBeNull();
+    Element.prototype.scrollIntoView = vi.fn();
+    await userEvent.click(screen.getByLabelText("Últimas atualizações, 1 não lida"));
+    const panel = screen.getByRole("region", { name: "Últimas atualizações" });
+    await userEvent.click(within(panel).getByRole("button", { name: /Ver etapa/ }));
+    expect(screen.getByRole("region", { name: "Briefing" })).toBeVisible();
+  });
+
   it("switches to a list, and remembers it", async () => {
     localStorage.clear();
     at("/casa-jardim", {
