@@ -80,7 +80,7 @@
 .stepText { display: grid; gap: 2px; min-width: 0; }
 .stepText strong { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 15px; }
 .stepIcon { width: 18px; height: 18px; flex: none; }
-.stepText small { font-size: 13px; color: var(--muted); line-height: 1.4; text-align: justify; hyphens: auto; }
+.stepText small { font-size: 13px; color: var(--muted); line-height: 1.4; text-align: justify; hyphens: none; }
 .step[data-done] .stepText strong { color: var(--muted); }
 /* One width for every step's button, wide enough for the longest label. */
 .stepAction {
