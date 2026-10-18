@@ -3,6 +3,7 @@
     POST   /api/session         sign in with email and password
     DELETE /api/session         sign out (needs the CSRF token)
     GET    /api/me              who is signed in, or 401
+    POST   /api/me/tour-seen    the project page's tour won't start again for them
     POST   /api/password-link   whose invite/reset link is this (before the form)
     POST   /api/password        choose a password with a link, then signed in
     POST   /api/password-reset  "Esqueceu a senha?": email a link, if the account exists
@@ -23,12 +24,12 @@ from datetime import UTC, datetime, timedelta
 import anyio
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts, links, sessions
-from backend.identity.models import LinkKind, LoginSession, Role
+from backend.identity.models import LinkKind, LoginSession, Role, User
 from backend.identity.passwords import verify_password
 from backend.notifications.email import Email, EmailError, sender_for
 from backend.notifications.office import office_of
@@ -100,6 +101,8 @@ class MeOut(BaseModel):
     # Times are shown in the office's zone, wherever the viewer is.
     tenant_timezone: str
     csrf_token: str
+    # The project page's guided tour, once per account (Fabio, 18 Oct 2026).
+    page_tour_seen: bool
 
 
 def _not_signed_in() -> ApiError:
@@ -157,7 +160,13 @@ async def require_csrf(
 
 
 def _me(
-    staff_email: str, name: str, role: Role, tenant: CurrentTenant, office: str, csrf: str
+    staff_email: str,
+    name: str,
+    role: Role,
+    tenant: CurrentTenant,
+    office: str,
+    csrf: str,
+    tour_seen: bool,
 ) -> MeOut:
     return MeOut(
         email=staff_email,
@@ -168,6 +177,7 @@ def _me(
         tenant_locale=tenant.locale,
         tenant_timezone=tenant.timezone,
         csrf_token=csrf,
+        page_tour_seen=tour_seen,
     )
 
 
@@ -191,7 +201,13 @@ async def sign_in(
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
     return _me(
-        user.email, user.name, user.role, tenant, await display_name(db, tenant), row.csrf_token
+        user.email,
+        user.name,
+        user.role,
+        tenant,
+        await display_name(db, tenant),
+        row.csrf_token,
+        user.tour_seen_at is not None,
     )
 
 
@@ -244,7 +260,13 @@ async def choose_password(
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
     return _me(
-        user.email, user.name, user.role, tenant, await display_name(db, tenant), row.csrf_token
+        user.email,
+        user.name,
+        user.role,
+        tenant,
+        await display_name(db, tenant),
+        row.csrf_token,
+        user.tour_seen_at is not None,
     )
 
 
@@ -255,7 +277,24 @@ async def me(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
     office = await display_name(db, tenant)
-    return _me(staff.email, staff.name, staff.role, tenant, office, staff.csrf_token)
+    seen = await db.scalar(select(User.tour_seen_at).where(User.id == staff.user_id))
+    return _me(
+        staff.email, staff.name, staff.role, tenant, office, staff.csrf_token, seen is not None
+    )
+
+
+@router.post("/me/tour-seen", status_code=204, responses=documented(401, 403))
+async def tour_seen(
+    staff: CurrentStaff = Depends(require_csrf), db: AsyncSession = Depends(get_tenant_session)
+) -> None:
+    """The project page's tour, finished or closed: not offered again to this account
+    on any device ("Ver tour" in the staff bar replays it)."""
+    await db.execute(
+        update(User)
+        .where(User.id == staff.user_id, User.tour_seen_at.is_(None))
+        .values(tour_seen_at=func.now())
+    )
+    await db.commit()
 
 
 @router.post("/password-reset", status_code=204, responses=documented(422, 429))

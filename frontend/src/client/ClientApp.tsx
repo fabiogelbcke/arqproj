@@ -26,6 +26,8 @@ export function ClientApp() {
   const [version, setVersion] = useState(0); // bumped to load the page again
   // The staff bar's actions wait for the session's CSRF token.
   const [signedIn, setSignedIn] = useState(false);
+  // Staff who haven't seen the project page's tour yet (per account).
+  const [tourSeen, setTourSeen] = useState(true);
 
   useEffect(() => {
     // The office (name, language) is public, so even "not found" is in its language.
@@ -35,6 +37,7 @@ export function ClientApp() {
       (me) => {
         setCsrfToken(me.csrf_token);
         setSignedIn(true);
+        setTourSeen(me.page_tour_seen);
       },
       () => undefined,
     );
@@ -51,7 +54,13 @@ export function ClientApp() {
   if (state.kind === "loading") return <p className="sr">{t("page.loading")}</p>;
   if (state.kind === "page")
     return (
-      <ProjectPage page={state.page} slug={slug} ready={signedIn} onChanged={() => setVersion((v) => v + 1)} />
+      <ProjectPage
+        page={state.page}
+        slug={slug}
+        ready={signedIn}
+        tourSeen={tourSeen}
+        onChanged={() => setVersion((v) => v + 1)}
+      />
     );
   if (state.kind === "locked")
     return <PasswordGate office={office} slug={slug} onUnlocked={() => setVersion((v) => v + 1)} />;

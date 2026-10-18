@@ -174,6 +174,7 @@ export function StageDrop({
     <>
       <div
         className={`drop${over ? " over" : ""}`}
+        data-tour="upload"
         onDragOver={(event) => {
           event.preventDefault();
           setOver(true);

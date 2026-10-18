@@ -9,6 +9,10 @@ import { detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } f
 import { entriesFor } from "./Updates";
 import { shownFiles, sortFiles } from "./FileTools";
 
+// The guided tour (Driver.js) is checked in the browser tests; here, when it starts.
+const tour = vi.hoisted(() => ({ startTour: vi.fn() }));
+vi.mock("./Tour", () => tour);
+
 // The browser's image decoding and canvas aren't in the test DOM: an image of 1200×800.
 vi.mock("../ui/imageCrop", async (original) => ({
   ...(await original<typeof import("../ui/imageCrop")>()),
@@ -340,6 +344,32 @@ describe("edit mode", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Remover capa" }));
     expect(await screen.findByText("Capa removida.")).toBeInTheDocument();
     expect(sent.some((r) => r.method === "DELETE" && r.path === "/api/projects/p-1/cover")).toBe(true);
+  });
+
+  it("starts the page tour once for staff who haven't seen it, and \"?\" replays it", async () => {
+    tour.startTour.mockClear();
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9", page_tour_seen: false } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: 4 } },
+      }),
+    });
+    render(<ClientApp />);
+    await waitFor(() => expect(tour.startTour).toHaveBeenCalledTimes(1));
+    expect(tour.startTour.mock.calls[0]![0]).toMatchObject({ markSeen: true });
+    await userEvent.click(screen.getByRole("button", { name: "Ver o tour da página" }));
+    await waitFor(() => expect(tour.startTour).toHaveBeenCalledTimes(2));
+    expect(tour.startTour.mock.calls[1]![0]).toMatchObject({ markSeen: false });
+  });
+
+  it("doesn't start the tour for staff who've seen it, nor for clients", async () => {
+    tour.startTour.mockClear();
+    asStaff(); // its /api/me has no page_tour_seen: false
+    await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(tour.startTour).not.toHaveBeenCalled();
   });
 
   it("shows no edit controls until staff switch to Editar", async () => {
