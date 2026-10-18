@@ -287,7 +287,6 @@
   },
   "page": {
     "loading": "Loading…",
-    "journeyKicker": "Project journey",
     "journeyTitle": "Stages and next steps",
     "timeline": "Timeline",
     "stages": "Stages",
@@ -379,7 +378,6 @@
     "schedule": "Schedule",
     "scheduleMeeting": "Schedule a meeting",
     "subject": "Subject",
-    "subjectHint": "Up to 40 characters for the meeting's title.",
     "day": "Date",
     "start": "Start",
     "end": "End",

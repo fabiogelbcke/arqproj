@@ -7,25 +7,21 @@ import {
   type TextFieldProps,
 } from "react-aria-components";
 
+import { LengthCounter } from "./TextInput";
 import styles from "./ui.module.css";
 
-type Props = TextFieldProps & { label: string; description?: string; showCount?: boolean };
+type Props = TextFieldProps & { label: string; description?: string };
 
-/** A labelled input with its hint and validation message; with `showCount` and a
- *  `maxLength`, a small "12/28" counter in the input's right edge. */
-export function TextField({ label, description, showCount, ...props }: Props) {
-  const count = showCount && props.maxLength ? `${(props.value ?? "").length}/${props.maxLength}` : null;
+/** A labelled input with its hint and validation message; with `maxLength`, the
+ *  "12/28" counter in the input's right edge (ui/TextInput's). */
+export function TextField({ label, description, ...props }: Props) {
   return (
     <AriaTextField {...props} className={styles.field}>
       <Label className={styles.label}>{label}</Label>
-      {count ? (
-        <div className={styles.counted}>
+      {props.maxLength ? (
+        <LengthCounter length={(props.value ?? "").length} max={props.maxLength}>
           <Input className={styles.input} />
-          {/* The limit itself stops typing; this only shows how much is left. */}
-          <span className={styles.counter} aria-hidden="true">
-            {count}
-          </span>
-        </div>
+        </LengthCounter>
       ) : (
         <Input className={styles.input} />
       )}

@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
+import { TextInput } from "../ui/TextInput";
 import { toast } from "../ui/Toast";
 import type { Page } from "./format";
 
@@ -103,7 +104,7 @@ export function NameEditor({ page, staff, onDone }: { page: Page; staff: Staff; 
         <label className="sr" htmlFor="ed-name">
           {t("edit.name")}
         </label>
-        <input className="input" id="ed-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} autoFocus />
+        <TextInput className="input" id="ed-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} autoFocus />
         <p className="hint">{t("edit.nameHint")}</p>
       </div>
     </Editor>
@@ -322,8 +323,7 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
     >
       <div className="field">
         <label htmlFor="m-title">{t("edit.subject")}</label>
-        <input className="input" id="m-title" value={form.title} onChange={set("title")} maxLength={40} required autoFocus />
-        <p className="hint">{t("edit.subjectHint")}</p>
+        <TextInput className="input" id="m-title" value={form.title} onChange={set("title")} maxLength={40} required autoFocus />
       </div>
       <div className="row3">
         <div className="field">
@@ -342,7 +342,7 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
       <div className="row2">
         <div className="field">
           <label htmlFor="m-loc">{t("edit.location")}</label>
-          <input className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={60} />
+          <TextInput className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={60} />
         </div>
         <div className="field">
           <label htmlFor="m-link">{t("edit.link")}</label>

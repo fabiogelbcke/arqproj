@@ -7,6 +7,7 @@ import { flushSync } from "react-dom";
 import { api, call, type Schemas } from "../api/client";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton } from "./EditButton";
+import { splitTitle } from "./titleLead";
 import { UpdatesBell } from "./Updates";
 import { FilePreview, FileToolbar, shownFiles, usePrefs, type FileView } from "./FileTools";
 
@@ -295,7 +296,6 @@ function Facts({ page }: { page: Page }) {
   const { t, i18n } = useTranslation();
   const rows: Array<[string, string]> = [
     [t("page.client"), page.client_name.toLocaleUpperCase(i18n.language)],
-    [t("page.projectType"), page.project_type.toLocaleUpperCase(i18n.language)],
     ...page.details.map((d) => [d.label, detailValue(d, i18n.language)] as [string, string]),
     [t("page.lastUpdate"), day(page.last_update, i18n.language, page.timezone)],
   ];
@@ -350,10 +350,7 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
           {narrow ? (
             <span className="journey-kicker">{t("page.timeline").toLocaleUpperCase()}</span>
           ) : (
-            <>
-              <span className="journey-kicker">{t("page.journeyKicker").toLocaleUpperCase()}</span>
-              <h2>{t("page.journeyTitle")}</h2>
-            </>
+            <h2>{t("page.journeyTitle")}</h2>
           )}
         </div>
       </div>
@@ -688,15 +685,21 @@ function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
+/** "/casa de praia" (the property or work type, else the first word) then the rest
+ *  in bold, on two lines; a short name (under 15 characters) on one. */
 function Title({ name }: { name: string }) {
   const { i18n } = useTranslation();
-  const [lead, ...rest] = name.trim().split(/\s+/);
+  const { lead, rest } = splitTitle(name);
+  const oneLine = name.trim().length < 15;
   return (
     // The two parts are one name for screen readers ("/casa" + "jardim").
-    <h1 className="client-project-title" title={name} aria-label={name}>
-      <span className="project-title__lead">/{lead?.toLocaleLowerCase(i18n.language)}</span>
-      {rest.length > 0 && (
-        <strong className="project-title__tail">{rest.join(" ").toLocaleLowerCase(i18n.language)}</strong>
+    <h1 className={`client-project-title${oneLine ? " client-project-title--one-line" : ""}`} title={name} aria-label={name}>
+      <span className="project-title__lead">/{lead.toLocaleLowerCase(i18n.language)}</span>
+      {rest && (
+        <>
+          {oneLine && " "}
+          <strong className="project-title__tail">{rest.toLocaleLowerCase(i18n.language)}</strong>
+        </>
       )}
     </h1>
   );
@@ -797,6 +800,8 @@ export function ProjectPage({
                 <Title name={page.name} />
               </div>
             )}
+            {/* The kind of project, under its name (edited with the details). */}
+            {page.project_type && <p className="project-kind">{page.project_type}</p>}
           </header>
           {narrow && <MobileSummary page={page} />}
           {page.cover_url && (
@@ -812,22 +817,25 @@ export function ProjectPage({
             without a cover, both start under the title. Phones: one column. */}
         <div className="project-status project-layout">
           <div className="project-layout__main">
-            <div className={`project-layout__desc${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
-              {canEdit && openEditor === "desc" ? (
-                <Suspense fallback={null}>
-                  <DescriptionEditor page={page} staff={staff!} onDone={done} />
-                </Suspense>
-              ) : (
-                <div className="desc" data-editable>
-                  {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
-                  {page.description ? (
-                    <Description text={page.description} />
-                  ) : (
-                    canEdit && <p className="desc__empty">{t("edit.noDescription")}</p>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* No description: nothing for the client (staff in edit mode can add one). */}
+            {(page.description || canEdit) && (
+              <div className={`project-layout__desc${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
+                {canEdit && openEditor === "desc" ? (
+                  <Suspense fallback={null}>
+                    <DescriptionEditor page={page} staff={staff!} onDone={done} />
+                  </Suspense>
+                ) : (
+                  <div className="desc" data-editable>
+                    {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
+                    {page.description ? (
+                      <Description text={page.description} />
+                    ) : (
+                      canEdit && <p className="desc__empty">{t("edit.noDescription")}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {!narrow && page.stages.length > 0 && (
               <div className="project-status__timeline">
                 <Timeline page={page} onJump={jump} />

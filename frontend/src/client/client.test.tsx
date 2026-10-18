@@ -50,7 +50,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("the client page", () => {
   it("shows the project with the current stage open", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
-    expect(await screen.findByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveTextContent("/casajardim");
+    expect(await screen.findByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveTextContent("/casa jardim"); // under 15 characters: one line, with a space
     expect(screen.getByText("Medidas conferidas.")).toBeVisible(); // stage 2 is current
     expect(screen.getByText("1.240 m²")).toBeInTheDocument();
     expect(screen.getByText("15/10/2026")).toBeInTheDocument(); // the office's day
@@ -72,6 +72,20 @@ describe("the client page", () => {
     await userEvent.click(within(timeline).getByRole("button", { name: /Estudo Preliminar/ }));
     const section = document.getElementById("stage-2")!;
     expect(section.className).toContain("is-expanded");
+  });
+
+  it("shows the project's type under its title, not among the details", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    await screen.findByRole("heading", { level: 1, name: "Casa Jardim" });
+    const kind = document.querySelector(".project-kind");
+    expect(kind).toHaveTextContent(PAGE.project_type);
+    expect(screen.queryByText("Tipo de projeto")).toBeNull();
+  });
+
+  it("leaves out an empty description, so nothing sits blank", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, description: "" } }) });
+    await screen.findByRole("heading", { level: 1, name: "Casa Jardim" });
+    expect(document.querySelector(".project-layout__desc")).toBeNull();
   });
 
   it("says when a page doesn't exist, in the office's language", async () => {
@@ -253,6 +267,12 @@ describe("edit mode", () => {
     expect(screen.queryByRole("button", { name: "Editar descrição" })).toBeNull();
     await startEditing();
     expect(screen.getByRole("button", { name: "Editar descrição" })).toBeInTheDocument();
+  });
+
+  it("offers staff an empty description to fill in", async () => {
+    asStaff({ "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, description: "", staff: { project_id: "p-1", status: "active", row_version: 4 } } }) });
+    await startEditing();
+    expect(await screen.findByRole("button", { name: "Editar descrição" })).toBeInTheDocument();
   });
 
   it("renames the project from its title, with the page's row version", async () => {

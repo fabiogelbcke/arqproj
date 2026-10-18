@@ -188,7 +188,6 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
                 onChange={setClient}
                 isRequired
                 maxLength={CLIENT_MAX}
-                showCount
                 autoComplete="off"
               />
             </div>

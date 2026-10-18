@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
+import { TextInput } from "../ui/TextInput";
 import { toast } from "../ui/Toast";
 import type { Page } from "./format";
 
@@ -103,7 +104,7 @@ export function StageControls({
         <label className="sr" htmlFor={`rn-${index}`}>
           {t("edit.stageName")}
         </label>
-        <input
+        <TextInput
           id={`rn-${index}`}
           value={title}
           maxLength={80}
@@ -240,7 +241,7 @@ export function AddStage({
         >
           <label htmlFor="custom-stage">{t("edit.ownStage")}</label>
           <div className="add-stage__row">
-            <input className="input" id="custom-stage" value={custom} maxLength={80} onChange={(e) => setCustom(e.target.value)} />
+            <TextInput className="input" id="custom-stage" value={custom} maxLength={80} onChange={(e) => setCustom(e.target.value)} />
             <button className="b b--primary" type="submit" disabled={change.busy || !custom.trim()}>
               {t("edit.add")}
             </button>

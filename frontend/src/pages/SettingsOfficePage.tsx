@@ -63,7 +63,6 @@ export function SettingsOfficePage() {
           onChange={(name) => setDraft({ ...values, name })}
           isRequired
           maxLength={28} // for now (Fabio, 18 Oct 2026); the API checks the same
-          showCount
           isReadOnly={!manage}
         />
         <TextField
