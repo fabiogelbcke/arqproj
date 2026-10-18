@@ -49,8 +49,8 @@ Confirmed choices:
 - Office URLs: `{office-slug}.{product-domain}` was agreed, and is reopened as of
   14 October 2026 against a single-domain alternative for cost reasons (A21,
   section 4). Either way, display-name changes do not silently change URLs, and
-  the choice is made before any client link is shared. Product/domain naming is
-  still open. The first office keeps its own domain, `alineaarquitetos.com`, as a
+  the choice is made before any client link is shared. The product is Unio, on
+  `myunio.app` (A33). The first office keeps its own domain, `alineaarquitetos.com`, as a
   custom domain of the same deployment (A23); A21 only matters for later offices.
 - Project links are simple: `/{project-slug}` on the office's address, as today
   (A22). Optional per-project passwords cover projects that need privacy.
@@ -119,6 +119,7 @@ its affected tests before coding proceeds.
 | A30 | Staff app and API stay compatible across a deploy | Agreed 15 Oct 2026, correcting "one revision means the staff app can never run against another API version": an open tab keeps the old code. Fingerprinted assets, a build ID on API responses, a reload prompt that keeps unsaved edits, and API changes compatible with the previous release. See section 4 |
 | A31 | Uploads go from the browser straight to Drive | Agreed 16 Oct 2026 (Fabio), first part of slice 3b. Any staff member uploads into a stage from edit mode. The app checks the request (staff, project not archived, the stage's folder, at most 100 MB a file) and opens a Google resumable upload in that folder through the office's grant; the browser sends the bytes to Google, never through Cloud Run. A file with a name already there is kept beside it until versions (A25) arrive. The 100 MB cap settles the upload cap that section 24 listed as open; usage metrics (future ideas) may move it. "Ocultar do cliente" renames a file with a leading `_` (A05's hidden names); the office's grant (`drive.file`) reaches only files the app uploaded, so a file put straight into Drive is hidden by renaming it there. Versions, covers in Drive and usage metrics are later. See section 11 |
 | A32 | Client email updates: what, to whom, from where, and how often | Agreed 16 Oct 2026 (Fabio). Staff list the client's addresses in the Projeto dialog, several per project (`project_recipients`). An email goes out for new files on the page, a stage advanced or the project completed, and a meeting scheduled, changed or removed; a stage's note does not email (it still counts for the updates panel). Batching as A12, 45 minutes quiet and 2 hours at most, confirmed for the pilot. Each office sends from its own domain once that domain is verified with the provider (Alinea: `alineaarquitetos.com`); until then, and for every other office, from the product's general domain with the office's name. Replies go to the office's contact email (office settings), else its owner. Locally and in tests a collecting fake records emails; staging sends only to allowlisted addresses. One Cloud Scheduler job calls the maintenance endpoint every 10 minutes (A09, A19), staging first. See section 14 |
+| A33 | Product name and domain: **Unio**, `myunio.app` | Agreed 17 Oct 2026 (Fabio). `myunio.app` is the `{product-domain}` throughout this plan, registered at GoDaddy. Alinea keeps `alineaarquitetos.com` (A23); later offices are served on `myunio.app` in the form A21 settles, which stays open. `.app` domains are HSTS-preloaded, so every address on it works over HTTPS only (Cloud Run's managed certificates already do that). Hosting region is still open (section 24). See the [changelog](decision-changelog.md) |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -260,8 +261,8 @@ Run will keep them alive.
 
 ### One origin per office: pages, staff app and API (A20)
 
-Each office is served by the one FastAPI service, from one origin. Under option A
-of A21 the layout is:
+Each office is served by the one FastAPI service, from one origin. The product
+domain is `myunio.app` (A33). Under option A of A21 the layout is:
 
 ```text
 {office}.{product-domain}/{slug}             client pages: React, shell and preview tags from the server (A20, A22)
@@ -1710,7 +1711,7 @@ choices need an owner before their corresponding feature ships:
 
 | Question | Proposed default | Needed by |
 | --- | --- | --- |
-| Product name/domain and first hosting region | Choose once office URL examples and latency are reviewed | Real DNS/OAuth registration |
+| First hosting region | Choose once latency is reviewed (the name and domain are settled: Unio, `myunio.app`, A33) | Real DNS/OAuth registration |
 | Database instance size/backup retention | Cloud SQL, smallest shared-core instance (A16); confirm price, backups and point-in-time recovery at creation, then prove a restore | Infrastructure purchase |
 | Background dispatch technology and refresh interval | In-app maintenance every 10 minutes for the POC (A09); add a queue/worker when needed | Maintenance implementation |
 | Timer setup | Prefer Cloud Scheduler within account-wide free allowance; local cron is the alternative | Confirm allowance and cadence before setup |
