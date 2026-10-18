@@ -139,6 +139,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
                 "last_activity_at",
                 "current_position",
                 "files_scanned_at",
+                "folder_id",  # a Drive account switch: new, empty folders
             )
         ),
         *(

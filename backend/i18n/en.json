@@ -187,7 +187,7 @@
     "drive_link_invalid": "This connection request has expired. Start again with Connect.",
     "drive_connect_failed": "Google Drive could not be connected. Please try again shortly.",
     "drive_share_failed": "The folder in your Drive could not be prepared. Nothing was changed; try again.",
-    "drive_other_account": "This Google account cannot reach the office's folder. Reconnect with the account used before; nothing was changed.",
+    "drive_other_account": "This Google account can't reach the office's folder. Reconnect the account used before, or use this other account anyway (the projects' files don't come along). Nothing was changed.",
     "drive_not_connected": "Connect the office's Google Drive before doing this.",
     "drive_expired": "The Google Drive connection expired. Reconnect in Settings → Google Drive.",
     "invalid_office_name": "Enter a name of up to 28 characters.",
@@ -266,7 +266,18 @@
     "spaceUsed": "{{used}} of {{total}} used ({{percent}}%)",
     "spacePooled": "Pooled storage (Workspace): {{used}} used",
     "spaceLow": "Running low on space. Once Drive is full, new files won't upload: free up space or upgrade the Google account's storage.",
-    "spaceUnknown": "Drive space couldn't be checked right now."
+    "spaceUnknown": "Drive space couldn't be checked right now.",
+    "notConnectedBefore": "Previously connected as {{email}}. The projects are in that account's folder.",
+    "reconnectSame": "Reconnect the same account",
+    "switch": "Use another account",
+    "switchAnyway": "Use this other account anyway",
+    "switchTitle": "Use another Google account?",
+    "switchWarning": "The projects' files don't come to the new account. In the new account, everything starts empty.",
+    "switchFiles": "The files, covers and logo stay in the previous account, where they are today.",
+    "switchEmpty": "In the new account, each project starts with empty folders: clients no longer see the files until they're uploaded again through the site.",
+    "switchKept": "Names, stages, notes, details, meetings and the clients' emails stay as they are.",
+    "switchCancel": "Cancel",
+    "switchConfirm": "I understand, use another account"
   },
   "firstSteps": {
     "title": "First steps",

@@ -725,6 +725,14 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** ConnectIn */
+        ConnectIn: {
+            /**
+             * Fresh
+             * @default false
+             */
+            fresh: boolean;
+        };
         /** ConnectOut */
         ConnectOut: {
             /** Url */
@@ -789,6 +797,8 @@ export interface components {
             folder_url: string | null;
             /** Can Manage */
             can_manage: boolean;
+            /** Has Folder */
+            has_folder: boolean;
         };
         /**
          * ErrorCode
@@ -1743,7 +1753,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ConnectIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1770,6 +1784,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Service Unavailable */

@@ -776,6 +776,19 @@ as a `needs_attention` outcome rather than retrying the failing call. **To verif
 live** before writing the recovery screen: does an owner's share of the folder
 give the reader access to files others had already put inside?
 
+**Another Google account** (18 Oct 2026, Fabio). Reconnecting keeps the office's
+folder when the new grant reaches it, i.e. the same account. Another account
+cannot reach anything the app made with the first one (drive.file is per
+account), so it is refused unless the owner chooses "Usar outra conta" after a
+clear warning that the files stay behind. Then the office **starts afresh** in
+the new account: a new root folder shared with the reader while empty, a new
+empty folder for every project and stage (all-or-nothing: a failure rolls back
+and trashes the new root), covers and the logo dropped (they were files in the
+old account), and each project's next scan set to only note what is there, so
+re-uploaded files don't email clients. Names, stages, notes, details, meetings,
+addresses and recipients are kept. The old account's folders are left untouched.
+A tool to carry files across is a future idea.
+
 The reader has read-only scope and explicit sharing permission on the office's
 designated root. The writer uses the office user's refresh token with
 `drive.file`. A read permission does not confer write authorization on the other

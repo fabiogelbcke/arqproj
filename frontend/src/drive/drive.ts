@@ -48,7 +48,8 @@ export function useOnboarding() {
 /** Off to Google's sign-in; Google brings the person back to the settings page. */
 export function useConnectDrive() {
   return useMutation({
-    mutationFn: () => call(api.POST("/api/drive/connect")),
+    // fresh: another Google account, starting afresh (after the warning).
+    mutationFn: (fresh: boolean = false) => call(api.POST("/api/drive/connect", { body: { fresh } })),
     onSuccess: ({ url }) => window.location.assign(url),
   });
 }

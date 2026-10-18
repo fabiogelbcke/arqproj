@@ -187,7 +187,7 @@
     "drive_link_invalid": "Este pedido de conexão expirou. Comece de novo em Conectar.",
     "drive_connect_failed": "Não foi possível conectar o Google Drive. Tente de novo em instantes.",
     "drive_share_failed": "Não foi possível preparar a pasta no seu Drive. Nada foi alterado; tente de novo.",
-    "drive_other_account": "Esta conta Google não acessa a pasta do escritório. Reconecte com a mesma conta usada antes; nada foi alterado.",
+    "drive_other_account": "Esta conta Google não acessa a pasta do escritório. Reconecte com a mesma conta usada antes, ou use esta outra conta mesmo assim (os arquivos dos projetos não vêm junto). Nada foi alterado.",
     "drive_not_connected": "Conecte o Google Drive do escritório antes de fazer isso.",
     "drive_expired": "A conexão com o Google Drive expirou. Reconecte em Configurações → Google Drive.",
     "invalid_office_name": "Informe um nome de até 28 caracteres.",
@@ -266,7 +266,18 @@
     "spaceUsed": "{{used}} de {{total}} usados ({{percent}}%)",
     "spacePooled": "Armazenamento compartilhado (Workspace): {{used}} usados",
     "spaceLow": "Pouco espaço livre. Quando o Drive enche, novos arquivos não são enviados: libere espaço ou amplie o armazenamento da conta Google.",
-    "spaceUnknown": "Não foi possível ver o espaço do Drive agora."
+    "spaceUnknown": "Não foi possível ver o espaço do Drive agora.",
+    "notConnectedBefore": "Antes conectado como {{email}}. Os projetos estão na pasta dessa conta.",
+    "reconnectSame": "Reconectar a mesma conta",
+    "switch": "Usar outra conta",
+    "switchAnyway": "Usar esta outra conta mesmo assim",
+    "switchTitle": "Usar outra conta Google?",
+    "switchWarning": "Os arquivos dos projetos não vêm para a nova conta. Na nova conta, tudo começa vazio.",
+    "switchFiles": "Os arquivos, as capas e o logo continuam na conta anterior, onde estão hoje.",
+    "switchEmpty": "Na nova conta, cada projeto começa com pastas vazias: os clientes não veem mais os arquivos até que sejam enviados de novo pelo site.",
+    "switchKept": "Nomes, etapas, recados, informações, reuniões e os e-mails dos clientes continuam como estão.",
+    "switchCancel": "Cancelar",
+    "switchConfirm": "Entendi, usar outra conta"
   },
   "firstSteps": {
     "title": "Primeiros passos",

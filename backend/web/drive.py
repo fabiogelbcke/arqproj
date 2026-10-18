@@ -32,6 +32,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.engine import get_tenant_session
 from backend.db.isolation import scope_to_tenant
 from backend.identity.models import Role
+from backend.office.models import OfficeProfile
+from backend.projects.models import Project, ProjectStage
 from backend.security import keys
 from backend.storage.base import StorageError
 from backend.storage.google import OfficeDrive
@@ -43,6 +45,7 @@ from backend.storage.google_connect import (
     OAuthClient,
 )
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind, WriterStatus
+from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant, normalize_host, resolve
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
@@ -62,6 +65,12 @@ class ConnectOut(BaseModel):
     url: str
 
 
+class ConnectIn(BaseModel):
+    # Another Google account than the one whose folder the office has: start
+    # afresh in it (the owner confirmed the warning that files don't come along).
+    fresh: bool = False
+
+
 class DriveOut(BaseModel):
     kind: StorageKind | None  # None: not connected yet
     writer_status: WriterStatus
@@ -69,6 +78,9 @@ class DriveOut(BaseModel):
     account_email: str | None
     folder_url: str | None
     can_manage: bool  # owners connect and disconnect; members only see
+    # A folder from an earlier connection: reconnecting the same account keeps it;
+    # another account starts afresh (the screen warns before).
+    has_folder: bool
 
 
 class SpaceOut(BaseModel):
@@ -111,6 +123,7 @@ async def drive_status(
             f"https://drive.google.com/drive/folders/{connection.root_id}" if google else None
         ),
         can_manage=staff.role is Role.OWNER,
+        has_folder=google and bool(connection.root_id),
     )
 
 
@@ -136,6 +149,7 @@ async def drive_space(
 async def connect(
     request: Request,
     response: Response,
+    body: ConnectIn | None = None,
     staff: CurrentStaff = Depends(require_csrf),
     tenant: CurrentTenant = Depends(current_tenant),
 ) -> ConnectOut:
@@ -146,7 +160,12 @@ async def connect(
     state = keys.sign(
         request.app.state.settings.app_secret,
         STATE_PURPOSE,
-        {"origin": origin, "tenant": str(tenant.id), "nonce": nonce},
+        {
+            "origin": origin,
+            "tenant": str(tenant.id),
+            "nonce": nonce,
+            "fresh": bool(body and body.fresh),
+        },
         STATE_TTL,
     )
     response.set_cookie(
@@ -197,7 +216,14 @@ async def callback(request: Request) -> Response:
         if staff.role is not Role.OWNER:
             return _back(request, ErrorCode.OWNER_ONLY)
         try:
-            await _complete(request, db, staff, request.query_params.get("code", ""))
+            await _complete(
+                request,
+                db,
+                staff,
+                request.query_params.get("code", ""),
+                fresh=state.get("fresh", False),
+                locale=tenant.locale,
+            )
         except ConnectError as error:
             log.error(
                 "drive connect failed for tenant %s: %s %s",
@@ -215,7 +241,15 @@ async def callback(request: Request) -> Response:
     return done
 
 
-async def _complete(request: Request, db: AsyncSession, staff: CurrentStaff, code: str) -> None:
+async def _complete(
+    request: Request,
+    db: AsyncSession,
+    staff: CurrentStaff,
+    code: str,
+    *,
+    fresh: bool = False,
+    locale: Locale = Locale.PT_BR,
+) -> None:
     settings = request.app.state.settings
     http = request.app.state.http
     oauth = _oauth(request)
@@ -225,22 +259,37 @@ async def _complete(request: Request, db: AsyncSession, staff: CurrentStaff, cod
     reader = settings.drive_reader_identity
 
     root = None
+    switching = False
     if connection and connection.kind is StorageKind.GOOGLE and connection.root_id:
-        # Reconnecting: the office's folder holds its projects' files, so it is
-        # never replaced here (plan section 9). This grant must reach it, i.e. be
-        # the same Google account; otherwise nothing changes and the owner is told.
-        if not await writer.can_open(connection.root_id):
+        # Reconnecting: the office's folder holds its projects' files, so the same
+        # account keeps it. Another account can't reach it (the app sees only what
+        # it made with that account): unless the owner chose to start afresh after
+        # the warning, nothing changes and they are told (plan section 9).
+        if await writer.can_open(connection.root_id):
+            root = connection.root_id
+        elif not fresh:
             raise ConnectError(ConnectProblem.OTHER_ACCOUNT)
-        root = connection.root_id
+        else:
+            switching = True
     if root is None:
         root = await writer.create_folder(ROOT_FOLDER_NAME)
         try:
             # While it is empty: the only moment sharing works (plan section 9).
             await writer.share_with_reader(root, reader)
+            if switching:
+                await _start_afresh(db, writer, root, locale)
         except ConnectError:
+            await db.rollback()
             await writer.trash(root)  # never leave a folder the reader cannot see
             raise
 
+    if switching and connection.writer_token:
+        # Still connected to the old account: let go of its grant, as disconnecting does.
+        try:
+            old = keys.decrypt(settings.app_secret, TOKEN_PURPOSE, connection.writer_token)
+            await oauth.revoke(http, old)
+        except (keys.BadToken, ConnectError) as error:
+            log.warning("old Drive grant not revoked: %r", getattr(error, "detail", error))
     if connection is None:
         connection = StorageConnection(kind=StorageKind.GOOGLE)
         db.add(connection)
@@ -254,6 +303,37 @@ async def _complete(request: Request, db: AsyncSession, staff: CurrentStaff, cod
     connection.checked_at = datetime.now(UTC)
     connection.reader_status = await _reader_status(request, root)
     await db.commit()
+
+
+async def _start_afresh(db: AsyncSession, writer: DriveWriter, root: str, locale: Locale) -> None:
+    """Another Google account, chosen after the warning: the old account's files
+    stay where they are, out of this account's reach. Every project and stage gets
+    an empty folder in the new one; covers and the logo (files in the old account)
+    are dropped, and each project's next scan only notes what is there, so no
+    client is emailed about files moved across by hand (files there get new ids,
+    so the old account's in `project_files_seen` never match). Not committed: on a
+    failure the caller rolls back and trashes the new folder (with these in it)."""
+    from backend.web.page_stages import _folder_name, _title  # page code imports this module
+
+    projects = (await db.scalars(select(Project).where(Project.deleted_at.is_(None)))).all()
+    for project in projects:
+        project.folder_id = await writer.create_folder(project.name, root)
+        project.cover_file_id = project.cover_type = project.cover_folder_id = None
+        project.files_scanned_at = None
+        stages = await db.scalars(
+            select(ProjectStage)
+            .where(ProjectStage.project_id == project.id)
+            .order_by(ProjectStage.position)
+        )
+        for stage in stages:
+            title = await _title(db, stage, locale)
+            stage.folder_id = await writer.create_folder(
+                _folder_name(stage.position, title), project.folder_id
+            )
+    office = await db.scalar(select(OfficeProfile))
+    if office is not None:
+        office.logo_file_id = office.logo_type = office.logo_png_file_id = None
+        office.logo_dark_file_id = office.logo_dark_type = office.brand_folder_id = None
 
 
 async def _reader_status(request: Request, root: str) -> ReaderStatus:

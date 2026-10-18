@@ -172,7 +172,7 @@ function NeedsDrive({ close }: { close: () => void }) {
       <div className={styles.actions}>
         <Button onPress={close}>{t("newProject.cancel")}</Button>
         {owner && (
-          <Button variant="primary" onPress={() => connect.mutate()} isDisabled={connect.isPending}>
+          <Button variant="primary" onPress={() => connect.mutate(false)} isDisabled={connect.isPending}>
             {t("drive.connect")}
           </Button>
         )}

@@ -115,6 +115,52 @@ describe("the painel's Drive banner", () => {
   });
 });
 
+describe("another Google account", () => {
+  const BEFORE = { ...CONNECTED, writer_status: "none", has_folder: true, account_email: "escritorio@gmail.com" };
+
+  it("offers the same account again, or another behind a clear warning", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign, origin: window.location.origin });
+    const sent = api(BEFORE, {
+      "POST /api/drive/connect": () => ({ body: { url: "https://accounts.google.com/o/oauth2/v2/auth?x" } }),
+    });
+    renderAt("/configuracoes/drive");
+    expect(await screen.findByText(/Antes conectado como escritorio@gmail.com/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reconectar a mesma conta" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Usar outra conta" }));
+    const warning = await screen.findByRole("alertdialog", { name: "Usar outra conta Google?" });
+    expect(warning).toHaveTextContent("Os arquivos dos projetos não vêm para a nova conta");
+    await userEvent.click(within(warning).getByRole("button", { name: "Entendi, usar outra conta" }));
+    await waitFor(() => expect(assign).toHaveBeenCalled());
+    expect(sent.find((r) => r.path === "/api/drive/connect")?.body).toEqual({ fresh: true });
+  });
+
+  it("reconnecting the same account doesn't start afresh", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign, origin: window.location.origin });
+    const sent = api(BEFORE, {
+      "POST /api/drive/connect": () => ({ body: { url: "https://accounts.google.com/o/oauth2/v2/auth?x" } }),
+    });
+    renderAt("/configuracoes/drive");
+    await userEvent.click(await screen.findByRole("button", { name: "Reconectar a mesma conta" }));
+    await waitFor(() => expect(sent.find((r) => r.path === "/api/drive/connect")?.body).toEqual({ fresh: false }));
+  });
+
+  it("after Google returns another account, offers to use it anyway", async () => {
+    window.history.pushState({}, "", "/painel/configuracoes/drive?erro=drive_other_account");
+    api(BEFORE);
+    renderAt("/configuracoes/drive?erro=drive_other_account");
+    expect(await screen.findByRole("button", { name: "Usar esta outra conta mesmo assim" })).toBeInTheDocument();
+  });
+
+  it("a first connection has no switch to offer", async () => {
+    api(NOT_CONNECTED);
+    renderAt("/configuracoes/drive");
+    await screen.findByText("Não conectado");
+    expect(screen.queryByRole("button", { name: /Usar outra conta/ })).toBeNull();
+  });
+});
+
 describe("the Drive's space", () => {
   it("shows how much is used, and warns from 80%", async () => {
     api(CONNECTED, { "GET /api/drive/space": () => ({ body: { used: 12 * 2 ** 30, total: 15 * 2 ** 30 } }) });
