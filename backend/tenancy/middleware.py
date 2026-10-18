@@ -18,9 +18,12 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from backend.tenancy.resolve import resolve
 
 # The maintenance pass is every office's: called by the scheduler, never a page.
-# Unio's legal pages are no office's, and answer on every address (A33).
+# Unio's public home, its assets and legal pages belong to no office (A33).
 EXEMPT_PATHS = frozenset(
     {
+        "/",
+        "/brand/landing.css",
+        "/brand/unio.png",
         "/health",
         "/api/docs",
         "/api/openapi.json",

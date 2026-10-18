@@ -25,6 +25,7 @@ from backend.web import (
     auth,
     drive,
     health,
+    home,
     legal,
     maintenance,
     office,
@@ -152,6 +153,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.include_router(health.router)
+    app.include_router(home.router)
     app.include_router(legal.router)
     app.include_router(maintenance.router)
     app.include_router(auth.router)

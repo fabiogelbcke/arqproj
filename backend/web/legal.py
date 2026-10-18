@@ -289,7 +289,7 @@ otherwise, as with consumer rights. Contact: {_MAIL}.</p>
 
 def _page(title: str, body: str) -> HTMLResponse:
     nav = (
-        '<nav><a href="/privacidade">Política de Privacidade</a>'
+        '<nav><a href="/">Unio</a><a href="/privacidade">Política de Privacidade</a>'
         '<a href="/termos">Termos de Uso</a></nav>'
     )
     return HTMLResponse(

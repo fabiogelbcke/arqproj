@@ -1620,6 +1620,16 @@ retention and removal of metadata, previews, logs, tokens and backup copies;
 explain delayed backup expiry. Have a human-reviewed privacy/data-processing
 agreement suitable for the actual customers and jurisdictions, including Brazil.
 
+Unio's public homepage is at `/`, with the product logo, a description of the
+project portal and an explanation of its Google Drive access. It is served as
+static HTML and CSS without sign-in, JavaScript, tracking or a tenant lookup
+(`backend/web/home.py`). Its two named assets also bypass tenant resolution;
+staff and project routes still require it. The page links to the existing legal
+pages and contact address. Before submitting Google's OAuth verification,
+publish it on `https://myunio.app/`, verify domain ownership, and set that exact
+homepage and `https://myunio.app/privacidade` on the consent screen. The public
+page alone does not configure OAuth, publish a deployment or guarantee approval.
+
 Unio's privacy policy and terms of use are at `/privacidade` and `/termos` on every
 address, `myunio.app` included (`backend/web/legal.py`; Google's OAuth consent
 screen links them). Each office is the controller of what it publishes about its
