@@ -25,7 +25,8 @@ a new entry too.
 link, and "Open in Drive" for files the office's grant cannot change; the
 prototype's file menu had "Abrir no Google Drive".
 
-**Now:** no link to Drive. The file menu offers "Definir como capa", "Mover para
+**Now:** no link to Drive from the project page (the Drive settings page keeps
+its link to the connected folder, which is about the connection). The file menu offers "Definir como capa", "Mover para
 outra etapa" (a list of stages) and "Ocultar do cliente"; dragging onto a stage
 comes later as another way to move. For a file put straight into Drive, the site
 says where to make the change.

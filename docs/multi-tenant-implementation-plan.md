@@ -120,7 +120,7 @@ its affected tests before coding proceeds.
 | A31 | Uploads go from the browser straight to Drive | Agreed 16 Oct 2026 (Fabio), first part of slice 3b. Any staff member uploads into a stage from edit mode. The app checks the request (staff, project not archived, the stage's folder, at most 100 MB a file) and opens a Google resumable upload in that folder through the office's grant; the browser sends the bytes to Google, never through Cloud Run. A file with a name already there is kept beside it until versions (A25) arrive. The 100 MB cap settles the upload cap that section 24 listed as open; usage metrics (future ideas) may move it. "Ocultar do cliente" renames a file with a leading `_` (A05's hidden names); the office's grant (`drive.file`) reaches only files the app uploaded, so a file put straight into Drive is hidden by renaming it there. Versions, covers in Drive and usage metrics are later. See section 11 |
 | A32 | Client email updates: what, to whom, from where, and how often | Agreed 16 Oct 2026 (Fabio). Staff list the client's addresses in the Projeto dialog, several per project (`project_recipients`). An email goes out for new files on the page, a stage advanced or the project completed, and a meeting scheduled, changed or removed; a stage's note does not email (it still counts for the updates panel). Batching as A12, 45 minutes quiet and 2 hours at most, confirmed for the pilot. Each office sends from its own domain once that domain is verified with the provider (Alinea: `alineaarquitetos.com`); until then, and for every other office, from the product's general domain with the office's name. Replies go to the office's contact email (office settings), else its owner. Locally and in tests a collecting fake records emails; staging sends only to allowlisted addresses. One Cloud Scheduler job calls the maintenance endpoint every 10 minutes (A09, A19), staging first. See section 14 |
 | A33 | Product name and domain: **Unio**, `myunio.app` | Agreed 17 Oct 2026 (Fabio). `myunio.app` is the `{product-domain}` throughout this plan, registered at GoDaddy. Alinea keeps `alineaarquitetos.com` (A23); later offices are served on `myunio.app` in the form A21 settles, which stays open. `.app` domains are HSTS-preloaded, so every address on it works over HTTPS only (Cloud Run's managed certificates already do that). Hosting region is still open (section 24). See the [changelog](decision-changelog.md) |
-| A34 | Staff change files on the website, not in Drive | Agreed 17 Oct 2026 (Fabio). The site does not send staff to Drive: no "Abrir no Google Drive" action. Drive keeps working for whoever prefers it, but every everyday change is offered on the project page. Each file's "⋯" menu offers "Definir como capa" (images), "Mover para outra etapa" (a list of the other stages) and "Ocultar do cliente"; dragging a file onto another stage is a later addition doing the same move. A file put straight into Drive can be shown but not changed through the office's grant (drive.file): the site says, in plain words, to make that change in the stage's folder; authorizing such files through the Picker stays a later option (section 9). See section 11 and the [changelog](decision-changelog.md) |
+| A34 | Staff change files on the website, not in Drive | Agreed 17 Oct 2026 (Fabio). The project page does not send staff to Drive: no "Abrir no Google Drive" action on a file or stage. (The Drive settings page keeps its link to the office's connected folder: that is about the connection itself, not a way to change a project's files.) Drive keeps working for whoever prefers it, but every everyday change is offered on the project page. Each file's "⋯" menu offers "Definir como capa" (images), "Mover para outra etapa" (a list of the other stages) and "Ocultar do cliente"; dragging a file onto another stage is a later addition doing the same move. A file put straight into Drive can be shown but not changed through the office's grant (drive.file): the site says, in plain words, to make that change in the stage's folder; authorizing such files through the Picker stays a later option (section 9). See section 11 and the [changelog](decision-changelog.md) |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -1046,7 +1046,7 @@ version prompt in section 12. A painel file manager is optional and only built
 if staff need more than that: breadcrumbs, folders, filename/type/size/updated
 columns, preview, upload progress, create folder, and capability-dependent
 rename/move/trash.
-No “Open in Google Drive” link (A34): changes are offered on the site. No attempt at copying every Drive
+No “Open in Google Drive” link on the project page (A34): changes are offered on the site. No attempt at copying every Drive
 feature or matching its branding. Do not offer hard delete. Cross-project moves
 are explicit operations with publication consequences, not casual drag/drop in
 v1. Within-project moves preserve the logical document unless staff split it.
@@ -1133,7 +1133,7 @@ For previews, prioritize predictable originals: image thumbnails, PDF first-page
 previews and browser PDF viewing, then Google-native exports where supported.
 Use an adapter interface so future renderers for CAD/BIM or image galleries do
 not alter project/auth code. A missing/failed preview falls back to a file-type
-card with download/Open in Drive. Do not invent an image for a real document.
+card with download (no “Open in Drive”, A34). Do not invent an image for a real document.
 
 Preview keys include tenant, document/revision, renderer version and size. Async
 rendering has memory, file-size, page-count and time limits. Treat filenames and
@@ -1325,7 +1325,7 @@ destination, allowances and other services. Compare current
 
 Drive remains a sensible choice because ownership, workflow and avoided original
 storage all matter. Moving originals into our own storage would not inherently
-remove download costs either. Offer a direct “Open in Drive” path where suitable,
+remove download costs either. Downloads stay on the site (A34, no “Open in Drive”);
 measure actual usage, then decide whether a separate delivery/storage tier is
 worth introducing.
 
