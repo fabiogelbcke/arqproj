@@ -137,11 +137,15 @@ The dashboard is enabled by setting `DASHBOARD_PASSWORD`. Without it, `/painel` 
 ## Try it without Google (demo)
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
-python run_local.py test  # → http://127.0.0.1:5000/casa-jardim and /painel (password: demo)
-python -m unittest discover -s tests -v
+brew install uv           # once; or see https://docs.astral.sh/uv/
+uv sync                   # creates .venv (Python 3.13) for the current app and backend/
+.venv/bin/python run_local.py test  # → http://127.0.0.1:5000/casa-jardim and /painel (password: demo)
+.venv/bin/python -m unittest discover -s tests -v
 ```
+
+`uv sync` installs exact versions from `uv.lock`: the current app's libraries
+(the `legacy` group, mirroring `requirements.txt`, which production still
+deploys from) and the new backend's. Keep both in step when changing either.
 
 The demo runs a fake Drive API locally, with real JWT signing and verification, loaded with sample data.
 
@@ -226,6 +230,122 @@ Use real Drive mode to verify actual Google-native exports and permissions.
 `python demo.py` still runs the original in-memory demo when
 `LOCAL_TEST_PROJECTS` is unset; automated tests do not use your editable dataset.
 
+## New backend (`backend/`)
+
+The multi-tenant rewrite lives in `backend/` (Python, FastAPI) and `frontend/`
+(the React staff app, "painel"). See `docs/rewrite-steps.md`. It runs alongside
+the current app and does not change what production serves. Everyday commands
+are in the `Makefile` (`make help` lists them):
+
+```bash
+brew install postgresql@17 && brew services start postgresql@17   # once
+make setup        # packages, local databases, migrations, app access, two fictional offices
+make staff TENANT=alinea EMAIL=you@example.com NAME=You ROLE=owner   # prints an invite link
+make dev          # backend + staff app with live reload → http://alinea.localhost:5173/painel
+make serve        # the built app, as deployed         → http://alinea.localhost:8000/painel
+make test         # backend tests, staff app tests, API types up to date
+make e2e          # browser tests against the built app on a fresh local database
+make lint
+```
+
+Staging deploys itself when a pull request merges into `staging`; the admin
+commands also take `ENV=staging` (see `docs/infrastructure.md`, which records
+everything on Google Cloud). Open the invite link (it points to `make dev`'s
+port, 5173; with `make serve`, use 8000) to choose a password; the painel then shows the office's projects (an empty list until step 2).
+After changing the API, run `make api-types`: the staff app's TypeScript types are
+generated from the backend's OpenAPI description (`frontend/src/api/`), and
+`make test` fails while they are stale. Texts shown to people live in
+`backend/i18n/<language>.json`, shared by the server and the staff app; a test
+fails if a language lacks a text.
+
+The office is chosen by the exact hostname of each request (`tenant_domains`).
+Locally, every `*.localhost` address reaches this machine: the seed creates
+`alinea.localhost` (alias `alinea-old.localhost`, which redirects) and
+`norte.localhost`, e.g. `http://alinea.localhost:8000/`. Unknown hosts get 404;
+`/health` works on any host. Every response has an `X-Request-ID` header, also
+printed on each log line.
+
+Staff accounts belong to one office each, and people choose their own passwords.
+`backend.commands.staff add` creates an account without a password and prints a
+one-time invite link (7 days); `reset-link` prints a link to choose a new one
+(1 day). Send the link to the person; it opens the painel's "choose your
+password" screen.
+
+Two logins: the app connects as `arqproj_app` (`DATABASE_URL`), a restricted role
+that PostgreSQL row-level security applies to; migrations and the seed command use
+the owner (`MIGRATION_DATABASE_URL`, locally your own PostgreSQL user).
+Migrations grant privileges to a group role named after the database
+(`arqproj_dev_app`); `backend.commands.provision` (run after migrations) makes the
+`DATABASE_RUNTIME_ROLE` login its only member, so changing the login is a re-run
+of that command, not a migration. Migrations write their SQL out in full rather
+than importing it from app code. Every table
+holding office data must enable `tenant_isolation` (SQL to paste into its migration: `backend/migrations/snippets.py`; runtime side: `backend/db/isolation.py`);
+a test fails if one does not. `DATABASE_URL` and `MIGRATION_DATABASE_URL` default
+to `arqproj_dev` on this machine and must be set explicitly in staging and
+production. Tests only ever use local databases. New migration:
+`uv run alembic -c backend/alembic.ini revision -m "what changes"`, then edit and
+review it by hand; `backend/tests/test_migrations.py` fails if models and
+migrations disagree.
+
+### Client emails locally
+
+Client emails (decision A32) go out from the maintenance pass, which notices new
+files and sends the emails that are due. Run one pass by hand:
+
+```bash
+uv run python -m backend.commands.maintenance
+```
+
+Without `RESEND_API_KEY`, each email is written to `local-test-data/outbox/` as
+an `.html` file to open in a browser, with a `.txt` beside it. Nothing leaves the
+machine. Outside production, emails only go to addresses that belong to the
+office's own staff accounts, so put a staff address among a project's "E-mails do
+cliente" to see one. An email is sent 45 minutes after a project's last change
+(2 hours at most after its first). To see one at once, move the open batch back
+in time:
+
+```bash
+psql -d arqproj_dev -c "UPDATE notification_batches SET first_event_at = first_event_at - interval '1 hour', last_event_at = last_event_at - interval '1 hour' WHERE state = 'open'"
+```
+
+On staging, Cloud Scheduler runs the pass every 10 minutes by calling
+`POST /internal/maintenance` with a Google-signed token for its own service
+account. The app refuses any other caller (`backend/web/maintenance.py`). The
+one-time setup, done by the project owner since it changes Google Cloud:
+
+```bash
+gcloud services enable cloudscheduler.googleapis.com --project arq-proj
+gcloud iam service-accounts create portal-scheduler --project arq-proj \
+  --display-name "Calls the portal's maintenance pass"
+gcloud scheduler jobs create http portal-staging-maintenance --project arq-proj \
+  --location us-east1 --schedule "*/10 * * * *" --time-zone "America/Sao_Paulo" \
+  --uri https://portal-staging-496714293251.us-east1.run.app/internal/maintenance \
+  --http-method POST --attempt-deadline 300s \
+  --oidc-service-account-email portal-scheduler@arq-proj.iam.gserviceaccount.com \
+  --oidc-token-audience https://portal-staging-496714293251.us-east1.run.app
+```
+
+Production's job is the same against the `portal` service, created right after
+its first deploy (until then the old site would answer):
+
+```bash
+gcloud scheduler jobs create http portal-production-maintenance --project arq-proj \
+  --location us-east1 --schedule "*/10 * * * *" --time-zone "America/Sao_Paulo" \
+  --uri https://portal-496714293251.us-east1.run.app/internal/maintenance \
+  --http-method POST --attempt-deadline 300s \
+  --oidc-service-account-email portal-scheduler@arq-proj.iam.gserviceaccount.com \
+  --oidc-token-audience https://portal-496714293251.us-east1.run.app
+```
+
+Their addresses and account match `MAINTENANCE_AUDIENCE` and `MAINTENANCE_CALLER`
+in `deploy/staging/service.yaml` and `deploy/production/service.yaml`. To run a pass at once: `gcloud scheduler jobs run
+portal-staging-maintenance --project arq-proj --location us-east1`.
+
+Staging reads its key from the secret `portal-staging-resend-api-key`.
+Production's is `portal-resend-api-key`. Until a domain is verified in Resend,
+emails come from Resend's test sender, which delivers only to the Resend
+account's own address.
+
 ## Run all automated tests locally
 
 No Google account, `.env`, or manually started website is required. Install the
@@ -233,7 +353,7 @@ test dependencies once (Python 3.13 is the production target; use a supported
 Node.js LTS release, version 20 or newer):
 
 ```bash
-.venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+uv sync
 npm ci
 npm run browsers:install
 ```
@@ -329,29 +449,21 @@ must use that port and be registered on the client too; the launcher checks it.
 
 ## Cloud Run
 
-**Deploying:** every push or merge to `main` on GitHub deploys automatically: a
-Cloud Build trigger builds the code and updates the Cloud Run service `portal`
-(us-east1), which serves alineaarquitetos.com. There is no manual deploy step;
-the old local `deploy.sh` is retired. Treat a push to `main` as a production
-release.
+**Deploying:** merging into `staging` deploys staging (`portal-staging`,
+`staging.myunio.app`); merging `staging` into `main` deploys production (`portal`,
+`alineaarquitetos.com` and `myunio.app`). There is no manual deploy step. Treat a
+merge into `main` as a production release. Production builds nothing: it runs the
+image staging built and tested from the same code, and refuses code that never
+ran on staging (docs/infrastructure.md, "Deploys").
 
-The trigger only rebuilds code; the service keeps its settings between deploys.
-Change settings on the service itself (`gcloud run services update portal
---region us-east1 --update-env-vars …`), keep secrets in Secret Manager, and
-never replace the whole set at once. Current production settings include the
-fixed-folder ones below plus the Drive connection: `OAUTH_CLIENT_ID`,
-`OAUTH_REDIRECT_URI=https://alineaarquitetos.com/painel/drive/callback`,
-`OAUTH_CLIENT_SECRET` (secret `portal-oauth-client-secret`),
-`PORTAL_STATE_BUCKET=arq-proj-portal-state`, `SERVICE_ACCOUNT_EMAIL` and
-`PROJECTS_SOURCE=connection`.
+**Settings live in the repository:** `deploy/staging/service.yaml` and
+`deploy/production/service.yaml`. Every deploy replaces the service's settings with
+that file, so a setting changed on the service itself (`gcloud run services
+update …`, or the Cloud Console) is undone by the next deploy. Change them in a
+pull request; secrets stay in Secret Manager and the files name them.
 
-The app is set up for Cloud Run source deploys:
-
-- `Procfile` runs gunicorn, and `.python-version` pins Python 3.13 (the google-24 builder only offers 3.13+).
-- `.gcloudignore` keeps `.env`, `*.json` keys, tests and sample data out of the upload.
-- **No key on Cloud Run.** When no key variable is set and `K_SERVICE` exists (Cloud Run sets it), the app gets tokens from the metadata server for the service account attached to the service. Deploy with `--service-account <the account Drive is shared with>`, and don't set `GOOGLE_APPLICATION_CREDENTIALS` there.
-- Downloads are sent chunked (no `Content-Length`), so files larger than Cloud Run's 32 MiB limit on sized HTTP/1 responses still stream through.
-- Pass the app settings (`DRIVE_ROOT_FOLDER_ID`, `SITE_NAME`, `SITE_LANG`, …) as env vars on the service.
+The old Flask site (`app.py`, `Procfile`, buildpacks) no longer deploys: its
+trigger is disabled (docs/infrastructure.md).
 
 ## Environment
 

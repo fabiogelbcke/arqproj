@@ -1,0 +1,242 @@
+/* The project list and the new-project dialog, after the prototype's painel
+   (arqprojprototypes, prototipo-v4: two-column cards, photo on top). */
+
+/* The page head (prototype: kicker, a very large title, an arrow, then the tools). */
+.head { position: relative; display: grid; gap: 38px; }
+.kicker { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; color: var(--muted); }
+.head::after {
+  content: "↗"; position: absolute; right: 0; top: 24px; font: 300 clamp(44px, 6.5vw, 92px)/1 var(--display-font);
+  color: var(--mark); pointer-events: none;
+}
+@media (max-width: 720px) { .kicker { font-size: 9px; } .head::after { top: 16px; } }
+.tools {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+  border-top: 1px solid var(--line); padding-top: 24px;
+}
+.search { position: relative; flex: 0 1 430px; min-width: 200px; }
+.searchIcon {
+  position: absolute; left: 0; top: 50%; translate: 0 -60%; width: 13px; height: 13px;
+  border: 1.5px solid var(--muted); border-radius: 50%; pointer-events: none;
+}
+.searchIcon::after {
+  content: ""; position: absolute; right: -5px; bottom: -4px; width: 6px; height: 1.5px;
+  background: var(--muted); rotate: 45deg;
+}
+.searchInput {
+  width: 100%; min-height: 48px; padding: 8px 0 8px 32px; border: 0; border-bottom: 1px solid var(--line);
+  border-radius: 0; background: transparent; color: var(--ink); font: inherit; font-size: 18px;
+}
+.searchInput::placeholder { color: var(--muted); }
+.searchInput[data-focused] { outline: none; border-bottom-color: var(--ink); }
+.sort { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+.sort label { font-size: 12px; color: var(--muted); }
+.select {
+  min-width: 165px; min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r);
+  background: transparent; color: var(--ink); font: inherit; font-size: 14px;
+}
+.direction { padding-inline: 16px; }
+.newButton { gap: 20px; min-height: 52px; padding-inline: 32px; font-size: 15px; }
+.newButton > span { font-size: 20px; font-weight: 300; }
+@media (max-width: 720px) {
+  .sort { order: 3; width: 100%; margin-left: 0; }
+  .select { flex: 1; min-width: 0; }
+}
+
+.group { display: grid; gap: 24px; }
+.groupHead {
+  display: flex; align-items: baseline; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--line);
+}
+.groupHead h2, .more {
+  margin: 0; font: 500 12px/1.4 var(--font); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.groupCount { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.more {
+  display: inline-flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none;
+  color: var(--ink); cursor: pointer;
+}
+.chevron {
+  width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  rotate: 45deg; translate: 0 -2px; transition: rotate 0.25s var(--ease);
+}
+.more[aria-expanded="false"] .chevron { rotate: -45deg; translate: 0 0; }
+
+/* Cards gain columns as space allows: 2 on phones, 3, then 4. */
+.rows {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; align-items: start;
+}
+@media (min-width: 700px) { .rows { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 18px; } }
+@media (min-width: 1080px) { .rows { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; } }
+.rows[hidden] { display: none; }
+
+/* A card turns charcoal under the pointer or keyboard focus (prototype). */
+/* Each card spans five rows shared with its neighbours (photo, name, stage,
+   meeting, update), so cards in a row line up whatever their content. */
+.card {
+  position: relative; isolation: isolate; display: grid; grid-row: span 5; grid-template-rows: subgrid;
+  row-gap: 14px; align-content: start; min-width: 0; margin-bottom: 18px;
+  padding-bottom: 17px; border-bottom: 1px solid var(--line); transition: color 0.27s ease;
+}
+.card::before {
+  content: ""; position: absolute; inset: -14px; z-index: -1; background: #242629; opacity: 0;
+  pointer-events: none; transition: opacity 0.27s ease;
+}
+:root[data-theme="dark"] .card::before { background: #0e0f10; }
+.card:is(:hover, :focus-within) {
+  --ink: #fff; --muted: #c9cbcd; --line: #55585b; --line-strong: #8c8f92; --mark: #f1f1f1; color: #fff;
+}
+.card:is(:hover, :focus-within)::before { opacity: 1; }
+@media (max-width: 620px) { .card { row-gap: 7px; padding: 4px 4px 12px; } .card::before { inset: 0; } }
+.cover {
+  position: relative; display: block; aspect-ratio: 4 / 3; overflow: hidden; background: var(--surface);
+}
+.cover img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  filter: saturate(0.65); transition: transform 0.9s var(--ease), filter 0.9s var(--ease);
+}
+.placeholder img { filter: blur(2px) saturate(0.45); transform: scale(1.02); }
+.card:hover .cardCover:not(.placeholder) img { transform: scale(1.035); filter: saturate(1); }
+/* On the photo: "Rascunho" top left, the pencil (Editar projeto) top right. */
+.draftTag {
+  position: absolute; top: 12px; left: 12px; z-index: 2; padding: 4px 9px;
+  background: rgb(255 255 255 / 92%); color: #242629; font: 500 11px/1.3 var(--font); letter-spacing: 0.04em;
+}
+.editButton {
+  position: absolute; top: 12px; right: 12px; z-index: 2; width: 34px; height: 34px;
+  display: grid; place-items: center; padding: 0; border: 1px solid rgb(255 255 255 / 70%); border-radius: 3px;
+  background: rgb(243 242 236 / 92%); color: #252a22; cursor: pointer; transition: background 0.2s;
+}
+.editButton svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.editButton:hover { background: #fff; }
+.editButton:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+@media (max-width: 620px) {
+  .draftTag { top: 10px; left: 10px; padding: 3px 6px; font-size: 9px; }
+  .editButton { top: 10px; right: 10px; width: 30px; height: 30px; }
+}
+
+.identity { min-width: 0; }
+.cardLink { color: inherit; text-decoration: none; }
+.cardLink::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.cardLink:focus-visible { outline: none; }
+.card:has(.cardLink:focus-visible) { outline: 2px solid var(--focus); outline-offset: 16px; }
+.name {
+  margin: 0; font: 400 clamp(17px, 1.7vw, 23px)/1.15 var(--display-font); overflow-wrap: anywhere;
+}
+@media (max-width: 620px) { .name { font-size: clamp(13px, 3.6vw, 16px); } }
+.client { display: grid; gap: 4px; margin-top: 8px; min-width: 0; }
+.client span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client span:first-child { font-size: 13px; color: var(--muted); }
+.client span:last-child { font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+@media (max-width: 620px) { .client span:first-child { font-size: 10px; } .client span:last-child { font-size: 8px; } }
+
+.progress { min-width: 0; }
+.progressHead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.progressHead > span:first-child { font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.count {
+  padding: 3px 5px; border: 1px solid var(--line); font-size: 10px; line-height: 1; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.stageTitle {
+  margin-bottom: 9px; font: 500 14px/1.25 var(--display-font); text-transform: uppercase; overflow-wrap: anywhere;
+}
+@media (max-width: 620px) { .stageTitle { font-size: 10px; } .progressHead > span:first-child, .count { font-size: 8px; } }
+.bar { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 4px; height: 3px; }
+.bar i { background: var(--line); }
+.bar i[data-state] { background: var(--mark); }
+.meta { font-size: 13px; line-height: 1.3; }
+.meta small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 1px; }
+.muted { color: var(--muted); }
+.updated { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.updated small { font-size: inherit; margin-right: 6px; }
+@media (max-width: 620px) { .meta, .updated, .updated small, .meta small { font-size: 9px; } }
+
+/* The dialog */
+.overlay {
+  position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+  background: rgb(8 9 9 / 55%); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.overlay[data-entering] { animation: fade 0.2s; }
+.modal {
+  width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--raise); color: var(--ink); box-shadow: var(--shadow);
+}
+.modal[data-entering] { animation: rise 0.3s var(--ease); }
+@keyframes fade { from { opacity: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+.dialog { padding: 28px; display: grid; gap: 20px; outline: none; }
+@media (max-width: 480px) { .dialog { padding: 20px; } }
+.dialogTitle { margin: 0; font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
+.form { display: grid; gap: 18px; }
+.label { font-size: 14px; font-weight: 500; }
+/* Project type: four choices; its usual stages come ticked below. */
+.types { display: grid; gap: 8px; }
+.typeOptions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.choice {
+  padding: 11px 14px; border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; font-size: 14px;
+}
+.choice[data-hovered] { border-color: var(--line-strong); }
+.choice[data-selected] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.choice[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 2px; }
+.stagesField { display: grid; gap: 6px; }
+/* Two columns read top to bottom, so the stages keep their order. */
+.stageOptions { columns: 2; column-gap: 16px; margin-top: 4px; }
+.stageOptions > * { break-inside: avoid; }
+@media (max-width: 480px) { .typeOptions { grid-template-columns: 1fr; } .stageOptions { columns: 1; } }
+.stageOption {
+  display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 14px; cursor: pointer;
+}
+.box {
+  flex: none; width: 16px; height: 16px; border: 1.5px solid var(--line-strong); border-radius: 2px;
+  display: grid; place-items: center; transition: background 0.15s, border-color 0.15s;
+}
+.stageOption[data-selected] .box { background: var(--ink); border-color: var(--ink); }
+.stageOption[data-selected] .box::after {
+  content: ""; width: 4px; height: 8px; border: solid var(--bg); border-width: 0 2px 2px 0;
+  rotate: 45deg; translate: 0 -1px;
+}
+.stageOption[data-focus-visible] .box { outline: 2px solid var(--focus); outline-offset: 2px; }
+.note { font-size: 13px; color: var(--muted); }
+.problem {
+  padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--r); background: var(--danger-soft);
+}
+.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.linkButton {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 18px; border-radius: 999px;
+  background: var(--primary); color: var(--on-primary); text-decoration: none; font-weight: 500; font-size: 14px;
+}
+
+/* Settings and cover dialogs (prototype: "Projeto", "Trocar foto") */
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
+.field { display: grid; gap: 8px; }
+.coverField { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.coverField legend { padding: 0; margin-bottom: 8px; }
+/* The photo across the dialog's width, as the card shows it. */
+.coverStage { position: relative; }
+.coverStage > .cover { aspect-ratio: 16 / 9; }
+.coverCaption {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 14px 12px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 55%)); color: #fff; font-size: 13px;
+}
+.coverActions { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+.coverActions .uploadChoice { flex: 1 1 220px; }
+.uploadChoice {
+  display: grid; gap: 4px; padding: 20px; border: 1px dashed var(--line-strong); text-align: center;
+  cursor: pointer; font-size: 15px;
+}
+.uploadChoice span { font-size: 12px; color: var(--muted); }
+.uploadChoice:hover { background: var(--mark-soft); }
+.uploadChoice:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
+.danger { color: var(--danger); }
+.pushLeft { margin-right: auto; }
+.choiceNote { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+
+/* The client's addresses for email updates (A32). */
+.recipientsField { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.recipientsField legend { padding: 0; }
+.recipients { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.recipient { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 0 0 12px; border: 1px solid var(--line); border-radius: var(--r); }
+.recipientEmail { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+.recipient .choiceNote { margin: 0 12px 0 0; }
+.recipientAdd { display: flex; align-items: flex-end; gap: 8px; }
+.recipientAdd > :first-child { flex: 1; min-width: 0; }

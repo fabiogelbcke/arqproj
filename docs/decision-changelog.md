@@ -19,6 +19,359 @@ a new entry too.
 
 ---
 
+## 2026-10-17 — A35: no drafts for now; a new project is published at once
+
+**Was:** a new project started as a draft ("Rascunho", 15 Oct): staff saw it,
+its client page answered "not found" until staff pressed "Publicar".
+
+**Now:** creation makes it `active`; no publish step or drafts group. The
+`draft` status stays allowed in the database, unused, and existing drafts were
+published. "Publicar" stays on a draft's staff bar, for one left over by the
+previous release during a deploy (A30).
+
+**Why:** Fabio, 17 Oct 2026: "Another thing I think we wanna drop for now is the
+Draft projects. We wanna publish them straightway". Kept in the schema because
+"for now" leaves room to bring drafts back.
+
+## 2026-10-17 — A21 decided: office subdomains behind a load balancer
+
+**Was:** open between A, `{office}.{product-domain}` behind a global load
+balancer (~$18.25/month fixed), and B, one domain with office paths, with A
+recommended for anything clients see.
+
+**Now:** A, on `{office}.myunio.app` (A33). The balancer is built before the
+second office's first client link, and `alineaarquitetos.com` and `myunio.app`
+move behind it then. Staging stays on a free Cloud Run domain mapping.
+
+**Why:** Fabio, 17 Oct 2026: "let's do the load balancer, I have some credits for
+the first 3 months anyway". The cost that reopened the question is covered for
+now, and every B front door had a production caveat (Preview, or a 60-second cut
+on file streams).
+
+## 2026-10-17 — A34 added: staff change files on the website, not in Drive
+
+**Was:** sections 9 and 11 had the site offer an obvious "Open in Google Drive"
+link, and "Open in Drive" for files the office's grant cannot change; the
+prototype's file menu had "Abrir no Google Drive".
+
+**Now:** no link to Drive from the project page (the Drive settings page keeps
+its link to the connected folder, which is about the connection). The file menu offers "Definir como capa", "Mover para
+outra etapa" (a list of stages) and "Ocultar do cliente"; dragging onto a stage
+comes later as another way to move. For a file put straight into Drive, the site
+says where to make the change.
+
+**Why:** Fabio, 17 Oct 2026: "We don't wanna forbid them from using google drive
+but as much as possible we should allow changes in the website really". Dragging
+is the nicest way to move, he added, but can follow later.
+
+## 2026-10-17 — A33 added: the product is Unio, on myunio.app
+
+**Was:** the product name and domain were open (section 24); the plan wrote
+`{product-domain}` throughout, and A23 kept the first office on
+`alineaarquitetos.com` partly because there was no product domain yet.
+
+**Now:** the product is Unio and its domain is `myunio.app`, registered at
+GoDaddy. Alinea stays on `alineaarquitetos.com`; later offices go on
+`myunio.app`. Whether they get subdomains or paths there (A21) is still open, as
+is the hosting region.
+
+**Why:** Fabio, 17 Oct 2026: "Unio and myunio.app".
+
+## 2026-10-16 — A10: new files found by a scan for the pilot, not the changes feed
+
+**Was:** section 13 had the sync job read the reader identity's Drive changes
+feed from a stored cursor, with a daily reconciliation scan as repair.
+
+**Now:** each maintenance pass lists every published project's stage folders,
+as the client page does, and records a file it shows for the first time as "file
+published". A project's first scan records what is there without emailing. The
+changes feed comes later, when versions need it or scanning gets costly.
+
+**Why:** with a handful of offices the scan costs a couple of hundred Drive calls
+a pass, reuses the page's tested listing (hidden names, folders that left their
+project), works the same on local folders, and cannot miss a change, so it needs
+no cursor or repair pass. The feed needs all of that plus a scan as repair
+anyway. Fabio, 16 Oct 2026: "we can start with the scan for now".
+
+## 2026-10-16 — A32 added: client email updates
+
+**Was:** section 14 described batching and privacy for email, and A12 set the
+45-minute quiet period with a 2-hour hold "to confirm with a pilot office"; the
+recipients, what triggers an email, and the sender were open.
+
+**Now:** staff list several client addresses per project in the Projeto dialog.
+Emails go out for new files, a stage advanced or the project completed, and a
+meeting scheduled, changed or removed, not for a stage's note. 45 minutes and 2
+hours stay for the pilot. Each office sends from its own domain once verified
+(Alinea: `alineaarquitetos.com`), otherwise from the product's general domain
+under its name; replies go to the office's contact email. One Cloud Scheduler job
+runs the maintenance pass every 10 minutes, on staging first.
+
+**Why:** Fabio, 16 Oct 2026: recipients in the Projeto dialog, "yes"; triggers,
+"not for notes, but meetings yes and files/stages"; timing, "yes"; the scheduler,
+"sure". On the sender, a general domain is being set up for the product: Alinea
+keeps its own, other offices use the general one.
+
+## 2026-10-16 — A31 added: uploads go from the browser straight to Drive
+
+**Was:** slice 3b listed "resumable upload into a stage" and "Ocultar do
+cliente" with no decisions on who, how large, or how.
+
+**Now:** any staff member uploads from the project page's edit mode; at most
+100 MB a file; the browser sends the file to a Google resumable upload the app
+opens in the stage's folder, so Cloud Run (32 MB a request) never carries it.
+Hiding renames the file with a leading `_`. A same-name file is kept beside the
+other for now.
+
+**Why:** Fabio, 16 Oct 2026: "for now, any staff members"; files straight to
+Drive "even better"; 2 GB is large, "let's say like 100MB for now"; `_` is fine;
+same names don't matter for the short time before versions. The `drive.file`
+limit on hiding is Google's: the office's grant sees only what the app created.
+
+## 2026-10-16 — A10: pages read Drive live; the sync job only notices changes
+
+**Was:** a polled sync (about every 10 minutes in the POC) indexed Drive into the
+database, and the client page showed that index, so a new file appeared only
+after the next pass. The plan asked to show that delay rather than promise
+"instant".
+
+**Now:** the project page lists each stage folder from Drive on every visit
+(built in step 2.5), and a file opens only while Drive still lists it there. A
+public page's browser keeps the list for at most two minutes; staff and
+password-protected pages are never cached. The sync job remains, but only to
+notice changes: emails (A12), "Atualizado" and the updates feed (A28), and the
+document index once versions (A25) arrive.
+
+**Why:** live reads were already needed so a removed or moved file stops
+opening at once (A05). With them, a stored copy for display adds a delay and a
+second source of truth for nothing. At a handful of offices the extra Drive
+calls per visit are cheap. Fabio agreed, 16 Oct 2026, and chose a short browser
+cache of two to three minutes over none.
+
+## 2026-10-16 — A28 (interim): what moves "Atualizado" until the updates feed exists
+
+**Was:** A28's feed of client-visible events (`project_events`) decides the
+project's "last updated"; that feed isn't built yet.
+
+**Now:** until it is, edit mode moves `last_activity_at` for the changes a
+client notices: a stage's note, the meeting (set, changed or removed) and stage
+progress. Fixing the description or details doesn't. In edit mode's part 2,
+stage folders follow the stages in Drive: renaming or reordering renames the
+"NN - title" folders, adding creates one, removing keeps the folder and its
+files (the confirmation says so), and a Drive failure saves nothing.
+
+**Why:** Fabio's choices before the overnight run (16 Oct 2026).
+
+## 2026-10-16 — A06 detailed: how the client password works
+
+**Was:** public or password-protected access, details open.
+
+**Now:** staff set the password in the "Projeto" dialog (at least 6
+characters, no generator). The client types it once per device, which stays
+unlocked for 90 days. After five wrong tries a device waits 15 minutes; the
+office gets no email. A new password, or a change of access mode, ends every
+earlier unlock. Changing the page's address there keeps the old link working
+(A29).
+
+**Why:** Fabio's choices before the overnight run (16 Oct 2026): fewer retypes
+for clients, a simple form for staff, and a limit proportional to a shared
+link's password.
+
+## 2026-10-16 — A20: the client page is React too
+
+**Was:** client project pages server-rendered with Jinja (fast, simple, good link
+previews); only the staff administration in React.
+
+**Now:** the client page is a React app as well: a separate, small bundle served
+by the same service. The server still renders what must not wait for scripts: the
+preview tags (title, description, cover) that WhatsApp and other apps read, "not
+found" for drafts and unknown addresses, redirects from old addresses, and the
+password check. Staff editing code loads only when staff press "Editar".
+
+**Why:** A24 (narrowed 16 Oct 2026) made the project page the main place staff
+edit content, in an edit mode that shows the page as the client sees it with
+controls in place. With Jinja, every section would exist twice (template for
+viewing, component for editing) and drift; one React page avoids that and reuses
+the painel's pieces. Cost accepted by Fabio: the page needs JavaScript and a first
+visit loads slightly slower.
+
+Also recorded the same day: Alinea has no real projects yet, so importing the
+current site's projects (step 2.7) is dropped.
+
+## 2026-10-16 — A27: the project type is chosen at creation and ticks its usual stages
+
+**Was:** creation offered three stage templates (Padrão, 7 stages; Interiores, 6;
+Sem etapas), and the template set the project type. Built-in stages had two
+texts: what happens and what the client receives.
+
+**Now:** creation asks for the project type (Projeto Arquitetônico, de
+Interiores, de Reforma, de Paisagismo). All 12 built-in stages are listed in one
+order; the type's usual ones come ticked, and staff tick or untick any. Each type
+describes its stages in its own words; a stage outside its type's list uses a
+general description. One description per stage, no deliverables text. The old
+stages (Proposta, Projeto 3D, Layout, Entrega Final, Serviços extras…) and the
+templates are removed, and so are the projects made with them. The general
+descriptions were drafted from the partners' per-type texts, for them to confirm.
+
+Migration 0013 deletes data and removes columns, tables and an API route in one
+release: a deliberate pre-pilot exception to plan section 19 (expand, migrate,
+contract) and A30 (compatible API changes). Nothing needs recovering: production
+has no projects, and staging's were tests.
+
+**Why:** Alinea's partners wrote the stages each type of project goes through
+(Fabio, 16 Oct 2026). The lists overlap heavily and share one order, so a single
+list with defaults per type is simpler than templates and lets staff fit each
+project. The old stages belonged to the current site's way of working; the
+projects using them were tests, so removing them keeps the data clean.
+
+## 2026-10-16 — A24 narrowed: the painel edits settings only
+
+**Was:** details, stages, progress, meeting and the other project content could
+be edited in two places: a painel form and the project page's staff edit mode.
+
+**Now:** content is edited only on the project page (edit mode). The painel
+edits the project's settings, following the prototype's "Projeto" dialog: name,
+client, cover (also from the card's photo button), client link and access (once
+the client page exists, slice 2), and archiving. Project type is one of the
+details, so it moves to the page. No delete for now; the prototype has none.
+
+**Why:** Fabio, reviewing the P3 proposal: editing belongs where the client sees
+the result; two editors for the same content means twice the work and two
+places to keep consistent. The cover stays in the painel too, as in the
+prototype's cards.
+
+## 2026-10-15 — A07: project creation within the request for the pilot
+
+**Was:** creation as a durable provisioning operation: the project saved as
+`provisioning`, a worker creating the Drive folders with checkpoints and leases,
+`202` plus an operation URL the painel polls.
+
+**Now:** for the pilot, creation runs within the request: folders first, then
+every row in one transaction; any failure saves nothing and trashes the new project folder (best effort). A one-time creation key makes a retried or double-sent request
+return the project already created. The durable operation stays the eventual
+design (plan section 10).
+
+**Why:** there is no worker yet (A09's maintenance endpoint is not built), a
+creation is about eight Drive calls that finish in seconds, and a handful of
+offices create a few projects a month. The remaining gap, a crash between the
+folders and the save, leaves only an empty folder in the office's Drive, which
+nobody sees as a project. Agreed with Fabio for step P2.
+
+## 2026-10-15 — A26 refined: built-in content moves from code enums to reference tables
+
+**Was:** project types, detail types, built-in stages (with their explanations)
+and stage templates were enums in code; columns stored their keys with a CHECK,
+and their texts lived in the translation files.
+
+**Now:** the code keeps enums only for values it **acts on** (status, access
+mode, roles, a detail's value type…). Content the app **only displays** is rows
+in reference tables (`project_types`, `detail_types`, `stage_definitions`,
+`stage_templates` + `stage_template_stages`), each with its texts per language,
+referenced by foreign keys; a detail row also carries its value type so the
+database alone guarantees an area is a number. The code keeps enums naming the
+built-in rows (Fabio likes them), kept in step with the rows by a test.
+
+**Why:** Fabio questioned the database storing references whose meaning lives
+only in code. CHECKs kept data and code from drifting, but content belongs with
+the data: the database describes itself, foreign keys give real integrity, and
+offices' own details, stages and templates (slice 3 and later) must be rows
+anyway. Cost: translations live in two places (interface text in files, content
+in the database), with tests covering both.
+
+## 2026-10-15 — project status gains "draft"; meetings become a list; one slug table
+
+**Was:** project `status` unspecified beyond a field; one current meeting per
+project ("supports current single meeting first"); old slugs in a separate
+`project_slug_aliases` table next to `projects.slug`.
+
+**Now:** status `draft` (unpublished; the client page is not found until staff
+publish), `active`, `completed`, `archived`. Meetings are a list per project and
+the client page shows the next by date. Every slug a project has had is a row in
+`project_slugs`, exactly one current, one namespace per office (A29).
+
+**Why:** the prototype has a "Rascunhos" group for unpublished projects (Fabio
+confirmed). A list of meetings costs nothing extra and removes stale past
+meetings from client pages by design. One slug table enforces A29 with a single
+unique constraint instead of keeping two places in step.
+
+## 2026-10-15 — prototype review and Codex review of the plan: A12, A23, A24, A25 refined; A26–A30 added
+
+Two inputs: the staff/client prototype as iterated in
+[`arqprojprototypes`](https://github.com/fabiogelbcke/arqprojprototypes) (its
+functionality, not its layout, which is still in flux), and a Codex review of the
+plan that Fabio relayed.
+
+- **A12 (email batching).** *Was:* the quiet period described as an "undo window"
+  in which a mistaken upload "never reaches the client", with an example sending
+  at 11:35. *Now:* it prevents an email about withdrawn files, not exposure,
+  since files publish as soon as they are found; a batch becomes due by the
+  rules and is sent by the next maintenance run, now every 10 minutes instead of
+  hourly (A09 updated to match); the 2-hour hold counts from the first
+  publication. *Why:* the old wording promised something the
+  design does not do, and the timing ignored when maintenance actually runs.
+- **A23 (first office's domain).** *Was:* hosting of the custom domain left
+  implicit. *Now:* it stays on the existing free Cloud Run domain mappings of the
+  `portal` service; the rewrite deploys as a new revision of that service.
+  *Why:* checked how the domain is served today; this costs nothing extra.
+- **A24 (editing).** *Was:* cover changed on the project page or in project
+  settings; painel fallback cover showed the client's name over a blurred photo.
+  *Now:* also changeable from the painel card; the fallback is a plain
+  placeholder photo. *Why:* prototype review.
+- **A25 (versions).** *Was:* new files named `Planta v3.pdf` everywhere; grouping
+  by "clear version token" without collision rules. *Now:* clean name plus a
+  version badge on the client page, versioned name only for the Drive copy;
+  exact same-name uploads also group; grouping within one folder only; clashes
+  flagged, never merged; current = highest version; staff corrections persist.
+  *Why:* Codex found the grouping rules underspecified; Fabio preferred showing
+  the version separately.
+- **A26 (new): built-in options in code, translated; office text as typed.**
+  *Was:* "preserve English capability" with no rule for what is translated, and
+  detail presets seeded as Portuguese text. *Why:* stored Portuguese labels
+  cannot be translated; Fabio scoped translation to the product's text and its
+  standard options.
+- **A27 (new): typed details and a project type field, built-ins only for the
+  pilot.** *Was:* project type and details were free label/value pairs, with
+  office-defined presets. *Why:* the prototype sorts and labels projects by type,
+  and formats areas and dates. Office-defined details and types were deferred
+  (Fabio): they add a definitions table, a "built-in or custom" rule and an
+  options editor, and can be added later without converting existing rows.
+- **A28 (new): one feed of client-visible events.** *Was:* `publication_events`
+  for email only. *Why:* the prototype's "latest updates" panel and "last
+  updated" date need the same events, including notes and meeting changes.
+- **A29 (new): used slugs stay reserved.** *Was:* old slugs redirect, but nothing
+  stopped another project taking one. *Why:* an old client link could land on
+  the wrong project (Codex). Deleted projects are soft-deleted and keep their
+  slugs too.
+- **A30 (new): staff app/API compatibility across deploys.** *Was:* "one revision,
+  so the staff app can never run against another API version". *Why:* false for
+  tabs already open during a deploy (Codex).
+- **Section 9, unshared folder recovery.** *Was:* always create a new folder and
+  rebind. *Now:* ask the owner to share the existing folder first; new folder only
+  as fallback; to be verified live. *Why:* our writer's limits do not bind the
+  owner, and the original folder may hold client files (Codex).
+
+## 2026-10-15 — staff accounts: users + memberships → one account per office
+
+**Was:** people (`users`) separate from offices, linked by `memberships` carrying
+the role (plan sections 5 and 7), so one account could work in several offices.
+
+**Now:** each staff account belongs to one office (`users.tenant_id`, with the
+role on the user); an email is unique within an office. Someone working for two
+offices has two accounts.
+
+**What changed the answer:** for the pilot nobody belongs to two offices, and the
+cases that might (freelance consultants, our own support access) are better served
+by project collaboration and a separate admin mechanism. Without memberships,
+`users` is an ordinary office table under the same isolation rule as every other,
+instead of needing its own "visible through a membership" policy, and managing an
+office's staff is one list in one table.
+
+**What it costs:** a person in two offices has two logins. Moving to users +
+memberships later is a routine migration; merging duplicate accounts of the same
+person is the only awkward part.
+
+---
+
 ## 2026-10-14 — A16: Neon (candidate) → Cloud SQL for PostgreSQL
 
 **Was:** managed PostgreSQL with Neon as the initial candidate, mainly for its

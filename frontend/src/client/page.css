@@ -1,0 +1,90 @@
+/* Additions to the prototype's stylesheet for the real page. */
+.site__brand img { display: block; height: 28px; width: auto; max-width: 220px; object-fit: contain; object-position: left; }
+@media (max-width: 640px) { .site__brand img { height: 22px; max-width: 160px; } }
+.tl li > button { display: block; }
+.page-message { padding-block: 72px 120px; display: grid; gap: 14px; max-width: 640px; }
+.page-message h1 { margin: 0; font: 400 clamp(32px, 5vw, 56px)/1.05 var(--display-font); letter-spacing: -0.035em; }
+.page-message p { margin: 0; color: var(--brand-muted, var(--muted)); }
+/* Until the file tools (2.5) sit between them, keep the prototype's gap
+   between the timeline and the stages. */
+.project-status + .stage { margin-top: 48px; }
+@media (max-width: 760px) { .project-status + .stage { margin-top: 0; } }
+/* Room below the page so the staff bar never covers its last lines. */
+.client:has(.dock) .cwrap { padding-bottom: 96px; }
+
+/* The password box on a protected page. */
+.password-gate { display: grid; gap: 8px; margin-top: 18px; max-width: 420px; }
+.password-gate label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-muted, var(--muted)); }
+.password-gate__row { display: flex; gap: 8px; }
+.password-gate__row .input { flex: 1; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); background: transparent; color: inherit; }
+.password-gate__problem { color: var(--danger, #9b3d1d); font-size: 14px; }
+
+/* Files (2.5): the prototype's cards; subfolders as small titled groups. */
+.file__open { display: grid; grid-template-rows: auto 1fr; color: inherit; text-decoration: none; }
+/* In the list, the open button is the row's thumbnail and name together. */
+.client .files[data-view="list"] .file__open {
+  grid-column: 1 / 3;
+  grid-template-columns: 50px minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: center;
+}
+.file__thumb > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.file-group + .file-group { margin-top: 22px; }
+.file-group__title { margin: 18px 0 0; font: 500 11px/1.4 var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-muted, var(--muted)); }
+
+/* Edit mode (part 1): small additions to the prototype's editor styles. */
+.editor__problem { margin: 0; color: var(--danger, #9b3d1d); font-size: 14px; }
+.add-detail { display: block; max-width: 280px; }
+.desc__empty { opacity: .55; }
+.addnote { margin-top: 4px; }
+/* Editors fit their column: date and time inputs otherwise refuse to shrink. */
+.editor { min-width: 0; }
+.editor .row2 > *, .editor .row3 > * { min-width: 0; }
+.editor .input { min-width: 0; }
+@media (max-width: 560px) { .editor .row3 { grid-template-columns: 1fr 1fr; } .editor .row3 > :first-child { grid-column: 1 / -1; } }
+
+/* Edit mode (part 2): renaming, removing and adding stages. */
+.stage-rename, .stage-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.stage-rename input { font: inherit; min-width: 0; width: min(360px, 100%); background: transparent; color: inherit; border: 0; border-bottom: 1.5px solid currentColor; padding: 2px; }
+.stage-confirm p { margin: 0; font-size: 13px; }
+.stagectl .iconbtn { font-size: 16px; color: inherit; }
+.stagectl .iconbtn:disabled { opacity: .3; }
+.add-stage { width: min(560px, 100%); }
+.add-stage .field > span { font-size: 14px; font-weight: 500; }
+.add-stage__row { display: flex; gap: 8px; }
+
+/* Edit mode: uploads under the drop area, one row each until it is sent (A31). */
+.uploads { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
+.uploads li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.uploads__name { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.uploads progress { flex: 1 1 140px; height: 4px; accent-color: var(--mark); }
+.uploads__failed [role="alert"] { flex-basis: 100%; color: var(--danger, #9b3d1d); }
+
+/* The open stage is a dark band (light in the dark theme). The prototype keeps
+   these colours for phones only, which left the drop area's words and the rename
+   box dark on dark on wider screens. */
+.client.editing .stage.is-expanded .stage__title input, .client.editing .stage.is-expanded .drop { color: #fff; caret-color: #fff; border-color: #c9cbcd; }
+.client.editing .stage.is-expanded .drop small, .client.editing .stage.is-expanded .drop svg { color: #c9cbcd; }
+.client.editing .stage.is-expanded .uploads__failed [role="alert"] { color: #f2b8a2; }
+:root[data-theme="dark"] .client.editing .stage.is-expanded .stage__title input, :root[data-theme="dark"] .client.editing .stage.is-expanded .drop { color: #242629; caret-color: #242629; border-color: #777a7d; }
+:root[data-theme="dark"] .client.editing .stage.is-expanded .drop small, :root[data-theme="dark"] .client.editing .stage.is-expanded .drop svg { color: #55585b; }
+:root[data-theme="dark"] .client.editing .stage.is-expanded .uploads__failed [role="alert"] { color: var(--danger, #9b3d1d); }
+
+/* "Atualizações" on a phone: the panel spans the screen under the header rather
+   than hanging off the bell, which would push it past the left edge. */
+@media (max-width: 560px) {
+  .client-notifications .notification-panel { position: fixed; top: 64px; left: 12px; right: 12px; width: auto; }
+}
+/* A file's "⋯" menu is wider than its card: in edit mode the card lets it out
+   (the thumbnail keeps its own rounded clip), and on a phone it opens as a sheet
+   above the dock instead of running off the screen. */
+.client.editing .file { overflow: visible; }
+.client.editing .stage.is-expanded .stage__body-inner { overflow: visible; }
+/* Its own colors, not the dark current stage's white text. */
+.client .filemenu .menu__list { color: var(--ink); }
+.client .filemenu .menu__list button { color: inherit; }
+@media (max-width: 760px) {
+  .client .filemenu .menu__list {
+    position: fixed; z-index: 55; left: 12px; right: 12px; top: auto; bottom: 88px; min-width: 0;
+  }
+}

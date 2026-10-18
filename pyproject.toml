@@ -1,0 +1,60 @@
+[project]
+name = "arq-portal"
+version = "0.1.0"
+description = "Client portal for architecture offices: multi-tenant backend (backend/)."
+requires-python = ">=3.13,<3.14"
+# The new backend's runtime libraries. Exact versions are pinned in uv.lock.
+dependencies = [
+    "fastapi~=0.143.1",
+    "uvicorn[standard]~=0.54.0",
+    "pydantic-settings~=2.16.0",
+    "sqlalchemy[asyncio]~=2.1.4",
+    "psycopg[binary]~=3.3.6",
+    "alembic~=1.20.0",
+    "argon2-cffi~=25.1.0",
+    "google-auth[requests]~=2.62.0",
+    "httpx2~=2.13.1",
+    "cryptography~=50.0.2",
+    "python-multipart~=0.0.32",
+]
+
+[dependency-groups]
+dev = [
+    "pytest~=9.1.1",
+    "ruff~=0.17.0",
+]
+# The current single-office app (app.py, arq/, tools/) until cutover. Mirrors
+# requirements.txt and requirements-dev.txt, which production still deploys from.
+# Never installed into the new backend's production image.
+legacy = [
+    "flask>=3.0",
+    "requests>=2.31",
+    "PyJWT[crypto]>=2.8",
+    "gunicorn>=22.0",
+    "tzdata>=2024.1",
+    "pillow>=10.0",
+    "pymupdf>=1.24",
+]
+
+[tool.uv]
+# Both apps share one local environment in .venv (Python 3.13, as in production).
+default-groups = ["dev", "legacy"]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+include = ["backend/**/*.py"]
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, import order, common bugs, modern syntax.
+select = ["F", "E", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares dependencies as parameter defaults; that is the intended pattern.
+extend-immutable-calls = ["fastapi.Depends"]

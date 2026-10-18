@@ -1,0 +1,107 @@
+# The `portal` Cloud Run service (production). Applied by deploy/production/cloudbuild.yaml
+# with the image and build ID filled in; change settings here, in a PR.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: portal
+  annotations:
+    # Public website: no Google sign-in needed to reach it.
+    run.googleapis.com/invoker-iam-disabled: "true"
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "4"
+        run.googleapis.com/startup-cpu-boost: "true"
+        # The app starts only once the database proxy is ready.
+        run.googleapis.com/container-dependencies: '{"app":["cloudsql"]}'
+    spec:
+      serviceAccountName: portal-production@arq-proj.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+        - name: app
+          image: IMAGE_PLACEHOLDER
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ENVIRONMENT
+              value: production
+            - name: BUILD_ID
+              # Quoted: a commit ID like 14e4836 would otherwise read as a number.
+              value: "BUILD_ID_PLACEHOLDER"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: arq-proj
+            # The restricted login (tenant isolation applies), through the proxy
+            # below; no password: the proxy logs in as this service's identity.
+            - name: DATABASE_URL
+              value: postgresql+psycopg://portal-production%40arq-proj.iam@127.0.0.1:5432/arqproj_production
+            - name: DATABASE_RUNTIME_ROLE
+              value: portal-production@arq-proj.iam
+            # Google Drive connection (docs/infrastructure.md, "Production"): the
+            # production OAuth client. One shared return address on Unio's domain, which
+            # forwards to the office that started (backend/web/drive.py).
+            - name: GOOGLE_OAUTH_CLIENT_ID
+              value: 496714293251-ov1b5fd8gir885g9p51qsrbn9gbq6l7i.apps.googleusercontent.com
+            - name: GOOGLE_OAUTH_REDIRECT_URI
+              value: https://myunio.app/api/drive/callback
+            - name: DRIVE_READER_IDENTITY
+              value: portal-production@arq-proj.iam.gserviceaccount.com
+            # Cloud Scheduler's call to /internal/maintenance (A09, A19): the token must
+            # be Google-signed for this service, from the scheduler's own account.
+            - name: MAINTENANCE_AUDIENCE
+              value: https://portal-496714293251.us-east1.run.app
+            - name: MAINTENANCE_CALLER
+              value: portal-scheduler@arq-proj.iam.gserviceaccount.com
+            # Offices whose own domain is verified in Resend send from it; every other
+            # office from Unio's (A32, A33).
+            - name: EMAIL_DOMAIN
+              value: myunio.app
+            - name: EMAIL_OFFICE_DOMAINS
+              value: '{"alinea": "alineaarquitetos.com"}'
+            # Secrets, read from Secret Manager by name; values never in the repo.
+            - name: GOOGLE_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: portal-oauth-client-secret
+                  key: latest
+            - name: APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: portal-production-app-secret
+                  key: latest
+            # Client emails (A32).
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: portal-resend-api-key
+                  key: latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+            periodSeconds: 2
+            failureThreshold: 30
+        - name: cloudsql
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.26.2
+          args:
+            - --auto-iam-authn
+            - --port=5432
+            - --health-check
+            - --http-address=0.0.0.0
+            - --http-port=9801
+            - arq-proj:us-east1:arqproj-db
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 9801
+            periodSeconds: 1
+            failureThreshold: 30

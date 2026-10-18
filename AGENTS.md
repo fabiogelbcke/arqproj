@@ -25,16 +25,66 @@ Before finishing:
 - Follow existing code conventions.
 - Avoid unnecessary refactoring.
 - Explain significant architectural changes before making them.
+- Keep safeguards proportional to the real risk in our setup (Cloud Run,
+  Cloud SQL, a handful of offices, a small team). Prefer one simple check that
+  covers the real failure over many checks for unusual configurations.
+
+### Naming: tenant
+
+An office using the product is a **tenant**. Code says "tenant" everywhere:
+classes, functions, variables, database objects, settings, tests and code
+comments (e.g. `Tenant`, `CurrentTenant`, `current_tenant`, `TenantOwned`,
+`tenant_isolation`). Text users see says "escritório". Plans and docs for people
+may say "office", meaning a tenant.
+
+### Searching code
+
+When Jev is available (for example in Claude Code or the Codex CLI), use it to
+locate code by behaviour or to check a property across many files. Scope searches
+to the relevant directories when known, then read the matching sections. Use
+ordinary text search for exact names. Read enough surrounding code to make edits
+safely. If Jev fails, report it.
+
+### Runtime code vs one-off code (`backend/`)
+
+Code the running app executes lives apart from code that runs once or only by
+hand, so a reader of the app's code sees only what actually runs:
+
+- **Runtime** (loaded by the app): `backend/app.py`, `settings.py`, `db/`,
+  `tenancy/`, `web/`, and later feature packages.
+- **Migrations** (`backend/migrations/`): Alembic versions, plus
+  `snippets.py` (SQL to paste into new migrations) and `registry.py`.
+  A migration writes its SQL out in full and never imports helpers from app
+  code, so it replays exactly as it first ran.
+- **Commands** (`backend/commands/`): run by a developer or a release step,
+  e.g. local database setup, seeding, provisioning.
+
+One-off code may import runtime code, never the reverse. A test fails if the app
+loads anything from `backend/migrations/` or `backend/commands/`.
 
 ## Testing
 
-- Add or update automated tests for changed functionality.
+- Add or update automated tests for changed functionality. Be thorough about
+  behaviour: what the code does, its edge cases and failure paths, and the rules
+  that later changes could break (for example "every office table is isolated").
+- Do not test fixed values for their own sake: constants, default literals,
+  exact copies of SQL or strings that merely restate the implementation. Such
+  tests break on harmless edits and catch nothing. Test the behaviour that
+  depends on them instead.
+- A regression test for a bug should fail on the code before the fix; check it.
+  A test of a safety rule should include a self-test showing it catches a
+  violation, so it cannot silently stop working.
 - Run relevant tests after making changes.
 - Run the production build and check for errors.
 - Fix any test failures introduced by the changes.
 - If tests cannot run, explain why.
+- For changes under `backend/` or `frontend/`, run `make test` and `make lint`;
+  for changes to the staff app's screens or how it is served, also `make e2e`.
+  After an API change, run `make api-types` and commit the regenerated files.
+- When the current app's libraries change, update both `requirements.txt`
+  (production deploys from it) and the `legacy` group in `pyproject.toml`.
 - Run the complete existing local suite with `.venv/bin/python -m tools.test_local`.
-  Install both Python requirements files, then `npm ci` and
+  Prepare the environment with `uv sync`, then `npm ci` and
   `npm run browsers:install` if needed. The runner uses isolated fictional data,
   ignores `.env`, and cleans up its temporary servers. It does not require the
   manual dataset reuse/regeneration question. Integration and browser servers
@@ -77,8 +127,7 @@ Before finishing:
   with Google themselves; before that the project list is empty. Requires the
   `OAUTH_*` settings in `.env` (README.md, “Google Drive connection (OAuth)”).
 - If the data source is unspecified, use test data and say so.
-- Prepare `.venv` and install `requirements.txt` and `requirements-dev.txt`
-  if needed, following README.md. Each developer supplies their own `.env`
+- Prepare `.venv` with `uv sync` if needed, following README.md. Each developer supplies their own `.env`
   and credential file; never print credentials or passwords from those files.
 - If Drive settings are missing, explain the missing setup from README.md.
   Never fall back to fake data while claiming to use Google Drive.
@@ -177,10 +226,77 @@ committed here.
   register row, add one. Newest at the top, never edit a past entry.
 - `docs/infrastructure-cost-comparison.md` holds the hosting and provider cost
   analysis.
+- `docs/future-ideas.md` is the user-requested collection of uncommitted product
+  ideas. Add possibilities there; promote agreed scope into the existing plan
+  and record changed decisions in the changelog before implementing them.
 - Don't start a parallel planning or decision document. If something doesn't fit
   the plan's structure, say so rather than creating a second source of truth.
 - Any copy of these documents outside the repository — for example in a claude.ai
   project — is a stale mirror. Read the repo.
+
+## Code review (Codex)
+
+Pull requests for the rewrite go into the `staging` branch. Codex reviews them on
+GitHub (comment `@codex review`; marking a draft ready does not reliably trigger
+it). When the review rounds end, the pull request goes to Fabio, who reviews and
+merges.
+
+How many rounds:
+
+- Request another review after fixes while the last round found something that
+  was fixed because it was serious or realistic for our setup. Declined or
+  marginal findings do not count.
+- Stop when a round brings only declined or marginal findings, or comes back
+  clean (👍).
+- A serious (P1) finding always gets one more round after its fix.
+- Hard stop after 4 rounds. If real issues are still appearing, the pull request
+  is too big or its design is unsettled: pause and discuss it with Fabio.
+- Scale with the risk: security and data-isolation work follows the rules above;
+  documentation-only or file-move pull requests get one review, and a
+  documentation-only change after a clean review needs none.
+
+- Fix serious findings and those realistic for our actual setup.
+- Do not implement findings that are nitpicky, guard against configurations we
+  never create, or would add code without real benefit. Reply on the comment
+  explaining why, and list it in the pull request description.
+- Reproduce a finding before fixing it.
+
+### Pull request description
+
+Start every pull request description with a **Context** section linking the
+documentation the change is meant to satisfy, so reviewers know what to check it
+against. Link the specific section (heading anchor), not just the file: for
+example a plan section, a decision in the register, a changelog entry, a step or
+milestone, an issue, or a README section the change updates. Then say in one line
+each what that documentation calls for, what was built, and what was deliberately
+left out or deferred, with the reason. If no documentation covers the change,
+say so.
+
+### Screenshots for UI changes
+
+A pull request that changes what the staff app shows includes a **Screenshots**
+section: run `make screenshots PR=<number>`, which captures the screens
+(desktop and phone; dark where relevant) from the built app on fresh fictional
+data, publishes them to the `screenshots` branch (never merged; one folder per
+pull request, so images stay out of the code history) and prints the table to
+paste. Add screens to `frontend/e2e/screenshots.spec.ts` as the app grows. Look
+at the images yourself only when checking something visual.
+
+### Review guidelines
+
+Whoever reviews (Codex, Claude or a person) reads the linked sections first and
+checks the change against them, in addition to looking for bugs:
+
+- It does what the linked documentation calls for, and does not take on work it
+  assigns elsewhere or later.
+- It does not contradict a recorded decision. A change of decision updates the
+  decision's record, its changelog entry and its tests in the same pull request.
+- Anything the documentation requires for this area is present, unless the
+  description or the documentation records it as deferred.
+- Documentation that describes the changed behaviour still matches the code.
+
+Report a mismatch with the documentation as a finding like any other, citing
+the section.
 
 ## User-facing errors
 

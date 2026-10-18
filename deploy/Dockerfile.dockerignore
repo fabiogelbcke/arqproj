@@ -1,0 +1,12 @@
+# Only what deploy/Dockerfile copies; everything else stays out of the build.
+*
+!pyproject.toml
+!uv.lock
+!backend/
+!frontend/
+backend/tests/
+**/__pycache__/
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
