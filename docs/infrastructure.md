@@ -114,6 +114,14 @@ as `portal-production@`. Addresses: `alineaarquitetos.com` and `www.`, and
 the office that started); files are read as `portal-production@`. Emails send from `myunio.app` (verified
 in Resend), Alinea's from `alineaarquitetos.com`.
 
+**Right after the first production deploy:**
+1. Cloud Scheduler job `portal-production-maintenance`, every 10 minutes as
+   `portal-scheduler@` (command in README, "Client emails locally"); until it
+   exists, nothing scans for new files or sends client emails in production.
+2. The `myunio.app` domain mapping moves from `portal-staging` to `portal`.
+3. The office: `make tenant ENV=production SLUG=alinea NAME="ALINEA ARQUITETOS"
+   HOST=alineaarquitetos.com`, then `make staff ENV=production …`.
+
 ## Images: Artifact Registry `portal`
 
 `us-east1-docker.pkg.dev/arq-proj/portal/app:<commit>`. Cleanup policy keeps the
