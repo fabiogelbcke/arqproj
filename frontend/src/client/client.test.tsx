@@ -324,6 +324,24 @@ describe("edit mode", () => {
     expect(screen.queryByRole("button", { name: /Adicionar foto de capa/ })).toBeNull();
   });
 
+  it("in edit mode, a cover can be removed from the page", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, cover_url: "/api/pages/casa-jardim/cover?v=1", staff: { project_id: "p-1", status: "active", row_version: 4 } },
+      }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
+      "DELETE /api/projects/p-1/cover": () => ({ body: {} }),
+    });
+    render(<ClientApp />);
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Remover capa" }));
+    expect(await screen.findByText("Capa removida.")).toBeInTheDocument();
+    expect(sent.some((r) => r.method === "DELETE" && r.path === "/api/projects/p-1/cover")).toBe(true);
+  });
+
   it("shows no edit controls until staff switch to Editar", async () => {
     asStaff();
     await screen.findByRole("navigation", { name: "Ferramentas do escritório" });

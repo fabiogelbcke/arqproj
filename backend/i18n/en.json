@@ -453,7 +453,9 @@
     "addCover": "Add a cover photo",
     "addCoverHint": "JPG, PNG or WebP. After choosing, you adjust the crop.",
     "changeCover": "Change cover",
-    "coverSaved": "Cover updated."
+    "coverSaved": "Cover updated.",
+    "removeCover": "Remove cover",
+    "coverRemoved": "Cover removed."
   },
   "email": {
       "subject": "News on {{project}}",

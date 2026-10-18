@@ -137,7 +137,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   // The cover in edit mode: its place, to add one, or "Trocar capa" on it.
   await page.locator(".project-status__meeting form").getByRole("button", { name: "Cancelar" }).click();
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.locator(".cover-empty, .cover-change").first().waitFor();
+  await page.locator(".cover-empty, .cover-actions").first().waitFor();
   await shoot(page, "06h-capa-editando");
   // A file's menu (A34), moving it to another stage.
   await page.goto("/casa-jardim");

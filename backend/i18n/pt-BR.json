@@ -453,7 +453,9 @@
     "addCover": "Adicionar foto de capa",
     "addCoverHint": "JPG, PNG ou WebP. Depois de escolher, você ajusta o recorte.",
     "changeCover": "Trocar capa",
-    "coverSaved": "Capa atualizada."
+    "coverSaved": "Capa atualizada.",
+    "removeCover": "Remover capa",
+    "coverRemoved": "Capa removida."
   },
   "email": {
       "subject": "Novidades em {{project}}",
