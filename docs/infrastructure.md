@@ -67,7 +67,15 @@ Creator** on `portal-staging-deploy@` (granted: `arqdevproj@gmail.com`).
 Two containers: `app` (the image; port 8080) and `cloudsql` (Cloud SQL Auth
 Proxy 2.26.2, `--auto-iam-authn`), which the app waits for. Public (no IAM
 check), 0–2 instances, 1 CPU / 512 MiB for the app. Address:
-`https://portal-staging-496714293251.us-east1.run.app`, mapped to office `alinea`.
+`https://staging.myunio.app`, office `alinea`'s primary address (17 Oct 2026). It is
+a Cloud Run domain mapping (free, managed certificate) on `myunio.app` (A33),
+verified in Search Console for `arqdevproj@gmail.com`, with a CNAME `staging` →
+`ghs.googlehosted.com` at GoDaddy. The service's own address,
+`https://portal-staging-496714293251.us-east1.run.app`, stays an address of
+`alinea` and redirects there, except `/internal/maintenance`, which Cloud
+Scheduler calls on it and needs no office. Drive's return address is still the
+`run.app` one; the redirect takes it to `staging.myunio.app`, where the sign-in
+started.
 
 ## Google Drive on staging
 
@@ -96,6 +104,7 @@ From a laptop with `brew install cloud-sql-proxy` and, once per machine,
 
 ```bash
 make tenant ENV=staging SLUG=alinea NAME="ALINEA ARQUITETOS" HOST=portal-staging-496714293251.us-east1.run.app
+make tenant-host ENV=staging SLUG=alinea HOST=staging.myunio.app PRIMARY=1   # done 17 Oct 2026
 make staff ENV=staging TENANT=alinea EMAIL=you@example.com NAME=You ROLE=owner   # prints an invite link
 make reset-link ENV=staging TENANT=alinea EMAIL=you@example.com
 ```
