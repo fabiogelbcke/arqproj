@@ -18,6 +18,20 @@ options:
   env: [DOCKER_BUILDKIT=1]
 
 steps:
+  # The code's fingerprint: a git tree hash of exactly the files checked out,
+  # before any step adds one. Production deploys the image carrying the same
+  # fingerprint, so it runs the build staging tested (plan section 19).
+  - id: tree
+    name: gcr.io/cloud-builders/git
+    entrypoint: bash
+    args:
+      - -c
+      - >-
+        git init -q /tmp/fingerprint &&
+        git --git-dir=/tmp/fingerprint/.git --work-tree=. add -A -f &&
+        git --git-dir=/tmp/fingerprint/.git write-tree > /workspace/tree &&
+        echo "code fingerprint $$(cat /workspace/tree)"
+
   - id: build
     name: gcr.io/cloud-builders/docker
     args: [build, -f, deploy/Dockerfile, --build-arg, BUILD_ID=$SHORT_SHA, -t, "$_IMAGE:$SHORT_SHA", .]
@@ -25,6 +39,13 @@ steps:
   - id: push
     name: gcr.io/cloud-builders/docker
     args: [push, "$_IMAGE:$SHORT_SHA"]
+
+  - id: fingerprint
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - gcloud artifacts docker tags add "$_IMAGE:$SHORT_SHA" "$_IMAGE:tree-$$(cat /workspace/tree)"
 
   # The database, reached as this build's identity (the deploy account, the
   # schema's owner) through the Cloud SQL Auth Proxy, for the next step only.
