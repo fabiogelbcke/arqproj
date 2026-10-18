@@ -31,7 +31,7 @@ define on_database
 	else echo "ENV must be local or staging"; exit 2; fi
 endef
 
-.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff reset-link tenant
+.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff reset-link tenant tenant-host
 
 help: ## List the commands
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -108,3 +108,7 @@ reset-link: ## New password link: make reset-link TENANT=alinea EMAIL=you@x.com 
 tenant: ## New office: make tenant SLUG=alinea NAME="ALINEA ARQUITETOS" HOST=address [ENV=staging]
 	@test -n "$(SLUG)" -a -n "$(NAME)" -a -n "$(HOST)" || { echo "Usage: make tenant SLUG=alinea NAME=\"Office name\" HOST=address [ENV=staging]"; exit 2; }
 	$(call on_database,uv run python -m backend.commands.tenants add --slug "$(SLUG)" --name "$(NAME)" --host "$(HOST)")
+
+tenant-host: ## Another address for an office: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging]
+	@test -n "$(SLUG)" -a -n "$(HOST)" || { echo "Usage: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging]"; exit 2; }
+	$(call on_database,uv run python -m backend.commands.tenants add-host --slug "$(SLUG)" --host "$(HOST)" $(if $(PRIMARY),--primary))
