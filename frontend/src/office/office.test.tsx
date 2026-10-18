@@ -165,6 +165,18 @@ describe("Configurações → Escritório", () => {
     await waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?x"));
   });
 
+  it("says so, with the support code, when the Drive status can't be loaded", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+      "GET /api/office": () => ({ body: OFFICE }),
+      "GET /api/drive": () => ({ status: 500, body: {}, headers: { "X-Request-ID": "req8" } }),
+      "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: false, has_project: false } }),
+    });
+    renderAt("/configuracoes/escritorio");
+    expect(await screen.findByRole("alert", {}, { timeout: 4000 })).toHaveTextContent("req8");
+  });
+
   it("offers to reconnect an expired connection", async () => {
     api(OFFICE, { ...LOCAL, kind: "google", writer_status: "expired", reader_status: "ok" });
     renderAt("/configuracoes/escritorio");

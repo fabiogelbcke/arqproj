@@ -1,7 +1,7 @@
 // The office's file storage (Google Drive): status, connect, disconnect.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, call } from "../api/client";
+import { ApiError, api, call } from "../api/client";
 
 export const DRIVE = ["drive"] as const;
 export const ONBOARDING = ["onboarding"] as const;
@@ -13,9 +13,19 @@ export function useDrive() {
 /** How full the office's Google account is: asked of Google on each visit, only
  *  while connected. */
 export function useDriveSpace(connected: boolean) {
+  const client = useQueryClient();
   return useQuery({
     queryKey: [...DRIVE, "space"],
-    queryFn: () => call(api.GET("/api/drive/space")),
+    queryFn: async () => {
+      try {
+        return await call(api.GET("/api/drive/space"));
+      } catch (error) {
+        // Access withdrawn since the status loaded: the page then offers to reconnect.
+        if (error instanceof ApiError && (error.code === "drive_expired" || error.code === "drive_not_connected"))
+          void client.invalidateQueries({ queryKey: DRIVE, exact: true });
+        throw error;
+      }
+    },
     enabled: connected,
     retry: false,
   });

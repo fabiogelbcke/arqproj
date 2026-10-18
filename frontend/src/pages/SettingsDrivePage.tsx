@@ -117,7 +117,16 @@ function Space() {
   const { t, i18n } = useTranslation();
   const space = useDriveSpace(true);
   if (space.isPending) return null;
-  if (!space.data) return <p className={styles.small}>{t("drive.spaceUnknown")}</p>;
+  if (!space.data) {
+    // Its own words, plus the support code the log line carries.
+    const reference = space.error instanceof ApiError ? space.error.requestId : null;
+    return (
+      <p className={styles.small}>
+        {t("drive.spaceUnknown")}
+        {reference && ` ${t("errors.reference", { id: reference })}`}
+      </p>
+    );
+  }
   const { used, total } = space.data;
   const lang = i18n.language;
   if (total == null)

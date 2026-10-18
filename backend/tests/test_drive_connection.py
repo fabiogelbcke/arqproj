@@ -34,11 +34,14 @@ class FakeGoogle:
         self.writer_reaches = set()  # folders the office's grant can still open
         self.quota = {"limit": str(15 * 2**30), "usage": str(12 * 2**30)}  # 15 GB, 12 used
         self.about_fails = False
+        self.token_down = False
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         path, method = request.url.path, request.method
         self.calls.append(f"{method} {request.url.host}{path}")
         if path == "/token":
+            if self.token_down:
+                return httpx2.Response(503, json={"error": "backendError"})
             form = parse_qs(request.content.decode())
             if form.get("code") == ["bad"]:
                 return httpx2.Response(400, json={"error": "invalid_grant"})
@@ -396,3 +399,17 @@ async def test_space_unknown_says_try_later_and_logs_why(client, owner, google, 
 async def test_no_space_to_show_without_a_connection(client, owner, google):
     response = await client.get("/api/drive/space", headers=ALINEA)
     assert (response.status_code, response.json()["error"]) == (409, "drive_not_connected")
+
+
+async def test_the_token_service_down_is_logged_with_the_route_and_office(
+    client, db_session, owner, google, caplog
+):
+    await come_back(client, await start(client, owner))
+    google.token_down = True
+    response = await client.get("/api/drive/space", headers=ALINEA)
+    assert (response.status_code, response.json()["error"]) == (503, "drive_connect_failed")
+    saved = await connection(db_session)
+    logged = [r for r in caplog.records if "token service unavailable" in r.getMessage()]
+    assert logged and logged[0].levelname == "ERROR"
+    assert "route=/api/drive/space" in logged[0].getMessage()
+    assert str(saved.tenant_id) in logged[0].getMessage()

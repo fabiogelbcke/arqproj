@@ -137,10 +137,25 @@ describe("the Drive's space", () => {
     expect(await screen.findByText("Armazenamento compartilhado (Workspace): 3,5 GB usados")).toBeInTheDocument();
   });
 
-  it("says when it couldn't be checked, without Google's words", async () => {
-    api(CONNECTED, { "GET /api/drive/space": () => ({ status: 503, body: { error: "drive_connect_failed" } }) });
+  it("says when it couldn't be checked, with the support code, without Google's words", async () => {
+    api(CONNECTED, {
+      "GET /api/drive/space": () => ({ status: 503, body: { error: "drive_connect_failed" }, headers: { "X-Request-ID": "req7" } }),
+    });
     renderAt("/configuracoes/drive");
-    expect(await screen.findByText("Não foi possível ver o espaço do Drive agora.")).toBeInTheDocument();
+    expect(await screen.findByText(/Não foi possível ver o espaço do Drive agora\. .*req7/)).toBeInTheDocument();
+  });
+
+  it("offers to reconnect when access was withdrawn since the page loaded", async () => {
+    let status: object = CONNECTED;
+    api({}, {
+      "GET /api/drive": () => ({ body: status }),
+      "GET /api/drive/space": () => {
+        status = { ...CONNECTED, writer_status: "expired" }; // marked by the server just now
+        return { status: 409, body: { error: "drive_expired" } };
+      },
+    });
+    renderAt("/configuracoes/drive");
+    expect(await screen.findByRole("button", { name: "Reconectar" })).toBeInTheDocument();
   });
 });
 

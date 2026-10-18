@@ -115,7 +115,7 @@ export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
         <h3>{t("office.logo")}</h3>
         {/* Without the office's storage there is nowhere to keep a logo: say so
             first, with the way to connect, rather than an empty slot and its specs. */}
-        {manage && !storageReady && drive.data && <NeedsDrive />}
+        {manage && !storageReady && (drive.data ? <NeedsDrive /> : <ErrorNotice error={drive.error} />)}
         {details.logo_url ? (
           <img className={styles.logo} src={details.logo_url} alt={t("office.logoAlt", { name: details.name })} />
         ) : (

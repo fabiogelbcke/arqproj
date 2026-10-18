@@ -306,7 +306,12 @@ async def writer_for(request: Request, db: AsyncSession) -> tuple[StorageConnect
         access = await _oauth(request).access_token(request.app.state.http, refresh)
     except ConnectError as error:
         if error.problem is not ConnectProblem.EXPIRED:
-            log.warning("Google token service unavailable: %s", error.detail)
+            log.error(
+                "Google token service unavailable: route=%s tenant=%s %s",
+                request.url.path,
+                connection.tenant_id,
+                error.detail,
+            )
             raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
         log.error("office Drive grant refused: %s", error.detail)
         connection.writer_status = WriterStatus.EXPIRED
