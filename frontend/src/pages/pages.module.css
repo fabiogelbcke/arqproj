@@ -137,6 +137,11 @@
 }
 .stepAction:hover { background: var(--ink); color: var(--bg); }
 .stepDone { font-size: 13px; color: var(--muted); }
+/* "Ver um projeto de exemplo" (plan section 16): under the steps, not counted;
+   once they are done, alone above the projects. */
+.exampleLine { margin: 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; }
+.exampleAfter { margin: 0; font-size: 14px; }
+.exampleLink { color: var(--ink); text-underline-offset: 3px; }
 @media (max-width: 560px) {
   /* The button goes under the text, beside the box's column. */
   .step { grid-template-columns: 22px minmax(0, 1fr); }

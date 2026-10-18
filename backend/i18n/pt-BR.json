@@ -294,7 +294,8 @@
     "firstProjectHint": "Cada projeto ganha uma página para o cliente acompanhar etapas, arquivos e reuniões.",
     "firstProjectAction": "Criar projeto",
     "done": "Concluído",
-    "membersNote": "Só o responsável pelo escritório pode concluir estes passos."
+    "membersNote": "Só o responsável pelo escritório pode concluir estes passos.",
+    "example": "Ver um projeto de exemplo"
   },
   "office": {
     "name": "Nome do escritório",
@@ -557,5 +558,32 @@
       "openOriginal": "Abrir original",
       "send": "Enviar",
       "byEmail": "E-mail"
+  },
+  "example": {
+    "banner": "Projeto de exemplo: nada é salvo.",
+    "bannerHint": "Experimente à vontade. Ao recarregar a página, tudo volta ao início."
+  },
+  "exploreTour": {
+    "titleTitle": "O nome e o tipo do projeto",
+    "title": "É a primeira coisa que o cliente vê na página do projeto.",
+    "descriptionTitle": "A descrição",
+    "description": "Um resumo do projeto, escrito pelo escritório, com parágrafos e listas.",
+    "detailsTitle": "As informações",
+    "details": "Cliente, local, áreas e datas: você escolhe quais aparecem.",
+    "summaryTitle": "Detalhes do projeto",
+    "summary": "No celular, a descrição e as informações ficam aqui, a um toque.",
+    "meetingTitle": "A próxima reunião",
+    "meeting": "Dia, horário e local, com o botão para adicionar à agenda.",
+    "timelineTitle": "As etapas",
+    "timeline": "A linha do tempo mostra em que etapa o projeto está. Clique numa etapa para abri-la.",
+    "filesTitle": "Os arquivos da etapa",
+    "files": "O que você coloca na pasta da etapa, no Google Drive, aparece aqui. Clique num arquivo para ver a prévia, salvar ou enviar.",
+    "updatesTitle": "Atualizações",
+    "updates": "Arquivos novos, notas, reuniões e etapas concluídas ficam aqui, para o cliente não perder nada.",
+    "editTitle": "Experimente editar",
+    "edit": "Em “Editar”, mude o que quiser: nada é salvo, e recarregar a página desfaz tudo.",
+    "endTitle": "Agora, o seu projeto",
+    "end": "Volte aos Primeiros passos, no painel, para conectar o Google Drive e criar o seu primeiro projeto.",
+    "skip": "Pular"
   }
 }

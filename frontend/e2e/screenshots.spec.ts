@@ -174,5 +174,14 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await visitor.getByLabel(/Últimas atualizações, 1 não lida/).click();
   await visitor.getByRole("region", { name: "Últimas atualizações" }).waitFor();
   await shoot(visitor, "06c-atualizacoes");
+
+  // The example project (plan section 16): its explore tour, then the page.
+  await visitor.goto("/tour-projeto");
+  const explore = visitor.locator(".driver-popover");
+  await explore.waitFor();
+  await visitor.waitForTimeout(400); // its fade-in
+  await shoot(visitor, "07-exemplo-tour");
+  await explore.getByRole("button", { name: "Pular" }).click();
+  await shoot(visitor, "07b-projeto-de-exemplo");
   await visitor.close();
 });

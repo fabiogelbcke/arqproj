@@ -175,6 +175,7 @@ async def test_a_deleted_projects_name_can_be_used_again(client, db_session, own
         ({"slug": "Casa do Lago"}, "invalid_slug"),
         ({"slug": "-casa"}, "invalid_slug"),
         ({"slug": "painel"}, "invalid_slug"),
+        ({"slug": "tour-projeto"}, "invalid_slug"),  # the example project (plan section 16)
         ({"slug": ""}, "invalid_slug"),
     ],
 )

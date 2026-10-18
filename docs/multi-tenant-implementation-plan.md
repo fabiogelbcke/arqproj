@@ -1399,6 +1399,66 @@ is per office. Long Portuguese labels, accents, duplicate filenames and non-Lati
 names belong in fixtures. Template content and default stage descriptions are
 versioned: updating defaults does not overwrite an office's edited project stages.
 
+### Onboarding help: the project page tour and the example project
+
+Agreed with Fabio on 18 Oct 2026 to try. His partners may still change the
+example project, so keep it easy to remove. The painel explains itself; the
+project page (view/edit modes, pencils, stages, files) needs help.
+
+**Built (PR #73): the setup tour.** A staff member's first real project page
+starts a Driver.js tour in edit mode: the view/edit switch, the pencils, the
+current stage, the stage's upload area and "⋯" file menu, and the page's link.
+Steps whose part isn't on the page are left out. It runs once per account:
+finishing or closing it sets `users.tour_seen_at` through `POST
+/api/me/tour-seen`, and `GET /api/me` reports `page_tour_seen`. "?" in the staff
+bar replays it, and `make reset-tour TENANT= EMAIL= [ENV=staging]` resets it for
+testing. Code: `frontend/src/client/Tour.ts`.
+
+**Built: the static example project, with an "explore" tour.** Code:
+`frontend/src/client/example/` (the fixture, the in-browser API, the tour and
+its page); the page reads its files' addresses from `fileSource`
+(`client/format.ts`), which the example points at its bundled files. Removing
+it: that folder, its lines in `client/main.tsx` and `drive/FirstSteps.tsx`, and
+the reserved address (a migration).
+
+- **What:** a project page filled with fictional data in the browser. Nothing
+  is in the office's Drive, nothing is saved, and it works before Drive is
+  connected. Creating an example project in the office's Drive was considered
+  and rejected: it writes files people didn't ask for and must later find and
+  delete.
+- **Where:** a fixed address, `/tour-projeto` on the office's own address
+  (not `/exemplo`, so an office can still name a project "Exemplo"; Fabio, 18 Oct
+  2026). It is served by the client page bundle, which renders `ProjectPage`
+  with the fixture instead of calling `/api/pages/{slug}`. `tour-projeto` must
+  become a reserved slug: add it to `RESERVED_SLUGS`, plus a migration for the
+  `slug_not_reserved` check, as `0023_reserve_legal_slugs` did. Check first that
+  no project already uses it.
+- **Who:** signed-in staff see the staff bar, with "Ver como cliente / Editar",
+  so they can try edit mode. Signed out, it's the client's view.
+- **Data:** a Portuguese fixture (AGENTS.md: demo data in Brazilian Portuguese)
+  in `frontend/src/client/example/`. It has a name and type, description,
+  details, a meeting, about seven stages with notes, and files in some stages:
+  images from the bundled placeholder covers, PDFs shown with the sheet
+  thumbnail, one DWG. Updates for the bell. No cover, or a bundled one.
+- **Edits:** the page's calls go to an in-browser fake of the API, like the
+  tests' `fakeApi`. Pencils, "Avançar", the file menu and uploads change the
+  page in memory, and a reload resets it. A banner says "Projeto de exemplo:
+  nada é salvo". Downloads and "Abrir original" use the bundled files.
+  Anything that needs the server (publishing, emails, the real cover upload) is
+  disabled or shown as an example.
+- **Tour ("explore"):** it starts on every visit and can be skipped (×, Esc,
+  "Pular"). It shows where things appear for the client: the title and type,
+  the description, the details, the meeting, the stage timeline, a stage's files
+  and their preview, and the updates bell. It ends by pointing back to Primeiros
+  passos. It stores nothing.
+- **Entry:** an optional line in Primeiros passos, "Ver um projeto de exemplo".
+  It is not one of the steps the progress counts, and it stays available after
+  they are done, perhaps also from an empty projects list.
+- **Tests:** the fixture renders without network; edits change the page and not
+  the server (no request leaves); the tour starts on each visit and can be
+  skipped; `/tour-projeto` is reserved (a project can't take it) and is served on
+  every office's address.
+
 ## 17. API and error conventions
 
 Client-facing routes serve the client page's shell, with its preview tags and

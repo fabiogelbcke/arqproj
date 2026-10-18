@@ -294,7 +294,8 @@
     "firstProjectHint": "Each project gets a page where the client follows stages, files and meetings.",
     "firstProjectAction": "Create project",
     "done": "Done",
-    "membersNote": "Only the office's owner can complete these steps."
+    "membersNote": "Only the office's owner can complete these steps.",
+    "example": "See an example project"
   },
   "office": {
     "name": "Office name",
@@ -557,5 +558,32 @@
       "openOriginal": "Open original",
       "send": "Send",
       "byEmail": "Email"
+  },
+  "example": {
+    "banner": "Example project: nothing is saved.",
+    "bannerHint": "Try anything. Reloading the page starts it over."
+  },
+  "exploreTour": {
+    "titleTitle": "The project's name and type",
+    "title": "The first thing the client sees on the project's page.",
+    "descriptionTitle": "The description",
+    "description": "A summary of the project, written by the office, with paragraphs and lists.",
+    "detailsTitle": "The details",
+    "details": "Client, location, areas and dates: you choose which appear.",
+    "summaryTitle": "Project details",
+    "summary": "On a phone, the description and details are here, one tap away.",
+    "meetingTitle": "The next meeting",
+    "meeting": "Day, time and place, with a button to add it to a calendar.",
+    "timelineTitle": "The stages",
+    "timeline": "The timeline shows which stage the project is at. Click a stage to open it.",
+    "filesTitle": "The stage's files",
+    "files": "What you put in the stage's folder in Google Drive appears here. Click a file to preview, save or send it.",
+    "updatesTitle": "Updates",
+    "updates": "New files, notes, meetings and finished stages gather here, so the client misses nothing.",
+    "editTitle": "Try editing",
+    "edit": "In “Edit”, change anything: nothing is saved, and reloading the page undoes it all.",
+    "endTitle": "Now, your own project",
+    "end": "Go back to Getting started in the dashboard to connect Google Drive and create your first project.",
+    "skip": "Skip"
   }
 }
