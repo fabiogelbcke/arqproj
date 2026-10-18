@@ -514,6 +514,52 @@ describe("edit mode", () => {
       expect(await screen.findByText(/renomeie-o na pasta da etapa começando com _/)).toBeInTheDocument();
     });
 
+    it("moves a file to another stage, offering every stage but its own", async () => {
+      const { sent } = asEditor({ "POST /api/pages/casa-jardim/files/k1/move": () => ({ status: 204 }) });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Mover para outra etapa" }));
+      const stages = screen.getByRole("menu", { name: "Mover “Planta.pdf” para" });
+      expect(within(stages).getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+        "01 Briefing",
+        "03 Estudo Preliminar",
+        "Voltar",
+      ]); // Planta.pdf is in 02 Levantamento
+      await userEvent.click(within(stages).getByRole("menuitem", { name: "03 Estudo Preliminar" }));
+      expect(await screen.findByText("“Planta.pdf” foi movido para Estudo Preliminar.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/k1/move"))?.body).toEqual({ position: 3, row_version: 4 });
+    });
+
+    it("explains how to move a file not sent through the site", async () => {
+      asEditor({
+        "POST /api/pages/casa-jardim/files/k1/move": () => ({ status: 409, body: { error: "file_not_ours_to_move" } }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Mover para outra etapa" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "01 Briefing" }));
+      expect(await screen.findByText(/mova-o para a pasta da outra etapa/)).toBeInTheDocument();
+    });
+
+    it("makes an image the cover, and offers it only for images", async () => {
+      const image = { key: "k2", name: "Terreno.jpg", kind: "image", size: 10, modified_at: "2026-10-11T12:00:00Z" };
+      const withImage = {
+        ...FILES,
+        stages: [FILES.stages[0], { position: 2, groups: [{ folder: null, files: [...FILES.stages[1]!.groups[0]!.files, image] }] }, FILES.stages[2]],
+      };
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withImage }),
+        "POST /api/pages/casa-jardim/files/k2/cover": () => ({ status: 204 }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      expect(screen.queryByRole("menuitem", { name: "Definir como capa" })).toBeNull(); // a PDF
+      await userEvent.click(screen.getByRole("button", { name: "Ações para Terreno.jpg" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Definir como capa" }));
+      expect(await screen.findByText("“Terreno.jpg” agora é a capa do projeto.")).toBeInTheDocument();
+      expect(sent.some((r) => r.method === "POST" && r.path.endsWith("/k2/cover"))).toBe(true);
+    });
+
     it("shows neither to someone viewing as the client", async () => {
       asEditor();
       await screen.findByRole("button", { name: "Abrir Planta.pdf" });

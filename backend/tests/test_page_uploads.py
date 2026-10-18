@@ -317,3 +317,159 @@ async def test_only_staff_hide_files(client, owner, folders):
     response = await client.post(f"/api/pages/casa-jardim/files/{key}/hide", headers=ALINEA)
     assert response.status_code in (401, 403)
     assert (folders / "01 - Briefing" / "Programa.pdf").exists()
+
+
+# -- Mover para outra etapa -------------------------------------------------------------
+
+
+async def move(client, headers, key, position=2, row_version=None):
+    if row_version is None:
+        row_version = (await staff_of(client))["row_version"]
+    return await client.post(
+        f"/api/pages/casa-jardim/files/{key}/move",
+        json={"position": position, "row_version": row_version},
+        headers=headers,
+    )
+
+
+async def test_moving_a_file_puts_it_in_the_other_stage(client, owner, folders):
+    key = await file_key(client)
+    response = await move(client, owner, key)
+    assert response.status_code == 204, response.text
+    assert (folders / "02 - Conceito" / "Programa.pdf").read_bytes() == PDF
+    assert await stage_files(client, 1) == []
+    assert await stage_files(client, 2) == ["Programa.pdf"]
+
+
+async def test_a_moved_file_keeps_its_place_in_the_updates(app, client, owner, folders):
+    from backend.tests.test_maintenance_scan import run
+
+    await run(app)  # notes what's there
+    await send(client, await start(client, owner, name="Planta.pdf"))
+    await run(app)  # new: "file_published" in stage 1
+    await move(client, owner, await file_key(client, "Planta.pdf"))
+    await run(app)  # the same file, not new again
+    files = (await client.get("/api/pages/casa-jardim/files", headers=ALINEA)).json()
+    assert [(u["kind"], u["stage_position"], u["name"]) for u in files["updates"]] == [
+        ("file_published", 2, "Planta.pdf")
+    ]
+
+
+async def test_a_name_already_in_the_other_stage_is_kept_beside_it(client, owner, folders):
+    (folders / "02 - Conceito" / "Programa.pdf").write_bytes(b"%PDF-1.4 outro")
+    assert (await move(client, owner, await file_key(client))).status_code == 204
+    assert sorted(await stage_files(client, 2)) == ["Programa (2).pdf", "Programa.pdf"]
+
+
+async def test_moving_after_stages_changed_is_refused(client, owner, folders):
+    key = await file_key(client)
+    stale = (await staff_of(client))["row_version"] - 1
+    response = await move(client, owner, key, row_version=stale)
+    assert (response.status_code, response.json()["error"]) == (409, "project_changed")
+    assert (folders / "01 - Briefing" / "Programa.pdf").exists()
+
+
+async def test_a_file_put_straight_into_drive_is_moved_there(client, owner, folders, monkeypatch):
+    async def not_ours(self, item_id):
+        return False
+
+    monkeypatch.setattr(creation.LocalFolders, "can_rename", not_ours)
+    response = await move(client, owner, await file_key(client))
+    assert (response.status_code, response.json()["error"]) == (409, "file_not_ours_to_move")
+    assert (folders / "01 - Briefing" / "Programa.pdf").exists()
+
+
+async def test_only_staff_move_files(client, owner, folders):
+    key = await file_key(client)
+    response = await move(client, ALINEA, key, row_version=0)
+    assert response.status_code in (401, 403)
+    assert (folders / "01 - Briefing" / "Programa.pdf").exists()
+
+
+async def test_the_writer_moves_out_of_the_old_folder_and_skips_a_file_already_there():
+    import httpx2
+
+    from backend.storage.google_connect import DriveWriter
+
+    calls = []
+
+    def google(request):
+        calls.append((request.method, dict(request.url.params)))
+        if request.method == "GET":
+            return httpx2.Response(200, json={"parents": ["stage1"]})
+        return httpx2.Response(200, json={"id": "file1"})
+
+    writer = DriveWriter(httpx2.AsyncClient(transport=httpx2.MockTransport(google)), "token")
+    assert await writer.move("file1", "stage2") == "file1"
+    assert calls[1][0] == "PATCH"
+    assert (calls[1][1]["addParents"], calls[1][1]["removeParents"]) == ("stage2", "stage1")
+    calls.clear()
+    await writer.move("file1", "stage1")  # already there
+    assert [method for method, _ in calls] == ["GET"]
+
+
+# -- Definir como capa -----------------------------------------------------------------
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+
+
+async def set_cover(client, headers, key):
+    return await client.post(f"/api/pages/casa-jardim/files/{key}/cover", headers=headers)
+
+
+async def test_an_image_on_the_page_becomes_the_cover(client, owner, folders):
+    (folders / "01 - Briefing" / "Terreno.png").write_bytes(PNG)
+    response = await set_cover(client, owner, await file_key(client, "Terreno.png"))
+    assert response.status_code == 204, response.text
+    assert (folders / "_capa" / "capa.png").read_bytes() == PNG  # a copy
+    assert (folders / "01 - Briefing" / "Terreno.png").exists()  # the file stays on the page
+    page = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()
+    shown = await client.get(page["cover_url"], headers=ALINEA)
+    assert (shown.status_code, shown.content) == (200, PNG)
+
+
+async def test_on_drive_the_cover_is_drives_resized_copy(client, owner, folders, monkeypatch):
+    from backend.storage.folder import FolderStorage
+
+    resized = b"\x89PNG\r\n\x1a\n" + b"\x01" * 32
+    asked = {}
+
+    async def thumbnail(self, item, size=640):
+        asked["size"] = size
+        return resized
+
+    monkeypatch.setattr(FolderStorage, "thumbnail", thumbnail)
+    (folders / "01 - Briefing" / "Render.png").write_bytes(PNG)
+    assert (await set_cover(client, owner, await file_key(client, "Render.png"))).status_code == 204
+    assert (folders / "_capa" / "capa.png").read_bytes() == resized
+    assert asked["size"] == page_uploads.COVER_FROM_FILE
+
+
+async def test_only_images_become_covers(client, owner, folders):
+    response = await set_cover(client, owner, await file_key(client))  # a PDF
+    assert (response.status_code, response.json()["error"]) == (415, "cover_wrong_type")
+    assert not (folders / "_capa").exists()
+
+
+async def test_an_archived_project_takes_no_cover_from_its_files(
+    client, owner, folders, db_session
+):
+    (folders / "01 - Briefing" / "Terreno.png").write_bytes(PNG)
+    key = await file_key(client, "Terreno.png")
+    archived = await project_id(client)
+    await db_session.execute(
+        text(
+            "UPDATE projects SET status = 'archived', archived_from = 'active' "
+            f"WHERE id = '{archived}'"
+        )
+    )
+    response = await set_cover(client, owner, key)
+    assert (response.status_code, response.json()["error"]) == (409, "project_archived")
+    assert not (folders / "_capa").exists()
+
+
+async def test_only_staff_set_the_cover(client, owner, folders):
+    (folders / "01 - Briefing" / "Terreno.png").write_bytes(PNG)
+    key = await file_key(client, "Terreno.png")
+    assert (await set_cover(client, ALINEA, key)).status_code in (401, 403)
+    assert not (folders / "_capa").exists()

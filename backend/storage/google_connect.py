@@ -250,6 +250,31 @@ class DriveWriter:
         )
         return item_id
 
+    async def move(self, item_id: str, folder_id: str) -> str:
+        """Move an item the app created into `folder_id`, out of wherever it is;
+        its id stays the same."""
+        response = await self._call(
+            "GET",
+            f"{DRIVE}/files/{item_id}",
+            ConnectProblem.FOLDER_FAILED,
+            params={"supportsAllDrives": "true", "fields": "parents"},
+        )
+        parents = response.json().get("parents", [])
+        if parents == [folder_id]:
+            return item_id
+        await self._call(
+            "PATCH",
+            f"{DRIVE}/files/{item_id}",
+            ConnectProblem.FOLDER_FAILED,
+            params={
+                "supportsAllDrives": "true",
+                "fields": "id",
+                "addParents": folder_id,
+                "removeParents": ",".join(p for p in parents if p != folder_id),
+            },
+        )
+        return item_id
+
     async def trash(self, item_id: str) -> None:
         try:
             await self._call(

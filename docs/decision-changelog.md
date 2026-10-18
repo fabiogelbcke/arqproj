@@ -19,6 +19,21 @@ a new entry too.
 
 ---
 
+## 2026-10-17 — A34 added: staff change files on the website, not in Drive
+
+**Was:** sections 9 and 11 had the site offer an obvious "Open in Google Drive"
+link, and "Open in Drive" for files the office's grant cannot change; the
+prototype's file menu had "Abrir no Google Drive".
+
+**Now:** no link to Drive. The file menu offers "Definir como capa", "Mover para
+outra etapa" (a list of stages) and "Ocultar do cliente"; dragging onto a stage
+comes later as another way to move. For a file put straight into Drive, the site
+says where to make the change.
+
+**Why:** Fabio, 17 Oct 2026: "We don't wanna forbid them from using google drive
+but as much as possible we should allow changes in the website really". Dragging
+is the nicest way to move, he added, but can follow later.
+
 ## 2026-10-17 — A33 added: the product is Unio, on myunio.app
 
 **Was:** the product name and domain were open (section 24); the plan wrote

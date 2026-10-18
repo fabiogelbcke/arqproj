@@ -107,6 +107,17 @@ class LocalFolders:
         (self.root / current).rename(self.root / candidate)
         return candidate.as_posix()
 
+    async def move(self, item_id: str, folder_id: str) -> str:
+        """Into `folder_id`, beside a file of the same name if there is one."""
+        current, folder = Path(item_id), Path(folder_id)
+        if current.parent == folder:
+            return item_id
+        candidate, n = folder / current.name, 2
+        while (self.root / candidate).exists():
+            candidate, n = folder / f"{current.stem} ({n}){current.suffix}", n + 1
+        (self.root / current).rename(self.root / candidate)
+        return candidate.as_posix()
+
 
 @dataclass(frozen=True)
 class NewProject:

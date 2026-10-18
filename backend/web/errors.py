@@ -67,6 +67,7 @@ class ErrorCode(StrEnum):
     STAGE_HAS_NO_FOLDER = "stage_has_no_folder"  # nowhere in Drive to put the file
     UPLOAD_FAILED = "upload_failed"  # the browser couldn't finish sending: logged, with the code
     FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
+    FILE_NOT_OURS_TO_MOVE = "file_not_ours_to_move"  # put straight into Drive: move it there
 
 
 class ErrorOut(BaseModel):
