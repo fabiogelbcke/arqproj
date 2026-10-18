@@ -39,14 +39,15 @@ def url(host: str, token: str) -> str:
 
 
 async def made_since(session: AsyncSession, user: User, kind: LinkKind, since: datetime) -> bool:
-    """Whether `user` already has an unused link of this kind made after `since`."""
+    """Whether `user` got a link of this kind after `since`, used or not."""
     found = await session.scalar(
-        select(PasswordLink.id).where(
+        select(PasswordLink.id)
+        .where(
             PasswordLink.user_id == user.id,
             PasswordLink.kind == kind,
-            PasswordLink.used_at.is_(None),
             PasswordLink.created_at > since,
         )
+        .limit(1)
     )
     return found is not None
 

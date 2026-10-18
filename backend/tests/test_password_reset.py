@@ -4,13 +4,16 @@ saying whether an account exists."""
 import logging
 import re
 
+import anyio
 import pytest
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from backend.commands.seed import seed
 from backend.identity import accounts
 from backend.notifications.email import EmailError
 from backend.tenancy.models import Tenant
+from backend.tests.conftest import TEST_DATABASE_URL
 from backend.web import attempts, auth
 
 pytestmark = pytest.mark.anyio
@@ -98,6 +101,46 @@ async def test_one_email_every_few_minutes_and_the_first_link_still_works(client
         headers=ALINEA,
     )
     assert chosen.status_code == 200
+
+
+async def test_a_link_used_at_once_still_counts_toward_the_wait(client, sent):
+    await ask(client, "ana@alinea.example")
+    await client.post(
+        "/api/password",
+        json={"token": token_in(sent.emails[0]), "password": "a new one!"},
+        headers=ALINEA,
+    )
+    await ask(client, "ana@alinea.example")
+    assert len(sent.emails) == 1
+
+
+async def test_requests_for_one_account_wait_for_each_other(client, sent, db_session):
+    """Two at once must not both find no recent link and both send: the second
+    waits for the first's lock, which holds across connections."""
+    user = await db_session.scalar(text("SELECT id FROM users WHERE email = 'ana@alinea.example'"))
+    other = create_async_engine(TEST_DATABASE_URL)
+    done = anyio.Event()
+
+    async def request():
+        await ask(client, "ana@alinea.example")
+        done.set()
+
+    try:
+        async with other.connect() as holder:
+            async with holder.begin():
+                await holder.execute(
+                    text("SELECT pg_advisory_xact_lock(hashtext('password-reset'), hashtext(:u))"),
+                    {"u": str(user)},
+                )
+                async with anyio.create_task_group() as tasks:
+                    tasks.start_soon(request)
+                    await anyio.sleep(0.5)
+                    assert not done.is_set()  # waiting for the lock
+                    await holder.commit()  # let go
+            await done.wait()
+    finally:
+        await other.dispose()
+    assert len(sent.emails) == 1
 
 
 async def test_a_device_asking_again_and_again_must_wait(client, sent):

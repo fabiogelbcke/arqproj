@@ -23,6 +23,7 @@ from datetime import UTC, datetime, timedelta
 import anyio
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
@@ -47,6 +48,7 @@ FAILED_LOGIN_DELAY = 1.0
 # few requests from one device in 15 minutes (counted as the client pages' tries).
 RESET_EVERY = timedelta(minutes=2)
 RESET_TRIES = "password-reset"
+_LOCK_RESET = text("SELECT pg_advisory_xact_lock(hashtext('password-reset'), hashtext(:user))")
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -271,8 +273,12 @@ async def ask_password_reset(
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
     attempts.failed(RESET_TRIES, who)  # every request counts toward the limit
     user = await accounts.find_user(db, body.email)
-    since = datetime.now(UTC) - RESET_EVERY
-    if user is None or await links.made_since(db, user, LinkKind.RESET, since):
+    if user is None:
+        return
+    # One request per account at a time, until this transaction ends: two at once
+    # must not both find no recent link and both send.
+    await db.execute(_LOCK_RESET, {"user": str(user.id)})
+    if await links.made_since(db, user, LinkKind.RESET, datetime.now(UTC) - RESET_EVERY):
         return
     token = await links.create(db, user, LinkKind.RESET)
     office = await office_of(db, request.app.state.settings, tenant.id)
