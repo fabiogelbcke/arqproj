@@ -1,6 +1,8 @@
 # Runs on every push to the `main` branch (Cloud Build trigger, as
 # portal-production-deploy@). Build the image, migrate the production database,
-# then deploy the `portal` service (it replaced the old Flask site there). A failed step stops here and the running revision keeps serving.
+# then deploy the `portal` service (it replaced the old Flask site there). Nothing
+# is built here: production runs the image staging built and tested from the same
+# code (plan section 19), found by the code's fingerprint. A failed step stops here and the running revision keeps serving.
 # Infrastructure this relies on: docs/infrastructure.md.
 
 substitutions:
@@ -15,16 +17,34 @@ substitutions:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  env: [DOCKER_BUILDKIT=1]
 
 steps:
-  - id: build
-    name: gcr.io/cloud-builders/docker
-    args: [build, -f, deploy/Dockerfile, --build-arg, BUILD_ID=$SHORT_SHA, -t, "$_IMAGE:$SHORT_SHA", .]
+  # The same fingerprint staging tags its images with (deploy/staging/cloudbuild.yaml).
+  - id: tree
+    name: gcr.io/cloud-builders/git
+    entrypoint: bash
+    args:
+      - -c
+      - >-
+        git init -q /tmp/fingerprint &&
+        git --git-dir=/tmp/fingerprint/.git --work-tree=. add -A -f &&
+        git --git-dir=/tmp/fingerprint/.git write-tree > /workspace/tree &&
+        echo "code fingerprint $$(cat /workspace/tree)"
 
-  - id: push
-    name: gcr.io/cloud-builders/docker
-    args: [push, "$_IMAGE:$SHORT_SHA"]
+  # Staging's image for exactly this code, or stop: main must hold only what
+  # staging ran (merge staging into main, nothing else).
+  - id: staged
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - >-
+        digest=$$(gcloud artifacts docker tags list "$_IMAGE" --filter="tag~/tags/tree-$$(cat /workspace/tree)$$" --format='value(version)' 2>/dev/null | sed 's#.*/##');
+        test -n "$$digest" || { echo "This code never ran on staging (no image tagged tree-$$(cat /workspace/tree)); merge staging into main and nothing else."; exit 1; };
+        build=$$(gcloud artifacts docker tags list "$_IMAGE" --filter="version~$$digest" --format='value(tag)' 2>/dev/null | sed 's#.*/##' | grep -v '^tree-' | head -1);
+        test -n "$$build" || { echo "No build tag on the staged image $$digest"; exit 1; };
+        echo "$_IMAGE@$$digest" > /workspace/image; echo "$$build" > /workspace/build;
+        echo "deploying staging's build $$build ($$digest)"
 
   # The database, reached as this build's identity (the deploy account, the
   # schema's owner) through the Cloud SQL Auth Proxy, for the next step only.
@@ -33,32 +53,34 @@ steps:
     args: [run, -d, --name, cloudsql, --network, cloudbuild, "$_PROXY",
            --auto-iam-authn, --address, 0.0.0.0, --port, "5432", "$_INSTANCE"]
 
-  # Migrations, then the app's login gets exactly the access they granted.
+  # Migrations from the staged image, then the app's login gets exactly the
+  # access they granted.
   - id: migrate
-    name: "$_IMAGE:$SHORT_SHA"
-    entrypoint: sh
-    env:
-      - ENVIRONMENT=production
-      - MIGRATION_DATABASE_URL=postgresql+psycopg://$_OWNER_LOGIN@cloudsql:5432/$_DATABASE
-      - DATABASE_URL=postgresql+psycopg://$_OWNER_LOGIN@cloudsql:5432/$_DATABASE
-      - DATABASE_RUNTIME_ROLE=$_APP_LOGIN
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
     args:
       - -c
       - >-
-        for i in 1 2 3 4 5 6 7 8 9 10; do python -c "import socket; socket.create_connection(('cloudsql', 5432), 2)" 2>/dev/null && break; sleep 1; done;
-        alembic -c backend/alembic.ini upgrade head && python -m backend.commands.provision
+        docker run --rm --network cloudbuild
+        -e ENVIRONMENT=production
+        -e MIGRATION_DATABASE_URL=postgresql+psycopg://$_OWNER_LOGIN@cloudsql:5432/$_DATABASE
+        -e DATABASE_URL=postgresql+psycopg://$_OWNER_LOGIN@cloudsql:5432/$_DATABASE
+        -e DATABASE_RUNTIME_ROLE=$_APP_LOGIN
+        --entrypoint sh "$$(cat /workspace/image)" -c
+        "for i in 1 2 3 4 5 6 7 8 9 10; do python -c \"import socket; socket.create_connection(('cloudsql', 5432), 2)\" 2>/dev/null && break; sleep 1; done;
+        alembic -c backend/alembic.ini upgrade head && python -m backend.commands.provision"
 
   # Merges close together run as overlapping builds. Only the newest commit on
-  # `main` may deploy, or a slower older build could roll production back. (An
-  # older build cannot migrate a database a newer one already moved forward:
-  # Alembic stops on the unknown revision, so it fails before this point.)
+  # `main` may deploy, or a slower older build could roll production back.
   - id: newest
     name: gcr.io/cloud-builders/git
     entrypoint: bash
     args:
       - -c
       - >-
-        newest=$$(git ls-remote https://github.com/fabiogelbcke/arqproj.git refs/heads/main | cut -f1);
+        newest=$$(git ls-remote https://github.com/fabiogelbcke/arqproj.git refs/heads/main) &&
+        newest=$$(echo "$$newest" | cut -f1) && test -n "$$newest" ||
+        { echo "Could not read main's head from GitHub; not deploying blind"; exit 1; };
         if [ "$$newest" != "$COMMIT_SHA" ]; then
         echo "main is now at $$newest; that build deploys instead of $COMMIT_SHA" | tee /workspace/superseded; fi
 
@@ -69,6 +91,6 @@ steps:
       - -c
       - >-
         if [ -f /workspace/superseded ]; then cat /workspace/superseded; exit 0; fi;
-        sed -e "s|IMAGE_PLACEHOLDER|$_IMAGE:$SHORT_SHA|" -e "s|BUILD_ID_PLACEHOLDER|$SHORT_SHA|"
+        sed -e "s|IMAGE_PLACEHOLDER|$$(cat /workspace/image)|" -e "s|BUILD_ID_PLACEHOLDER|$$(cat /workspace/build)|"
         deploy/production/service.yaml > /workspace/service.yaml &&
         gcloud run services replace /workspace/service.yaml --region "$_REGION"

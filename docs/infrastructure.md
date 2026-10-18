@@ -16,7 +16,7 @@ Project `arq-proj`, region `us-east1`.
 | Branch | Trigger | Does |
 | --- | --- | --- |
 | `staging` | Cloud Build `portal-staging-deploy` (runs as `portal-staging-deploy@`) | `deploy/staging/cloudbuild.yaml`: build `deploy/Dockerfile`, push, migrate `arqproj_staging`, provision, deploy `portal-staging` from `deploy/staging/service.yaml` |
-| `main` | `portal-production-deploy` (runs as `portal-production-deploy@`) | `deploy/production/cloudbuild.yaml`: the same steps against `arqproj_production` and `portal` |
+| `main` | `portal-production-deploy` (runs as `portal-production-deploy@`) | `deploy/production/cloudbuild.yaml`: **no build**. Finds the image staging built from exactly this code (tagged `tree-<git tree hash>` by the staging build once it has deployed), migrates `arqproj_production` with it and deploys it to `portal` by digest (plan section 19). Stops if staging never ran this code: merge `staging` into `main` and nothing else |
 | `main` | `rmgpgab-alinea-arquitetos-…` (old site, buildpacks) | **Disabled**: it would deploy the old site over the new app. Delete once the new app has run a while |
 
 A failed step stops the deploy; the running revision keeps serving. Settings
@@ -67,8 +67,9 @@ GRANT USAGE, CREATE ON SCHEMA public TO "portal-staging-deploy@arq-proj.iam" WIT
 for production (the deploy account may act as `portal-production@`), plus
 Secret Manager accessor on production's secrets for `portal-production@`.
 
-People who run admin commands against staging or production need **Service Account Token
-Creator** on `portal-staging-deploy@` (granted: `arqdevproj@gmail.com`).
+People who run admin commands against staging or production need
+**Service Account Token Creator** on that environment's deploy account
+(granted on both to `arqdevproj@gmail.com`).
 
 ## Cloud Run `portal-staging`
 
@@ -112,6 +113,14 @@ as `portal-production@`. Addresses: `alineaarquitetos.com` and `www.`, and
 `https://myunio.app/api/drive/callback` (one shared return address that forwards to
 the office that started); files are read as `portal-production@`. Emails send from `myunio.app` (verified
 in Resend), Alinea's from `alineaarquitetos.com`.
+
+**Right after the first production deploy:**
+1. Cloud Scheduler job `portal-production-maintenance`, every 10 minutes as
+   `portal-scheduler@` (command in README, "Client emails locally"); until it
+   exists, nothing scans for new files or sends client emails in production.
+2. The `myunio.app` domain mapping moves from `portal-staging` to `portal`.
+3. The office: `make tenant ENV=production SLUG=alinea NAME="ALINEA ARQUITETOS"
+   HOST=alineaarquitetos.com`, then `make staff ENV=production …`.
 
 ## Images: Artifact Registry `portal`
 

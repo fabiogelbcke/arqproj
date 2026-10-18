@@ -18,6 +18,20 @@ options:
   env: [DOCKER_BUILDKIT=1]
 
 steps:
+  # The code's fingerprint: a git tree hash of exactly the files checked out,
+  # before any step adds one. Production deploys the image carrying the same
+  # fingerprint, so it runs the build staging tested (plan section 19).
+  - id: tree
+    name: gcr.io/cloud-builders/git
+    entrypoint: bash
+    args:
+      - -c
+      - >-
+        git init -q /tmp/fingerprint &&
+        git --git-dir=/tmp/fingerprint/.git --work-tree=. add -A -f &&
+        git --git-dir=/tmp/fingerprint/.git write-tree > /workspace/tree &&
+        echo "code fingerprint $$(cat /workspace/tree)"
+
   - id: build
     name: gcr.io/cloud-builders/docker
     args: [build, -f, deploy/Dockerfile, --build-arg, BUILD_ID=$SHORT_SHA, -t, "$_IMAGE:$SHORT_SHA", .]
@@ -58,7 +72,9 @@ steps:
     args:
       - -c
       - >-
-        newest=$$(git ls-remote https://github.com/fabiogelbcke/arqproj.git refs/heads/staging | cut -f1);
+        newest=$$(git ls-remote https://github.com/fabiogelbcke/arqproj.git refs/heads/staging) &&
+        newest=$$(echo "$$newest" | cut -f1) && test -n "$$newest" ||
+        { echo "Could not read staging's head from GitHub; not deploying blind"; exit 1; };
         if [ "$$newest" != "$COMMIT_SHA" ]; then
         echo "staging is now at $$newest; that build deploys instead of $COMMIT_SHA" | tee /workspace/superseded; fi
 
@@ -72,3 +88,14 @@ steps:
         sed -e "s|IMAGE_PLACEHOLDER|$_IMAGE:$SHORT_SHA|" -e "s|BUILD_ID_PLACEHOLDER|$SHORT_SHA|"
         deploy/staging/service.yaml > /workspace/service.yaml &&
         gcloud run services replace /workspace/service.yaml --region "$_REGION"
+
+  # Only now, deployed and not superseded, is this image staging-tested: the
+  # fingerprint tag is what production accepts as proof (plan section 19).
+  - id: fingerprint
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - >-
+        if [ -f /workspace/superseded ]; then echo "superseded: not marked as tested"; exit 0; fi;
+        gcloud artifacts docker tags add "$_IMAGE:$SHORT_SHA" "$_IMAGE:tree-$$(cat /workspace/tree)"
