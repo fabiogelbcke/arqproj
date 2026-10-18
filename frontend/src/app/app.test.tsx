@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -79,6 +79,31 @@ describe("signed in", () => {
     const signOut = sent.find((request) => request.method === "DELETE");
     expect(signOut?.headers.get("X-CSRF-Token")).toBe("csrf-123");
   });
+
+  it("on a phone, the ☰ drawer greets the person, switches the theme and signs out", async () => {
+    localStorage.clear();
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { ...ME, name: "Ana Paula Souza" } }),
+      "DELETE /api/session": () => ({ status: 204 }),
+    });
+    const router = renderAt("/");
+    await screen.findByRole("heading", { name: "Projetos" });
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = await screen.findByRole("dialog", { name: "Menu" });
+    expect(within(menu).getByText("Olá, Ana")).toBeInTheDocument(); // the first name
+    expect(within(menu).queryByRole("link")).toBeNull(); // the sections are tabs, not here
+    const dark = within(menu).getByRole("switch", { name: "Modo escuro" });
+    expect(dark).not.toBeChecked();
+    await userEvent.click(dark);
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("painel-theme")).toBe("dark"); // remembered on this device
+
+    await userEvent.click(within(menu).getByRole("button", { name: "Sair" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
+  });
+
+
 });
 
 describe("choosing a password", () => {

@@ -30,8 +30,6 @@
   .topbarIn { min-height: 0; padding-block: 12px 0; flex-wrap: wrap; row-gap: 8px; }
   .brand { font-size: 10px; flex: 1; }
   .spacer { display: none; }
-  .actions { margin-left: auto; gap: 4px; }
-  .theme { font-size: 20px; }
   .nav { order: 3; width: 100%; margin-left: 0; gap: 24px; }
 }
 
@@ -83,3 +81,70 @@
 }
 .logoEmpty span { font-size: 26px; font-weight: 300; letter-spacing: 0.08em; color: var(--ink); opacity: 0.55; }
 .logoEmpty small { font-size: 12px; }
+
+/* Phones: the ☰ drawer (the office, the theme switch, Sair). */
+.menuButton {
+  display: none; place-items: center; margin-left: auto; width: 44px; height: 44px; padding: 0;
+  border: 0; background: transparent; color: var(--ink); cursor: pointer;
+}
+.burger, .burger::before, .burger::after {
+  display: block; width: 20px; height: 1.5px; background: currentColor; content: ""; position: relative;
+}
+.burger::before { position: absolute; top: -6px; }
+.burger::after { position: absolute; top: 6px; }
+/* The drawer: from the right, full height, most of the width, over a dimmed page. */
+.drawerOverlay {
+  position: fixed; inset: 0; z-index: 50; background: rgb(8 9 9 / 45%);
+}
+.drawerOverlay[data-entering] { animation: drawerFade 0.25s ease-out; }
+.drawerOverlay[data-exiting] { animation: drawerFade 0.2s ease-in reverse; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(320px, 82vw); overflow: auto;
+  background: var(--raise); color: var(--ink); box-shadow: -8px 0 30px rgb(0 0 0 / 18%);
+  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+}
+.drawer[data-entering] { animation: drawerIn 0.25s cubic-bezier(.2,.7,.2,1); }
+.drawer[data-exiting] { animation: drawerIn 0.2s ease-in reverse; }
+@keyframes drawerIn { from { transform: translateX(100%); } }
+@keyframes drawerFade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .drawer[data-entering], .drawer[data-exiting], .drawerOverlay[data-entering], .drawerOverlay[data-exiting] { animation: none; }
+}
+.drawerHead {
+  position: relative; display: flex; align-items: center; min-height: 64px; padding: 0 56px 0 12px;
+  margin-bottom: 8px; border-bottom: 1px solid var(--line);
+}
+.drawerGreeting { font: 400 22px/1.2 var(--display-font); letter-spacing: -0.01em; }
+.menuPanel { display: grid; align-content: start; padding: 0 10px 16px; outline: none; }
+.menuItem, .switch {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 52px;
+  padding: 0 12px; border: 0; border-radius: 8px; background: none; color: var(--ink);
+  font: inherit; font-size: 17px; text-align: left; text-decoration: none; cursor: pointer;
+}
+.menuItem[data-hovered], .switch[data-hovered] { background: var(--mark-soft, rgb(0 0 0 / 5%)); }
+.menuItem[data-focus-visible], .switch[data-focus-visible] .switchTrack {
+  outline: 2px solid var(--ink); outline-offset: 2px;
+}
+/* An iOS-style switch. */
+.switchTrack {
+  position: relative; flex: none; width: 46px; height: 28px; border-radius: 14px;
+  background: var(--line); transition: background 0.2s;
+}
+.switchThumb {
+  position: absolute; top: 2px; left: 2px; width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 30%); transition: transform 0.2s;
+}
+.switch[data-selected] .switchTrack { background: #34c759; }
+.switch[data-selected] .switchThumb { transform: translateX(18px); }
+@media (prefers-reduced-motion: reduce) { .switchTrack, .switchThumb { transition: none; } }
+@media (max-width: 720px) {
+  .actions { display: none; } /* in the ☰ menu instead */
+  .menuButton { display: grid; }
+  .topbarIn { padding-bottom: 0; }
+  /* Two tabs, half the width each. */
+  .nav { gap: 0; }
+  .nav a {
+    flex: 1 1 50%; text-align: center; padding: 12px 0; font-size: 12px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+}

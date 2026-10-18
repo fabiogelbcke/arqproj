@@ -1,17 +1,21 @@
 {
   "app": {
     "name": "Painel",
-    "loading": "Carregando…"
+    "loading": "Carregando…",
+    "close": "Fechar"
   },
   "nav": {
     "projects": "Projetos",
     "signOut": "Sair",
     "signedInAs": "Conectado como {{name}}",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "menu": "Menu",
+    "hello": "Olá, {{name}}"
   },
   "theme": {
     "useLight": "Usar tema claro",
-    "useDark": "Usar tema escuro"
+    "useDark": "Usar tema escuro",
+    "dark": "Modo escuro"
   },
   "signIn": {
     "title": "Entrar",

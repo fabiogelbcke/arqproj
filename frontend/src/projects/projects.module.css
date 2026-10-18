@@ -194,9 +194,9 @@
 .modal[data-entering] { animation: rise 0.3s var(--ease); }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
-.dialog { padding: 28px; display: grid; gap: 20px; outline: none; }
+.dialog { position: relative; padding: 28px; display: grid; gap: 20px; outline: none; }
 @media (max-width: 480px) { .dialog { padding: 20px; } }
-.dialogTitle { margin: 0; font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
+.dialogTitle { margin: 0; padding-right: 40px; font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
 .form { display: grid; gap: 18px; }
 .label { font-size: 14px; font-weight: 500; }
 /* Project type: four choices; its usual stages come ticked below. */

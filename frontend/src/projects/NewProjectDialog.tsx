@@ -20,6 +20,7 @@ import { ApiError } from "../api/client";
 import { useDrive } from "../drive/drive";
 import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
+import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { suggestedSlug, useCreateProject, useCreationOptions, type ProjectSummary } from "./projects";
@@ -200,6 +201,7 @@ export function NewProjectDialog({ onCreated }: { onCreated: (p: ProjectSummary)
                 <Heading slot="title" className={styles.dialogTitle}>
                   {t("newProject.title")}
                 </Heading>
+                <CloseButton onPress={close} />
                 {!drive.data ? (
                   <ErrorNotice error={drive.error} />
                 ) : storageReady ? (

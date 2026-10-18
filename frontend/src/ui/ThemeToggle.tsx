@@ -18,25 +18,31 @@ export function applyStoredTheme(): void {
   document.documentElement.dataset.theme = stored();
 }
 
-/** Light by default; the choice is remembered on this device only. */
+/** The painel's theme: light by default, remembered on this device only. */
+export function useTheme(): [Theme, (theme: Theme) => void] {
+  const [theme, setTheme] = useState<Theme>(stored);
+  const change = (next: Theme) => {
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem(KEY, next);
+    } catch {
+      // Private browsing: the choice lasts until the tab closes.
+    }
+    setTheme(next);
+  };
+  return [theme, change];
+}
+
 export function ThemeToggle({ className }: { className?: string }) {
   const { t } = useTranslation();
-  const [theme, setTheme] = useState<Theme>(stored);
+  const [theme, setTheme] = useTheme();
   const next: Theme = theme === "dark" ? "light" : "dark";
   return (
     <Button
       variant="ghost"
       className={className}
       aria-label={t(next === "light" ? "theme.useLight" : "theme.useDark")}
-      onPress={() => {
-        document.documentElement.dataset.theme = next;
-        try {
-          localStorage.setItem(KEY, next);
-        } catch {
-          // Private browsing: the choice lasts until the tab closes.
-        }
-        setTheme(next);
-      }}
+      onPress={() => setTheme(next)}
     >
       <span aria-hidden="true">{next === "light" ? "☀" : "☾"}</span>
     </Button>

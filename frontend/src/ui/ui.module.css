@@ -58,3 +58,9 @@
   text-decoration: underline; text-underline-offset: 3px;
 }
 @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* A dialog's close button, in its top corner (the dialog is positioned). */
+.close {
+  position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; min-height: 0; padding: 0;
+  display: grid; place-items: center; font-size: 26px; font-weight: 300; line-height: 1;
+}

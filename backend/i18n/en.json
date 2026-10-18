@@ -1,17 +1,21 @@
 {
   "app": {
     "name": "Dashboard",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "close": "Close"
   },
   "nav": {
     "projects": "Projects",
     "signOut": "Sign out",
     "signedInAs": "Signed in as {{name}}",
-    "settings": "Settings"
+    "settings": "Settings",
+    "menu": "Menu",
+    "hello": "Hi, {{name}}"
   },
   "theme": {
     "useLight": "Use light theme",
-    "useDark": "Use dark theme"
+    "useDark": "Use dark theme",
+    "dark": "Dark mode"
   },
   "signIn": {
     "title": "Sign in",

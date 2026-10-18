@@ -1,6 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import {
+  Navigate,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router";
 
 import { api, call } from "../api/client";
 import { LogoPng, useOffice } from "../office/office";
@@ -9,6 +15,7 @@ import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import styles from "../pages/pages.module.css";
+import { MobileMenu } from "./MobileMenu";
 
 /** Every screen behind sign-in: the top bar, or a redirect to sign-in. */
 export function SignedInLayout() {
@@ -26,8 +33,14 @@ export function SignedInLayout() {
     },
   });
 
-  if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
-  if (me.error) return <main className={styles.centered}><ErrorNotice error={me.error} /></main>;
+  if (me.isPending)
+    return <p className={styles.centered}>{t("app.loading")}</p>;
+  if (me.error)
+    return (
+      <main className={styles.centered}>
+        <ErrorNotice error={me.error} />
+      </main>
+    );
   if (!me.data) {
     const next = location.pathname + location.search;
     return <Navigate to={`/entrar?next=${encodeURIComponent(next)}`} replace />;
@@ -51,13 +64,24 @@ export function SignedInLayout() {
             <NavLink to="/configuracoes">{t("nav.settings")}</NavLink>
           </nav>
           <span className={styles.spacer} />
-          <span className={styles.who}>{t("nav.signedInAs", { name: me.data.name })}</span>
+          <span className={styles.who}>
+            {t("nav.signedInAs", { name: me.data.name })}
+          </span>
           <div className={styles.actions}>
             <ThemeToggle className={styles.theme} />
-            <Button variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
+            <Button
+              variant="ghost"
+              onPress={() => signOut.mutate()}
+              isDisabled={signOut.isPending}
+            >
               {t("nav.signOut")}
             </Button>
           </div>
+          <MobileMenu
+            name={me.data.name}
+            onSignOut={() => signOut.mutate()}
+            signingOut={signOut.isPending}
+          />
         </div>
       </header>
       <main className={styles.main}>

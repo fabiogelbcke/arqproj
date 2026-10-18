@@ -68,6 +68,14 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.locator("header img").waitFor();
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
+  // Phones: the ☰ menu, open (a phone-only screen).
+  await page.evaluate(() => (document.documentElement.dataset.theme = "light"));
+  await page.setViewportSize(SIZES[1]!);
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("dialog", { name: "Menu" }).waitFor();
+  await page.screenshot({ path: `${OUT}/03e-menu-phone.png` });
+  await page.keyboard.press("Escape");
+  await page.setViewportSize(SIZES[0]!);
   await page.getByRole("button", { name: "Novo projeto" }).click();
   await page.getByLabel("Nome do projeto").fill("Casa do Lago");
   await page.getByLabel("Cliente").fill("Família Souza");

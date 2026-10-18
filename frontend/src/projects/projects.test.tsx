@@ -146,6 +146,16 @@ describe("the project list", () => {
 });
 
 describe("Novo projeto", () => {
+  it("closes from its × without creating anything", async () => {
+    const sent = api();
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(sent.some((r) => r.method === "POST")).toBe(false);
+  });
+
   it("sends the project with an address from its name and a one-time key", async () => {
     const sent = api(LOCAL, {
       "POST /api/projects": (body: unknown) => ({
