@@ -584,12 +584,14 @@ function StaffBar({
   editing,
   onMode,
   onPublished,
+  onTour,
 }: {
   page: Page;
   ready: boolean;
   editing: boolean;
   onMode: (editing: boolean) => void;
   onPublished: () => void;
+  onTour: () => void; // "?": the guided tour again
 }) {
   const { t } = useTranslation();
   const [publishing, setPublishing] = useState(false);
@@ -608,7 +610,7 @@ function StaffBar({
         <small>{draft ? t("page.draftNote") : t("page.publishedNote")}</small>
       </span>
       {/* The prototype's switch: the page as the client sees it, or with controls. */}
-      <div className="seg" role="group" aria-label={t("edit.mode")} data-on={editing ? "edit" : "view"}>
+      <div className="seg" role="group" aria-label={t("edit.mode")} data-on={editing ? "edit" : "view"} data-tour="mode">
         <button type="button" aria-pressed={!editing} onClick={() => onMode(false)}>
           {t("edit.asClient")}
         </button>
@@ -625,6 +627,7 @@ function StaffBar({
       <button
         className="iconbtn"
         type="button"
+        data-tour="link"
         aria-label={t("page.copyLink")}
         title={t("page.copyLink")}
         onClick={() => {
@@ -637,6 +640,11 @@ function StaffBar({
       >
         <Icon name="link" />
       </button>
+      {!archived && (
+        <button className="iconbtn dock__help" type="button" aria-label={t("tour.again")} title={t("tour.again")} onClick={onTour}>
+          ?
+        </button>
+      )}
       {draft && (
         <button
           className="b b--primary b--small"
@@ -710,15 +718,19 @@ function Title({ name }: { name: string }) {
   );
 }
 
+let tourOffered = false;
+
 export function ProjectPage({
   page,
   slug,
   ready = false,
+  tourSeen = true,
   onChanged,
 }: {
   page: Page;
   slug: string;
   ready?: boolean; // the staff session's CSRF token is in hand
+  tourSeen?: boolean; // false: this staff account hasn't had the tour yet
   onChanged?: () => void;
 }) {
   const { t } = useTranslation();
@@ -727,6 +739,17 @@ export function ProjectPage({
   useCoverWipe(cover);
   const stageFiles = useStageFiles(slug, page);
   const [editing, setEditing] = useState(false);
+  // The guided tour (Tour.ts, loaded only for staff): once per account, then from "?".
+  const tour = (first: boolean) =>
+    void import("./Tour").then(({ startTour }) =>
+      startTour({ t, enterEdit: () => setEditing(true), markSeen: first }),
+    );
+  useEffect(() => {
+    const archived = page.staff?.status === "archived";
+    if (!page.staff || !ready || tourSeen || archived || tourOffered) return;
+    tourOffered = true; // once per visit, even if the page mounts again
+    tour(true);
+  }, [ready, tourSeen, page.staff]); // once, when the session is ready
   const [openEditor, setOpenEditor] = useState<string | null>(null);
   const staff = page.staff;
   // Stage controls wait for the reloaded page after each change (a new row version).
@@ -1023,6 +1046,7 @@ export function ProjectPage({
             setOpenEditor(null);
           }}
           onPublished={() => onChanged?.()}
+          onTour={() => tour(false)}
         />
       )}
       {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}

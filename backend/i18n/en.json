@@ -322,6 +322,23 @@
     "cancel": "Cancel",
     "apply": "Use crop"
   },
+  "tour": {
+    "modeTitle": "View as client and Edit",
+    "mode": "“View as client” shows the page exactly as the client sees it. In “Edit”, you change what it shows, right here.",
+    "pencilsTitle": "Each part has its pencil",
+    "pencils": "Name, description, details and meeting: tap a part's pencil to edit it. The client sees the change once saved.",
+    "stageTitle": "The current stage",
+    "stage": "Move the stage on as the project progresses. The client follows along and gets the news by email.",
+    "uploadTitle": "The stage's files",
+    "upload": "Drop files here or choose them from your computer: they go to the stage's Google Drive folder and show to the client. In each file's “⋯”, you move it, hide it or make it the cover.",
+    "linkTitle": "The page's link",
+    "link": "Copy the address and send it to the client. Come back to this tour any time with the “?” button.",
+    "next": "Next",
+    "back": "Back",
+    "done": "Done",
+    "progress": "{{current}} of {{total}}",
+    "again": "Page tour"
+  },
   "page": {
     "loading": "Loading…",
     "journeyTitle": "Stages and next steps",

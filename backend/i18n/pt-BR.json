@@ -322,6 +322,23 @@
     "cancel": "Cancelar",
     "apply": "Usar recorte"
   },
+  "tour": {
+    "modeTitle": "Ver como cliente e Editar",
+    "mode": "“Ver como cliente” mostra a página exatamente como o cliente vê. Em “Editar”, você muda o que ela mostra, aqui mesmo.",
+    "pencilsTitle": "Cada parte com o seu lápis",
+    "pencils": "Nome, descrição, informações e reunião: toque no lápis da parte para editá-la. O cliente vê a mudança ao salvar.",
+    "stageTitle": "A etapa atual",
+    "stage": "Avance a etapa quando o projeto andar. O cliente acompanha o progresso e recebe as novidades por e-mail.",
+    "uploadTitle": "Arquivos da etapa",
+    "upload": "Solte arquivos aqui ou escolha no computador: vão para a pasta da etapa no Google Drive e aparecem para o cliente. No “⋯” de cada arquivo, você move, oculta ou usa como capa.",
+    "linkTitle": "O link da página",
+    "link": "Copie o endereço e envie ao cliente. Volte a este tour quando quiser pelo botão “?”.",
+    "next": "Próximo",
+    "back": "Voltar",
+    "done": "Concluir",
+    "progress": "{{current}} de {{total}}",
+    "again": "Ver o tour da página"
+  },
   "page": {
     "loading": "Carregando…",
     "journeyTitle": "Etapas e próximos passos",

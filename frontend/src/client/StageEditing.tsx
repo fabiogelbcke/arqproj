@@ -277,10 +277,10 @@ export function ProgressRail({
         body: { row_version: version, action },
       }),
     );
-  if (!page.stages.length) return <div className="rail"><div className="rail__now"><p>{t("edit.noStagesYet")}</p></div></div>;
+  if (!page.stages.length) return <div className="rail" data-tour="stage"><div className="rail__now"><p>{t("edit.noStagesYet")}</p></div></div>;
   if (page.completed)
     return (
-      <div className="rail">
+      <div className="rail" data-tour="stage">
         <div className="rail__now">
           <span className="big">✓</span>
           <p>
@@ -297,7 +297,7 @@ export function ProgressRail({
   const here = page.stages[current - 1];
   const next = page.stages[current];
   return (
-    <div className="rail">
+    <div className="rail" data-tour="stage">
       <div className="rail__now">
         <span className="big tnum">{pad(current)}</span>
         <p>

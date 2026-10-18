@@ -50,6 +50,9 @@ class User(IdMixin, TimestampsMixin, TenantOwned, Base):
     # None until the person chooses one through an invite link, and for accounts
     # that will sign in only with Google (step 6).
     password_hash: Mapped[str | None] = mapped_column(Text)
+    # When they finished or closed the project page's guided tour; None: not yet,
+    # so it starts on their first project page (Fabio, 18 Oct 2026: per account).
+    tour_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class LoginSession(IdMixin, CreatedAtMixin, TenantOwned, Base):

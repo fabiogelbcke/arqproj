@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 // The staff app runs under a strict Content Security Policy (plan section 4).
 // Anything the build needs that the policy blocks shows up as a console error.
@@ -13,6 +13,14 @@ test.beforeEach(({ page }) => {
 import { E2E_ENV, PORT } from "../playwright.config";
 
 /** An account made the real way, with the staff command; returns its invite link. */
+/** The project page's tour is for new accounts; tests about other things mark it
+ *  seen, as finishing it would (the tour has its own test). */
+async function skipTour(page: Page) {
+  await page.getByRole("heading", { name: "Projetos" }).waitFor();
+  const me = await (await page.request.get("/api/me")).json();
+  await page.request.post("/api/me/tour-seen", { headers: { "X-CSRF-Token": me.csrf_token } });
+}
+
 function invite(email: string, role: "owner" | "member" = "member"): string {
   const output = execFileSync(
     "uv",
@@ -244,6 +252,7 @@ test("staff open a project's page from its card, and clients see it straight awa
   await page.getByLabel("Nova senha").fill("senha-escolhida");
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
 
   await page.getByRole("link", { name: "Casa das Oliveiras" }).click();
   await expect(page).toHaveURL(/\/casa-das-oliveiras$/);
@@ -322,6 +331,7 @@ test("staff upload a file into a stage, the client sees it, and staff hide it", 
   await page.getByLabel("Nova senha").fill("senha-escolhida");
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
 
   await page.goto("/casa-jardim");
@@ -360,6 +370,7 @@ test("staff edit the page in place and the client sees it", async ({ page, brows
   await page.getByLabel("Nova senha").fill("senha-escolhida");
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
 
   await page.goto("/casa-jardim");
@@ -391,6 +402,7 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   await page.getByLabel("Nova senha").fill("senha-escolhida");
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
 
   // (Casa Jardim: earlier tests password-protect the apartment.)
@@ -421,4 +433,33 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   await expect(client.locator("#stage-3 .pill--current")).toBeVisible();
   await expect(client.getByText("Medição do apartamento").first()).toBeVisible();
   await client.close();
+});
+
+test("a new staff member's first project page shows the tour once; \"?\" replays it", async ({ page }) => {
+  const link = invite("tour@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await page.getByRole("heading", { name: "Projetos" }).waitFor();
+
+  await page.goto("/casa-jardim");
+  const popover = page.locator(".driver-popover");
+  await expect(popover).toContainText("Ver como cliente e Editar");
+  await popover.getByRole("button", { name: /Próximo/ }).click();
+  await expect(popover).toContainText("Cada parte com o seu lápis");
+  // The tour runs in edit mode, where its steps' parts are.
+  const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
+  await expect(bar.getByRole("button", { name: "Editar" })).toHaveAttribute("aria-pressed", "true");
+  const seen = page.waitForResponse((r) => r.url().endsWith("/api/me/tour-seen"));
+  await page.keyboard.press("Escape"); // closed early: seen all the same
+  await expect(popover).toHaveCount(0);
+  expect((await seen).status()).toBe(204);
+
+  await page.reload();
+  await bar.waitFor();
+  await page.waitForTimeout(800);
+  await expect(popover).toHaveCount(0); // not again, for this account
+  await bar.getByRole("button", { name: "Ver o tour da página" }).click();
+  await expect(popover).toContainText("Ver como cliente e Editar");
 });

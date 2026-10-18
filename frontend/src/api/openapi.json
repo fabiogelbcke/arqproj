@@ -208,6 +208,38 @@
         }
       }
     },
+    "/api/me/tour-seen": {
+      "post": {
+        "summary": "Tour Seen",
+        "description": "The project page's tour, finished or closed: not offered again to this account\non any device (\"Ver tour\" in the staff bar replays it).",
+        "operationId": "tour_seen_api_me_tour_seen_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/password-reset": {
       "post": {
         "summary": "Ask Password Reset",
@@ -3237,6 +3269,10 @@
           "csrf_token": {
             "type": "string",
             "title": "Csrf Token"
+          },
+          "page_tour_seen": {
+            "type": "boolean",
+            "title": "Page Tour Seen"
           }
         },
         "type": "object",
@@ -3248,7 +3284,8 @@
           "tenant_name",
           "tenant_locale",
           "tenant_timezone",
-          "csrf_token"
+          "csrf_token",
+          "page_tour_seen"
         ],
         "title": "MeOut"
       },

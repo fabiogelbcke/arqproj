@@ -117,6 +117,20 @@ test("@screenshots staff app", async ({ page, browser }) => {
   // The client's page (no sign-in needed; the staff session doesn't change it).
   await page.setViewportSize(SIZES[0]!);
   await page.goto("/casa-jardim");
+  // A new account's first project page: the tour, in edit mode. Then closed (seen)
+  // and back to the client's view.
+  const tour = page.locator(".driver-popover");
+  await tour.waitFor();
+  await page.waitForTimeout(400); // its fade-in
+  await shoot(page, "06i-tour");
+  await tour.getByRole("button", { name: /Próximo/ }).click();
+  await page.waitForTimeout(400);
+  await shoot(page, "06j-tour-lapis");
+  const seen = page.waitForResponse((r) => r.url().endsWith("/api/me/tour-seen"));
+  await page.keyboard.press("Escape");
+  await seen;
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Ver como cliente" }).click();
   await page.getByRole("heading", { name: "Etapas e próximos passos" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
