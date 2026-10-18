@@ -26,6 +26,7 @@ export function installExampleApi(now = new Date()) {
   let timeZone = EXAMPLE_TIMEZONE;
   let project: ExampleProject = exampleProject(now, timeZone);
   let office: Page["office"] = { name: "", logo_url: null, logo_dark_url: null };
+  let locale: Page["locale"] = "pt-BR"; // the office's: the page around the (Portuguese) project
   let signedIn = false;
   let version = 1; // the page's row version: each change makes a new one
   let options: Schemas["CreationOptions"] | null = null;
@@ -36,7 +37,7 @@ export function installExampleApi(now = new Date()) {
 
   const page = (): Page => ({
     office,
-    locale: "pt-BR",
+    locale,
     timezone: timeZone,
     name: project.name,
     client_name: project.client_name,
@@ -303,7 +304,10 @@ export function installExampleApi(now = new Date()) {
     const answer = await real(request);
     if (!answer.ok) return answer;
     const body = await answer.clone().json();
-    if (path === "/api/tenant") office = { name: body.name, logo_url: body.logo_url, logo_dark_url: body.logo_dark_url };
+    if (path === "/api/tenant") {
+      office = { name: body.name, logo_url: body.logo_url, logo_dark_url: body.logo_dark_url };
+      locale = body.locale;
+    }
     if (path === "/api/project-types") options = body;
     if (path === "/api/detail-types") detailTypes = body;
     if (path === "/api/me") {

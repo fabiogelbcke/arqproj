@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call } from "../../api/client";
-import { useOfficeLocale } from "../../i18n";
+import i18next, { useOfficeLocale } from "../../i18n";
 import type { Page } from "../format";
 import { ProjectPage } from "../ProjectPage";
 import { EXAMPLE_SLUG } from "./address";
@@ -41,7 +41,8 @@ export function ExampleApp() {
     void call(api.GET("/api/pages/{slug}", { params: { path: { slug: EXAMPLE_SLUG } } })).then(setPage);
   }, [signedIn, version]);
 
-  const tour = () => void startExploreTour(t);
+  // In the office's language as it is now: this render's `t` may predate it.
+  const tour = () => void startExploreTour(i18next.t);
   const toured = useRef(false);
   useEffect(() => {
     if (!page || toured.current) return;

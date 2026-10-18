@@ -31,9 +31,9 @@ afterEach(async () => {
 });
 
 /** The example, with what reaches "the server" recorded. */
-function visit(signedIn: boolean) {
+function visit(signedIn: boolean, locale = TENANT.locale) {
   const sent = fakeApi({
-    "GET /api/tenant": () => ({ body: { ...TENANT, logo_url: null, logo_dark_url: null } }),
+    "GET /api/tenant": () => ({ body: { ...TENANT, locale, logo_url: null, logo_dark_url: null } }),
     "GET /api/me": () =>
       signedIn ? { body: { ...ME, page_tour_seen: false, csrf_token: "csrf-123" } } : notSignedIn,
     "GET /api/detail-types": () => ({ body: [] }),
@@ -61,6 +61,14 @@ describe("the example project", () => {
     expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
     // Only who is signed in and the office were asked for; nothing about pages.
     expect(sent.map((r) => `${r.method} ${r.path}`).sort()).toEqual(["GET /api/me", "GET /api/tenant"]);
+  });
+
+  it("speaks the office's language around the fictional (Portuguese) project", async () => {
+    visit(false, "en");
+    expect(await screen.findByText(/Example project: nothing is saved/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Casa das Araucárias" })).toBeInTheDocument();
+    await waitFor(() => expect(driven.drive).toHaveBeenCalled());
+    expect(lastTour().steps[0].popover.title).toBe("The project's name and type");
   });
 
   it("lets staff edit in memory: the page changes, no request leaves, and a new visit starts over", async () => {
