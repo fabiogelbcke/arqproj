@@ -307,6 +307,15 @@ async def upload_cover(
     if project.status is ProjectStatus.ARCHIVED:
         raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
     content = await file.read(COVER_MAX_BYTES + 1)
+    await store_cover(request, db, tenant, project, content)
+    return await _summary(db, tenant, project_id)
+
+
+async def store_cover(
+    request: Request, db: AsyncSession, tenant: CurrentTenant, project: Project, content: bytes
+) -> None:
+    """Make `content` the project's cover, in its `_capa` folder; the previous
+    one is removed (to the Drive trash). Committed."""
     if len(content) > COVER_MAX_BYTES:
         raise ApiError(413, ErrorCode.COVER_TOO_LARGE)
     try:
@@ -346,7 +355,6 @@ async def upload_cover(
     project.cover_type = cover_type
     await db.commit()
     db.expire_all()
-    return await _summary(db, tenant, project_id)
 
 
 @router.delete("/projects/{project_id}/cover", responses=documented(401, 404, 409, 503))

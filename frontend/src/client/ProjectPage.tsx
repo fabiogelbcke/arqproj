@@ -903,7 +903,7 @@ export function ProjectPage({
               canEdit
                 ? (file) => (
                     <Suspense fallback={null}>
-                      <FileMenu slug={slug} file={file} onChanged={() => onChanged?.()} />
+                      <FileMenu slug={slug} file={file} page={page} position={i + 1} onChanged={() => onChanged?.()} />
                     </Suspense>
                   )
                 : undefined

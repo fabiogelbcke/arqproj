@@ -112,6 +112,13 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar reunião" }).click();
   await shoot(page, "06b-pagina-editando");
+  // A file's menu (A34), moving it to another stage.
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: /^Ações para Plantas v2/ }).click();
+  await page.getByRole("menuitem", { name: "Mover para outra etapa" }).click();
+  await page.getByRole("menu", { name: /^Mover/ }).waitFor();
+  await shoot(page, "06f-mover-arquivo");
 
   // A note to the client is news for "Atualizações" (A28): seen as a visitor.
   await page.goto("/casa-jardim");

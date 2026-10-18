@@ -75,3 +75,16 @@
 @media (max-width: 560px) {
   .client-notifications .notification-panel { position: fixed; top: 64px; left: 12px; right: 12px; width: auto; }
 }
+/* A file's "⋯" menu is wider than its card: in edit mode the card lets it out
+   (the thumbnail keeps its own rounded clip), and on a phone it opens as a sheet
+   above the dock instead of running off the screen. */
+.client.editing .file { overflow: visible; }
+.client.editing .stage.is-expanded .stage__body-inner { overflow: visible; }
+/* Its own colors, not the dark current stage's white text. */
+.client .filemenu .menu__list { color: var(--ink); }
+.client .filemenu .menu__list button { color: inherit; }
+@media (max-width: 760px) {
+  .client .filemenu .menu__list {
+    position: fixed; z-index: 55; left: 12px; right: 12px; top: auto; bottom: 88px; min-width: 0;
+  }
+}

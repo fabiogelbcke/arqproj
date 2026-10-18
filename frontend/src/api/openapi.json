@@ -1785,7 +1785,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MoveIn"
+                "$ref": "#/components/schemas/backend__web__page_stages__MoveIn"
               }
             }
           }
@@ -2148,6 +2148,200 @@
               }
             },
             "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/files/{key}/move": {
+      "post": {
+        "summary": "Move File",
+        "description": "Into another stage's folder, at its top. The file keeps its identity, so\nit is not \"new\" again and sends no email (A10).",
+        "operationId": "move_file_api_pages__slug__files__key__move_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/backend__web__page_uploads__MoveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/files/{key}/cover": {
+      "post": {
+        "summary": "Cover From File",
+        "description": "A copy of an image on the page becomes the cover (section 10): read by the\nreader identity, so it works for images put straight into Drive too. Drive's\nown resized copy where there is one, so a large photo still fits.",
+        "operationId": "cover_from_file_api_pages__slug__files__key__cover_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
           },
           "503": {
             "content": {
@@ -2669,7 +2863,8 @@
           "hidden_file_name",
           "stage_has_no_folder",
           "upload_failed",
-          "file_not_ours"
+          "file_not_ours",
+          "file_not_ours_to_move"
         ],
         "title": "ErrorCode"
       },
@@ -3023,28 +3218,6 @@
           "link"
         ],
         "title": "MeetingOut"
-      },
-      "MoveIn": {
-        "properties": {
-          "row_version": {
-            "type": "integer",
-            "title": "Row Version"
-          },
-          "direction": {
-            "type": "integer",
-            "enum": [
-              -1,
-              1
-            ],
-            "title": "Direction"
-          }
-        },
-        "type": "object",
-        "required": [
-          "row_version",
-          "direction"
-        ],
-        "title": "MoveIn"
       },
       "NewStageIn": {
         "properties": {
@@ -4076,6 +4249,46 @@
           "can_manage"
         ],
         "title": "OfficeOut"
+      },
+      "backend__web__page_stages__MoveIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "direction": {
+            "type": "integer",
+            "enum": [
+              -1,
+              1
+            ],
+            "title": "Direction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "direction"
+        ],
+        "title": "MoveIn"
+      },
+      "backend__web__page_uploads__MoveIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "position"
+        ],
+        "title": "MoveIn"
       },
       "backend__web__pages__OfficeOut": {
         "properties": {

@@ -241,18 +241,32 @@ export function StageDrop({
   );
 }
 
-/** The "⋯" on each file in edit mode: for now, "Ocultar do cliente". */
-export function FileMenu({ slug, file, onChanged }: { slug: string; file: FileItem; onChanged: () => void }) {
+/** The "⋯" on each file in edit mode: set as cover (images), move to another
+ *  stage, hide from the client. Changes are made here, not in Drive (A34). */
+export function FileMenu({
+  slug,
+  file,
+  page,
+  position,
+  onChanged,
+}: {
+  slug: string;
+  file: FileItem;
+  page: Page;
+  position: number; // the stage it is in, from 1
+  onChanged: () => void;
+}) {
   const { t } = useTranslation();
   const message = useMessage();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<false | "menu" | "move">(false);
   const [busy, setBusy] = useState(false);
-  const hide = async () => {
+  const path = { slug, key: file.key };
+  const act = async (request: () => Promise<unknown>, done: string) => {
     setBusy(true);
     try {
-      await call(api.POST("/api/pages/{slug}/files/{key}/hide", { params: { path: { slug, key: file.key } } }));
+      await request();
       setOpen(false);
-      toast(t("edit.fileHidden", { name: file.name }));
+      toast(done);
       onChanged();
     } catch (failure) {
       toast(message(failure));
@@ -260,6 +274,27 @@ export function FileMenu({ slug, file, onChanged }: { slug: string; file: FileIt
       setBusy(false);
     }
   };
+  const hide = () =>
+    act(
+      () => call(api.POST("/api/pages/{slug}/files/{key}/hide", { params: { path } })),
+      t("edit.fileHidden", { name: file.name }),
+    );
+  const cover = () =>
+    act(
+      () => call(api.POST("/api/pages/{slug}/files/{key}/cover", { params: { path } })),
+      t("edit.coverSet", { name: file.name }),
+    );
+  const move = (to: number) =>
+    act(
+      () =>
+        call(
+          api.POST("/api/pages/{slug}/files/{key}/move", {
+            params: { path },
+            body: { position: to, row_version: page.staff!.row_version },
+          }),
+        ),
+      t("edit.fileMoved", { name: file.name, stage: page.stages[to - 1]!.title }),
+    );
   return (
     <div
       className="filemenu menu"
@@ -269,9 +304,9 @@ export function FileMenu({ slug, file, onChanged }: { slug: string; file: FileIt
       <button
         type="button"
         aria-haspopup="true"
-        aria-expanded={open}
+        aria-expanded={open !== false}
         aria-label={t("edit.fileActions", { name: file.name })}
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen(open ? false : "menu")}
       >
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="5" cy="12" r="1.8" />
@@ -279,11 +314,37 @@ export function FileMenu({ slug, file, onChanged }: { slug: string; file: FileIt
           <circle cx="19" cy="12" r="1.8" />
         </svg>
       </button>
-      {open && (
+      {open === "menu" && (
         <div className="menu__list" role="menu">
+          {file.kind === "image" && (
+            <button type="button" role="menuitem" disabled={busy} onClick={() => void cover()}>
+              {t("edit.setCover")}
+            </button>
+          )}
+          {page.stages.length > 1 && (
+            <button type="button" role="menuitem" disabled={busy} onClick={() => setOpen("move")}>
+              {t("edit.moveFile")}
+            </button>
+          )}
+          <hr />
           <button type="button" role="menuitem" disabled={busy} onClick={() => void hide()}>
             {t("edit.hideFile")}
             <small>{t("edit.hideFileNote")}</small>
+          </button>
+        </div>
+      )}
+      {open === "move" && (
+        <div className="menu__list" role="menu" aria-label={t("edit.moveFileTo", { name: file.name })}>
+          {page.stages.map((stage, i) =>
+            i + 1 === position ? null : (
+              <button key={i} type="button" role="menuitem" disabled={busy} onClick={() => void move(i + 1)}>
+                {`${String(i + 1).padStart(2, "0")} ${stage.title}`}
+              </button>
+            ),
+          )}
+          <hr />
+          <button type="button" role="menuitem" disabled={busy} onClick={() => setOpen("menu")}>
+            {t("edit.menuBack")}
           </button>
         </div>
       )}
