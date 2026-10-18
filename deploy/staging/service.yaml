@@ -43,7 +43,7 @@ spec:
             - name: GOOGLE_OAUTH_CLIENT_ID
               value: 496714293251-do3f1dtjsv5ae4l7559h3ghhg2ng34u5.apps.googleusercontent.com
             - name: GOOGLE_OAUTH_REDIRECT_URI
-              value: https://portal-staging-496714293251.us-east1.run.app/api/drive/callback
+              value: https://staging.myunio.app/api/drive/callback
             - name: DRIVE_READER_IDENTITY
               value: portal-staging@arq-proj.iam.gserviceaccount.com
             # Cloud Scheduler's call to /internal/maintenance (A09, A19): the token must
