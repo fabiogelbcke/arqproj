@@ -1,9 +1,9 @@
-# The portal-production Cloud Run service. Applied by deploy/production/cloudbuild.yaml
+# The `portal` Cloud Run service (production). Applied by deploy/production/cloudbuild.yaml
 # with the image and build ID filled in; change settings here, in a PR.
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: portal-production
+  name: portal
   annotations:
     # Public website: no Google sign-in needed to reach it.
     run.googleapis.com/invoker-iam-disabled: "true"
@@ -39,9 +39,8 @@ spec:
             - name: DATABASE_RUNTIME_ROLE
               value: portal-production@arq-proj.iam
             # Google Drive connection (docs/infrastructure.md, "Production"): the
-            # production OAuth client, shared with the current site until Alinea moves.
-            # Its final return address, which works once myunio.app reaches this
-            # service through the load balancer (A21); no office connects before.
+            # production OAuth client. One shared return address on Unio's domain, which
+            # forwards to the office that started (backend/web/drive.py).
             - name: GOOGLE_OAUTH_CLIENT_ID
               value: 496714293251-ov1b5fd8gir885g9p51qsrbn9gbq6l7i.apps.googleusercontent.com
             - name: GOOGLE_OAUTH_REDIRECT_URI
@@ -51,7 +50,7 @@ spec:
             # Cloud Scheduler's call to /internal/maintenance (A09, A19): the token must
             # be Google-signed for this service, from the scheduler's own account.
             - name: MAINTENANCE_AUDIENCE
-              value: https://portal-production-496714293251.us-east1.run.app
+              value: https://portal-496714293251.us-east1.run.app
             - name: MAINTENANCE_CALLER
               value: portal-scheduler@arq-proj.iam.gserviceaccount.com
             # Offices whose own domain is verified in Resend send from it; every other

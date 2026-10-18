@@ -1,7 +1,6 @@
 # Runs on every push to the `main` branch (Cloud Build trigger, as
 # portal-production-deploy@). Build the image, migrate the production database,
-# then deploy. The current site's own trigger on `main` keeps deploying `portal`
-# beside it until Alinea moves to this service. A failed step stops here and the running revision keeps serving.
+# then deploy the `portal` service (it replaced the old Flask site there). A failed step stops here and the running revision keeps serving.
 # Infrastructure this relies on: docs/infrastructure.md.
 
 substitutions:
