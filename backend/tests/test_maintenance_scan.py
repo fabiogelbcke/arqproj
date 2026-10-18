@@ -245,7 +245,7 @@ async def test_a_drafts_changes_are_not_recorded(client, db_session, owner, fold
 async def test_a_pass_out_of_time_leaves_the_rest_for_the_next(app, db_session, owner, folders):
     """Bounded work (section 4): no project starts after the budget; none is lost."""
     report = await run_maintenance(app.state.sessionmaker, app.state.settings, None, budget=0)
-    assert (report.projects, report.unfinished) == (0, 4)  # the seed's 4 published projects
+    assert (report.projects, report.unfinished) == (0, 5)  # the seed's 5 published projects
     assert await casa(db_session, "files_scanned_at") is None
     report = await run(app)
     assert report.unfinished == 0
@@ -261,7 +261,7 @@ async def test_each_pass_records_when_it_last_ran_to_the_end(app, db_session, ow
         )
     ).one()
     assert row.last_run_at is not None and row.last_success_at is None  # out of time
-    assert row.last_report["unfinished"] == 4
+    assert row.last_report["unfinished"] == 5
     await run(app)  # the seed's other projects have no folders on disk: they fail
     failed = (
         await db_session.execute(text("SELECT last_success_at FROM maintenance_runs"))

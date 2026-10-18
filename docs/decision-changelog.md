@@ -19,6 +19,19 @@ a new entry too.
 
 ---
 
+## 2026-10-17 — A35: no drafts for now; a new project is published at once
+
+**Was:** a new project started as a draft ("Rascunho", 15 Oct): staff saw it,
+its client page answered "not found" until staff pressed "Publicar".
+
+**Now:** creation makes it `active`; no publish step, drafts group or draft
+notes. The `draft` status stays allowed in the database, unused, and existing
+drafts were published.
+
+**Why:** Fabio, 17 Oct 2026: "Another thing I think we wanna drop for now is the
+Draft projects. We wanna publish them straightway". Kept in the schema because
+"for now" leaves room to bring drafts back.
+
 ## 2026-10-17 — A21 decided: office subdomains behind a load balancer
 
 **Was:** open between A, `{office}.{product-domain}` behind a global load

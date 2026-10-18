@@ -36,7 +36,7 @@ from backend.tenancy.models import Tenant, TenantDomain
 
 SAO_PAULO = timezone(timedelta(hours=-3))
 # Fictional projects in Brazilian Portuguese (AGENTS.md), covering the edge cases
-# the client page must handle: long names and accents, a draft, a project without
+# the client page must handle: long names and accents, a project without
 # stages, a completed password-protected one, a changed address, an office-written
 # stage, past and upcoming meetings. The project password is "demo-senha".
 PROJECTS = {
@@ -95,7 +95,7 @@ PROJECTS = {
             "client": "Família Almeida",
             "type": ProjectType.ARCHITECTURE,
             "stages": [],  # every stage unticked at creation
-            "status": ProjectStatus.DRAFT,
+            "status": ProjectStatus.ACTIVE,
         },
         {
             "slug": "refugio-da-mantiqueira",

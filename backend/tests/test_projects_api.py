@@ -56,14 +56,14 @@ async def project_count(db, slug="alinea"):
 # -- creating ---------------------------------------------------------------------
 
 
-async def test_a_new_project_is_a_draft_with_its_type_ticked_stages_and_folders(
+async def test_a_new_project_is_published_with_its_type_ticked_stages_and_folders(
     client, db_session, owner, tmp_path
 ):
     response = await create(client, owner)
     assert response.status_code == 201, response.text
     created = response.json()
     assert (created["status"], created["slug"], created["stage_count"]) == (
-        "draft",
+        "active",  # published at once (A35)
         "casa-do-lago",
         7,
     )

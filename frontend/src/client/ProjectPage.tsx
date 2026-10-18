@@ -571,22 +571,19 @@ function Stage({
 }
 
 /** For the office's signed-in staff only (the prototype's dock): back to the
- *  painel, the page's status, copy its link, and publish a draft. */
+ *  painel, the page's status and its link. Projects are published at once (A35). */
 function StaffBar({
   page,
   ready,
   editing,
   onMode,
-  onPublished,
 }: {
   page: Page;
   ready: boolean;
   editing: boolean;
   onMode: (editing: boolean) => void;
-  onPublished: () => void;
 }) {
-  const { t, i18n } = useTranslation();
-  const [publishing, setPublishing] = useState(false);
+  const { t } = useTranslation();
   const staff = page.staff!;
   const draft = staff.status === "draft";
   const archived = staff.status === "archived"; // viewable, not editable (section 22)
@@ -631,32 +628,6 @@ function StaffBar({
       >
         <Icon name="link" />
       </button>
-      {draft && (
-        <button
-          className="b b--primary b--small"
-          type="button"
-          disabled={publishing || !ready}
-          onClick={async () => {
-            setPublishing(true);
-            try {
-              await call(
-                api.POST("/api/projects/{project_id}/publish", { params: { path: { project_id: staff.project_id } } }),
-              );
-              toast(t("page.published"));
-              onPublished();
-            } catch (failure) {
-              const code = (failure as { code?: string }).code ?? "unexpected";
-              const reference = (failure as { requestId?: string | null }).requestId;
-              const message = i18n.exists(`errors.${code}`) ? t(`errors.${code}`) : t("errors.unexpected");
-              toast(reference ? `${message} ${t("errors.reference", { id: reference })}` : message);
-            } finally {
-              setPublishing(false);
-            }
-          }}
-        >
-          {t("page.publish")}
-        </button>
-      )}
     </nav>
   );
 }
@@ -952,7 +923,6 @@ export function ProjectPage({
             setEditing(next);
             setOpenEditor(null);
           }}
-          onPublished={() => onChanged?.()}
         />
       )}
       {preview && <FilePreview file={preview} slug={slug} page={page} onClose={() => setPreview(null)} />}

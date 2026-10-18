@@ -94,6 +94,16 @@ async def test_completed_and_archived_projects_still_have_a_page(client, db_sess
     assert (await page(client, "casa-jardim")).status_code == 200
 
 
+@pytest.fixture
+async def draft(db_session):
+    """Casa das Oliveiras as a draft. No project starts as one any more (A35), but
+    the status stays in the schema, and a draft must stay hidden from clients."""
+    await db_session.execute(
+        text("UPDATE projects SET status = 'draft' WHERE id = :p"),
+        {"p": await project_id(db_session, "casa-das-oliveiras")},
+    )
+
+
 @pytest.mark.parametrize(
     "slug",
     [
@@ -102,7 +112,7 @@ async def test_completed_and_archived_projects_still_have_a_page(client, db_sess
         "apto-atlantico",  # an old address: the shell redirects; the API never answers
     ],
 )
-async def test_drafts_unknown_and_old_addresses_are_not_found_alike(client, owner, slug):
+async def test_drafts_unknown_and_old_addresses_are_not_found_alike(client, owner, draft, slug):
     client.cookies.clear()  # a visitor
     response = await page(client, slug)
     assert (response.status_code, response.json()) == (404, {"error": "page_not_found"})
@@ -203,7 +213,9 @@ async def test_an_old_address_redirects_to_the_current_one(client, dist, owner):
 
 
 @pytest.mark.parametrize("slug", ["casa-das-oliveiras", "nao-existe"])
-async def test_drafts_and_unknown_addresses_get_the_shell_with_not_found(client, dist, owner, slug):
+async def test_drafts_and_unknown_addresses_get_the_shell_with_not_found(
+    client, dist, owner, draft, slug
+):
     client.cookies.clear()  # a visitor
     response = await client.get(f"/{slug}", headers=ALINEA)
     assert response.status_code == 404
@@ -248,43 +260,21 @@ async def test_staff_see_the_clients_page_plus_what_the_staff_bar_needs(client, 
     assert {**as_staff, "staff": None} == as_client  # nothing else differs
 
 
-async def test_staff_see_their_drafts_and_protected_pages(client, dist, owner):
+async def test_staff_see_their_drafts_and_protected_pages(client, dist, owner, draft):
     draft = (await page(client, "casa-das-oliveiras")).json()
     assert (draft["name"], draft["staff"]["status"]) == ("Casa das Oliveiras", "draft")
     assert (await page(client, "refugio-da-mantiqueira")).status_code == 200
     assert (await client.get("/casa-das-oliveiras", headers=ALINEA)).status_code == 200
 
 
-async def test_another_offices_staff_get_no_preview_of_drafts(client, db_session, owner):
+async def test_another_offices_staff_get_no_preview_of_drafts(client, db_session, owner, draft):
     """Signed in at Norte, Alinea's draft is still "not found"."""
     await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
     assert (await page(client, "casa-das-oliveiras")).status_code == 404
 
 
-async def test_publishing_opens_the_page_to_clients(client, db_session, owner):
-    draft = (await page(client, "casa-das-oliveiras")).json()["staff"]
-    published = await client.post(f"/api/projects/{draft['project_id']}/publish", headers=owner)
-    assert (published.status_code, published.json()["status"]) == (200, "active")
-    again = await client.post(f"/api/projects/{draft['project_id']}/publish", headers=owner)
-    assert again.status_code == 200  # twice changes nothing
-    client.cookies.clear()
-    assert (await page(client, "casa-das-oliveiras")).status_code == 200
-
-
-async def test_publishing_needs_staff_and_their_csrf_token(client, db_session, owner):
-    draft = (await page(client, "casa-das-oliveiras")).json()["staff"]
-    response = await client.post(f"/api/projects/{draft['project_id']}/publish", headers=ALINEA)
-    assert response.status_code in (401, 403)
-
-
-async def test_only_drafts_and_live_projects_can_be_published(client, db_session, owner):
-    found = await project_id(db_session, "refugio-da-mantiqueira")  # completed
-    response = await client.post(f"/api/projects/{found}/publish", headers=owner)
-    assert (response.status_code, response.json()["error"]) == (422, "invalid_status_change")
-
-
 async def test_a_draft_archived_without_being_published_stays_unpublished(
-    client, db_session, owner
+    client, db_session, owner, draft
 ):
     """Archiving is not a way to publish (plan section 10)."""
     draft = (await page(client, "casa-das-oliveiras")).json()["staff"]
@@ -300,7 +290,7 @@ async def test_a_draft_archived_without_being_published_stays_unpublished(
 
 @pytest.mark.parametrize("cookie", ["not-a-session", "expired"])
 async def test_a_bad_or_expired_session_gets_the_visitors_answer(
-    client, db_session, dist, owner, cookie
+    client, db_session, dist, owner, draft, cookie
 ):
     from backend.web.auth import COOKIE
 
@@ -315,7 +305,7 @@ async def test_a_bad_or_expired_session_gets_the_visitors_answer(
 
 
 async def test_what_only_staff_see_is_never_stored_by_a_shared_cache(
-    client, db_session, dist, owner
+    client, db_session, dist, owner, draft
 ):
     found = await project_id(db_session, "casa-das-oliveiras")
     await db_session.execute(
@@ -335,7 +325,7 @@ async def test_what_only_staff_see_is_never_stored_by_a_shared_cache(
     assert as_visitor.status_code == 404
 
 
-async def test_a_staff_only_meeting_download_is_private(client, db_session, owner):
+async def test_a_staff_only_meeting_download_is_private(client, db_session, owner, draft):
     found = await project_id(db_session, "casa-das-oliveiras")
     await db_session.execute(
         text(
@@ -347,23 +337,3 @@ async def test_a_staff_only_meeting_download_is_private(client, db_session, owne
     response = await client.get("/api/pages/casa-das-oliveiras/meeting.ics", headers=ALINEA)
     assert response.status_code == 200
     assert response.headers["cache-control"] == "private, no-store"
-
-
-async def test_a_publish_that_loses_a_race_says_so(client, db_session, owner, monkeypatch):
-    """Archived by someone else between the check and the change: not "published"."""
-    from backend.web import project_settings
-
-    found = await project_id(db_session, "casa-das-oliveiras")
-    real = project_settings._project
-
-    async def read_then_archived(db, project_id):
-        project = await real(db, project_id)
-        await db.execute(
-            text("UPDATE projects SET status = 'archived', archived_from = 'draft' WHERE id = :p"),
-            {"p": found},
-        )
-        return project
-
-    monkeypatch.setattr(project_settings, "_project", read_then_archived)
-    response = await client.post(f"/api/projects/{found}/publish", headers=owner)
-    assert (response.status_code, response.json()["error"]) == (409, "project_changed")

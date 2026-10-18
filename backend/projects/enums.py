@@ -18,7 +18,9 @@ from enum import StrEnum
 
 
 class ProjectStatus(StrEnum):
-    DRAFT = "draft"  # Rascunho: staff only; the client page answers "not found"
+    # Rascunho: staff only, the client page answers "not found". Unused for now:
+    # projects are published at once (A35); kept so drafts can return.
+    DRAFT = "draft"
     ACTIVE = "active"
     COMPLETED = "completed"
     ARCHIVED = "archived"  # still viewable; no new uploads or emails (plan section 22)

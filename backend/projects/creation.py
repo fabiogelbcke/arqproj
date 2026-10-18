@@ -179,7 +179,8 @@ async def project_named(
 async def create_project(
     db: AsyncSession, maker: FolderMaker, root: str | None, locale: Locale, new: NewProject
 ) -> Project:
-    """The new draft project (or the one this creation key already made)."""
+    """The new project, published at once (A35), or the one this creation key
+    already made."""
     existing = await db.scalar(select(Project).where(Project.creation_key == new.creation_key))
     if existing is not None:
         return existing
@@ -198,7 +199,7 @@ async def create_project(
             name=new.name.strip(),
             client_name=new.client_name.strip(),
             project_type=new.project_type,
-            status=ProjectStatus.DRAFT,
+            status=ProjectStatus.ACTIVE,
             current_position=1 if stages else None,
             folder_id=project_folder,
             creation_key=new.creation_key,

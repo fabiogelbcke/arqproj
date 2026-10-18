@@ -134,7 +134,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         autoComplete="off"
         spellCheck="false"
       />
-      <p className={styles.note}>{t("newProject.draftNote")}</p>
+      <p className={styles.note}>{t("newProject.publishNote")}</p>
       {clash ? (
         <p role="alert" className={styles.problem}>
           {clash}
