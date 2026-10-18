@@ -283,13 +283,8 @@ async def _complete(
             await writer.trash(root)  # never leave a folder the reader cannot see
             raise
 
-    if switching and connection.writer_token:
-        # Still connected to the old account: let go of its grant, as disconnecting does.
-        try:
-            old = keys.decrypt(settings.app_secret, TOKEN_PURPOSE, connection.writer_token)
-            await oauth.revoke(http, old)
-        except (keys.BadToken, ConnectError) as error:
-            log.warning("old Drive grant not revoked: %r", getattr(error, "detail", error))
+    # The old account's grant, let go of only once the switch is saved.
+    old_token = connection.writer_token if switching and connection else None
     if connection is None:
         connection = StorageConnection(kind=StorageKind.GOOGLE)
         db.add(connection)
@@ -302,7 +297,20 @@ async def _complete(
     connection.connected_by = staff.user_id
     connection.checked_at = datetime.now(UTC)
     connection.reader_status = await _reader_status(request, root)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        if switching:
+            await writer.trash(root)  # all or nothing: the new account's folders go too
+        raise
+    if old_token:
+        # Still connected to the old account: let go of its grant, as disconnecting does.
+        try:
+            old = keys.decrypt(settings.app_secret, TOKEN_PURPOSE, old_token)
+            await oauth.revoke(http, old)
+        except keys.BadToken:
+            log.warning("old Drive grant could not be decrypted; not revoked")
 
 
 async def _start_afresh(db: AsyncSession, writer: DriveWriter, root: str, locale: Locale) -> None:

@@ -92,6 +92,7 @@ export function SettingsDrivePage() {
                 <SwitchAccount
                   onConfirm={() => connect.mutate(true)}
                   busy={connect.isPending}
+                  error={connect.error}
                   label={t(returned.error === "drive_other_account" ? "drive.switchAnyway" : "drive.switch")}
                 />
               )}
@@ -180,7 +181,17 @@ function Space() {
 
 /** "Usar outra conta": the strong warning first. Nothing moves across: the new
  *  account starts with empty folders (plan section 9). */
-function SwitchAccount({ onConfirm, busy, label }: { onConfirm: () => void; busy: boolean; label: string }) {
+function SwitchAccount({
+  onConfirm,
+  busy,
+  error,
+  label,
+}: {
+  onConfirm: () => void;
+  busy: boolean;
+  error: unknown; // shown here: the dialog covers the page's own notice
+  label: string;
+}) {
   const { t } = useTranslation();
   return (
     <DialogTrigger>
@@ -204,6 +215,7 @@ function SwitchAccount({ onConfirm, busy, label }: { onConfirm: () => void; busy
                     <li>{t("drive.switchKept")}</li>
                   </ul>
                 </div>
+                <ErrorNotice error={error} />
                 <div className={dialogs.actions}>
                   <Button variant="ghost" onPress={close}>
                     {t("drive.switchCancel")}

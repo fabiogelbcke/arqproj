@@ -135,6 +135,17 @@ describe("another Google account", () => {
     expect(sent.find((r) => r.path === "/api/drive/connect")?.body).toEqual({ fresh: true });
   });
 
+  it("a failure to start the switch shows in the warning itself, with its support code", async () => {
+    api(BEFORE, {
+      "POST /api/drive/connect": () => ({ status: 503, body: { error: "drive_connect_failed" }, headers: { "X-Request-ID": "req5" } }),
+    });
+    renderAt("/configuracoes/drive");
+    await userEvent.click(await screen.findByRole("button", { name: "Usar outra conta" }));
+    const warning = await screen.findByRole("alertdialog", { name: "Usar outra conta Google?" });
+    await userEvent.click(within(warning).getByRole("button", { name: "Entendi, usar outra conta" }));
+    expect(await within(warning).findByRole("alert")).toHaveTextContent("req5");
+  });
+
   it("reconnecting the same account doesn't start afresh", async () => {
     const assign = vi.fn();
     vi.stubGlobal("location", { ...window.location, assign, origin: window.location.origin });

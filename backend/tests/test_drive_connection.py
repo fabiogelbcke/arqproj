@@ -534,3 +534,44 @@ async def test_the_status_says_there_is_a_folder_from_before(client, owner, goog
     await client.delete("/api/drive", headers=owner)
     status = (await client.get("/api/drive", headers=ALINEA)).json()
     assert (status["writer_status"], status["has_folder"]) == ("none", True)
+
+
+async def test_switching_while_connected_lets_go_of_the_old_grant_once_saved(
+    client, db_session, owner, google
+):
+    await come_back(client, await start(client, owner))
+    google.writer_reaches.clear()  # still connected, but this sign-in is another account
+    revoked = google.calls.count("POST oauth2.googleapis.com/revoke")
+    done = await come_back(client, await start(client, owner, fresh=True))
+    assert done.headers["location"].endswith("resultado=conectado")
+    assert google.calls.count("POST oauth2.googleapis.com/revoke") == revoked + 1
+
+
+async def test_if_the_switch_cannot_be_saved_the_old_grant_stays_and_the_new_root_goes(
+    client, db_session, owner, google, monkeypatch
+):
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    await come_back(client, await start(client, owner))
+    google.writer_reaches.clear()
+    revoked = google.calls.count("POST oauth2.googleapis.com/revoke")
+    commit = AsyncSession.commit
+
+    async def failing(self):
+        switching = any(
+            isinstance(row, StorageConnection) and row.root_id.startswith("new")
+            for row in self.identity_map.values()
+        )
+        if switching:
+            raise RuntimeError("database went away")
+        await commit(self)
+
+    monkeypatch.setattr(AsyncSession, "commit", failing)
+    failed = await come_back(client, await start(client, owner, fresh=True))
+    assert failed.status_code == 500  # the app's own error page, with its support code
+    monkeypatch.setattr(AsyncSession, "commit", commit)
+    assert google.calls.count("POST oauth2.googleapis.com/revoke") == revoked  # kept
+    assert any(c.startswith("PATCH") and "/new" in c for c in google.calls)  # trashed
+    saved = await connection(db_session)
+    await db_session.refresh(saved)
+    assert saved.root_id == "root1"
