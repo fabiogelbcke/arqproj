@@ -95,7 +95,7 @@
 .officeLogo img {
   display: block; width: auto; object-fit: contain; object-position: left;
   height: clamp(var(--logo-min, 20px), calc(var(--logo-ref, 28px) * sqrt(4 / var(--logo-r, 4))), var(--logo-max, 40px));
-  max-width: var(--logo-max-width, 220px);
+  max-width: min(var(--logo-max-width, 220px), 100%);
 }
 .officeLogo .logoDark { display: none; }
 :global(:root[data-theme="dark"]) .officeLogo[data-dark] .logoLight { display: none; }
