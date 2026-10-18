@@ -40,6 +40,10 @@ class OfficeProfile(IdMixin, TimestampsMixin, TenantOwned, Base):
         ),
         enum_check("logo_type", LogoType),
         CheckConstraint("(logo_file_id IS NULL) = (logo_type IS NULL)", name="logo_complete"),
+        enum_check("logo_dark_type", LogoType),
+        CheckConstraint(
+            "(logo_dark_file_id IS NULL) = (logo_dark_type IS NULL)", name="logo_dark_complete"
+        ),
     )
 
     # Shown at the top of client pages and in the browser tab.
@@ -52,5 +56,8 @@ class OfficeProfile(IdMixin, TimestampsMixin, TenantOwned, Base):
     # For an SVG logo, a PNG of it drawn by the painel's browser: email programs
     # don't show SVG (A32). None for other logos, which email as they are.
     logo_png_file_id: Mapped[str | None] = mapped_column(Text)
-    # The `_marca` folder holding it, inside the office's root folder.
+    # The logo for dark mode; None: the logo above shows in dark mode too.
+    logo_dark_file_id: Mapped[str | None] = mapped_column(Text)
+    logo_dark_type: Mapped[LogoType | None] = mapped_column(TextEnum(LogoType))
+    # The `_marca` folder holding them, inside the office's root folder.
     brand_folder_id: Mapped[str | None] = mapped_column(Text)

@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { api, call } from "../api/client";
 import { ONBOARDING } from "../drive/drive";
 import { ME, TENANT } from "../session/session";
-import { isSvg, svgToPng } from "./svgToPng";
+import { svgToPng } from "./svgToPng";
 
 export const OFFICE = ["office"] as const;
 
@@ -33,26 +33,33 @@ export function useSaveOffice() {
   });
 }
 
+/** A logo file as the API takes it. */
+const asForm = (file: File) => ({
+  // OpenAPI describes an uploaded file as a binary string; it is the File.
+  body: { file: file as unknown as string },
+  bodySerializer: (body: { file: string }) => {
+    const form = new FormData();
+    form.append("file", body.file as unknown as Blob, file.name);
+    return form;
+  },
+});
+
+/** The logo, as cropped in the browser (ImageCropDialog): always a PNG, which
+ *  email programs show too. */
 export function useUploadLogo() {
   const refresh = useRefreshAfterChange();
   return useMutation({
-    mutationFn: async (file: File) => {
-      // An SVG also goes as a PNG drawn here, for emails. If drawing fails, the
-      // logo still goes; the painel tries the PNG again later (LogoPng).
-      const png = isSvg(file) ? await svgToPng(file).catch(() => null) : null;
-      return call(
-        api.PUT("/api/office/logo", {
-          // OpenAPI describes an uploaded file as a binary string; it is the File.
-          body: { file: file as unknown as string },
-          bodySerializer: (body) => {
-            const form = new FormData();
-            form.append("file", body.file as unknown as Blob);
-            if (png) form.append("png", png, "logo.png");
-            return form;
-          },
-        }),
-      );
-    },
+    mutationFn: (file: File) => call(api.PUT("/api/office/logo", asForm(file))),
+    onSuccess: refresh,
+  });
+}
+
+/** The logo for dark mode, or (null) the usual logo there too. */
+export function useDarkLogo() {
+  const refresh = useRefreshAfterChange();
+  return useMutation({
+    mutationFn: (file: File | null) =>
+      call(file ? api.PUT("/api/office/logo/dark", asForm(file)) : api.DELETE("/api/office/logo/dark")),
     onSuccess: refresh,
   });
 }

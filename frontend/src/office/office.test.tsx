@@ -3,17 +3,35 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { initials } from "../pages/SettingsOfficePage";
+import * as imageCrop from "../ui/imageCrop";
 import * as drawing from "./svgToPng";
 import { fakeApi, ME, renderAt, TENANT } from "../test/render";
+
+// The browser's image decoding and canvas aren't in the test DOM: a 500×500 image.
+vi.mock("../ui/imageCrop", async (original) => ({
+  ...(await original<typeof import("../ui/imageCrop")>()),
+  loadImage: vi.fn(async () => ({ naturalWidth: 500, naturalHeight: 500 }) as HTMLImageElement),
+  trimmed: vi.fn(() => ({ x: 0, y: 40, width: 100, height: 20 })),
+  withoutBackground: vi.fn(async () => null),
+  cropToFile: vi.fn(async (_image: unknown, _box: unknown, output: { type: string }, name: string) => new File(["x"], name, { type: output.type })),
+}));
 
 type Office = {
   name: string;
   contact_email: string | null;
   logo_url: string | null;
+  logo_dark_url: string | null;
   logo_needs_png: boolean;
   can_manage: boolean;
 };
-const OFFICE: Office = { name: "Alinea", contact_email: null, logo_url: null, logo_needs_png: false, can_manage: true };
+const OFFICE: Office = {
+  name: "Alinea",
+  contact_email: null,
+  logo_url: null,
+  logo_dark_url: null,
+  logo_needs_png: false,
+  can_manage: true,
+};
 const LOCAL = { kind: "folder", writer_status: "none", reader_status: "unknown", account_email: null, folder_url: null, can_manage: true };
 const NONE = { ...LOCAL, kind: null };
 
@@ -92,7 +110,12 @@ describe("Configurações → Escritório", () => {
     await screen.findByRole("button", { name: "Escolher imagem" }); // once Drive's state is known
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["png"], "logo.png", { type: "image/png" }));
+    // Cropped first: its empty margins already trimmed, then sent as a PNG.
+    const crop = await screen.findByRole("dialog", { name: "Ajustar o logo" });
+    expect(imageCrop.trimmed).toHaveBeenCalled();
+    await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
     await waitFor(() => expect(sent.some((r) => r.path === "/api/office/logo")).toBe(true));
+    expect(imageCrop.cropToFile).toHaveBeenCalledWith(expect.anything(), expect.anything(), imageCrop.LOGO_OUTPUT, "logo.png");
     const request = sent.find((r) => r.path === "/api/office/logo");
     expect(request?.headers.get("Content-Type")).toMatch(/^multipart\/form-data/);
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-123");
@@ -147,6 +170,60 @@ describe("Configurações → Escritório", () => {
   });
 });
 
+describe("the logo's crop and dark mode", () => {
+  const WITH_LOGO = { ...OFFICE, logo_url: "/api/office/logo?v=1" };
+
+  /** The latest "Escolher imagem…" on the page: the dark mode one comes after. */
+  async function choose(button: string) {
+    expect(screen.getByRole("button", { name: button })).toBeInTheDocument();
+    const input = [...document.querySelectorAll<HTMLInputElement>('input[type="file"]')].at(-1)!;
+    await userEvent.upload(input, new File(["png"], "logo.png", { type: "image/png" }));
+  }
+
+  it("offers to remove a plain background, and only then", async () => {
+    vi.mocked(imageCrop.withoutBackground).mockResolvedValueOnce("blob:clean");
+    api();
+    renderAt("/configuracoes/escritorio");
+    await screen.findByRole("button", { name: "Escolher imagem" });
+    await choose("Escolher imagem");
+    const crop = await screen.findByRole("dialog", { name: "Ajustar o logo" });
+    expect(await within(crop).findByRole("checkbox", { name: "Remover fundo" })).not.toBeChecked();
+    await userEvent.click(within(crop).getByRole("button", { name: "Cancelar" }));
+
+    await choose("Escolher imagem"); // a transparent one: nothing to remove
+    const again = await screen.findByRole("dialog", { name: "Ajustar o logo" });
+    await within(again).findByRole("button", { name: "Usar recorte" });
+    expect(within(again).queryByRole("checkbox", { name: "Remover fundo" })).toBeNull();
+  });
+
+  it("uses the same logo in dark mode until another is chosen", async () => {
+    const sent = api(WITH_LOGO, LOCAL, ME, {
+      "PUT /api/office/logo/dark": () => ({ body: { ...WITH_LOGO, logo_dark_url: "/api/office/logo?dark=true&v=2" } }),
+    });
+    renderAt("/configuracoes/escritorio");
+    const same = await screen.findByRole("checkbox", { name: "Usar o mesmo logo no modo escuro" });
+    expect(same).toBeChecked();
+    expect(screen.queryByRole("button", { name: "Escolher imagem para o modo escuro" })).toBeNull();
+    await userEvent.click(same);
+    await choose("Escolher imagem para o modo escuro");
+    const crop = await screen.findByRole("dialog", { name: "Ajustar o logo do modo escuro" });
+    await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
+    await waitFor(() => expect(sent.some((r) => r.method === "PUT" && r.path === "/api/office/logo/dark")).toBe(true));
+    expect(await screen.findByText("Logo do modo escuro atualizado.")).toBeInTheDocument();
+  });
+
+  it("goes back to one logo, removing the dark mode one", async () => {
+    const both = { ...WITH_LOGO, logo_dark_url: "/api/office/logo?dark=true&v=2" };
+    const sent = api(both, LOCAL, ME, { "DELETE /api/office/logo/dark": () => ({ body: WITH_LOGO }) });
+    renderAt("/configuracoes/escritorio");
+    const same = await screen.findByRole("checkbox", { name: "Usar o mesmo logo no modo escuro" });
+    expect(same).not.toBeChecked();
+    await userEvent.click(same);
+    await waitFor(() => expect(sent.some((r) => r.method === "DELETE" && r.path === "/api/office/logo/dark")).toBe(true));
+    expect(await screen.findByText("O modo escuro usa o mesmo logo.")).toBeInTheDocument();
+  });
+});
+
 describe("initials", () => {
   it("takes the first letters of the first two words, ignoring parentheses", () => {
     expect(initials("ALINEA ARQUITETOS")).toBe("AA");
@@ -157,45 +234,6 @@ describe("initials", () => {
 
 
 describe("an SVG logo's PNG, for emails (A32)", () => {
-  /** The multipart parts' names sent to `path` (fakeApi reads only JSON). */
-  function formsTo(path: string) {
-    const forms: string[][] = [];
-    const inner = globalThis.fetch;
-    vi.stubGlobal("fetch", async (input: Request) => {
-      if (new URL(input.url).pathname === path) {
-        const raw = await input.clone().text();
-        forms.push([...raw.matchAll(/; name="([^"]+)"/g)].map((m) => m[1]!));
-      }
-      return inner(input);
-    });
-    return forms;
-  }
-
-  it("uploads an SVG logo with a PNG of it drawn in the browser", async () => {
-    vi.spyOn(drawing, "svgToPng").mockResolvedValue(new Blob(["png"], { type: "image/png" }));
-    api(OFFICE, LOCAL, ME, {
-      "PUT /api/office/logo": () => ({ body: { ...OFFICE, logo_url: "/api/office/logo?v=1" } }),
-    });
-    const forms = formsTo("/api/office/logo");
-    renderAt("/configuracoes/escritorio");
-    await screen.findByRole("button", { name: "Escolher imagem" });
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, new File(["<svg/>"], "logo.svg", { type: "image/svg+xml" }));
-    await waitFor(() => expect(forms).toEqual([["file", "png"]]));
-  });
-
-  it("uploads other images as they are", async () => {
-    const draw = vi.spyOn(drawing, "svgToPng");
-    api(OFFICE, LOCAL, ME, { "PUT /api/office/logo": () => ({ body: OFFICE }) });
-    const forms = formsTo("/api/office/logo");
-    renderAt("/configuracoes/escritorio");
-    await screen.findByRole("button", { name: "Escolher imagem" });
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, new File(["png"], "logo.png", { type: "image/png" }));
-    await waitFor(() => expect(forms).toEqual([["file"]]));
-    expect(draw).not.toHaveBeenCalled();
-  });
-
   it("gives an older SVG logo its PNG when an owner opens the painel", async () => {
     vi.spyOn(drawing, "svgToPng").mockResolvedValue(new Blob(["png"], { type: "image/png" }));
     const needs = { ...OFFICE, logo_url: "/api/office/logo?v=1", logo_needs_png: true };

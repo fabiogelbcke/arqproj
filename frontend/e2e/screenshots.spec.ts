@@ -62,6 +62,10 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.goto("/painel/configuracoes/escritorio");
   await page.getByRole("button", { name: "Escolher imagem" }).waitFor();
   await page.locator('input[type="file"]').setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: LOGO });
+  // Cropped first, its empty margins trimmed already.
+  await page.getByText("Assim ele aparece no topo das páginas").waitFor();
+  await shoot(page, "04b-recortar-logo");
+  await page.getByRole("button", { name: "Usar recorte" }).click();
   await page.getByText("Logo atualizado.").waitFor();
   await page.goto("/painel");
   await page.getByRole("heading", { name: "Projetos" }).waitFor();

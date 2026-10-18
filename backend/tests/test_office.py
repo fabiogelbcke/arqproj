@@ -129,6 +129,66 @@ async def test_a_new_logo_of_the_same_type_gets_a_new_address(client, owner, tmp
     assert (await client.get(second, headers=ALINEA)).content == PNG + b"\x00"
 
 
+JPEG = b"\xff\xd8\xff" + b"\x00" * 64
+
+
+async def test_a_dark_mode_logo_is_kept_beside_the_logo_and_can_be_dropped(client, owner, tmp_path):
+    await upload(client, owner, PNG)
+    office = (await client.get("/api/office", headers=ALINEA)).json()
+    assert office["logo_dark_url"] is None  # the logo shows in dark mode too
+    dark = await client.put(
+        "/api/office/logo/dark", files={"file": ("escuro.jpg", JPEG)}, headers=owner
+    )
+    assert dark.status_code == 200
+    urls = dark.json()
+    assert (tmp_path / "_marca" / "logo-escuro.jpg").read_bytes() == JPEG
+    assert (tmp_path / "_marca" / "logo.png").read_bytes() == PNG  # the logo stays
+    served = await client.get(urls["logo_dark_url"], headers=ALINEA)
+    assert (served.content, served.headers["content-type"]) == (JPEG, "image/jpeg")
+    assert "sandbox" in served.headers["content-security-policy"]
+    # The client page knows both.
+    page = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()["office"]
+    assert page["logo_dark_url"] == urls["logo_dark_url"]
+
+    dropped = await client.delete("/api/office/logo/dark", headers=owner)
+    assert dropped.json()["logo_dark_url"] is None
+    assert (await client.get(urls["logo_dark_url"], headers=ALINEA)).status_code == 404
+    assert dropped.json()["logo_url"] is not None
+
+
+async def test_only_owners_change_the_dark_mode_logo(client, db_session, owner):
+    client.cookies.clear()
+    member = await sign_in_as(client, db_session, "membro@alinea.example", Role.MEMBER)
+    for response in (
+        await client.put("/api/office/logo/dark", files={"file": ("l.png", PNG)}, headers=member),
+        await client.delete("/api/office/logo/dark", headers=member),
+    ):
+        assert (response.status_code, response.json()) == (403, {"error": "owner_only"})
+
+
+async def test_a_dark_mode_logo_must_be_an_image(client, owner):
+    response = await client.put(
+        "/api/office/logo/dark", files={"file": ("l.png", b"not an image")}, headers=owner
+    )
+    assert (response.status_code, response.json()) == (415, {"error": "logo_wrong_type"})
+
+
+async def test_on_drive_a_new_dark_mode_logo_trashes_the_old(client, owner, on_google):
+    fake, _ = on_google
+    await upload(client, owner, PNG)
+
+    async def put():
+        return await client.put(
+            "/api/office/logo/dark", files={"file": ("l.png", PNG)}, headers=owner
+        )
+
+    first = (await put()).json()
+    trashes = sum(c.startswith("PATCH /drive/v3/files/") for c in fake.calls)
+    second = (await put()).json()
+    assert second["logo_dark_url"] != first["logo_dark_url"]
+    assert sum(c.startswith("PATCH /drive/v3/files/") for c in fake.calls) == trashes + 1
+
+
 async def test_an_svg_with_a_script_is_served_so_nothing_in_it_runs(client, owner):
     saved = await upload(client, owner, SVG, "logo.svg")
     served = await client.get(saved.json()["logo_url"], headers=ALINEA)

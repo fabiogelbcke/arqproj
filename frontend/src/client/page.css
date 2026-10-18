@@ -1,6 +1,7 @@
 /* Additions to the prototype's stylesheet for the real page. */
-.site__brand img { display: block; height: 28px; width: auto; max-width: 220px; object-fit: contain; object-position: left; }
-@media (max-width: 640px) { .site__brand img { height: 22px; max-width: 160px; } }
+/* The logo's size by its shape (OfficeLogo), never taller than the bar allows. */
+.site__brand { --logo-ref: 28px; --logo-min: 22px; --logo-max: 44px; --logo-max-width: 220px; }
+@media (max-width: 640px) { .site__brand { --logo-ref: 22px; --logo-min: 18px; --logo-max: 34px; --logo-max-width: 160px; } }
 .tl li > button { display: block; }
 .page-message { padding-block: 72px 120px; display: grid; gap: 14px; max-width: 640px; }
 .page-message h1 { margin: 0; font: 400 clamp(32px, 5vw, 56px)/1.05 var(--display-font); letter-spacing: -0.035em; }
