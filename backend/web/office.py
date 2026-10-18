@@ -127,7 +127,8 @@ async def change_office(
     found = await _profile_for_change(db, tenant)
     if body.name is not None:
         name = body.name.strip()
-        if not name or len(name) > NAME_LIMIT:
+        # The limit is for names entered from now on: one saved before it stays as is.
+        if not name or (name != found.display_name and len(name) > NAME_LIMIT):
             raise ApiError(422, ErrorCode.INVALID_OFFICE_NAME)
         found.display_name = name
     if body.contact_email is not None:

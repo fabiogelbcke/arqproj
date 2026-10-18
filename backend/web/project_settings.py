@@ -37,9 +37,9 @@ from backend.notifications.models import (
     ProjectRecipient,
     RecipientStatus,
 )
-from backend.projects.creation import NAME_MAX, project_named, valid_slug
+from backend.projects.creation import CLIENT_NAME_LIMIT, NAME_MAX, project_named, valid_slug
 from backend.projects.enums import AccessMode, CoverType, ProjectStatus
-from backend.projects.models import CLIENT_NAME_MAX, Project, ProjectSlug
+from backend.projects.models import Project, ProjectSlug
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
 from backend.storage.google_connect import ConnectError
@@ -155,7 +155,8 @@ async def change_project(
         values["name"] = name
     if body.client_name is not None:
         client = body.client_name.strip()
-        if not client or len(client) > CLIENT_NAME_MAX:
+        # The limit is for names entered from now on: one saved before it stays as is.
+        if not client or (client != project.client_name and len(client) > CLIENT_NAME_LIMIT):
             raise ApiError(422, ErrorCode.INVALID_CLIENT_NAME)
         values["client_name"] = client
     if body.status is not None and body.status is not project.status:

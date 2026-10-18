@@ -255,6 +255,19 @@ describe("edit mode", () => {
     expect(screen.getByRole("button", { name: "Editar descrição" })).toBeInTheDocument();
   });
 
+  it("renames the project from its title, with the page's row version", async () => {
+    const { sent } = asStaff({ "PATCH /api/projects/p-1": () => ({ body: {} }) });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar nome do projeto" }));
+    const field = await screen.findByLabelText("Nome do projeto");
+    await userEvent.clear(field);
+    await userEvent.type(field, "Casa Jardim II");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() =>
+      expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({ row_version: 4, name: "Casa Jardim II" }),
+    );
+  });
+
   it("saves the description with the page's row version", async () => {
     const { sent } = asStaff({ "PATCH /api/projects/p-1/content": () => ({ status: 204 }) });
     await startEditing();

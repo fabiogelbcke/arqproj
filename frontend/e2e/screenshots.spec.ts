@@ -120,6 +120,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar reunião" }).click();
+  await page.locator(".project-status__meeting form").waitFor(); // the editor, loaded
   await shoot(page, "06b-pagina-editando");
   // A file's menu (A34), moving it to another stage.
   await page.goto("/casa-jardim");

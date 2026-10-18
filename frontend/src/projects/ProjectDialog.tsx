@@ -22,7 +22,7 @@ import {
 import styles from "./projects.module.css";
 
 const NAME_MAX = 120;
-const CLIENT_MAX = 48;
+const CLIENT_MAX = 30; // for now (Fabio, 18 Oct 2026); the API checks the same
 const RECIPIENTS_MAX = 20; // the server checks it too
 
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -188,6 +188,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
                 onChange={setClient}
                 isRequired
                 maxLength={CLIENT_MAX}
+                showCount
                 autoComplete="off"
               />
             </div>
