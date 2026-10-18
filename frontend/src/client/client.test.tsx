@@ -47,7 +47,28 @@ function at(path: string, handlers: Record<string, () => { status?: number; body
 
 afterEach(() => vi.unstubAllGlobals());
 
+function phoneViewport() {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(max-width: 760px)",
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+}
+
 describe("the client page", () => {
+  it.each(["", PAGE.description])("shows a mobile description only when supplied: %j", async (description) => {
+    phoneViewport();
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, description } }) });
+    await userEvent.click(await screen.findByText("Detalhes do projeto"));
+    const summary = screen.getByText("Detalhes do projeto").closest("details")!;
+    expect(summary).toHaveAttribute("open");
+    expect(within(summary).getByText(PAGE.client_name.toUpperCase())).toBeVisible();
+    if (description) {
+      expect(within(summary).getByText("Residência no alto.")).toBeVisible();
+    } else {
+      expect(within(summary).queryByText("Descrição do projeto")).toBeNull();
+    }
+  });
   it("shows the project with the current stage open", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
     expect(await screen.findByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveTextContent("/casa jardim"); // under 15 characters: one line, with a space
@@ -270,6 +291,7 @@ describe("edit mode", () => {
   });
 
   it("offers staff an empty description to fill in", async () => {
+    phoneViewport();
     asStaff({ "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, description: "", staff: { project_id: "p-1", status: "active", row_version: 4 } } }) });
     await startEditing();
     expect(await screen.findByRole("button", { name: "Editar descrição" })).toBeInTheDocument();

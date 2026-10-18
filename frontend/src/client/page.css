@@ -120,6 +120,9 @@
 }
 .client .project-heading__title { position: relative; }
 
+.client .client-file-tools .input { border-bottom-color: var(--brand-line); }
+.client .client-file-tools .input:focus { border-bottom-color: var(--brand-muted); }
+
 /* A short title (under 15 characters) on one line: "/casa jardim". */
 .client .client-project-title--one-line .project-title__lead,
 .client .client-project-title--one-line .project-title__tail { display: inline; margin-top: 0; }

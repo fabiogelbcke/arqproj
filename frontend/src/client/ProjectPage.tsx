@@ -325,10 +325,12 @@ function MobileSummary({ page }: { page: Page }) {
       </summary>
       <dl className="facts">
         <Facts page={page} />
-        <div className="mobile-project-description">
-          <dt>{t("page.description")}</dt>
-          <dd>{page.description ? <Description text={page.description} /> : <p>{t("page.noDescription")}</p>}</dd>
-        </div>
+        {page.description && (
+          <div className="mobile-project-description">
+            <dt>{t("page.description")}</dt>
+            <dd><Description text={page.description} /></dd>
+          </div>
+        )}
       </dl>
     </details>
   );
