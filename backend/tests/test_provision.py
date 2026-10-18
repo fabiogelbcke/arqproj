@@ -71,6 +71,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("sessions", "INSERT"),
         ("sessions", "UPDATE"),
         ("password_links", "SELECT"),
+        ("password_links", "INSERT"),  # "Esqueceu a senha?" emails a reset link
         ("projects", "SELECT"),
         ("projects", "INSERT"),
         ("project_slugs", "SELECT"),

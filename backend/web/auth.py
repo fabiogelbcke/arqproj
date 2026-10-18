@@ -5,6 +5,7 @@
     GET    /api/me              who is signed in, or 401
     POST   /api/password-link   whose invite/reset link is this (before the form)
     POST   /api/password        choose a password with a link, then signed in
+    POST   /api/password-reset  "Esqueceu a senha?": email a link, if the account exists
 
 The cookie holds only a random token (see `backend.identity.sessions`). Every
 state-changing staff request must also send the session's CSRF token in the
@@ -14,12 +15,13 @@ state-changing staff request must also send the session's CSRF token in the
 from __future__ import annotations
 
 import hmac
+import logging
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import anyio
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,9 +29,13 @@ from backend.db.engine import get_tenant_session
 from backend.identity import accounts, links, sessions
 from backend.identity.models import LinkKind, LoginSession, Role
 from backend.identity.passwords import verify_password
+from backend.notifications.email import Email, EmailError, sender_for
+from backend.notifications.office import office_of
+from backend.notifications.password_reset import reset_email
 from backend.office.profile import display_name
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
+from backend.web import attempts
 from backend.web.errors import ApiError, ErrorCode, documented
 
 COOKIE = "portal_session"
@@ -37,6 +43,12 @@ CSRF_HEADER = "X-CSRF-Token"
 # Added to every failed sign-in, to slow down password guessing.
 FAILED_LOGIN_DELAY = 1.0
 
+# "Esqueceu a senha?": at most one email to an address every few minutes, and a
+# few requests from one device in 15 minutes (counted as the client pages' tries).
+RESET_EVERY = timedelta(minutes=2)
+RESET_TRIES = "password-reset"
+
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 
 
@@ -57,6 +69,10 @@ class LoginIn(BaseModel):
 
 class LinkIn(BaseModel):
     token: str
+
+
+class ResetIn(BaseModel):
+    email: str
 
 
 class LinkOut(BaseModel):
@@ -237,3 +253,42 @@ async def me(
 ) -> MeOut:
     office = await display_name(db, tenant)
     return _me(staff.email, staff.name, staff.role, tenant, office, staff.csrf_token)
+
+
+@router.post("/password-reset", status_code=204, responses=documented(422, 429))
+async def ask_password_reset(
+    body: ResetIn,
+    request: Request,
+    background: BackgroundTasks,
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    """Emails a link to choose a new password to this office's account with that
+    address. The same answer, as fast, whether or not there is one: the email
+    goes after the response, so neither can tell who has an account."""
+    who = attempts.device(request)
+    if not attempts.admit(RESET_TRIES, who):
+        raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
+    attempts.failed(RESET_TRIES, who)  # every request counts toward the limit
+    user = await accounts.find_user(db, body.email)
+    since = datetime.now(UTC) - RESET_EVERY
+    if user is None or await links.made_since(db, user, LinkKind.RESET, since):
+        return
+    token = await links.create(db, user, LinkKind.RESET)
+    office = await office_of(db, request.app.state.settings, tenant.id)
+    await db.commit()
+    background.add_task(_send, request, tenant, reset_email(office, user.name, user.email, token))
+
+
+async def _send(request: Request, tenant: CurrentTenant, email: Email) -> None:
+    try:
+        http = getattr(request.app.state, "http", None)  # set up at app start
+        await sender_for(request.app.state.settings, http).send(email)
+    except EmailError as error:
+        # The person sees no error (nothing may say whether the account exists):
+        # they can ask again; the log has why.
+        log.error(
+            "password reset email failed: route=/api/password-reset tenant=%s %s",
+            tenant.slug,
+            error.detail,
+        )

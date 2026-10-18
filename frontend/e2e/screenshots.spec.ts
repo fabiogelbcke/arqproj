@@ -48,6 +48,14 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("heading", { name: "Entrar" }).waitFor();
   await shoot(page, "01-entrar");
 
+  await page.getByRole("link", { name: "Esqueceu a senha?" }).click();
+  await page.getByRole("heading", { name: "Esqueceu a senha?" }).waitFor();
+  await shoot(page, "01b-esqueci-a-senha");
+  await page.getByLabel("E-mail").fill("ana@alinea.example");
+  await page.getByRole("button", { name: "Enviar link" }).click();
+  await page.getByRole("heading", { name: "Confira seu e-mail" }).waitFor();
+  await shoot(page, "01c-link-enviado");
+
   await page.goto(invite("screens@alinea.example"));
   await page.getByRole("heading", { name: "Escolha sua senha" }).waitFor();
   await shoot(page, "02-definir-senha");

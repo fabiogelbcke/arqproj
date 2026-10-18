@@ -80,6 +80,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask Password Reset
+         * @description Emails a link to choose a new password to this office's account with that
+         *     address. The same answer, as fast, whether or not there is one: the email
+         *     goes after the response, so neither can tell who has an account.
+         */
+        post: operations["ask_password_reset_api_password_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tenant": {
         parameters: {
             query?: never;
@@ -1065,6 +1087,11 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** ResetIn */
+        ResetIn: {
+            /** Email */
+            email: string;
+        };
         /**
          * Role
          * @enum {string}
@@ -1124,6 +1151,10 @@ export interface components {
             /** Name */
             name: string;
             locale: components["schemas"]["Locale"];
+            /** Logo Url */
+            logo_url: string | null;
+            /** Logo Dark Url */
+            logo_dark_url: string | null;
         };
         /** UnlockIn */
         UnlockIn: {
@@ -1436,6 +1467,46 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    ask_password_reset_api_password_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

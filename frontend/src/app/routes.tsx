@@ -4,6 +4,7 @@ import { Navigate, Outlet, type RouteObject } from "react-router";
 
 import { type Locale, useOfficeLocale } from "../i18n";
 import { ChoosePasswordPage } from "../pages/ChoosePasswordPage";
+import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { SettingsDrivePage } from "../pages/SettingsDrivePage";
@@ -36,6 +37,7 @@ export const routes: RouteObject[] = [
     children: [
       { path: "entrar", element: <SignInPage /> },
       { path: "definir-senha", element: <ChoosePasswordPage /> },
+      { path: "esqueci-a-senha", element: <ForgotPasswordPage /> },
       {
         element: <SignedInLayout />,
         children: [

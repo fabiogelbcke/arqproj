@@ -24,7 +24,16 @@
     "email": "E-mail",
     "password": "Senha",
     "submit": "Entrar",
-    "forgot": "Esqueceu a senha? Peça um novo link ao responsável pelo escritório."
+    "forgot": "Esqueceu a senha?",
+    "with": "com"
+  },
+  "forgot": {
+    "title": "Esqueceu a senha?",
+    "intro": "Informe o e-mail que você usa no painel de {{office}}. Enviaremos um link para escolher uma nova senha.",
+    "submit": "Enviar link",
+    "sentTitle": "Confira seu e-mail",
+    "sent": "Se {{email}} tiver uma conta no painel de {{office}}, enviamos um link para escolher uma nova senha. Ele funciona por 24 horas. Não chegou? Veja a caixa de spam.",
+    "back": "Voltar para a entrada"
   },
   "choosePassword": {
     "titleInvite": "Escolha sua senha",
@@ -36,7 +45,8 @@
     "mismatch": "As senhas não são iguais.",
     "submit": "Salvar senha e entrar",
     "invalidTitle": "Este link não funciona mais",
-    "invalidBody": "Links para escolher a senha funcionam uma única vez e expiram. Peça um novo ao responsável pelo escritório.",
+    "invalidBody": "Links para escolher a senha funcionam uma única vez e expiram.",
+    "askAgain": "Pedir um novo link",
     "toSignIn": "Ir para a página de entrada"
   },
   "projects": {
@@ -454,7 +464,13 @@
       "unsubscribeAsk": "{{email}} não vai mais receber as novidades do projeto {{project}} por e-mail.",
       "unsubscribeConfirm": "Cancelar os e-mails",
       "unsubscribed": "Pronto. {{email}} não vai mais receber as novidades do projeto {{project}}.",
-      "unsubscribeInvalid": "Este link não funciona mais. Se ainda recebe e-mails que não quer, fale com o escritório."
+      "unsubscribeInvalid": "Este link não funciona mais. Se ainda recebe e-mails que não quer, fale com o escritório.",
+      "resetSubject": "Redefinir sua senha no painel de {{office}}",
+      "resetHello": "Olá, {{name}}.",
+      "resetIntro": "Recebemos um pedido para redefinir a sua senha no painel de {{office}}. Use o botão abaixo para escolher uma nova.",
+      "resetButton": "Escolher uma nova senha",
+      "resetExpiry": "O link funciona uma única vez e expira em 24 horas.",
+      "resetIgnore": "Se não foi você quem pediu, ignore este e-mail: sua senha continua a mesma."
   },
   "updates": {
       "label": "Atualizações",

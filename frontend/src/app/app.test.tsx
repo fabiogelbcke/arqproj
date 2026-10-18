@@ -182,6 +182,7 @@ describe("choosing a password", () => {
     window.location.hash = "#token=old";
     renderAt("/definir-senha");
     expect(await screen.findByRole("heading", { name: "Este link não funciona mais" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Pedir um novo link" })).toHaveAttribute("href", "/esqueci-a-senha");
   });
 
   it("shows the server's verdict on a short password in the user's language", async () => {
@@ -195,5 +196,52 @@ describe("choosing a password", () => {
     await userEvent.type(screen.getByLabelText(/Repita a senha/), "short");
     await userEvent.click(screen.getByRole("button", { name: "Salvar senha e entrar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("A senha precisa ter pelo menos 8 caracteres.");
+  });
+});
+
+describe("whose panel this is", () => {
+  it("shows Unio with the office's logo", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: { ...TENANT, logo_url: "/api/office/logo?v=1", logo_dark_url: null } }),
+      "GET /api/me": () => notSignedIn,
+    });
+    renderAt("/entrar");
+    expect(await screen.findByRole("img", { name: "Alinea" })).toHaveAttribute("src", "/api/office/logo?v=1");
+    expect(screen.getAllByRole("img", { name: "Unio" }).length).toBeGreaterThan(0);
+  });
+
+  it("or with its name, without a logo", async () => {
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    renderAt("/entrar");
+    expect(await screen.findByText("Alinea", { selector: "span" })).toBeInTheDocument();
+  });
+});
+
+describe("a forgotten password", () => {
+  it("asks for a link by email, and says the same whatever the address", async () => {
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+      "POST /api/password-reset": () => ({ status: 204 }),
+    });
+    renderAt("/entrar");
+    await userEvent.click(await screen.findByRole("link", { name: "Esqueceu a senha?" }));
+    await userEvent.type(await screen.findByLabelText(/E-mail/), "ana@alinea.example");
+    await userEvent.click(screen.getByRole("button", { name: "Enviar link" }));
+    expect(await screen.findByRole("heading", { name: "Confira seu e-mail" })).toBeInTheDocument();
+    expect(screen.getByText(/Se ana@alinea.example tiver uma conta no painel de Alinea/)).toBeInTheDocument();
+    expect(sent.find((r) => r.path === "/api/password-reset")?.body).toEqual({ email: "ana@alinea.example" });
+  });
+
+  it("says when to wait, after too many requests", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+      "POST /api/password-reset": () => ({ status: 429, body: { error: "too_many_attempts" } }),
+    });
+    renderAt("/esqueci-a-senha");
+    await userEvent.type(await screen.findByLabelText(/E-mail/), "ana@alinea.example");
+    await userEvent.click(screen.getByRole("button", { name: "Enviar link" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
 });

@@ -2,8 +2,9 @@
 
 Staff choose their own passwords; nobody else ever knows them. Whoever creates
 the account (the `staff` command now, an office owner in the painel later) gets a
-link to pass on. The token travels in the URL fragment (`#token=`), which
-browsers never send to the server, so it stays out of request logs.
+link to pass on; for a reset, the app emails one ("Esqueceu a senha?"). The
+token travels in the URL fragment (`#token=`), which browsers never send to the
+server, so it stays out of request logs.
 
 Like sessions, only a hash of the token is stored, a link is a tenant row (so it
 only works on its own office's address), it works once, and it expires.
@@ -15,7 +16,7 @@ import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.identity.models import LinkKind, PasswordLink, User
@@ -37,10 +38,26 @@ def url(host: str, token: str) -> str:
     return f"{base}{PATH}#token={token}"
 
 
+async def made_since(session: AsyncSession, user: User, kind: LinkKind, since: datetime) -> bool:
+    """Whether `user` already has an unused link of this kind made after `since`."""
+    found = await session.scalar(
+        select(PasswordLink.id).where(
+            PasswordLink.user_id == user.id,
+            PasswordLink.kind == kind,
+            PasswordLink.used_at.is_(None),
+            PasswordLink.created_at > since,
+        )
+    )
+    return found is not None
+
+
 async def create(session: AsyncSession, user: User, kind: LinkKind) -> str:
     """A new link for `user`; any earlier unused link of theirs stops working."""
+    # Retired as if used (the app may mark links used, not delete them).
     await session.execute(
-        delete(PasswordLink).where(PasswordLink.user_id == user.id, PasswordLink.used_at.is_(None))
+        update(PasswordLink)
+        .where(PasswordLink.user_id == user.id, PasswordLink.used_at.is_(None))
+        .values(used_at=func.now())
     )
     token = secrets.token_urlsafe(32)
     session.add(
