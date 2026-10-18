@@ -780,8 +780,12 @@ export function ProjectPage({
     const place = linked.current;
     if (!place || stageFiles === null) return;
     linked.current = null;
-    const group = filesFor(stageFiles, place.position).files?.groups.find((g) => (g.folder ?? null) === place.folder);
-    const file = group?.files.find((candidate) => candidate.name === place.name);
+    // Drive allows two subfolders, or two files, of the same name: the first in the
+    // page's order (stable ids wait for the document index, A25).
+    const file = filesFor(stageFiles, place.position)
+      .files?.groups.filter((g) => (g.folder ?? null) === place.folder)
+      .flatMap((g) => g.files)
+      .find((candidate) => candidate.name === place.name);
     if (!file) return;
     setOpenStage(place.position - 1);
     setPreview({ file, place });

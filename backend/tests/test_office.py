@@ -121,6 +121,14 @@ async def test_a_logo_is_stored_in_the_offices_folder_and_served_safely(client, 
     assert served.headers["content-type"] == "image/png"
 
 
+async def test_a_new_logo_of_the_same_type_gets_a_new_address(client, owner, tmp_path):
+    # Locally both are `_marca/logo.png`: only the address tells browsers it changed.
+    first = (await upload(client, owner, PNG)).json()["logo_url"]
+    second = (await upload(client, owner, PNG + b"\x00")).json()["logo_url"]
+    assert first != second
+    assert (await client.get(second, headers=ALINEA)).content == PNG + b"\x00"
+
+
 async def test_an_svg_with_a_script_is_served_so_nothing_in_it_runs(client, owner):
     saved = await upload(client, owner, SVG, "logo.svg")
     served = await client.get(saved.json()["logo_url"], headers=ALINEA)

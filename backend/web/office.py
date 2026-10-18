@@ -26,7 +26,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
@@ -240,6 +240,9 @@ async def upload_logo(
     ids = await _store(request, db, tenant, found, files)
     found.logo_file_id, found.logo_type = ids[next(iter(files))], logo_type
     found.logo_png_file_id = ids.get("logo.png") if logo_type is LogoType.SVG else None
+    # A new logo, a new address, even when its id stays the same (a local folder
+    # overwrites `_marca/logo.png`): otherwise browsers keep showing the old one.
+    found.updated_at = func.now()
     await db.commit()
     await _trash(request, db, *(p for p in previous if p not in ids.values()))
     await db.refresh(found)

@@ -906,6 +906,20 @@ describe("the page's file tools", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("a file's address finds it in a second subfolder of the same name", async () => {
+    const other = file("e", "Corte.pdf", "pdf", "2026-10-03T12:00:00Z");
+    const stages = [
+      // Drive allows sibling folders with the same name.
+      { position: 1, groups: [{ folder: "Revisão", files: FILES.stages[0]!.groups[0]!.files }, { folder: "Revisão", files: [other] }] },
+      ...FILES.stages.slice(1),
+    ];
+    at("/casa-jardim?etapa=1&pasta=Revis%C3%A3o&arquivo=Corte.pdf", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { ...FILES, stages } }),
+    });
+    expect(await screen.findByRole("dialog", { name: "Corte.pdf" })).toBeInTheDocument();
+  });
+
   it("a file's address names its subfolder, so a file of the same name elsewhere isn't opened", async () => {
     const twin = file("e", "Programa.pdf", "image", "2026-10-03T12:00:00Z");
     const stages = [
