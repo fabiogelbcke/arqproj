@@ -109,8 +109,9 @@ addresses go through the load balancer (plan A21) once it is built. Secrets:
 `portal-resend-api-key` (production's, shared with the current site until Alinea
 moves). Drive uses the production OAuth client
 `496714293251-ov1b5fd8gir885g9p51qsrbn9gbq6l7i`, whose redirect URIs must include
-`https://portal-production-496714293251.us-east1.run.app/api/drive/callback`;
-files are read as `portal-production@`. Emails send from `myunio.app` (verified
+`https://myunio.app/api/drive/callback` (one shared return address that forwards to
+the office that started; it works once `myunio.app` reaches this service through
+the load balancer); files are read as `portal-production@`. Emails send from `myunio.app` (verified
 in Resend), Alinea's from `alineaarquitetos.com`.
 
 ## Images: Artifact Registry `portal`

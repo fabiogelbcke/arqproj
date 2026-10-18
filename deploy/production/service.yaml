@@ -40,10 +40,12 @@ spec:
               value: portal-production@arq-proj.iam
             # Google Drive connection (docs/infrastructure.md, "Production"): the
             # production OAuth client, shared with the current site until Alinea moves.
+            # Its final return address, which works once myunio.app reaches this
+            # service through the load balancer (A21); no office connects before.
             - name: GOOGLE_OAUTH_CLIENT_ID
               value: 496714293251-ov1b5fd8gir885g9p51qsrbn9gbq6l7i.apps.googleusercontent.com
             - name: GOOGLE_OAUTH_REDIRECT_URI
-              value: https://portal-production-496714293251.us-east1.run.app/api/drive/callback
+              value: https://myunio.app/api/drive/callback
             - name: DRIVE_READER_IDENTITY
               value: portal-production@arq-proj.iam.gserviceaccount.com
             # Cloud Scheduler's call to /internal/maintenance (A09, A19): the token must
