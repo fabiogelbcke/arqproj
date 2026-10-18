@@ -4,16 +4,16 @@ Another account can't reach the old folders, so each project gets a new, empty
 folder in the new account: the app may now change `projects.folder_id` (it may
 already change its stages' folders and its cover).
 
-Revision: 0028
-Previous: 0027
+Revision: 0029
+Previous: 0028
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0028"
-down_revision: str | None = "0027"
+revision: str = "0029"
+down_revision: str | None = "0028"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
