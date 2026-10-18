@@ -3,6 +3,7 @@ saying whether an account exists."""
 
 import logging
 import re
+import time
 
 import anyio
 import pytest
@@ -47,6 +48,7 @@ async def sent(db_session, monkeypatch):
     attempts.reset()
     box = Sent()
     monkeypatch.setattr(auth, "sender_for", lambda settings, http: box)
+    monkeypatch.setattr(auth, "RESET_ANSWER_AT", 0)  # fast tests; its own test below
     yield box
     attempts.reset()
 
@@ -82,6 +84,14 @@ async def test_the_answer_is_the_same_without_an_account(client, sent):
     for email in ("nobody@alinea.example", "rui@norte.example"):  # none here, or another office's
         assert (await ask(client, email)).status_code == 204
     assert sent.emails == []
+
+
+async def test_no_answer_comes_sooner_without_an_account(client, sent, monkeypatch):
+    monkeypatch.setattr(auth, "RESET_ANSWER_AT", 0.3)
+    for email in ("nobody@alinea.example", "ana@alinea.example"):
+        started = time.monotonic()
+        await ask(client, email)
+        assert time.monotonic() - started >= 0.3
 
 
 async def test_the_link_never_takes_its_address_from_the_request(client, sent):

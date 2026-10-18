@@ -48,6 +48,7 @@ FAILED_LOGIN_DELAY = 1.0
 # few requests from one device in 15 minutes (counted as the client pages' tries).
 RESET_EVERY = timedelta(minutes=2)
 RESET_TRIES = "password-reset"
+RESET_ANSWER_AT = 0.5  # seconds: every request answers this late, at the earliest
 _LOCK_RESET = text("SELECT pg_advisory_xact_lock(hashtext('password-reset'), hashtext(:user))")
 
 log = logging.getLogger(__name__)
@@ -266,24 +267,37 @@ async def ask_password_reset(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
     """Emails a link to choose a new password to this office's account with that
-    address. The same answer, as fast, whether or not there is one: the email
-    goes after the response, so neither can tell who has an account."""
+    address. The same answer whether or not there is one, and no sooner: every
+    request takes RESET_ANSWER_AT, and the email goes after the response, so
+    neither the answer nor its timing tells who has an account."""
     who = attempts.device(request)
     if not attempts.admit(RESET_TRIES, who):
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
     attempts.failed(RESET_TRIES, who)  # every request counts toward the limit
-    user = await accounts.find_user(db, body.email)
+    started = anyio.current_time()
+    email = await _reset_link(body.email, request, tenant, db)
+    await db.commit()  # the connection goes back before the wait
+    await anyio.sleep(max(0.0, RESET_ANSWER_AT - (anyio.current_time() - started)))
+    if email is not None:
+        background.add_task(_send, request, tenant, email)
+
+
+async def _reset_link(
+    address: str, request: Request, tenant: CurrentTenant, db: AsyncSession
+) -> Email | None:
+    """A new reset link for the account with this address, as its email; None
+    without an account, or when one went in the last RESET_EVERY."""
+    user = await accounts.find_user(db, address)
     if user is None:
-        return
+        return None
     # One request per account at a time, until this transaction ends: two at once
     # must not both find no recent link and both send.
     await db.execute(_LOCK_RESET, {"user": str(user.id)})
     if await links.made_since(db, user, LinkKind.RESET, datetime.now(UTC) - RESET_EVERY):
-        return
+        return None
     token = await links.create(db, user, LinkKind.RESET)
     office = await office_of(db, request.app.state.settings, tenant.id)
-    await db.commit()
-    background.add_task(_send, request, tenant, reset_email(office, user.name, user.email, token))
+    return reset_email(office, user.name, user.email, token)
 
 
 async def _send(request: Request, tenant: CurrentTenant, email: Email) -> None:
