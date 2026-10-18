@@ -2,11 +2,13 @@
 // markup: its stylesheet (prototype.css) styles these same class names.
 import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton } from "./EditButton";
 import { UpdatesBell } from "./Updates";
+import { FilePreview, FileToolbar, shownFiles, usePrefs, type FileView } from "./FileTools";
 
 // Staff editing code loads only once staff press "Editar" (A20): visitors never get it.
 const DescriptionEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DescriptionEditor })));
@@ -78,30 +80,24 @@ function FileCard({
   slug,
   timeZone,
   menu,
+  onOpen,
 }: {
   file: FileItem;
   slug: string;
   timeZone: string;
   menu?: ReactNode; // edit mode: the file's "⋯"
+  onOpen: () => void; // its preview (FilePreview)
 }) {
   const { t, i18n } = useTranslation();
   // Only images and PDFs have previews (Drive's); other files show their type.
   const [thumb, setThumb] = useState<"thumb" | "original" | "none">(file.kind === "other" ? "none" : "thumb");
   const url = `/api/pages/${slug}/files/${encodeURIComponent(file.key)}`;
-  const opens = file.kind === "image" || file.kind === "pdf";
   const extension = file.name.includes(".") ? file.name.split(".").pop()!.toUpperCase() : "";
   // Drive's preview first; for an image without one (local folders), the image itself.
   const src = thumb === "thumb" ? `${url}/thumb` : thumb === "original" ? `${url}?inline=true` : null;
   return (
     <div className="file">
-      <a
-        className="file__open"
-        href={opens ? `${url}?inline=true` : url}
-        // A download is sent as an attachment, so the page stays; if it fails,
-        // the browser shows the server's short translated page.
-        {...(opens ? { target: "_blank", rel: "noopener" } : {})}
-        aria-label={t(opens ? "page.openFile" : "page.downloadFile", { name: file.name })}
-      >
+      <button className="file__open" type="button" onClick={onOpen} aria-label={t("page.openFile", { name: file.name })}>
         <span className="file__thumb">
           {src ? (
             <img
@@ -126,7 +122,7 @@ function FileCard({
               .join(", ")}
           </span>
         </span>
-      </a>
+      </button>
       {menu}
     </div>
   );
@@ -138,12 +134,16 @@ function StageFilesList({
   slug,
   timeZone,
   fileMenu,
+  view,
+  onOpen,
 }: {
   files: StageFiles | undefined;
   reference: string | null;
   slug: string;
   timeZone: string;
   fileMenu?: (file: FileItem) => ReactNode;
+  view: FileView;
+  onOpen: (file: FileItem) => void;
 }) {
   const { t } = useTranslation();
   if (!files) return null; // still loading
@@ -160,9 +160,16 @@ function StageFilesList({
       {files.groups.map((group) => (
         <div key={group.folder ?? ""} className="file-group">
           {group.folder && <h3 className="file-group__title">{group.folder}</h3>}
-          <div className="files" data-view="grid">
+          <div className="files" data-view={view}>
             {group.files.map((file) => (
-              <FileCard key={file.key} file={file} slug={slug} timeZone={timeZone} menu={fileMenu?.(file)} />
+              <FileCard
+                key={file.key}
+                file={file}
+                slug={slug}
+                timeZone={timeZone}
+                menu={fileMenu?.(file)}
+                onOpen={() => onOpen(file)}
+              />
             ))}
           </div>
         </div>
@@ -435,6 +442,10 @@ function Stage({
   controls,
   uploads,
   fileMenu,
+  view = "grid",
+  hidden = false,
+  total,
+  onOpenFile,
 }: {
   page: Page;
   index: number;
@@ -447,6 +458,10 @@ function Stage({
   controls?: ReactNode;
   uploads?: ReactNode; // edit mode: the drop area
   fileMenu?: (file: FileItem) => ReactNode;
+  view?: FileView;
+  hidden?: boolean; // a search or filter found nothing here
+  total?: number; // its files before any search or filter
+  onOpenFile: (file: FileItem) => void;
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -483,6 +498,7 @@ function Stage({
       className={`stage ${open ? "is-expanded " : ""}${state}`}
       id={`stage-${index}`}
       aria-labelledby={`st-${index}`}
+      hidden={hidden}
     >
       <span className="stage__n">{pad(index + 1)}</span>
       <div className="stage__head">
@@ -511,8 +527,11 @@ function Stage({
           {state === "current" && <span className="pill pill--current">{t("page.stageCurrent")}</span>}
           {files && !files.unavailable && (
             <span>
-              {countFiles(files)
-                ? t("page.fileCount", { count: countFiles(files), padded: pad(countFiles(files)) })
+              {(total ?? countFiles(files))
+                ? t("page.fileCount", {
+                    count: total ?? countFiles(files),
+                    padded: pad(total ?? countFiles(files)),
+                  })
                 : t("page.noFilesShort")}
             </span>
           )}
@@ -541,6 +560,8 @@ function Stage({
             slug={slug}
             timeZone={page.timezone}
             fileMenu={fileMenu}
+            view={view}
+            onOpen={onOpenFile}
           />
           {uploads}
         </div>
@@ -713,13 +734,34 @@ export function ProjectPage({
   };
   // One stage open at a time: the current one, until the client opens another.
   const [openStage, setOpenStage] = useState(() => Math.max(0, (page.current_position ?? 1) - 1));
+  // The file tools (FileTools): search, type, order, view, and the file in preview.
+  const [query, setQuery] = useState("");
+  const [prefs, setPrefs] = usePrefs();
+  const [preview, setPreview] = useState<FileItem | null>(null);
+  const filtering = query.trim() !== "" || prefs.type !== "all";
+  // While filtering, every stage with a match opens; these are the ones closed since.
+  const [closed, setClosed] = useState<ReadonlySet<number>>(new Set());
+  useEffect(() => setClosed(new Set()), [query, prefs.type]);
+  const shown = page.stages.map((stage, i) => {
+    const files = filesFor(stageFiles, i + 1).files;
+    return files ? shownFiles(files, stage.title, query, prefs) : { files: undefined, count: 0 };
+  });
+  const unreadable = (i: number) => Boolean(filesFor(stageFiles, i + 1).files?.unavailable);
+  const hasFiles = shown.some((_, i) => countFiles(filesFor(stageFiles, i + 1).files) > 0);
 
   useEffect(() => {
     document.title = `${page.name} · ${page.office.name}`;
   }, [page.name, page.office.name]);
 
   const jump = (index: number) => {
-    setOpenStage(index);
+    // A stage hidden by the search or the type filter must show before it is reached.
+    flushSync(() => {
+      if (filtering) {
+        setQuery("");
+        setPrefs({ type: "all" });
+      }
+      setOpenStage(index);
+    });
     const section = document.getElementById(`stage-${index}`);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     section?.scrollIntoView({ behavior: reduce ? "instant" : "smooth", block: "start" });
@@ -736,10 +778,7 @@ export function ProjectPage({
               page={page}
               slug={slug}
               updates={stageFiles.updates}
-              onStage={(index) => {
-                setOpenStage(index);
-                document.getElementById(`stage-${index}`)?.scrollIntoView({ block: "start" });
-              }}
+              onStage={jump}
             />
           )
         }
@@ -809,15 +848,44 @@ export function ProjectPage({
             <ProgressRail page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
           </Suspense>
         )}
+        {(hasFiles || filtering) && (
+          <FileToolbar
+            query={query}
+            onQuery={setQuery}
+            prefs={prefs}
+            onPrefs={setPrefs}
+            found={filtering ? shown.reduce((sum, stage) => sum + stage.count, 0) : null}
+            narrow={narrow}
+          />
+        )}
         {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
         {page.stages.map((_, i) => (
           <Stage
             key={i}
             page={page}
             index={i}
-            open={i === openStage}
-            onToggle={() => setOpenStage(i === openStage ? -1 : i)}
+            // Searching or filtering opens every stage with a match and hides the rest,
+            // except one whose files couldn't be read: it says so.
+            open={
+              filtering
+                ? (shown[i]!.count > 0 || unreadable(i)) && !closed.has(i)
+                : i === openStage
+            }
+            hidden={filtering && shown[i]!.count === 0 && !unreadable(i)}
+            onToggle={() =>
+              filtering
+                ? setClosed((was) => {
+                    const next = new Set(was);
+                    if (!next.delete(i)) next.add(i);
+                    return next;
+                  })
+                : setOpenStage(i === openStage ? -1 : i)
+            }
             {...filesFor(stageFiles, i + 1)}
+            files={shown[i]!.files}
+            total={countFiles(filesFor(stageFiles, i + 1).files)}
+            view={prefs.view}
+            onOpenFile={setPreview}
             slug={slug}
             uploads={
               canEdit ? (
@@ -887,6 +955,7 @@ export function ProjectPage({
           onPublished={() => onChanged?.()}
         />
       )}
+      {preview && <FilePreview file={preview} slug={slug} page={page} onClose={() => setPreview(null)} />}
       <Toaster />
     </div>
   );
