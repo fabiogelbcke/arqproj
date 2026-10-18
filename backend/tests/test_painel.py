@@ -83,9 +83,14 @@ async def test_every_response_names_its_build(app, client, tenants):
     assert (await client.get("/health")).headers["x-build-id"] == app.state.settings.build_id
 
 
-async def test_the_office_name_and_language_are_public(client, tenants):
+async def test_the_office_name_language_and_logo_are_public(client, tenants):
     response = await client.get("/api/tenant", headers=ALINEA)
-    assert response.json() == {"name": "Alinea (dev)", "locale": "pt-BR"}
+    assert response.json() == {
+        "name": "Alinea (dev)",
+        "locale": "pt-BR",
+        "logo_url": None,  # none uploaded yet (test_office covers one)
+        "logo_dark_url": None,
+    }
 
 
 # -- translations (plan A26) -----------------------------------------------

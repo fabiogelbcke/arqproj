@@ -9,6 +9,7 @@ import { useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
+import { AuthBrand } from "./AuthBrand";
 import styles from "./pages.module.css";
 
 export const MIN_PASSWORD_LENGTH = 8; // backend.identity.accounts; the server checks it too
@@ -49,9 +50,13 @@ export function ChoosePasswordPage() {
     return (
       <main className={styles.centered}>
         <div className={styles.card}>
+          <AuthBrand />
           <h1 className={styles.title}>{t("choosePassword.invalidTitle")}</h1>
           <p className={styles.lead}>{t("choosePassword.invalidBody")}</p>
-          <Link to="/entrar">{t("choosePassword.toSignIn")}</Link>
+          <Link to="/esqueci-a-senha">{t("choosePassword.askAgain")}</Link>
+          <Link className={styles.small} to="/entrar">
+            {t("choosePassword.toSignIn")}
+          </Link>
         </div>
       </main>
     );
@@ -66,6 +71,7 @@ export function ChoosePasswordPage() {
   return (
     <main className={styles.centered}>
       <div className={styles.card}>
+        <AuthBrand />
         <div>
           <h1 className={styles.title}>
             {t(link.data.kind === "invite" ? "choosePassword.titleInvite" : "choosePassword.titleReset")}

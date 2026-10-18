@@ -1,13 +1,14 @@
 import { useMutation } from "@tanstack/react-query";
 import { Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 
 import { api, call } from "../api/client";
-import { useMe, useSignedIn, useTenant } from "../session/session";
+import { useMe, useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
+import { AuthBrand } from "./AuthBrand";
 import styles from "./pages.module.css";
 
 /** Only paths inside the painel, so a crafted link cannot send people elsewhere. */
@@ -17,7 +18,6 @@ export function safeNext(next: string | null): string {
 
 export function SignInPage() {
   const { t } = useTranslation();
-  const tenant = useTenant();
   const me = useMe();
   const signedIn = useSignedIn();
   const navigate = useNavigate();
@@ -35,10 +35,9 @@ export function SignInPage() {
   return (
     <main className={styles.centered}>
       <div className={styles.card}>
-        <div>
-          <h1 className={styles.title}>{t("signIn.title")}</h1>
-          {tenant.data && <p className={styles.lead}>{t("signIn.intro", { office: tenant.data.name })}</p>}
-        </div>
+        <AuthBrand />
+        {/* The logos above say whose panel this is; the heading is for screen readers. */}
+        <h1 className="sr-only">{t("signIn.title")}</h1>
         <Form
           onSubmit={(event) => {
             event.preventDefault();
@@ -59,7 +58,9 @@ export function SignInPage() {
             {t("signIn.submit")}
           </Button>
         </Form>
-        <p className={styles.small}>{t("signIn.forgot")}</p>
+        <Link className={styles.small} to="/esqueci-a-senha">
+          {t("signIn.forgot")}
+        </Link>
       </div>
     </main>
   );

@@ -149,6 +149,12 @@ async def test_a_dark_mode_logo_is_kept_beside_the_logo_and_can_be_dropped(clien
     # The client page knows both.
     page = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()["office"]
     assert page["logo_dark_url"] == urls["logo_dark_url"]
+    # So does the sign-in page (a public answer).
+    public = (await client.get("/api/tenant", headers=ALINEA)).json()
+    assert (public["logo_url"], public["logo_dark_url"]) == (
+        urls["logo_url"],
+        urls["logo_dark_url"],
+    )
 
     dropped = await client.delete("/api/office/logo/dark", headers=owner)
     assert dropped.json()["logo_dark_url"] is None

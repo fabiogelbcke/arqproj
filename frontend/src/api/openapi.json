@@ -208,6 +208,48 @@
         }
       }
     },
+    "/api/password-reset": {
+      "post": {
+        "summary": "Ask Password Reset",
+        "description": "Emails a link to choose a new password to this office's account with that\naddress. The same answer whether or not there is one, and no sooner: every\nrequest takes RESET_ANSWER_AT, and the email goes after the response, so\nneither the answer nor its timing tells who has an account.",
+        "operationId": "ask_password_reset_api_password_reset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tenant": {
       "get": {
         "summary": "Tenant",
@@ -3938,6 +3980,19 @@
         ],
         "title": "RenameIn"
       },
+      "ResetIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "ResetIn"
+      },
       "Role": {
         "type": "string",
         "enum": [
@@ -4065,12 +4120,36 @@
           },
           "locale": {
             "$ref": "#/components/schemas/Locale"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "logo_dark_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Dark Url"
           }
         },
         "type": "object",
         "required": [
           "name",
-          "locale"
+          "locale",
+          "logo_url",
+          "logo_dark_url"
         ],
         "title": "TenantOut"
       },
