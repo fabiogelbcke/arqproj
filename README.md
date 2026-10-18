@@ -325,8 +325,20 @@ gcloud scheduler jobs create http portal-staging-maintenance --project arq-proj 
   --oidc-token-audience https://portal-staging-496714293251.us-east1.run.app
 ```
 
-Its address and account match `MAINTENANCE_AUDIENCE` and `MAINTENANCE_CALLER` in
-`deploy/staging/service.yaml`. To run a pass at once: `gcloud scheduler jobs run
+Production's job is the same against the `portal` service, created right after
+its first deploy (until then the old site would answer):
+
+```bash
+gcloud scheduler jobs create http portal-production-maintenance --project arq-proj \
+  --location us-east1 --schedule "*/10 * * * *" --time-zone "America/Sao_Paulo" \
+  --uri https://portal-496714293251.us-east1.run.app/internal/maintenance \
+  --http-method POST --attempt-deadline 300s \
+  --oidc-service-account-email portal-scheduler@arq-proj.iam.gserviceaccount.com \
+  --oidc-token-audience https://portal-496714293251.us-east1.run.app
+```
+
+Their addresses and account match `MAINTENANCE_AUDIENCE` and `MAINTENANCE_CALLER`
+in `deploy/staging/service.yaml` and `deploy/production/service.yaml`. To run a pass at once: `gcloud scheduler jobs run
 portal-staging-maintenance --project arq-proj --location us-east1`.
 
 Staging reads its key from the secret `portal-staging-resend-api-key`.
@@ -437,29 +449,21 @@ must use that port and be registered on the client too; the launcher checks it.
 
 ## Cloud Run
 
-**Deploying:** every push or merge to `main` on GitHub deploys automatically: a
-Cloud Build trigger builds the code and updates the Cloud Run service `portal`
-(us-east1), which serves alineaarquitetos.com. There is no manual deploy step;
-the old local `deploy.sh` is retired. Treat a push to `main` as a production
-release.
+**Deploying:** merging into `staging` deploys staging (`portal-staging`,
+`staging.myunio.app`); merging `staging` into `main` deploys production (`portal`,
+`alineaarquitetos.com` and `myunio.app`). There is no manual deploy step. Treat a
+merge into `main` as a production release. Production builds nothing: it runs the
+image staging built and tested from the same code, and refuses code that never
+ran on staging (docs/infrastructure.md, "Deploys").
 
-The trigger only rebuilds code; the service keeps its settings between deploys.
-Change settings on the service itself (`gcloud run services update portal
---region us-east1 --update-env-vars …`), keep secrets in Secret Manager, and
-never replace the whole set at once. Current production settings include the
-fixed-folder ones below plus the Drive connection: `OAUTH_CLIENT_ID`,
-`OAUTH_REDIRECT_URI=https://alineaarquitetos.com/painel/drive/callback`,
-`OAUTH_CLIENT_SECRET` (secret `portal-oauth-client-secret`),
-`PORTAL_STATE_BUCKET=arq-proj-portal-state`, `SERVICE_ACCOUNT_EMAIL` and
-`PROJECTS_SOURCE=connection`.
+**Settings live in the repository:** `deploy/staging/service.yaml` and
+`deploy/production/service.yaml`. Every deploy replaces the service's settings with
+that file, so a setting changed on the service itself (`gcloud run services
+update …`, or the Cloud Console) is undone by the next deploy. Change them in a
+pull request; secrets stay in Secret Manager and the files name them.
 
-The app is set up for Cloud Run source deploys:
-
-- `Procfile` runs gunicorn, and `.python-version` pins Python 3.13 (the google-24 builder only offers 3.13+).
-- `.gcloudignore` keeps `.env`, `*.json` keys, tests and sample data out of the upload.
-- **No key on Cloud Run.** When no key variable is set and `K_SERVICE` exists (Cloud Run sets it), the app gets tokens from the metadata server for the service account attached to the service. Deploy with `--service-account <the account Drive is shared with>`, and don't set `GOOGLE_APPLICATION_CREDENTIALS` there.
-- Downloads are sent chunked (no `Content-Length`), so files larger than Cloud Run's 32 MiB limit on sized HTTP/1 responses still stream through.
-- Pass the app settings (`DRIVE_ROOT_FOLDER_ID`, `SITE_NAME`, `SITE_LANG`, …) as env vars on the service.
+The old Flask site (`app.py`, `Procfile`, buildpacks) no longer deploys: its
+trigger is disabled (docs/infrastructure.md).
 
 ## Environment
 
