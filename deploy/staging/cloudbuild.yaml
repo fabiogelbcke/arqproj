@@ -79,7 +79,9 @@ steps:
     args:
       - -c
       - >-
-        newest=$$(git ls-remote https://github.com/fabiogelbcke/arqproj.git refs/heads/staging | cut -f1);
+        newest=$$(git ls-remote https://github.com/fabiogelbcke/arqproj.git refs/heads/staging) &&
+        newest=$$(echo "$$newest" | cut -f1) && test -n "$$newest" ||
+        { echo "Could not read staging's head from GitHub; not deploying blind"; exit 1; };
         if [ "$$newest" != "$COMMIT_SHA" ]; then
         echo "staging is now at $$newest; that build deploys instead of $COMMIT_SHA" | tee /workspace/superseded; fi
 
