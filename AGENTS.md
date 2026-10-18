@@ -39,11 +39,22 @@ may say "office", meaning a tenant.
 
 ### Searching code
 
-When Jev is available (for example in Claude Code or the Codex CLI), use it to
-locate code by behaviour or to check a property across many files. Scope searches
-to the relevant directories when known, then read the matching sections. Use
-ordinary text search for exact names. Read enough surrounding code to make edits
-safely. If Jev fails, report it.
+When Jev is available (the `jev` command, for example in Claude Code or the
+Codex CLI):
+
+- **First step of a task whose files you don't already know:** run
+  `jev find "<the task in plain words>" backend frontend/src` before searching or
+  opening files, then read the files and lines it returns. A fresh session knows
+  no files, so this is most tasks. One search takes about 15 seconds and costs
+  under a cent.
+- **Checking a property across many files** ("does every route check the
+  tenant?"): `jev ask "<yes/no question>" <files or directory>`.
+- Use ordinary text search for exact names you already know, and for the docs:
+  Jev reads code by its declarations, so it does not find things in prose.
+- In Claude Code, open files with the Read tool, not `cat` or `sed`: Jev's hook
+  narrows a large file to the part that answers the request only on a Read.
+
+Read enough surrounding code to make edits safely. If Jev fails, report it.
 
 ### Runtime code vs one-off code (`backend/`)
 
