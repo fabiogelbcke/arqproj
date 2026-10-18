@@ -274,6 +274,18 @@ async def test_the_apps_own_addresses_are_never_a_page(client, dist, owner):
     assert (await client.get("/api", headers=ALINEA)).text == "Not found"  # reserved
 
 
+@pytest.mark.parametrize("host", [ALINEA, NORTE])
+async def test_the_example_project_is_on_every_offices_address(client, dist, owner, host):
+    """Plan section 16: its content is in the client page's bundle, for anyone."""
+    client.cookies.clear()  # a visitor, too
+    response = await client.get("/tour-projeto", headers=host)
+    assert response.status_code == 200
+    assert "page" in response.text  # the client page's shell
+    # In capitals, the lowercase address, as for any page.
+    moved = await client.get("/Tour-Projeto", headers=host, follow_redirects=False)
+    assert (moved.status_code, moved.headers["location"]) == (301, "/tour-projeto")
+
+
 async def test_staff_see_the_clients_page_plus_what_the_staff_bar_needs(client, owner):
     as_staff = (await page(client, "casa-jardim")).json()
     assert as_staff["staff"]["status"] == "active" and as_staff["staff"]["project_id"]

@@ -1,0 +1,398 @@
+// The example project's stand-in for the API (plan section 16): the page's calls
+// are answered here, in memory, like the tests' fakeApi. Nothing reaches the
+// office's Drive or database, and a reload starts over. Only reads go to the
+// server: who is signed in, the office's name and logo, and the lists of project
+// types and details the editors offer. Every other /api request stays here.
+import type { Schemas } from "../../api/client";
+import { fileSource, type Page } from "../format";
+import { EXAMPLE_SLUG } from "./address";
+import { atOfficeTime, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
+
+const READS = ["/api/me", "/api/tenant", "/api/project-types", "/api/detail-types"];
+const PROJECT = `/api/projects/${EXAMPLE_SLUG}`; // the example's project id is its address
+const PAGE = `/api/pages/${EXAMPLE_SLUG}`;
+const UPLOADS = "/exemplo-upload/"; // where the page "sends" a file: ExampleUpload below
+
+type Reply = { status?: number; body?: unknown };
+type Body = Record<string, unknown>;
+type Route = [method: string, path: RegExp, answer: (match: string[], body: Body, request: Request) => Reply | Promise<Reply>];
+
+const done: Reply = { status: 204 };
+const refused = (error: Schemas["ErrorCode"], status = 422): Reply => ({ status, body: { error } });
+
+/** Answers the example page's API calls from now on, starting from the fixture. */
+export function installExampleApi(now = new Date()) {
+  const real: typeof fetch = (globalThis.fetch as { real?: typeof fetch }).real ?? globalThis.fetch;
+  let timeZone = EXAMPLE_TIMEZONE;
+  let project: ExampleProject = exampleProject(now, timeZone);
+  let office: Page["office"] = { name: "", logo_url: null, logo_dark_url: null };
+  let signedIn = false;
+  let version = 1; // the page's row version: each change makes a new one
+  let options: Schemas["CreationOptions"] | null = null;
+  let detailTypes: Schemas["DetailTypeOut"][] | null = null;
+  const pending = new Map<string, { position: number; name: string }>();
+  let counter = 0;
+  const id = () => `exemplo-n${(counter += 1)}`;
+
+  const page = (): Page => ({
+    office,
+    locale: "pt-BR",
+    timezone: timeZone,
+    name: project.name,
+    client_name: project.client_name,
+    project_type: project.project_type,
+    project_type_key: project.project_type_key,
+    description: project.description,
+    cover_url: project.cover_url,
+    completed: project.status === "completed",
+    current_position: project.stages.length ? project.current_position : null,
+    last_update: project.last_update,
+    details: project.details,
+    stages: project.stages.map(({ title, about, notes }, i) => ({ position: i + 1, title, about, notes })),
+    next_meeting: project.next_meeting,
+    // Staff see the staff bar and can try edit mode.
+    staff: signedIn ? { project_id: EXAMPLE_SLUG, status: project.status, row_version: version } : null,
+  });
+
+  const files = (): Schemas["PageFilesOut"] => ({
+    stages: project.stages.map((stage, i) => ({
+      position: i + 1,
+      unavailable: false,
+      groups: stage.groups
+        .filter((group) => group.files.length)
+        .map((group) => ({ folder: group.folder, files: group.files.map(({ url: _url, ...shown }) => shown) })),
+    })),
+    updates: project.updates,
+  });
+
+  const find = (key: string) => {
+    for (const stage of project.stages)
+      for (const group of stage.groups) {
+        const index = group.files.findIndex((file) => file.key === key);
+        if (index >= 0) return { group, index, file: group.files[index]! };
+      }
+    return null;
+  };
+  const addFile = (position: number, file: ExampleFile) => {
+    const stage = project.stages[position - 1]!;
+    const top = stage.groups.find((group) => group.folder === null);
+    if (top) top.files.push(file);
+    else stage.groups.unshift({ folder: null, files: [file] });
+  };
+
+  /** One more change: a new row version, the page's date, and what the client
+   *  sees in "Atualizações". */
+  const changed = (update?: Omit<Schemas["UpdateOut"], "id" | "occurred_at">) => {
+    version += 1;
+    const at = new Date().toISOString();
+    project.last_update = at;
+    if (update) project.updates.unshift({ id: id(), occurred_at: at, ...update });
+    return done;
+  };
+  const stage = (match: string[]) => project.stages[Number(match[1]) - 1];
+
+  const routes: Route[] = [
+    ["GET", new RegExp(`^${PAGE}$`), () => ({ body: page() })],
+    ["GET", new RegExp(`^${PAGE}/files$`), () => ({ body: files() })],
+    ["POST", /^\/api\/me\/tour-seen$/, () => done], // the example's tour stores nothing
+    [
+      "PATCH",
+      new RegExp(`^${PROJECT}$`),
+      (_, body) => {
+        if (typeof body.name === "string" && body.name.trim()) project.name = body.name.trim();
+        return changed();
+      },
+    ],
+    [
+      "PATCH",
+      new RegExp(`^${PROJECT}/content$`),
+      async (_, body) => {
+        if (typeof body.description === "string") project.description = body.description;
+        if (Array.isArray(body.details)) {
+          const types = (detailTypes ??= await list<Schemas["DetailTypeOut"][]>("/api/detail-types")) ?? [];
+          project.details = (body.details as Schemas["DetailIn"][]).map(({ key, value }) => {
+            const type = types.find((t) => t.key === key) ?? project.details.find((d) => d.key === key);
+            const kind = type?.type ?? "text";
+            return { key, label: type?.label ?? key, type: kind, value: kind === "area" ? Number(value) : value };
+          });
+        }
+        if (typeof body.project_type === "string") {
+          const types = (options ??= await list<Schemas["CreationOptions"]>("/api/project-types"))?.types ?? [];
+          const chosen = types.find((type) => type.key === body.project_type);
+          if (chosen) [project.project_type_key, project.project_type] = [chosen.key, chosen.label];
+        }
+        return changed();
+      },
+    ],
+    [
+      "PUT",
+      new RegExp(`^${PROJECT}/meeting$`),
+      (_, body) => {
+        const day = String(body.day);
+        const starts = atOfficeTime(day, String(body.start), timeZone);
+        const ends = body.end
+          ? atOfficeTime(day, String(body.end), timeZone)
+          : new Date(Date.parse(starts) + 60 * 60 * 1000).toISOString();
+        const kind = project.next_meeting ? "meeting_changed" : "meeting_scheduled";
+        project.next_meeting = {
+          title: String(body.title),
+          starts_at: starts,
+          ends_at: ends,
+          location: (body.location as string | null) || null,
+          link: (body.link as string | null) || null,
+        };
+        return changed({ kind, stage_position: null });
+      },
+    ],
+    [
+      "DELETE",
+      new RegExp(`^${PROJECT}/meeting$`),
+      () => {
+        const name = project.next_meeting?.title ?? null;
+        project.next_meeting = null;
+        return changed({ kind: "meeting_cleared", stage_position: null, name });
+      },
+    ],
+    [
+      "PUT",
+      new RegExp(`^${PROJECT}/stages/(\\d+)/notes$`),
+      (match, body) => {
+        const found = stage(match);
+        if (!found) return refused("project_not_found", 404);
+        found.notes = String(body.notes ?? "");
+        return changed(found.notes ? { kind: "note_changed", stage_position: Number(match[1]) } : undefined);
+      },
+    ],
+    [
+      "PATCH",
+      new RegExp(`^${PROJECT}/stages/(\\d+)$`),
+      (match, body) => {
+        const found = stage(match);
+        if (!found) return refused("project_not_found", 404);
+        if (typeof body.title === "string" && body.title.trim()) found.title = body.title.trim();
+        return changed();
+      },
+    ],
+    [
+      "POST",
+      new RegExp(`^${PROJECT}/stages/(\\d+)/move$`),
+      (match, body) => {
+        const from = Number(match[1]) - 1;
+        const to = from + Number(body.direction);
+        const stages = project.stages;
+        if (!stages[from] || !stages[to]) return refused("invalid_status_change");
+        [stages[from], stages[to]] = [stages[to]!, stages[from]!];
+        // The current stage stays the same stage, wherever it moves.
+        const current = project.current_position - 1;
+        if (current === from) project.current_position = to + 1;
+        else if (current === to) project.current_position = from + 1;
+        return changed();
+      },
+    ],
+    [
+      "DELETE",
+      new RegExp(`^${PROJECT}/stages/(\\d+)$`),
+      (match) => {
+        const position = Number(match[1]);
+        if (!stage(match)) return refused("project_not_found", 404);
+        project.stages.splice(position - 1, 1);
+        if (project.current_position > position) project.current_position -= 1;
+        project.current_position = Math.max(1, Math.min(project.current_position, project.stages.length));
+        return changed();
+      },
+    ],
+    [
+      "POST",
+      new RegExp(`^${PROJECT}/stages$`),
+      async (_, body) => {
+        let title = typeof body.title === "string" ? body.title.trim() : "";
+        if (body.builtin_key) {
+          options ??= await list<Schemas["CreationOptions"]>("/api/project-types");
+          title = options?.stages.find((option) => option.key === body.builtin_key)?.title ?? title;
+        }
+        if (!title) return refused("invalid_status_change");
+        project.stages.push({ title, about: null, notes: "", groups: [] });
+        return changed();
+      },
+    ],
+    [
+      "POST",
+      new RegExp(`^${PROJECT}/progress$`),
+      (_, body) => {
+        const current = project.current_position;
+        const action = body.action;
+        if (action === "advance" && project.status === "active" && current < project.stages.length) {
+          project.current_position = current + 1;
+          return changed({ kind: "stage_advanced", stage_position: current + 1 });
+        }
+        if (action === "back" && project.status === "active" && current > 1) {
+          project.current_position = current - 1;
+          return changed();
+        }
+        if (action === "complete" && project.status === "active") {
+          project.status = "completed";
+          return changed({ kind: "project_completed", stage_position: null });
+        }
+        if (action === "reopen" && project.status === "completed") {
+          project.status = "active";
+          return changed();
+        }
+        return refused("invalid_status_change");
+      },
+    ],
+    [
+      "POST",
+      new RegExp(`^${PROJECT}/stages/(\\d+)/uploads$`),
+      (match, body) => {
+        if (!stage(match)) return refused("project_not_found", 404);
+        const upload = id();
+        pending.set(upload, { position: Number(match[1]), name: String(body.name) });
+        return { body: { upload_url: `${UPLOADS}${upload}` } };
+      },
+    ],
+    [
+      "POST",
+      new RegExp(`^${PAGE}/files/([^/]+)/hide$`),
+      (match) => {
+        const found = find(decodeURIComponent(match[1]!));
+        if (!found) return refused("file_not_found", 404);
+        found.group.files.splice(found.index, 1); // the client no longer sees it
+        return changed();
+      },
+    ],
+    [
+      "POST",
+      new RegExp(`^${PAGE}/files/([^/]+)/move$`),
+      (match, body) => {
+        const found = find(decodeURIComponent(match[1]!));
+        const position = Number(body.position);
+        if (!found || !project.stages[position - 1]) return refused("file_not_found", 404);
+        found.group.files.splice(found.index, 1);
+        addFile(position, found.file);
+        return changed();
+      },
+    ],
+    [
+      "PUT",
+      new RegExp(`^${PROJECT}/cover$`),
+      async (_, __, request) => {
+        const chosen = (await request.formData()).get("file");
+        if (!(chosen instanceof Blob)) return refused("invalid_status_change");
+        project.cover_url = URL.createObjectURL(chosen);
+        return changed();
+      },
+    ],
+    [
+      "DELETE",
+      new RegExp(`^${PROJECT}/cover$`),
+      () => {
+        project.cover_url = null;
+        return changed();
+      },
+    ],
+  ];
+
+  /** A list the editors offer, read from the server (null: not signed in). */
+  async function list<T>(path: string): Promise<T | null> {
+    const answer = await real(new URL(path, window.location.origin)).catch(() => null);
+    return answer?.ok ? ((await answer.json()) as T) : null;
+  }
+
+  /** The server's answer to one of the reads, noting who is signed in and the office. */
+  async function read(request: Request, path: string): Promise<Response> {
+    const answer = await real(request);
+    if (!answer.ok) return answer;
+    const body = await answer.clone().json();
+    if (path === "/api/tenant") office = { name: body.name, logo_url: body.logo_url, logo_dark_url: body.logo_dark_url };
+    if (path === "/api/project-types") options = body;
+    if (path === "/api/detail-types") detailTypes = body;
+    if (path === "/api/me") {
+      signedIn = true;
+      if (body.tenant_timezone !== timeZone && version === 1) {
+        // The office's own time zone, before anything has changed.
+        timeZone = body.tenant_timezone;
+        project = exampleProject(now, timeZone);
+      }
+      // The example has its own tour; the setup tour stays for the office's projects.
+      return Response.json({ ...body, page_tour_seen: true });
+    }
+    return answer;
+  }
+
+  const exampleFetch = async (given: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const request = new Request(given instanceof Request ? given : new URL(String(given), window.location.origin), init);
+    const url = new URL(request.url);
+    // The page's own files (images, the bundle) load as usual.
+    if (url.origin !== window.location.origin || !url.pathname.startsWith("/api/")) return real(given, init);
+    if (request.method === "GET" && READS.includes(url.pathname)) return read(request, url.pathname);
+    const route = routes.find(([method, path]) => method === request.method && path.test(url.pathname));
+    if (!route) return Response.json({ error: "page_not_found" }, { status: 404 });
+    const body = request.method === "GET" || request.method === "DELETE" ? {} : await request.clone().json().catch(() => ({}));
+    const reply = await route[2](route[1].exec(url.pathname)!, body, request);
+    return reply.status === 204
+      ? new Response(null, { status: 204 })
+      : Response.json(reply.body ?? {}, { status: reply.status ?? 200 });
+  };
+  exampleFetch.real = real;
+  globalThis.fetch = exampleFetch as typeof fetch;
+
+  /** Stands in for Google's upload session (StageUploads' sendFile): the file stays
+   *  in this browser, and shows in its stage. */
+  class ExampleUpload {
+    status = 0;
+    responseText = "";
+    upload: { onprogress: ((event: { loaded: number }) => void) | null } = { onprogress: null };
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    private url = "";
+    open(_method: string, url: string) {
+      this.url = url;
+    }
+    setRequestHeader() {}
+    getResponseHeader() {
+      return null;
+    }
+    send(body: Blob | null) {
+      const target = this.url.startsWith(UPLOADS) ? pending.get(this.url.slice(UPLOADS.length)) : undefined;
+      if (!target || !body) {
+        setTimeout(() => this.onerror?.()); // nothing leaves the example
+        return;
+      }
+      pending.delete(this.url.slice(UPLOADS.length));
+      // A short, visible progress, as a real upload has.
+      [0.3, 0.7, 1].forEach((share, i) =>
+        setTimeout(() => {
+          this.upload.onprogress?.({ loaded: body.size * share });
+          if (share < 1) return;
+          const kind = /^image\/(jpeg|png|webp|gif)$/.test(body.type)
+            ? "image"
+            : body.type === "application/pdf"
+              ? "pdf"
+              : "other";
+          const at = new Date().toISOString();
+          addFile(target.position, {
+            key: id(),
+            name: target.name,
+            kind,
+            size: body.size,
+            modified_at: at,
+            url: URL.createObjectURL(body),
+          });
+          changed({ kind: "file_published", stage_position: target.position, name: target.name });
+          this.status = 200;
+          this.onload?.();
+        }, 150 * (i + 1)),
+      );
+    }
+  }
+  globalThis.XMLHttpRequest = ExampleUpload as unknown as typeof XMLHttpRequest;
+
+  // The files are the fixture's (bundled) or uploaded here: their own addresses.
+  fileSource.address = (_slug, key, as) => {
+    const file = find(key)?.file;
+    if (!file) return null;
+    return as === "thumb" && file.kind !== "image" ? null : file.url; // a PDF: the sheet icon
+  };
+  fileSource.calendar = () => null; // the calendar file comes from the server
+  fileSource.bundled = true;
+}

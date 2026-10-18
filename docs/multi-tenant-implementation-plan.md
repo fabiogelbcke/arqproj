@@ -1396,16 +1396,22 @@ finishing or closing it sets `users.tour_seen_at` through `POST
 bar replays it, and `make reset-tour TENANT= EMAIL= [ENV=staging]` resets it for
 testing. Code: `frontend/src/client/Tour.ts`.
 
-**Next: a static example project, with an "explore" tour.**
+**Built: the static example project, with an "explore" tour.** Code:
+`frontend/src/client/example/` (the fixture, the in-browser API, the tour and
+its page); the page reads its files' addresses from `fileSource`
+(`client/format.ts`), which the example points at its bundled files. Removing
+it: that folder, its lines in `client/main.tsx` and `drive/FirstSteps.tsx`, and
+the reserved address (a migration).
 
 - **What:** a project page filled with fictional data in the browser. Nothing
   is in the office's Drive, nothing is saved, and it works before Drive is
   connected. Creating an example project in the office's Drive was considered
   and rejected: it writes files people didn't ask for and must later find and
   delete.
-- **Where:** a fixed address, recommended `/exemplo` on the office's own
-  address. It is served by the client page bundle, which renders `ProjectPage`
-  with the fixture instead of calling `/api/pages/{slug}`. `exemplo` must
+- **Where:** a fixed address, `/tour-projeto` on the office's own address
+  (not `/exemplo`, so an office can still name a project "Exemplo"; Fabio, 18 Oct
+  2026). It is served by the client page bundle, which renders `ProjectPage`
+  with the fixture instead of calling `/api/pages/{slug}`. `tour-projeto` must
   become a reserved slug: add it to `RESERVED_SLUGS`, plus a migration for the
   `slug_not_reserved` check, as `0023_reserve_legal_slugs` did. Check first that
   no project already uses it.
@@ -1432,7 +1438,7 @@ testing. Code: `frontend/src/client/Tour.ts`.
   they are done, perhaps also from an empty projects list.
 - **Tests:** the fixture renders without network; edits change the page and not
   the server (no request leaves); the tour starts on each visit and can be
-  skipped; `/exemplo` is reserved (a project can't take it) and is served on
+  skipped; `/tour-projeto` is reserved (a project can't take it) and is served on
   every office's address.
 
 ## 17. API and error conventions

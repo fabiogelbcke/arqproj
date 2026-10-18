@@ -465,3 +465,35 @@ test("a new staff member's first project page shows the tour once; \"?\" replays
   await bar.getByRole("button", { name: "Ver o tour da página" }).click();
   await expect(popover).toContainText("Ver como cliente e Editar");
 });
+
+test("the example project: from the painel, its own tour, and edits that never leave the browser", async ({ page }) => {
+  const link = invite("exemplo@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await page.getByRole("heading", { name: "Projetos" }).waitFor();
+  const writes: string[] = [];
+  page.on("request", (r) => r.method() !== "GET" && r.url().includes("/api/") && writes.push(r.url()));
+
+  await page.getByRole("link", { name: "Ver um projeto de exemplo" }).click();
+  await expect(page).toHaveURL(/\/tour-projeto$/);
+  // Its own tour, in the client's view; not the setup tour this new account hasn't seen.
+  const popover = page.locator(".driver-popover");
+  await expect(popover).toContainText("O nome e o tipo do projeto");
+  await popover.getByRole("button", { name: "Pular" }).click();
+  await expect(popover).toHaveCount(0);
+
+  const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
+  await bar.getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: "Editar descrição" }).click();
+  await page.getByLabel("Descrição").fill("Uma casa só nossa.");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Uma casa só nossa.")).toBeVisible();
+  expect(writes).toEqual([]); // nothing reached the server
+
+  // A new visit: as it was, and the tour again.
+  await page.reload();
+  await expect(popover).toContainText("O nome e o tipo do projeto");
+  await expect(page.getByText("Uma casa só nossa.")).toHaveCount(0);
+});

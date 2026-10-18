@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Schemas } from "../api/client";
-import type { Page } from "./format";
+import { fileSource, type Page } from "./format";
 
 type FileItem = Schemas["FileOut"];
 type StageFiles = Schemas["StageFilesOut"];
@@ -265,7 +265,8 @@ export function FilePreview({
   const dialog = useRef<HTMLDialogElement>(null);
   const [sending, setSending] = useState(false);
   const [broken, setBroken] = useState(false); // gone, expired, or not an image after all
-  const url = `/api/pages/${slug}/files/${encodeURIComponent(file.key)}`;
+  const url = fileSource.address(slug, file.key, "file")!;
+  const shown = fileSource.address(slug, file.key, "inline")!;
   const inline = file.kind === "image" || file.kind === "pdf";
   const pageUrl = fileLink(slug, place, file.name);
   const message = `${file.name} · ${page.name}\n${pageUrl}`;
@@ -295,6 +296,11 @@ export function FilePreview({
     } catch (error) {
       if ((error as Error)?.name === "AbortError") return;
     }
+    if (fileSource.bundled) {
+      const link = Object.assign(document.createElement("a"), { href: url, download: file.name });
+      link.click();
+      return;
+    }
     // Sent as an attachment, so the page stays (a link added to the page would
     // sit behind the open dialog, where clicks do nothing).
     window.location.assign(url);
@@ -316,7 +322,7 @@ export function FilePreview({
       </div>
       <div className="file-preview__content">
         {file.kind === "image" && !broken ? (
-          <img src={`${url}?inline=true`} alt={file.name} onError={() => setBroken(true)} />
+          <img src={shown} alt={file.name} onError={() => setBroken(true)} />
         ) : (
           <p>{file.kind === "pdf" ? t("files.pdfHint") : t("files.otherHint")}</p>
         )}
@@ -325,7 +331,7 @@ export function FilePreview({
         <button type="button" onClick={() => void save()}>
           {t("files.save")}
         </button>
-        <a href={inline ? `${url}?inline=true` : url} {...(inline ? { target: "_blank", rel: "noopener" } : {})}>
+        <a href={inline ? shown : url} {...(inline ? { target: "_blank", rel: "noopener" } : {})}>
           {t("files.openOriginal")}
         </a>
         <button

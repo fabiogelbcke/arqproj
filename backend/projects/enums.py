@@ -93,4 +93,9 @@ RESERVED_SLUGS = (
     "statusz",
     "privacidade",
     "termos",
+    "tour-projeto",  # EXAMPLE_SLUG
 )
+
+# The example project's address on every office's address (plan section 16): the
+# client page shows a fictional project there, from its own bundle.
+EXAMPLE_SLUG = "tour-projeto"

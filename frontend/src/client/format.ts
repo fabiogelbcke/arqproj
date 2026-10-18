@@ -66,3 +66,19 @@ export function paragraphs(text: string): Array<{ kind: "p"; text: string } | { 
   }
   return out;
 }
+
+/** Where the page reads its files: through the API, from the office's Drive. The
+ *  example project (example/) points these at files bundled with the page. */
+export const fileSource = {
+  /** A file to download ("file"), to show ("inline"), or its preview image
+   *  ("thumb"; null: it has none). */
+  address(slug: string, key: string, as: "file" | "inline" | "thumb"): string | null {
+    const url = `/api/pages/${slug}/files/${encodeURIComponent(key)}`;
+    return as === "thumb" ? `${url}/thumb` : as === "inline" ? `${url}?inline=true` : url;
+  },
+  /** The meeting as a calendar file (null: none). */
+  calendar: (slug: string): string | null => `/api/pages/${slug}/meeting.ics`,
+  /** Files in the page's bundle download by the link's own name (the API's
+   *  answer says "attachment" itself). */
+  bundled: false,
+};
