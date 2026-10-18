@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
+import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
+import { OfficeDetails } from "../pages/SettingsOfficePage";
 import { NewProjectDialog } from "../projects/NewProjectDialog";
+import dialogs from "../projects/projects.module.css";
 import { useMe } from "../session/session";
 import styles from "../pages/pages.module.css";
+import { Button } from "../ui/Button";
+import { CloseButton } from "../ui/CloseButton";
 import { toast } from "../ui/Toast";
 import { useOnboarding } from "./drive";
 // Google's own Drive icon, unaltered (Google's branding rules for "connect to Drive").
@@ -53,9 +58,7 @@ export function FirstSteps() {
           hint={t("firstSteps.officeHint")}
           action={action(
             steps.office_details,
-            <Link className={styles.stepAction} to="/configuracoes/escritorio">
-              {t("firstSteps.officeAction")}
-            </Link>,
+            <OfficeDialog />,
           )}
         />
         <Step
@@ -73,6 +76,33 @@ export function FirstSteps() {
       </ol>
       {!owner && <p className={styles.small}>{t("firstSteps.membersNote")}</p>}
     </section>
+  );
+}
+
+/** The office's details in a dialog, so the first steps don't leave the page. */
+function OfficeDialog() {
+  const { t } = useTranslation();
+  return (
+    <DialogTrigger>
+      <Button variant="primary" className={styles.stepAction}>
+        {t("firstSteps.officeAction")}
+      </Button>
+      <ModalOverlay className={dialogs.overlay} isDismissable>
+        <Modal className={dialogs.modal}>
+          <Dialog className={dialogs.dialog}>
+            {({ close }) => (
+              <>
+                <Heading slot="title" className={dialogs.dialogTitle}>
+                  {t("firstSteps.officeDialogTitle")}
+                </Heading>
+                <CloseButton onPress={close} />
+                <OfficeDetails onSaved={close} />
+              </>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }
 

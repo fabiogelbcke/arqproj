@@ -221,16 +221,42 @@ export function FileToolbar({
   );
 }
 
+/** Where a file is on the page: its stage (from 1) and subfolder, if any. */
+export type FilePlace = { position: number; folder: string | null };
+
+/** A file's own link: the page's address with its stage, subfolder and name
+ *  (`/casa-jardim?etapa=3&pasta=Renders&arquivo=Fachada.jpg`), opening the page at
+ *  that file with its preview open (ProjectPage). Not its key: keys expire, and
+ *  Drive's ids never reach the page (backend/web/page_files.py). */
+export function fileLink(slug: string, place: FilePlace, name: string): string {
+  const query = new URLSearchParams({ etapa: String(place.position) });
+  if (place.folder) query.set("pasta", place.folder);
+  query.set("arquivo", name);
+  return `${window.location.origin}/${slug}?${query}`;
+}
+
+/** The file a page address points at, if any (fileLink). */
+export function linkedFile(search: string): (FilePlace & { name: string }) | null {
+  const query = new URLSearchParams(search);
+  const name = query.get("arquivo");
+  const position = Number(query.get("etapa"));
+  if (!name || !Number.isInteger(position) || position < 1) return null;
+  return { position, folder: query.get("pasta"), name };
+}
+
 /** A file's preview (the prototype's): the image itself, or a word about PDFs and
  *  other files; "Salvar", "Abrir original" and "Enviar" (by email or WhatsApp, the
- *  page's address: a file's own address works only for a while). */
+ *  page's address at this file: a file's own download address works only for a while,
+ *  and the page keeps its password, if it has one). */
 export function FilePreview({
   file,
+  place,
   slug,
   page,
   onClose,
 }: {
   file: FileItem;
+  place: FilePlace;
   slug: string;
   page: Page;
   onClose: () => void;
@@ -241,7 +267,7 @@ export function FilePreview({
   const [broken, setBroken] = useState(false); // gone, expired, or not an image after all
   const url = `/api/pages/${slug}/files/${encodeURIComponent(file.key)}`;
   const inline = file.kind === "image" || file.kind === "pdf";
-  const pageUrl = `${window.location.origin}/${slug}`;
+  const pageUrl = fileLink(slug, place, file.name);
   const message = `${file.name} · ${page.name}\n${pageUrl}`;
   useEffect(() => {
     const element = dialog.current;
@@ -274,7 +300,14 @@ export function FilePreview({
     window.location.assign(url);
   };
   return (
-    <dialog ref={dialog} className="file-preview" aria-labelledby="file-preview-title" onClose={onClose}>
+    <dialog
+      ref={dialog}
+      className="file-preview"
+      aria-labelledby="file-preview-title"
+      // Closed by the person (Esc), not by React re-running the effect in
+      // development, which closes the dialog and opens it again at once.
+      onClose={() => !dialog.current?.open && onClose()}
+    >
       <div className="file-preview__head">
         <h2 id="file-preview-title">{file.name}</h2>
         <button className="file-preview__close" type="button" aria-label={t("files.close")} onClick={onClose}>

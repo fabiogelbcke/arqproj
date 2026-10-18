@@ -6,6 +6,7 @@ import { ApiError, type ErrorCode } from "../api/client";
 import { useConnectDrive, useDisconnectDrive, useDrive } from "../drive/drive";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { toast } from "../ui/Toast";
 import styles from "./pages.module.css";
 
 export function SettingsDrivePage() {
@@ -22,6 +23,9 @@ export function SettingsDrivePage() {
     reference: params.get("ref"),
   }));
   useEffect(() => {
+    if (returned.connected) toast(t("drive.connectedNow"));
+  }, [returned, t]);
+  useEffect(() => {
     if (params.has("resultado") || params.has("erro") || params.has("ref"))
       setParams({}, { replace: true });
   }, [params, setParams]);
@@ -37,7 +41,6 @@ export function SettingsDrivePage() {
       <section className={styles.panel} aria-labelledby="drive-title">
         <h2 id="drive-title">{t("settings.drive")}</h2>
         <p className={styles.lead}>{t("drive.intro")}</p>
-        {returned.connected && <p role="status">{t("drive.connectedNow")}</p>}
         {returned.error && (
           <ErrorNotice
             error={new ApiError(returned.error as ErrorCode, undefined, returned.reference)}
@@ -81,7 +84,12 @@ export function SettingsDrivePage() {
                   <>
                     <p>{t("drive.disconnectConfirm")}</p>
                     <Button
-                      onPress={() => disconnect.mutate(undefined, { onSettled: () => setConfirming(false) })}
+                      onPress={() =>
+                        disconnect.mutate(undefined, {
+                          onSuccess: () => toast(t("drive.disconnectedNow")),
+                          onSettled: () => setConfirming(false),
+                        })
+                      }
                       isDisabled={disconnect.isPending}
                     >
                       {t("drive.disconnect")}
@@ -97,7 +105,6 @@ export function SettingsDrivePage() {
             <p className={styles.small}>{t("drive.ownerOnly")}</p>
           ))}
         <ErrorNotice error={connect.error ?? disconnect.error} />
-        {disconnect.isSuccess && <p role="status">{t("drive.disconnectedNow")}</p>}
       </section>
     </>
   );

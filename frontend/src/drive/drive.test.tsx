@@ -122,7 +122,7 @@ describe("the painel's first steps", () => {
     const steps = await screen.findByRole("region", { name: "Primeiros passos" });
     expect(within(steps).getByLabelText("0 de 3 passos concluídos")).toBeInTheDocument();
     expect(within(steps).getByRole("link", { name: "Conectar" })).toHaveAttribute("href", "/configuracoes/drive");
-    expect(within(steps).getByRole("link", { name: "Personalizar" })).toHaveAttribute("href", "/configuracoes/escritorio");
+    expect(within(steps).getByRole("button", { name: "Personalizar" })).toBeInTheDocument(); // a dialog, on this page
     expect(within(steps).getByRole("button", { name: "Criar projeto" })).toBeInTheDocument();
     // The boxes tick themselves: nothing to click.
     expect(within(steps).queryByRole("checkbox")).toBeNull();

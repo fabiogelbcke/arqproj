@@ -8,7 +8,7 @@ import { Button } from "../ui/Button";
 import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
-import { toast } from "../ui/Toast";
+import { toast, toastError } from "../ui/Toast";
 import { Cover } from "./Cover";
 import {
   COVER_MAX_BYTES,
@@ -34,7 +34,7 @@ type CoverChoice = { kind: "keep" } | { kind: "new"; file: File; preview: string
  *  from the card's pencil. Name, client and cover are saved together by Salvar.
  *  The client link and access join it with the client page (slice 2). */
 export function ProjectDialog({ project, onClose }: { project: ProjectSummary; onClose: () => void }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const change = useChangeProject();
   const archive = useChangeProject();
@@ -133,11 +133,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
               );
               toast(t("projectSettings.restored", { name: back.name }));
             } catch (failure) {
-              // As ErrorNotice: the message, plus the support code the log line carries.
-              const error = failure instanceof ApiError ? failure : new ApiError("unexpected");
-              const message = i18n.exists(`errors.${error.code}`) ? t(`errors.${error.code}`) : t("errors.unexpected");
-              const reference = error.requestId ? ` ${t("errors.reference", { id: error.requestId })}` : "";
-              toast(message + reference);
+              toastError(failure);
             }
             void queryClient.invalidateQueries({ queryKey: PROJECTS });
           });

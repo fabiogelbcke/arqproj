@@ -53,6 +53,12 @@
   animation: toast-in 0.35s var(--ease);
 }
 .toast span { flex: 1 1 auto; }
+/* A round mark before the message: ✓ for done, ! for a failure (in the danger colour). */
+.toast .toastMark {
+  flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--bg); color: var(--ink); font-size: 12px; font-weight: 700; line-height: 1;
+}
+.toast[data-kind="error"] .toastMark { background: var(--danger, #c4673f); color: var(--bg); }
 .toast button {
   background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px;

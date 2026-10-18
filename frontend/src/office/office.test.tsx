@@ -49,6 +49,21 @@ describe("Configurações → Escritório", () => {
     expect(await screen.findByText("Salvo.")).toBeInTheDocument();
   });
 
+  it("can be filled in from the first steps, without leaving the projects", async () => {
+    const sent = api(OFFICE, LOCAL, ME, {
+      "PATCH /api/office": (body: unknown) => ({ body: { ...OFFICE, ...(body as object) } }),
+    });
+    renderAt("/");
+    const steps = await screen.findByRole("region", { name: "Primeiros passos" });
+    await userEvent.click(within(steps).getByRole("button", { name: "Personalizar" }));
+    const dialog = await screen.findByRole("dialog", { name: "Dados do escritório" });
+    await userEvent.type(within(dialog).getByLabelText(/E-mail de contato/), "contato@alinea.com.br");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull()); // saved: it closes
+    expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({ name: "Alinea", contact_email: "contato@alinea.com.br" });
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+  });
+
   it("limits the name to 28 characters, counting as you type", async () => {
     api();
     renderAt("/configuracoes");

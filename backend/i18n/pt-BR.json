@@ -263,6 +263,7 @@
     "office": "Personalizar os dados do escritório",
     "officeHint": "Adicione o e-mail de contato e o logo (opcional). Eles aparecem nas páginas e nos e-mails que os clientes recebem.",
     "officeAction": "Personalizar",
+    "officeDialogTitle": "Dados do escritório",
     "firstProject": "Criar o primeiro projeto",
     "firstProjectHint": "Cada projeto ganha uma página para o cliente acompanhar etapas, arquivos e reuniões.",
     "firstProjectAction": "Criar projeto",
