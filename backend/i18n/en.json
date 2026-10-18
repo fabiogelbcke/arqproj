@@ -43,6 +43,8 @@
     "title": "Projects",
     "emptyTitle": "No projects here yet",
     "emptyBody": "Create the first project to get started.",
+    "welcomeTitle": "Your office on Unio",
+    "welcomeText": "Follow the steps below to get started.",
     "new": "New project",
     "search": "Search projects",
     "searchPlaceholder": "Project or client",

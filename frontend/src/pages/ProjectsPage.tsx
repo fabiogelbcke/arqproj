@@ -130,6 +130,13 @@ export function ProjectsPage() {
           {me.data?.tenant_name} / {t("projects.kicker")}
         </p>
         <h1 className={`${pageStyles.display} ${pageStyles.displayMedium} ${styles.title}`}>{t("projects.title")}</h1>
+        {/* Phones, before the first project: a welcome where the tabs will be. */}
+        {projects.data && !hasAny && (
+          <div className={styles.welcome}>
+            <p className={styles.welcomeTitle}>{t("projects.welcomeTitle")}</p>
+            <p className={styles.welcomeText}>{t("projects.welcomeText")}</p>
+          </div>
+        )}
         {hasAny && (
           <div className={styles.groupTabs} role="group" aria-label={t("projects.groups")}>
             <button type="button" aria-pressed={phoneGroup === "active"} onClick={() => setPhoneGroup("active")}>

@@ -152,6 +152,16 @@ describe("the project list", () => {
     api(LOCAL, { "GET /api/projects": () => ({ body: [] }) });
     renderAt("/");
     expect(await screen.findByText("Crie o primeiro projeto para começar.")).toBeInTheDocument();
+    // Phones show a welcome at the top instead of the tabs (the stylesheet hides it on desktop).
+    expect(screen.getByText("Seu escritório no Unio")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Grupos de projetos" })).toBeNull();
+  });
+
+  it("an office with projects gets the tabs, not the welcome", async () => {
+    api();
+    renderAt("/");
+    await screen.findByRole("group", { name: "Grupos de projetos" });
+    expect(screen.queryByText("Seu escritório no Unio")).toBeNull();
   });
 });
 

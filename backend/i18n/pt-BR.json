@@ -43,6 +43,8 @@
     "title": "Projetos",
     "emptyTitle": "Nenhum projeto por aqui ainda",
     "emptyBody": "Crie o primeiro projeto para começar.",
+    "welcomeTitle": "Seu escritório no Unio",
+    "welcomeText": "Siga os passos abaixo para começar.",
     "new": "Novo projeto",
     "search": "Buscar projetos",
     "searchPlaceholder": "Projeto ou cliente",

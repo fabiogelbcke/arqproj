@@ -303,3 +303,14 @@
   .groups[data-phone-group="active"] .phoneEmpty[data-group="active"],
   .groups[data-phone-group="completed"] .phoneEmpty[data-group="completed"] { display: block; }
 }
+
+/* Phones, before the first project: a welcome at the top (desktop has its title). */
+.welcome { display: none; }
+@media (max-width: 720px) {
+  .welcome { display: grid; gap: 6px; padding-top: 8px; }
+  /* One line on any phone: the size follows the screen's width. */
+  .welcomeTitle {
+    margin: 0; font: 600 min(28px, 6.6vw)/1.15 var(--display-font); letter-spacing: -0.02em; white-space: nowrap;
+  }
+  .welcomeText { margin: 0; font-size: 13px; color: var(--muted); }
+}
