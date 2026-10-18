@@ -58,13 +58,18 @@ describe("removing a plain background", () => {
     expect(a[1 * 5 + 1]).toBe(255); // the ring itself stays
   });
 
-  it("keeps an edge pixel blended with the background partly see-through", () => {
-    const edge = image(["ww", "wg"].map((r) => r), [255, 255, 255, 255]);
-    edge.pixels.set([200, 200, 200, 255], 3 * 4); // a light grey beside white
+  it("leaves no trace of the old background in an edge pixel, so no halo on a dark page", () => {
+    const edge = image(["ww", "wg"], [255, 255, 255, 255]);
+    edge.pixels.set([200, 200, 200, 255], 3 * 4); // a dark logo's soft edge, blended with white
     clearBackground(edge.pixels, edge.width, edge.height, [255, 255, 255]);
-    const a = alpha(edge.pixels)[3]!;
+    const [r, g, b, a] = [...edge.pixels.slice(12, 16)];
     expect(a).toBeGreaterThan(0);
     expect(a).toBeLessThan(255);
+    // Over white it looks as before; over the dark header it shows nothing lighter.
+    const over = (ground: number) => Math.round((r! * a!) / 255 + ground * (1 - a! / 255));
+    expect(Math.abs(over(255) - 200)).toBeLessThanOrEqual(1);
+    expect(over(23)).toBeLessThanOrEqual(23);
+    expect([r, g, b]).toEqual([0, 0, 0]); // its own colour: the logo's black
   });
 });
 

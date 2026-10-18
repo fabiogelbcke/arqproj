@@ -62,6 +62,10 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.goto("/painel/configuracoes/escritorio");
   await page.getByRole("button", { name: "Escolher imagem" }).waitFor();
   await page.locator('input[type="file"]').setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: LOGO });
+  // Cropped first, its empty margins trimmed already.
+  await page.getByText("Assim ele aparece no topo das páginas").waitFor();
+  await shoot(page, "04b-recortar-logo");
+  await page.getByRole("button", { name: "Usar recorte" }).click();
   await page.getByText("Logo atualizado.").waitFor();
   await page.goto("/painel");
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
@@ -97,17 +101,6 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.goto("/painel/configuracoes/escritorio");
   await page.getByLabel(/Nome do escritório/).waitFor();
   await shoot(page, "04-configuracoes-escritorio");
-
-  // The logo's crop: a wordmark with empty space around it, trimmed already.
-  const logo = Buffer.from(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">' +
-      '<rect x="40" y="160" width="320" height="80" rx="4" fill="#43543b"/>' +
-      '<text x="62" y="214" font-size="40" letter-spacing="6" fill="#ffffff" font-family="sans-serif">ALINEA</text></svg>',
-  );
-  await page.locator('input[type="file"]').first().setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: logo });
-  await page.getByText("Assim ele aparece no topo das páginas").waitFor();
-  await shoot(page, "04b-recortar-logo");
-  await page.getByRole("button", { name: "Cancelar" }).click();
 
   await page.goto("/painel/configuracoes/drive");
   await page.getByRole("heading", { name: "Google Drive" }).waitFor();

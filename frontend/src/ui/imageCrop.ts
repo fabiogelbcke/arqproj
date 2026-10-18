@@ -164,9 +164,27 @@ export function clearBackground(pixels: Uint8ClampedArray, width: number, height
     const x = p % width;
     const beside =
       (x > 0 && removed[p - 1]) || (x < width - 1 && removed[p + 1]) || removed[p - width] || removed[p + width];
-    const d = distance(pixels, i, colour);
-    if (beside && d < SOFT) pixels[i + 3] = Math.round((pixels[i + 3]! * (d - CLEAR)) / (SOFT - CLEAR));
+    if (beside && distance(pixels, i, colour) < SOFT) unblend(pixels, i, colour);
   }
+}
+
+/** An edge pixel seen as the logo's own colour over the background: the least
+ *  opacity that explains it, and that colour, so no trace of the old background
+ *  (a light halo on a dark page) is left in it. */
+function unblend(pixels: Uint8ClampedArray, i: number, background: [number, number, number]): void {
+  let alpha = 0;
+  for (let c = 0; c < 3; c++) {
+    const seen = pixels[i + c]!;
+    const behind = background[c]!;
+    const needed = seen > behind ? (seen - behind) / (255 - behind) : seen < behind ? (behind - seen) / behind : 0;
+    alpha = Math.max(alpha, needed);
+  }
+  if (alpha === 0) {
+    pixels[i + 3] = 0;
+    return;
+  }
+  for (let c = 0; c < 3; c++) pixels[i + c] = Math.round(background[c]! + (pixels[i + c]! - background[c]!) / alpha);
+  pixels[i + 3] = Math.round(pixels[i + 3]! * alpha);
 }
 
 /** The image without its plain background, as a PNG address; null when it has none. */
