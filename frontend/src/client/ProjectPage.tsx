@@ -5,11 +5,11 @@ import { useTranslation } from "react-i18next";
 import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
-import { Toaster, toast } from "../ui/Toast";
+import { Toaster, toast, toastError } from "../ui/Toast";
 import { EditButton } from "./EditButton";
 import { splitTitle } from "./titleLead";
 import { UpdatesBell } from "./Updates";
-import { FilePreview, FileToolbar, shownFiles, usePrefs, type FileView } from "./FileTools";
+import { FilePreview, FileToolbar, linkedFile, shownFiles, usePrefs, type FilePlace, type FileView } from "./FileTools";
 
 // Staff editing code loads only once staff press "Editar" (A20): visitors never get it.
 const DescriptionEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DescriptionEditor })));
@@ -98,7 +98,7 @@ function FileCard({
   // Drive's preview first; for an image without one (local folders), the image itself.
   const src = thumb === "thumb" ? `${url}/thumb` : thumb === "original" ? `${url}?inline=true` : null;
   return (
-    <div className="file">
+    <div className="file" data-file={file.key}>
       <button className="file__open" type="button" onClick={onOpen} aria-label={t("page.openFile", { name: file.name })}>
         <span className="file__thumb">
           {src ? (
@@ -145,7 +145,7 @@ function StageFilesList({
   timeZone: string;
   fileMenu?: (file: FileItem) => ReactNode;
   view: FileView;
-  onOpen: (file: FileItem) => void;
+  onOpen: (file: FileItem, folder: string | null) => void; // folder: its subfolder's name
 }) {
   const { t } = useTranslation();
   if (!files) return null; // still loading
@@ -170,7 +170,7 @@ function StageFilesList({
                 slug={slug}
                 timeZone={timeZone}
                 menu={fileMenu?.(file)}
-                onOpen={() => onOpen(file)}
+                onOpen={() => onOpen(file, group.folder ?? null)}
               />
             ))}
           </div>
@@ -461,7 +461,7 @@ function Stage({
   view?: FileView;
   hidden?: boolean; // a search or filter found nothing here
   total?: number; // its files before any search or filter
-  onOpenFile: (file: FileItem) => void;
+  onOpenFile: (file: FileItem, folder: string | null) => void;
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -585,7 +585,7 @@ function StaffBar({
   onMode: (editing: boolean) => void;
   onPublished: () => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [publishing, setPublishing] = useState(false);
   const staff = page.staff!;
   const draft = staff.status === "draft";
@@ -645,10 +645,7 @@ function StaffBar({
               toast(t("page.published"));
               onPublished();
             } catch (failure) {
-              const code = (failure as { code?: string }).code ?? "unexpected";
-              const reference = (failure as { requestId?: string | null }).requestId;
-              const message = i18n.exists(`errors.${code}`) ? t(`errors.${code}`) : t("errors.unexpected");
-              toast(reference ? `${message} ${t("errors.reference", { id: reference })}` : message);
+              toastError(failure);
             } finally {
               setPublishing(false);
             }
@@ -743,7 +740,7 @@ export function ProjectPage({
   // The file tools (FileTools): search, type, order, view, and the file in preview.
   const [query, setQuery] = useState("");
   const [prefs, setPrefs] = usePrefs();
-  const [preview, setPreview] = useState<FileItem | null>(null);
+  const [preview, setPreview] = useState<{ file: FileItem; place: FilePlace } | null>(null);
   const filtering = query.trim() !== "" || prefs.type !== "all";
   // While filtering, every stage with a match opens; these are the ones closed since.
   const [closed, setClosed] = useState<ReadonlySet<number>>(new Set());
@@ -772,6 +769,37 @@ export function ProjectPage({
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     section?.scrollIntoView({ behavior: reduce ? "instant" : "smooth", block: "start" });
     section?.querySelector("h2")?.focus({ preventScroll: true });
+  };
+
+  // A file's link (`?etapa=3&arquivo=Planta.pdf`, sent from its preview): once the
+  // files are in, its stage opens, the page scrolls to it and its preview opens.
+  // The address keeps the file until the preview closes. A file renamed, moved or
+  // gone: the page as usual.
+  const linked = useRef(linkedFile(window.location.search));
+  useEffect(() => {
+    const place = linked.current;
+    if (!place || stageFiles === null) return;
+    linked.current = null;
+    // Drive allows two subfolders, or two files, of the same name: the first in the
+    // page's order (stable ids wait for the document index, A25).
+    const file = filesFor(stageFiles, place.position)
+      .files?.groups.filter((g) => (g.folder ?? null) === place.folder)
+      .flatMap((g) => g.files)
+      .find((candidate) => candidate.name === place.name);
+    if (!file) return;
+    setOpenStage(place.position - 1);
+    setPreview({ file, place });
+    // Once the stage has opened, so the file is there to scroll to.
+    requestAnimationFrame(() =>
+      [...document.querySelectorAll<HTMLElement>("[data-file]")]
+        .find((card) => card.dataset.file === file.key)
+        ?.scrollIntoView?.({ block: "center" }),
+    );
+  }, [stageFiles]);
+  const closePreview = () => {
+    setPreview(null);
+    if (linkedFile(window.location.search))
+      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.hash);
   };
 
   return (
@@ -910,7 +938,7 @@ export function ProjectPage({
             files={shown[i]!.files}
             total={countFiles(filesFor(stageFiles, i + 1).files)}
             view={prefs.view}
-            onOpenFile={setPreview}
+            onOpenFile={(file, folder) => setPreview({ file, place: { position: i + 1, folder } })}
             slug={slug}
             uploads={
               canEdit ? (
@@ -980,7 +1008,7 @@ export function ProjectPage({
           onPublished={() => onChanged?.()}
         />
       )}
-      {preview && <FilePreview file={preview} slug={slug} page={page} onClose={() => setPreview(null)} />}
+      {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}
       <Toaster />
     </div>
   );

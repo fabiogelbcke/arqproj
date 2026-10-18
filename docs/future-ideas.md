@@ -87,3 +87,13 @@ decision in the [decision changelog](decision-changelog.md).
   home for a staff member's own account: change password, change email, maybe
   notification preferences. Fabio, 18 Oct 2026: "later".
 
+
+## A file's link that survives renames
+
+- "Enviar" on a file shares the page at that file by its stage, subfolder and
+  name (`/casa-jardim?etapa=3&pasta=Renders&arquivo=Fachada.jpg`), since pages
+  read Drive live and keep no file rows (A10); a renamed or moved file's link
+  opens the page as usual, and where Drive holds two of the same name in one
+  place, the link opens the first. When the document index for versions (A25) stores
+  files, the link can name the file by its id there instead. Fabio, 18 Oct 2026:
+  "we can wait for A25".

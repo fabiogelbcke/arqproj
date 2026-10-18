@@ -20,6 +20,13 @@ const devRedirects: Plugin = {
         response.end();
         return;
       }
+      // Typed in capitals (`/Casa-Jardim`): the lowercase address, as deployed.
+      if (/^\/[A-Za-z0-9-]+$/.test(path ?? "") && path !== path!.toLowerCase()) {
+        response.statusCode = 301;
+        response.setHeader("Location", path!.toLowerCase() + (query ? `?${query}` : ""));
+        response.end();
+        return;
+      }
       // A client page address (`/casa-jardim`): the client page's entry. Deployed,
       // the backend serves it with the preview tags (backend/web/pages.py).
       if (/^\/[a-z0-9-]+$/.test(path ?? "") && path !== "/api") {

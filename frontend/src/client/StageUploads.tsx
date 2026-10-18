@@ -5,7 +5,8 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
-import { toast } from "../ui/Toast";
+import { errorMessage } from "../ui/ErrorNotice";
+import { toast, toastError } from "../ui/Toast";
 import type { Page } from "./format";
 
 type Staff = NonNullable<Page["staff"]>;
@@ -107,16 +108,7 @@ export async function sendFile(
   }
 }
 
-function useMessage() {
-  const { t, i18n } = useTranslation();
-  return (failure: unknown) => {
-    const error = failure instanceof ApiError ? failure : new ApiError("unexpected");
-    const message = i18n.exists(`errors.${error.code}`)
-      ? t(`errors.${error.code}`, { max: UPLOAD_MAX_MB })
-      : t("errors.unexpected");
-    return error.requestId ? `${message} ${t("errors.reference", { id: error.requestId })}` : message;
-  };
-}
+const message = (failure: unknown) => errorMessage(failure, { max: UPLOAD_MAX_MB });
 
 type Sending = { id: number; name: string; progress: number; failed?: string };
 
@@ -133,7 +125,6 @@ export function StageDrop({
   onChanged: () => void;
 }) {
   const { t } = useTranslation();
-  const message = useMessage();
   const [over, setOver] = useState(false);
   const [sending, setSending] = useState<Sending[]>([]);
   const next = useRef(0);
@@ -257,7 +248,6 @@ export function FileMenu({
   onChanged: () => void;
 }) {
   const { t } = useTranslation();
-  const message = useMessage();
   const [open, setOpen] = useState<false | "menu" | "move">(false);
   const [busy, setBusy] = useState(false);
   const path = { slug, key: file.key };
@@ -269,7 +259,7 @@ export function FileMenu({
       toast(done);
       onChanged();
     } catch (failure) {
-      toast(message(failure));
+      toastError(failure, { max: UPLOAD_MAX_MB });
     } finally {
       setBusy(false);
     }

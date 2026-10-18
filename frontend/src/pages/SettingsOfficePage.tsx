@@ -7,6 +7,7 @@ import { useOffice, useSaveOffice, useUploadLogo } from "../office/office";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
+import { toast, toastError } from "../ui/Toast";
 import styles from "./pages.module.css";
 
 /** "ALINEA ARQUITETOS" → "AA"; "Estúdio Norte (dev)" → "EN". */
@@ -19,6 +20,20 @@ export function initials(name: string): string {
 }
 
 export function SettingsOfficePage() {
+  const { t } = useTranslation();
+  return (
+    <section className={styles.panel} aria-labelledby="office-title">
+      <h2 id="office-title" className="sr-only">
+        {t("settings.office")}
+      </h2>
+      <OfficeDetails />
+    </section>
+  );
+}
+
+/** The office's name, contact email and logo: Configurações › Escritório, and the
+ *  first steps' dialog (`onSaved` closes it once the name and email are saved). */
+export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
   const { t } = useTranslation();
   const office = useOffice();
   const drive = useDrive();
@@ -40,10 +55,7 @@ export function SettingsOfficePage() {
       drive.data.reader_status === "ok");
 
   return (
-    <section className={styles.panel} aria-labelledby="office-title">
-      <h2 id="office-title" className="sr-only">
-        {t("settings.office")}
-      </h2>
+    <>
       {!manage && <p className={styles.small}>{t("office.ownerOnly")}</p>}
       <Form
         onSubmit={(event) => {
@@ -51,7 +63,11 @@ export function SettingsOfficePage() {
           const submitted = values;
           // Keep anything typed while the save was on its way.
           save.mutate(submitted, {
-            onSuccess: () => setDraft((current) => (current === submitted ? null : current)),
+            onSuccess: () => {
+              setDraft((current) => (current === submitted ? null : current));
+              toast(t("office.saved"));
+              onSaved?.();
+            },
           });
         }}
         className={styles.form}
@@ -74,7 +90,6 @@ export function SettingsOfficePage() {
           isReadOnly={!manage}
         />
         <ErrorNotice error={save.error} />
-        {save.isSuccess && !draft && <p role="status">{t("office.saved")}</p>}
         {manage && (
           <div className={styles.actions}>
             <Button type="submit" variant="primary" isDisabled={save.isPending || !draft}>
@@ -102,7 +117,11 @@ export function SettingsOfficePage() {
               acceptedFileTypes={["image/png", "image/jpeg", "image/webp", "image/svg+xml"]}
               onSelect={(files) => {
                 const file = files?.[0];
-                if (file) logo.mutate(file);
+                if (file)
+                  logo.mutate(file, {
+                    onSuccess: () => toast(t("office.logoSaved")),
+                    onError: (error) => toastError(error),
+                  });
               }}
             >
               <Button isDisabled={logo.isPending}>{t("office.chooseLogo")}</Button>
@@ -110,9 +129,7 @@ export function SettingsOfficePage() {
           ) : (
             <p className={styles.small}>{t("office.logoNeedsDrive")}</p>
           ))}
-        <ErrorNotice error={logo.error} />
-        {logo.isSuccess && <p role="status">{t("office.logoSaved")}</p>}
       </div>
-    </section>
+    </>
   );
 }

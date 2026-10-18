@@ -263,6 +263,7 @@
     "office": "Personalize the office's details",
     "officeHint": "Add the contact email and the logo (optional). They appear on the pages and emails clients receive.",
     "officeAction": "Personalize",
+    "officeDialogTitle": "Office details",
     "firstProject": "Create the first project",
     "firstProjectHint": "Each project gets a page where the client follows stages, files and meetings.",
     "firstProjectAction": "Create project",

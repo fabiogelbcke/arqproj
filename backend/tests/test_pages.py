@@ -212,6 +212,29 @@ async def test_an_old_address_redirects_to_the_current_one(client, dist, owner):
     assert response.headers["cache-control"] == "no-cache"  # a slug may point back later
 
 
+@pytest.mark.parametrize(
+    "typed, address",
+    [
+        ("/Casa-Jardim?arquivo=x", "/casa-jardim?arquivo=x"),
+        ("/APTO-ATLANTICO", "/apartamento-atlantico"),  # an old address, in capitals
+        ("/Painel", "/painel"),  # the staff app's own address
+    ],
+)
+async def test_an_address_in_capitals_redirects_to_the_lowercase_one(
+    client, dist, owner, typed, address
+):
+    client.cookies.clear()  # a visitor
+    response = await client.get(typed, headers=ALINEA)
+    assert response.status_code == 301
+    assert response.headers["location"] == address
+
+
+async def test_the_page_api_answers_only_at_the_lowercase_address(client, dist, owner):
+    # The shell redirects first, so the page always asks with the address it shows.
+    assert (await client.get("/api/pages/casa-jardim", headers=ALINEA)).status_code == 200
+    assert (await client.get("/api/pages/Casa-Jardim", headers=ALINEA)).status_code == 404
+
+
 @pytest.mark.parametrize("slug", ["casa-das-oliveiras", "nao-existe"])
 async def test_drafts_and_unknown_addresses_get_the_shell_with_not_found(
     client, dist, owner, draft, slug

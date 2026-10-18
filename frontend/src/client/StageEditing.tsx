@@ -4,9 +4,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ApiError, api, call, type Schemas } from "../api/client";
+import { api, call, type Schemas } from "../api/client";
 import { TextInput } from "../ui/TextInput";
-import { toast } from "../ui/Toast";
+import { toast, toastError } from "../ui/Toast";
 import type { Page } from "./format";
 
 type Staff = NonNullable<Page["staff"]>;
@@ -15,7 +15,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /** `locked`: a change was saved and the page hasn't reloaded yet, so another
  * click would carry the old row version and be refused as "changed meanwhile". */
 function useChange(onChanged: () => void, locked: boolean) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   return {
     busy: busy || locked,
@@ -27,9 +27,7 @@ function useChange(onChanged: () => void, locked: boolean) {
         onChanged();
         return true;
       } catch (failure) {
-        const error = failure instanceof ApiError ? failure : new ApiError("unexpected");
-        const message = i18n.exists(`errors.${error.code}`) ? t(`errors.${error.code}`) : t("errors.unexpected");
-        toast(error.requestId ? `${message} ${t("errors.reference", { id: error.requestId })}` : message);
+        toastError(failure);
         return false;
       } finally {
         setBusy(false);

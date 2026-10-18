@@ -1,11 +1,13 @@
-// Short confirmations at the bottom of the screen ("Salvo."), optionally with
-// "Desfazer". One at a time; each replaces the last and leaves after 5 seconds.
+// Short messages at the bottom of the screen: a confirmation ("Salvo."), optionally
+// with "Desfazer", or a failure with its support code. One at a time; each replaces
+// the last and leaves after 5 seconds (a failure after 8, to note the code).
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 
+import { errorMessage } from "./ErrorNotice";
 import styles from "./ui.module.css";
 
-type Toast = { id: number; message: string; undo?: () => void };
+type Toast = { id: number; message: string; kind: "success" | "error"; undo?: () => void };
 
 let current: Toast | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -16,10 +18,21 @@ function set(next: Toast | null) {
   listeners.forEach((listener) => listener());
 }
 
-export function toast(message: string, undo?: () => void): void {
+function show(toast: Omit<Toast, "id">, seconds: number) {
   clearTimeout(timer);
-  set({ id: (current?.id ?? 0) + 1, message, undo });
-  timer = setTimeout(() => set(null), 5000);
+  set({ ...toast, id: (current?.id ?? 0) + 1 });
+  timer = setTimeout(() => set(null), seconds * 1000);
+}
+
+/** Something worked: "Salvo.", "Projeto criado.", with an optional "Desfazer". */
+export function toast(message: string, undo?: () => void): void {
+  show({ message, kind: "success", undo }, 5);
+}
+
+/** A request failed: its message in the user's language and the support code, as
+ *  ErrorNotice shows them. `values` fill the message (e.g. a size limit). */
+export function toastError(failure: unknown, values?: Record<string, unknown>): void {
+  show({ message: errorMessage(failure, values), kind: "error" }, 8);
 }
 
 const store = {
@@ -37,7 +50,10 @@ export function Toaster() {
   return (
     <div role="status" className={styles.toastRegion}>
       {shown && (
-        <div key={shown.id} className={styles.toast}>
+        <div key={shown.id} className={styles.toast} data-kind={shown.kind}>
+          <span className={styles.toastMark} aria-hidden="true">
+            {shown.kind === "error" ? "!" : "✓"}
+          </span>
           <span>{shown.message}</span>
           {shown.undo && (
             <button
