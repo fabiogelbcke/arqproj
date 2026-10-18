@@ -1,19 +1,23 @@
 """Connecting an office's Google Drive, against an imitation of Google."""
 
+import asyncio
 from urllib.parse import parse_qs, urlsplit
 
 import httpx2
 import pytest
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from backend.commands.seed import seed
 from backend.identity import accounts
 from backend.identity.models import Role
+from backend.notifications.scan import MAINTENANCE_LOCK
 from backend.office.models import OfficeProfile
 from backend.security import keys
 from backend.storage.google import GoogleDriveStorage
 from backend.storage.models import StorageConnection, StorageKind, WriterStatus
 from backend.tenancy.models import Tenant
+from backend.tests.conftest import TEST_DATABASE_URL
 from backend.web import auth, drive
 
 pytestmark = pytest.mark.anyio
@@ -516,6 +520,35 @@ async def test_a_failure_while_starting_afresh_changes_nothing(client, db_sessio
     await db_session.refresh(saved)
     assert saved.root_id == "root1"
     assert any(c.startswith("PATCH") for c in google.calls[-3:])  # the new root, trashed
+
+
+async def test_starting_afresh_waits_for_a_scan_of_the_old_folders(
+    client, db_session, owner, google
+):
+    """A maintenance pass scanning a project's old folders finishes before the
+    switch changes them, so its result (files noted, an email) isn't saved after
+    the switch and the new folders' first scan stays quiet (plan section 9)."""
+    await other_account(client, db_session, owner, google)
+    project = await db_session.scalar(
+        text(
+            "SELECT id FROM projects WHERE tenant_id = (SELECT id FROM tenants "
+            "WHERE slug = 'alinea') LIMIT 1"
+        )
+    )
+    scanner = create_async_engine(TEST_DATABASE_URL)
+    try:
+        async with scanner.connect() as scanning, scanning.begin():
+            await scanning.execute(
+                text("SELECT pg_advisory_xact_lock(:key, hashtext(:project))"),
+                {"key": MAINTENANCE_LOCK, "project": str(project)},
+            )
+            switch = asyncio.create_task(come_back(client, await start(client, owner, fresh=True)))
+            await asyncio.sleep(1)
+            assert not switch.done()  # waiting for the scan
+        done = await asyncio.wait_for(switch, 10)  # the scan ended: the switch goes on
+    finally:
+        await scanner.dispose()
+    assert done.headers["location"].endswith("resultado=conectado")
 
 
 async def test_the_same_account_keeps_its_folder_even_when_asked_to_start_afresh(

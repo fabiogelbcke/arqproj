@@ -324,10 +324,14 @@ async def _start_afresh(db: AsyncSession, writer: DriveWriter, root: str, locale
     client is emailed about files moved across by hand (files there get new ids,
     so the old account's in `project_files_seen` never match). Not committed: on a
     failure the caller rolls back and trashes the new folder (with these in it)."""
+    from backend.notifications.scan import hold_scans
     from backend.web.page_stages import _folder_name, _title  # page code imports this module
 
     projects = (await db.scalars(select(Project).where(Project.deleted_at.is_(None)))).all()
     for project in projects:
+        # A scan of its old folders under way finishes first, and none starts until
+        # this is saved: else it could note or email old files after the switch.
+        await hold_scans(db, project.id)
         project.folder_id = await writer.create_folder(project.name, root)
         project.cover_file_id = project.cover_type = project.cover_folder_id = None
         project.files_scanned_at = None

@@ -47,6 +47,7 @@ log = logging.getLogger(__name__)
 
 MAINTENANCE_LOCK = 7_202_611  # next to the migrations' (backend/migrations/registry.py)
 _LOCK_PROJECT = text("SELECT pg_try_advisory_xact_lock(:key, hashtext(:project))")
+_WAIT_FOR_PROJECT = text("SELECT pg_advisory_xact_lock(:key, hashtext(:project))")
 
 
 @dataclass
@@ -62,6 +63,13 @@ class Report:
 
 class Busy(Exception):
     """Another pass is scanning this project."""
+
+
+async def hold_scans(db: AsyncSession, project_id) -> None:
+    """Until this transaction ends, no pass scans the project, and one already
+    scanning it finishes first. For a change of its folders (another Drive
+    account), so no scan of the old folders is saved after it."""
+    await db.execute(_WAIT_FOR_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project_id)})
 
 
 async def scan_project(db: AsyncSession, storage, project: Project) -> int:
@@ -114,10 +122,8 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
 
 
 async def _project_pass(db, settings, sender, storage, office, project, report) -> None:
-    """One project, under its lock, in one transaction: its new files, then its
-    email if one is due."""
-    if not await db.scalar(_LOCK_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project.id)}):
-        raise Busy
+    """One project, under its lock (taken by the caller), in one transaction: its
+    new files, then its email if one is due."""
     if project.status not in CLIENT_VISIBLE:
         # Archived (or back to draft) while an email waited: it is never sent,
         # even if the project comes back later (section 14).
@@ -171,6 +177,12 @@ async def _scan_office(
         async with sessionmaker() as db:
             scope_to_tenant(db.sync_session, tenant_id)
             try:
+                # The lock first, so the office's folder and the project's are read
+                # under it: a switch of Drive account (hold_scans) is seen whole.
+                if not await db.scalar(
+                    _LOCK_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project_id)}
+                ):
+                    raise Busy
                 # None without Drive: meetings and stages still email.
                 storage = await storage_view(db, settings, google)
                 project = await db.scalar(select(Project).where(Project.id == project_id))

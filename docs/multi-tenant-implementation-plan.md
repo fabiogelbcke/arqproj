@@ -788,7 +788,9 @@ empty folder for every project and stage (all-or-nothing: any failure, Drive's
 or the database's, rolls back and trashes the new root; an expired old grant is
 revoked only once the switch is saved), covers and the logo dropped (they were files in the
 old account), and each project's next scan set to only note what is there, so
-re-uploaded files don't email clients. Names, stages, notes, details, meetings,
+re-uploaded files don't email clients (the switch holds each project's
+maintenance scan lock, so a scan of the old folders can't be saved after it).
+Names, stages, notes, details, meetings,
 addresses and recipients are kept. The old account's folders are left untouched.
 A tool to carry files across is a future idea.
 
