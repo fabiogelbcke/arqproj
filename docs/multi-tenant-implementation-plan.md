@@ -1619,6 +1619,13 @@ retention and removal of metadata, previews, logs, tokens and backup copies;
 explain delayed backup expiry. Have a human-reviewed privacy/data-processing
 agreement suitable for the actual customers and jurisdictions, including Brazil.
 
+Unio's privacy policy and terms of use are at `/privacidade` and `/termos` on every
+address, `myunio.app` included (`backend/web/legal.py`; Google's OAuth consent
+screen links them). Each office is the controller of what it publishes about its
+clients and Unio processes it on the office's behalf; Unio is the controller of
+staff accounts, logs and the Google grant. Unio is run informally for now (no
+company); the texts still need the human review above before more offices join.
+
 Operational runbooks should cover: revoked writer, unshared reader, missing root,
 quota full, sync lag, stuck provisioning, duplicate-send investigation, provider
 outage, compromised token, restore, tenant suspension and migration rollback.
