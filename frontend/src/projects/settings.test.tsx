@@ -3,7 +3,25 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi, ME, renderAt, TENANT } from "../test/render";
+import * as imageCrop from "../ui/imageCrop";
 import type { ProjectSummary } from "./projects";
+
+// The browser's image decoding and canvas aren't in the test DOM: a 4000×3000 photo.
+vi.mock("../ui/imageCrop", async (original) => ({
+  ...(await original<typeof import("../ui/imageCrop")>()),
+  loadImage: vi.fn(async () => ({ naturalWidth: 4000, naturalHeight: 3000 }) as HTMLImageElement),
+  cropToFile: vi.fn(async (_image: unknown, _box: unknown, output: { type: string }, name: string) => new File(["x"], name, { type: output.type })),
+}));
+
+/** A photo chosen for the cover and cropped to 3:2 ("Usar recorte"). */
+async function chooseCover(dialog: HTMLElement) {
+  const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
+  await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
+  const crop = await screen.findByRole("dialog", { name: "Ajustar a capa" });
+  await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Ajustar a capa" })).toBeNull());
+  expect(imageCrop.cropToFile).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), imageCrop.COVER_OUTPUT, "capa.jpg");
+}
 
 const LOCAL = { kind: "folder", writer_status: "none", reader_status: "unknown", account_email: null, folder_url: null, can_manage: true };
 const CASA: ProjectSummary = {
@@ -235,8 +253,7 @@ describe("the Projeto dialog", () => {
   it("previews a chosen photo and uploads it on Salvar", async () => {
     const sent = api({ [`PUT ${PATH}/cover`]: () => ({ body: { ...CASA, cover_url: "/c?v=2" } }) });
     const dialog = await openSettings();
-    const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
+    await chooseCover(dialog);
     expect(within(dialog).getByRole("img", { name: "Prévia da nova capa" })).toBeInTheDocument();
     expect(sent.some((r) => r.method === "PUT")).toBe(false);
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
@@ -268,8 +285,7 @@ describe("the Projeto dialog", () => {
     });
     const dialog = await openSettings();
     await userEvent.type(within(dialog).getByLabelText("Novo e-mail"), "ana@example.com");
-    const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
+    await chooseCover(dialog);
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
     await within(dialog).findByRole("alert");
     expect(within(dialog).getByText("ana@example.com")).toBeInTheDocument(); // still listed
@@ -289,8 +305,7 @@ describe("the Projeto dialog", () => {
     const name = within(dialog).getByLabelText(/Nome do projeto/);
     await userEvent.clear(name);
     await userEvent.type(name, "Casa Nova");
-    const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
+    await chooseCover(dialog);
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Não foi possível conectar o Google Drive");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));

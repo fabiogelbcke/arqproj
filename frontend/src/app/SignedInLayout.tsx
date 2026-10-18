@@ -7,6 +7,7 @@ import { LogoPng, useOffice } from "../office/office";
 import { useMe, useSignedOut } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { OfficeLogo } from "../ui/OfficeLogo";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import styles from "../pages/pages.module.css";
 import { MobileMenu } from "./MobileMenu";
@@ -40,7 +41,7 @@ export function SignedInLayout() {
           {/* A logo usually carries the name already, so it replaces it. */}
           <span className={styles.brand}>
             {office.data?.logo_url ? (
-              <img src={office.data.logo_url} alt={me.data.tenant_name} />
+              <OfficeLogo light={office.data.logo_url} dark={office.data.logo_dark_url} alt={me.data.tenant_name} />
             ) : (
               me.data.tenant_name
             )}

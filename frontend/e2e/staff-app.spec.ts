@@ -61,7 +61,7 @@ test("invite → choose password → projects → deep link → sign out → sig
   await expect(page.getByRole("heading", { name: "Este link não funciona mais" })).toBeVisible();
 });
 
-test("an SVG logo also goes up as a PNG drawn in the browser, for emails", async ({ page }) => {
+test("a chosen logo is cropped in the browser, its empty margins trimmed, and goes up as a PNG", async ({ page }) => {
   const link = invite("marca@alinea.example", "owner"); // only owners change the logo
   await page.goto(link);
   await page.getByLabel("Nova senha").fill("senha-escolhida");
@@ -69,24 +69,28 @@ test("an SVG logo also goes up as a PNG drawn in the browser, for emails", async
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
 
-  // Wider than tall, with lettering: the PNG keeps its shape and draws the text.
+  // A 3:1 logo in the middle of a square of empty space, as logos often come.
   const svg = Buffer.from(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">' +
-      '<rect width="300" height="100" fill="#43543b"/>' +
-      '<text x="20" y="65" font-size="48" fill="#ffffff" font-family="sans-serif">ALINEA</text></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">' +
+      '<rect x="50" y="150" width="300" height="100" fill="#43543b"/>' +
+      '<text x="70" y="215" font-size="48" fill="#ffffff" font-family="sans-serif">ALINEA</text></svg>',
   );
   await page.goto("/painel/configuracoes/escritorio");
   await page.getByRole("button", { name: "Escolher imagem" }).waitFor();
   await page.locator('input[type="file"]').setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: svg });
+  const crop = page.getByRole("dialog", { name: "Ajustar o logo" });
+  await expect(crop.getByText("Assim ele aparece no topo das páginas")).toBeVisible();
+  await crop.getByRole("button", { name: "Usar recorte" }).click();
   await page.getByText("Logo atualizado.").waitFor();
 
-  const png = await page.request.get("/api/office/logo?png=true");
-  expect(png.status()).toBe(200);
-  expect(png.headers()["content-type"]).toBe("image/png");
-  const bytes = await png.body();
-  expect(bytes.subarray(1, 4).toString()).toBe("PNG");
-  // Width and height from the PNG's header: 600 × 200, the SVG's 3:1.
-  expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([600, 200]);
+  const logo = await page.request.get("/api/office/logo");
+  expect(logo.headers()["content-type"]).toBe("image/png"); // email programs show it too
+  const bytes = await logo.body();
+  // Width and height from the PNG's header: about the drawing's 3:1, not the square.
+  const [width, height] = [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
+  expect(width).toBe(1200);
+  expect(width / height).toBeGreaterThan(2.6);
+  expect(width / height).toBeLessThan(3.2);
 });
 
 test("a session belongs to its office's address", async ({ page }) => {
@@ -163,6 +167,8 @@ test("project settings: rename and cover photo together, archive and undo", asyn
   const settings = page.getByRole("dialog", { name: "Projeto" });
   await settings.getByLabel("Nome do projeto").fill("Refúgio da Serra");
   await settings.locator('input[type="file"]').setInputFiles({ name: "obra.png", mimeType: "image/png", buffer: PNG_1PX });
+  // Cropped to the cover's shape first.
+  await page.getByRole("dialog", { name: "Ajustar a capa" }).getByRole("button", { name: "Usar recorte" }).click();
   await expect(settings.getByRole("img", { name: "Prévia da nova capa" })).toBeVisible();
   await settings.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByText("Salvo.")).toBeVisible();

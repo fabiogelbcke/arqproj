@@ -5,7 +5,6 @@
     PUT  /api/local-uploads/{token}              local folders only (never deployed): take it
     POST /api/pages/{slug}/files/{key}/hide      "Ocultar do cliente": a leading "_"
     POST /api/pages/{slug}/files/{key}/move      "Mover para outra etapa"
-    POST /api/pages/{slug}/files/{key}/cover     "Definir como capa"
 
 Any staff member uploads, at most 100 MB a file (Fabio, 16 Oct 2026). The app
 checks the request and opens a Google resumable upload in the stage's folder
@@ -47,7 +46,6 @@ from backend.web.auth import CurrentStaff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_files import _in_project, _item, _storage
 from backend.web.pages import _origin, _readable
-from backend.web.project_settings import COVER_MAX_BYTES, store_cover
 from backend.web.projects import _folders
 
 log = logging.getLogger(__name__)
@@ -353,54 +351,4 @@ async def move_file(
             "uploads: moving %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-    return Response(status_code=204)
-
-
-COVER_FROM_FILE = 1600  # pixels on the long side: more than the page ever shows
-
-
-@router.post(
-    "/api/pages/{slug}/files/{key}/cover",
-    status_code=204,
-    responses=documented(401, 404, 409, 413, 415, 503),
-)
-async def cover_from_file(
-    request: Request,
-    slug: str,
-    key: str,
-    staff: CurrentStaff = Depends(require_csrf),
-    tenant: CurrentTenant = Depends(current_tenant),
-    db: AsyncSession = Depends(get_tenant_session),
-) -> Response:
-    """A copy of an image on the page becomes the cover (section 10): read by the
-    reader identity, so it works for images put straight into Drive too. Drive's
-    own resized copy where there is one, so a large photo still fits."""
-    readable = await _readable(db, slug, staff, request)
-    project = await _changeable(db, readable.id)
-    reader, item = await _item(request, db, project, key)
-    if not item.mime_type.startswith("image/"):
-        raise ApiError(415, ErrorCode.COVER_WRONG_TYPE)
-    try:
-        content = await reader.thumbnail(item, COVER_FROM_FILE)
-        if content is None:  # local folders: the file itself
-            download = await reader.download(item)
-            try:
-                content = b""
-                async for chunk in download.chunks:
-                    content += chunk
-                    if len(content) > COVER_MAX_BYTES:
-                        break
-            finally:
-                await download.aclose()
-    except StorageError as error:
-        log.error(
-            "uploads: reading %s for the cover failed for %s/%s: %s %s",
-            item.id,
-            tenant.id,
-            project.id,
-            error.problem,
-            error.detail,
-        )
-        raise ApiError(503, ErrorCode.FILES_UNAVAILABLE) from None
-    await store_cover(request, db, tenant, project, content)
     return Response(status_code=204)

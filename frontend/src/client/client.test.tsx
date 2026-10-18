@@ -3,13 +3,22 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { fakeApi, TENANT } from "../test/render";
+import * as imageCrop from "../ui/imageCrop";
 import { ClientApp, slugFromPath } from "./ClientApp";
 import { detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 import { entriesFor } from "./Updates";
 import { shownFiles, sortFiles } from "./FileTools";
 
+// The browser's image decoding and canvas aren't in the test DOM: an image of 1200×800.
+vi.mock("../ui/imageCrop", async (original) => ({
+  ...(await original<typeof import("../ui/imageCrop")>()),
+  loadImage: vi.fn(async () => ({ naturalWidth: 1200, naturalHeight: 800 }) as HTMLImageElement),
+  withoutBackground: vi.fn(async () => null),
+  cropToFile: vi.fn(async (_image: unknown, _box: unknown, output: { type: string }, name: string) => new File(["x"], name, { type: output.type })),
+}));
+
 const PAGE: Page = {
-  office: { name: "Alinea", logo_url: null },
+  office: { name: "Alinea", logo_url: null, logo_dark_url: null },
   locale: "pt-BR",
   timezone: "America/Sao_Paulo",
   name: "Casa Jardim",
@@ -619,15 +628,20 @@ describe("edit mode", () => {
       };
       const { sent } = asEditor({
         "GET /api/pages/casa-jardim/files": () => ({ body: withImage }),
-        "POST /api/pages/casa-jardim/files/k2/cover": () => ({ status: 204 }),
+        "PUT /api/projects/p-1/cover": () => ({ body: {} }),
       });
       await startEditing();
       await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
       expect(screen.queryByRole("menuitem", { name: "Definir como capa" })).toBeNull(); // a PDF
       await userEvent.click(screen.getByRole("button", { name: "Ações para Terreno.jpg" }));
       await userEvent.click(screen.getByRole("menuitem", { name: "Definir como capa" }));
+      // Cropped to the cover's shape first, from the image on the page.
+      const crop = await screen.findByRole("dialog", { name: "Ajustar a capa" });
+      expect(imageCrop.loadImage).toHaveBeenCalledWith(expect.stringContaining("/api/pages/casa-jardim/files/k2?inline=true"));
+      await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
       expect(await screen.findByText("“Terreno.jpg” agora é a capa do projeto.")).toBeInTheDocument();
-      expect(sent.some((r) => r.method === "POST" && r.path.endsWith("/k2/cover"))).toBe(true);
+      expect(sent.some((r) => r.method === "PUT" && r.path === "/api/projects/p-1/cover")).toBe(true);
+      expect(imageCrop.cropToFile).toHaveBeenCalledWith(expect.anything(), expect.anything(), imageCrop.COVER_OUTPUT, "capa.jpg");
     });
 
     it("shows neither to someone viewing as the client", async () => {

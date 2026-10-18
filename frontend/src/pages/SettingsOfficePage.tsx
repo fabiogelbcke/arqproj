@@ -3,9 +3,10 @@ import { FileTrigger, Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { useDrive } from "../drive/drive";
-import { useOffice, useSaveOffice, useUploadLogo } from "../office/office";
+import { useDarkLogo, useOffice, useSaveOffice, useUploadLogo } from "../office/office";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import styles from "./pages.module.css";
@@ -39,6 +40,15 @@ export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
   const drive = useDrive();
   const save = useSaveOffice();
   const logo = useUploadLogo();
+  const darkLogo = useDarkLogo();
+  // The image being cropped before it goes up, as a local address.
+  const [cropping, setCropping] = useState<{ source: string; dark: boolean } | null>(null);
+  const stopCropping = () => {
+    if (cropping) URL.revokeObjectURL(cropping.source);
+    setCropping(null);
+  };
+  // "Usar o mesmo logo no modo escuro" unticked, before a dark mode logo is chosen.
+  const [wantsDark, setWantsDark] = useState(false);
   const [draft, setDraft] = useState<{ name: string; contact_email: string } | null>(null);
 
   if (office.error) return <ErrorNotice error={office.error} />;
@@ -46,6 +56,7 @@ export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
   const details = office.data;
   const values = draft ?? { name: details.name, contact_email: details.contact_email ?? "" };
   const manage = details.can_manage;
+  const separateDark = wantsDark || !!details.logo_dark_url;
   // The logo lives in the office's storage: Google Drive connected, or local folders.
   // On Drive, both paths must work: the office's grant writes it, the reader shows it.
   const storageReady =
@@ -113,23 +124,86 @@ export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
         <p className={styles.small}>{t("office.logoHint")}</p>
         {manage &&
           (storageReady ? (
-            <FileTrigger
-              acceptedFileTypes={["image/png", "image/jpeg", "image/webp", "image/svg+xml"]}
-              onSelect={(files) => {
-                const file = files?.[0];
-                if (file)
-                  logo.mutate(file, {
-                    onSuccess: () => toast(t("office.logoSaved")),
-                    onError: (error) => toastError(error),
-                  });
-              }}
-            >
-              <Button isDisabled={logo.isPending}>{t("office.chooseLogo")}</Button>
-            </FileTrigger>
+            <ChooseImage label={t("office.chooseLogo")} onChosen={(source) => setCropping({ source, dark: false })} />
           ) : (
             <p className={styles.small}>{t("office.logoNeedsDrive")}</p>
           ))}
       </div>
+
+      {details.logo_url && (manage || details.logo_dark_url) && (
+        <div className={styles.logoBlock}>
+          {manage && (
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                checked={!separateDark}
+                disabled={darkLogo.isPending}
+                onChange={(event) => {
+                  if (!event.target.checked) return setWantsDark(true);
+                  setWantsDark(false);
+                  // Back to one logo: the dark mode one goes.
+                  if (details.logo_dark_url)
+                    darkLogo.mutate(null, {
+                      onSuccess: () => toast(t("office.darkLogoRemoved")),
+                      onError: (error) => toastError(error),
+                    });
+                }}
+              />
+              {t("office.darkSame")}
+            </label>
+          )}
+          {separateDark && (
+            <>
+              <h3>{t("office.darkLogo")}</h3>
+              {details.logo_dark_url ? (
+                <img
+                  className={`${styles.logo} ${styles.logoOnDark}`}
+                  src={details.logo_dark_url}
+                  alt={t("office.logoAlt", { name: details.name })}
+                />
+              ) : (
+                <div className={`${styles.logoEmpty} ${styles.logoOnDark}`} aria-hidden="true" />
+              )}
+              <p className={styles.small}>{t("office.darkHint")}</p>
+              {manage && storageReady && (
+                <ChooseImage label={t("office.chooseDarkLogo")} onChosen={(source) => setCropping({ source, dark: true })} />
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {cropping && (
+        <ImageCropDialog
+          source={cropping.source}
+          kind="logo"
+          dark={cropping.dark}
+          name={cropping.dark ? "logo-escuro.png" : "logo.png"}
+          onCancel={stopCropping}
+          onCropped={(file) => {
+            const dark = cropping.dark;
+            stopCropping();
+            const done = { onError: (error: unknown) => toastError(error) };
+            if (dark) darkLogo.mutate(file, { ...done, onSuccess: () => toast(t("office.darkLogoSaved")) });
+            else logo.mutate(file, { ...done, onSuccess: () => toast(t("office.logoSaved")) });
+          }}
+        />
+      )}
     </>
+  );
+}
+
+/** "Escolher imagem": the file, as a local address for the crop dialog. */
+function ChooseImage({ label, onChosen }: { label: string; onChosen: (source: string) => void }) {
+  return (
+    <FileTrigger
+      acceptedFileTypes={["image/png", "image/jpeg", "image/webp", "image/svg+xml"]}
+      onSelect={(files) => {
+        const file = files?.[0];
+        if (file) onChosen(URL.createObjectURL(file));
+      }}
+    >
+      <Button>{label}</Button>
+    </FileTrigger>
   );
 }

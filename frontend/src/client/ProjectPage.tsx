@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
+import { OfficeLogo } from "../ui/OfficeLogo";
 import { Toaster, toast, toastError } from "../ui/Toast";
 import { EditButton } from "./EditButton";
 import { splitTitle } from "./titleLead";
@@ -255,14 +256,18 @@ export function SiteHeader({
   office,
   tools,
 }: {
-  office: { name: string; logo_url?: string | null };
+  office: { name: string; logo_url?: string | null; logo_dark_url?: string | null };
   tools?: ReactNode; // e.g. the project's "Atualizações"
 }) {
   return (
     <div className="site">
       <div className="site__in">
         <div className="site__brand">
-          {office.logo_url ? <img src={office.logo_url} alt={office.name} /> : <span>{office.name}</span>}
+          {office.logo_url ? (
+            <OfficeLogo light={office.logo_url} dark={office.logo_dark_url} alt={office.name} />
+          ) : (
+            <span>{office.name}</span>
+          )}
         </div>
         <div className="client-header-tools">
           {tools}

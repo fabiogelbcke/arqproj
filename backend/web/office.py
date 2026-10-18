@@ -4,8 +4,11 @@
     PATCH /api/office        change name and contact email (owners)
     PUT   /api/office/logo      upload the logo (owners; needs the office's storage)
     PUT   /api/office/logo/png  a PNG of the SVG logo, for one uploaded before PNGs
+    PUT   /api/office/logo/dark  the logo for dark mode (owners)
+    DELETE /api/office/logo/dark dark mode shows the usual logo again
     GET   /api/office/logo      the logo itself, public (client pages show it);
-                                ?png=true: an SVG logo's PNG (emails)
+                                ?png=true: an SVG logo's PNG (emails);
+                                ?dark=true: the dark mode logo
 
 The logo is stored in the office's own storage, in a `_marca` folder inside its
 root: Google Drive (through the office's grant), or the local folder in
@@ -32,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.engine import get_tenant_session
 from backend.identity.models import Role
 from backend.office.models import LogoType, OfficeProfile
+from backend.office.profile import logo_urls
 from backend.office.profile import profile as load_profile
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
@@ -70,6 +74,8 @@ class OfficeOut(BaseModel):
     name: str
     contact_email: str | None
     logo_url: str | None  # changes when the logo does, so browsers fetch the new one
+    # For dark mode; None: the logo above shows there too.
+    logo_dark_url: str | None
     # An SVG logo without its PNG (uploaded before PNGs): the painel draws one.
     logo_needs_png: bool
     can_manage: bool
@@ -82,11 +88,12 @@ class OfficeIn(BaseModel):
 
 def _out(tenant: CurrentTenant, found: OfficeProfile | None, staff: CurrentStaff) -> OfficeOut:
     has_logo = found is not None and found.logo_file_id is not None
+    logo_url, logo_dark_url = logo_urls(found)
     return OfficeOut(
         name=found.display_name if found else tenant.name,
         contact_email=found.contact_email if found else None,
-        # Microseconds: two changes within a second still get different addresses.
-        logo_url=f"/api/office/logo?v={found.updated_at.timestamp():.6f}" if has_logo else None,
+        logo_url=logo_url,
+        logo_dark_url=logo_dark_url,
         logo_needs_png=has_logo
         and found.logo_type is LogoType.SVG
         and found.logo_png_file_id is None,
@@ -249,6 +256,51 @@ async def upload_logo(
     return _out(tenant, found, staff)
 
 
+@router.put("/office/logo/dark", responses=documented(401, 403, 409, 413, 415, 503))
+async def upload_dark_logo(
+    request: Request,
+    file: UploadFile,
+    staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> OfficeOut:
+    """The logo for dark mode (pages show it only with the usual one)."""
+    _owner(staff)
+    content = await _read(file)
+    logo_type = image_type(content)
+    if logo_type is None:
+        raise ApiError(415, ErrorCode.LOGO_WRONG_TYPE)
+    found = await _profile_for_change(db, tenant)
+    previous = found.logo_dark_file_id
+    name = f"logo-escuro.{_EXTENSIONS[logo_type]}"
+    ids = await _store(request, db, tenant, found, {name: (content, logo_type)})
+    found.logo_dark_file_id, found.logo_dark_type = ids[name], logo_type
+    found.updated_at = func.now()  # a new address, as for the usual logo
+    await db.commit()
+    if previous and previous != found.logo_dark_file_id:
+        await _trash(request, db, previous)
+    await db.refresh(found)
+    return _out(tenant, found, staff)
+
+
+@router.delete("/office/logo/dark", responses=documented(401, 403, 503))
+async def remove_dark_logo(
+    request: Request,
+    staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> OfficeOut:
+    """Dark mode shows the usual logo again."""
+    _owner(staff)
+    found = await _profile_for_change(db, tenant)
+    previous = found.logo_dark_file_id
+    found.logo_dark_file_id = found.logo_dark_type = None
+    await db.commit()
+    await _trash(request, db, previous)
+    await db.refresh(found)
+    return _out(tenant, found, staff)
+
+
 @router.put("/office/logo/png", responses=documented(401, 403, 409, 413, 415, 503))
 async def add_logo_png(
     request: Request,
@@ -276,11 +328,16 @@ async def add_logo_png(
 
 @router.get("/office/logo", include_in_schema=False)
 async def logo(
-    request: Request, png: bool = False, db: AsyncSession = Depends(get_tenant_session)
+    request: Request,
+    png: bool = False,
+    dark: bool = False,
+    db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     found = await load_profile(db)
     connection = await db.scalar(select(StorageConnection))
-    file_id = found and (found.logo_png_file_id if png else found.logo_file_id)
+    file_id = found and (
+        found.logo_png_file_id if png else found.logo_dark_file_id if dark else found.logo_file_id
+    )
     if found is None or file_id is None or connection is None:
         return Response(status_code=404)
     try:
@@ -299,5 +356,5 @@ async def logo(
         finally:
             await download.aclose()
 
-    media_type = LogoType.PNG.value if png else found.logo_type.value
+    media_type = (LogoType.PNG if png else found.logo_dark_type if dark else found.logo_type).value
     return StreamingResponse(body(), media_type=media_type, headers=LOGO_HEADERS)

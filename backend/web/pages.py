@@ -35,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity.passwords import verify_password
+from backend.office.profile import logo_urls
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import RESERVED_SLUGS, AccessMode, DetailType, ProjectStatus
 from backend.projects.models import (
@@ -118,6 +119,7 @@ async def _find(
 class OfficeOut(BaseModel):
     name: str
     logo_url: str | None
+    logo_dark_url: str | None  # None: the logo shows in dark mode too
 
 
 class DetailOut(BaseModel):
@@ -174,10 +176,11 @@ class PageOut(BaseModel):
 
 async def _office(db: AsyncSession, tenant: CurrentTenant) -> OfficeOut:
     found = await load_profile(db)
-    has_logo = found is not None and found.logo_file_id is not None
+    logo_url, logo_dark_url = logo_urls(found)
     return OfficeOut(
         name=found.display_name if found else tenant.name,
-        logo_url=f"/api/office/logo?v={found.updated_at.timestamp():.6f}" if has_logo else None,
+        logo_url=logo_url,
+        logo_dark_url=logo_dark_url,
     )
 
 
