@@ -89,6 +89,8 @@ async def test_a_project_has_one_current_slug(db_session, alinea):
         ("painel", "slug_not_reserved"),
         ("api", "slug_not_reserved"),
         ("healthz", "slug_not_reserved"),  # answered by Cloud Run, never the app
+        ("privacidade", "slug_not_reserved"),  # Unio's legal pages (A33)
+        ("termos", "slug_not_reserved"),
         ("Casa Jardim", "slug_format"),
     ],
 )
