@@ -19,6 +19,24 @@ a new entry too.
 
 ---
 
+## 2026-10-18 — Plan section 9: another Google account may replace the office's folder
+
+**Was:** reconnecting never replaced the office's folder. A grant from another
+Google account was refused ("Esta conta Google não acessa a pasta do
+escritório"), so an office could not move to another account at all.
+
+**Now:** after a clear warning that the projects' files stay in the old account,
+the owner may connect another account: the office starts afresh there (new root
+and empty project and stage folders; covers and logo dropped; no emails for
+files re-uploaded). The same account still keeps its folder.
+
+**Why:** offices do change accounts (a personal Gmail to Workspace, a partner
+leaving), and being stuck is worse than starting the files afresh. The app's
+Drive grant (drive.file) cannot reach the old account's files, so nothing can
+move across automatically; a migration tool is a future idea. Fabio, 18 Oct
+2026: "just warning that they'll lose everything, very clear and bold warning,
+is fine".
+
 ## 2026-10-18 — A24: the project's name also editable from its title; shorter client names
 
 **Was:** A24 had the painel's "Projeto" dialog alone edit the project's name; the

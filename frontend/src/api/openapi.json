@@ -410,6 +410,23 @@
       "post": {
         "summary": "Connect",
         "operationId": "connect_api_drive_connect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ConnectIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -447,6 +464,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2762,6 +2789,17 @@
         ],
         "title": "ChoosePasswordIn"
       },
+      "ConnectIn": {
+        "properties": {
+          "fresh": {
+            "type": "boolean",
+            "title": "Fresh",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ConnectIn"
+      },
       "ConnectOut": {
         "properties": {
           "url": {
@@ -2979,6 +3017,10 @@
           "can_manage": {
             "type": "boolean",
             "title": "Can Manage"
+          },
+          "has_folder": {
+            "type": "boolean",
+            "title": "Has Folder"
           }
         },
         "type": "object",
@@ -2988,7 +3030,8 @@
           "reader_status",
           "account_email",
           "folder_url",
-          "can_manage"
+          "can_manage",
+          "has_folder"
         ],
         "title": "DriveOut"
       },

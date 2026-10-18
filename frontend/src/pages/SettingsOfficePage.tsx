@@ -230,7 +230,7 @@ function NeedsDrive() {
           {t("settings.drive")}
         </Link>
       ) : (
-        <Button variant="primary" onPress={() => connect.mutate()} isDisabled={connect.isPending}>
+        <Button variant="primary" onPress={() => connect.mutate(false)} isDisabled={connect.isPending}>
           {t(expired ? "drive.reconnect" : "drive.connect")}
         </Button>
       )}

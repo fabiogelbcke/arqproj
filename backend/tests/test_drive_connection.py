@@ -1,18 +1,23 @@
 """Connecting an office's Google Drive, against an imitation of Google."""
 
+import asyncio
 from urllib.parse import parse_qs, urlsplit
 
 import httpx2
 import pytest
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from backend.commands.seed import seed
 from backend.identity import accounts
 from backend.identity.models import Role
+from backend.notifications.scan import MAINTENANCE_LOCK
+from backend.office.models import OfficeProfile
 from backend.security import keys
 from backend.storage.google import GoogleDriveStorage
 from backend.storage.models import StorageConnection, StorageKind, WriterStatus
 from backend.tenancy.models import Tenant
+from backend.tests.conftest import TEST_DATABASE_URL
 from backend.web import auth, drive
 
 pytestmark = pytest.mark.anyio
@@ -35,6 +40,8 @@ class FakeGoogle:
         self.quota = {"limit": str(15 * 2**30), "usage": str(12 * 2**30)}  # 15 GB, 12 used
         self.about_fails = False
         self.token_down = False
+        self.created = 0  # folders made: the first is root1
+        self.create_fails_after: int | None = None  # make this many, then fail
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         path, method = request.url.path, request.method
@@ -56,8 +63,12 @@ class FakeGoogle:
                 return httpx2.Response(200, json={"storageQuota": self.quota})
             return httpx2.Response(200, json={"user": {"emailAddress": "escritorio@gmail.com"}})
         if path == "/drive/v3/files" and method == "POST":
-            self.writer_reaches.add("root1")
-            return httpx2.Response(200, json={"id": "root1"})
+            if self.create_fails_after is not None and self.created >= self.create_fails_after:
+                return httpx2.Response(503, json={"error": {"message": "backendError"}})
+            self.created += 1
+            folder = "root1" if self.created == 1 else f"new{self.created}"
+            self.writer_reaches.add(folder)
+            return httpx2.Response(200, json={"id": folder})
         if path.endswith("/permissions"):
             if self.share_drops_connection:
                 raise httpx2.ConnectError("connection reset")
@@ -129,8 +140,10 @@ async def owner(client, db_session):
     return {**ALINEA, auth.CSRF_HEADER: response.json()["csrf_token"]}
 
 
-async def start(client, headers):
-    response = await client.post("/api/drive/connect", headers=headers)
+async def start(client, headers, fresh=False):
+    response = await client.post(
+        "/api/drive/connect", json={"fresh": True} if fresh else None, headers=headers
+    )
     assert response.status_code == 200, response.text
     query = parse_qs(urlsplit(response.json()["url"]).query)
     assert query["scope"] == ["https://www.googleapis.com/auth/drive.file"]
@@ -413,3 +426,223 @@ async def test_the_token_service_down_is_logged_with_the_route_and_office(
     assert logged and logged[0].levelname == "ERROR"
     assert "route=/api/drive/space" in logged[0].getMessage()
     assert str(saved.tenant_id) in logged[0].getMessage()
+
+
+# -- another Google account ------------------------------------------------------
+
+
+async def folders_of(db):
+    """Alinea's projects' and stages' folders, and its covers and logo."""
+    alinea = select(Tenant.id).where(Tenant.slug == "alinea").scalar_subquery()
+    projects = (
+        await db.execute(
+            text(
+                "SELECT folder_id, cover_file_id, files_scanned_at FROM projects "
+                "WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea') "
+                "AND deleted_at IS NULL ORDER BY name"
+            )
+        )
+    ).all()
+    stages = (
+        (
+            await db.execute(
+                text(
+                    "SELECT folder_id FROM project_stages "
+                    "WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    logo = await db.scalar(
+        select(OfficeProfile.logo_file_id).where(OfficeProfile.tenant_id == alinea)
+    )
+    return projects, stages, logo
+
+
+async def other_account(client, db_session, owner, google):
+    """Connected once, disconnected, then another account (it can't see root1)."""
+    await come_back(client, await start(client, owner))
+    await db_session.execute(
+        text(
+            "UPDATE projects SET cover_file_id = 'old-cover', cover_type = 'image/jpeg', "
+            "files_scanned_at = now() WHERE tenant_id = (SELECT id FROM tenants "
+            "WHERE slug = 'alinea')"
+        )
+    )
+    await client.delete("/api/drive", headers=owner)
+    google.writer_reaches.clear()
+
+
+async def test_another_account_is_refused_unless_the_owner_starts_afresh(
+    client, db_session, owner, google
+):
+    await other_account(client, db_session, owner, google)
+    refused = await come_back(client, await start(client, owner))
+    assert "erro=drive_other_account" in refused.headers["location"]
+    assert (await connection(db_session)).root_id == "root1"
+
+
+async def test_starting_afresh_gives_every_project_and_stage_an_empty_folder(
+    client, db_session, owner, google
+):
+    await other_account(client, db_session, owner, google)
+    projects_before, stages_before, _ = await folders_of(db_session)
+    since = len(google.calls)
+    done = await come_back(client, await start(client, owner, fresh=True))
+    assert done.headers["location"].endswith("resultado=conectado")
+    saved = await connection(db_session)
+    await db_session.refresh(saved)
+    assert saved.root_id not in ("root1", "") and saved.writer_status is WriterStatus.CONNECTED
+    projects, stages, logo = await folders_of(db_session)
+    assert projects and len(projects) == len(projects_before)
+    new_folders = {folder for folder, _cover, _scanned in projects} | set(stages)
+    assert all(f and f.startswith("new") for f in new_folders)  # all in the new account
+    assert len(new_folders) == len(projects) + len(stages)
+    # Covers and the logo were files in the old account; the next scan only notes.
+    assert all(cover is None and scanned is None for _f, cover, scanned in projects)
+    assert logo is None
+    # Shared with the reader before anything went into it (plan section 9).
+    drive_calls = [c for c in google.calls[since:] if c.startswith("POST") and "/drive/v3/" in c]
+    assert drive_calls[0].endswith("/drive/v3/files") and drive_calls[1].endswith("/permissions")
+
+
+async def test_a_failure_while_starting_afresh_changes_nothing(client, db_session, owner, google):
+    await other_account(client, db_session, owner, google)
+    before = await folders_of(db_session)
+    google.create_fails_after = google.created + 3  # the new root and two more
+    failed = await come_back(client, await start(client, owner, fresh=True))
+    assert "erro=drive_connect_failed" in failed.headers["location"]
+    db_session.expire_all()
+    assert await folders_of(db_session) == before
+    saved = await connection(db_session)
+    await db_session.refresh(saved)
+    assert saved.root_id == "root1"
+    assert any(c.startswith("PATCH") for c in google.calls[-3:])  # the new root, trashed
+
+
+async def test_starting_afresh_waits_for_a_scan_of_the_old_folders(
+    client, db_session, owner, google
+):
+    """A maintenance pass scanning a project's old folders finishes before the
+    switch changes them, so its result (files noted, an email) isn't saved after
+    the switch and the new folders' first scan stays quiet (plan section 9)."""
+    await other_account(client, db_session, owner, google)
+    project = await db_session.scalar(
+        text(
+            "SELECT id FROM projects WHERE tenant_id = (SELECT id FROM tenants "
+            "WHERE slug = 'alinea') LIMIT 1"
+        )
+    )
+    scanner = create_async_engine(TEST_DATABASE_URL)
+    try:
+        async with scanner.connect() as scanning, scanning.begin():
+            await scanning.execute(
+                text("SELECT pg_advisory_xact_lock(:key, hashtext(:project))"),
+                {"key": MAINTENANCE_LOCK, "project": str(project)},
+            )
+            switch = asyncio.create_task(come_back(client, await start(client, owner, fresh=True)))
+            await asyncio.sleep(1)
+            assert not switch.done()  # waiting for the scan
+        done = await asyncio.wait_for(switch, 10)  # the scan ended: the switch goes on
+    finally:
+        await scanner.dispose()
+    assert done.headers["location"].endswith("resultado=conectado")
+
+
+async def test_the_same_account_keeps_its_folder_even_when_asked_to_start_afresh(
+    client, db_session, owner, google
+):
+    await come_back(client, await start(client, owner))
+    await client.delete("/api/drive", headers=owner)
+    created = google.created
+    await come_back(client, await start(client, owner, fresh=True))
+    assert google.created == created  # nothing new
+    assert (await connection(db_session)).root_id == "root1"
+
+
+async def test_the_status_says_there_is_a_folder_from_before(client, owner, google):
+    await come_back(client, await start(client, owner))
+    await client.delete("/api/drive", headers=owner)
+    status = (await client.get("/api/drive", headers=ALINEA)).json()
+    assert (status["writer_status"], status["has_folder"]) == ("none", True)
+
+
+async def expire(db_session):
+    """The office's grant lapsed (still stored): it can switch from here."""
+    saved = await connection(db_session)
+    saved.writer_status = WriterStatus.EXPIRED
+    await db_session.flush()
+
+
+async def test_no_switch_while_connected(client, db_session, owner, google):
+    """Disconnect first: while connected, staff could create projects or stages in
+    the old account during the switch, and those would be left behind."""
+    await come_back(client, await start(client, owner))
+    google.writer_reaches.clear()  # this sign-in is another account
+    refused = await come_back(client, await start(client, owner, fresh=True))
+    assert "erro=drive_other_account" in refused.headers["location"]
+    assert (await connection(db_session)).root_id == "root1"
+
+
+async def test_switching_from_an_expired_grant_lets_go_of_it_once_saved(
+    client, db_session, owner, google
+):
+    await come_back(client, await start(client, owner))
+    await expire(db_session)
+    google.writer_reaches.clear()
+    revoked = google.calls.count("POST oauth2.googleapis.com/revoke")
+    done = await come_back(client, await start(client, owner, fresh=True))
+    assert done.headers["location"].endswith("resultado=conectado")
+    assert google.calls.count("POST oauth2.googleapis.com/revoke") == revoked + 1
+
+
+async def test_a_database_failure_while_starting_afresh_leaves_nothing_behind(
+    client, db_session, owner, google, monkeypatch
+):
+    from backend.web import page_stages
+
+    await other_account(client, db_session, owner, google)
+    before = await folders_of(db_session)
+
+    async def broken(*_args):
+        raise RuntimeError("database went away")
+
+    monkeypatch.setattr(page_stages, "_title", broken)
+    failed = await come_back(client, await start(client, owner, fresh=True))
+    assert failed.status_code == 500
+    assert any(c.startswith("PATCH") and "/new" in c for c in google.calls)  # trashed
+    db_session.expire_all()
+    assert await folders_of(db_session) == before
+
+
+async def test_if_the_switch_cannot_be_saved_the_old_grant_stays_and_the_new_root_goes(
+    client, db_session, owner, google, monkeypatch
+):
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    await come_back(client, await start(client, owner))
+    await expire(db_session)
+    google.writer_reaches.clear()
+    revoked = google.calls.count("POST oauth2.googleapis.com/revoke")
+    commit = AsyncSession.commit
+
+    async def failing(self):
+        switching = any(
+            isinstance(row, StorageConnection) and row.root_id.startswith("new")
+            for row in self.identity_map.values()
+        )
+        if switching:
+            raise RuntimeError("database went away")
+        await commit(self)
+
+    monkeypatch.setattr(AsyncSession, "commit", failing)
+    failed = await come_back(client, await start(client, owner, fresh=True))
+    assert failed.status_code == 500  # the app's own error page, with its support code
+    monkeypatch.setattr(AsyncSession, "commit", commit)
+    assert google.calls.count("POST oauth2.googleapis.com/revoke") == revoked  # kept
+    assert any(c.startswith("PATCH") and "/new" in c for c in google.calls)  # trashed
+    saved = await connection(db_session)
+    await db_session.refresh(saved)
+    assert saved.root_id == "root1"

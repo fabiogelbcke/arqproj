@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { useSearchParams } from "react-router";
 
 import { ApiError, type ErrorCode } from "../api/client";
 import { SPACE_LOW, bytes, useConnectDrive, useDisconnectDrive, useDrive, useDriveSpace } from "../drive/drive";
+import dialogs from "../projects/projects.module.css";
 import { Button } from "../ui/Button";
+import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { toast } from "../ui/Toast";
 import styles from "./pages.module.css";
@@ -68,7 +71,11 @@ export function SettingsDrivePage() {
         ) : (
           <div className={styles.conn} data-state="none">
             <strong>{t("drive.notConnected")}</strong>
-            <p>{t("drive.notConnectedBody")}</p>
+            <p>
+              {status.has_folder && status.account_email
+                ? t("drive.notConnectedBefore", { email: status.account_email })
+                : t("drive.notConnectedBody")}
+            </p>
           </div>
         )}
 
@@ -76,9 +83,19 @@ export function SettingsDrivePage() {
           (status.can_manage ? (
             <div className={styles.actions}>
               {(!google || expired) && (
-                <Button variant="primary" onPress={() => connect.mutate()} isDisabled={connect.isPending}>
-                  {t(expired ? "drive.reconnect" : "drive.connect")}
+                <Button variant="primary" onPress={() => connect.mutate(false)} isDisabled={connect.isPending}>
+                  {t(expired ? "drive.reconnect" : status.has_folder ? "drive.reconnectSame" : "drive.connect")}
                 </Button>
+              )}
+              {/* Another account: its own folder, the projects' files left behind.
+                  Only once disconnected (or expired), so nothing changes meanwhile. */}
+              {status.has_folder && (!google || expired) && (
+                <SwitchAccount
+                  onConfirm={() => connect.mutate(true)}
+                  busy={connect.isPending}
+                  error={connect.error}
+                  label={t(returned.error === "drive_other_account" ? "drive.switchAnyway" : "drive.switch")}
+                />
               )}
               {google &&
                 (confirming ? (
@@ -160,5 +177,59 @@ function Space() {
       </span>
       {low && <p role="status">{t("drive.spaceLow")}</p>}
     </div>
+  );
+}
+
+/** "Usar outra conta": the strong warning first. Nothing moves across: the new
+ *  account starts with empty folders (plan section 9). */
+function SwitchAccount({
+  onConfirm,
+  busy,
+  error,
+  label,
+}: {
+  onConfirm: () => void;
+  busy: boolean;
+  error: unknown; // shown here: the dialog covers the page's own notice
+  label: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <DialogTrigger>
+      <Button variant="ghost">{label}</Button>
+      <ModalOverlay className={dialogs.overlay} isDismissable>
+        <Modal className={dialogs.modal}>
+          <Dialog className={dialogs.dialog} role="alertdialog">
+            {({ close }) => (
+              <>
+                <Heading slot="title" className={dialogs.dialogTitle}>
+                  {t("drive.switchTitle")}
+                </Heading>
+                <CloseButton onPress={close} />
+                <div className={styles.switchWarning}>
+                  <p>
+                    <strong>{t("drive.switchWarning")}</strong>
+                  </p>
+                  <ul>
+                    <li>{t("drive.switchFiles")}</li>
+                    <li>{t("drive.switchEmpty")}</li>
+                    <li>{t("drive.switchKept")}</li>
+                  </ul>
+                </div>
+                <ErrorNotice error={error} />
+                <div className={dialogs.actions}>
+                  <Button variant="ghost" onPress={close}>
+                    {t("drive.switchCancel")}
+                  </Button>
+                  <Button variant="primary" className={styles.dangerButton} onPress={onConfirm} isDisabled={busy}>
+                    {t("drive.switchConfirm")}
+                  </Button>
+                </div>
+              </>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }
