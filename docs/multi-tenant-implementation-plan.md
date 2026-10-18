@@ -13,8 +13,8 @@ Framework decision updated after discussion: the new backend will use FastAPI
 and Pydantic, while retaining Python. Updated 14 October 2026 (A20), revised 16
 October 2026: the client project page and the staff administration are both React
 + TypeScript, built by Vite and served by the same service on the same origin;
-the server renders the client page's preview tags and its "not found" answers. The office address scheme is reopened as an explicit
-choice between two options (A21, section 4). References to Flask/Gunicorn in the
+the server renders the client page's preview tags and its "not found" answers. Offices
+are served at `{office}.myunio.app` behind a load balancer (A21, section 4). References to Flask/Gunicorn in the
 current-state inventory and verification history describe the existing
 application, not the target backend.
 
@@ -46,12 +46,11 @@ Confirmed choices:
   controls switched on (A20).
 - Build a clean multi-tenant backend instead of threading tenant parameters
   through the prototype's single-office backend.
-- Office URLs: `{office-slug}.{product-domain}` was agreed, and is reopened as of
-  14 October 2026 against a single-domain alternative for cost reasons (A21,
-  section 4). Either way, display-name changes do not silently change URLs, and
-  the choice is made before any client link is shared. The product is Unio, on
+- Office URLs: `{office-slug}.myunio.app`, behind a load balancer (A21, section
+  4; chosen 17 Oct 2026 over one domain with office paths). Display-name changes
+  do not silently change URLs. The product is Unio, on
   `myunio.app` (A33). The first office keeps its own domain, `alineaarquitetos.com`, as a
-  custom domain of the same deployment (A23); A21 only matters for later offices.
+  custom domain of the same deployment (A23); `{office}.myunio.app` is for later offices.
 - Project links are simple: `/{project-slug}` on the office's address, as today
   (A22). Optional per-project passwords cover projects that need privacy.
 - Creating a project asks for its name, the client's name and its type, whose
@@ -107,7 +106,7 @@ its affected tests before coding proceeds.
 | A18 | FastAPI + Pydantic + Uvicorn for the new web backend | Agreed framework switch; validated request/response contracts, dependency injection and native async support; Cloud Run remains compatible |
 | A19 | Cloud Scheduler preferred within its free allowance; local cron retained as an alternative | User accepts managed scheduling when free. Both call the same protected maintenance endpoint; cadence and deployment shape remain separate decisions. See the [cost comparison](infrastructure-cost-comparison.md). |
 | A20 | Client project page and staff administration both React + TypeScript, built by Vite, served by the same FastAPI service on the same origin | Agreed 14 Oct 2026 with client pages in Jinja; revised 16 Oct 2026 (Fabio): since the project page is also where staff edit content (A24), one React page serves viewing and editing instead of two copies of every section. The client page is a separate, small bundle (staff editing code loads only on "Editar"). The server still answers before any script runs: the preview tags (title, description, cover) that messaging apps read, "not found" for drafts and unknown addresses, redirects from old addresses, and the password check. One image, one Cloud Run service. See section 4 and the [changelog](decision-changelog.md) |
-| A21 | Office address scheme | **Open, two options recorded.** A: office subdomains behind a global load balancer (agreed requirement; ~$18.25/month fixed plus processing). B: one domain with office paths (no load-balancer fee, but every no-load-balancer front door has a production caveat). Options and consequences in section 4; decide before DNS/OAuth registration and before any client link is shared |
+| A21 | Office address scheme: **office subdomains, `{office}.myunio.app`, behind a global load balancer** (option A) | Agreed 17 Oct 2026 (Fabio), choosing between the two options recorded 14 Oct. Each office is its own origin (cookies, storage and script bugs stay inside one office), addresses read as the office's own, and custom domains fit later. The load balancer (~$18.25/month plus processing; Fabio has credits for the first three months) is a global external Application Load Balancer with a serverless backend for the production service, certificates from Certificate Manager (DNS authorization at GoDaddy) covering `*.myunio.app`, `myunio.app` and each office's own domain (`alineaarquitetos.com`, `www.`) before its DNS moves, and Cloud Run ingress limited to it. It is built before the second office's first client link; `alineaarquitetos.com` and `myunio.app` move behind it then, leaving Cloud Run domain mappings (Preview, "not recommended for production"). Staging keeps its domain mapping (`staging.myunio.app`, one office), so it does not pay for a second balancer. See section 4 and the [changelog](decision-changelog.md) |
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
 | A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits only the project's settings, in the prototype's "Projeto" dialog: name, client, cover (also from the card's photo button), client link and access (with the client page, slice 2), and archiving. No delete for now. Uploads happen per stage on the project page. See section 10 |
@@ -119,7 +118,7 @@ its affected tests before coding proceeds.
 | A30 | Staff app and API stay compatible across a deploy | Agreed 15 Oct 2026, correcting "one revision means the staff app can never run against another API version": an open tab keeps the old code. Fingerprinted assets, a build ID on API responses, a reload prompt that keeps unsaved edits, and API changes compatible with the previous release. See section 4 |
 | A31 | Uploads go from the browser straight to Drive | Agreed 16 Oct 2026 (Fabio), first part of slice 3b. Any staff member uploads into a stage from edit mode. The app checks the request (staff, project not archived, the stage's folder, at most 100 MB a file) and opens a Google resumable upload in that folder through the office's grant; the browser sends the bytes to Google, never through Cloud Run. A file with a name already there is kept beside it until versions (A25) arrive. The 100 MB cap settles the upload cap that section 24 listed as open; usage metrics (future ideas) may move it. "Ocultar do cliente" renames a file with a leading `_` (A05's hidden names); the office's grant (`drive.file`) reaches only files the app uploaded, so a file put straight into Drive is hidden by renaming it there. Versions, covers in Drive and usage metrics are later. See section 11 |
 | A32 | Client email updates: what, to whom, from where, and how often | Agreed 16 Oct 2026 (Fabio). Staff list the client's addresses in the Projeto dialog, several per project (`project_recipients`). An email goes out for new files on the page, a stage advanced or the project completed, and a meeting scheduled, changed or removed; a stage's note does not email (it still counts for the updates panel). Batching as A12, 45 minutes quiet and 2 hours at most, confirmed for the pilot. Each office sends from its own domain once that domain is verified with the provider (Alinea: `alineaarquitetos.com`); until then, and for every other office, from the product's general domain with the office's name. Replies go to the office's contact email (office settings), else its owner. Locally and in tests a collecting fake records emails; staging sends only to allowlisted addresses. One Cloud Scheduler job calls the maintenance endpoint every 10 minutes (A09, A19), staging first. See section 14 |
-| A33 | Product name and domain: **Unio**, `myunio.app` | Agreed 17 Oct 2026 (Fabio). `myunio.app` is the `{product-domain}` throughout this plan, registered at GoDaddy. Alinea keeps `alineaarquitetos.com` (A23); later offices are served on `myunio.app` in the form A21 settles, which stays open. `.app` domains are HSTS-preloaded, so every address on it works over HTTPS only (Cloud Run's managed certificates already do that). Hosting region is still open (section 24). See the [changelog](decision-changelog.md) |
+| A33 | Product name and domain: **Unio**, `myunio.app` | Agreed 17 Oct 2026 (Fabio). `myunio.app` is the `{product-domain}` throughout this plan, registered at GoDaddy. Alinea keeps `alineaarquitetos.com` (A23); later offices are served at `{office}.myunio.app` (A21). `.app` domains are HSTS-preloaded, so every address on it works over HTTPS only (Cloud Run's managed certificates already do that). Hosting region is still open (section 24). See the [changelog](decision-changelog.md) |
 | A34 | Staff change files on the website, not in Drive | Agreed 17 Oct 2026 (Fabio). The project page does not send staff to Drive: no "Abrir no Google Drive" action on a file or stage. (The Drive settings page keeps its link to the office's connected folder: that is about the connection itself, not a way to change a project's files.) Drive keeps working for whoever prefers it, but every everyday change is offered on the project page. Each file's "⋯" menu offers "Definir como capa" (images), "Mover para outra etapa" (a list of the other stages) and "Ocultar do cliente"; dragging a file onto another stage is a later addition doing the same move. A file put straight into Drive can be shown but not changed through the office's grant (drive.file): the site says, in plain words, to make that change in the stage's folder; authorizing such files through the Picker stays a later option (section 9). See section 11 and the [changelog](decision-changelog.md) |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
@@ -235,8 +234,8 @@ minutes (A09; Cloud Scheduler charges per job, not per run, and Cloud SQL is
 always on, so a shorter interval costs nothing extra). The
 worker below is a logical function and need not be a separate deployed service.
 The fuller queue and wildcard load-balancer design remains an alternative, not
-a prerequisite for the POC. Domain routing is now an explicit open decision with
-two recorded options (A21, below); slower refresh timing still needs agreement.
+a prerequisite for the POC. Offices get subdomains behind a load balancer (A21,
+below); slower refresh timing still needs agreement.
 The cost comparison records those tradeoffs explicitly.
 
 ```mermaid
@@ -263,7 +262,7 @@ Run will keep them alive.
 ### One origin per office: pages, staff app and API (A20)
 
 Each office is served by the one FastAPI service, from one origin. The product
-domain is `myunio.app` (A33). Under option A of A21 the layout is:
+domain is `myunio.app` (A33). With office subdomains (A21) the layout is:
 
 ```text
 {office}.{product-domain}/{slug}             client pages: React, shell and preview tags from the server (A20, A22)
@@ -271,10 +270,6 @@ domain is `myunio.app` (A33). Under option A of A21 the layout is:
 {office}.{product-domain}/api/...            JSON API used by the staff app
 auth.{product-domain}/...                    shared Google login (section 5)
 ```
-
-Under option B the office moves from the hostname into the first path segment
-(`{product-domain}/{office}/{slug}`, `/{office}/painel/...`, `/{office}/api/...`);
-everything else in this subsection is the same.
 
 Because pages, staff app and API share an origin, the session cookie works
 without CORS, cross-site cookies or tokens in browser storage. State-changing
@@ -330,13 +325,11 @@ proxies `/api` to the local FastAPI process. The release check builds the bundle
 and serves it through FastAPI, as production does. Only staff app work needs Node
 locally; client pages and backend work do not.
 
-### Office address: two options, decision open (A21)
+### Office address: office subdomains behind a load balancer (A21)
 
-`{office}.{product-domain}` was the agreed format. It needs a load balancer in
-front of Cloud Run, a fixed monthly cost the pilot may not justify. A21 records
-both options so the choice is made deliberately, before DNS/OAuth registration
-and before any client link is shared. Moving from B to A later means redirecting
-every shared link forever.
+Offices are served at `{office}.myunio.app`, behind a load balancer in front of
+Cloud Run (A21, decided 17 Oct 2026). The comparison below is the analysis that
+decided it; option B is not an available design.
 
 | | A: office subdomains | B: one domain, office paths |
 | --- | --- | --- |
@@ -364,11 +357,20 @@ B front doors, as documented by Google
 - **Default `run.app` URL with office paths:** free and GA, but a Google-branded
   address; acceptable only for an internal POC that shares no client links.
 
-Recommended default if no other information arrives: **A for anything clients
-see**, since every B front door either is not production-ready or breaks large
-file delivery, and B's main saving is about $18/month. Use the `run.app` URL
-with paths for internal testing until real offices are onboarded. This is a
-recommendation; the decision stays open until Fabio chooses.
+**Decided 17 Oct 2026: A** (Fabio), as recommended: every B front door either is
+not production-ready or breaks large file delivery, and B's main saving is about
+$18/month, covered by credits for the first three months. The balancer is built
+before the second office's first client link; until then the one office is served
+through Cloud Run domain mappings (`alineaarquitetos.com`, and `myunio.app` for
+Unio's own pages). Staging stays on a domain mapping (`staging.myunio.app`).
+
+The balancer's certificate map must cover every hostname moved behind it, each
+authorized in Certificate Manager (DNS authorization) before its DNS changes: a
+wildcard covers only first-level subdomains, not the apex or another domain. So:
+`*.myunio.app` and `myunio.app` (one certificate), and `alineaarquitetos.com` and
+`www.alineaarquitetos.com` (another, or one per office domain as custom domains
+arrive). `.app` is HSTS-preloaded, so a gap on `myunio.app` would lock browsers out
+rather than warn.
 
 ### Scheduling and queue technology: proposal under discussion
 
@@ -528,10 +530,7 @@ settings, deployment configuration or cloud resources were changed for this upda
 
 ## 5. Tenant routing and staff identity
 
-This section assumes option A of A21 (office subdomains). Under option B the
-tenant comes from the first path segment instead, the shared `auth.` handoff
-becomes unnecessary, and sessions must be bound to a tenant explicitly because
-all offices share one origin; revise this section if B is chosen.
+Offices are served on their own subdomains (A21, option A).
 
 Resolve the normalized hostname against a `tenant_domains` table. Accept only
 configured product suffixes or explicitly verified custom domains. Reject unknown
@@ -1729,7 +1728,6 @@ choices need an owner before their corresponding feature ships:
 | "Precisa de você" (projects needing staff action) | Left out of the pilot; re-evaluate project-level triggers later (broken folder binding, bounced client email, version clash, unreadable file). Office-wide problems such as a lapsed Drive connection are an office notice, and failed creation is part of the creation flow (A07) | After pilot feedback |
 | Office tagline | Optional office setting (e.g. "Do primeiro traço ao espaço vivido."); can be left out at first | Branding settings |
 | Painel file manager | Not in the pilot unless per-stage uploads prove insufficient (A24) | After pilot feedback |
-| Office address scheme (A21) | Two options in section 4: A, office subdomains behind a load balancer; B, one domain with office paths. Recommended default: A for anything clients see, `run.app` paths for internal testing | Before DNS/OAuth registration and before any client link is shared |
 | Staff app building blocks | Evaluate SVAR React File Manager, Uppy and the Google Picker (section 11) against a custom screen | Slice 3 |
 | Password setter | Office owner/member; viewers cannot change it | Access UI implementation |
 | Digest semantics | Trailing 45-minute quiet period with a 2-hour maximum hold; quiet period configurable 5–120 minutes | Confirmed for the pilot by Fabio, 16 Oct 2026 (A32); revisit with the first office's real upload sessions. The per-office setting is deferred: the pilot uses 45 minutes and 2 hours for every office (`QUIET`, `HOLD` in `backend/notifications/digest.py`) |

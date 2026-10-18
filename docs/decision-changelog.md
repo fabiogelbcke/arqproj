@@ -19,6 +19,21 @@ a new entry too.
 
 ---
 
+## 2026-10-17 — A21 decided: office subdomains behind a load balancer
+
+**Was:** open between A, `{office}.{product-domain}` behind a global load
+balancer (~$18.25/month fixed), and B, one domain with office paths, with A
+recommended for anything clients see.
+
+**Now:** A, on `{office}.myunio.app` (A33). The balancer is built before the
+second office's first client link, and `alineaarquitetos.com` and `myunio.app`
+move behind it then. Staging stays on a free Cloud Run domain mapping.
+
+**Why:** Fabio, 17 Oct 2026: "let's do the load balancer, I have some credits for
+the first 3 months anyway". The cost that reopened the question is covered for
+now, and every B front door had a production caveat (Preview, or a 60-second cut
+on file streams).
+
 ## 2026-10-17 — A34 added: staff change files on the website, not in Drive
 
 **Was:** sections 9 and 11 had the site offer an obvious "Open in Google Drive"
