@@ -2,12 +2,12 @@
 
 What exists on Google Cloud and GitHub for the new app (`backend/` + `frontend/`),
 and why. This is a record, not a script: deploys happen by merging on GitHub
-(`staging` → staging; `main` → production at cutover). Change infrastructure
+(`staging` → staging; `main` → production). Change infrastructure
 deliberately, with approval, and update this file in the same pull request.
 
-The current site (Flask, `app.py`) keeps running as Cloud Run service `portal`
-(alineaarquitetos.com), deployed from `main` by its own trigger. Nothing below
-touches it.
+Production is the Cloud Run service `portal` (`alineaarquitetos.com`), which ran the
+old Flask site (`app.py`) until the new app replaced it in place. Every project
+on it was test data (Fabio, 17 Oct 2026), so nothing was migrated.
 
 Project `arq-proj`, region `us-east1`.
 
@@ -16,7 +16,8 @@ Project `arq-proj`, region `us-east1`.
 | Branch | Trigger | Does |
 | --- | --- | --- |
 | `staging` | Cloud Build `portal-staging-deploy` (runs as `portal-staging-deploy@`) | `deploy/staging/cloudbuild.yaml`: build `deploy/Dockerfile`, push, migrate `arqproj_staging`, provision, deploy `portal-staging` from `deploy/staging/service.yaml` |
-| `main` | `rmgpgab-alinea-arquitetos-…` (existing; never delete) | Current site, buildpacks → `portal`. Switches to the new app only at cutover (slice 7) |
+| `main` | `portal-production-deploy` (runs as `portal-production-deploy@`) | `deploy/production/cloudbuild.yaml`: the same steps against `arqproj_production` and `portal` |
+| `main` | `rmgpgab-alinea-arquitetos-…` (old site, buildpacks) | **Disabled**: it would deploy the old site over the new app. Delete once the new app has run a while |
 
 A failed step stops the deploy; the running revision keeps serving. Settings
 live in `deploy/staging/service.yaml`: change them in a pull request.
@@ -32,7 +33,7 @@ $9–10/month. Public IP with **no authorized networks**: reachable only through
 the Cloud SQL connectors (the Auth Proxy), which require IAM permission.
 `cloudsql.iam_authentication=on`.
 
-Databases: `arqproj_staging` (now), `arqproj_production` (at cutover).
+Databases: `arqproj_staging` and `arqproj_production`, set up the same way.
 
 Logins are Google identities (IAM database authentication), so there are no
 database passwords in the app or in builds:
@@ -41,10 +42,13 @@ database passwords in the app or in builds:
 | --- | --- | --- |
 | `portal-staging-deploy@arq-proj.iam` | the staging deploy (Cloud Build) and admin commands | Owner: runs migrations, owns the tables |
 | `portal-staging@arq-proj.iam` | the staging app (Cloud Run) | Restricted runtime login; member of `arqproj_staging_app` only (granted by `backend.commands.provision`); tenant isolation applies |
+| `portal-production-deploy@arq-proj.iam` | the production deploy and admin commands | Owner of `arqproj_production`'s tables |
+| `portal-production@arq-proj.iam` | the production app | Restricted runtime login; member of `arqproj_production_app` only |
 | `postgres` | emergencies only | Built-in; password in Secret Manager `arqproj-db-postgres-password` |
 
 One-time setup per database, run as `postgres` (Cloud SQL logins are not true
-superusers, so the owner is given exactly what migrations need):
+superusers, so the owner is given exactly what migrations need); production is
+the same with `production` in every name:
 
 ```sql
 CREATE ROLE arqproj_staging_app NOLOGIN;                         -- group role migrations grant to
@@ -59,7 +63,11 @@ GRANT USAGE, CREATE ON SCHEMA public TO "portal-staging-deploy@arq-proj.iam" WIT
 | `portal-staging-deploy@` | staging trigger; admin commands (impersonated) | Artifact Registry writer on `portal`; Cloud Run developer; Cloud SQL client + instance user; log writer; may act as `portal-staging@` |
 | `portal-staging@` | `portal-staging` service | Cloud SQL client + instance user (plus the current site's staging grants from earlier, unused by the new app) |
 
-People who run admin commands against staging need **Service Account Token
+`portal-production-deploy@` and `portal-production@` have the same permissions
+for production (the deploy account may act as `portal-production@`), plus
+Secret Manager accessor on production's secrets for `portal-production@`.
+
+People who run admin commands against staging or production need **Service Account Token
 Creator** on `portal-staging-deploy@` (granted: `arqdevproj@gmail.com`).
 
 ## Cloud Run `portal-staging`
@@ -91,6 +99,19 @@ return address that forwards to the office that started, `backend/web/drive.py`)
 Its secret is `portal-staging-oauth-client-secret`; staging's `APP_SECRET`
 (signing and token encryption) is `portal-staging-app-secret`. Both are read
 by `portal-staging@` and named in `deploy/staging/service.yaml`.
+
+## Cloud Run `portal` (production)
+
+Same shape as staging (`deploy/production/service.yaml`), 0–4 instances, running
+as `portal-production@`. Addresses: `alineaarquitetos.com` and `www.`, and
+`myunio.app` (Cloud Run domain mappings until the load balancer, plan A21), and
+`https://portal-496714293251.us-east1.run.app`. Secrets:
+`portal-production-app-secret` (its own), `portal-oauth-client-secret` and
+`portal-resend-api-key` (production's, from the old site). Drive uses the production OAuth client
+`496714293251-ov1b5fd8gir885g9p51qsrbn9gbq6l7i`, whose redirect URIs must include
+`https://myunio.app/api/drive/callback` (one shared return address that forwards to
+the office that started); files are read as `portal-production@`. Emails send from `myunio.app` (verified
+in Resend), Alinea's from `alineaarquitetos.com`.
 
 ## Images: Artifact Registry `portal`
 

@@ -5,8 +5,8 @@
 SHELL := /bin/bash
 FRONTEND := frontend
 
-# Admin commands (staff, reset-link, tenant) take ENV=local (default) or
-# ENV=staging. Staging is reached through the Cloud SQL Auth Proxy, signed in as
+# Admin commands (staff, reset-link, tenant) take ENV=local (default),
+# ENV=staging or ENV=production. Both are reached through the Cloud SQL Auth Proxy, signed in as
 # your Google account (gcloud auth application-default login, once) acting as
 # that environment's deploy identity, the schema's
 # owner (see docs/infrastructure.md). No database password exists anywhere.
@@ -18,7 +18,7 @@ REMOTE_URL = postgresql+psycopg://portal-$(ENV)-deploy%40arq-proj.iam@127.0.0.1:
 
 define on_database
 	@if [ "$(ENV)" = "local" ]; then $(1); \
-	elif [ "$(ENV)" = "staging" ]; then \
+	elif [ "$(ENV)" = "staging" ] || [ "$(ENV)" = "production" ]; then \
 	  command -v cloud-sql-proxy >/dev/null || { echo "Needs the proxy: brew install cloud-sql-proxy"; exit 2; }; \
 	  log="$${TMPDIR:-/tmp}/cloud-sql-proxy-$(ENV).log"; \
 	  test -f ~/.config/gcloud/application_default_credentials.json || { echo "Once per machine: gcloud auth application-default login"; exit 2; }; \
@@ -28,7 +28,7 @@ define on_database
 	  for i in $$(seq 40); do nc -z 127.0.0.1 $(REMOTE_PORT) 2>/dev/null && break; sleep 0.25; done; \
 	  nc -z 127.0.0.1 $(REMOTE_PORT) >/dev/null 2>&1 || { echo "Could not reach the $(ENV) database:"; cat "$$log"; exit 1; }; \
 	  MIGRATION_DATABASE_URL="$(REMOTE_URL)" $(1); \
-	else echo "ENV must be local or staging"; exit 2; fi
+	else echo "ENV must be local, staging or production"; exit 2; fi
 endef
 
 .PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff reset-link tenant tenant-host
@@ -97,18 +97,18 @@ format: ## Fix Python formatting
 migrate: ## Apply new migrations to the local dev database
 	uv run alembic -c backend/alembic.ini upgrade head
 
-staff: ## Staff account + invite link: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner] [ENV=staging]
-	@test -n "$(TENANT)" -a -n "$(EMAIL)" -a -n "$(NAME)" || { echo "Usage: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner] [ENV=staging]"; exit 2; }
+staff: ## Staff account + invite link: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner] [ENV=staging|production]
+	@test -n "$(TENANT)" -a -n "$(EMAIL)" -a -n "$(NAME)" || { echo "Usage: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner] [ENV=staging|production]"; exit 2; }
 	$(call on_database,uv run python -m backend.commands.staff add --tenant "$(TENANT)" --email "$(EMAIL)" --name "$(NAME)" --role "$(or $(ROLE),member)")
 
-reset-link: ## New password link: make reset-link TENANT=alinea EMAIL=you@x.com [ENV=staging]
-	@test -n "$(TENANT)" -a -n "$(EMAIL)" || { echo "Usage: make reset-link TENANT=alinea EMAIL=you@x.com [ENV=staging]"; exit 2; }
+reset-link: ## New password link: make reset-link TENANT=alinea EMAIL=you@x.com [ENV=staging|production]
+	@test -n "$(TENANT)" -a -n "$(EMAIL)" || { echo "Usage: make reset-link TENANT=alinea EMAIL=you@x.com [ENV=staging|production]"; exit 2; }
 	$(call on_database,uv run python -m backend.commands.staff reset-link --tenant "$(TENANT)" --email "$(EMAIL)")
 
-tenant: ## New office: make tenant SLUG=alinea NAME="ALINEA ARQUITETOS" HOST=address [ENV=staging]
-	@test -n "$(SLUG)" -a -n "$(NAME)" -a -n "$(HOST)" || { echo "Usage: make tenant SLUG=alinea NAME=\"Office name\" HOST=address [ENV=staging]"; exit 2; }
+tenant: ## New office: make tenant SLUG=alinea NAME="ALINEA ARQUITETOS" HOST=address [ENV=staging|production]
+	@test -n "$(SLUG)" -a -n "$(NAME)" -a -n "$(HOST)" || { echo "Usage: make tenant SLUG=alinea NAME=\"Office name\" HOST=address [ENV=staging|production]"; exit 2; }
 	$(call on_database,uv run python -m backend.commands.tenants add --slug "$(SLUG)" --name "$(NAME)" --host "$(HOST)")
 
-tenant-host: ## Another address for an office: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging]
-	@test -n "$(SLUG)" -a -n "$(HOST)" || { echo "Usage: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging]"; exit 2; }
+tenant-host: ## Another address for an office: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging|production]
+	@test -n "$(SLUG)" -a -n "$(HOST)" || { echo "Usage: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging|production]"; exit 2; }
 	$(call on_database,uv run python -m backend.commands.tenants add-host --slug "$(SLUG)" --host "$(HOST)" $(if $(PRIMARY),--primary))

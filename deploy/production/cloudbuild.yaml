@@ -1,0 +1,74 @@
+# Runs on every push to the `main` branch (Cloud Build trigger, as
+# portal-production-deploy@). Build the image, migrate the production database,
+# then deploy the `portal` service (it replaced the old Flask site there). A failed step stops here and the running revision keeps serving.
+# Infrastructure this relies on: docs/infrastructure.md.
+
+substitutions:
+  _REGION: us-east1
+  _IMAGE: us-east1-docker.pkg.dev/arq-proj/portal/app
+  _INSTANCE: arq-proj:us-east1:arqproj-db
+  _DATABASE: arqproj_production
+  # Database logins are Google identities (IAM); `@` is %40 inside a URL.
+  _OWNER_LOGIN: portal-production-deploy%40arq-proj.iam
+  _APP_LOGIN: portal-production@arq-proj.iam
+  _PROXY: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.26.2
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  env: [DOCKER_BUILDKIT=1]
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args: [build, -f, deploy/Dockerfile, --build-arg, BUILD_ID=$SHORT_SHA, -t, "$_IMAGE:$SHORT_SHA", .]
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, "$_IMAGE:$SHORT_SHA"]
+
+  # The database, reached as this build's identity (the deploy account, the
+  # schema's owner) through the Cloud SQL Auth Proxy, for the next step only.
+  - id: database
+    name: gcr.io/cloud-builders/docker
+    args: [run, -d, --name, cloudsql, --network, cloudbuild, "$_PROXY",
+           --auto-iam-authn, --address, 0.0.0.0, --port, "5432", "$_INSTANCE"]
+
+  # Migrations, then the app's login gets exactly the access they granted.
+  - id: migrate
+    name: "$_IMAGE:$SHORT_SHA"
+    entrypoint: sh
+    env:
+      - ENVIRONMENT=production
+      - MIGRATION_DATABASE_URL=postgresql+psycopg://$_OWNER_LOGIN@cloudsql:5432/$_DATABASE
+      - DATABASE_URL=postgresql+psycopg://$_OWNER_LOGIN@cloudsql:5432/$_DATABASE
+      - DATABASE_RUNTIME_ROLE=$_APP_LOGIN
+    args:
+      - -c
+      - >-
+        for i in 1 2 3 4 5 6 7 8 9 10; do python -c "import socket; socket.create_connection(('cloudsql', 5432), 2)" 2>/dev/null && break; sleep 1; done;
+        alembic -c backend/alembic.ini upgrade head && python -m backend.commands.provision
+
+  # Merges close together run as overlapping builds. Only the newest commit on
+  # `main` may deploy, or a slower older build could roll production back. (An
+  # older build cannot migrate a database a newer one already moved forward:
+  # Alembic stops on the unknown revision, so it fails before this point.)
+  - id: newest
+    name: gcr.io/cloud-builders/git
+    entrypoint: bash
+    args:
+      - -c
+      - >-
+        newest=$$(git ls-remote https://github.com/fabiogelbcke/arqproj.git refs/heads/main | cut -f1);
+        if [ "$$newest" != "$COMMIT_SHA" ]; then
+        echo "main is now at $$newest; that build deploys instead of $COMMIT_SHA" | tee /workspace/superseded; fi
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - >-
+        if [ -f /workspace/superseded ]; then cat /workspace/superseded; exit 0; fi;
+        sed -e "s|IMAGE_PLACEHOLDER|$_IMAGE:$SHORT_SHA|" -e "s|BUILD_ID_PLACEHOLDER|$SHORT_SHA|"
+        deploy/production/service.yaml > /workspace/service.yaml &&
+        gcloud run services replace /workspace/service.yaml --region "$_REGION"
