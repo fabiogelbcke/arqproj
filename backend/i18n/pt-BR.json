@@ -44,7 +44,7 @@
     "noResults": "Nenhum projeto encontrado para “{{query}}”.",
     "sortBy": "Ordenar por",
     "sort": {
-      "updated": "Última atualização",
+      "updated": "Atualizado",
       "created": "Data de criação",
       "name": "Nome",
       "client": "Cliente",
@@ -68,8 +68,8 @@
     "kicker": "Espaço de projetos",
     "az": "A–Z ↑",
     "za": "Z–A ↓",
-    "newestFirst": "Recentes primeiro ↓",
-    "oldestFirst": "Antigos primeiro ↑",
+    "newestFirst": "Recentes ↓",
+    "oldestFirst": "Antigos ↑",
     "directionAsc": "Ordem crescente. Alterar para decrescente",
     "directionDesc": "Ordem decrescente. Alterar para crescente"
   },

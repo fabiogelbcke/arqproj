@@ -115,6 +115,19 @@ describe("the project list", () => {
     expect(screen.getByText("Nenhum projeto encontrado para “xyz”.")).toBeInTheDocument();
   });
 
+  it("on a phone, search waits behind a button and opens ready to type", async () => {
+    api();
+    renderAt("/");
+    const toggle = await screen.findByRole("button", { name: "Buscar projetos" });
+    const box = screen.getByRole("searchbox", { name: "Buscar projetos" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(box.closest("[data-open]")).toBeNull(); // hidden on phones until asked for
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(box.closest("[data-open]")).not.toBeNull();
+    expect(box).toHaveFocus();
+  });
+
   it("remembers the chosen order on this device", async () => {
     api();
     renderAt("/");

@@ -190,7 +190,7 @@ export function NewProjectDialog({ onCreated }: { onCreated: (p: ProjectSummary)
     <DialogTrigger>
       <Button variant="primary" className={styles.newButton}>
         <span aria-hidden="true">+</span>
-        {t("projects.new")}
+        <span className={styles.newLabel}>{t("projects.new")}</span>
       </Button>
       <ModalOverlay className={styles.overlay} isDismissable>
         <Modal className={styles.modal}>

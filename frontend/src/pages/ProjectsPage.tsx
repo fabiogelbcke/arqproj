@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Input, SearchField } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
@@ -118,21 +118,46 @@ export function ProjectsPage() {
   // No drafts for now (A35); one left in the database is listed with the live ones.
   const active = shown.filter((p) => p.status === "active" || p.status === "draft");
   const completed = shown.filter((p) => p.status === "completed");
+  const searchId = useId();
+  const searchInput = useRef<HTMLInputElement>(null);
+  // Phones only: closed until asked for, and kept open while it holds a search.
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    if (searchOpen) searchInput.current?.focus();
+  }, [searchOpen]);
   const hasAny = (projects.data?.length ?? 0) > 0;
 
   return (
     <>
       <div className={styles.head}>
+        {/* On phones the tabs say where you are: the big title is for screen readers only. */}
         <p className={styles.kicker}>
           {me.data?.tenant_name} / {t("projects.kicker")}
         </p>
-        <h1 className={`${pageStyles.display} ${pageStyles.displayMedium}`}>{t("projects.title")}</h1>
+        <h1 className={`${pageStyles.display} ${pageStyles.displayMedium} ${styles.title}`}>{t("projects.title")}</h1>
         <div className={styles.tools}>
           {hasAny && (
             <>
-              <SearchField className={styles.search} value={query} onChange={setQuery} aria-label={t("projects.search")}>
+              {/* Phones: search sits behind this button, beside "Novo projeto" (desktop: hidden). */}
+              <Button
+                className={styles.searchToggle}
+                aria-label={t("projects.search")}
+                aria-expanded={searchOpen}
+                aria-controls={searchId}
+                onPress={() => setSearchOpen(!searchOpen)}
+              >
                 <span className={styles.searchIcon} aria-hidden="true" />
-                <Input className={styles.searchInput} placeholder={t("projects.searchPlaceholder")} />
+              </Button>
+              <SearchField
+                id={searchId}
+                className={styles.search}
+                data-open={searchOpen || undefined}
+                value={query}
+                onChange={setQuery}
+                aria-label={t("projects.search")}
+              >
+                <span className={styles.searchIcon} aria-hidden="true" />
+                <Input ref={searchInput} className={styles.searchInput} placeholder={t("projects.searchPlaceholder")} />
               </SearchField>
               <div className={styles.sort}>
                 <label htmlFor={sortId}>{t("projects.sortBy")}</label>

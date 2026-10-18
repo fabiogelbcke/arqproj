@@ -31,15 +31,46 @@
 .sort { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
 .sort label { font-size: 12px; color: var(--muted); }
 .select {
-  min-width: 165px; min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r);
+  min-width: 165px; min-height: 36px; padding: 6px 30px 6px 10px; border: 1px solid var(--line); border-radius: var(--r);
   background: transparent; color: var(--ink); font: inherit; font-size: 14px;
+  /* Our own chevron, a little in from the edge (the browser's sits against it). */
+  appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+  background-size: 5px 5px; background-repeat: no-repeat;
 }
 .direction { padding-inline: 16px; }
 .newButton { gap: 20px; min-height: 52px; padding-inline: 32px; font-size: 15px; }
 .newButton > span { font-size: 20px; font-weight: 300; }
+.searchToggle { display: none; }
 @media (max-width: 720px) {
-  .sort { order: 3; width: 100%; margin-left: 0; }
-  .select { flex: 1; min-width: 0; }
+  /* No big head on phones: the tabs say where you are. The title stays for screen readers. */
+  .head { gap: 12px; }
+  .head::after, .kicker { display: none; }
+  .title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .tools { border-top: 0; padding-top: 0; gap: 10px; flex-wrap: nowrap; }
+  /* Search behind a button beside "Novo projeto"; the field opens on its own row below. */
+  .searchToggle {
+    display: grid; place-items: center; order: 0; flex: 0 0 44px; width: 44px; min-height: 44px; padding: 0;
+    border: 1px solid var(--line); border-radius: var(--r); background: transparent; position: relative;
+  }
+  .searchToggle[aria-expanded="true"] { border-color: var(--ink); }
+  .searchToggle .searchIcon { position: relative; left: auto; top: auto; translate: -1px -1px; }
+  /* "Novo projeto" floats at the bottom right, a round + (its name stays for screen readers). */
+  .newButton {
+    position: fixed; z-index: 40; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
+    display: grid; place-items: center; width: 56px; height: 56px; min-height: 0; padding: 0; gap: 0;
+    border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
+  }
+  .newButton > span:first-child { font-size: 30px; font-weight: 300; line-height: 1; translate: 0 -2px; }
+  .newLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .search { order: 3; display: none; flex: 1 1 100%; min-width: 0; }
+  .search[data-open] { display: block; }
+  .tools:has(.search[data-open]) { flex-wrap: wrap; }
+  .sort { order: 1; flex: 1 1 auto; min-width: 0; margin-left: 0; flex-wrap: nowrap; }
+  .sort label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .select { flex: 1; min-width: 0; height: 44px; }
+  .direction { padding-inline: 12px; white-space: nowrap; height: 44px; min-height: 44px; }
 }
 
 .group { display: grid; gap: 24px; }

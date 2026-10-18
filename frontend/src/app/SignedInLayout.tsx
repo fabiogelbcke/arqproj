@@ -52,10 +52,12 @@ export function SignedInLayout() {
           </nav>
           <span className={styles.spacer} />
           <span className={styles.who}>{t("nav.signedInAs", { name: me.data.name })}</span>
-          <ThemeToggle />
-          <Button variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
-            {t("nav.signOut")}
-          </Button>
+          <div className={styles.actions}>
+            <ThemeToggle className={styles.theme} />
+            <Button variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
+              {t("nav.signOut")}
+            </Button>
+          </div>
         </div>
       </header>
       <main className={styles.main}>

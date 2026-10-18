@@ -19,13 +19,14 @@ export function applyStoredTheme(): void {
 }
 
 /** Light by default; the choice is remembered on this device only. */
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const { t } = useTranslation();
   const [theme, setTheme] = useState<Theme>(stored);
   const next: Theme = theme === "dark" ? "light" : "dark";
   return (
     <Button
       variant="ghost"
+      className={className}
       aria-label={t(next === "light" ? "theme.useLight" : "theme.useDark")}
       onPress={() => {
         document.documentElement.dataset.theme = next;
