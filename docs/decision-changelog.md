@@ -24,9 +24,10 @@ a new entry too.
 **Was:** a new project started as a draft ("Rascunho", 15 Oct): staff saw it,
 its client page answered "not found" until staff pressed "Publicar".
 
-**Now:** creation makes it `active`; no publish step, drafts group or draft
-notes. The `draft` status stays allowed in the database, unused, and existing
-drafts were published.
+**Now:** creation makes it `active`; no publish step or drafts group. The
+`draft` status stays allowed in the database, unused, and existing drafts were
+published. "Publicar" stays on a draft's staff bar, for one left over by the
+previous release during a deploy (A30).
 
 **Why:** Fabio, 17 Oct 2026: "Another thing I think we wanna drop for now is the
 Draft projects. We wanna publish them straightway". Kept in the schema because

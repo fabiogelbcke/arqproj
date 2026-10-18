@@ -273,6 +273,30 @@ async def test_another_offices_staff_get_no_preview_of_drafts(client, db_session
     assert (await page(client, "casa-das-oliveiras")).status_code == 404
 
 
+# A draft left over (A35) can still be published, and an open tab of the previous
+# release keeps its button working (A30).
+async def test_publishing_opens_the_page_to_clients(client, db_session, owner, draft):
+    draft = (await page(client, "casa-das-oliveiras")).json()["staff"]
+    published = await client.post(f"/api/projects/{draft['project_id']}/publish", headers=owner)
+    assert (published.status_code, published.json()["status"]) == (200, "active")
+    again = await client.post(f"/api/projects/{draft['project_id']}/publish", headers=owner)
+    assert again.status_code == 200  # twice changes nothing
+    client.cookies.clear()
+    assert (await page(client, "casa-das-oliveiras")).status_code == 200
+
+
+async def test_publishing_needs_staff_and_their_csrf_token(client, db_session, owner, draft):
+    draft = (await page(client, "casa-das-oliveiras")).json()["staff"]
+    response = await client.post(f"/api/projects/{draft['project_id']}/publish", headers=ALINEA)
+    assert response.status_code in (401, 403)
+
+
+async def test_only_drafts_and_live_projects_can_be_published(client, db_session, owner):
+    found = await project_id(db_session, "refugio-da-mantiqueira")  # completed
+    response = await client.post(f"/api/projects/{found}/publish", headers=owner)
+    assert (response.status_code, response.json()["error"]) == (422, "invalid_status_change")
+
+
 async def test_a_draft_archived_without_being_published_stays_unpublished(
     client, db_session, owner, draft
 ):
@@ -337,3 +361,23 @@ async def test_a_staff_only_meeting_download_is_private(client, db_session, owne
     response = await client.get("/api/pages/casa-das-oliveiras/meeting.ics", headers=ALINEA)
     assert response.status_code == 200
     assert response.headers["cache-control"] == "private, no-store"
+
+
+async def test_a_publish_that_loses_a_race_says_so(client, db_session, owner, draft, monkeypatch):
+    """Archived by someone else between the check and the change: not "published"."""
+    from backend.web import project_settings
+
+    found = await project_id(db_session, "casa-das-oliveiras")
+    real = project_settings._project
+
+    async def read_then_archived(db, project_id):
+        project = await real(db, project_id)
+        await db.execute(
+            text("UPDATE projects SET status = 'archived', archived_from = 'draft' WHERE id = :p"),
+            {"p": found},
+        )
+        return project
+
+    monkeypatch.setattr(project_settings, "_project", read_then_archived)
+    response = await client.post(f"/api/projects/{found}/publish", headers=owner)
+    assert (response.status_code, response.json()["error"]) == (409, "project_changed")

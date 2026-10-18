@@ -314,6 +314,8 @@
     "copyLink": "Copy the client's link",
     "linkCopied": "Link copied.",
     "linkCopiedDraft": "Link copied. The client will see the page once it's published.",
+    "publish": "Publish",
+    "published": "Published. The client can now open the link.",
     "password": "Password",
     "enter": "Enter",
     "noFiles": "No files in this stage yet.",

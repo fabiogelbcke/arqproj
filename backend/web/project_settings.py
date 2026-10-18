@@ -2,6 +2,7 @@
 photo button.
 
     PATCH  /api/projects/{id}         name, client, address, access; archive or restore
+    POST   /api/projects/{id}/publish a draft goes live (from the page's staff bar)
     PUT    /api/projects/{id}/cover   upload the cover photo
     DELETE /api/projects/{id}/cover   back to the placeholder photo
     GET    /api/projects/{id}/cover   the cover (staff only until the client page)
@@ -249,6 +250,33 @@ async def _move_address(db: AsyncSession, project_id: uuid.UUID, slug: str) -> N
     if reused.rowcount == 0:
         db.add(ProjectSlug(project_id=project_id, slug=slug))
         await db.flush()
+
+
+@router.post("/projects/{project_id}/publish", responses=documented(401, 404, 409, 422))
+async def publish(
+    project_id: uuid.UUID,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> ProjectSummary:
+    """A draft goes live: its page opens to anyone with the link. New projects are
+    published at once (A35), so only a draft left over shows the staff bar's
+    button: one created by the previous release during a deploy, or an open tab
+    of it (A30). Publishing twice changes nothing."""
+    project = await _project(db, project_id)
+    if project.status is ProjectStatus.DRAFT:
+        published = await db.execute(
+            update(Project)
+            .where(Project.id == project.id, Project.status == ProjectStatus.DRAFT)
+            .values(status=ProjectStatus.ACTIVE, row_version=Project.row_version + 1)
+        )
+        if published.rowcount != 1:  # someone archived it meanwhile
+            raise ApiError(409, ErrorCode.PROJECT_CHANGED)
+        await db.commit()
+    elif project.status is not ProjectStatus.ACTIVE:
+        raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # completed or archived
+    db.expire_all()
+    return await _summary(db, tenant, project_id)
 
 
 async def _connection(request: Request, db: AsyncSession) -> StorageConnection | None:
