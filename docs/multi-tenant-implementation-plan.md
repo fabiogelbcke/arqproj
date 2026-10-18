@@ -106,7 +106,7 @@ its affected tests before coding proceeds.
 | A18 | FastAPI + Pydantic + Uvicorn for the new web backend | Agreed framework switch; validated request/response contracts, dependency injection and native async support; Cloud Run remains compatible |
 | A19 | Cloud Scheduler preferred within its free allowance; local cron retained as an alternative | User accepts managed scheduling when free. Both call the same protected maintenance endpoint; cadence and deployment shape remain separate decisions. See the [cost comparison](infrastructure-cost-comparison.md). |
 | A20 | Client project page and staff administration both React + TypeScript, built by Vite, served by the same FastAPI service on the same origin | Agreed 14 Oct 2026 with client pages in Jinja; revised 16 Oct 2026 (Fabio): since the project page is also where staff edit content (A24), one React page serves viewing and editing instead of two copies of every section. The client page is a separate, small bundle (staff editing code loads only on "Editar"). The server still answers before any script runs: the preview tags (title, description, cover) that messaging apps read, "not found" for drafts and unknown addresses, redirects from old addresses, and the password check. One image, one Cloud Run service. See section 4 and the [changelog](decision-changelog.md) |
-| A21 | Office address scheme: **office subdomains, `{office}.myunio.app`, behind a global load balancer** (option A) | Agreed 17 Oct 2026 (Fabio), choosing between the two options recorded 14 Oct. Each office is its own origin (cookies, storage and script bugs stay inside one office), addresses read as the office's own, and custom domains fit later. The load balancer (~$18.25/month plus processing; Fabio has credits for the first three months) is a global external Application Load Balancer with a serverless backend for the production service, a wildcard certificate for `*.myunio.app` from Certificate Manager (DNS authorization at GoDaddy), and Cloud Run ingress limited to it. It is built before the second office's first client link; `alineaarquitetos.com` and `myunio.app` move behind it then, leaving Cloud Run domain mappings (Preview, "not recommended for production"). Staging keeps its domain mapping (`staging.myunio.app`, one office), so it does not pay for a second balancer. See section 4 and the [changelog](decision-changelog.md) |
+| A21 | Office address scheme: **office subdomains, `{office}.myunio.app`, behind a global load balancer** (option A) | Agreed 17 Oct 2026 (Fabio), choosing between the two options recorded 14 Oct. Each office is its own origin (cookies, storage and script bugs stay inside one office), addresses read as the office's own, and custom domains fit later. The load balancer (~$18.25/month plus processing; Fabio has credits for the first three months) is a global external Application Load Balancer with a serverless backend for the production service, certificates from Certificate Manager (DNS authorization at GoDaddy) covering `*.myunio.app`, `myunio.app` and each office's own domain (`alineaarquitetos.com`, `www.`) before its DNS moves, and Cloud Run ingress limited to it. It is built before the second office's first client link; `alineaarquitetos.com` and `myunio.app` move behind it then, leaving Cloud Run domain mappings (Preview, "not recommended for production"). Staging keeps its domain mapping (`staging.myunio.app`, one office), so it does not pay for a second balancer. See section 4 and the [changelog](decision-changelog.md) |
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
 | A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits only the project's settings, in the prototype's "Projeto" dialog: name, client, cover (also from the card's photo button), client link and access (with the client page, slice 2), and archiving. No delete for now. Uploads happen per stage on the project page. See section 10 |
@@ -262,7 +262,7 @@ Run will keep them alive.
 ### One origin per office: pages, staff app and API (A20)
 
 Each office is served by the one FastAPI service, from one origin. The product
-domain is `myunio.app` (A33). Under option A of A21 the layout is:
+domain is `myunio.app` (A33). With office subdomains (A21) the layout is:
 
 ```text
 {office}.{product-domain}/{slug}             client pages: React, shell and preview tags from the server (A20, A22)
@@ -270,10 +270,6 @@ domain is `myunio.app` (A33). Under option A of A21 the layout is:
 {office}.{product-domain}/api/...            JSON API used by the staff app
 auth.{product-domain}/...                    shared Google login (section 5)
 ```
-
-Under option B the office moves from the hostname into the first path segment
-(`{product-domain}/{office}/{slug}`, `/{office}/painel/...`, `/{office}/api/...`);
-everything else in this subsection is the same.
 
 Because pages, staff app and API share an origin, the session cookie works
 without CORS, cross-site cookies or tokens in browser storage. State-changing
@@ -331,11 +327,9 @@ locally; client pages and backend work do not.
 
 ### Office address: office subdomains behind a load balancer (A21)
 
-`{office}.{product-domain}` was the agreed format. It needs a load balancer in
-front of Cloud Run, a fixed monthly cost the pilot may not justify. A21 records
-both options so the choice is made deliberately, before DNS/OAuth registration
-and before any client link is shared. Moving from B to A later means redirecting
-every shared link forever.
+Offices are served at `{office}.myunio.app`, behind a load balancer in front of
+Cloud Run (A21, decided 17 Oct 2026). The comparison below is the analysis that
+decided it; option B is not an available design.
 
 | | A: office subdomains | B: one domain, office paths |
 | --- | --- | --- |
@@ -369,6 +363,14 @@ $18/month, covered by credits for the first three months. The balancer is built
 before the second office's first client link; until then the one office is served
 through Cloud Run domain mappings (`alineaarquitetos.com`, and `myunio.app` for
 Unio's own pages). Staging stays on a domain mapping (`staging.myunio.app`).
+
+The balancer's certificate map must cover every hostname moved behind it, each
+authorized in Certificate Manager (DNS authorization) before its DNS changes: a
+wildcard covers only first-level subdomains, not the apex or another domain. So:
+`*.myunio.app` and `myunio.app` (one certificate), and `alineaarquitetos.com` and
+`www.alineaarquitetos.com` (another, or one per office domain as custom domains
+arrive). `.app` is HSTS-preloaded, so a gap on `myunio.app` would lock browsers out
+rather than warn.
 
 ### Scheduling and queue technology: proposal under discussion
 
