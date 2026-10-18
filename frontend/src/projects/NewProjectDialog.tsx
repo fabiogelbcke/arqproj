@@ -88,7 +88,6 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         onChange={setClient}
         isRequired
         maxLength={CLIENT_MAX}
-        showCount
         autoComplete="off"
       />
       <RadioGroup
