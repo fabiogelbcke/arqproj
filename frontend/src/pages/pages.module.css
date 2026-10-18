@@ -8,7 +8,7 @@
    row, left-aligned like the form; on a narrow screen both logos shrink rather
    than the office's dropping to a line of its own. */
 .authBrand {
-  display: flex; align-items: center; gap: 16px; min-height: 56px; flex-wrap: nowrap; min-width: 0;
+  display: flex; align-items: center; gap: 16px; min-height: 56px; flex-wrap: nowrap; min-width: 0; margin-bottom: 12px;
   --logo-ref: 38px; --logo-min: 28px; --logo-max: 56px; --logo-max-width: 220px;
 }
 .authBrand > * { flex: none; }
