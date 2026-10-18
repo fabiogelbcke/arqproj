@@ -15,10 +15,14 @@ const at = (name: string) => `[data-tour="${name}"]`;
 // loading): taken at once, before waiting for edit mode.
 let running = false;
 
-/** Until the edit mode's parts (loaded on demand) are on the page, at most ~1.5 s. */
+/** Until the edit mode's parts, each loaded on demand and separately, are on the
+ *  page: the stage controls and, with a stage open, its upload area. At
+ *  most 3 s, then the tour goes on with what is there. */
 async function editingShown(): Promise<void> {
-  for (let i = 0; i < 30 && !document.querySelector(at("stage")); i++)
-    await new Promise((resolve) => setTimeout(resolve, 50));
+  const ready = () =>
+    document.querySelector(at("stage")) &&
+    (document.querySelector(at("upload")) || !document.querySelector(".stage.is-expanded"));
+  for (let i = 0; i < 60 && !ready(); i++) await new Promise((resolve) => setTimeout(resolve, 50));
 }
 
 export async function startTour({

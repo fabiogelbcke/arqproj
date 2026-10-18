@@ -446,6 +446,8 @@ test("a new staff member's first project page shows the tour once; \"?\" replays
   await page.goto("/casa-jardim");
   const popover = page.locator(".driver-popover");
   await expect(popover).toContainText("Ver como cliente e Editar");
+  // Every step, upload area included (its part loads separately): 5 of them.
+  await expect(popover).toContainText("1 de 5");
   await popover.getByRole("button", { name: /Próximo/ }).click();
   await expect(popover).toContainText("Cada parte com o seu lápis");
   // The tour runs in edit mode, where its steps' parts are.
