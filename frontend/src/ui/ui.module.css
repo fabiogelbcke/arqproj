@@ -64,3 +64,11 @@
   position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; min-height: 0; padding: 0;
   display: grid; place-items: center; font-size: 26px; font-weight: 300; line-height: 1;
 }
+
+/* A field's length counter, in the input's right edge. */
+.counted { position: relative; }
+.counted .input { width: 100%; padding-right: 56px; }
+.counter {
+  position: absolute; right: 12px; top: 50%; translate: 0 -50%; pointer-events: none;
+  font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+}

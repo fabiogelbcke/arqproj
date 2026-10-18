@@ -73,7 +73,7 @@ async def test_the_name_starts_as_the_registrys_and_can_be_changed(client, owner
     ("body", "error"),
     [
         ({"name": "   "}, "invalid_office_name"),
-        ({"name": "x" * 81}, "invalid_office_name"),
+        ({"name": "x" * 29}, "invalid_office_name"),  # 28 for now
         ({"contact_email": "not-an-email"}, "invalid_email"),
     ],
 )
@@ -129,11 +129,11 @@ async def test_only_small_images_are_accepted_as_a_logo(client, owner, content, 
     assert (response.status_code, response.json()) == (status, {"error": error})
 
 
-async def test_first_steps_tick_office_details_once_email_and_logo_are_set(client, owner):
+async def test_first_steps_tick_office_details_once_the_email_is_set(client, owner):
+    assert (await client.get("/api/onboarding", headers=ALINEA)).json()["office_details"] is False
+    await upload(client, owner, PNG)  # a logo alone isn't enough: it's optional
     assert (await client.get("/api/onboarding", headers=ALINEA)).json()["office_details"] is False
     await client.patch("/api/office", json={"contact_email": "a@b.com"}, headers=owner)
-    assert (await client.get("/api/onboarding", headers=ALINEA)).json()["office_details"] is False
-    await upload(client, owner, PNG)
     assert (await client.get("/api/onboarding", headers=ALINEA)).json()["office_details"] is True
 
 

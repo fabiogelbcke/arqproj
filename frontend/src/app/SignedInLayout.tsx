@@ -53,13 +53,18 @@ export function SignedInLayout() {
           </nav>
           <span className={styles.spacer} />
           <span className={styles.who}>{t("nav.signedInAs", { name: me.data.name })}</span>
-          <div className={styles.actions}>
+          <div className={styles.barActions}>
             <ThemeToggle className={styles.theme} />
             <Button variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
               {t("nav.signOut")}
             </Button>
           </div>
-          <MobileMenu name={me.data.name} onSignOut={() => signOut.mutate()} signingOut={signOut.isPending} />
+          <MobileMenu
+            name={me.data.name}
+            onSignOut={() => signOut.mutate()}
+            signingOut={signOut.isPending}
+            signOutError={signOut.error}
+          />
         </div>
       </header>
       <main className={styles.main}>

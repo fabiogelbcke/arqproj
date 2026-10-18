@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router";
 
 import { CloseButton } from "../ui/CloseButton";
+import { ErrorNotice } from "../ui/ErrorNotice";
 import { useTheme } from "../ui/ThemeToggle";
 import styles from "../pages/pages.module.css";
 
@@ -12,10 +13,12 @@ export function MobileMenu({
   name,
   onSignOut,
   signingOut,
+  signOutError,
 }: {
   name: string; // the staff member's, as entered
   onSignOut: () => void;
   signingOut: boolean;
+  signOutError: unknown; // shown here: the drawer covers the page's own notice
 }) {
   const { t } = useTranslation();
   const [theme, setTheme] = useTheme();
@@ -53,6 +56,7 @@ export function MobileMenu({
                 <Button className={styles.menuItem} onPress={onSignOut} isDisabled={signingOut}>
                   {t("nav.signOut")}
                 </Button>
+                <ErrorNotice error={signOutError} />
               </>
             )}
           </Dialog>

@@ -22,7 +22,7 @@
 .nav a[aria-current="page"] { color: var(--ink); box-shadow: inset 0 -1.5px 0 var(--ink); }
 .spacer { flex: 0; }
 .who { font-size: 13px; color: var(--muted); }
-.actions { display: flex; align-items: center; gap: 8px; }
+.barActions { display: flex; align-items: center; gap: 8px; } /* the top bar's theme and Sair */
 .theme { font-size: 18px; color: var(--ink); }
 @media (max-width: 860px) { .who { display: none; } }
 @media (max-width: 720px) {
@@ -80,7 +80,7 @@
 .stepText { display: grid; gap: 2px; min-width: 0; }
 .stepText strong { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 15px; }
 .stepIcon { width: 18px; height: 18px; flex: none; }
-.stepText small { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.stepText small { font-size: 13px; color: var(--muted); line-height: 1.4; text-align: justify; hyphens: auto; }
 .step[data-done] .stepText strong { color: var(--muted); }
 /* One width for every step's button, wide enough for the longest label. */
 .stepAction {
@@ -180,7 +180,7 @@
 .switch[data-selected] .switchThumb { transform: translateX(18px); }
 @media (prefers-reduced-motion: reduce) { .switchTrack, .switchThumb { transition: none; } }
 @media (max-width: 720px) {
-  .actions { display: none; } /* in the ☰ menu instead */
+  .barActions { display: none; } /* in the ☰ menu instead */
   .menuButton { display: grid; }
   .navInMenu { display: none; } /* the sections are in the ☰ drawer */
   .topbarIn { padding-block: 8px; }

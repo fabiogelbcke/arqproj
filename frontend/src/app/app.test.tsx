@@ -110,6 +110,35 @@ describe("signed in", () => {
 
 });
 
+describe("the theme and the phone drawer", () => {
+  it("keeps the top bar's button and the drawer's switch in step", async () => {
+    localStorage.clear();
+    document.documentElement.dataset.theme = "light";
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    renderAt("/");
+    await screen.findByRole("heading", { name: "Projetos" });
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = await screen.findByRole("dialog", { name: "Menu" });
+    await userEvent.click(within(menu).getByRole("switch", { name: "Modo escuro" }));
+    // The top bar's button (desktop) follows: it now offers the light theme.
+    expect(screen.getByRole("button", { name: "Usar tema claro", hidden: true })).toBeInTheDocument();
+  });
+
+  it("shows a failed sign-out inside the drawer, not behind it", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+      "DELETE /api/session": () => ({ status: 500, body: {}, headers: { "X-Request-ID": "req7" } }),
+    });
+    renderAt("/");
+    await screen.findByRole("heading", { name: "Projetos" });
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = await screen.findByRole("dialog", { name: "Menu" });
+    await userEvent.click(within(menu).getByRole("button", { name: "Sair" }));
+    expect(await within(menu).findByRole("alert")).toHaveTextContent("req7");
+  });
+});
+
 describe("choosing a password", () => {
   function linkApi(choose: (body: unknown) => { status?: number; body?: unknown }) {
     return fakeApi({
