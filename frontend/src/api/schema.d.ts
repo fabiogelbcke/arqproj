@@ -92,8 +92,9 @@ export interface paths {
         /**
          * Ask Password Reset
          * @description Emails a link to choose a new password to this office's account with that
-         *     address. The same answer, as fast, whether or not there is one: the email
-         *     goes after the response, so neither can tell who has an account.
+         *     address. The same answer whether or not there is one, and no sooner: every
+         *     request takes RESET_ANSWER_AT, and the email goes after the response, so
+         *     neither the answer nor its timing tells who has an account.
          */
         post: operations["ask_password_reset_api_password_reset_post"];
         delete?: never;
