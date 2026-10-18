@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { api, call, type Schemas } from "../api/client";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton } from "./EditButton";
+import { UpdatesBell } from "./Updates";
 
 // Staff editing code loads only once staff press "Editar" (A20): visitors never get it.
 const DescriptionEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DescriptionEditor })));
@@ -25,16 +26,27 @@ type StageFiles = Schemas["StageFilesOut"];
 type FileItem = Schemas["FileOut"];
 
 /** Every stage's files, read live from the office's Drive (2.5). */
-type FilesState = { stages: StageFiles[]; reference: string | null; failed: boolean };
+type FilesState = {
+  stages: StageFiles[];
+  reference: string | null;
+  failed: boolean;
+  updates: Schemas["UpdateOut"][]; // the latest changes (A28), files only while shown
+};
 
 function useStageFiles(slug: string, version: unknown): FilesState | null {
   const [state, setState] = useState<FilesState | null>(null); // null while loading
   useEffect(() => {
     call(api.GET("/api/pages/{slug}/files", { params: { path: { slug } } })).then(
-      (found) => setState({ stages: found.stages, reference: found.reference ?? null, failed: false }),
+      (found) =>
+        setState({
+          stages: found.stages,
+          reference: found.reference ?? null,
+          failed: false,
+          updates: found.updates ?? [],
+        }),
       // Couldn't be fetched at all: every stage says so, with the support code.
       (failure: { requestId?: string | null }) =>
-        setState({ stages: [], reference: failure?.requestId ?? null, failed: true }),
+        setState({ stages: [], reference: failure?.requestId ?? null, failed: true, updates: [] }),
     );
   }, [slug, version]);
   return state;
@@ -230,7 +242,13 @@ export function applyStoredTheme(): void {
 }
 
 /** The office's logo (it carries the name) or, without one, its name. */
-export function SiteHeader({ office }: { office: { name: string; logo_url?: string | null } }) {
+export function SiteHeader({
+  office,
+  tools,
+}: {
+  office: { name: string; logo_url?: string | null };
+  tools?: ReactNode; // e.g. the project's "Atualizações"
+}) {
   return (
     <div className="site">
       <div className="site__in">
@@ -238,6 +256,7 @@ export function SiteHeader({ office }: { office: { name: string; logo_url?: stri
           {office.logo_url ? <img src={office.logo_url} alt={office.name} /> : <span>{office.name}</span>}
         </div>
         <div className="client-header-tools">
+          {tools}
           <ThemeSwitch />
         </div>
       </div>
@@ -709,7 +728,22 @@ export function ProjectPage({
 
   return (
     <div className={`client${canEdit ? " editing" : ""}`}>
-      <SiteHeader office={page.office} />
+      <SiteHeader
+        office={page.office}
+        tools={
+          stageFiles && (
+            <UpdatesBell
+              page={page}
+              slug={slug}
+              updates={stageFiles.updates}
+              onStage={(index) => {
+                setOpenStage(index);
+                document.getElementById(`stage-${index}`)?.scrollIntoView({ block: "start" });
+              }}
+            />
+          )
+        }
+      />
       <div className="cwrap">
         <div className="project-opening">
           <header className="project-heading">

@@ -410,5 +410,24 @@
       "unsubscribeConfirm": "Cancelar os e-mails",
       "unsubscribed": "Pronto. {{email}} não vai mais receber as novidades do projeto {{project}}.",
       "unsubscribeInvalid": "Este link não funciona mais. Se ainda recebe e-mails que não quer, fale com o escritório."
+  },
+  "updates": {
+      "label": "Atualizações",
+      "title": "Últimas atualizações",
+      "unread_one": "Últimas atualizações, {{count}} não lida",
+      "unread_other": "Últimas atualizações, {{count}} não lidas",
+      "noneUnread": "Últimas atualizações, nenhuma não lida",
+      "close": "Fechar atualizações",
+      "markRead": "Marcar todas como lidas",
+      "allRead": "Todas lidas",
+      "empty": "Ainda não há atualizações. Novos arquivos, recados e reuniões aparecerão aqui.",
+      "seeStage": "Ver etapa",
+      "seeMeeting": "Ver reunião",
+      "note": "Recado do escritório",
+      "advanced": "O projeto avançou de etapa",
+      "completed": "Projeto concluído",
+      "meetingScheduled": "Reunião marcada",
+      "meetingChanged": "Reunião alterada",
+      "meetingCancelled": "Reunião cancelada"
   }
 }

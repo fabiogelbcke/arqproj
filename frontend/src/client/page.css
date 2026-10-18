@@ -62,3 +62,9 @@
 :root[data-theme="dark"] .client.editing .stage.is-expanded .stage__title input, :root[data-theme="dark"] .client.editing .stage.is-expanded .drop { color: #242629; caret-color: #242629; border-color: #777a7d; }
 :root[data-theme="dark"] .client.editing .stage.is-expanded .drop small, :root[data-theme="dark"] .client.editing .stage.is-expanded .drop svg { color: #55585b; }
 :root[data-theme="dark"] .client.editing .stage.is-expanded .uploads__failed [role="alert"] { color: var(--danger, #9b3d1d); }
+
+/* "Atualizações" on a phone: the panel spans the screen under the header rather
+   than hanging off the bell, which would push it past the left edge. */
+@media (max-width: 560px) {
+  .client-notifications .notification-panel { position: fixed; top: 64px; left: 12px; right: 12px; width: auto; }
+}
