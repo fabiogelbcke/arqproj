@@ -134,6 +134,11 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("button", { name: "Editar reunião" }).click();
   await page.locator(".project-status__meeting form").waitFor(); // the editor, loaded
   await shoot(page, "06b-pagina-editando");
+  // The cover in edit mode: its place, to add one, or "Trocar capa" on it.
+  await page.locator(".project-status__meeting form").getByRole("button", { name: "Cancelar" }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator(".cover-empty, .cover-change").first().waitFor();
+  await shoot(page, "06h-capa-editando");
   // A file's menu (A34), moving it to another stage.
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();

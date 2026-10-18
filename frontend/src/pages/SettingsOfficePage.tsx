@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { FileTrigger, Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
-import { useDrive } from "../drive/drive";
+import { useConnectDrive, useDrive } from "../drive/drive";
 import { useDarkLogo, useOffice, useSaveOffice, useUploadLogo } from "../office/office";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
@@ -112,22 +113,26 @@ export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
 
       <div className={styles.logoBlock}>
         <h3>{t("office.logo")}</h3>
+        {/* Without the office's storage there is nowhere to keep a logo: say so
+            first, with the way to connect, rather than an empty slot and its specs. */}
+        {manage && !storageReady && drive.data && <NeedsDrive />}
         {details.logo_url ? (
           <img className={styles.logo} src={details.logo_url} alt={t("office.logoAlt", { name: details.name })} />
         ) : (
-          // An empty slot with the office's initials until a logo is uploaded.
-          <div className={styles.logoEmpty} role="img" aria-label={t("office.logoNone")}>
-            <span aria-hidden="true">{initials(details.name)}</span>
-            <small>{t("office.logoNone")}</small>
-          </div>
+          (storageReady || !manage) && (
+            // An empty slot with the office's initials until a logo is uploaded.
+            <div className={styles.logoEmpty} role="img" aria-label={t("office.logoNone")}>
+              <span aria-hidden="true">{initials(details.name)}</span>
+              <small>{t("office.logoNone")}</small>
+            </div>
+          )
         )}
-        <p className={styles.small}>{t("office.logoHint")}</p>
-        {manage &&
-          (storageReady ? (
+        {manage && storageReady && (
+          <>
+            <p className={styles.small}>{t("office.logoHint")}</p>
             <ChooseImage label={t("office.chooseLogo")} onChosen={(source) => setCropping({ source, dark: false })} />
-          ) : (
-            <p className={styles.small}>{t("office.logoNeedsDrive")}</p>
-          ))}
+          </>
+        )}
       </div>
 
       {details.logo_url && (manage || details.logo_dark_url) && (
@@ -205,5 +210,31 @@ function ChooseImage({ label, onChosen }: { label: string; onChosen: (source: st
     >
       <Button>{label}</Button>
     </FileTrigger>
+  );
+}
+
+/** The logo can't go up without the office's storage: why, and the way there
+ *  (connect, or reconnect; a folder the portal can't read is fixed in settings). */
+function NeedsDrive() {
+  const { t } = useTranslation();
+  const drive = useDrive();
+  const connect = useConnectDrive();
+  const status = drive.data;
+  const expired = status?.kind === "google" && status.writer_status === "expired";
+  const connected = status?.kind === "google" && status.writer_status === "connected";
+  return (
+    <div className={styles.warning} role="status">
+      <p>{t(connected ? "office.logoDriveUnreadable" : "office.logoNeedsDrive")}</p>
+      {connected ? (
+        <Link className={styles.noticeAction} to="/configuracoes/drive">
+          {t("settings.drive")}
+        </Link>
+      ) : (
+        <Button variant="primary" onPress={() => connect.mutate()} isDisabled={connect.isPending}>
+          {t(expired ? "drive.reconnect" : "drive.connect")}
+        </Button>
+      )}
+      <ErrorNotice error={connect.error} />
+    </div>
   );
 }

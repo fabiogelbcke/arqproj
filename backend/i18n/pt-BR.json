@@ -261,7 +261,12 @@
     "connectedNow": "Google Drive conectado.",
     "disconnectedNow": "Google Drive desconectado.",
     "ownerOnly": "Só o responsável pelo escritório pode conectar ou desconectar.",
-    "noticeExpired": "A conexão com o Google Drive expirou. As páginas dos clientes continuam no ar; envios e novos projetos ficam parados até reconectar."
+    "noticeExpired": "A conexão com o Google Drive expirou. As páginas dos clientes continuam no ar; envios e novos projetos ficam parados até reconectar.",
+    "space": "Espaço no Google Drive",
+    "spaceUsed": "{{used}} de {{total}} usados ({{percent}}%)",
+    "spacePooled": "Armazenamento compartilhado (Workspace): {{used}} usados",
+    "spaceLow": "Pouco espaço livre. Quando o Drive enche, novos arquivos não são enviados: libere espaço ou amplie o armazenamento da conta Google.",
+    "spaceUnknown": "Não foi possível ver o espaço do Drive agora."
   },
   "firstSteps": {
     "title": "Primeiros passos",
@@ -292,7 +297,8 @@
     "logoNone": "Nenhum logo ainda.",
     "chooseLogo": "Escolher imagem",
     "logoSaved": "Logo atualizado.",
-    "logoNeedsDrive": "Conecte o Google Drive para enviar o logo; ele fica guardado no Drive do escritório.",
+    "logoNeedsDrive": "Para enviar o logo, conecte primeiro o Google Drive: o logo fica guardado no Drive do escritório.",
+    "logoDriveUnreadable": "O portal não consegue ler a pasta do escritório no Google Drive, então o logo não pode ser enviado agora. Veja a conexão em Google Drive.",
     "logoAlt": "Logo de {{name}}",
     "ownerOnly": "Só o responsável pelo escritório pode alterar estes dados.",
     "darkSame": "Usar o mesmo logo no modo escuro",
@@ -443,7 +449,11 @@
     "advanceTo": "Avançar para {{n}} {{title}}",
     "advanced": "Avançou para “{{title}}”.",
     "complete": "Concluir projeto",
-    "completed": "Projeto concluído."
+    "completed": "Projeto concluído.",
+    "addCover": "Adicionar foto de capa",
+    "addCoverHint": "JPG, PNG ou WebP. Depois de escolher, você ajusta o recorte.",
+    "changeCover": "Trocar capa",
+    "coverSaved": "Capa atualizada."
   },
   "email": {
       "subject": "Novidades em {{project}}",

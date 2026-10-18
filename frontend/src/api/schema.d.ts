@@ -138,6 +138,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/drive/space": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Drive Space
+         * @description How full the office's Google account is, as the old site showed: asked
+         *     of Google on each visit to the Drive settings, never stored.
+         */
+        get: operations["drive_space_api_drive_space_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drive/connect": {
         parameters: {
             query?: never;
@@ -1098,6 +1119,13 @@ export interface components {
          * @enum {string}
          */
         Role: "owner" | "member";
+        /** SpaceOut */
+        SpaceOut: {
+            /** Used */
+            used: number;
+            /** Total */
+            total: number | null;
+        };
         /**
          * StaffView
          * @description Only for the office's signed-in staff: what the staff bar needs.
@@ -1593,6 +1621,53 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    drive_space_api_drive_space_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

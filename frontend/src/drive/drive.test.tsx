@@ -115,6 +115,35 @@ describe("the painel's Drive banner", () => {
   });
 });
 
+describe("the Drive's space", () => {
+  it("shows how much is used, and warns from 80%", async () => {
+    api(CONNECTED, { "GET /api/drive/space": () => ({ body: { used: 12 * 2 ** 30, total: 15 * 2 ** 30 } }) });
+    renderAt("/configuracoes/drive");
+    expect(await screen.findByText("12 GB de 15 GB usados (80%)")).toBeInTheDocument();
+    expect(screen.getByRole("meter", { name: "Espaço no Google Drive" })).toHaveAttribute("aria-valuenow", "80");
+    expect(screen.getByText(/Pouco espaço livre/)).toBeInTheDocument();
+  });
+
+  it("doesn't warn with room to spare, and shows small amounts in MB", async () => {
+    api(CONNECTED, { "GET /api/drive/space": () => ({ body: { used: 850 * 2 ** 20, total: 15 * 2 ** 30 } }) });
+    renderAt("/configuracoes/drive");
+    expect(await screen.findByText("850 MB de 15 GB usados (6%)")).toBeInTheDocument();
+    expect(screen.queryByText(/Pouco espaço livre/)).toBeNull();
+  });
+
+  it("says pooled Workspace storage has no total of its own", async () => {
+    api(CONNECTED, { "GET /api/drive/space": () => ({ body: { used: 3.5 * 2 ** 30, total: null } }) });
+    renderAt("/configuracoes/drive");
+    expect(await screen.findByText("Armazenamento compartilhado (Workspace): 3,5 GB usados")).toBeInTheDocument();
+  });
+
+  it("says when it couldn't be checked, without Google's words", async () => {
+    api(CONNECTED, { "GET /api/drive/space": () => ({ status: 503, body: { error: "drive_connect_failed" } }) });
+    renderAt("/configuracoes/drive");
+    expect(await screen.findByText("Não foi possível ver o espaço do Drive agora.")).toBeInTheDocument();
+  });
+});
+
 describe("the painel's first steps", () => {
   it("shows a new office's owner what's left, with a button for each step", async () => {
     api(NOT_CONNECTED);

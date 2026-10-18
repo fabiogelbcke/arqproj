@@ -10,6 +10,27 @@ export function useDrive() {
   return useQuery({ queryKey: DRIVE, queryFn: () => call(api.GET("/api/drive")) });
 }
 
+/** How full the office's Google account is: asked of Google on each visit, only
+ *  while connected. */
+export function useDriveSpace(connected: boolean) {
+  return useQuery({
+    queryKey: [...DRIVE, "space"],
+    queryFn: () => call(api.GET("/api/drive/space")),
+    enabled: connected,
+    retry: false,
+  });
+}
+
+/** "12,3 GB", "850 MB": in the language's own number format. */
+export function bytes(count: number, locale: string): string {
+  const gb = count / 2 ** 30;
+  const [value, unit] = gb >= 1 ? [gb, "GB"] : [count / 2 ** 20, "MB"];
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: value < 10 ? 1 : 0 }).format(value)} ${unit}`;
+}
+
+/** At or above this share used, the page says space is running low. */
+export const SPACE_LOW = 0.8;
+
 export function useOnboarding() {
   return useQuery({ queryKey: ONBOARDING, queryFn: () => call(api.GET("/api/onboarding")) });
 }

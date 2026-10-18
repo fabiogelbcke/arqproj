@@ -32,6 +32,8 @@ class FakeGoogle:
         self.share_drops_connection = False
         self.writer_check_fails = False
         self.writer_reaches = set()  # folders the office's grant can still open
+        self.quota = {"limit": str(15 * 2**30), "usage": str(12 * 2**30)}  # 15 GB, 12 used
+        self.about_fails = False
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         path, method = request.url.path, request.method
@@ -45,6 +47,10 @@ class FakeGoogle:
             return httpx2.Response(200)
         auth_header = request.headers.get("Authorization")
         if path == "/drive/v3/about":
+            if "storageQuota" in request.url.params.get("fields", ""):
+                if self.about_fails:
+                    return httpx2.Response(503, json={"error": {"message": "backendError"}})
+                return httpx2.Response(200, json={"storageQuota": self.quota})
             return httpx2.Response(200, json={"user": {"emailAddress": "escritorio@gmail.com"}})
         if path == "/drive/v3/files" and method == "POST":
             self.writer_reaches.add("root1")
@@ -362,3 +368,31 @@ async def test_first_steps_follow_the_real_state(client, db_session, owner, goog
     await come_back(client, await start(client, owner))
     after = (await client.get("/api/onboarding", headers=ALINEA)).json()
     assert after["storage_connected"] is True
+
+
+async def test_the_accounts_space_is_asked_of_google(client, owner, google):
+    await come_back(client, await start(client, owner))
+    space = (await client.get("/api/drive/space", headers=ALINEA)).json()
+    assert space == {"used": 12 * 2**30, "total": 15 * 2**30}
+
+
+async def test_pooled_workspace_storage_has_no_total(client, owner, google):
+    await come_back(client, await start(client, owner))
+    google.quota = {"usage": "5000"}  # Google sets no limit
+    assert (await client.get("/api/drive/space", headers=ALINEA)).json() == {
+        "used": 5000,
+        "total": None,
+    }
+
+
+async def test_space_unknown_says_try_later_and_logs_why(client, owner, google, caplog):
+    await come_back(client, await start(client, owner))
+    google.about_fails = True
+    response = await client.get("/api/drive/space", headers=ALINEA)
+    assert (response.status_code, response.json()["error"]) == (503, "drive_connect_failed")
+    assert "backendError" in caplog.text and "tenant=alinea" in caplog.text
+
+
+async def test_no_space_to_show_without_a_connection(client, owner, google):
+    response = await client.get("/api/drive/space", headers=ALINEA)
+    assert (response.status_code, response.json()["error"]) == (409, "drive_not_connected")

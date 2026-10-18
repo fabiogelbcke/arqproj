@@ -291,6 +291,39 @@ describe("edit mode", () => {
     await userEvent.click(within(bar).getByRole("button", { name: "Editar" }));
   }
 
+  it("in edit mode, a page without a cover offers one in its place, cropped to 3:2", async () => {
+    const { sent } = asStaff({
+      "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
+      "PUT /api/projects/p-1/cover": () => ({ body: {} }),
+    });
+    await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    expect(screen.queryByRole("button", { name: /Adicionar foto de capa/ })).toBeNull(); // not for clients
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: /Adicionar foto de capa/ }));
+    const input = document.querySelector('.client input[type="file"][hidden]') as HTMLInputElement;
+    await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
+    const crop = await screen.findByRole("dialog", { name: "Ajustar a capa" });
+    await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
+    expect(await screen.findByText("Capa atualizada.")).toBeInTheDocument();
+    expect(sent.some((r) => r.method === "PUT" && r.path === "/api/projects/p-1/cover")).toBe(true);
+  });
+
+  it("in edit mode, a cover can be changed from the page", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, cover_url: "/api/pages/casa-jardim/cover?v=1", staff: { project_id: "p-1", status: "active", row_version: 4 } },
+      }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
+    });
+    render(<ClientApp />);
+    await startEditing();
+    expect(await screen.findByRole("button", { name: "Trocar capa" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Adicionar foto de capa/ })).toBeNull();
+  });
+
   it("shows no edit controls until staff switch to Editar", async () => {
     asStaff();
     await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
