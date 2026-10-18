@@ -23,6 +23,7 @@ const ProgressRail = lazy(() => import("./StageEditing").then((m) => ({ default:
 const StageControls = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageControls })));
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
 const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
+const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
 import { day, detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -844,7 +845,18 @@ export function ProjectPage({
               <div className="banner__img" ref={cover}>
                 <img src={page.cover_url} alt={t("page.cover", { name: page.name })} />
               </div>
+              {canEdit && (
+                <Suspense fallback={null}>
+                  <CoverPicker page={page} onChanged={() => onChanged?.()} />
+                </Suspense>
+              )}
             </figure>
+          )}
+          {/* No cover yet: in edit mode, its place, to add one. */}
+          {!page.cover_url && canEdit && (
+            <Suspense fallback={null}>
+              <CoverPicker page={page} onChanged={() => onChanged?.()} />
+            </Suspense>
           )}
         </div>
         {/* Two columns that stack on their own: the description then the timeline,

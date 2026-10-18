@@ -261,7 +261,12 @@
     "connectedNow": "Google Drive connected.",
     "disconnectedNow": "Google Drive disconnected.",
     "ownerOnly": "Only the office's owner can connect or disconnect.",
-    "noticeExpired": "The Google Drive connection expired. Client pages stay up; uploads and new projects wait until you reconnect."
+    "noticeExpired": "The Google Drive connection expired. Client pages stay up; uploads and new projects wait until you reconnect.",
+    "space": "Google Drive space",
+    "spaceUsed": "{{used}} of {{total}} used ({{percent}}%)",
+    "spacePooled": "Pooled storage (Workspace): {{used}} used",
+    "spaceLow": "Running low on space. Once Drive is full, new files won't upload: free up space or upgrade the Google account's storage.",
+    "spaceUnknown": "Drive space couldn't be checked right now."
   },
   "firstSteps": {
     "title": "First steps",
@@ -292,7 +297,8 @@
     "logoNone": "No logo yet.",
     "chooseLogo": "Choose image",
     "logoSaved": "Logo updated.",
-    "logoNeedsDrive": "Connect Google Drive to upload the logo; it is kept in the office's Drive.",
+    "logoNeedsDrive": "To upload the logo, connect Google Drive first: the logo is kept in the office's Drive.",
+    "logoDriveUnreadable": "The portal can't read the office's Google Drive folder, so the logo can't be uploaded now. Check the connection under Google Drive.",
     "logoAlt": "{{name}} logo",
     "ownerOnly": "Only the office's owner can change these details.",
     "darkSame": "Use the same logo in dark mode",
@@ -443,7 +449,13 @@
     "advanceTo": "Advance to {{n}} {{title}}",
     "advanced": "Advanced to “{{title}}”.",
     "complete": "Complete the project",
-    "completed": "Project completed."
+    "completed": "Project completed.",
+    "addCover": "Add a cover photo",
+    "addCoverHint": "JPG, PNG or WebP. After choosing, you adjust the crop.",
+    "changeCover": "Change cover",
+    "coverSaved": "Cover updated.",
+    "removeCover": "Remove cover",
+    "coverRemoved": "Cover removed."
   },
   "email": {
       "subject": "News on {{project}}",

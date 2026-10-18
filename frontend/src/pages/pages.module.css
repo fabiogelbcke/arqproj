@@ -26,7 +26,20 @@
 :global(:root[data-theme="dark"]) .unioLight { display: none !important; }
 :global(:root[data-theme="dark"]) .unioDark { display: block !important; }
 .authJoin { font-weight: 300; color: var(--muted); }
-.authOffice { font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; }
+/* The office's name when it has no logo: in capitals, about as tall as the Unio
+   wordmark, smaller the longer it is, wrapping to two lines at most. */
+.authOffice {
+  min-width: 0; font-size: 24px; line-height: 1.05; font-weight: 500; letter-spacing: 0.04em;
+  text-transform: uppercase; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.authOffice[data-length="long"] { font-size: 19px; }
+.authOffice[data-length="longer"] { font-size: 15px; }
+@media (max-width: 480px) {
+  .authOffice { font-size: 19px; }
+  .authOffice[data-length="long"] { font-size: 15px; }
+  .authOffice[data-length="longer"] { font-size: 13px; }
+}
 .small { font-size: 13px; color: var(--muted); }
 
 .topbar { border-bottom: 1px solid var(--line); }
@@ -79,6 +92,14 @@
   padding: 14px 18px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--raise);
 }
 .noticeAction { font-weight: 500; }
+/* Something to do before this part works (e.g. the logo without Drive): a notice
+   with an accent edge, so it isn't read as small print. */
+.warning {
+  display: grid; gap: 12px; justify-items: start; width: 100%; max-width: 560px;
+  padding: 16px 18px; border: 1px solid var(--line-strong); border-left: 3px solid var(--danger);
+  border-radius: var(--r); background: var(--raise);
+}
+.warning p { margin: 0; }
 /* The painel's first steps: progress, then one row per step with a box that
    ticks itself (not a control) and the step's button. */
 .steps { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 24px; display: grid; gap: 14px; background: var(--raise); }
@@ -128,6 +149,12 @@
 .conn[data-state="ok"] { border-left: 3px solid var(--accent); }
 .conn[data-state="expired"] { border-left: 3px solid var(--danger); }
 .conn p { color: var(--muted); }
+/* The Google account's space (SettingsDrivePage): used of total, and a bar. */
+.space { display: grid; gap: 6px; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.spaceBar { display: block; height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; }
+.spaceBar i { display: block; height: 100%; background: var(--ink); }
+.space[data-low] .spaceBar i { background: var(--danger); }
+.space[data-low] p[role="status"] { color: var(--danger); }
 .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 
 .subnav { display: flex; gap: 22px; border-bottom: 1px solid var(--line); }

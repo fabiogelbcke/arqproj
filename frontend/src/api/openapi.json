@@ -325,6 +325,55 @@
         }
       }
     },
+    "/api/drive/space": {
+      "get": {
+        "summary": "Drive Space",
+        "description": "How full the office's Google account is, as the old site showed: asked\nof Google on each visit to the Drive settings, never stored.",
+        "operationId": "drive_space_api_drive_space_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/drive/connect": {
       "post": {
         "summary": "Connect",
@@ -4000,6 +4049,31 @@
           "member"
         ],
         "title": "Role"
+      },
+      "SpaceOut": {
+        "properties": {
+          "used": {
+            "type": "integer",
+            "title": "Used"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "used",
+          "total"
+        ],
+        "title": "SpaceOut"
       },
       "StaffView": {
         "properties": {
