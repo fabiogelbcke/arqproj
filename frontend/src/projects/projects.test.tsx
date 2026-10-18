@@ -95,6 +95,29 @@ describe("the project list", () => {
     expect(screen.getByText("Projeto concluído")).toBeInTheDocument();
   });
 
+  it("on a phone, shows one group at a time from two tabs", async () => {
+    api();
+    renderAt("/");
+    const tabs = await screen.findByRole("group", { name: "Grupos de projetos" });
+    const activeTab = within(tabs).getByRole("button", { name: "Em andamento 3" });
+    const completedTab = within(tabs).getByRole("button", { name: "Concluídos 1" });
+    expect(activeTab).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(completedTab);
+    expect(completedTab).toHaveAttribute("aria-pressed", "true");
+    expect(activeTab).toHaveAttribute("aria-pressed", "false");
+    // Which group shows is the stylesheet's job on phones; the choice is on the wrapper.
+    expect(document.querySelector("[data-phone-group]")).toHaveAttribute("data-phone-group", "completed");
+  });
+
+  it("on a phone, a tab with no projects has no count, and says so when chosen", async () => {
+    api(LOCAL, { "GET /api/projects": () => ({ body: LIST.filter((p) => p.status !== "completed") }) });
+    renderAt("/");
+    const tabs = await screen.findByRole("group", { name: "Grupos de projetos" });
+    const completedTab = within(tabs).getByRole("button", { name: "Concluídos" }); // no "0"
+    await userEvent.click(completedTab);
+    expect(screen.getByText("Nenhum projeto concluído.")).toBeInTheDocument();
+  });
+
   it("shows meeting times in the office's time zone", async () => {
     api();
     renderAt("/");
@@ -129,10 +152,30 @@ describe("the project list", () => {
     api(LOCAL, { "GET /api/projects": () => ({ body: [] }) });
     renderAt("/");
     expect(await screen.findByText("Crie o primeiro projeto para começar.")).toBeInTheDocument();
+    // Phones show a welcome at the top instead of the tabs (the stylesheet hides it on desktop).
+    expect(screen.getByText("Seu escritório no Unio")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Grupos de projetos" })).toBeNull();
+  });
+
+  it("an office with projects gets the tabs, not the welcome", async () => {
+    api();
+    renderAt("/");
+    await screen.findByRole("group", { name: "Grupos de projetos" });
+    expect(screen.queryByText("Seu escritório no Unio")).toBeNull();
   });
 });
 
 describe("Novo projeto", () => {
+  it("closes from its × without creating anything", async () => {
+    const sent = api();
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(sent.some((r) => r.method === "POST")).toBe(false);
+  });
+
   it("sends the project with an address from its name and a one-time key", async () => {
     const sent = api(LOCAL, {
       "POST /api/projects": (body: unknown) => ({
@@ -247,14 +290,35 @@ describe("Novo projeto", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Já existe o projeto “Casa Jardim”.");
   });
 
-  it("without Google Drive, explains what to do instead of showing the form", async () => {
-    api(NONE);
+  it("without Google Drive, the owner connects it from the dialog, straight to Google", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    const sent = api(NONE, { "POST /api/drive/connect": () => ({ body: { url: "https://accounts.google.example/consent" } }) });
     renderAt("/");
     await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Para criar projetos, conecte o Google Drive do escritório.")).toBeInTheDocument();
-    expect(within(dialog).getByRole("link", { name: /Google Drive/ })).toHaveAttribute("href", "/configuracoes/drive");
     expect(within(dialog).queryByLabelText(/Nome do projeto/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("link")).toBeNull(); // no detour through Configurações
+    await userEvent.click(within(dialog).getByRole("button", { name: "Conectar Google Drive" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.google.example/consent"));
+    expect(sent.some((r) => r.method === "POST" && r.path === "/api/drive/connect")).toBe(true);
+  });
+
+  it("without Google Drive, a member is told who can connect it", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { ...ME, role: "member" } }),
+      "GET /api/drive": () => ({ body: NONE }),
+      "GET /api/onboarding": () => ({ body: { storage_connected: false, office_details: true, has_project: true } }),
+      "GET /api/projects": () => ({ body: LIST }),
+      "GET /api/project-types": () => ({ body: OPTIONS }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Peça ao responsável pelo escritório/)).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Conectar Google Drive" })).toBeNull();
   });
 });
 

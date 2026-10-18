@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -116,14 +116,48 @@ describe("the painel's Drive banner", () => {
 });
 
 describe("the painel's first steps", () => {
-  it("points a new office's owner to connecting Drive", async () => {
+  it("shows a new office's owner what's left, with a button for each step", async () => {
     api(NOT_CONNECTED);
     renderAt("/");
-    expect(await screen.findByRole("heading", { name: "Primeiros passos" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Conectar onde ficam os arquivos/ })).toHaveAttribute(
-      "href",
-      "/configuracoes/drive",
-    );
-    expect(screen.getByText(/Conecte o Google Drive para criar projetos/)).toBeInTheDocument();
+    const steps = await screen.findByRole("region", { name: "Primeiros passos" });
+    expect(within(steps).getByLabelText("0 de 3 passos concluídos")).toBeInTheDocument();
+    expect(within(steps).getByRole("link", { name: "Conectar" })).toHaveAttribute("href", "/configuracoes/drive");
+    expect(within(steps).getByRole("link", { name: "Personalizar" })).toHaveAttribute("href", "/configuracoes/escritorio");
+    expect(within(steps).getByRole("button", { name: "Criar projeto" })).toBeInTheDocument();
+    // The boxes tick themselves: nothing to click.
+    expect(within(steps).queryByRole("checkbox")).toBeNull();
+    // Not connected yet is this list's first step, not a separate notice.
+    expect(screen.queryByText(/Conecte o Google Drive para criar projetos/)).toBeNull();
+  });
+
+  it("ticks a finished step, with no button for it", async () => {
+    api(NOT_CONNECTED, {
+      "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: false, has_project: false } }),
+    });
+    renderAt("/");
+    const steps = await screen.findByRole("region", { name: "Primeiros passos" });
+    expect(within(steps).getByLabelText("1 de 3 passos concluídos")).toBeInTheDocument();
+    const drive = within(steps).getByText("Conectar o Google Drive").closest("li")!;
+    expect(drive).toHaveAttribute("data-done");
+    expect(within(drive).getByText("Concluído")).toBeInTheDocument();
+    expect(within(drive).queryByRole("link")).toBeNull();
+  });
+
+  it("the first project's button opens the new-project dialog", async () => {
+    api(NOT_CONNECTED);
+    renderAt("/");
+    const steps = await screen.findByRole("region", { name: "Primeiros passos" });
+    await userEvent.click(within(steps).getByRole("button", { name: "Criar projeto" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("shows members the steps without buttons, and who can do them", async () => {
+    api(NOT_CONNECTED, {}, { ...ME, role: "member" });
+    renderAt("/");
+    const steps = await screen.findByRole("region", { name: "Primeiros passos" });
+    expect(within(steps).queryByRole("link")).toBeNull();
+    expect(within(steps).queryByRole("button")).toBeNull();
+    expect(within(steps).getByText(/Só o responsável pelo escritório/)).toBeInTheDocument();
   });
 });
+

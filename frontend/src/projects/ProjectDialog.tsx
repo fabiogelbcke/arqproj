@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call } from "../api/client";
 import { Button } from "../ui/Button";
+import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { toast } from "../ui/Toast";
@@ -164,6 +165,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           <Heading slot="title" className={styles.dialogTitle}>
             {t("projectSettings.title")}
           </Heading>
+          <CloseButton onPress={onClose} />
           <Form
             className={styles.form}
             onSubmit={(event) => {

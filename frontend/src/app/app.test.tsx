@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -78,6 +78,64 @@ describe("signed in", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
     const signOut = sent.find((request) => request.method === "DELETE");
     expect(signOut?.headers.get("X-CSRF-Token")).toBe("csrf-123");
+  });
+
+  it("on a phone, the ☰ drawer greets the person, goes to a section, switches the theme and signs out", async () => {
+    localStorage.clear();
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { ...ME, name: "Ana Paula Souza" } }),
+      "DELETE /api/session": () => ({ status: 204 }),
+    });
+    const router = renderAt("/");
+    await screen.findByRole("heading", { name: "Projetos" });
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = await screen.findByRole("dialog", { name: "Menu" });
+    expect(within(menu).getByText("Olá, Ana")).toBeInTheDocument(); // the first name
+    await userEvent.click(within(menu).getByRole("link", { name: "Configurações" }));
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/configuracoes/));
+    expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull(); // closed on the way
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const again = await screen.findByRole("dialog", { name: "Menu" });
+    const dark = within(again).getByRole("switch", { name: "Modo escuro" });
+    expect(dark).not.toBeChecked();
+    await userEvent.click(dark);
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("painel-theme")).toBe("dark"); // remembered on this device
+
+    await userEvent.click(within(again).getByRole("button", { name: "Sair" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
+  });
+
+
+});
+
+describe("the theme and the phone drawer", () => {
+  it("keeps the top bar's button and the drawer's switch in step", async () => {
+    localStorage.clear();
+    document.documentElement.dataset.theme = "light";
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    renderAt("/");
+    await screen.findByRole("heading", { name: "Projetos" });
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = await screen.findByRole("dialog", { name: "Menu" });
+    await userEvent.click(within(menu).getByRole("switch", { name: "Modo escuro" }));
+    // The top bar's button (desktop) follows: it now offers the light theme.
+    expect(screen.getByRole("button", { name: "Usar tema claro", hidden: true })).toBeInTheDocument();
+  });
+
+  it("shows a failed sign-out inside the drawer, not behind it", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+      "DELETE /api/session": () => ({ status: 500, body: {}, headers: { "X-Request-ID": "req7" } }),
+    });
+    renderAt("/");
+    await screen.findByRole("heading", { name: "Projetos" });
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = await screen.findByRole("dialog", { name: "Menu" });
+    await userEvent.click(within(menu).getByRole("button", { name: "Sair" }));
+    expect(await within(menu).findByRole("alert")).toHaveTextContent("req7");
   });
 });
 

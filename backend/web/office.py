@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity.models import Role
-from backend.office.models import NAME_MAX, LogoType, OfficeProfile
+from backend.office.models import LogoType, OfficeProfile
 from backend.office.profile import profile as load_profile
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
@@ -41,6 +41,10 @@ from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
+
+# The office's name as shown at the top of its pages: 28 characters for now (Fabio,
+# 18 Oct 2026). The database allows NAME_MAX (80), so this can grow without a migration.
+NAME_LIMIT = 28
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -123,7 +127,7 @@ async def change_office(
     found = await _profile_for_change(db, tenant)
     if body.name is not None:
         name = body.name.strip()
-        if not name or len(name) > NAME_MAX:
+        if not name or len(name) > NAME_LIMIT:
             raise ApiError(422, ErrorCode.INVALID_OFFICE_NAME)
         found.display_name = name
     if body.contact_email is not None:
