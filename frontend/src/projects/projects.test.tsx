@@ -53,7 +53,7 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
 
 const LIST = [
   project({}),
-  project({ id: "2", name: "Conceição", client_name: "Ana", slug: "conceicao", status: "draft", created_at: "2026-10-01T12:00:00Z" }),
+  project({ id: "2", name: "Conceição", client_name: "Ana", slug: "conceicao", status: "active", created_at: "2026-10-01T12:00:00Z" }),
   project({ id: "3", name: "Refúgio", client_name: "Helena", slug: "refugio", status: "completed" }),
   project({
     id: "4",
@@ -84,10 +84,9 @@ describe("the project list", () => {
     api();
     renderAt("/");
     const active = await screen.findByRole("region", { name: "Em andamento" });
-    expect(within(active).getAllByTestId("project-card")).toHaveLength(2);
-    expect(within(active).getByLabelText("2 projetos em andamento de 4 exibidos")).toBeInTheDocument();
-    const drafts = screen.getByRole("region", { name: "Rascunhos" });
-    expect(within(drafts).getByText("Rascunho")).toBeInTheDocument();
+    expect(within(active).getAllByTestId("project-card")).toHaveLength(3);
+    expect(within(active).getByLabelText("3 projetos em andamento de 4 exibidos")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Rascunhos" })).toBeNull(); // no drafts (A35)
 
     const fold = screen.getByRole("button", { name: "Concluídos" });
     expect(screen.queryByText("Refúgio")).not.toBeVisible();
@@ -123,7 +122,7 @@ describe("the project list", () => {
     expect(loadSort()).toEqual({ key: "name", direction: "asc" });
     const active = screen.getByRole("region", { name: "Em andamento" });
     const names = within(active).getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-    expect(names).toEqual(["Apartamento", "Casa Jardim"]);
+    expect(names).toEqual(["Apartamento", "Casa Jardim", "Conceição"]);
   });
 
   it("an office with no projects is invited to create one", async () => {
@@ -138,7 +137,7 @@ describe("Novo projeto", () => {
     const sent = api(LOCAL, {
       "POST /api/projects": (body: unknown) => ({
         status: 201,
-        body: project({ id: "9", name: (body as { name: string }).name, status: "draft" }),
+        body: project({ id: "9", name: (body as { name: string }).name, status: "active" }),
       }),
     });
     renderAt("/");

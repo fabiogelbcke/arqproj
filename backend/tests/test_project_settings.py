@@ -94,8 +94,16 @@ async def test_archiving_hides_the_project_and_undo_brings_it_back(client, owner
     assert (await project(client))["status"] == "active"
 
 
-async def test_undoing_an_archive_returns_only_to_what_it_was(client, owner):
+async def as_draft(db_session):
+    """No project starts as a draft any more (A35); the status stays in the schema."""
+    await db_session.execute(
+        text("UPDATE projects SET status = 'draft' WHERE name = 'Casa das Oliveiras'")
+    )
+
+
+async def test_undoing_an_archive_returns_only_to_what_it_was(client, db_session, owner):
     """Not a back door to publishing: an archived draft comes back a draft."""
+    await as_draft(db_session)
     draft = await project(client, "casa-das-oliveiras")
     archived = (await change(client, owner, draft, status="archived")).json()
     published = await change(client, owner, archived, status="active")
@@ -104,8 +112,9 @@ async def test_undoing_an_archive_returns_only_to_what_it_was(client, owner):
     assert back.status_code == 200 and back.json()["status"] == "draft"
 
 
-async def test_publishing_and_completing_are_not_settings(client, owner):
-    """They belong to the project page (A24); only archiving and undoing it here."""
+async def test_publishing_and_completing_are_not_settings(client, db_session, owner):
+    """Only archiving and undoing it here (A24)."""
+    await as_draft(db_session)
     draft = await project(client, "casa-das-oliveiras")
     response = await change(client, owner, draft, status="active")
     assert (response.status_code, response.json()["error"]) == (422, "invalid_status_change")

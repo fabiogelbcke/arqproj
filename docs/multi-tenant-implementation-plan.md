@@ -120,6 +120,7 @@ its affected tests before coding proceeds.
 | A32 | Client email updates: what, to whom, from where, and how often | Agreed 16 Oct 2026 (Fabio). Staff list the client's addresses in the Projeto dialog, several per project (`project_recipients`). An email goes out for new files on the page, a stage advanced or the project completed, and a meeting scheduled, changed or removed; a stage's note does not email (it still counts for the updates panel). Batching as A12, 45 minutes quiet and 2 hours at most, confirmed for the pilot. Each office sends from its own domain once that domain is verified with the provider (Alinea: `alineaarquitetos.com`); until then, and for every other office, from the product's general domain with the office's name. Replies go to the office's contact email (office settings), else its owner. Locally and in tests a collecting fake records emails; staging sends only to allowlisted addresses. One Cloud Scheduler job calls the maintenance endpoint every 10 minutes (A09, A19), staging first. See section 14 |
 | A33 | Product name and domain: **Unio**, `myunio.app` | Agreed 17 Oct 2026 (Fabio). `myunio.app` is the `{product-domain}` throughout this plan, registered at GoDaddy. Alinea keeps `alineaarquitetos.com` (A23); later offices are served at `{office}.myunio.app` (A21). `.app` domains are HSTS-preloaded, so every address on it works over HTTPS only (Cloud Run's managed certificates already do that). Hosting region is still open (section 24). See the [changelog](decision-changelog.md) |
 | A34 | Staff change files on the website, not in Drive | Agreed 17 Oct 2026 (Fabio). The project page does not send staff to Drive: no "Abrir no Google Drive" action on a file or stage. (The Drive settings page keeps its link to the office's connected folder: that is about the connection itself, not a way to change a project's files.) Drive keeps working for whoever prefers it, but every everyday change is offered on the project page. Each file's "⋯" menu offers "Definir como capa" (images), "Mover para outra etapa" (a list of the other stages) and "Ocultar do cliente"; dragging a file onto another stage is a later addition doing the same move. A file put straight into Drive can be shown but not changed through the office's grant (drive.file): the site says, in plain words, to make that change in the stage's folder; authorizing such files through the Picker stays a later option (section 9). See section 11 and the [changelog](decision-changelog.md) |
+| A35 | No drafts for now: a new project is published at once | Agreed 17 Oct 2026 (Fabio). Creation makes the project `active`, so its client page answers as soon as it exists; there is no "Publicar" step or "Rascunhos" group. The `draft` status stays allowed in the database, unused, so drafts can return without a schema change; existing drafts were published (migration 0024). The publish endpoint and the staff bar's "Publicar" button stay, shown only on a draft: one the previous release creates while a deploy is under way, and its open tabs, still have a way out (A30). Replaces the draft step of 15 Oct (section 10). See the [changelog](decision-changelog.md) |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -659,7 +660,7 @@ The following is a logical schema specification, not a migration:
 | `password_links` | tenant, user (same tenant), kind (invite/reset), token hash, expiry, used time; one-time links for people to choose their own password (step 1.5b) |
 | `sessions` | tenant, user (same tenant), token hash, CSRF token, last seen, expiry, revoked |
 | `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
-| `projects` | tenant, title, client name (≤ 48 characters), cover image reference, status (`draft` until published, `active`, `completed`, `archived`; see section 10), slugs in `project_slugs`, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), optional professional, access mode/hash/version, current stage, last client-visible activity time (A28), row version |
+| `projects` | tenant, title, client name (≤ 48 characters), cover image reference, status (`active` from creation, `completed`, `archived`; `draft` unused for now, A35; see section 10), slugs in `project_slugs`, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), optional professional, access mode/hash/version, current stage, last client-visible activity time (A28), row version |
 | `project_slugs` | tenant, project, slug, is current, created; every address a project has had, exactly one current. Unique per tenant across current and old, so a used slug stays with its project (A29); old ones redirect. Reserved paths (`painel`, `api`, …) refused |
 | `project_types` | key, order, label per language. Built-in rows from a migration (A26) |
 | `detail_types` | key, value type (text/area/date), order, label per language. Built-in rows from a migration; offices' own later (A27) |
@@ -942,10 +943,10 @@ characters) is the main label in the painel. The slug is derived from the name a
 existing name or slug in the office are refused with the conflicting project
 named. Everything else starts empty or from office defaults and is edited later.
 
-A new project starts as a **draft** ("Rascunho"): staff see and edit it in the
-painel, while its client page answers "not found" (like an unknown address)
-until staff publish it, which makes it `active`. Later `completed` (all stages
-done) and `archived` (still viewable; no new uploads or emails, section 22).
+A new project is published at once (`active`, A35): its client page answers as
+soon as it exists. Later `completed` (all stages done) and `archived` (still
+viewable; no new uploads or emails, section 22). The `draft` status (staff only,
+client page "not found") stays in the schema, unused for now.
 
 Editable after creation, by office staff:
 

@@ -115,8 +115,8 @@ export function ProjectsPage() {
         .sort(compareProjects(sort, i18n.language)),
     [projects.data, query, sort, i18n.language],
   );
-  const active = shown.filter((p) => p.status === "active");
-  const drafts = shown.filter((p) => p.status === "draft");
+  // No drafts for now (A35); one left in the database is listed with the live ones.
+  const active = shown.filter((p) => p.status === "active" || p.status === "draft");
   const completed = shown.filter((p) => p.status === "completed");
   const hasAny = (projects.data?.length ?? 0) > 0;
 
@@ -186,15 +186,6 @@ export function ProjectsPage() {
               count={t("projects.groupCount", { shown: active.length, total: shown.length })}
               countLabel={t("projects.groupCountLabel", { shown: active.length, total: shown.length })}
               projects={active}
-              timeZone={timeZone}
-            />
-          )}
-          {drafts.length > 0 && (
-            <Group
-              id="group-drafts"
-              title={t("projects.groupDrafts")}
-              count={String(drafts.length)}
-              projects={drafts}
               timeZone={timeZone}
             />
           )}

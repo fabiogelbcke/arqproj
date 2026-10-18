@@ -259,8 +259,10 @@ async def publish(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
-    """A draft goes live: its page opens to anyone with the link (A24: from the
-    project page's staff bar). Publishing twice changes nothing."""
+    """A draft goes live: its page opens to anyone with the link. New projects are
+    published at once (A35), so only a draft left over shows the staff bar's
+    button: one created by the previous release during a deploy, or an open tab
+    of it (A30). Publishing twice changes nothing."""
     project = await _project(db, project_id)
     if project.status is ProjectStatus.DRAFT:
         published = await db.execute(

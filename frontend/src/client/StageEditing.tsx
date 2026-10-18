@@ -311,7 +311,7 @@ export function ProgressRail({
           {t("edit.back")}
         </button>
       )}
-      {/* Only an active project can be completed (a draft is published first). */}
+      {/* Only an active project can be completed. */}
       {(next || staff.status === "active") && (
         <button
           className="b b--primary"

@@ -840,7 +840,7 @@
     "/api/projects/{project_id}/publish": {
       "post": {
         "summary": "Publish",
-        "description": "A draft goes live: its page opens to anyone with the link (A24: from the\nproject page's staff bar). Publishing twice changes nothing.",
+        "description": "A draft goes live: its page opens to anyone with the link. New projects are\npublished at once (A35), so only a draft left over shows the staff bar's\nbutton: one created by the previous release during a deploy, or an open tab\nof it (A30). Publishing twice changes nothing.",
         "operationId": "publish_api_projects__project_id__publish_post",
         "parameters": [
           {

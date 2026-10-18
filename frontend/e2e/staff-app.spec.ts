@@ -130,9 +130,10 @@ test("create a project → it is listed as a draft; a used address names its pro
   await dialog.getByRole("button", { name: "Criar projeto" }).click();
   await expect(dialog).toBeHidden();
 
-  const drafts = page.getByRole("region", { name: "Rascunhos" });
-  const card = drafts.getByTestId("project-card").filter({ hasText: "Família Teste" });
-  await expect(card).toContainText("Rascunho");
+  // Published at once (A35): with the live projects, no drafts group.
+  const live = page.getByRole("region", { name: "Em andamento" });
+  const card = live.getByTestId("project-card").filter({ hasText: "Família Teste" });
+  await expect(page.getByRole("region", { name: "Rascunhos" })).toHaveCount(0);
   await expect(card).toContainText("1 / 6");
   await expect(card).toContainText("Projeto de Interiores");
 
@@ -188,12 +189,20 @@ test("cards in a row line up, whatever their content", async ({ page }) => {
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
   // Apartamento Atlântico — Copacabana wraps to two lines; Casa Jardim doesn't.
   const active = page.getByRole("region", { name: "Em andamento" });
-  await expect(active.getByTestId("project-card")).toHaveCount(2);
-  const tops = await active.getByText("Etapa atual").evaluateAll((labels) =>
-    labels.map((label) => Math.round(label.getBoundingClientRect().top)),
-  );
-  expect(tops.length).toBe(2);
-  expect(new Set(tops).size).toBe(1);
+  await expect(active.getByText("Apartamento Atlântico — Copacabana")).toBeVisible();
+  // In every row of cards, the "Etapa atual" labels sit at one height.
+  const rows = await active.getByTestId("project-card").evaluateAll((cards) => {
+    const byRow = new Map<number, number[]>();
+    for (const card of cards) {
+      const label = [...card.querySelectorAll("*")].find((el) => el.textContent?.trim() === "Etapa atual");
+      if (!label) continue; // a project without stages
+      const row = Math.round(card.getBoundingClientRect().top);
+      byRow.set(row, [...(byRow.get(row) ?? []), Math.round(label.getBoundingClientRect().top)]);
+    }
+    return [...byRow.values()];
+  });
+  expect(rows.some((tops) => tops.length > 1)).toBe(true); // at least one row to compare
+  for (const tops of rows) expect(new Set(tops).size).toBe(1);
 });
 
 test("the client page: content, redirects, not found and protected", async ({ page }) => {
@@ -214,8 +223,8 @@ test("the client page: content, redirects, not found and protected", async ({ pa
   await page.goto("/apto-atlantico");
   await expect(page).toHaveURL(/\/apartamento-atlantico$/);
 
-  const draft = await page.goto("/casa-das-oliveiras");
-  expect(draft?.status()).toBe(404);
+  const unknown = await page.goto("/nao-existe");
+  expect(unknown?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
 
   await page.goto("/refugio-da-mantiqueira");
@@ -223,7 +232,7 @@ test("the client page: content, redirects, not found and protected", async ({ pa
   await expect(page.getByText("Mantiqueira")).toHaveCount(0);
 });
 
-test("staff open a draft's page from its card, publish it, and clients can see it", async ({ page, browser }) => {
+test("staff open a project's page from its card, and clients see it straight away", async ({ page, browser }) => {
   const link = invite("publicar@alinea.example");
   await page.goto(link);
   await page.getByLabel("Nova senha").fill("senha-escolhida");
@@ -233,16 +242,11 @@ test("staff open a draft's page from its card, publish it, and clients can see i
   await page.getByRole("link", { name: "Casa das Oliveiras" }).click();
   await expect(page).toHaveURL(/\/casa-das-oliveiras$/);
   const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
-  await expect(bar).toContainText("Rascunho, só você vê");
-
-  // A visitor (no session) can't see the draft yet.
-  const visitor = await browser.newPage();
-  expect((await visitor.goto("/casa-das-oliveiras"))?.status()).toBe(404);
-
-  await bar.getByRole("button", { name: "Publicar" }).click();
-  await expect(page.getByText("Publicado. O cliente já pode abrir o link.")).toBeVisible();
   await expect(bar).toContainText("Publicado");
+  await expect(bar.getByRole("button", { name: "Publicar" })).toHaveCount(0); // no publish step (A35)
 
+  // A visitor (no session) sees it at once.
+  const visitor = await browser.newPage();
   expect((await visitor.goto("/casa-das-oliveiras"))?.status()).toBe(200);
   await expect(visitor.getByRole("heading", { level: 1, name: "Casa das Oliveiras" })).toBeVisible();
   await expect(visitor.getByRole("navigation", { name: "Ferramentas do escritório" })).toHaveCount(0);

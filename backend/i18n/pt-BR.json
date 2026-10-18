@@ -51,7 +51,6 @@
       "type": "Tipo de projeto"
     },
     "groupActive": "Em andamento",
-    "groupDrafts": "Rascunhos",
     "groupCompleted": "Concluídos",
     "groupCount": "{{shown}}/{{total}}",
     "stage": "Etapa {{current}} de {{total}}",
@@ -82,7 +81,7 @@
     "slug": "Endereço da página",
     "slugHint": "Letras minúsculas, números e hífens. A página será {{address}}",
     "slugTakenBy": "Este endereço já é do projeto “{{name}}”. Escolha outro.",
-    "draftNote": "O projeto começa como rascunho: só a equipe vê até ser publicado. As pastas são criadas no Google Drive do escritório.",
+    "publishNote": "O projeto é publicado na hora: o cliente já pode abrir o link. As pastas são criadas no Google Drive do escritório.",
     "create": "Criar projeto",
     "creating": "Criando…",
     "cancel": "Cancelar",

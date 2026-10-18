@@ -373,3 +373,72 @@ def test_changes_recorded_before_emails_existed_are_never_emailed(migrated_url):
             connection.execute(text(f'DROP OWNED BY "{owner}"'))
             connection.execute(text(f'DROP ROLE "{owner}"'))
         engine.dispose()
+
+
+def test_drafts_are_published_in_every_office(migrated_url):
+    """0024 (A35) publishes every office's drafts, and an archived draft comes back
+    published if restored, even as an owner that tenant isolation binds (Cloud
+    SQL's migration login). Other statuses stay as they were."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0024"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0023")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        for slug in ("alinea", "norte"):
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES (:s, 'X') RETURNING id"), {"s": slug}
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO projects (tenant_id, name, client_name, project_type, status, "
+                    "archived_from) VALUES "
+                    "(:t, 'Rascunho', 'C', 'architecture', 'draft', NULL), "
+                    "(:t, 'Arquivado', 'C', 'architecture', 'archived', 'draft'), "
+                    "(:t, 'Concluido', 'C', 'architecture', 'completed', NULL)"
+                ),
+                {"t": tenant},
+            )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    try:
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0024",
+        )
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text("SELECT name, status, archived_from FROM projects ORDER BY name")
+            ).all()
+            assert rows == [
+                ("Arquivado", "archived", "active"),
+                ("Arquivado", "archived", "active"),
+                ("Concluido", "completed", None),
+                ("Concluido", "completed", None),
+                ("Rascunho", "active", None),
+                ("Rascunho", "active", None),
+            ]  # both offices
+            forced = connection.scalar(
+                text("SELECT relforcerowsecurity FROM pg_class WHERE relname = 'projects'")
+            )
+            assert forced  # isolation is forced again afterwards
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()

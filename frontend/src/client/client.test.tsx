@@ -184,7 +184,7 @@ describe("the staff bar", () => {
     expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
   });
 
-  it("publishes a draft, with the CSRF token, and shows it as published", async () => {
+  it("publishes a draft left over (A35), with the CSRF token, and shows it as published", async () => {
     const draft = { ...PAGE, staff: { project_id: "p-1", status: "draft" as const, row_version: 1 } };
     let published = false;
     window.history.pushState({}, "", "/casa-jardim");
@@ -207,6 +207,21 @@ describe("the staff bar", () => {
     expect(await within(bar).findByText("Publicado")).toBeInTheDocument();
     expect(within(bar).queryByRole("button", { name: "Publicar" })).toBeNull();
     expect(sent.find((r) => r.method === "POST")?.headers.get("X-CSRF-Token")).toBe("csrf-9");
+  });
+
+  it("has no publish step: a project is live as soon as it exists", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: 1 } },
+      }),
+    });
+    render(<ClientApp />);
+    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    expect(within(bar).getByText("Publicado")).toBeInTheDocument();
+    expect(within(bar).queryByRole("button", { name: "Publicar" })).toBeNull(); // A35
   });
 });
 
