@@ -466,6 +466,34 @@ test("a new staff member's first project page shows the tour once; \"?\" replays
   await expect(popover).toContainText("Ver como cliente e Editar");
 });
 
+test("on a phone the staff bar holds all its buttons", async ({ page }) => {
+  const link = invite("phonebar@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+
+  for (const width of [390, 375, 360]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/casa-jardim");
+    const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
+    await expect(bar.getByRole("button", { name: "Ver o tour da página" })).toBeVisible();
+    const box = (await bar.boundingBox())!;
+    for (const control of await bar.locator(":scope > a, :scope > button, :scope > .seg button").all()) {
+      const inner = (await control.boundingBox())!;
+      expect(inner.x, `${width}px`).toBeGreaterThanOrEqual(box.x);
+      expect(inner.x + inner.width, `${width}px`).toBeLessThanOrEqual(box.x + box.width);
+    }
+    await expect(bar.getByRole("link", { name: "Painel" })).toBeVisible(); // named even when only the arrow shows
+    if (width >= 375) {
+      // Room for the whole label: cut short ("…") only on narrower phones.
+      const label = bar.getByRole("button", { name: "Ver como cliente" });
+      expect(await label.evaluate((b) => b.scrollWidth <= b.clientWidth), `${width}px`).toBe(true);
+    }
+  }
+});
+
 test("the example project: from the painel, its own tour, and edits that never leave the browser", async ({ page }) => {
   const link = invite("exemplo@alinea.example");
   await page.goto(link);

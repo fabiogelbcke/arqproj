@@ -153,7 +153,7 @@ The demo runs a fake Drive API locally, with real JWT signing and verification, 
 
 Ask Codex **“run the website locally with test data”** or
 **“run the website with Google Drive data”**, or
-**“run the website with the Google Drive connection (OAuth)”**. The root `AGENTS.md` maps these
+**“run the website with the Google Drive connection (OAuth)”**. `docs/old-app.md` maps these
 requests to the commands below, checks startup, and provides the local URL.
 You can also ask naturally in Portuguese, for example **“roda o site com dados
 de teste”** or **“roda localmente com os dados do Google Drive”**. Codex follows

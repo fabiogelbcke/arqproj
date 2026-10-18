@@ -605,9 +605,9 @@ function StaffBar({
   const archived = staff.status === "archived"; // viewable, not editable (section 22)
   return (
     <nav className="dock" aria-label={t("page.staffBar")}>
-      <a className="b" href="/painel/">
+      <a className="b" href="/painel/" aria-label={t("page.backToPainel")}>
         <Icon name="left" />
-        {t("page.backToPainel")}
+        <span className="hide-sm">{t("page.backToPainel")}</span>
       </a>
       <span className="dock__sep" />
       <span className="dock__title">

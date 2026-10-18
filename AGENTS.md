@@ -74,137 +74,32 @@ loads anything from `backend/migrations/` or `backend/commands/`.
 - A regression test for a bug should fail on the code before the fix; check it.
   A test of a safety rule should include a self-test showing it catches a
   violation, so it cannot silently stop working.
-- Run relevant tests after making changes.
-- Run the production build and check for errors.
+- Locally, run only the tests the change affects, plus `make lint`: for
+  example `uv run pytest backend/tests/test_x.py`, `npm test -- <file>`, or one
+  browser test with `npx playwright test -g "<name>"` (after `make build`).
+  CI runs the full suite (backend, staff app, browser tests, image) on every
+  pull request into `staging`; it takes minutes, the full local run much longer.
+- Push to the pull request and wait for CI to pass before asking for a review
+  (Codex or Fabio); fix what it finds. Don't hand over a red pull request.
+- Run the full suite locally (`make test`, `make e2e`) only when there is no
+  pull request to run CI on, or when asked.
 - Fix any test failures introduced by the changes.
 - If tests cannot run, explain why.
-- For changes under `backend/` or `frontend/`, run `make test` and `make lint`;
-  for changes to the staff app's screens or how it is served, also `make e2e`.
-  After an API change, run `make api-types` and commit the regenerated files.
-- When the current app's libraries change, update both `requirements.txt`
-  (production deploys from it) and the `legacy` group in `pyproject.toml`.
-- Run the complete existing local suite with `.venv/bin/python -m tools.test_local`.
-  Prepare the environment with `uv sync`, then `npm ci` and
-  `npm run browsers:install` if needed. The runner uses isolated fictional data,
-  ignores `.env`, and cleans up its temporary servers. It does not require the
-  manual dataset reuse/regeneration question. Integration and browser servers
-  use available ports rather than taking over a manually running server.
-- Keep the browser fixture in `tools/test_local.py` consistent with generator
-  changes. Browser tests must not silently default to a real-data server.
-  Distinguish simulated behavior from live Google integration verification.
+- After an API change, run `make api-types` and commit the regenerated files.
+- The old app (outside `backend/` and `frontend/`) is no longer in use and CI
+  does not test it. Before changing it, read `docs/old-app.md` (its tests, local
+  data modes and test data workflow).
 
 ## Local development
 
-- Use the project's documented development commands.
+- Use the project's documented development commands (`make help`, README.md).
 - Start the application locally when testing UI changes.
 - Verify that the local server starts successfully.
 - Provide the localhost URL to the user.
 - If browser testing is available, verify the changed UI.
 - Never claim that something was tested if it wasn't.
-
-### Choosing the local data source
-
-- Interpret intent in Portuguese or English; the phrases below are examples,
-  not exact commands the user must memorize. Accept natural paraphrases and
-  respond in the user's language.
-- Requests such as “roda o site com dados de teste”, “abre com dados fictícios”,
-  or “quero testar com os dados de exemplo” select test mode.
-- Requests such as “roda com os dados do Google Drive”, “usa o meu .env”,
-  or “abre localmente com os dados reais do Drive” select Drive mode.
-  “Localmente” alone does not select a data source: both modes run locally.
-- Treat “run the website locally with test data” as a request to run
-  `.venv/bin/python run_local.py test`. This mode ignores `.env`, generates
-  fictional data on first use, and needs no Google account. Follow the local-folder
-  startup workflow below before launching an existing dataset. Open
-  `http://127.0.0.1:5000/casa-jardim`; `/painel` uses password `demo`.
-- Treat “run the website with Google Drive data” as a request to run
-  `.venv/bin/python run_local.py drive`. This still runs locally and reads
-  the developer's private `.env`. Never deploy to satisfy this request.
-- Requests such as “roda com a conexão do Google Drive”, “testa o OAuth de
-  verdade”, or “run with the Drive connection” select Drive OAuth mode:
-  `.venv/bin/python run_local.py drive-oauth`. The site reads the projects
-  folder created by connecting Google Drive in `/painel`, so the user signs in
-  with Google themselves; before that the project list is empty. Requires the
-  `OAUTH_*` settings in `.env` (README.md, “Google Drive connection (OAuth)”).
-- If the data source is unspecified, use test data and say so.
-- Prepare `.venv` with `uv sync` if needed, following README.md. Each developer supplies their own `.env`
-  and credential file; never print credentials or passwords from those files.
-- If Drive settings are missing, explain the missing setup from README.md.
-  Never fall back to fake data while claiming to use Google Drive.
-- Preserve existing servers. Use `--port 5001` for another instance and
-  `--fake-drive-port 8766` for a second test-data instance when needed.
-- Verify a real project page (not just `/healthz`) before claiming the data
-  source works. Leave the server running and provide its localhost URL.
-
-### Maintaining test data
-
-- All newly generated demo and manual test examples must be in Brazilian
-  Portuguese, including project descriptions, visible labels, stage notes,
-  folder names, and document/image filenames. Use `SITE_LANG=pt` for previews.
-- Keep generated examples fictional and preserve existing manual edits.
-  Dedicated automated fixtures may explicitly use English only to test
-  English-language support; manual/demo exports must always use Portuguese.
-
-- Keep `tools/fake_drive.py`, `tools/export_sample.py`, `tools/local_data.py`,
-  `tools/folder_drive.py`, `demo.py`, and `run_local.py` tracked in Git.
-  Generated documents and screenshots remain ignored.
-- Whenever supported data structures, parsing rules, or features change,
-  review and update `tools/fake_drive.py` with representative fictional
-  examples needed to exercise the change, including relevant edge cases.
-- Add or update automated tests for the new examples and behavior. If the
-  existing fixtures already cover the change, explain that explicitly.
-- Never copy real client documents, credentials, or private information
-  into committed fixtures.
-
-### Local-folder test data workflow
-
-Manual test mode serves editable `local-test-data/Projects/` files through
-`tools/folder_drive.py`. Automated tests retain isolated in-memory fixtures
-for Google-specific behavior and errors. Real Drive mode still uses `.env`.
-The local folder is loaded at startup; restart with `--reuse-data` after
-manual edits. Do not promise live file watching.
-
-Follow these steps for each new manual test run:
-
-1. Check whether a local test dataset exists. If none exists, generate the
-   default fictional dataset automatically.
-2. If a dataset exists, ask whether to reuse the existing files or regenerate
-   the defaults, unless the user already specified their choice. Ask in the
-   user's language, for example: “Usar os arquivos de teste existentes ou
-   gerar novamente os exemplos padrão?” Wait for their answer; silence is
-   not permission to regenerate.
-3. Track the generator/fixture version used to create the dataset. If it has
-   changed, explain that updated examples are available and recommend
-   regeneration, especially when new features require new test cases.
-4. Before any regeneration, back up the entire existing dataset to a unique
-   location. Verify the backup succeeded before replacing files; if it fails,
-   stop regeneration. Report the backup location and preserve earlier backups.
-   Use the provided regeneration command; do not delete or overwrite files by hand.
-5. Start the simulator using the selected folder, verify a project page, and
-   provide both the editable folder path and the localhost URL.
-6. Restarting the server alone must preserve manual file changes. Never
-   regenerate or overwrite an existing dataset merely because the server
-   restarted.
-
-After the user's choice, launch with `.venv/bin/python run_local.py test
---reuse-data` or `--regenerate-data` (on one line). Without either flag the
-launcher prompts in a terminal; in a noninteractive Codex task, ask the user
-in conversation first. Missing datasets are generated automatically.
-For regeneration without starting the site, use
-`.venv/bin/python -m tools.local_data --regenerate` after authorization.
-The default dataset and timestamped sibling backups are ignored by Git.
-Use `--data-dir PATH` only for a dedicated test directory and ensure custom
-locations and their backups are also excluded from commits.
-
-Keep the generator as the source of the default dataset. For feature or data
-format changes, review and update `tools/fake_drive.py`, the exporter
-`tools/export_sample.py`, and the regeneration script `tools/local_data.py`
-where needed, plus folder loading and tests. Never update only generated
-files to add default coverage. The version is a hash of all three generator
-files, so changes automatically mark existing datasets as outdated. Update
-that version calculation if generation gains additional source files. Keep generated datasets and backups
-out of Git. Automated tests must not prompt or modify the user's manual
-dataset; they should create their own isolated fixtures.
+- Demo and manual test data is fictional and in Brazilian Portuguese. Never copy
+  real client documents, credentials or private information into fixtures.
 
 ## Decisions and shared context
 
@@ -216,7 +111,9 @@ committed here.
 - `docs/multi-tenant-implementation-plan.md` is the architecture and rollout
   plan, and **section 2 is the decision register** — the current position on
   every settled question, with IDs (A01, A02, …). Section 24 lists the decisions
-  deliberately left open and who needs them. Read both before starting.
+  deliberately left open and who needs them. Before starting, read the register
+  entries for the area you change (search it for the feature's terms), and
+  section 24 when the task may touch an open question.
 - **A change to a register entry must update the register and its affected tests
   before coding proceeds.** This is the plan's own rule; follow it.
 - `docs/decision-changelog.md` records what each decision *was* and why it
@@ -234,55 +131,12 @@ committed here.
 - Any copy of these documents outside the repository — for example in a claude.ai
   project — is a stale mirror. Read the repo.
 
-## Code review (Codex)
+## Pull requests
 
-Pull requests for the rewrite go into the `staging` branch. Codex reviews them on
-GitHub (comment `@codex review`; marking a draft ready does not reliably trigger
-it). When the review rounds end, the pull request goes to Fabio, who reviews and
-merges.
-
-How many rounds:
-
-- Request another review after fixes while the last round found something that
-  was fixed because it was serious or realistic for our setup. Declined or
-  marginal findings do not count.
-- Stop when a round brings only declined or marginal findings, or comes back
-  clean (👍).
-- A serious (P1) finding always gets one more round after its fix.
-- At most 2 rounds for UI changes and for low-risk backend changes, and at most
-  4 for high-risk changes to anything (security, data isolation, migrations,
-  deploys, money or email sending) (Fabio, 18 Oct 2026: reviews cost tokens).
-  If real issues are still appearing at the limit, the pull request is too big
-  or its design is unsettled: pause and discuss it with Fabio.
-- Documentation-only or file-move pull requests get one review, and a
-  documentation-only change after a clean review needs none.
-
-- Fix serious findings and those realistic for our actual setup.
-- Do not implement findings that are nitpicky, guard against configurations we
-  never create, or would add code without real benefit. Reply on the comment
-  explaining why, and list it in the pull request description.
-- Reproduce a finding before fixing it.
-
-### Pull request description
-
-Start every pull request description with a **Context** section linking the
-documentation the change is meant to satisfy, so reviewers know what to check it
-against. Link the specific section (heading anchor), not just the file: for
-example a plan section, a decision in the register, a changelog entry, a step or
-milestone, an issue, or a README section the change updates. Then say in one line
-each what that documentation calls for, what was built, and what was deliberately
-left out or deferred, with the reason. If no documentation covers the change,
-say so.
-
-### Screenshots for UI changes
-
-A pull request that changes what the staff app shows includes a **Screenshots**
-section: run `make screenshots PR=<number>`, which captures the screens
-(desktop and phone; dark where relevant) from the built app on fresh fictional
-data, publishes them to the `screenshots` branch (never merged; one folder per
-pull request, so images stay out of the code history) and prints the table to
-paste. Add screens to `frontend/e2e/screenshots.spec.ts` as the app grows. Look
-at the images yourself only when checking something visual.
+Before opening, updating or handing over a pull request, read
+`docs/pull-requests.md`: Codex review rounds and which findings to fix, the
+description's **Context** section, and screenshots for UI changes. Pull requests
+for the rewrite go into `staging`; Fabio reviews and merges.
 
 ### Review guidelines
 
@@ -321,12 +175,6 @@ user-visible.
 
 Section 17 of the implementation plan holds the error-code and support-ID
 conventions this belongs to.
-
-Known violation to fix: the Drive connect flow under `/painel/drive` on the
-`drive` branch flashes the raw upstream body, e.g.
-`Drive API error 401: {"error": "invalid_client", ...}`. `DriveWriteError` should
-keep that detail for the log and the route should flash a generic translated
-string.
 
 ## Safety
 

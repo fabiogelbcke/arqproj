@@ -167,3 +167,11 @@
 }
 .driver-popover-footer .driver-popover-next-btn { background: #242629; color: #fff; border-color: #242629; }
 .client .dock__help { font-weight: 600; font-size: 15px; }
+/* On a phone the bar keeps every button inside it: "Painel" shows as its arrow,
+   and the mode switch takes the room left, giving way before the icons do. */
+@media (max-width: 720px) {
+  .client .dock > .b { padding-inline: 6px; }
+  .client .dock .iconbtn { flex: none; width: 32px; }
+  .client .dock .seg { flex: 1 1 auto; min-width: 0; }
+  .client .dock .seg button { min-width: 0; padding-inline: 8px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+}

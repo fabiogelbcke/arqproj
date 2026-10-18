@@ -1511,7 +1511,7 @@ and custom office logo. Subsets: `--python-only` and `--browser-only`.
 
 Manual UI testing still follows `run_local.py test --reuse-data` or authorized
 `--regenerate-data`. Existing data is backed up before regeneration. This manual
-workflow and its Portuguese/English intent instructions remain in `AGENTS.md`.
+workflow and its Portuguese/English intent instructions are in `docs/old-app.md`.
 Automated tests never prompt for regeneration or alter a developer's dataset.
 
 The suite is for the **current** app. It does not yet test a multi-tenant database,
