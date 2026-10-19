@@ -387,6 +387,27 @@ test("staff edit the page in place and the client sees it", async ({ page, brows
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.locator("#stage-2").getByText("Confira as plantas v2 antes de sexta.")).toBeVisible();
 
+  // A cover added from the page: "Trocar capa" and "Remover capa" side by side on it,
+  // each readable, then removed again.
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("button", { name: /Adicionar foto de capa/ }).click(),
+  ]);
+  await chooser.setFiles({ name: "obra.png", mimeType: "image/png", buffer: PNG_1PX });
+  await page.getByRole("dialog", { name: "Ajustar a capa" }).getByRole("button", { name: "Usar recorte" }).click();
+  const change = page.getByRole("button", { name: "Trocar capa" });
+  const remove = page.getByRole("button", { name: "Remover capa" });
+  await expect(change).toBeVisible();
+  const [a, b] = [(await change.boundingBox())!, (await remove.boundingBox())!];
+  expect(a.x + a.width <= b.x || b.x + b.width <= a.x).toBe(true);
+  const contrast = await change.evaluate((button) => {
+    const style = getComputedStyle(button);
+    return style.color !== style.backgroundColor;
+  });
+  expect(contrast).toBe(true);
+  await remove.click();
+  await expect(page.getByRole("button", { name: /Adicionar foto de capa/ })).toBeVisible();
+
   const client = await browser.newPage();
   await client.goto("/casa-jardim");
   await expect(client.getByText("Casa revisada.")).toBeVisible();
