@@ -398,8 +398,8 @@ dialog.d::backdrop { background: rgb(8 9 9 / 62%); backdrop-filter: blur(6px); -
 .drop small { flex-basis: 100%; color: var(--brand-muted); font-size: 12px; }
 .filemenu { display: none; }
 .editing .filemenu { display: block; position: absolute; z-index: 3; top: 8px; right: 8px; }
-.filemenu > button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgb(255 255 255 / 18%); background: rgb(16 17 17 / 55%); color: #fff; cursor: pointer; display: grid; place-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-.filemenu > button svg { width: 16px; height: 16px; }
+.filemenu > button { position: relative; width: var(--control-tag); height: var(--control-tag); border-radius: 50%; border: 1px solid rgb(255 255 255 / 18%); background: rgb(16 17 17 / 55%); color: #fff; cursor: pointer; display: grid; place-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.filemenu > button svg { width: 14px; height: 14px; }
 .filemenu .menu__list { left: auto; right: 0; }
 
 .checklist { display: none; }
@@ -1014,7 +1014,6 @@ button,input,select,textarea{letter-spacing:.025em;}
   .client .file__name{font-size:9px;}
   .client .file__meta,.client .older summary{font-size:8px;}
   .client.editing .filemenu{top:3px;right:3px;}
-  .client.editing .filemenu>button{width:24px;height:24px;}
 }
 
 /* Compact project controls, mobile only */

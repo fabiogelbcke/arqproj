@@ -7,6 +7,8 @@
      Button size="small"; on the project page .b--small.
    - icon (36, 40 on a phone): round icon-only buttons. IconButton; .iconbtn.
    - tag (24): edit mode's pencils floating over what they edit. .editbtn.
+     An icon-only button over content (a file's "⋯") looks tag-sized but is
+     tapped like an icon: an invisible ring brings its target to the icon size.
    - floating (56): the phone's floating "Novo projeto".
    - menu rows: 40, 44 on a phone; a row with a second line grows.
 
