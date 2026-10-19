@@ -665,3 +665,22 @@ test("a file's open menu sits above the other files' buttons", async ({ page }) 
   const open = layers.find((layer) => layer.open)!;
   for (const other of layers.filter((layer) => !layer.open)) expect(open.z).toBeGreaterThan(other.z);
 });
+
+// A file's "⋯" looks tag-sized over its thumbnail but is tapped like an icon
+// button (ui/sizes.css): a tap just outside its circle still opens it.
+test("a file's \"⋯\" is small to look at and icon-sized to tap", async ({ page }) => {
+  await page.goto(invite("menu-alvo@alinea.example"));
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await openThirdStage(page);
+  const button = page.locator("#stage-2").getByRole("button", { name: /^Ações para / }).first();
+  await button.scrollIntoViewIfNeeded();
+  const box = (await button.boundingBox())!;
+  expect(Math.round(box.height)).toBe(24);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2 + 15); // 3px below the circle
+  await expect(page.locator("#stage-2 .filemenu.is-open")).toHaveCount(1);
+});

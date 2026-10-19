@@ -1,0 +1,34 @@
+/* Control sizes for the whole site, painel and project pages alike (Fabio,
+   19 Oct 2026). Pick by role, never a height of your own:
+
+   - main (44): the action a screen or dialog is about, and form fields.
+     Button size="regular"; on the project page .b.
+   - small (36, 40 on a phone): toolbars and secondary actions beside content.
+     Button size="small"; on the project page .b--small.
+   - icon (36, 40 on a phone): round icon-only buttons. IconButton; .iconbtn.
+   - tag (24): edit mode's pencils floating over what they edit. .editbtn.
+     An icon-only button over content (a file's "⋯") looks tag-sized but is
+     tapped like an icon: an invisible ring brings its target to the icon size.
+   - floating (56): the phone's floating "Novo projeto".
+   - menu rows: 40, 44 on a phone; a row with a second line grows.
+
+   44 is Apple's minimum touch target, and 24 the accessibility minimum (WCAG
+   2.5.8). Phones get 40 for small and icon controls: a finger is less precise
+   than a mouse. */
+:root {
+  --control-main: 44px;
+  --control-small: 36px;
+  --control-icon: 36px;
+  --control-tag: 24px;
+  --control-floating: 56px;
+  --menu-row: 40px;
+  --control-pad-main: 20px;
+  --control-pad-small: 14px;
+}
+@media (max-width: 760px) {
+  :root {
+    --control-small: 40px;
+    --control-icon: 40px;
+    --menu-row: 44px;
+  }
+}
