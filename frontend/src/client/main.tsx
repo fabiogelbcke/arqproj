@@ -1,4 +1,5 @@
 // The client's project page (/{slug}): its own small bundle (A20 revised).
+import "../ui/sizes.css";
 import "./prototype.css";
 import "./page.css";
 import "../i18n";

@@ -19,7 +19,7 @@ a.site__brand { color: inherit; text-decoration: none; }
 .password-gate { display: grid; gap: 8px; margin-top: 18px; max-width: 420px; }
 .password-gate label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-muted, var(--muted)); }
 .password-gate__row { display: flex; gap: 8px; }
-.password-gate__row .input { flex: 1; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); background: transparent; color: inherit; }
+.password-gate__row .input { flex: 1; min-height: var(--control-main); padding: 8px 12px; border: 1px solid var(--line); background: transparent; color: inherit; }
 .password-gate__problem { color: var(--danger, #9b3d1d); font-size: 14px; }
 
 /* Files (2.5): the prototype's cards; subfolders as small titled groups. */
@@ -258,3 +258,10 @@ a.site__brand { color: inherit; text-decoration: none; }
 :root[data-theme="dark"] .client .stage.current::before { background: #34373b; }
 :root[data-theme="dark"] .client .stage.current .file { background: #3f4246; }
 :root[data-theme="dark"] .client .stage.is-expanded:not(.current)::before { background: #26282b; }
+
+/* Control sizes (ui/sizes.css) where the prototype's own rules set none: the
+   staff bar's switch is a toolbar (small), edit mode's pencils are tags. */
+.client .dock .seg button { min-height: var(--control-small); display: inline-flex; align-items: center; justify-content: center; padding-block: 0; }
+.client .dock .b { min-height: var(--control-small); }
+.editbtn { height: var(--control-tag); padding-block: 0; }
+.client .menu__list button, .client .menu__list a { min-height: var(--menu-row); }

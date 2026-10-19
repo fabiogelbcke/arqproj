@@ -1,6 +1,6 @@
 .button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 44px; padding: 0 20px; border: 1px solid var(--line-strong); border-radius: var(--r);
+  min-height: var(--control-main); padding: 0 var(--control-pad-main); border: 1px solid var(--line-strong); border-radius: var(--r);
   background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-weight: 500; font-size: 13px;
   white-space: nowrap; transition: background 0.2s, border-color 0.2s, transform 0.15s var(--ease);
 }
@@ -16,12 +16,23 @@
 .secondary {}
 .ghost { border-color: transparent; }
 .ghost[data-hovered] { border-color: var(--line-strong); }
+/* Toolbars and secondary actions (ui/sizes.css). */
+.small { min-height: var(--control-small); height: var(--control-small); padding-inline: var(--control-pad-small); }
+/* Round, icon only (IconButton). */
+.iconButton {
+  display: inline-grid; place-items: center; width: var(--control-icon); height: var(--control-icon); padding: 0;
+  border: 1px solid transparent; border-radius: 50%; background: transparent; color: var(--muted);
+  cursor: pointer; font: inherit; transition: color 0.2s, border-color 0.2s;
+}
+.iconButton[data-hovered] { color: var(--ink); border-color: var(--line-strong); }
+.iconButton[data-disabled] { opacity: 0.45; cursor: not-allowed; }
+.iconButton[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 3px; }
 
 .field { display: grid; gap: 8px; }
 .label { font-size: 14px; font-weight: 500; }
 .hint { font-size: 13px; color: var(--muted); }
 .input {
-  width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid var(--line);
+  width: 100%; min-height: var(--control-main); padding: 10px 14px; border: 1px solid var(--line);
   border-radius: var(--r); background: var(--raise); color: var(--ink); font: inherit;
   transition: border-color 0.2s;
 }
@@ -80,8 +91,8 @@
 
 /* A dialog's close button, in its top corner (the dialog is positioned). */
 .close {
-  position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; min-height: 0; padding: 0;
-  display: grid; place-items: center; font-size: 26px; font-weight: 300; line-height: 1;
+  position: absolute; top: 12px; right: 12px; color: var(--ink);
+  font-size: 26px; font-weight: 300; line-height: 1;
 }
 
 /* A field's length counter, in the input's right edge. */
@@ -146,7 +157,8 @@
 @keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } }
 .menu { outline: none; display: grid; }
 .menuItem {
-  padding: 11px 12px; border-radius: var(--r); font-size: 14px; cursor: pointer; outline: none;
+  display: flex; align-items: center; min-height: var(--menu-row); padding: 6px 12px;
+  border-radius: var(--r); font-size: 14px; cursor: pointer; outline: none;
 }
 .menuItem[data-focused] { background: var(--surface); }
 .menuItem[data-danger] { color: var(--danger); }

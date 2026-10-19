@@ -1,4 +1,5 @@
 import "./styles/global.css";
+import "./ui/sizes.css";
 import "./i18n";
 
 import { StrictMode } from "react";
