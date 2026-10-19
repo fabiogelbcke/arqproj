@@ -151,7 +151,7 @@
     "openSettings": "Configurações do projeto",
     "archiveProject": "Arquivar projeto",
     "archiveAsk": "Arquivar “{{name}}”?",
-    "archiveMeans": "O projeto sai da lista de projetos. O cliente continua vendo a página, mas sem arquivos novos nem e-mails."
+    "archiveMeans": "O projeto sai da lista de projetos. O cliente continua vendo a página. Não dá mais para enviar arquivos pelo portal, e o cliente não recebe e-mails do projeto."
   },
   "notFound": {
     "title": "Página não encontrada",
