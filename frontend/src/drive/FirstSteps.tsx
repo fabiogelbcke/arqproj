@@ -13,6 +13,8 @@ import { Button } from "../ui/Button";
 import { CloseButton } from "../ui/CloseButton";
 import { toast } from "../ui/Toast";
 import { useOnboarding } from "./drive";
+// The example project's own cover, to show what a finished page looks like.
+import exampleCover from "../projects/covers/capa-04.jpg";
 // Google's own Drive icon, unaltered (Google's branding rules for "connect to Drive").
 import driveIcon from "./google-drive.png";
 
@@ -24,21 +26,22 @@ export function FirstSteps() {
   const me = useMe();
   const steps = onboarding.data;
   if (!steps) return null;
-  // Not one of the steps: the example project stays at hand once they are done.
-  const example = (
-    <a className={styles.exampleLink} href={`/${EXAMPLE_SLUG}`}>
-      {t("firstSteps.example")}
-    </a>
-  );
+  // Once the steps are done, the example project stays at hand as a line.
   if (steps.storage_connected && steps.office_details && steps.has_project)
-    return <p className={styles.exampleAfter}>{example}</p>;
+    return (
+      <p className={styles.exampleAfter}>
+        <a className={styles.exampleLink} href={`/${EXAMPLE_SLUG}`}>
+          {t("firstSteps.example")}
+        </a>
+      </p>
+    );
   const owner = me.data?.role === "owner";
   const done = [steps.storage_connected, steps.office_details, steps.has_project].filter(Boolean).length;
   const total = 3;
   const action = (finished: boolean | undefined, control: ReactNode) =>
     finished ? <span className={styles.stepDone}>{t("firstSteps.done")}</span> : owner ? control : null;
   return (
-    <section className={styles.steps} aria-labelledby="first-steps">
+    <section className={styles.steps} aria-labelledby="first-steps" data-tour="first-steps">
       <div className={styles.stepsHead}>
         <h2 id="first-steps">{t("firstSteps.title")}</h2>
         <span className={styles.stepsCount} aria-label={t("firstSteps.progressLabel", { done, total })}>
@@ -48,6 +51,15 @@ export function FirstSteps() {
       <div className={styles.stepsBar} aria-hidden="true">
         <i style={{ width: `${(done / total) * 100}%` }} />
       </div>
+      {/* Not a step: first, so a phone shows it before the steps fill the screen
+          (plan section 16). A new office's own first page will look empty. */}
+      <a className={styles.exampleInvite} href={`/${EXAMPLE_SLUG}`}>
+        <img src={exampleCover} alt="" />
+        <span>
+          {t("firstSteps.exampleIntro")}
+          <strong>{t("firstSteps.exampleAction")} →</strong>
+        </span>
+      </a>
       <ol>
         <Step
           done={steps.storage_connected}
@@ -83,7 +95,6 @@ export function FirstSteps() {
           )}
         />
       </ol>
-      <p className={styles.exampleLine}>{example}</p>
       {!owner && <p className={styles.small}>{t("firstSteps.membersNote")}</p>}
     </section>
   );

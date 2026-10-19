@@ -4,7 +4,7 @@
 // ends); "?" in the staff bar replays it. A step whose part isn't on this page
 // (no stages yet, say) is left out. Loaded only when it runs.
 import { driver, type DriveStep } from "driver.js";
-import "driver.js/dist/driver.css";
+import "../ui/tour.css";
 import type { TFunction } from "i18next";
 
 import { api, call } from "../api/client";

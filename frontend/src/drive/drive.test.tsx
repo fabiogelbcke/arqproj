@@ -251,11 +251,15 @@ describe("the painel's first steps", () => {
     expect(within(drive).queryByRole("link")).toBeNull();
   });
 
-  it("offers the example project beside the steps, not as one, and still once they are done", async () => {
+  it("invites to the example project above the steps, not as one of them", async () => {
     api(NOT_CONNECTED);
     renderAt("/");
     const steps = await screen.findByRole("region", { name: "Primeiros passos" });
-    expect(within(steps).getByRole("link", { name: "Ver um projeto de exemplo" })).toHaveAttribute("href", "/tour-projeto");
+    const invite = within(steps).getByRole("link", { name: /Ver o exemplo/ });
+    expect(invite).toHaveAttribute("href", "/tour-projeto");
+    // First, before the first step: on a phone the steps fill the first screen.
+    const firstStep = within(steps).getByText("Conectar o Google Drive");
+    expect(invite.compareDocumentPosition(firstStep) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(steps).getByLabelText("0 de 3 passos concluídos")).toBeInTheDocument(); // not counted
   });
 
@@ -281,7 +285,9 @@ describe("the painel's first steps", () => {
     renderAt("/");
     const steps = await screen.findByRole("region", { name: "Primeiros passos" });
     // Only the example project, which isn't a step.
-    expect(within(steps).getAllByRole("link").map((link) => link.textContent)).toEqual(["Ver um projeto de exemplo"]);
+    const links = within(steps).getAllByRole("link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "/tour-projeto");
     expect(within(steps).queryByRole("button")).toBeNull();
     expect(within(steps).getByText(/Só o responsável pelo escritório/)).toBeInTheDocument();
   });

@@ -205,7 +205,7 @@ export function NewProjectDialog({
           {trigger.label}
         </Button>
       ) : (
-        <Button variant="primary" size="small" className={styles.newButton}>
+        <Button variant="primary" size="small" className={styles.newButton} data-tour="new-project">
           <span aria-hidden="true">+</span>
           <span className={styles.newLabel}>{t("projects.new")}</span>
         </Button>

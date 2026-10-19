@@ -8,6 +8,7 @@ import { useMe, useSignedOut } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { OfficeLogo } from "../ui/OfficeLogo";
+import { IconButton } from "../ui/IconButton";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import styles from "../pages/pages.module.css";
 import { MobileMenu } from "./MobileMenu";
@@ -50,10 +51,20 @@ export function SignedInLayout() {
             <NavLink to="/" end>
               {t("nav.projects")}
             </NavLink>
-            <NavLink to="/configuracoes">{t("nav.settings")}</NavLink>
+            <NavLink to="/configuracoes" data-tour="settings">
+              {t("nav.settings")}
+            </NavLink>
           </nav>
           <span className={styles.spacer} />
           <span className={styles.who}>{t("nav.signedInAs", { name: me.data.name })}</span>
+          {/* "?": the painel's tour, on demand only (plan section 16). Loaded when pressed. */}
+          <IconButton
+            className={styles.help}
+            label={t("painelTour.again")}
+            onPress={() => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }))}
+          >
+            ?
+          </IconButton>
           <div className={styles.barActions}>
             <ThemeToggle className={styles.theme} />
             <Button variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>

@@ -19,6 +19,24 @@ a new entry too.
 
 ---
 
+## 2026-10-19 — Plan section 16: the example project at the top of Primeiros passos; a painel tour
+
+**Was:** the example project's entry was an optional line at the bottom of
+Primeiros passos ("Ver um projeto de exemplo"), and "the painel explains
+itself": no tour in the painel.
+
+**Now:** an invitation at the top of Primeiros passos, with the example's cover,
+leads to the example before the first steps. "?" in the painel's top bar starts
+a short painel tour on demand whose last step opens the example. A "?" button is
+how any area offers its tour.
+
+**Why:** Fabio, 19 Oct 2026: a new office's first project page looks empty, so
+"we'd like them to look at the example project first". On a phone the steps
+fill the first screen, so a line below them (or an empty projects list) isn't
+seen. He liked the tour "as a button somewhere", reusable, rather than a tour
+that starts by itself; an empty projects list was dropped because the steps are
+on screen whenever it is.
+
 ## 2026-10-19 — A24: the card's pencil opens a menu; A35: nothing about publishing in the staff bar
 
 **Was:** in the painel, a card's pencil opened the "Projeto" dialog straight away,

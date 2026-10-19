@@ -3,7 +3,7 @@
 // Esc, "Pular"), and stores nothing. A step whose part isn't on the page (on a
 // phone, say) is left out. The setup tour for real projects is ../Tour.ts.
 import { driver, type DriveStep } from "driver.js";
-import "driver.js/dist/driver.css";
+import "../../ui/tour.css";
 import type { TFunction } from "i18next";
 
 let running = false; // one tour at a time, however often it is asked for

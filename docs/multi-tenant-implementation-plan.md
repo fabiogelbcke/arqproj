@@ -1403,8 +1403,13 @@ versioned: updating defaults does not overwrite an office's edited project stage
 ### Onboarding help: the project page tour and the example project
 
 Agreed with Fabio on 18 Oct 2026 to try. His partners may still change the
-example project, so keep it easy to remove. The painel explains itself; the
-project page (view/edit modes, pencils, stages, files) needs help.
+example project, so keep it easy to remove. The project page (view/edit modes,
+pencils, stages, files) needs help; the painel gets a short tour on demand
+(revised 19 Oct 2026, below) whose last step leads to the example project.
+
+**"?" means "show me around here".** Each area that has a tour offers it from a
+"?" button: the project page's staff bar (the setup tour) and the painel's top
+bar (the painel tour). A tour started from "?" never starts on its own.
 
 **Built (PR #73): the setup tour.** A staff member's first real project page
 starts a Driver.js tour in edit mode: the view/edit switch, the pencils, the
@@ -1452,9 +1457,22 @@ the reserved address (a migration).
   the description, the details, the meeting, the stage timeline, a stage's files
   and their preview, and the updates bell. It ends by pointing back to Primeiros
   passos. It stores nothing.
-- **Entry:** an optional line in Primeiros passos, "Ver um projeto de exemplo".
-  It is not one of the steps the progress counts, and it stays available after
-  they are done, perhaps also from an empty projects list.
+- **Entry (revised 19 Oct 2026):** an invitation at the top of Primeiros passos,
+  above the steps, with the example's cover: "Antes de começar, veja como fica a
+  página de um projeto pronto" and "Ver o exemplo". It is not one of the steps
+  the progress counts; at the top, a phone shows it on the first screen (the
+  steps fill it). Once the steps are done, a line "Ver um projeto de exemplo"
+  stays on the painel. The painel tour's last step also leads there. An empty
+  projects list was considered and rejected: while there are no projects, the
+  steps are on screen too, above it.
+
+**Built: the painel tour.** "?" in the painel's top bar (desktop and phone)
+starts a short Driver.js tour: "Novo projeto", a project's card and its pencil
+menu, Configurações and Primeiros passos, each left out when it isn't on the
+screen. Its last step, "Ver o exemplo", opens the example project, whose own
+tour then starts. It stores nothing and never starts on its own. Code:
+`frontend/src/app/PainelTour.ts`; the tours share their look in
+`frontend/src/ui/tour.css`.
 - **Tests:** the fixture renders without network; edits change the page and not
   the server (no request leaves); the tour starts on each visit and can be
   skipped; `/tour-projeto` is reserved (a project can't take it) and is served on
