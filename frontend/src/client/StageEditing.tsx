@@ -264,11 +264,13 @@ export function ProgressRail({
   page,
   staff,
   onChanged,
+  onReordered,
   locked = false,
 }: {
   page: Page;
   staff: Staff;
   onChanged: () => void;
+  onReordered?: (order: number[]) => void;
   locked?: boolean;
 }) {
   const { t } = useTranslation();
@@ -282,7 +284,13 @@ export function ProgressRail({
       </button>
       {ordering && (
         <Suspense fallback={null}>
-          <StageOrder page={page} staff={staff} onClose={() => setOrdering(false)} onChanged={onChanged} />
+          <StageOrder
+            page={page}
+            staff={staff}
+            onClose={() => setOrdering(false)}
+            onChanged={onChanged}
+            onReordered={onReordered}
+          />
         </Suspense>
       )}
     </>
