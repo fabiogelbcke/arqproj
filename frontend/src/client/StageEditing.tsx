@@ -301,6 +301,7 @@ export function ProgressRail({
       <div className="rail__now">
         <span className="big tnum">{pad(current)}</span>
         <p>
+          <small className="rail__label">{t("edit.currentStage")}</small>
           {here?.title}
           <small>{t("edit.currentNote")}</small>
         </p>

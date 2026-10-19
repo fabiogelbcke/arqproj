@@ -7,7 +7,7 @@ import { flushSync } from "react-dom";
 import { api, call, type Schemas } from "../api/client";
 import { OfficeLogo } from "../ui/OfficeLogo";
 import { Toaster, toast, toastError } from "../ui/Toast";
-import { EditButton } from "./EditButton";
+import { EditButton, openOnClick } from "./EditButton";
 import { splitTitle } from "./titleLead";
 import { UpdatesBell } from "./Updates";
 import { FilePreview, FileToolbar, linkedFile, shownFiles, usePrefs, type FilePlace, type FileView } from "./FileTools";
@@ -390,7 +390,7 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
   const title = meeting ? meeting.title || t("page.defaultMeetingTitle") : t("page.noMeetingTitle");
   const calendar = fileSource.calendar(slug);
   return (
-    <section className="meet" data-editable aria-label={t("page.nextMeeting")}>
+    <section className="meet" data-editable aria-label={t("page.nextMeeting")} {...openOnClick(onEdit)}>
       {onEdit && <EditButton label={meeting ? t("edit.meeting") : t("edit.schedule")} onClick={onEdit} />}
       <div>
         <h2>{narrow && meeting ? t("page.meetingScheduled") : t("page.nextMeeting")}</h2>
@@ -403,7 +403,8 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
             <span>{when.time}</span>
           </p>
         ) : (
-          <p className="meet__meta">{t("page.noMeeting")}</p>
+          // Staff in edit mode: the whole card opens the meeting editor.
+          <p className="meet__meta">{onEdit ? t("edit.noMeetingHint") : t("page.noMeeting")}</p>
         )}
         {meeting?.location && (
           <p className="meet__meta" title={meeting.location}>
@@ -554,8 +555,8 @@ function Stage({
           {editor?.open ? (
             editor.render()
           ) : stage.notes ? (
-            <div className="notes" data-editable>
-              {editor && <EditButton label={t("edit.notesShort")} onClick={editor.onOpen} />}
+            <div className="notes" data-editable {...openOnClick(editor?.onOpen)}>
+              {editor &&<EditButton label={t("edit.notesShort")} onClick={editor.onOpen} />}
               <p>{stage.notes}</p>
             </div>
           ) : (
@@ -861,7 +862,11 @@ export function ProjectPage({
                 <NameEditor page={page} staff={staff!} onDone={done} />
               </Suspense>
             ) : (
-              <div className="project-heading__title" data-editable>
+              <div
+                className="project-heading__title"
+                data-editable
+                {...openOnClick(canEdit ? () => setOpenEditor("name") : undefined)}
+              >
                 {canEdit && <EditButton label={t("edit.name")} onClick={() => setOpenEditor("name")} />}
                 <Title name={page.name} />
               </div>
@@ -902,7 +907,7 @@ export function ProjectPage({
                     <DescriptionEditor page={page} staff={staff!} onDone={done} />
                   </Suspense>
                 ) : (
-                  <div className="desc" data-editable>
+                  <div className="desc" data-editable {...openOnClick(canEdit ? () => setOpenEditor("desc") : undefined)}>
                     {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
                     {page.description ? (
                       <Description text={page.description} />
@@ -926,7 +931,7 @@ export function ProjectPage({
                   <DetailsEditor page={page} staff={staff!} onDone={done} />
                 </Suspense>
               ) : (
-                <dl className="facts" data-editable>
+                <dl className="facts" data-editable {...openOnClick(canEdit ? () => setOpenEditor("facts") : undefined)}>
                   {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
                   <Facts page={page} />
                 </dl>

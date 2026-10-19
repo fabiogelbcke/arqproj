@@ -380,6 +380,48 @@ describe("edit mode", () => {
     expect(screen.getByRole("button", { name: "Editar descrição" })).toBeInTheDocument();
   });
 
+  it("in edit mode, a click on a section's text opens its editor, as its pencil does", async () => {
+    asStaff();
+    await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    await userEvent.click(await screen.findByText("Residência no alto."));
+    expect(screen.queryByLabelText("Descrição")).toBeNull(); // not for clients
+    await startEditing();
+    await userEvent.click(screen.getByText("Residência no alto."));
+    expect(await screen.findByLabelText("Descrição")).toBeInTheDocument();
+    await userEvent.click(document.querySelector("dl.facts[data-opens] dd")!);
+    expect(await screen.findByLabelText("Tipo de projeto")).toBeInTheDocument();
+  });
+
+  it("in edit mode, the meeting's own links keep their job instead of opening its editor", async () => {
+    asStaff();
+    await startEditing();
+    await userEvent.click(await screen.findByText("Adicionar à agenda"));
+    expect(screen.queryByLabelText("Início")).toBeNull();
+    await userEvent.click(screen.getByText("Apresentação"));
+    expect(await screen.findByLabelText("Início")).toBeInTheDocument();
+  });
+
+  it("with no meeting, says so; in edit mode, the card is where to add one", async () => {
+    asStaff({
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, next_meeting: null, staff: { project_id: "p-1", status: "active", row_version: 4 } },
+      }),
+    });
+    expect(await screen.findByText("Nenhuma reunião agendada ainda")).toBeInTheDocument();
+    expect(screen.queryByText("Clique aqui para adicionar uma reunião")).toBeNull();
+    await startEditing();
+    await userEvent.click(screen.getByText("Clique aqui para adicionar uma reunião"));
+    expect(await screen.findByLabelText("Início")).toBeInTheDocument();
+  });
+
+  it("names the stage the advancer moves on from as the current one", async () => {
+    asStaff();
+    await startEditing();
+    const rail = document.querySelector(".rail__now p")!;
+    expect(rail).toHaveTextContent("Etapa atual");
+    expect(rail).toHaveTextContent(PAGE.stages[1]!.title);
+  });
+
   it("offers staff an empty description to fill in", async () => {
     phoneViewport();
     asStaff({ "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, description: "", staff: { project_id: "p-1", status: "active", row_version: 4 } } }) });

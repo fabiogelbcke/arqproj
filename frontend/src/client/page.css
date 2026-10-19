@@ -151,7 +151,15 @@
 .client .cover-empty:hover { border-color: var(--ink); }
 .client .cover-empty:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .client .banner .cover-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; }
-.client .banner .cover-actions .editbtn { background: var(--raise); }
+/* In a row on the cover, not each at the pencil's corner spot (on top of each other). */
+.client .banner .cover-actions .editbtn { position: static; }
+
+/* Edit mode: an editable section opens its editor from a click anywhere on it. */
+.client.editing [data-opens] { cursor: pointer; }
+
+/* The stage advancer: "Etapa atual" over the stage's name, the number centred on both. */
+.client .rail__now { align-items: center; }
+.client .rail__now .rail__label { margin-bottom: 2px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
 
 /* The guided tour (Tour.ts, Driver.js): its popover in the page's type and colours. */
 .driver-popover {
