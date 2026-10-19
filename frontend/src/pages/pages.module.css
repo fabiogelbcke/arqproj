@@ -62,6 +62,7 @@
 .who { font-size: 13px; color: var(--muted); }
 .barActions { display: flex; align-items: center; gap: 8px; } /* the top bar's theme and Sair */
 .theme { font-size: 18px; color: var(--ink); }
+.help { font-weight: 600; font-size: 15px; color: var(--ink); } /* the painel tour's "?" */
 @media (max-width: 860px) { .who { display: none; } }
 @media (max-width: 720px) {
   /* One bar: the office on the left, theme and Sair on the right; the tabs below. */
@@ -139,7 +140,20 @@
 .stepDone { font-size: 13px; color: var(--muted); }
 /* "Ver um projeto de exemplo" (plan section 16): under the steps, not counted;
    once they are done, alone above the projects. */
-.exampleLine { margin: 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; }
+/* The example project, above the steps: its cover, a line, "Ver o exemplo". */
+.exampleInvite {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; align-items: center;
+  padding: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface);
+  color: var(--ink); text-decoration: none; font-size: 14px; line-height: 1.45;
+}
+.exampleInvite img { width: 96px; aspect-ratio: 3 / 2; object-fit: cover; border-radius: var(--r); display: block; }
+.exampleInvite strong { display: block; margin-top: 4px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.exampleInvite:hover { border-color: var(--line-strong); }
+.exampleInvite:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (max-width: 560px) {
+  .exampleInvite { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; font-size: 13px; }
+  .exampleInvite img { width: 72px; }
+}
 .exampleAfter { margin: 0; font-size: 14px; }
 .exampleLink { color: var(--ink); text-underline-offset: 3px; }
 @media (max-width: 560px) {

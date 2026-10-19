@@ -293,7 +293,9 @@
     "firstProjectAction": "Criar projeto",
     "done": "Concluído",
     "membersNote": "Só o responsável pelo escritório pode concluir estes passos.",
-    "example": "Ver um projeto de exemplo"
+    "example": "Ver um projeto de exemplo",
+    "exampleIntro": "Antes de começar, veja como fica a página de um projeto pronto: etapas, arquivos e reuniões, do jeito que o cliente vê.",
+    "exampleAction": "Ver o exemplo"
   },
   "office": {
     "name": "Nome do escritório",
@@ -320,6 +322,20 @@
   },
   "confirm": {
     "cancel": "Cancelar"
+  },
+  "painelTour": {
+    "again": "Ver o tour do painel",
+    "first-stepsTitle": "Primeiros passos",
+    "first-steps": "Conecte o Google Drive, personalize o escritório e crie o primeiro projeto. Cada passo se marca sozinho quando fica pronto.",
+    "new-projectTitle": "Novo projeto",
+    "new-project": "Cada projeto ganha uma página para o cliente acompanhar. Você informa o nome, o cliente, o tipo e as etapas.",
+    "project-cardTitle": "Seus projetos",
+    "project-card": "O card abre a página do projeto, onde você edita e envia arquivos. No lápis: a foto, as configurações e arquivar.",
+    "settingsTitle": "Configurações",
+    "settings": "Os dados do escritório, que aparecem para os clientes, e a conexão com o Google Drive.",
+    "exampleTitle": "Um projeto de exemplo",
+    "example": "Veja como fica a página de um projeto pronto, com etapas, arquivos e reunião. Pode mexer à vontade: nada é salvo.",
+    "exampleAction": "Ver o exemplo"
   },
   "crop": {
     "logoTitle": "Ajustar o logo",

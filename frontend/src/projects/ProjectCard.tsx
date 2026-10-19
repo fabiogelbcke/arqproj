@@ -53,7 +53,7 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
   });
   const updated = project.last_activity_at ?? project.created_at;
   return (
-    <li className={styles.card} data-testid="project-card">
+    <li className={styles.card} data-testid="project-card" data-tour="project-card">
       <Cover project={project} className={styles.cardCover} />
       {project.status === "draft" && <span className={styles.draftTag}>{t("projectStatus.draft")}</span>}
       <ProjectMenu project={project} />

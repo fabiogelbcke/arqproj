@@ -575,7 +575,7 @@ test("the example project: from the painel, its own tour, and edits that never l
   const writes: string[] = [];
   page.on("request", (r) => r.method() !== "GET" && r.url().includes("/api/") && writes.push(r.url()));
 
-  await page.getByRole("link", { name: "Ver um projeto de exemplo" }).click();
+  await page.getByRole("link", { name: /Ver o exemplo/ }).click(); // the invitation above Primeiros passos
   await expect(page).toHaveURL(/\/tour-projeto$/);
   // Its own tour, in the client's view; not the setup tour this new account hasn't seen.
   const popover = page.locator(".driver-popover");
@@ -683,4 +683,24 @@ test("a file's \"⋯\" is small to look at and icon-sized to tap", async ({ page
   expect(Math.round(box.height)).toBe(24);
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2 + 15); // 3px below the circle
   await expect(page.locator("#stage-2 .filemenu.is-open")).toHaveCount(1);
+});
+
+// Plan section 16: "?" in the painel's top bar runs the painel tour; its last
+// step opens the example project, whose own tour starts there.
+test("the painel tour, from \"?\", ends at the example project and its tour", async ({ page }) => {
+  await page.goto(invite("tour-painel@alinea.example"));
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  const popover = page.locator(".driver-popover");
+  await expect(popover).toHaveCount(0); // never on its own
+  await page.getByRole("button", { name: "Ver o tour do painel" }).click();
+  await expect(popover).toBeVisible();
+  for (let i = 0; i < 6 && (await popover.getByRole("button", { name: "Próximo" }).count()); i++)
+    await popover.getByRole("button", { name: "Próximo" }).click();
+  await expect(popover).toContainText("Um projeto de exemplo");
+  await popover.getByRole("button", { name: "Ver o exemplo" }).click();
+  await expect(page).toHaveURL(/\/tour-projeto$/);
+  await expect(page.locator(".driver-popover")).toContainText("O nome e o tipo do projeto");
 });

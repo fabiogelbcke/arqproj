@@ -293,7 +293,9 @@
     "firstProjectAction": "Create project",
     "done": "Done",
     "membersNote": "Only the office's owner can complete these steps.",
-    "example": "See an example project"
+    "example": "See an example project",
+    "exampleIntro": "Before you start, see what a finished project page looks like: stages, files and meetings, as the client sees them.",
+    "exampleAction": "See the example"
   },
   "office": {
     "name": "Office name",
@@ -320,6 +322,20 @@
   },
   "confirm": {
     "cancel": "Cancel"
+  },
+  "painelTour": {
+    "again": "See the painel tour",
+    "first-stepsTitle": "First steps",
+    "first-steps": "Connect Google Drive, fill in the office's details and create the first project. Each step ticks itself when it's done.",
+    "new-projectTitle": "New project",
+    "new-project": "Each project gets a page for the client to follow. You give its name, the client, the type and the stages.",
+    "project-cardTitle": "Your projects",
+    "project-card": "The card opens the project's page, where you edit and upload files. The pencil has the photo, the settings and archiving.",
+    "settingsTitle": "Settings",
+    "settings": "The office's details, which clients see, and the Google Drive connection.",
+    "exampleTitle": "An example project",
+    "example": "See what a finished project page looks like, with stages, files and a meeting. Try anything: nothing is saved.",
+    "exampleAction": "See the example"
   },
   "crop": {
     "logoTitle": "Adjust the logo",
