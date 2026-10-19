@@ -4,8 +4,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 // The staff app runs under a strict Content Security Policy (plan section 4).
 // Anything the build needs that the policy blocks shows up as a console error.
-test.beforeEach(({ page }) => {
+test.beforeEach(({ page, browserName }) => {
   page.on("console", (message) => {
+    // WebKit reports its own styling of a native <select> as a blocked inline style
+    // ("Refused to apply a stylesheet", style-src-attr); nothing of ours is blocked.
+    // Chromium runs every test and still catches anything real.
+    if (browserName === "webkit" && /^Refused to apply a stylesheet/.test(message.text())) return;
     if (/Content Security Policy/i.test(message.text())) throw new Error(message.text());
   });
 });
@@ -162,30 +166,38 @@ const PNG_1PX = Buffer.from(
   "base64",
 );
 
-test("project settings: rename and cover photo together, archive and undo", async ({ page }) => {
+test("the card's menu: the photo, then the settings, then archive (confirmed) and undo", async ({ page }) => {
   const link = invite("ajustes@alinea.example");
   await page.goto(link);
   await page.getByLabel("Nova senha").fill("senha-escolhida");
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
 
-  // A completed project: open its group, then the card's pencil.
+  // A completed project: open its group, then the card's pencil and its menu.
   await page.getByRole("button", { name: "Concluídos" }).click();
-  await page.getByRole("button", { name: "Editar o projeto Refúgio da Mantiqueira" }).click();
+  const menu = (name: string) => page.getByRole("button", { name: `Editar o projeto ${name}` }).click();
+  await menu("Refúgio da Mantiqueira");
+  // The photo straight from the menu, cropped to the cover's shape first.
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("menuitem", { name: "Adicionar foto" }).click(),
+  ]);
+  await chooser.setFiles({ name: "obra.png", mimeType: "image/png", buffer: PNG_1PX });
+  await page.getByRole("dialog", { name: "Ajustar a capa" }).getByRole("button", { name: "Usar recorte" }).click();
+  await expect(page.getByText("Foto atualizada.")).toBeVisible();
+
+  await menu("Refúgio da Mantiqueira");
+  await expect(page.getByRole("menuitem", { name: "Remover foto" })).toBeVisible(); // it has one now
+  await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();
   const settings = page.getByRole("dialog", { name: "Projeto" });
   await settings.getByLabel("Nome do projeto").fill("Refúgio da Serra");
-  await settings.locator('input[type="file"]').setInputFiles({ name: "obra.png", mimeType: "image/png", buffer: PNG_1PX });
-  // Cropped to the cover's shape first.
-  await page.getByRole("dialog", { name: "Ajustar a capa" }).getByRole("button", { name: "Usar recorte" }).click();
-  await expect(settings.getByRole("img", { name: "Prévia da nova capa" })).toBeVisible();
   await settings.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByText("Salvo.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeVisible();
 
-  // The cover was saved: the dialog now offers to change or remove it.
-  await page.getByRole("button", { name: "Editar o projeto Refúgio da Serra" }).click();
-  await expect(settings.getByRole("button", { name: "Remover capa" })).toBeVisible();
-  await settings.getByRole("button", { name: "Arquivar" }).click();
+  await menu("Refúgio da Serra");
+  await page.getByRole("menuitem", { name: "Arquivar projeto" }).click();
+  await page.getByRole("alertdialog", { name: "Arquivar “Refúgio da Serra”?" }).getByRole("button", { name: "Arquivar" }).click();
   await expect(page.getByText("Projeto “Refúgio da Serra” arquivado.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeHidden();
   await page.getByRole("button", { name: "Desfazer" }).click();
@@ -257,8 +269,8 @@ test("staff open a project's page from its card, and clients see it straight awa
   await page.getByRole("link", { name: "Casa das Oliveiras" }).click();
   await expect(page).toHaveURL(/\/casa-das-oliveiras$/);
   const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
-  await expect(bar).toContainText("Publicado");
-  await expect(bar.getByRole("button", { name: "Publicar" })).toHaveCount(0); // no publish step (A35)
+  await expect(bar.getByRole("button", { name: "Editar" })).toBeVisible();
+  await expect(bar).not.toContainText("Publica"); // no publish step (A35)
 
   // A visitor (no session) sees it at once.
   const visitor = await browser.newPage();
@@ -279,6 +291,7 @@ test("staff protect a page with a password; a client unlocks it once", async ({ 
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
 
   await page.getByRole("button", { name: "Editar o projeto Apartamento Atlântico — Copacabana" }).click();
+  await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();
   const settings = page.getByRole("dialog", { name: "Projeto" });
   await settings.getByText("Com senha", { exact: true }).click();
   await settings.getByLabel(/^Senha/).fill("praia-123");
@@ -456,6 +469,43 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   await client.close();
 });
 
+test("staff drag a stage to a new place, and the new order is saved", async ({ page }) => {
+  const link = invite("ordem@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.getByRole("heading", { name: "Projetos" }).waitFor();
+
+  // A project no other test reorders.
+  await page.goto("/refugio-da-mantiqueira");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  // The titles as stored (the page shows them in capitals).
+  const first = (await page.locator("#st-0").textContent())!;
+  const second = (await page.locator("#st-1").textContent())!;
+  await page.getByRole("button", { name: "Reordenar etapas" }).click();
+  const list = page.getByRole("dialog", { name: "Reordenar etapas" });
+  // Drag the first stage's handle below the second, in small steps as a hand would.
+  const handle = (await list.getByRole("button", { name: `Arrastar ${first}` }).boundingBox())!;
+  const target = (await list.getByRole("button", { name: `Arrastar ${second}` }).boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2 + 12, { steps: 12 });
+  await page.mouse.up();
+  await expect(list.locator("li").first()).toContainText(second);
+  // The drag library swallows a click in the instant after a drop (so the dropped
+  // row isn't also clicked); a hand is never that quick, the test is.
+  await page.waitForTimeout(300);
+  await list.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Ordem das etapas salva.")).toBeVisible();
+  await expect(page.locator("#st-0")).toHaveText(second);
+
+  await page.reload(); // as the server has it (its client page has a password)
+  await expect(page.locator("#st-0")).toHaveText(second);
+  await expect(page.locator("#st-1")).toHaveText(first);
+});
+
 test("a new staff member's first project page shows the tour once; \"?\" replays it", async ({ page }) => {
   const link = invite("tour@alinea.example");
   await page.goto(link);
@@ -545,4 +595,49 @@ test("the example project: from the painel, its own tour, and edits that never l
   await page.reload();
   await expect(popover).toContainText("O nome e o tipo do projeto");
   await expect(page.getByText("Uma casa só nossa.")).toHaveCount(0);
+});
+
+/** Opens Casa Jardim's third stage, the one with files (earlier tests may have
+ *  moved the current stage on). */
+async function openThirdStage(page: Page) {
+  const stage = page.locator("#stage-2");
+  // From the timeline, as in edit mode (where the stage's own arrow gives way to its controls).
+  if (!/is-expanded/.test((await stage.getAttribute("class")) ?? ""))
+    await page.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^03 / }).click();
+  await page.locator("#stage-2.is-expanded .file").first().waitFor();
+  await page.waitForTimeout(400); // the opening's fade
+}
+
+/** How far the open stage's body is from its content's height (0: a fit). */
+async function openStageMisfit(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const body = document.querySelector<HTMLElement>(".stage.is-expanded .stage__body")!;
+    const px = (el: Element, side: "paddingBottom" | "marginBottom" | "borderBottomWidth") => parseFloat(getComputedStyle(el)[side]);
+    const inner = body.querySelector<HTMLElement>(".stage__body-inner")!;
+    const last = inner.lastElementChild!;
+    // From the body's top to the last thing in it, with what sits under that.
+    const content =
+      last.getBoundingClientRect().bottom + px(last, "marginBottom") + px(inner, "paddingBottom") + px(inner, "borderBottomWidth") +
+      px(body, "paddingBottom") - body.getBoundingClientRect().top;
+    return Math.abs(body.getBoundingClientRect().height - content);
+  });
+}
+
+// Safari once sized an open stage far taller than its files, and in edit mode too
+// short, files spilling out (the prototype's 0fr → 1fr opening).
+test("an open stage is as tall as its files, for clients and in edit mode @safari", async ({ page }, info) => {
+  await page.goto("/casa-jardim");
+  await openThirdStage(page);
+  expect(await openStageMisfit(page)).toBeLessThan(3);
+
+  await page.goto(invite(`altura-${info.project.name}@alinea.example`));
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await openThirdStage(page);
+  await page.locator("#stage-2 .drop").waitFor();
+  expect(await openStageMisfit(page)).toBeLessThan(3);
 });

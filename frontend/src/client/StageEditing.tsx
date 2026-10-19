@@ -1,7 +1,7 @@
 // Edit mode, part 2: the prototype's stage controls (rename, move, remove), its
 // "Adicionar etapa" and its progress rail (advance, back, complete, reopen).
 // Every change carries the page's row version; folders follow in Drive.
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
@@ -9,12 +9,15 @@ import { TextInput } from "../ui/TextInput";
 import { toast, toastError } from "../ui/Toast";
 import type { Page } from "./format";
 
+// The reorder list (and its drag library) loads only when staff open it.
+const StageOrder = lazy(() => import("./StageOrder"));
+
 type Staff = NonNullable<Page["staff"]>;
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** `locked`: a change was saved and the page hasn't reloaded yet, so another
  * click would carry the old row version and be refused as "changed meanwhile". */
-function useChange(onChanged: () => void, locked: boolean) {
+export function useChange(onChanged: () => void, locked: boolean) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   return {
@@ -270,6 +273,20 @@ export function ProgressRail({
 }) {
   const { t } = useTranslation();
   const change = useChange(onChanged, locked);
+  const [ordering, setOrdering] = useState(false);
+  // "Reordenar etapas": every stage on one list to drag into a new order.
+  const reorder = page.stages.length > 1 && (
+    <>
+      <button className="b b--ghost b--small" type="button" disabled={change.busy} onClick={() => setOrdering(true)}>
+        {t("edit.reorderStages")}
+      </button>
+      {ordering && (
+        <Suspense fallback={null}>
+          <StageOrder page={page} staff={staff} onClose={() => setOrdering(false)} onChanged={onChanged} />
+        </Suspense>
+      )}
+    </>
+  );
   const send = (action: "advance" | "back" | "complete" | "reopen", version = staff.row_version) =>
     call(
       api.POST("/api/projects/{project_id}/progress", {
@@ -288,6 +305,7 @@ export function ProgressRail({
             <small>{t("edit.allDoneNote")}</small>
           </p>
         </div>
+        {reorder}
         <button className="b b--small" type="button" disabled={change.busy} onClick={() => void change.run(() => send("reopen"), t("edit.reopened"))}>
           {t("edit.reopen")}
         </button>
@@ -306,6 +324,7 @@ export function ProgressRail({
           <small>{t("edit.currentNote")}</small>
         </p>
       </div>
+      {reorder}
       {current > 1 && (
         <button className="b b--ghost b--small" type="button" disabled={change.busy} onClick={() => void change.run(() => send("back"))}>
           {t("edit.back")}

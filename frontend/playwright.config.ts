@@ -18,7 +18,11 @@ export default defineConfig({
   fullyParallel: false,
   reporter: [["list"]],
   use: { baseURL: `http://alinea.localhost:${PORT}`, trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // Safari's engine, for the layout it has got wrong before: only tests tagged @safari.
+    { name: "safari", use: { ...devices["Desktop Safari"] }, grep: /@safari/ },
+  ],
   webServer: {
     command: `uv run python -m backend.commands.e2e && uv run uvicorn backend.app:create_app --factory --port ${PORT}`,
     cwd: "..",

@@ -127,6 +127,8 @@ export function StageDrop({
 }) {
   const { t } = useTranslation();
   const [over, setOver] = useState(false);
+  const chooser = useRef<HTMLInputElement>(null);
+  const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
   const [sending, setSending] = useState<Sending[]>([]);
   const next = useRef(0);
   const update = (id: number, change: Partial<Sending>) =>
@@ -175,6 +177,11 @@ export function StageDrop({
       <div
         className={`drop${over ? " over" : ""}`}
         data-tour="upload"
+        // A click anywhere in the area chooses files, not only on its link (whose
+        // label opens the chooser itself).
+        onClick={(event) => {
+          if (!(event.target as Element).closest("label, input")) chooser.current?.click();
+        }}
         onDragOver={(event) => {
           event.preventDefault();
           setOver(true);
@@ -190,8 +197,10 @@ export function StageDrop({
           <path d="M12 16V4M7 9l5-5 5 5" />
           <path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" />
         </svg>
-        <span>{t("edit.dropFiles")}</span>
+        {/* A touch screen has nothing to drag: the whole area opens the picker. */}
+        {!touch && <span>{t("edit.dropFiles")}</span>}
         <input
+          ref={chooser}
           type="file"
           id={`up-${position}`}
           multiple
@@ -200,7 +209,7 @@ export function StageDrop({
             event.target.value = ""; // the same file can be chosen again
           }}
         />
-        <label htmlFor={`up-${position}`}>{t("edit.chooseFiles")}</label>
+        <label htmlFor={`up-${position}`}>{touch ? t("edit.tapToChoose") : t("edit.chooseFiles")}</label>
         <small>{t("edit.dropNote", { folder, max: UPLOAD_MAX_MB })}</small>
       </div>
       {sending.length > 0 && (
