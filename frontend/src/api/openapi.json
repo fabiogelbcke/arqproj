@@ -410,6 +410,23 @@
       "post": {
         "summary": "Connect",
         "operationId": "connect_api_drive_connect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ConnectIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -447,6 +464,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2116,6 +2143,90 @@
         }
       }
     },
+    "/api/projects/{project_id}/stages/order": {
+      "put": {
+        "summary": "Reorder Stages",
+        "description": "Every stage in its new place at once (edit mode's \"Reordenar etapas\"), their\nfolders renumbered. The current stage stays the same stage, wherever it goes.",
+        "operationId": "reorder_stages_api_projects__project_id__stages_order_put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/progress": {
       "post": {
         "summary": "Progress",
@@ -2762,6 +2873,17 @@
         ],
         "title": "ChoosePasswordIn"
       },
+      "ConnectIn": {
+        "properties": {
+          "fresh": {
+            "type": "boolean",
+            "title": "Fresh",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ConnectIn"
+      },
       "ConnectOut": {
         "properties": {
           "url": {
@@ -2979,6 +3101,10 @@
           "can_manage": {
             "type": "boolean",
             "title": "Can Manage"
+          },
+          "has_folder": {
+            "type": "boolean",
+            "title": "Has Folder"
           }
         },
         "type": "object",
@@ -2988,7 +3114,8 @@
           "reader_status",
           "account_email",
           "folder_url",
-          "can_manage"
+          "can_manage",
+          "has_folder"
         ],
         "title": "DriveOut"
       },
@@ -3530,6 +3657,28 @@
           "has_project"
         ],
         "title": "OnboardingOut"
+      },
+      "OrderIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "order": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "order"
+        ],
+        "title": "OrderIn"
       },
       "PageFilesOut": {
         "properties": {

@@ -114,12 +114,6 @@
     "stagesHint_other": "{{count}} etapas marcadas. As etapas usuais do tipo já vêm marcadas; marque ou desmarque à vontade.",
     "retry": "Tentar de novo"
   },
-  "cover": {
-    "choose": "Escolher uma foto",
-    "chooseHint": "JPG, PNG ou WebP · até 10 MB",
-    "preview": "Prévia da nova capa",
-    "unreadable": "Não foi possível ler esta foto. Escolha outra."
-  },
   "projectSettings": {
     "recipients": "E-mails do cliente",
     "recipientsHint": "Clientes receberão automaticamente atualizações sobre o projeto por e-mail.",
@@ -131,10 +125,6 @@
     "open": "Editar o projeto {{name}}",
     "name": "Nome do projeto",
     "client": "Cliente",
-    "cover": "Capa",
-    "changeCover": "Trocar capa",
-    "removeCover": "Remover capa",
-    "noCover": "Sem capa, o painel mostra uma foto de exemplo.",
     "archive": "Arquivar",
     "cancel": "Cancelar",
     "save": "Salvar",
@@ -143,7 +133,6 @@
     "archived": "Projeto “{{name}}” arquivado.",
     "undo": "Desfazer",
     "restored": "Projeto “{{name}}” de volta.",
-    "edit": "Editar projeto",
     "link": "Link do cliente",
     "linkHint": "A página fica em {{address}}. O link antigo continua funcionando.",
     "access": "Acesso",
@@ -153,7 +142,16 @@
     "withPasswordHint": "O cliente digita a senha uma vez por aparelho; vale por 90 dias.",
     "password": "Senha",
     "passwordKeep": "Deixe em branco para manter a senha atual. Uma senha nova pede a senha de novo em todos os aparelhos.",
-    "passwordNew": "Pelo menos 6 caracteres. Envie a senha ao cliente junto com o link."
+    "passwordNew": "Pelo menos 6 caracteres. Envie a senha ao cliente junto com o link.",
+    "changePhoto": "Trocar foto",
+    "addPhoto": "Adicionar foto",
+    "removePhoto": "Remover foto",
+    "photoSaved": "Foto atualizada.",
+    "photoRemoved": "Foto removida.",
+    "openSettings": "Configurações do projeto",
+    "archiveProject": "Arquivar projeto",
+    "archiveAsk": "Arquivar “{{name}}”?",
+    "archiveMeans": "O projeto sai da lista de projetos. O cliente continua vendo a página. Não dá mais para enviar arquivos pelo portal, e o cliente não recebe e-mails do projeto."
   },
   "notFound": {
     "title": "Página não encontrada",
@@ -187,7 +185,7 @@
     "drive_link_invalid": "Este pedido de conexão expirou. Comece de novo em Conectar.",
     "drive_connect_failed": "Não foi possível conectar o Google Drive. Tente de novo em instantes.",
     "drive_share_failed": "Não foi possível preparar a pasta no seu Drive. Nada foi alterado; tente de novo.",
-    "drive_other_account": "Esta conta Google não acessa a pasta do escritório. Reconecte com a mesma conta usada antes; nada foi alterado.",
+    "drive_other_account": "Esta conta Google não acessa a pasta do escritório. Reconecte com a mesma conta usada antes, ou use esta outra conta mesmo assim (os arquivos dos projetos não vêm junto). Nada foi alterado.",
     "drive_not_connected": "Conecte o Google Drive do escritório antes de fazer isso.",
     "drive_expired": "A conexão com o Google Drive expirou. Reconecte em Configurações → Google Drive.",
     "invalid_office_name": "Informe um nome de até 28 caracteres.",
@@ -266,7 +264,18 @@
     "spaceUsed": "{{used}} de {{total}} usados ({{percent}}%)",
     "spacePooled": "Armazenamento compartilhado (Workspace): {{used}} usados",
     "spaceLow": "Pouco espaço livre. Quando o Drive enche, novos arquivos não são enviados: libere espaço ou amplie o armazenamento da conta Google.",
-    "spaceUnknown": "Não foi possível ver o espaço do Drive agora."
+    "spaceUnknown": "Não foi possível ver o espaço do Drive agora.",
+    "notConnectedBefore": "Antes conectado como {{email}}. Os projetos estão na pasta dessa conta.",
+    "reconnectSame": "Reconectar a mesma conta",
+    "switch": "Usar outra conta",
+    "switchAnyway": "Usar esta outra conta mesmo assim",
+    "switchTitle": "Usar outra conta Google?",
+    "switchWarning": "Os arquivos dos projetos não vêm para a nova conta. Na nova conta, tudo começa vazio.",
+    "switchFiles": "Os arquivos, as capas e o logo continuam na conta anterior, onde estão hoje.",
+    "switchEmpty": "Na nova conta, cada projeto começa com pastas vazias: os clientes não veem mais os arquivos até que sejam enviados de novo pelo site.",
+    "switchKept": "Nomes, etapas, recados, informações, reuniões e os e-mails dos clientes continuam como estão.",
+    "switchCancel": "Cancelar",
+    "switchConfirm": "Entendi, usar outra conta"
   },
   "firstSteps": {
     "title": "Primeiros passos",
@@ -284,7 +293,9 @@
     "firstProjectAction": "Criar projeto",
     "done": "Concluído",
     "membersNote": "Só o responsável pelo escritório pode concluir estes passos.",
-    "example": "Ver um projeto de exemplo"
+    "example": "Ver um projeto de exemplo",
+    "exampleIntro": "Antes de começar, veja como fica a página de um projeto pronto: etapas, arquivos e reuniões, do jeito que o cliente vê.",
+    "exampleAction": "Ver o exemplo"
   },
   "office": {
     "name": "Nome do escritório",
@@ -308,6 +319,23 @@
     "chooseDarkLogo": "Escolher imagem para o modo escuro",
     "darkLogoSaved": "Logo do modo escuro atualizado.",
     "darkLogoRemoved": "O modo escuro usa o mesmo logo."
+  },
+  "confirm": {
+    "cancel": "Cancelar"
+  },
+  "painelTour": {
+    "again": "Ver o tour do painel",
+    "first-stepsTitle": "Primeiros passos",
+    "first-steps": "Conecte o Google Drive, personalize o escritório e crie o primeiro projeto. Cada passo se marca sozinho quando fica pronto.",
+    "new-projectTitle": "Novo projeto",
+    "new-project": "Cada projeto ganha uma página para o cliente acompanhar. Você informa o nome, o cliente, o tipo e as etapas.",
+    "project-cardTitle": "Seus projetos",
+    "project-card": "O card abre a página do projeto, onde você edita e envia arquivos. No lápis: a foto, as configurações e arquivar.",
+    "settingsTitle": "Configurações",
+    "settings": "Os dados do escritório, que aparecem para os clientes, e a conexão com o Google Drive.",
+    "exampleTitle": "Um projeto de exemplo",
+    "example": "Veja como fica a página de um projeto pronto, com etapas, arquivos e reunião. Pode mexer à vontade: nada é salvo.",
+    "exampleAction": "Ver o exemplo"
   },
   "crop": {
     "logoTitle": "Ajustar o logo",
@@ -363,8 +391,8 @@
     "noDescription": "Sem descrição.",
     "nextMeeting": "Próxima reunião",
     "meetingScheduled": "Reunião agendada",
-    "noMeetingTitle": "Vamos conversar sobre o seu projeto",
-    "noMeeting": "Nenhuma reunião agendada. O próximo encontro aparecerá aqui.",
+    "noMeetingTitle": "Nenhuma reunião agendada ainda",
+    "noMeeting": "O próximo encontro aparecerá aqui.",
     "defaultMeetingTitle": "Reunião do projeto",
     "joinMeeting": "Entrar na reunião",
     "addToCalendar": "Adicionar à agenda",
@@ -381,13 +409,8 @@
     "cover": "Capa do projeto {{name}}",
     "staffBar": "Ferramentas do escritório",
     "backToPainel": "Painel",
-    "draftNote": "Rascunho, só você vê",
-    "publishedNote": "Publicado",
     "copyLink": "Copiar link do cliente",
     "linkCopied": "Link copiado.",
-    "linkCopiedDraft": "Link copiado. O cliente só verá a página depois de publicada.",
-    "publish": "Publicar",
-    "published": "Publicado. O cliente já pode abrir o link.",
     "password": "Senha",
     "enter": "Entrar",
     "noFiles": "Ainda sem arquivos nesta etapa.",
@@ -403,6 +426,7 @@
     "nameHint": "Aparece no topo da página do cliente e no painel. O endereço da página não muda.",
     "dropFiles": "Solte arquivos aqui ou",
     "chooseFiles": "escolha no computador",
+    "tapToChoose": "Toque para escolher arquivos",
     "dropNote": "Vão para a pasta “{{folder}}” no seu Drive e aparecem para o cliente. Até {{max}} MB por arquivo.",
     "sending": "Enviando {{name}}",
     "dismiss": "Fechar",
@@ -431,6 +455,7 @@
     "removeDetail": "Remover {{name}}",
     "meeting": "Reunião",
     "schedule": "Agendar",
+    "noMeetingHint": "Clique aqui para adicionar uma reunião",
     "scheduleMeeting": "Agendar reunião",
     "subject": "Assunto",
     "day": "Data",
@@ -462,7 +487,8 @@
     "allDoneNote": "Todas as etapas aparecem como concluídas para o cliente.",
     "reopen": "Reabrir",
     "reopened": "Projeto reaberto.",
-    "currentNote": "Etapa atual. O cliente vê “Em andamento”.",
+    "currentStage": "Etapa atual",
+    "currentNote": "O cliente vê “Em andamento”.",
     "back": "Voltar etapa",
     "advanceTo": "Avançar para {{n}} {{title}}",
     "advanced": "Avançou para “{{title}}”.",
@@ -473,7 +499,11 @@
     "changeCover": "Trocar capa",
     "coverSaved": "Capa atualizada.",
     "removeCover": "Remover capa",
-    "coverRemoved": "Capa removida."
+    "coverRemoved": "Capa removida.",
+    "reorderStages": "Reordenar etapas",
+    "reorderHint": "Arraste pela alça ou use as setas. A etapa atual continua a mesma; as pastas no Drive acompanham.",
+    "dragStage": "Arrastar {{title}}",
+    "orderSaved": "Ordem das etapas salva."
   },
   "email": {
       "subject": "Novidades em {{project}}",

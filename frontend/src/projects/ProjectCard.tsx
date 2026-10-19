@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Cover } from "./Cover";
-import { ProjectDialog } from "./ProjectDialog";
+import { ProjectMenu } from "./ProjectMenu";
 import { type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
@@ -53,22 +52,11 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
     minute: "2-digit",
   });
   const updated = project.last_activity_at ?? project.created_at;
-  const [editing, setEditing] = useState(false);
   return (
-    <li className={styles.card} data-testid="project-card">
+    <li className={styles.card} data-testid="project-card" data-tour="project-card">
       <Cover project={project} className={styles.cardCover} />
       {project.status === "draft" && <span className={styles.draftTag}>{t("projectStatus.draft")}</span>}
-      <button
-        type="button"
-        className={styles.editButton}
-        aria-label={t("projectSettings.open", { name: project.name })}
-        title={t("projectSettings.edit")}
-        onClick={() => setEditing(true)}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 20h4L19 9l-4-4L4 16v4Z M13.5 6.5l4 4" />
-        </svg>
-      </button>
+      <ProjectMenu project={project} />
       <div className={styles.identity}>
         <h3 className={styles.name}>
           {/* The whole card opens the client's page (the pencil stays on top). */}
@@ -93,7 +81,6 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
       <p className={styles.updated}>
         <small>{t("projects.updated")}</small> {day.format(new Date(updated))}
       </p>
-      {editing && <ProjectDialog project={project} onClose={() => setEditing(false)} />}
     </li>
   );
 }

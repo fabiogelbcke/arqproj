@@ -1,4 +1,4 @@
-// Short messages at the bottom of the screen: a confirmation ("Salvo."), optionally
+// Short messages at the top of the screen: a confirmation ("Salvo."), optionally
 // with "Desfazer", or a failure with its support code. One at a time; each replaces
 // the last and leaves after 5 seconds (a failure after 8, to note the code).
 import { useSyncExternalStore } from "react";

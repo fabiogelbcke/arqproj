@@ -548,6 +548,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/stages/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder Stages
+         * @description Every stage in its new place at once (edit mode's "Reordenar etapas"), their
+         *     folders renumbered. The current stage stays the same stage, wherever it goes.
+         */
+        put: operations["reorder_stages_api_projects__project_id__stages_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/progress": {
         parameters: {
             query?: never;
@@ -725,6 +746,14 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** ConnectIn */
+        ConnectIn: {
+            /**
+             * Fresh
+             * @default false
+             */
+            fresh: boolean;
+        };
         /** ConnectOut */
         ConnectOut: {
             /** Url */
@@ -789,6 +818,8 @@ export interface components {
             folder_url: string | null;
             /** Can Manage */
             can_manage: boolean;
+            /** Has Folder */
+            has_folder: boolean;
         };
         /**
          * ErrorCode
@@ -969,6 +1000,13 @@ export interface components {
             office_details: boolean;
             /** Has Project */
             has_project: boolean;
+        };
+        /** OrderIn */
+        OrderIn: {
+            /** Row Version */
+            row_version: number;
+            /** Order */
+            order: number[];
         };
         /** PageFilesOut */
         PageFilesOut: {
@@ -1743,7 +1781,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ConnectIn"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1770,6 +1812,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Service Unavailable */
@@ -3122,6 +3173,75 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["backend__web__page_stages__MoveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    reorder_stages_api_projects__project_id__stages_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderIn"];
             };
         };
         responses: {

@@ -114,12 +114,6 @@
     "stagesHint_other": "{{count}} stages ticked. The type's usual stages come ticked; tick or untick as you like.",
     "retry": "Try again"
   },
-  "cover": {
-    "choose": "Choose a photo",
-    "chooseHint": "JPG, PNG or WebP · up to 10 MB",
-    "preview": "Preview of the new cover",
-    "unreadable": "This photo couldn't be read. Choose another."
-  },
   "projectSettings": {
     "recipients": "Client emails",
     "recipientsHint": "Clients will automatically get updates about the project by email.",
@@ -131,10 +125,6 @@
     "open": "Edit the project {{name}}",
     "name": "Project name",
     "client": "Client",
-    "cover": "Cover",
-    "changeCover": "Change cover",
-    "removeCover": "Remove cover",
-    "noCover": "Without a cover, the painel shows a sample photo.",
     "archive": "Archive",
     "cancel": "Cancel",
     "save": "Save",
@@ -143,7 +133,6 @@
     "archived": "Project “{{name}}” archived.",
     "undo": "Undo",
     "restored": "Project “{{name}}” is back.",
-    "edit": "Edit project",
     "link": "Client link",
     "linkHint": "The page is at {{address}}. The old link keeps working.",
     "access": "Access",
@@ -153,7 +142,16 @@
     "withPasswordHint": "The client types it once per device; it lasts 90 days.",
     "password": "Password",
     "passwordKeep": "Leave empty to keep the current password. A new one asks for it again on every device.",
-    "passwordNew": "At least 6 characters. Send it to the client with the link."
+    "passwordNew": "At least 6 characters. Send it to the client with the link.",
+    "changePhoto": "Change photo",
+    "addPhoto": "Add photo",
+    "removePhoto": "Remove photo",
+    "photoSaved": "Photo updated.",
+    "photoRemoved": "Photo removed.",
+    "openSettings": "Project settings",
+    "archiveProject": "Archive project",
+    "archiveAsk": "Archive “{{name}}”?",
+    "archiveMeans": "The project leaves the project list. The client still sees the page. Files can no longer be uploaded through the portal, and the client gets no project emails."
   },
   "notFound": {
     "title": "Page not found",
@@ -187,7 +185,7 @@
     "drive_link_invalid": "This connection request has expired. Start again with Connect.",
     "drive_connect_failed": "Google Drive could not be connected. Please try again shortly.",
     "drive_share_failed": "The folder in your Drive could not be prepared. Nothing was changed; try again.",
-    "drive_other_account": "This Google account cannot reach the office's folder. Reconnect with the account used before; nothing was changed.",
+    "drive_other_account": "This Google account can't reach the office's folder. Reconnect the account used before, or use this other account anyway (the projects' files don't come along). Nothing was changed.",
     "drive_not_connected": "Connect the office's Google Drive before doing this.",
     "drive_expired": "The Google Drive connection expired. Reconnect in Settings → Google Drive.",
     "invalid_office_name": "Enter a name of up to 28 characters.",
@@ -266,7 +264,18 @@
     "spaceUsed": "{{used}} of {{total}} used ({{percent}}%)",
     "spacePooled": "Pooled storage (Workspace): {{used}} used",
     "spaceLow": "Running low on space. Once Drive is full, new files won't upload: free up space or upgrade the Google account's storage.",
-    "spaceUnknown": "Drive space couldn't be checked right now."
+    "spaceUnknown": "Drive space couldn't be checked right now.",
+    "notConnectedBefore": "Previously connected as {{email}}. The projects are in that account's folder.",
+    "reconnectSame": "Reconnect the same account",
+    "switch": "Use another account",
+    "switchAnyway": "Use this other account anyway",
+    "switchTitle": "Use another Google account?",
+    "switchWarning": "The projects' files don't come to the new account. In the new account, everything starts empty.",
+    "switchFiles": "The files, covers and logo stay in the previous account, where they are today.",
+    "switchEmpty": "In the new account, each project starts with empty folders: clients no longer see the files until they're uploaded again through the site.",
+    "switchKept": "Names, stages, notes, details, meetings and the clients' emails stay as they are.",
+    "switchCancel": "Cancel",
+    "switchConfirm": "I understand, use another account"
   },
   "firstSteps": {
     "title": "First steps",
@@ -284,7 +293,9 @@
     "firstProjectAction": "Create project",
     "done": "Done",
     "membersNote": "Only the office's owner can complete these steps.",
-    "example": "See an example project"
+    "example": "See an example project",
+    "exampleIntro": "Before you start, see what a finished project page looks like: stages, files and meetings, as the client sees them.",
+    "exampleAction": "See the example"
   },
   "office": {
     "name": "Office name",
@@ -308,6 +319,23 @@
     "chooseDarkLogo": "Choose dark mode image",
     "darkLogoSaved": "Dark mode logo updated.",
     "darkLogoRemoved": "Dark mode uses the same logo."
+  },
+  "confirm": {
+    "cancel": "Cancel"
+  },
+  "painelTour": {
+    "again": "See the painel tour",
+    "first-stepsTitle": "First steps",
+    "first-steps": "Connect Google Drive, fill in the office's details and create the first project. Each step ticks itself when it's done.",
+    "new-projectTitle": "New project",
+    "new-project": "Each project gets a page for the client to follow. You give its name, the client, the type and the stages.",
+    "project-cardTitle": "Your projects",
+    "project-card": "The card opens the project's page, where you edit and upload files. The pencil has the photo, the settings and archiving.",
+    "settingsTitle": "Settings",
+    "settings": "The office's details, which clients see, and the Google Drive connection.",
+    "exampleTitle": "An example project",
+    "example": "See what a finished project page looks like, with stages, files and a meeting. Try anything: nothing is saved.",
+    "exampleAction": "See the example"
   },
   "crop": {
     "logoTitle": "Adjust the logo",
@@ -363,8 +391,8 @@
     "noDescription": "No description.",
     "nextMeeting": "Next meeting",
     "meetingScheduled": "Meeting scheduled",
-    "noMeetingTitle": "Let's talk about your project",
-    "noMeeting": "No meeting scheduled. The next one will appear here.",
+    "noMeetingTitle": "No meeting scheduled yet",
+    "noMeeting": "The next meeting will appear here.",
     "defaultMeetingTitle": "Project meeting",
     "joinMeeting": "Join the meeting",
     "addToCalendar": "Add to calendar",
@@ -381,13 +409,8 @@
     "cover": "Cover of the project {{name}}",
     "staffBar": "Office tools",
     "backToPainel": "Painel",
-    "draftNote": "Draft, only you can see it",
-    "publishedNote": "Published",
     "copyLink": "Copy the client's link",
     "linkCopied": "Link copied.",
-    "linkCopiedDraft": "Link copied. The client will see the page once it's published.",
-    "publish": "Publish",
-    "published": "Published. The client can now open the link.",
     "password": "Password",
     "enter": "Enter",
     "noFiles": "No files in this stage yet.",
@@ -403,6 +426,7 @@
     "nameHint": "Shown at the top of the client's page and in the painel. The page's address stays the same.",
     "dropFiles": "Drop files here or",
     "chooseFiles": "choose from your computer",
+    "tapToChoose": "Tap to choose files",
     "dropNote": "They go to the “{{folder}}” folder in your Drive and show to the client. Up to {{max}} MB a file.",
     "sending": "Sending {{name}}",
     "dismiss": "Close",
@@ -431,6 +455,7 @@
     "removeDetail": "Remove {{name}}",
     "meeting": "Meeting",
     "schedule": "Schedule",
+    "noMeetingHint": "Click here to add a meeting",
     "scheduleMeeting": "Schedule a meeting",
     "subject": "Subject",
     "day": "Date",
@@ -462,7 +487,8 @@
     "allDoneNote": "All stages show as done to the client.",
     "reopen": "Reopen",
     "reopened": "Project reopened.",
-    "currentNote": "Current stage. The client sees “In progress”.",
+    "currentStage": "Current stage",
+    "currentNote": "The client sees “In progress”.",
     "back": "Back one stage",
     "advanceTo": "Advance to {{n}} {{title}}",
     "advanced": "Advanced to “{{title}}”.",
@@ -473,7 +499,11 @@
     "changeCover": "Change cover",
     "coverSaved": "Cover updated.",
     "removeCover": "Remove cover",
-    "coverRemoved": "Cover removed."
+    "coverRemoved": "Cover removed.",
+    "reorderStages": "Reorder stages",
+    "reorderHint": "Drag by the handle or use the arrows. The current stage stays the same; the Drive folders follow.",
+    "dragStage": "Drag {{title}}",
+    "orderSaved": "Stage order saved."
   },
   "email": {
       "subject": "News on {{project}}",

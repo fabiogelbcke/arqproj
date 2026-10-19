@@ -19,6 +19,63 @@ a new entry too.
 
 ---
 
+## 2026-10-19 — Plan section 16: the example project at the top of Primeiros passos; a painel tour
+
+**Was:** the example project's entry was an optional line at the bottom of
+Primeiros passos ("Ver um projeto de exemplo"), and "the painel explains
+itself": no tour in the painel.
+
+**Now:** an invitation at the top of Primeiros passos, with the example's cover,
+leads to the example before the first steps. "?" in the painel's top bar starts
+a short painel tour on demand whose last step opens the example. A "?" button is
+how any area offers its tour.
+
+**Why:** Fabio, 19 Oct 2026: a new office's first project page looks empty, so
+"we'd like them to look at the example project first". On a phone the steps
+fill the first screen, so a line below them (or an empty projects list) isn't
+seen. He liked the tour "as a button somewhere", reusable, rather than a tour
+that starts by itself; an empty projects list was dropped because the steps are
+on screen whenever it is.
+
+## 2026-10-19 — A24: the card's pencil opens a menu; A35: nothing about publishing in the staff bar
+
+**Was:** in the painel, a card's pencil opened the "Projeto" dialog straight away,
+holding the name, client, cover, client link, access, client emails and
+"Arquivar" (which archived at once, with "Desfazer"). On the project page, the
+staff bar said "Publicado" under the name, and offered "Publicar" on a draft
+left over from before A35.
+
+**Now:** the pencil opens a short menu: "Trocar foto" (the photo picker and
+cropper, saved on its own), "Remover foto" when there is one, "Configurações do
+projeto" (the dialog, now without the cover or archiving) and "Arquivar projeto",
+which asks for confirmation first ("Desfazer" stays). The staff bar has no
+"Publicado" and no "Publicar"; the publish endpoint stays, unused, for when
+drafts return.
+
+**Why:** Fabio, 19 Oct 2026, reviewing the painel: the dialog was "getting too
+big", so the edit button should show "a little pop up menu with a few options:
+change photo, project settings, archive project for now", with archiving
+confirmed. And since there are no drafts for now, "there shouldn't be anything
+about publicar anywhere".
+
+## 2026-10-18 — Plan section 9: another Google account may replace the office's folder
+
+**Was:** reconnecting never replaced the office's folder. A grant from another
+Google account was refused ("Esta conta Google não acessa a pasta do
+escritório"), so an office could not move to another account at all.
+
+**Now:** after a clear warning that the projects' files stay in the old account,
+the owner may connect another account: the office starts afresh there (new root
+and empty project and stage folders; covers and logo dropped; no emails for
+files re-uploaded). The same account still keeps its folder.
+
+**Why:** offices do change accounts (a personal Gmail to Workspace, a partner
+leaving), and being stuck is worse than starting the files afresh. The app's
+Drive grant (drive.file) cannot reach the old account's files, so nothing can
+move across automatically; a migration tool is a future idea. Fabio, 18 Oct
+2026: "just warning that they'll lose everything, very clear and bold warning,
+is fine".
+
 ## 2026-10-18 — A24: the project's name also editable from its title; shorter client names
 
 **Was:** A24 had the painel's "Projeto" dialog alone edit the project's name; the

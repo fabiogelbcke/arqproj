@@ -95,6 +95,9 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(page, "03b-novo-projeto");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Editar o projeto Casa Jardim" }).click();
+  await page.getByRole("menu").waitFor();
+  await shoot(page, "03f-menu-do-projeto");
+  await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();
   await page.getByRole("dialog", { name: "Projeto" }).waitFor();
   await shoot(page, "03c-projeto");
   const newEmail = page.getByLabel("Novo e-mail");

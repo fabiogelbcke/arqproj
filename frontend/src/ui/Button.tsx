@@ -4,6 +4,19 @@ import styles from "./ui.module.css";
 
 type Variant = "primary" | "secondary" | "ghost";
 
-export function Button({ variant = "secondary", className, ...props }: ButtonProps & { variant?: Variant }) {
-  return <AriaButton {...props} className={[styles.button, styles[variant], className].filter(Boolean).join(" ")} />;
+/** The site's text button. Size by role (ui/sizes.css): "regular" for the action
+ *  a screen or dialog is about and in forms; "small" in toolbars and beside
+ *  content. Icon-only buttons are IconButton. */
+export function Button({
+  variant = "secondary",
+  size = "regular",
+  className,
+  ...props
+}: ButtonProps & { variant?: Variant; size?: "regular" | "small" }) {
+  return (
+    <AriaButton
+      {...props}
+      className={[styles.button, styles[variant], size === "small" && styles.small, className].filter(Boolean).join(" ")}
+    />
+  );
 }

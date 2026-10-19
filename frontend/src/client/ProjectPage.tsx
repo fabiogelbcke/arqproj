@@ -6,8 +6,9 @@ import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
 import { OfficeLogo } from "../ui/OfficeLogo";
-import { Toaster, toast, toastError } from "../ui/Toast";
-import { EditButton } from "./EditButton";
+import { useTheme } from "../ui/theme";
+import { Toaster, toast } from "../ui/Toast";
+import { EditButton, openOnClick } from "./EditButton";
 import { splitTitle } from "./titleLead";
 import { UpdatesBell } from "./Updates";
 import { FilePreview, FileToolbar, linkedFile, shownFiles, usePrefs, type FilePlace, type FileView } from "./FileTools";
@@ -218,27 +219,16 @@ export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "l
   );
 }
 
-const THEME_KEY = "alinea-theme";
-
-/** Light by default; the choice is remembered on this device. */
 export function ThemeSwitch() {
   const { t } = useTranslation();
-  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? "light");
+  const [theme, setTheme] = useTheme(); // the same choice as the painel's
   const next = theme === "dark" ? "light" : "dark";
   return (
     <button
       className="theme-switch"
       type="button"
       aria-label={t(next === "dark" ? "page.useDark" : "page.useLight")}
-      onClick={() => {
-        document.documentElement.dataset.theme = next;
-        try {
-          localStorage.setItem(THEME_KEY, next);
-        } catch {
-          // Private browsing: the choice lasts until the tab closes.
-        }
-        setTheme(next);
-      }}
+      onClick={() => setTheme(next)}
     >
       <Icon name={next === "dark" ? "moon" : "sun"} />
       <span className="theme-switch__label">{t(next === "dark" ? "page.themeDark" : "page.themeLight")}</span>
@@ -246,32 +236,32 @@ export function ThemeSwitch() {
   );
 }
 
-export function applyStoredTheme(): void {
-  try {
-    if (localStorage.getItem(THEME_KEY) === "dark") document.documentElement.dataset.theme = "dark";
-  } catch {
-    // The default theme.
-  }
-}
-
 /** The office's logo (it carries the name) or, without one, its name. */
 export function SiteHeader({
   office,
   tools,
+  painel = false,
 }: {
   office: { name: string; logo_url?: string | null; logo_dark_url?: string | null };
   tools?: ReactNode; // e.g. the project's "Atualizações"
+  painel?: boolean; // staff: the logo goes back to the painel
 }) {
+  const { t } = useTranslation();
+  const brand = office.logo_url ? (
+    <OfficeLogo light={office.logo_url} dark={office.logo_dark_url} alt={office.name} />
+  ) : (
+    <span>{office.name}</span>
+  );
   return (
     <div className="site">
       <div className="site__in">
-        <div className="site__brand">
-          {office.logo_url ? (
-            <OfficeLogo light={office.logo_url} dark={office.logo_dark_url} alt={office.name} />
-          ) : (
-            <span>{office.name}</span>
-          )}
-        </div>
+        {painel ? (
+          <a className="site__brand" href="/painel/" title={t("page.backToPainel")}>
+            {brand}
+          </a>
+        ) : (
+          <div className="site__brand">{brand}</div>
+        )}
         <div className="client-header-tools">
           {tools}
           <ThemeSwitch />
@@ -390,7 +380,7 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
   const title = meeting ? meeting.title || t("page.defaultMeetingTitle") : t("page.noMeetingTitle");
   const calendar = fileSource.calendar(slug);
   return (
-    <section className="meet" data-editable aria-label={t("page.nextMeeting")}>
+    <section className="meet" data-editable aria-label={t("page.nextMeeting")} {...openOnClick(onEdit)}>
       {onEdit && <EditButton label={meeting ? t("edit.meeting") : t("edit.schedule")} onClick={onEdit} />}
       <div>
         <h2>{narrow && meeting ? t("page.meetingScheduled") : t("page.nextMeeting")}</h2>
@@ -403,7 +393,8 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
             <span>{when.time}</span>
           </p>
         ) : (
-          <p className="meet__meta">{t("page.noMeeting")}</p>
+          // Staff in edit mode: the whole card opens the meeting editor.
+          <p className="meet__meta">{onEdit ? t("edit.noMeetingHint") : t("page.noMeeting")}</p>
         )}
         {meeting?.location && (
           <p className="meet__meta" title={meeting.location}>
@@ -479,15 +470,17 @@ function Stage({
   const [help, setHelp] = useState(false);
   const stage = page.stages[index]!;
   const state = stateOf(page, index);
+  // "Sobre esta etapa": desktop only for now; on a phone its "+" beside the
+  // stage's arrow read as another way to open it (Fabio, 19 Oct 2026).
   const helpPanel = stage.about && (
-    <div className={`stage-help-pop${narrow ? " stage-help-pop--inline" : ""}`} hidden={!help}>
+    <div className="stage-help-pop" hidden={!help}>
       <button type="button" className="iconbtn stage-help-close" aria-label={t("page.closeAbout")} onClick={() => setHelp(false)}>
         <Icon name="x" />
       </button>
       <p>{stage.about}</p>
     </div>
   );
-  const helpControl = stage.about && (
+  const helpControl = stage.about && !narrow && (
     <div className="stage-help">
       <button
         className="stage-help-toggle"
@@ -497,11 +490,11 @@ function Stage({
         onClick={() => setHelp(!help)}
       >
         <span className="stage-help-mark" aria-hidden="true">
-          {narrow ? "+" : "i"}
+          i
         </span>
-        {!narrow && <span>{t("page.aboutStage")}</span>}
+        <span>{t("page.aboutStage")}</span>
       </button>
-      {!narrow && helpPanel}
+      {helpPanel}
     </div>
   );
   return (
@@ -511,14 +504,23 @@ function Stage({
       aria-labelledby={`st-${index}`}
       hidden={hidden}
     >
-      <span className="stage__n">{pad(index + 1)}</span>
+      <span className="stage__n">
+        {/* On a phone a finished stage shows a green check (drawn in CSS); its number stays for screen readers. */}
+        {narrow && state === "done" ? (
+          <>
+            <span className="stage__check" aria-hidden="true" />
+            <span className="sr">{pad(index + 1)}</span>
+          </>
+        ) : (
+          pad(index + 1)
+        )}
+      </span>
       <div className="stage__head">
         <div className="stage__title">
           <h2 id={`st-${index}`} tabIndex={-1}>
             {stage.title}
           </h2>
           <div className="client-stage-controls">
-            {narrow && helpControl}
             <button
               className="iconbtn"
               type="button"
@@ -529,7 +531,7 @@ function Stage({
             >
               <Icon name={open ? "up" : "down"} />
             </button>
-            {!narrow && helpControl}
+            {helpControl}
           </div>
           {controls}
         </div>
@@ -548,14 +550,13 @@ function Stage({
           )}
         </p>
       </div>
-      {narrow && helpPanel}
       <div className="stage__body" id={`stage-body-${index}`} aria-hidden={!open} inert={!open}>
         <div className="stage__body-inner">
           {editor?.open ? (
             editor.render()
           ) : stage.notes ? (
-            <div className="notes" data-editable>
-              {editor && <EditButton label={t("edit.notesShort")} onClick={editor.onOpen} />}
+            <div className="notes" data-editable {...openOnClick(editor?.onOpen)}>
+              {editor &&<EditButton label={t("edit.notesShort")} onClick={editor.onOpen} />}
               <p>{stage.notes}</p>
             </div>
           ) : (
@@ -582,38 +583,32 @@ function Stage({
 }
 
 /** For the office's signed-in staff only (the prototype's dock): back to the
- *  painel, the page's status, copy its link, and publish a draft. */
+ *  painel, view or edit, copy its link, and the tour again. Nothing about
+ *  publishing: no drafts for now (A35). */
 function StaffBar({
   page,
   ready,
   editing,
   onMode,
-  onPublished,
   onTour,
 }: {
   page: Page;
   ready: boolean;
   editing: boolean;
   onMode: (editing: boolean) => void;
-  onPublished: () => void;
   onTour: () => void; // "?": the guided tour again
 }) {
   const { t } = useTranslation();
-  const [publishing, setPublishing] = useState(false);
   const staff = page.staff!;
-  const draft = staff.status === "draft";
   const archived = staff.status === "archived"; // viewable, not editable (section 22)
   return (
     <nav className="dock" aria-label={t("page.staffBar")}>
-      <a className="b" href="/painel/">
+      <a className="b" href="/painel/" aria-label={t("page.backToPainel")}>
         <Icon name="left" />
-        {t("page.backToPainel")}
+        <span className="hide-sm">{t("page.backToPainel")}</span>
       </a>
       <span className="dock__sep" />
-      <span className="dock__title">
-        {page.name}
-        <small>{draft ? t("page.draftNote") : t("page.publishedNote")}</small>
-      </span>
+      <span className="dock__title">{page.name}</span>
       {/* The prototype's switch: the page as the client sees it, or with controls. */}
       <div className="seg" role="group" aria-label={t("edit.mode")} data-on={editing ? "edit" : "view"} data-tour="mode">
         <button type="button" aria-pressed={!editing} onClick={() => onMode(false)}>
@@ -638,7 +633,7 @@ function StaffBar({
         onClick={() => {
           const link = window.location.origin + window.location.pathname;
           navigator.clipboard?.writeText(link).then(
-            () => toast(t(draft ? "page.linkCopiedDraft" : "page.linkCopied")),
+            () => toast(t("page.linkCopied")),
             () => toast(link),
           );
         }}
@@ -648,29 +643,6 @@ function StaffBar({
       {!archived && (
         <button className="iconbtn dock__help" type="button" aria-label={t("tour.again")} title={t("tour.again")} onClick={onTour}>
           ?
-        </button>
-      )}
-      {draft && (
-        <button
-          className="b b--primary b--small"
-          type="button"
-          disabled={publishing || !ready}
-          onClick={async () => {
-            setPublishing(true);
-            try {
-              await call(
-                api.POST("/api/projects/{project_id}/publish", { params: { path: { project_id: staff.project_id } } }),
-              );
-              toast(t("page.published"));
-              onPublished();
-            } catch (failure) {
-              toastError(failure);
-            } finally {
-              setPublishing(false);
-            }
-          }}
-        >
-          {t("page.publish")}
         </button>
       )}
     </nav>
@@ -773,6 +745,14 @@ export function ProjectPage({
   };
   // One stage open at a time: the current one, until the client opens another.
   const [openStage, setOpenStage] = useState(() => Math.max(0, (page.current_position ?? 1) - 1));
+  // After a reorder the open stage stays open wherever the new order puts it, and
+  // a stage's notes or rename, kept by row, close: another stage is on that row now.
+  const [reorders, setReorders] = useState(0);
+  const reordered = (order: number[]) => {
+    setOpenStage((open) => (open < 0 ? open : Math.max(0, order.indexOf(open + 1))));
+    setOpenEditor((editor) => (editor?.startsWith("notes-") ? null : editor));
+    setReorders((n) => n + 1);
+  };
   // The file tools (FileTools): search, type, order, view, and the file in preview.
   const [query, setQuery] = useState("");
   const [prefs, setPrefs] = usePrefs();
@@ -842,6 +822,7 @@ export function ProjectPage({
     <div className={`client${canEdit ? " editing" : ""}`}>
       <SiteHeader
         office={page.office}
+        painel={!!page.staff}
         tools={
           stageFiles && (
             <UpdatesBell
@@ -861,7 +842,11 @@ export function ProjectPage({
                 <NameEditor page={page} staff={staff!} onDone={done} />
               </Suspense>
             ) : (
-              <div className="project-heading__title" data-editable>
+              <div
+                className="project-heading__title"
+                data-editable
+                {...openOnClick(canEdit ? () => setOpenEditor("name") : undefined)}
+              >
                 {canEdit && <EditButton label={t("edit.name")} onClick={() => setOpenEditor("name")} />}
                 <Title name={page.name} />
               </div>
@@ -902,7 +887,7 @@ export function ProjectPage({
                     <DescriptionEditor page={page} staff={staff!} onDone={done} />
                   </Suspense>
                 ) : (
-                  <div className="desc" data-editable>
+                  <div className="desc" data-editable {...openOnClick(canEdit ? () => setOpenEditor("desc") : undefined)}>
                     {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
                     {page.description ? (
                       <Description text={page.description} />
@@ -926,7 +911,7 @@ export function ProjectPage({
                   <DetailsEditor page={page} staff={staff!} onDone={done} />
                 </Suspense>
               ) : (
-                <dl className="facts" data-editable>
+                <dl className="facts" data-editable {...openOnClick(canEdit ? () => setOpenEditor("facts") : undefined)}>
                   {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
                   <Facts page={page} />
                 </dl>
@@ -945,7 +930,13 @@ export function ProjectPage({
         </div>
         {canEdit && (
           <Suspense fallback={null}>
-            <ProgressRail page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
+            <ProgressRail
+              page={page}
+              staff={staff!}
+              onChanged={stagesChanged}
+              onReordered={reordered}
+              locked={stagesLocked}
+            />
           </Suspense>
         )}
         {(hasFiles || filtering) && (
@@ -1012,6 +1003,7 @@ export function ProjectPage({
               canEdit ? (
                 <Suspense fallback={null}>
                   <StageControls
+                    key={reorders}
                     page={page}
                     staff={staff!}
                     index={i}
@@ -1052,7 +1044,6 @@ export function ProjectPage({
             setEditing(next);
             setOpenEditor(null);
           }}
-          onPublished={() => onChanged?.()}
           onTour={onTour ?? (() => tour(false))}
         />
       )}

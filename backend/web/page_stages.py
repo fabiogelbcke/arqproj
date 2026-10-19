@@ -3,6 +3,7 @@
     POST   /api/projects/{id}/stages                  add a stage (built-in or the office's own)
     PATCH  /api/projects/{id}/stages/{n}              rename it
     POST   /api/projects/{id}/stages/{n}/move         one place up or down
+    PUT    /api/projects/{id}/stages/order            every stage in a new order at once
     DELETE /api/projects/{id}/stages/{n}?row_version= remove it (its folder stays)
     POST   /api/projects/{id}/progress                advance, back, complete, reopen
 
@@ -312,6 +313,61 @@ async def move_stage(
             )
 
     await _run(db, renames, work, "move stage", tenant, project_id)
+    return Response(status_code=204)
+
+
+class OrderIn(BaseModel):
+    row_version: int
+    # The stages' present positions, in their new order: [2, 1, 3] swaps the first two.
+    order: list[int] = Field(max_length=100)
+
+
+@router.put(
+    "/projects/{project_id}/stages/order",
+    status_code=204,
+    responses=documented(401, 404, 409, 422, 503),
+)
+async def reorder_stages(
+    request: Request,
+    project_id: uuid.UUID,
+    body: OrderIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """Every stage in its new place at once (edit mode's "Reordenar etapas"), their
+    folders renumbered. The current stage stays the same stage, wherever it goes."""
+    stages = {s.position: s for s in await _stages(db, project_id)}
+    if sorted(body.order) != sorted(stages):
+        raise ApiError(422, ErrorCode.INVALID_STAGE)  # each stage once, none missing
+    maker = await _maker(request, db, await _project(db, project_id))
+    project = await _change(db, project_id, body.row_version)
+    moves = [(stages[old], old, new) for new, old in enumerate(body.order, start=1) if old != new]
+    titles = {stage.id: await _title(db, stage, tenant.locale) for stage, _, _ in moves}
+    renames = Renames(maker)
+
+    async def work():
+        for stage, old, new in moves:
+            title = titles[stage.id]
+            await renames.rename(stage, _folder_name(old, title), _folder_name(new, title))
+        # The unique position check is deferred to the commit, so stages can trade places.
+        for stage, _old, new in moves:
+            await db.execute(
+                update(ProjectStage)
+                .where(ProjectStage.id == stage.id)
+                .values(position=new, folder_id=stage.folder_id)
+            )
+        current = project.current_position
+        if current is not None and current in body.order:
+            new_current = body.order.index(current) + 1
+            if new_current != current:
+                await db.execute(
+                    update(Project)
+                    .where(Project.id == project_id)
+                    .values(current_position=new_current)
+                )
+
+    await _run(db, renames, work, "reorder stages", tenant, project_id)
     return Response(status_code=204)
 
 

@@ -178,7 +178,7 @@ export function ProjectsPage() {
                   ))}
                 </select>
                 <Button
-                  className={styles.direction}
+                  size="small"
                   aria-label={t(sort.direction === "asc" ? "projects.directionAsc" : "projects.directionDesc")}
                   onPress={() => changeSort({ ...sort, direction: sort.direction === "asc" ? "desc" : "asc" })}
                 >

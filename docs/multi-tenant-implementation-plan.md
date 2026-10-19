@@ -109,7 +109,7 @@ its affected tests before coding proceeds.
 | A21 | Office address scheme: **office subdomains, `{office}.myunio.app`, behind a global load balancer** (option A) | Agreed 17 Oct 2026 (Fabio), choosing between the two options recorded 14 Oct. Each office is its own origin (cookies, storage and script bugs stay inside one office), addresses read as the office's own, and custom domains fit later. The load balancer (~$18.25/month plus processing; Fabio has credits for the first three months) is a global external Application Load Balancer with a serverless backend for the production service, certificates from Certificate Manager (DNS authorization at GoDaddy) covering `*.myunio.app`, `myunio.app` and each office's own domain (`alineaarquitetos.com`, `www.`) before its DNS moves, and Cloud Run ingress limited to it. It is built before the second office's first client link; `alineaarquitetos.com` and `myunio.app` move behind it then, leaving Cloud Run domain mappings (Preview, "not recommended for production"). Staging keeps its domain mapping (`staging.myunio.app`, one office), so it does not pay for a second balancer. See section 4 and the [changelog](decision-changelog.md) |
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
-| A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits the project's settings in the prototype's "Projeto" dialog: name, client, cover (also from the card's photo button), client link and access (with the client page, slice 2), and archiving. No delete for now. Uploads happen per stage on the project page. Revised 18 Oct 2026 (Fabio): the name can also be changed from the title in the project page's edit mode (the same change as the dialog's; the address stays). See section 10 and the [changelog](decision-changelog.md) |
+| A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits the project's settings in the prototype's "Projeto" dialog: name, client, client link and access (with the client page, slice 2) and the client's email addresses (A32). Revised 19 Oct 2026 (Fabio): the card's pencil opens a short menu instead of the dialog at once: "Trocar foto" (straight to the photo picker and cropper, saved on its own), "Remover foto" (when there is one), "Configurações do projeto" (the dialog, without the cover) and "Arquivar projeto", which asks for confirmation first. No delete for now. Uploads happen per stage on the project page. Revised 18 Oct 2026 (Fabio): the name can also be changed from the title in the project page's edit mode (the same change as the dialog's; the address stays). See section 10 and the [changelog](decision-changelog.md) |
 | A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original is shown as v1. Refined 15 Oct 2026: the client page shows the clean name with a separate version badge, while the copy in Drive carries the version (`Planta v3.pdf`); grouping only within one folder; clashes are flagged, never merged; current = highest version. See section 12 and the [changelog](decision-changelog.md) |
 | A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Refined the same day: values the code **acts on** (status, access mode, roles, a detail's value type, languages, error codes) are enums stored with a CHECK; **content the app only displays** (project types, detail types, built-in stages with their descriptions, each type's usual stages) lives in reference tables with its texts per language, referenced by foreign key, and the code keeps enums naming the built-in rows (a test keeps them in step). Interface text lives in one translation catalog per language shared by the server and the staff app. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
 | A27 | Typed project details; project type chosen at creation, with its usual stages | Agreed 15 Oct 2026 (prototype review). Details are text, choice, area (m²) or date, formatted per language. Project type is a column with four built-in types: Projeto Arquitetônico, Projeto de Interiores, Projeto de Reforma, Projeto de Paisagismo. Revised 16 Oct 2026 (Alinea's partners): creation asks for the type; all 12 built-in stages are listed in one fixed order, the type's usual ones ticked, and staff tick or untick any. Each type gives its stages its own description; a stage outside its type's list uses a general one. Built-in stages have a description only (no separate deliverables). Stage templates are gone. The pilot offers only built-in details, types and stages; office-defined ones are a later addition. See sections 7 and 10 |
@@ -120,7 +120,7 @@ its affected tests before coding proceeds.
 | A32 | Client email updates: what, to whom, from where, and how often | Agreed 16 Oct 2026 (Fabio). Staff list the client's addresses in the Projeto dialog, several per project (`project_recipients`). An email goes out for new files on the page, a stage advanced or the project completed, and a meeting scheduled, changed or removed; a stage's note does not email (it still counts for the updates panel). Batching as A12, 45 minutes quiet and 2 hours at most, confirmed for the pilot. Each office sends from its own domain once that domain is verified with the provider (Alinea: `alineaarquitetos.com`); until then, and for every other office, from the product's general domain with the office's name. Replies go to the office's contact email (office settings), else its owner. Locally and in tests a collecting fake records emails; staging sends only to allowlisted addresses. One Cloud Scheduler job calls the maintenance endpoint every 10 minutes (A09, A19), staging first. See section 14 |
 | A33 | Product name and domain: **Unio**, `myunio.app` | Agreed 17 Oct 2026 (Fabio). `myunio.app` is the `{product-domain}` throughout this plan, registered at GoDaddy. Alinea keeps `alineaarquitetos.com` (A23); later offices are served at `{office}.myunio.app` (A21). `.app` domains are HSTS-preloaded, so every address on it works over HTTPS only (Cloud Run's managed certificates already do that). Hosting region is still open (section 24). See the [changelog](decision-changelog.md) |
 | A34 | Staff change files on the website, not in Drive | Agreed 17 Oct 2026 (Fabio). The project page does not send staff to Drive: no "Abrir no Google Drive" action on a file or stage. (The Drive settings page keeps its link to the office's connected folder: that is about the connection itself, not a way to change a project's files.) Drive keeps working for whoever prefers it, but every everyday change is offered on the project page. Each file's "⋯" menu offers "Definir como capa" (images), "Mover para outra etapa" (a list of the other stages) and "Ocultar do cliente"; dragging a file onto another stage is a later addition doing the same move. A file put straight into Drive can be shown but not changed through the office's grant (drive.file): the site says, in plain words, to make that change in the stage's folder; authorizing such files through the Picker stays a later option (section 9). See section 11 and the [changelog](decision-changelog.md) |
-| A35 | No drafts for now: a new project is published at once | Agreed 17 Oct 2026 (Fabio). Creation makes the project `active`, so its client page answers as soon as it exists; there is no "Publicar" step or "Rascunhos" group. The `draft` status stays allowed in the database, unused, so drafts can return without a schema change; existing drafts were published (migration 0024). The publish endpoint and the staff bar's "Publicar" button stay, shown only on a draft: one the previous release creates while a deploy is under way, and its open tabs, still have a way out (A30). Replaces the draft step of 15 Oct (section 10). See the [changelog](decision-changelog.md) |
+| A35 | No drafts for now: a new project is published at once | Agreed 17 Oct 2026 (Fabio). Creation makes the project `active`, so its client page answers as soon as it exists; there is no "Publicar" step or "Rascunhos" group. The `draft` status stays allowed in the database, unused, so drafts can return without a schema change; existing drafts were published (migration 0024). Revised 19 Oct 2026 (Fabio): the staff bar says nothing about publishing, neither "Publicado" nor a "Publicar" button on a draft; the publish endpoint stays, unused, for when drafts return. Replaces the draft step of 15 Oct (section 10). See the [changelog](decision-changelog.md) |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -776,6 +776,24 @@ as a `needs_attention` outcome rather than retrying the failing call. **To verif
 live** before writing the recovery screen: does an owner's share of the folder
 give the reader access to files others had already put inside?
 
+**Another Google account** (18 Oct 2026, Fabio). Reconnecting keeps the office's
+folder when the new grant reaches it, i.e. the same account. Another account
+cannot reach anything the app made with the first one (drive.file is per
+account), so it is refused unless the owner chooses "Usar outra conta" after a
+clear warning that the files stay behind. That choice is offered only while the
+office is disconnected (or its grant expired): then nothing else can create or
+change folders, so every project and stage moves, none in the meantime. Then the office **starts afresh** in
+the new account: a new root folder shared with the reader while empty, a new
+empty folder for every project and stage (all-or-nothing: any failure, Drive's
+or the database's, rolls back and trashes the new root; an expired old grant is
+revoked only once the switch is saved), covers and the logo dropped (they were files in the
+old account), and each project's next scan set to only note what is there, so
+re-uploaded files don't email clients (the switch holds each project's
+maintenance scan lock, so a scan of the old folders can't be saved after it).
+Names, stages, notes, details, meetings,
+addresses and recipients are kept. The old account's folders are left untouched.
+A tool to carry files across is a future idea.
+
 The reader has read-only scope and explicit sharing permission on the office's
 designated root. The writer uses the office user's refresh token with
 `drive.file`. A read permission does not confer write authorization on the other
@@ -975,8 +993,9 @@ Where it is edited:
   project type, client, last client-visible activity), sortable by project type,
   client, project name, creation date or last activity, in either direction
   (sorted in the browser; office project counts are small). Project creation;
-  the project's settings in the "Projeto" dialog (name, client, cover, client
-  link, access, archive) and the cover from the card's photo button (A24);
+  from each card's pencil, a menu: the cover photo (change or remove), the
+  project's settings in the "Projeto" dialog (name, client, client link, access,
+  client emails), and archiving after a confirmation (A24);
   office settings and Drive connection. Office-wide
   problems, such as a lapsed Drive connection, show as an office notice, not on
   each project.
@@ -1384,8 +1403,13 @@ versioned: updating defaults does not overwrite an office's edited project stage
 ### Onboarding help: the project page tour and the example project
 
 Agreed with Fabio on 18 Oct 2026 to try. His partners may still change the
-example project, so keep it easy to remove. The painel explains itself; the
-project page (view/edit modes, pencils, stages, files) needs help.
+example project, so keep it easy to remove. The project page (view/edit modes,
+pencils, stages, files) needs help; the painel gets a short tour on demand
+(revised 19 Oct 2026, below) whose last step leads to the example project.
+
+**"?" means "show me around here".** Each area that has a tour offers it from a
+"?" button: the project page's staff bar (the setup tour) and the painel's top
+bar (the painel tour). A tour started from "?" never starts on its own.
 
 **Built (PR #73): the setup tour.** A staff member's first real project page
 starts a Driver.js tour in edit mode: the view/edit switch, the pencils, the
@@ -1433,9 +1457,22 @@ the reserved address (a migration).
   the description, the details, the meeting, the stage timeline, a stage's files
   and their preview, and the updates bell. It ends by pointing back to Primeiros
   passos. It stores nothing.
-- **Entry:** an optional line in Primeiros passos, "Ver um projeto de exemplo".
-  It is not one of the steps the progress counts, and it stays available after
-  they are done, perhaps also from an empty projects list.
+- **Entry (revised 19 Oct 2026):** an invitation at the top of Primeiros passos,
+  above the steps, with the example's cover: "Antes de começar, veja como fica a
+  página de um projeto pronto" and "Ver o exemplo". It is not one of the steps
+  the progress counts; at the top, a phone shows it on the first screen (the
+  steps fill it). Once the steps are done, a line "Ver um projeto de exemplo"
+  stays on the painel. The painel tour's last step also leads there. An empty
+  projects list was considered and rejected: while there are no projects, the
+  steps are on screen too, above it.
+
+**Built: the painel tour.** "?" in the painel's top bar (desktop and phone)
+starts a short Driver.js tour: "Novo projeto", a project's card and its pencil
+menu, Configurações and Primeiros passos, each left out when it isn't on the
+screen. Its last step, "Ver o exemplo", opens the example project, whose own
+tour then starts. It stores nothing and never starts on its own. Code:
+`frontend/src/app/PainelTour.ts`; the tours share their look in
+`frontend/src/ui/tour.css`.
 - **Tests:** the fixture renders without network; edits change the page and not
   the server (no request leaves); the tour starts on each visit and can be
   skipped; `/tour-projeto` is reserved (a project can't take it) and is served on
@@ -1511,7 +1548,7 @@ and custom office logo. Subsets: `--python-only` and `--browser-only`.
 
 Manual UI testing still follows `run_local.py test --reuse-data` or authorized
 `--regenerate-data`. Existing data is backed up before regeneration. This manual
-workflow and its Portuguese/English intent instructions remain in `AGENTS.md`.
+workflow and its Portuguese/English intent instructions are in `docs/old-app.md`.
 Automated tests never prompt for regeneration or alter a developer's dataset.
 
 The suite is for the **current** app. It does not yet test a multi-tenant database,

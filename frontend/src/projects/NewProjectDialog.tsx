@@ -172,7 +172,7 @@ function NeedsDrive({ close }: { close: () => void }) {
       <div className={styles.actions}>
         <Button onPress={close}>{t("newProject.cancel")}</Button>
         {owner && (
-          <Button variant="primary" onPress={() => connect.mutate()} isDisabled={connect.isPending}>
+          <Button variant="primary" onPress={() => connect.mutate(false)} isDisabled={connect.isPending}>
             {t("drive.connect")}
           </Button>
         )}
@@ -205,7 +205,7 @@ export function NewProjectDialog({
           {trigger.label}
         </Button>
       ) : (
-        <Button variant="primary" className={styles.newButton}>
+        <Button variant="primary" size="small" className={styles.newButton} data-tour="new-project">
           <span aria-hidden="true">+</span>
           <span className={styles.newLabel}>{t("projects.new")}</span>
         </Button>

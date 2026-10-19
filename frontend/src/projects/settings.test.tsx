@@ -13,9 +13,9 @@ vi.mock("../ui/imageCrop", async (original) => ({
   cropToFile: vi.fn(async (_image: unknown, _box: unknown, output: { type: string }, name: string) => new File(["x"], name, { type: output.type })),
 }));
 
-/** A photo chosen for the cover and cropped to 3:2 ("Usar recorte"). */
-async function chooseCover(dialog: HTMLElement) {
-  const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
+/** A photo chosen from the card's menu and cropped to 3:2 ("Usar recorte"). */
+async function chooseCover() {
+  const input = (await screen.findByTestId("project-card")).querySelector('input[type="file"]') as HTMLInputElement;
   await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
   const crop = await screen.findByRole("dialog", { name: "Ajustar a capa" });
   await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
@@ -56,9 +56,15 @@ function api(extra = {}) {
   });
 }
 
-async function openSettings() {
+/** The card's pencil opens its menu (A24, revised 19 Oct 2026). */
+async function openMenu() {
   renderAt("/");
   await userEvent.click(await screen.findByRole("button", { name: "Editar o projeto Casa Jardim" }));
+  return screen.findByRole("menu");
+}
+
+async function openSettings() {
+  await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Configurações do projeto" }));
   return screen.findByRole("dialog", { name: "Projeto" });
 }
 
@@ -66,6 +72,13 @@ beforeEach(() => localStorage.clear());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the Projeto dialog", () => {
+  it("has no photo or archiving: those are in the card's menu", async () => {
+    api();
+    const dialog = await openSettings();
+    expect(within(dialog).queryByRole("button", { name: /Arquivar|capa|foto/i })).toBeNull();
+    expect(dialog.querySelector('input[type="file"]')).toBeNull();
+  });
+
   it("closes from its × without saving", async () => {
     const sent = api();
     const dialog = await openSettings();
@@ -109,39 +122,6 @@ describe("the Projeto dialog", () => {
     await userEvent.type(name, "casa das oliveiras");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Já existe o projeto “Casa das Oliveiras”");
-  });
-
-  it("archives, and Desfazer puts it back as it was", async () => {
-    const sent = api({
-      [`PATCH ${PATH}`]: (body: unknown) => {
-        const status = (body as { status: string }).status;
-        return { body: { ...CASA, status, row_version: status === "archived" ? 5 : 6 } };
-      },
-    });
-    const dialog = await openSettings();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Arquivar" }));
-    expect(await screen.findByText("Projeto “Casa Jardim” arquivado.")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Desfazer" }));
-    expect(await screen.findByText("Projeto “Casa Jardim” de volta.")).toBeInTheDocument();
-    const patches = sent.filter((r) => r.method === "PATCH").map((r) => r.body);
-    expect(patches).toEqual([
-      { row_version: 4, status: "archived" },
-      { row_version: 5, status: "active" },
-    ]);
-  });
-
-  it("a failed Desfazer says why, with the support code", async () => {
-    api({
-      [`PATCH ${PATH}`]: (body: unknown) =>
-        (body as { status: string }).status === "archived"
-          ? { body: { ...CASA, status: "archived", row_version: 5 } }
-          : { status: 409, body: { error: "project_changed" }, headers: { "X-Request-ID": "abc123" } },
-    });
-    const dialog = await openSettings();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Arquivar" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
-    expect(await screen.findByText(/alterado por outra pessoa.*Código de suporte: abc123/)).toBeInTheDocument();
   });
 
   it("changes the client's link, and names the project that has an address", async () => {
@@ -234,84 +214,98 @@ describe("the Projeto dialog", () => {
     expect(body.access_mode).toBeUndefined(); // nothing about access changed
   });
 
-  it("removes the cover on Salvar", async () => {
-    const withCover = { ...CASA, cover_url: "/api/projects/x/cover?v=1" };
-    const sent = api({
-      "GET /api/projects": () => ({ body: [withCover] }),
-      [`DELETE ${PATH}/cover`]: () => ({ body: CASA }),
-    });
-    const dialog = await openSettings();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Remover capa" }));
-    expect(within(dialog).getByText("Sem capa, o painel mostra uma foto de exemplo.")).toBeInTheDocument();
-    expect(sent.some((r) => r.method === "DELETE")).toBe(false); // nothing until Salvar
-    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
-    expect(sent.filter((r) => r.method === "DELETE")).toHaveLength(1);
-    expect(sent.some((r) => r.method === "PATCH")).toBe(false); // name and client unchanged
+});
+
+describe("the card's menu", () => {
+  it("offers the photo, the settings and archiving; Remover foto only with a photo", async () => {
+    api({ "GET /api/projects": () => ({ body: [{ ...CASA, cover_url: "/c?v=1" }] }) });
+    const items = within(await openMenu()).getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items).toEqual(["Trocar foto", "Remover foto", "Configurações do projeto", "Arquivar projeto"]);
   });
 
-  it("previews a chosen photo and uploads it on Salvar", async () => {
+  it("offers to add a photo when there is none", async () => {
+    api();
+    const items = within(await openMenu()).getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items).toEqual(["Adicionar foto", "Configurações do projeto", "Arquivar projeto"]);
+  });
+
+  it("uploads a chosen photo at once, cropped to 3:2", async () => {
     const sent = api({ [`PUT ${PATH}/cover`]: () => ({ body: { ...CASA, cover_url: "/c?v=2" } }) });
-    const dialog = await openSettings();
-    await chooseCover(dialog);
-    expect(within(dialog).getByRole("img", { name: "Prévia da nova capa" })).toBeInTheDocument();
-    expect(sent.some((r) => r.method === "PUT")).toBe(false);
-    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Adicionar foto" }));
+    await chooseCover();
+    expect(await screen.findByText("Foto atualizada.")).toBeInTheDocument();
     const request = sent.find((r) => r.method === "PUT");
     expect(request?.headers.get("Content-Type")).toMatch(/^multipart\/form-data/);
   });
 
-  it("refuses a file that is not a photo before sending it", async () => {
-    api();
-    const dialog = await openSettings();
-    const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, new File(["%PDF"], "planta.pdf", { type: "application/pdf" }), {
-      applyAccept: false,
-    });
-    expect(within(dialog).getByRole("alert")).toHaveTextContent("Escolha uma imagem JPG, PNG ou WebP.");
-    expect(within(dialog).getByRole("button", { name: "Salvar" })).toBeDisabled();
+  it("says why a photo failed, with the support code", async () => {
+    api({ [`PUT ${PATH}/cover`]: () => ({ status: 503, body: { error: "drive_connect_failed" }, headers: { "X-Request-ID": "abc123" } }) });
+    await openMenu();
+    await chooseCover();
+    expect(await screen.findByText(/Não foi possível conectar o Google Drive.*Código de suporte: abc123/)).toBeInTheDocument();
   });
 
-  it("after a failed photo, a retry keeps the email that was typed and already saved", async () => {
-    let puts = 0;
+  it("refuses a file that is not a photo before sending it", async () => {
+    const sent = api();
+    await openMenu();
+    const input = (await screen.findByTestId("project-card")).querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, new File(["%PDF"], "planta.pdf", { type: "application/pdf" }), { applyAccept: false });
+    expect(await screen.findByText("Escolha uma imagem JPG, PNG ou WebP.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Ajustar a capa" })).toBeNull();
+    expect(sent.some((r) => r.method === "PUT")).toBe(false);
+  });
+
+  it("removes the photo at once", async () => {
+    const sent = api({
+      "GET /api/projects": () => ({ body: [{ ...CASA, cover_url: "/c?v=1" }] }),
+      [`DELETE ${PATH}/cover`]: () => ({ body: CASA }),
+    });
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Remover foto" }));
+    expect(await screen.findByText("Foto removida.")).toBeInTheDocument();
+    expect(sent.filter((r) => r.method === "DELETE")).toHaveLength(1);
+  });
+
+  it("asks before archiving, and Cancelar leaves the project as it is", async () => {
+    const sent = api();
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Arquivar projeto" }));
+    const ask = await screen.findByRole("alertdialog", { name: "Arquivar “Casa Jardim”?" });
+    await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(sent.some((r) => r.method === "PATCH")).toBe(false);
+  });
+
+  it("archives once confirmed, and Desfazer puts it back as it was", async () => {
     const sent = api({
       [`PATCH ${PATH}`]: (body: unknown) => {
-        const emails = (body as { recipients?: string[] }).recipients ?? [];
-        return { body: { ...CASA, recipients: emails.map((email) => ({ email, subscribed: true })), row_version: 5 } };
+        const status = (body as { status: string }).status;
+        return { body: { ...CASA, status, row_version: status === "archived" ? 5 : 6 } };
       },
-      [`PUT ${PATH}/cover`]: () =>
-        ++puts === 1 ? { status: 503, body: { error: "drive_connect_failed" } } : { body: CASA },
     });
-    const dialog = await openSettings();
-    await userEvent.type(within(dialog).getByLabelText("Novo e-mail"), "ana@example.com");
-    await chooseCover(dialog);
-    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
-    await within(dialog).findByRole("alert");
-    expect(within(dialog).getByText("ana@example.com")).toBeInTheDocument(); // still listed
-    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
-    expect(sent.filter((r) => r.method === "PATCH")).toHaveLength(1); // no second save removing it
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Arquivar projeto" }));
+    const ask = await screen.findByRole("alertdialog", { name: "Arquivar “Casa Jardim”?" });
+    await userEvent.click(within(ask).getByRole("button", { name: "Arquivar" }));
+    expect(await screen.findByText("Projeto “Casa Jardim” arquivado.")).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    expect(await screen.findByText("Projeto “Casa Jardim” de volta.")).toBeInTheDocument();
+    const patches = sent.filter((r) => r.method === "PATCH").map((r) => r.body);
+    expect(patches).toEqual([
+      { row_version: 4, status: "archived" },
+      { row_version: 5, status: "active" },
+    ]);
   });
 
-  it("after a failed photo, a retry doesn't resend the name it already saved", async () => {
-    let puts = 0;
-    const sent = api({
-      [`PATCH ${PATH}`]: (body: unknown) => ({ body: { ...CASA, ...(body as object), row_version: 5 } }),
-      [`PUT ${PATH}/cover`]: () =>
-        ++puts === 1 ? { status: 503, body: { error: "drive_connect_failed" } } : { body: CASA },
+  it("a failed Desfazer says why, with the support code", async () => {
+    api({
+      [`PATCH ${PATH}`]: (body: unknown) =>
+        (body as { status: string }).status === "archived"
+          ? { body: { ...CASA, status: "archived", row_version: 5 } }
+          : { status: 409, body: { error: "project_changed" }, headers: { "X-Request-ID": "abc123" } },
     });
-    const dialog = await openSettings();
-    const name = within(dialog).getByLabelText(/Nome do projeto/);
-    await userEvent.clear(name);
-    await userEvent.type(name, "Casa Nova");
-    await chooseCover(dialog);
-    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Não foi possível conectar o Google Drive");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
-    expect(sent.filter((r) => r.method === "PATCH")).toHaveLength(1);
-    expect(sent.filter((r) => r.method === "PUT")).toHaveLength(2);
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Arquivar projeto" }));
+    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Arquivar" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
+    expect(await screen.findByText(/alterado por outra pessoa.*Código de suporte: abc123/)).toBeInTheDocument();
   });
 });
 
@@ -322,7 +316,7 @@ describe("the card", () => {
     const card = await screen.findByTestId("project-card");
     expect(within(card).getByText("Rascunho")).toBeInTheDocument();
     expect(within(card).getByRole("heading", { name: "Casa Jardim" })).toBeInTheDocument();
-    expect(within(card).getAllByRole("button")).toHaveLength(1); // only the pencil
+    expect(within(card).getAllByRole("button")).toHaveLength(1); // only the pencil (its menu)
     // The card opens the client's page.
     expect(within(card).getByRole("link", { name: "Casa Jardim" })).toHaveAttribute("href", "/casa-jardim");
   });
