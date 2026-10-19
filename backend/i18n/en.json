@@ -151,7 +151,7 @@
     "openSettings": "Project settings",
     "archiveProject": "Archive project",
     "archiveAsk": "Archive “{{name}}”?",
-    "archiveMeans": "The project leaves the project list. The client still sees the page, but with no new files or emails."
+    "archiveMeans": "The project leaves the project list. The client still sees the page. Files can no longer be uploaded through the portal, and the client gets no project emails."
   },
   "notFound": {
     "title": "Page not found",
