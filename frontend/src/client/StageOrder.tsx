@@ -95,11 +95,13 @@ export default function StageOrder({
   staff,
   onClose,
   onChanged,
+  onReordered,
 }: {
   page: Page;
   staff: Staff;
   onClose: () => void;
   onChanged: () => void;
+  onReordered?: (order: number[]) => void; // the old positions, in their new order
 }) {
   const { t } = useTranslation();
   const change = useChange(onChanged, false);
@@ -127,7 +129,10 @@ export default function StageOrder({
         ),
       t("edit.orderSaved"),
     );
-    if (saved) onClose();
+    if (saved) {
+      onReordered?.(order);
+      onClose();
+    }
   };
   return (
     <ModalOverlay className="stage-order__overlay" isDismissable isOpen onOpenChange={(open) => !open && onClose()}>

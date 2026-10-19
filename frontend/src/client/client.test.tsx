@@ -467,6 +467,42 @@ describe("edit mode", () => {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Reordenar etapas" })).toBeNull());
   });
 
+  it("keeps the same stage open after reordering moves it", async () => {
+    let reordered = false;
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => {
+        const [briefing, levantamento, estudo] = PAGE.stages;
+        const stages = reordered ? [levantamento!, briefing!, estudo!] : PAGE.stages;
+        return {
+          body: {
+            ...PAGE,
+            stages: stages.map((stage, i) => ({ ...stage, position: i + 1 })),
+            current_position: reordered ? 1 : 2, // Levantamento, wherever it is
+            staff: { project_id: "p-1", status: "active", row_version: reordered ? 5 : 4 },
+          },
+        };
+      },
+      "PUT /api/projects/p-1/stages/order": () => {
+        reordered = true;
+        return { status: 204 };
+      },
+    });
+    render(<ClientApp />);
+    await startEditing();
+    const open = () => document.querySelector(".stage.is-expanded h2")?.textContent;
+    expect(open()).toBe("Levantamento");
+    await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
+    const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
+    await userEvent.click(within(list).getByRole("button", { name: "Mover Levantamento para cima" }));
+    await userEvent.click(within(list).getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Ordem das etapas salva.");
+    await waitFor(() => expect(document.querySelector("#stage-0 h2")?.textContent).toBe("Levantamento"));
+    expect(open()).toBe("Levantamento");
+  });
+
   it("closes the reorder list without saving on Cancelar", async () => {
     const { sent } = asStaff();
     await startEditing();

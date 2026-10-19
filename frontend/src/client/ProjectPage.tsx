@@ -922,7 +922,14 @@ export function ProjectPage({
         </div>
         {canEdit && (
           <Suspense fallback={null}>
-            <ProgressRail page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
+            <ProgressRail
+              page={page}
+              staff={staff!}
+              onChanged={stagesChanged}
+              // The open stage stays open wherever the new order puts it.
+              onReordered={(order) => setOpenStage((open) => Math.max(0, order.indexOf(open + 1)))}
+              locked={stagesLocked}
+            />
           </Suspense>
         )}
         {(hasFiles || filtering) && (
