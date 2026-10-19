@@ -641,3 +641,27 @@ test("an open stage is as tall as its files, for clients and in edit mode @safar
   await page.locator("#stage-2 .drop").waitFor();
   expect(await openStageMisfit(page)).toBeLessThan(3);
 });
+
+// Each file's "⋯" sits on its own layer; an open menu used to sit under the other
+// files' "⋯" buttons wherever they met (the next row of cards, the next list row).
+test("a file's open menu sits above the other files' buttons", async ({ page }) => {
+  await page.goto(invite("menu-arquivo@alinea.example"));
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await openThirdStage(page);
+  await page.locator("#stage-2").getByRole("button", { name: /^Ações para / }).first().click();
+  await page.locator("#stage-2 .filemenu.is-open [role=menuitem]").first().waitFor();
+  // The open menu's layer is above every other file's "⋯" (same parent, so z-index decides).
+  const layers = await page.evaluate(() =>
+    [...document.querySelectorAll(".filemenu")].map((menu) => ({
+      open: menu.classList.contains("is-open"),
+      z: Number(getComputedStyle(menu).zIndex) || 0,
+    })),
+  );
+  const open = layers.find((layer) => layer.open)!;
+  for (const other of layers.filter((layer) => !layer.open)) expect(open.z).toBeGreaterThan(other.z);
+});

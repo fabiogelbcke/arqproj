@@ -313,7 +313,7 @@ export function FileMenu({
     );
   return (
     <div
-      className="filemenu menu"
+      className={`filemenu menu${open ? " is-open" : ""}`}
       onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setOpen(false)}
       onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
     >
