@@ -642,28 +642,51 @@ test("an open stage is as tall as its files, for clients and in edit mode @safar
   expect(await openStageMisfit(page)).toBeLessThan(3);
 });
 
-// Each file's "⋯" sits on its own layer; an open menu used to sit under the other
-// files' "⋯" buttons wherever they met (the next row of cards, the next list row).
-test("a file's open menu sits above the other files' buttons", async ({ page }) => {
-  await page.goto(invite("menu-arquivo@alinea.example"));
+/** What, in the page, covers parts of the popup: nothing, when it's on top. */
+async function coveringPopup(page: Page, selector: string): Promise<string[]> {
+  return page.evaluate((selector) => {
+    const popup = document.querySelector<HTMLElement>(selector)!;
+    popup.scrollIntoView({ block: "center" });
+    const box = popup.getBoundingClientRect();
+    const covers = new Set<string>();
+    for (let x = 0.05; x < 1; x += 0.15)
+      for (let y = 0.05; y < 1; y += 0.15) {
+        const top = document.elementFromPoint(box.left + box.width * x, box.top + box.height * y);
+        if (top && !popup.contains(top)) covers.add(`${top.tagName.toLowerCase()}.${[...top.classList].join(".")}`);
+      }
+    return [...covers];
+  }, selector);
+}
+
+async function signInAsNewStaff(page: Page, email: string) {
+  await page.goto(invite(email));
   await page.getByLabel("Nova senha").fill("senha-escolhida");
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
   await skipTour(page);
+}
+
+// Each stage is its own layer, and later stages paint over earlier ones: a popup
+// reaching past its stage's edge used to go under the next stage (on a phone, a
+// file's menu always does), and an open menu under the other files' "⋯" buttons.
+test("a file's open menu is above the other files and the next stage, on a phone @safari", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signInAsNewStaff(page, `menu-arquivo-${info.project.name}@alinea.example`);
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await openThirdStage(page);
   await page.locator("#stage-2").getByRole("button", { name: /^Ações para / }).first().click();
   await page.locator("#stage-2 .filemenu.is-open [role=menuitem]").first().waitFor();
-  // The open menu's layer is above every other file's "⋯" (same parent, so z-index decides).
-  const layers = await page.evaluate(() =>
-    [...document.querySelectorAll(".filemenu")].map((menu) => ({
-      open: menu.classList.contains("is-open"),
-      z: Number(getComputedStyle(menu).zIndex) || 0,
-    })),
-  );
-  const open = layers.find((layer) => layer.open)!;
-  for (const other of layers.filter((layer) => !layer.open)) expect(open.z).toBeGreaterThan(other.z);
+  await page.waitForTimeout(300); // the menu's rise
+  expect(await coveringPopup(page, "#stage-2 .filemenu.is-open .menu__list")).toEqual([]);
+});
+
+test("\"Sobre esta etapa\" is above the stages after it @safari", async ({ page }, info) => {
+  await signInAsNewStaff(page, `sobre-etapa-${info.project.name}@alinea.example`);
+  await page.goto("/casa-jardim");
+  await page.locator("#stage-0 .stage-help-toggle").click();
+  await page.waitForTimeout(300);
+  expect(await coveringPopup(page, "#stage-0 .stage-help-pop:not([hidden])")).toEqual([]);
 });
 
 // A file's "⋯" looks tag-sized over its thumbnail but is tapped like an icon
