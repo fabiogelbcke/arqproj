@@ -101,7 +101,7 @@ describe("signed in", () => {
     expect(dark).not.toBeChecked();
     await userEvent.click(dark);
     expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(localStorage.getItem("painel-theme")).toBe("dark"); // remembered on this device
+    expect(localStorage.getItem("theme")).toBe("dark"); // remembered on this device
 
     await userEvent.click(within(again).getByRole("button", { name: "Sair" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));

@@ -2,6 +2,8 @@
 /* The logo's size by its shape (OfficeLogo), never taller than the bar allows. */
 .site__brand { --logo-ref: 28px; --logo-min: 22px; --logo-max: 44px; --logo-max-width: 220px; }
 @media (max-width: 640px) { .site__brand { --logo-ref: 22px; --logo-min: 18px; --logo-max: 34px; --logo-max-width: 160px; } }
+/* For staff the logo is the way back to the painel. */
+a.site__brand { color: inherit; text-decoration: none; }
 .tl li > button { display: block; }
 .page-message { padding-block: 72px 120px; display: grid; gap: 14px; max-width: 640px; }
 .page-message h1 { margin: 0; font: 400 clamp(32px, 5vw, 56px)/1.05 var(--display-font); letter-spacing: -0.035em; }
@@ -43,6 +45,14 @@
 .editor .row2 > *, .editor .row3 > * { min-width: 0; }
 .editor .input { min-width: 0; }
 @media (max-width: 560px) { .editor .row3 { grid-template-columns: 1fr 1fr; } .editor .row3 > :first-child { grid-column: 1 / -1; } }
+/* Fields side by side line up by their boxes, even when one label wraps
+   ("Link da videochamada" next to "Local"). */
+.editor .row2, .editor .row3 { align-items: end; }
+/* "Informações": every value box the same width, the × column kept on every row
+   (the project type's row has none, but keeps its room). */
+.facts-edit li { grid-template-columns: 136px minmax(0, 1fr) 36px; }
+.facts-edit .input, .facts-edit .select, .facts-edit .unit { width: 100%; box-sizing: border-box; }
+@media (max-width: 560px) { .facts-edit li { grid-template-columns: minmax(0, 1fr) 36px; } }
 
 /* Edit mode (part 2): renaming, removing and adding stages. */
 .stage-rename, .stage-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
@@ -61,15 +71,12 @@
 .uploads progress { flex: 1 1 140px; height: 4px; accent-color: var(--mark); }
 .uploads__failed [role="alert"] { flex-basis: 100%; color: var(--danger, #9b3d1d); }
 
-/* The open stage is a dark band (light in the dark theme). The prototype keeps
+/* The current stage is a dark band, open or not (in the dark theme too). The prototype keeps
    these colours for phones only, which left the drop area's words and the rename
    box dark on dark on wider screens. */
-.client.editing .stage.is-expanded .stage__title input, .client.editing .stage.is-expanded .drop { color: #fff; caret-color: #fff; border-color: #c9cbcd; }
-.client.editing .stage.is-expanded .drop small, .client.editing .stage.is-expanded .drop svg { color: #c9cbcd; }
-.client.editing .stage.is-expanded .uploads__failed [role="alert"] { color: #f2b8a2; }
-:root[data-theme="dark"] .client.editing .stage.is-expanded .stage__title input, :root[data-theme="dark"] .client.editing .stage.is-expanded .drop { color: #242629; caret-color: #242629; border-color: #777a7d; }
-:root[data-theme="dark"] .client.editing .stage.is-expanded .drop small, :root[data-theme="dark"] .client.editing .stage.is-expanded .drop svg { color: #55585b; }
-:root[data-theme="dark"] .client.editing .stage.is-expanded .uploads__failed [role="alert"] { color: var(--danger, #9b3d1d); }
+.client.editing .stage.current .stage__title input, .client.editing .stage.current .drop { color: #fff; caret-color: #fff; border-color: #c9cbcd; }
+.client.editing .stage.current .drop small, .client.editing .stage.current .drop svg { color: #c9cbcd; }
+.client.editing .stage.current .uploads__failed [role="alert"] { color: #f2b8a2; }
 
 /* "Atualizações" on a phone: the panel spans the screen under the header rather
    than hanging off the bell, which would push it past the left edge. */
@@ -183,3 +190,75 @@
   .client .dock .seg { flex: 1 1 auto; min-width: 0; }
   .client .dock .seg button { min-width: 0; padding-inline: 8px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* Edit mode: the whole drop area under a stage's files chooses files on a click. */
+.client.editing .drop { cursor: pointer; }
+
+/* The current stage is the dark band whichever stage is open (Fabio, 19 Oct 2026);
+   another stage, when open, stands out on a light band of its own. */
+.client .stage.is-expanded:not(.current)::before { opacity: 1; background: var(--brand-surface); }
+.client .stage.is-expanded:not(.current) .stage__n, .client .stage.is-expanded:not(.current) h2 { color: var(--brand-ink); }
+.client:not(.editing) .stage.is-expanded:not(.current) .stage__n { border-color: var(--brand-ink); }
+
+/* Phones: a finished stage's number is a small green circle with a plain check
+   (Fabio, 19 Oct 2026: a standard green for now), drawn rather than a ✓ so it
+   stays white whatever colour an open stage gives its number. Finished stages sit
+   clearly smaller and lighter than the current and upcoming ones. */
+@media (max-width: 760px) {
+  .client .stage.done .stage__n {
+    justify-self: center; width: 20px; height: 20px; display: grid; place-items: center;
+    border: 0; border-radius: 50%; background: #2e9e5b;
+  }
+  .client .stage__check {
+    width: 5px; height: 10px; margin-top: -2px; border: solid #fff; border-width: 0 2px 2px 0;
+    rotate: 45deg; font-size: 0;
+  }
+  .client .stage.done:not(.is-expanded) h2 { font-size: 11px; color: var(--brand-muted); }
+}
+
+/* Edit mode: "Reordenar etapas", the stages on one short list to drag (StageOrder). */
+.stage-order__overlay {
+  position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px;
+  background: rgb(8 9 9 / 55%); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.stage-order__modal {
+  width: min(520px, 100%); max-height: calc(100dvh - 32px); overflow: auto;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--raise); color: var(--ink); box-shadow: var(--shadow);
+}
+.stage-order { display: grid; gap: 14px; padding: 24px; outline: none; }
+.stage-order__heading { margin: 0; font-size: 22px; font-weight: 400; letter-spacing: -0.02em; }
+.stage-order__hint { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.stage-order__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.stage-order__row {
+  position: relative; display: grid; grid-template-columns: 32px 28px minmax(0, 1fr) 36px 36px; align-items: center; gap: 6px;
+  padding: 6px 6px 6px 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--raise);
+}
+.stage-order__row.is-dragging { z-index: 2; box-shadow: var(--shadow); border-color: var(--ink); }
+.stage-order__handle {
+  display: grid; place-items: center; width: 32px; height: 36px; padding: 0; border: 0; background: none;
+  color: var(--muted); cursor: grab; touch-action: none;
+}
+.stage-order__handle:active { cursor: grabbing; }
+.stage-order__handle svg { width: 18px; height: 18px; fill: currentColor; }
+.stage-order__handle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.stage-order__n { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.stage-order__title { min-width: 0; overflow-wrap: anywhere; font-size: 15px; }
+.stage-order__title small { display: block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+/* An open stage takes its content's height. The prototype opened stages by
+   animating the body's grid row from 0fr to 1fr, which Safari (WebKit) sizes
+   wrongly: far taller than the files, or in edit mode too short, files spilling
+   out. A closed stage's body is simply 0 high; the fade stays. */
+.client .stage__body { display: block; }
+.client .stage:not(.is-expanded) .stage__body { height: 0; overflow: hidden; }
+
+/* Dark theme: the current stage stays the stand-out band, a lighter dark than the
+   page with the same light text as in the light theme (not a light band, which
+   hid a phone's stage number); another open stage sits between the two. */
+:root[data-theme="dark"] .client .stage.current::before { background: #34373b; }
+:root[data-theme="dark"] .client .stage.current .file { background: #3f4246; }
+:root[data-theme="dark"] .client .stage.is-expanded:not(.current)::before { background: #26282b; }
+
+/* A file's open "⋯" menu above the next files' "⋯" buttons: each sits on its own
+   layer (z-index 3), so the open one's layer rises. */
+.client.editing .filemenu.is-open { z-index: 30; }

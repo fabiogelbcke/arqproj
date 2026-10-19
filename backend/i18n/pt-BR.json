@@ -114,12 +114,6 @@
     "stagesHint_other": "{{count}} etapas marcadas. As etapas usuais do tipo já vêm marcadas; marque ou desmarque à vontade.",
     "retry": "Tentar de novo"
   },
-  "cover": {
-    "choose": "Escolher uma foto",
-    "chooseHint": "JPG, PNG ou WebP · até 10 MB",
-    "preview": "Prévia da nova capa",
-    "unreadable": "Não foi possível ler esta foto. Escolha outra."
-  },
   "projectSettings": {
     "recipients": "E-mails do cliente",
     "recipientsHint": "Clientes receberão automaticamente atualizações sobre o projeto por e-mail.",
@@ -131,10 +125,6 @@
     "open": "Editar o projeto {{name}}",
     "name": "Nome do projeto",
     "client": "Cliente",
-    "cover": "Capa",
-    "changeCover": "Trocar capa",
-    "removeCover": "Remover capa",
-    "noCover": "Sem capa, o painel mostra uma foto de exemplo.",
     "archive": "Arquivar",
     "cancel": "Cancelar",
     "save": "Salvar",
@@ -143,7 +133,6 @@
     "archived": "Projeto “{{name}}” arquivado.",
     "undo": "Desfazer",
     "restored": "Projeto “{{name}}” de volta.",
-    "edit": "Editar projeto",
     "link": "Link do cliente",
     "linkHint": "A página fica em {{address}}. O link antigo continua funcionando.",
     "access": "Acesso",
@@ -153,7 +142,16 @@
     "withPasswordHint": "O cliente digita a senha uma vez por aparelho; vale por 90 dias.",
     "password": "Senha",
     "passwordKeep": "Deixe em branco para manter a senha atual. Uma senha nova pede a senha de novo em todos os aparelhos.",
-    "passwordNew": "Pelo menos 6 caracteres. Envie a senha ao cliente junto com o link."
+    "passwordNew": "Pelo menos 6 caracteres. Envie a senha ao cliente junto com o link.",
+    "changePhoto": "Trocar foto",
+    "addPhoto": "Adicionar foto",
+    "removePhoto": "Remover foto",
+    "photoSaved": "Foto atualizada.",
+    "photoRemoved": "Foto removida.",
+    "openSettings": "Configurações do projeto",
+    "archiveProject": "Arquivar projeto",
+    "archiveAsk": "Arquivar “{{name}}”?",
+    "archiveMeans": "O projeto sai da lista de projetos. O cliente continua vendo a página. Não dá mais para enviar arquivos pelo portal, e o cliente não recebe e-mails do projeto."
   },
   "notFound": {
     "title": "Página não encontrada",
@@ -320,6 +318,9 @@
     "darkLogoSaved": "Logo do modo escuro atualizado.",
     "darkLogoRemoved": "O modo escuro usa o mesmo logo."
   },
+  "confirm": {
+    "cancel": "Cancelar"
+  },
   "crop": {
     "logoTitle": "Ajustar o logo",
     "darkLogoTitle": "Ajustar o logo do modo escuro",
@@ -392,13 +393,8 @@
     "cover": "Capa do projeto {{name}}",
     "staffBar": "Ferramentas do escritório",
     "backToPainel": "Painel",
-    "draftNote": "Rascunho, só você vê",
-    "publishedNote": "Publicado",
     "copyLink": "Copiar link do cliente",
     "linkCopied": "Link copiado.",
-    "linkCopiedDraft": "Link copiado. O cliente só verá a página depois de publicada.",
-    "publish": "Publicar",
-    "published": "Publicado. O cliente já pode abrir o link.",
     "password": "Senha",
     "enter": "Entrar",
     "noFiles": "Ainda sem arquivos nesta etapa.",
@@ -414,6 +410,7 @@
     "nameHint": "Aparece no topo da página do cliente e no painel. O endereço da página não muda.",
     "dropFiles": "Solte arquivos aqui ou",
     "chooseFiles": "escolha no computador",
+    "tapToChoose": "Toque para escolher arquivos",
     "dropNote": "Vão para a pasta “{{folder}}” no seu Drive e aparecem para o cliente. Até {{max}} MB por arquivo.",
     "sending": "Enviando {{name}}",
     "dismiss": "Fechar",
@@ -486,7 +483,11 @@
     "changeCover": "Trocar capa",
     "coverSaved": "Capa atualizada.",
     "removeCover": "Remover capa",
-    "coverRemoved": "Capa removida."
+    "coverRemoved": "Capa removida.",
+    "reorderStages": "Reordenar etapas",
+    "reorderHint": "Arraste pela alça ou use as setas. A etapa atual continua a mesma; as pastas no Drive acompanham.",
+    "dragStage": "Arrastar {{title}}",
+    "orderSaved": "Ordem das etapas salva."
   },
   "email": {
       "subject": "Novidades em {{project}}",

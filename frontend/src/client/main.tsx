@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 
 import { ClientApp, slugFromPath } from "./ClientApp";
 import { EXAMPLE_SLUG } from "./example/address";
-import { applyStoredTheme } from "./ProjectPage";
+import { applyStoredTheme } from "../ui/theme";
 
 // The example project (plan section 16), loaded only at its address.
 const ExampleApp = lazy(() => import("./example/ExampleApp").then((m) => ({ default: m.ExampleApp })));

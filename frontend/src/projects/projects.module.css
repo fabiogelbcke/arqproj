@@ -1,15 +1,14 @@
 /* The project list and the new-project dialog, after the prototype's painel
    (arqprojprototypes, prototipo-v4: two-column cards, photo on top). */
 
-/* The page head (prototype: kicker, a very large title, an arrow, then the tools). */
+/* The page head (prototype: kicker, a very large title, then the tools; no arrow,
+   Fabio 19 Oct 2026). */
 .head { position: relative; display: grid; gap: 38px; }
 .kicker { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; color: var(--muted); }
-.head::after {
-  content: "↗"; position: absolute; right: 0; top: 24px; font: 300 clamp(44px, 6.5vw, 92px)/1 var(--display-font);
-  color: var(--mark); pointer-events: none;
-}
-@media (max-width: 720px) { .kicker { font-size: 9px; } .head::after { top: 16px; } }
+@media (max-width: 720px) { .kicker { font-size: 9px; } }
+/* The sort select, its direction and "Novo projeto" share one height. */
 .tools {
+  --tool-height: 44px;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
   border-top: 1px solid var(--line); padding-top: 24px;
 }
@@ -31,7 +30,7 @@
 .sort { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
 .sort label { font-size: 12px; color: var(--muted); }
 .select {
-  min-width: 165px; min-height: 36px; padding: 6px 30px 6px 10px; border: 1px solid var(--line); border-radius: var(--r);
+  min-width: 165px; height: var(--tool-height); padding: 6px 30px 6px 10px; border: 1px solid var(--line); border-radius: var(--r);
   background: transparent; color: var(--ink); font: inherit; font-size: 14px;
   /* Our own chevron, a little in from the edge (the browser's sits against it). */
   appearance: none; -webkit-appearance: none;
@@ -39,13 +38,13 @@
   background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
   background-size: 5px 5px; background-repeat: no-repeat;
 }
-.direction { padding-inline: 16px; }
-.newButton { gap: 20px; min-height: 52px; padding-inline: 32px; font-size: 15px; }
+.direction { min-height: var(--tool-height); height: var(--tool-height); padding-inline: 16px; }
+.newButton { gap: 10px; min-height: var(--tool-height); height: var(--tool-height); padding-inline: 20px; font-size: 15px; }
 .newButton > span { font-size: 20px; font-weight: 300; }
 @media (max-width: 720px) {
   /* No big head on phones: the tabs say where you are. The title stays for screen readers. */
   .head { gap: 12px; }
-  .head::after, .kicker { display: none; }
+  .kicker { display: none; }
   .title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   /* Search and "Novo projeto" float at the bottom (iOS Contacts); no sorting for now. */
   .tools { border-top: 0; padding-top: 0; }
@@ -239,29 +238,10 @@
   background: var(--primary); color: var(--on-primary); text-decoration: none; font-weight: 500; font-size: 14px;
 }
 
-/* Settings and cover dialogs (prototype: "Projeto", "Trocar foto") */
+/* The settings dialog (prototype: "Projeto") */
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
 .field { display: grid; gap: 8px; }
-.coverField { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
-.coverField legend { padding: 0; margin-bottom: 8px; }
-/* The photo across the dialog's width, as the card shows it. */
-.coverStage { position: relative; }
-.coverCaption {
-  position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 14px 12px;
-  background: linear-gradient(transparent, rgb(0 0 0 / 55%)); color: #fff; font-size: 13px;
-}
-.coverActions { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
-.coverActions .uploadChoice { flex: 1 1 220px; }
-.uploadChoice {
-  display: grid; gap: 4px; padding: 20px; border: 1px dashed var(--line-strong); text-align: center;
-  cursor: pointer; font-size: 15px;
-}
-.uploadChoice span { font-size: 12px; color: var(--muted); }
-.uploadChoice:hover { background: var(--mark-soft); }
-.uploadChoice:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 3px; }
-.danger { color: var(--danger); }
-.pushLeft { margin-right: auto; }
 .choiceNote { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
 
 /* The client's addresses for email updates (A32). */

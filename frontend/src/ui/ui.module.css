@@ -46,10 +46,11 @@
 }
 @media (max-width: 560px) { .banner { inset: auto 16px 16px 16px; } }
 
-/* Toasts (prototype: a dark pill at the bottom centre), large enough to notice
-   (Fabio, 18 Oct 2026: "pretty discrete"): bigger type, and it rises into place. */
+/* Toasts: a dark pill large enough to notice (Fabio, 18 Oct 2026: "pretty
+   discrete"). Top right, clear of the project page's staff bar at the bottom
+   (Fabio, 19 Oct 2026); on phones across the top. It drops into place. */
 .toastRegion {
-  position: fixed; left: 50%; bottom: 40px; translate: -50% 0; z-index: 60; max-width: calc(100vw - 32px);
+  position: fixed; top: 20px; right: 20px; z-index: 60; max-width: min(440px, calc(100vw - 32px));
 }
 .toast {
   display: flex; align-items: center; gap: 14px; min-width: min(320px, calc(100vw - 32px));
@@ -59,7 +60,10 @@
   box-shadow: 0 0 0 1px rgb(255 255 255 / 14%), 0 12px 32px rgb(0 0 0 / 28%), 0 2px 6px rgb(0 0 0 / 18%);
   animation: toast-in 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
-@media (max-width: 560px) { .toastRegion { bottom: 24px; } .toast { font-size: 15px; } }
+@media (max-width: 560px) {
+  .toastRegion { top: 12px; left: 16px; right: 16px; max-width: none; }
+  .toast { min-width: 0; font-size: 15px; border-radius: 18px; }
+}
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 .toast span { flex: 1 1 auto; }
 /* A round mark before the message: ✓ for done, ! for a failure (in the danger colour). */
@@ -72,7 +76,7 @@
   background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px;
 }
-@keyframes toast-in { from { opacity: 0; transform: translateY(24px) scale(0.96); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-20px) scale(0.96); } }
 
 /* A dialog's close button, in its top corner (the dialog is positioned). */
 .close {
@@ -132,3 +136,33 @@
 .cropOption { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
 .cropOption input { width: 18px; height: 18px; accent-color: var(--ink); }
 .cropActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+
+/* ActionMenu: a short list of actions under its button. */
+.menuPopover {
+  min-width: 220px; border: 1px solid var(--line); border-radius: var(--r-lg, 4px);
+  background: var(--raise); color: var(--ink); box-shadow: var(--shadow); padding: 6px;
+}
+.menuPopover[data-entering] { animation: menu-in 0.16s ease-out; }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } }
+.menu { outline: none; display: grid; }
+.menuItem {
+  padding: 11px 12px; border-radius: var(--r); font-size: 14px; cursor: pointer; outline: none;
+}
+.menuItem[data-focused] { background: var(--surface); }
+.menuItem[data-danger] { color: var(--danger); }
+
+/* ConfirmDialog: small, centred, the action's word on its button. */
+.confirmOverlay {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
+  background: rgb(8 9 9 / 55%); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.confirmModal {
+  width: min(440px, 100%); border: 1px solid var(--line); border-radius: 4px;
+  background: var(--raise); color: var(--ink); box-shadow: var(--shadow);
+}
+.confirmDialog { padding: 24px; display: grid; gap: 14px; outline: none; }
+.confirmTitle { margin: 0; font-size: 21px; font-weight: 400; letter-spacing: -0.02em; }
+.confirmText { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.confirmActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.dangerAction { background: var(--danger); border-color: var(--danger); color: #fff; }
+.dangerAction[data-hovered] { border-color: var(--danger); }

@@ -1,0 +1,51 @@
+// "Are you sure?" before an action: its question, what it means, and the action's
+// own word on the button ("Arquivar"), never a bare "OK".
+import { Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
+import { useTranslation } from "react-i18next";
+
+import { Button } from "./Button";
+import styles from "./ui.module.css";
+
+export function ConfirmDialog({
+  title,
+  text,
+  confirm,
+  danger = false,
+  busy = false,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  text: string;
+  confirm: string;
+  danger?: boolean;
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <ModalOverlay className={styles.confirmOverlay} isDismissable isOpen onOpenChange={(open) => !open && onCancel()}>
+      <Modal className={styles.confirmModal}>
+        <Dialog role="alertdialog" className={styles.confirmDialog}>
+          <Heading slot="title" className={styles.confirmTitle}>
+            {title}
+          </Heading>
+          <p className={styles.confirmText}>{text}</p>
+          <div className={styles.confirmActions}>
+            <Button onPress={onCancel}>{t("confirm.cancel")}</Button>
+            <Button
+              variant="primary"
+              className={danger ? styles.dangerAction : undefined}
+              isDisabled={busy}
+              onPress={onConfirm}
+              autoFocus
+            >
+              {confirm}
+            </Button>
+          </div>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+}

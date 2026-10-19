@@ -19,6 +19,27 @@ a new entry too.
 
 ---
 
+## 2026-10-19 — A24: the card's pencil opens a menu; A35: nothing about publishing in the staff bar
+
+**Was:** in the painel, a card's pencil opened the "Projeto" dialog straight away,
+holding the name, client, cover, client link, access, client emails and
+"Arquivar" (which archived at once, with "Desfazer"). On the project page, the
+staff bar said "Publicado" under the name, and offered "Publicar" on a draft
+left over from before A35.
+
+**Now:** the pencil opens a short menu: "Trocar foto" (the photo picker and
+cropper, saved on its own), "Remover foto" when there is one, "Configurações do
+projeto" (the dialog, now without the cover or archiving) and "Arquivar projeto",
+which asks for confirmation first ("Desfazer" stays). The staff bar has no
+"Publicado" and no "Publicar"; the publish endpoint stays, unused, for when
+drafts return.
+
+**Why:** Fabio, 19 Oct 2026, reviewing the painel: the dialog was "getting too
+big", so the edit button should show "a little pop up menu with a few options:
+change photo, project settings, archive project for now", with archiving
+confirmed. And since there are no drafts for now, "there shouldn't be anything
+about publicar anywhere".
+
 ## 2026-10-18 — Plan section 9: another Google account may replace the office's folder
 
 **Was:** reconnecting never replaced the office's folder. A grant from another

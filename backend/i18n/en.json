@@ -114,12 +114,6 @@
     "stagesHint_other": "{{count}} stages ticked. The type's usual stages come ticked; tick or untick as you like.",
     "retry": "Try again"
   },
-  "cover": {
-    "choose": "Choose a photo",
-    "chooseHint": "JPG, PNG or WebP · up to 10 MB",
-    "preview": "Preview of the new cover",
-    "unreadable": "This photo couldn't be read. Choose another."
-  },
   "projectSettings": {
     "recipients": "Client emails",
     "recipientsHint": "Clients will automatically get updates about the project by email.",
@@ -131,10 +125,6 @@
     "open": "Edit the project {{name}}",
     "name": "Project name",
     "client": "Client",
-    "cover": "Cover",
-    "changeCover": "Change cover",
-    "removeCover": "Remove cover",
-    "noCover": "Without a cover, the painel shows a sample photo.",
     "archive": "Archive",
     "cancel": "Cancel",
     "save": "Save",
@@ -143,7 +133,6 @@
     "archived": "Project “{{name}}” archived.",
     "undo": "Undo",
     "restored": "Project “{{name}}” is back.",
-    "edit": "Edit project",
     "link": "Client link",
     "linkHint": "The page is at {{address}}. The old link keeps working.",
     "access": "Access",
@@ -153,7 +142,16 @@
     "withPasswordHint": "The client types it once per device; it lasts 90 days.",
     "password": "Password",
     "passwordKeep": "Leave empty to keep the current password. A new one asks for it again on every device.",
-    "passwordNew": "At least 6 characters. Send it to the client with the link."
+    "passwordNew": "At least 6 characters. Send it to the client with the link.",
+    "changePhoto": "Change photo",
+    "addPhoto": "Add photo",
+    "removePhoto": "Remove photo",
+    "photoSaved": "Photo updated.",
+    "photoRemoved": "Photo removed.",
+    "openSettings": "Project settings",
+    "archiveProject": "Archive project",
+    "archiveAsk": "Archive “{{name}}”?",
+    "archiveMeans": "The project leaves the project list. The client still sees the page. Files can no longer be uploaded through the portal, and the client gets no project emails."
   },
   "notFound": {
     "title": "Page not found",
@@ -320,6 +318,9 @@
     "darkLogoSaved": "Dark mode logo updated.",
     "darkLogoRemoved": "Dark mode uses the same logo."
   },
+  "confirm": {
+    "cancel": "Cancel"
+  },
   "crop": {
     "logoTitle": "Adjust the logo",
     "darkLogoTitle": "Adjust the dark mode logo",
@@ -392,13 +393,8 @@
     "cover": "Cover of the project {{name}}",
     "staffBar": "Office tools",
     "backToPainel": "Painel",
-    "draftNote": "Draft, only you can see it",
-    "publishedNote": "Published",
     "copyLink": "Copy the client's link",
     "linkCopied": "Link copied.",
-    "linkCopiedDraft": "Link copied. The client will see the page once it's published.",
-    "publish": "Publish",
-    "published": "Published. The client can now open the link.",
     "password": "Password",
     "enter": "Enter",
     "noFiles": "No files in this stage yet.",
@@ -414,6 +410,7 @@
     "nameHint": "Shown at the top of the client's page and in the painel. The page's address stays the same.",
     "dropFiles": "Drop files here or",
     "chooseFiles": "choose from your computer",
+    "tapToChoose": "Tap to choose files",
     "dropNote": "They go to the “{{folder}}” folder in your Drive and show to the client. Up to {{max}} MB a file.",
     "sending": "Sending {{name}}",
     "dismiss": "Close",
@@ -486,7 +483,11 @@
     "changeCover": "Change cover",
     "coverSaved": "Cover updated.",
     "removeCover": "Remove cover",
-    "coverRemoved": "Cover removed."
+    "coverRemoved": "Cover removed.",
+    "reorderStages": "Reorder stages",
+    "reorderHint": "Drag by the handle or use the arrows. The current stage stays the same; the Drive folders follow.",
+    "dragStage": "Drag {{title}}",
+    "orderSaved": "Stage order saved."
   },
   "email": {
       "subject": "News on {{project}}",

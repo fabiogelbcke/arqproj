@@ -106,6 +106,93 @@ async def test_a_stage_cannot_move_past_the_ends(client, owner, folders):
     assert (response.status_code, response.json()["error"]) == (422, "invalid_stage")
 
 
+async def test_reordering_puts_every_stage_in_place_and_the_current_stage_follows(
+    client, owner, folders
+):
+    before = await page(client)  # current: 3 (Estudo Preliminar)
+    count = len(before["stages"])
+    order = [3, 1, 2, *range(4, count + 1)]
+    response = await call(client, owner, "PUT", "/stages/order", order=order)
+    assert response.status_code == 204, response.text
+    after = await page(client)
+    assert titles(after) == [titles(before)[n - 1] for n in order]
+    assert after["current_position"] == 1  # still Estudo Preliminar, now first
+    names = on_disk(folders)
+    assert {"01 - Estudo Preliminar", "02 - Briefing", "03 - Levantamento"} <= set(names)
+    assert "04 - Desenvolvimento" in names  # unmoved stages keep their folders
+    assert (folders / "03 - Levantamento" / "Croqui.pdf").exists()  # files move with it
+
+
+async def test_an_unchanged_order_changes_nothing(client, owner, folders):
+    before = await page(client)
+    order = list(range(1, len(before["stages"]) + 1))
+    assert (await call(client, owner, "PUT", "/stages/order", order=order)).status_code == 204
+    assert titles(await page(client)) == titles(before)
+    assert on_disk(folders) == sorted(SEEDED)
+
+
+@pytest.mark.parametrize(
+    "order",
+    [
+        lambda n: list(range(1, n)),  # one left out
+        lambda n: [1, 1, *range(3, n + 1)],  # one twice
+        lambda n: [*range(1, n + 1), n + 1],  # one that isn't there
+    ],
+    ids=["missing", "repeated", "unknown"],
+)
+async def test_an_order_must_name_every_stage_once(client, owner, folders, order):
+    before = await page(client)
+    count = len(before["stages"])
+    response = await call(client, owner, "PUT", "/stages/order", order=order(count))
+    assert (response.status_code, response.json()["error"]) == (422, "invalid_stage")
+    assert titles(await page(client)) == titles(before)
+
+
+async def test_a_stale_page_cant_reorder(client, owner, folders):
+    stale = (await page(client))["staff"]
+    count = len((await page(client))["stages"])
+    await call(client, owner, "PATCH", "/stages/1", title="Conversa inicial")
+    response = await client.put(
+        f"/api/projects/{stale['project_id']}/stages/order",
+        json={"row_version": stale["row_version"], "order": [2, 1, *range(3, count + 1)]},
+        headers=owner,
+    )
+    assert (response.status_code, response.json()["error"]) == (409, "project_changed")
+
+
+async def test_if_drive_fails_while_reordering_nothing_changes(client, owner, folders, monkeypatch):
+    real = creation.LocalFolders.rename
+    calls = []
+
+    async def third_fails(self, item_id, name):
+        calls.append(name)
+        if len(calls) == 3:
+            raise ConnectError(ConnectProblem.FOLDER_FAILED, "simulated")
+        return await real(self, item_id, name)
+
+    monkeypatch.setattr(creation.LocalFolders, "rename", third_fails)
+    before = await page(client)
+    count = len(before["stages"])
+    response = await call(
+        client, owner, "PUT", "/stages/order", order=[3, 1, 2, *range(4, count + 1)]
+    )
+    assert (response.status_code, response.json()) == (503, {"error": "drive_connect_failed"})
+    assert titles(await page(client)) == titles(before)
+    assert on_disk(folders) == sorted(SEEDED)  # the two renames done were put back
+
+
+async def test_only_staff_reorder(client, owner, folders):
+    staff = (await page(client))["staff"]
+    count = len((await page(client))["stages"])
+    response = await client.put(
+        f"/api/projects/{staff['project_id']}/stages/order",
+        json={"row_version": staff["row_version"], "order": [2, 1, *range(3, count + 1)]},
+        headers=ALINEA,  # no session's CSRF token
+    )
+    assert response.status_code in (401, 403)
+    assert on_disk(folders) == sorted(SEEDED)
+
+
 async def test_removing_a_stage_keeps_its_folder_and_renumbers_the_rest(client, owner, folders):
     assert (await call(client, owner, "DELETE", "/stages/2")).status_code == 204
     shown = await page(client)

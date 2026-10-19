@@ -1,25 +1,14 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dialog, Form, Heading, Label, Modal, ModalOverlay, Radio, RadioGroup } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
-import { ApiError, api, call } from "../api/client";
+import { ApiError } from "../api/client";
 import { Button } from "../ui/Button";
 import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
-import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { TextField } from "../ui/TextField";
-import { toast, toastError } from "../ui/Toast";
-import { Cover } from "./Cover";
-import {
-  COVER_MAX_BYTES,
-  COVER_TYPES,
-  PROJECTS,
-  useChangeProject,
-  useRemoveCover,
-  useUploadCover,
-  type ProjectSummary,
-} from "./projects";
+import { toast } from "../ui/Toast";
+import { useChangeProject, type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
 const NAME_MAX = 120;
@@ -28,29 +17,21 @@ const RECIPIENTS_MAX = 20; // the server checks it too
 
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
-/** What happens to the cover on Salvar: nothing, a new photo, or back to the placeholder. */
-type CoverChoice = { kind: "keep" } | { kind: "new"; file: File; preview: string } | { kind: "remove" };
-
 /** The project's settings (A24), after the prototype's "Projeto" dialog, opened
- *  from the card's pencil. Name, client and cover are saved together by Salvar.
- *  The client link and access join it with the client page (slice 2). */
+ *  from the card's menu ("Configurações do projeto"): name, client, client link,
+ *  access and the client's email addresses, saved together by Salvar. The photo
+ *  and archiving are in the menu itself (ProjectMenu). */
 export function ProjectDialog({ project, onClose }: { project: ProjectSummary; onClose: () => void }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const change = useChangeProject();
-  const archive = useChangeProject();
-  const upload = useUploadCover();
-  const remove = useRemoveCover();
   const [name, setName] = useState(project.name);
   const [client, setClient] = useState(project.client_name);
-  // What the server has, so a retry after a failed photo doesn't resend (and
-  // conflict with) a name change that already went through.
+  // What the server has, so a retry after a failure doesn't resend (and conflict
+  // with) a change that already went through.
   const [saved, setSaved] = useState(project);
-  const [cover, setCover] = useState<CoverChoice>({ kind: "keep" });
   const [slug, setSlug] = useState(project.slug);
   const [access, setAccess] = useState(project.access_mode);
   const [password, setPassword] = useState("");
-  const [coverProblem, setCoverProblem] = useState<string | null>(null);
   // The client's addresses for email updates (A32): the whole list is sent.
   const [recipients, setRecipients] = useState(() => project.recipients.map((r) => r.email));
   const [newRecipient, setNewRecipient] = useState("");
@@ -60,25 +41,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
     if (email && !recipients.includes(email)) setRecipients([...recipients, email]);
     setNewRecipient("");
   };
-  const saving = change.isPending || upload.isPending || remove.isPending;
-
-  const preview = cover.kind === "new" ? cover.preview : null;
-  useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
-
-  // The chosen photo is cropped to the cover's shape first (3:2), which also makes
-  // a large photo small enough to send.
-  const [cropping, setCropping] = useState<string | null>(null);
-  const choose = (file: File | undefined) => {
-    setCoverProblem(null);
-    if (!file) return;
-    // Checked here for a quick answer; the server checks the bytes again.
-    if (!COVER_TYPES.includes(file.type)) return setCoverProblem(t("errors.cover_wrong_type"));
-    setCropping(URL.createObjectURL(file));
-  };
-  const stopCropping = () => {
-    if (cropping) URL.revokeObjectURL(cropping);
-    setCropping(null);
-  };
+  const saving = change.isPending;
 
   const save = async () => {
     try {
@@ -110,45 +73,18 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           }),
         );
         setPassword("");
-        // Saved now: keep it listed, so a retry after a failed photo doesn't remove it.
+        // Saved now: keep it listed, so a retry doesn't remove it.
         setRecipients(wanted);
         setNewRecipient("");
       }
-      if (cover.kind === "new") await upload.mutateAsync({ id: project.id, file: cover.file });
-      if (cover.kind === "remove") await remove.mutateAsync(project.id);
       toast(t("projectSettings.saved"));
       onClose();
     } catch {
-      // Shown below, from the step that failed; what was saved before it stays saved.
+      // Shown below.
     }
   };
 
-  const archiveNow = () =>
-    archive.mutate(
-      { id: project.id, row_version: saved.row_version, status: "archived" },
-      {
-        onSuccess: (archived) => {
-          onClose();
-          // "Desfazer" runs after this dialog has gone, so it needs nothing from it.
-          toast(t("projectSettings.archived", { name: archived.name }), async () => {
-            try {
-              const back = await call(
-                api.PATCH("/api/projects/{project_id}", {
-                  params: { path: { project_id: archived.id } },
-                  body: { row_version: archived.row_version, status: project.status },
-                }),
-              );
-              toast(t("projectSettings.restored", { name: back.name }));
-            } catch (failure) {
-              toastError(failure);
-            }
-            void queryClient.invalidateQueries({ queryKey: PROJECTS });
-          });
-        },
-      },
-    );
-
-  const error = change.error ?? archive.error;
+  const error = change.error;
   const nameTaken =
     error instanceof ApiError && error.conflictName
       ? error.code === "project_name_taken"
@@ -157,10 +93,6 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           ? t("newProject.slugTakenBy", { name: error.conflictName })
           : null
       : null;
-  // The preview: the chosen photo, the placeholder after "Remover", or the current cover.
-  const shown = cover.kind === "remove" ? { ...project, cover_url: null } : project;
-  const hasPhoto = !!preview || !!shown.cover_url;
-
   return (
     <ModalOverlay className={styles.overlay} isDismissable isOpen onOpenChange={(open) => !open && onClose()}>
       <Modal className={styles.modal}>
@@ -195,65 +127,6 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
               />
             </div>
 
-            <fieldset className={styles.coverField}>
-              <legend className={styles.label}>{t("projectSettings.cover")}</legend>
-              <div className={styles.coverStage}>
-                {preview ? (
-                  <span className={styles.cover}>
-                    <img src={preview} alt={t("cover.preview")} onError={() => setCoverProblem(t("cover.unreadable"))} />
-                  </span>
-                ) : (
-                  <Cover project={shown} />
-                )}
-                {!hasPhoto && <span className={styles.coverCaption}>{t("projectSettings.noCover")}</span>}
-              </div>
-              <div className={styles.coverActions}>
-                <label className={styles.uploadChoice}>
-                  {hasPhoto ? t("projectSettings.changeCover") : t("cover.choose")}
-                  <span>{t("cover.chooseHint")}</span>
-                  <input
-                    type="file"
-                    className="sr-only"
-                    accept={COVER_TYPES.join(",")}
-                    onChange={(event) => {
-                      choose(event.target.files?.[0]);
-                      event.target.value = ""; // the same file can be chosen again
-                    }}
-                  />
-                </label>
-                {hasPhoto && (
-                  <Button
-                    variant="ghost"
-                    className={styles.danger}
-                    onPress={() => {
-                      setCoverProblem(null);
-                      setCover(project.cover_url ? { kind: "remove" } : { kind: "keep" });
-                    }}
-                  >
-                    {t("projectSettings.removeCover")}
-                  </Button>
-                )}
-              </div>
-              {coverProblem && (
-                <p role="alert" className={styles.problem}>
-                  {coverProblem}
-                </p>
-              )}
-              <ErrorNotice error={upload.error ?? remove.error} />
-              {cropping && (
-                <ImageCropDialog
-                  source={cropping}
-                  kind="cover"
-                  name="capa.jpg"
-                  onCancel={stopCropping}
-                  onCropped={(file) => {
-                    stopCropping();
-                    if (file.size > COVER_MAX_BYTES) return setCoverProblem(t("errors.cover_too_large"));
-                    setCover({ kind: "new", file, preview: URL.createObjectURL(file) });
-                  }}
-                />
-              )}
-            </fieldset>
 
             <TextField
               label={t("projectSettings.link")}
@@ -351,16 +224,8 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
               <ErrorNotice error={error} values={{ min: 6 }} />
             )}
             <div className={styles.actions}>
-              <Button
-                variant="ghost"
-                className={`${styles.danger} ${styles.pushLeft}`}
-                isDisabled={archive.isPending || saving}
-                onPress={archiveNow}
-              >
-                {t("projectSettings.archive")}
-              </Button>
               <Button onPress={onClose}>{t("projectSettings.cancel")}</Button>
-              <Button type="submit" variant="primary" isDisabled={saving || archive.isPending || !!coverProblem}>
+              <Button type="submit" variant="primary" isDisabled={saving}>
                 {saving ? t("projectSettings.saving") : t("projectSettings.save")}
               </Button>
             </div>

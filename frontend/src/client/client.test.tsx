@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -91,6 +91,16 @@ describe("the client page", () => {
     await waitFor(() => expect(document.title).toBe("Casa Jardim · Alinea")); // set after drawing
   });
 
+  it("saves the theme where the painel reads it, so the choice holds across the site", async () => {
+    localStorage.clear();
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    await userEvent.click(await screen.findByRole("button", { name: "Usar tema escuro" }));
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("theme")).toBe("dark"); // the painel's key too (app.test)
+    await userEvent.click(screen.getByRole("button", { name: "Usar tema claro" }));
+    expect(localStorage.getItem("theme")).toBe("light");
+  });
+
   it("explains a stage in the project type's words", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
     await userEvent.click(await screen.findByRole("button", { name: "Sobre esta etapa: Briefing" }));
@@ -106,6 +116,29 @@ describe("the client page", () => {
     await userEvent.click(within(timeline).getByRole("button", { name: /Estudo Preliminar/ }));
     const section = document.getElementById("stage-2")!;
     expect(section.className).toContain("is-expanded");
+    // The current stage stays the current one (its dark band), whichever is open.
+    expect(document.getElementById("stage-1")!.className).toMatch(/\bcurrent\b/);
+    expect(document.getElementById("stage-1")!.className).not.toContain("is-expanded");
+    expect(section.className).not.toMatch(/\bcurrent\b/);
+  });
+
+  it("on a phone, has no \"Sobre esta etapa\" beside a stage's arrow (for now)", async () => {
+    phoneViewport();
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    await screen.findByRole("heading", { level: 1, name: "Casa Jardim" });
+    expect(screen.queryByRole("button", { name: /^Sobre esta etapa/ })).toBeNull();
+    expect(screen.getAllByRole("button", { name: /^Abrir etapa/ }).length).toBeGreaterThan(0);
+  });
+
+  it("on a phone, a finished stage shows a check instead of its number", async () => {
+    phoneViewport();
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) }); // stage 2 is current
+    await screen.findByRole("heading", { level: 1, name: "Casa Jardim" });
+    const number = (index: number) => document.querySelector(`#stage-${index} .stage__n`)!;
+    expect(number(0).querySelector(".stage__check")).not.toBeNull();
+    expect(number(0)).toHaveTextContent("01"); // still there for screen readers
+    expect(number(1).querySelector(".stage__check")).toBeNull();
+    expect(number(1)).toHaveTextContent("02");
   });
 
   it("shows the project's type under its title, not among the details", async () => {
@@ -232,32 +265,11 @@ describe("the staff bar", () => {
     expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
   });
 
-  it("publishes a draft left over (A35), with the CSRF token, and shows it as published", async () => {
-    const draft = { ...PAGE, staff: { project_id: "p-1", status: "draft" as const, row_version: 1 } };
-    let published = false;
-    window.history.pushState({}, "", "/casa-jardim");
-    const sent = fakeApi({
-      "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
-      "GET /api/pages/casa-jardim": () => ({
-        body: published ? { ...draft, staff: { project_id: "p-1", status: "active", row_version: 2 } } : draft,
-      }),
-      "POST /api/projects/p-1/publish": () => {
-        published = true;
-        return { body: {} };
-      },
-    });
-    render(<ClientApp />);
-    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
-    expect(within(bar).getByText("Rascunho, só você vê")).toBeInTheDocument();
-    await userEvent.click(within(bar).getByRole("button", { name: "Publicar" }));
-    expect(await screen.findByText("Publicado. O cliente já pode abrir o link.")).toBeInTheDocument();
-    expect(await within(bar).findByText("Publicado")).toBeInTheDocument();
-    expect(within(bar).queryByRole("button", { name: "Publicar" })).toBeNull();
-    expect(sent.find((r) => r.method === "POST")?.headers.get("X-CSRF-Token")).toBe("csrf-9");
-  });
-
-  it("has no publish step: a project is live as soon as it exists", async () => {
+  it("makes the office's logo the way back to the painel, for staff only", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    await screen.findByRole("heading", { level: 1, name: "Casa Jardim" });
+    expect(screen.queryByRole("link", { name: "Alinea" })).toBeNull();
+    cleanup();
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
@@ -267,10 +279,26 @@ describe("the staff bar", () => {
       }),
     });
     render(<ClientApp />);
-    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
-    expect(within(bar).getByText("Publicado")).toBeInTheDocument();
-    expect(within(bar).queryByRole("button", { name: "Publicar" })).toBeNull(); // A35
+    expect(await screen.findByRole("link", { name: "Alinea" })).toHaveAttribute("href", "/painel/");
   });
+
+  it.each(["active", "draft"] as const)(
+    "says nothing about publishing, even on a draft left over (A35, %s)",
+    async (status) => {
+      window.history.pushState({}, "", "/casa-jardim");
+      fakeApi({
+        "GET /api/tenant": () => ({ body: TENANT }),
+        "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+        "GET /api/pages/casa-jardim": () => ({
+          body: { ...PAGE, staff: { project_id: "p-1", status, row_version: 1 } },
+        }),
+      });
+      render(<ClientApp />);
+      const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+      await within(bar).findByRole("button", { name: "Editar" });
+      expect(bar).not.toHaveTextContent(/Publica|Rascunho/);
+    },
+  );
 });
 
 describe("edit mode", () => {
@@ -420,6 +448,137 @@ describe("edit mode", () => {
     const rail = document.querySelector(".rail__now p")!;
     expect(rail).toHaveTextContent("Etapa atual");
     expect(rail).toHaveTextContent(PAGE.stages[1]!.title);
+  });
+
+  it("reorders the stages on one list and saves the new order at once", async () => {
+    const { sent } = asStaff({ "PUT /api/projects/p-1/stages/order": () => ({ status: 204 }) });
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
+    const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
+    expect(within(list).getByRole("button", { name: "Salvar" })).toBeDisabled(); // nothing changed yet
+    expect(within(list).getByText("Etapa atual").closest("li")).toHaveTextContent(PAGE.stages[1]!.title);
+    expect(within(list).getByRole("button", { name: `Mover ${PAGE.stages[0]!.title} para cima` })).toBeDisabled();
+    await userEvent.click(within(list).getByRole("button", { name: `Mover ${PAGE.stages[0]!.title} para baixo` }));
+    await userEvent.click(within(list).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Ordem das etapas salva.")).toBeInTheDocument();
+    const order = PAGE.stages.map((stage) => stage.position);
+    [order[0], order[1]] = [order[1]!, order[0]!];
+    expect(sent.find((r) => r.method === "PUT")?.body).toEqual({ row_version: 4, order });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Reordenar etapas" })).toBeNull());
+  });
+
+  it("keeps the same stage open after reordering moves it", async () => {
+    let reordered = false;
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => {
+        const [briefing, levantamento, estudo] = PAGE.stages;
+        const stages = reordered ? [levantamento!, briefing!, estudo!] : PAGE.stages;
+        return {
+          body: {
+            ...PAGE,
+            stages: stages.map((stage, i) => ({ ...stage, position: i + 1 })),
+            current_position: reordered ? 1 : 2, // Levantamento, wherever it is
+            staff: { project_id: "p-1", status: "active", row_version: reordered ? 5 : 4 },
+          },
+        };
+      },
+      "PUT /api/projects/p-1/stages/order": () => {
+        reordered = true;
+        return { status: 204 };
+      },
+    });
+    render(<ClientApp />);
+    await startEditing();
+    const open = () => document.querySelector(".stage.is-expanded h2")?.textContent;
+    expect(open()).toBe("Levantamento");
+    await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
+    const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
+    await userEvent.click(within(list).getByRole("button", { name: "Mover Levantamento para cima" }));
+    await userEvent.click(within(list).getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Ordem das etapas salva.");
+    await waitFor(() => expect(document.querySelector("#stage-0 h2")?.textContent).toBe("Levantamento"));
+    expect(open()).toBe("Levantamento");
+  });
+
+  // A page whose stages swap Briefing and Levantamento once the new order is saved.
+  const reorderable = () => {
+    let reordered = false;
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => {
+        const [briefing, levantamento, estudo] = PAGE.stages;
+        const stages = reordered ? [levantamento!, briefing!, estudo!] : PAGE.stages;
+        return {
+          body: {
+            ...PAGE,
+            stages: stages.map((stage, i) => ({ ...stage, position: i + 1 })),
+            current_position: reordered ? 1 : 2,
+            staff: { project_id: "p-1", status: "active", row_version: reordered ? 5 : 4 },
+          },
+        };
+      },
+      "PUT /api/projects/p-1/stages/order": () => {
+        reordered = true;
+        return { status: 204 };
+      },
+    });
+    render(<ClientApp />);
+  };
+  const moveLevantamentoUp = async () => {
+    await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
+    const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
+    await userEvent.click(within(list).getByRole("button", { name: "Mover Levantamento para cima" }));
+    await userEvent.click(within(list).getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Ordem das etapas salva.");
+    await waitFor(() => expect(document.querySelector("#stage-0 h2")?.textContent).toBe("Levantamento"));
+  };
+
+  it("doesn't leave a stage's notes open on the row another stage moved into", async () => {
+    reorderable();
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar recado" }));
+    expect(await screen.findByDisplayValue("Medidas conferidas.")).toBeInTheDocument();
+    await moveLevantamentoUp();
+    // Briefing now sits where Levantamento's notes were being edited.
+    await userEvent.click(document.querySelector<HTMLElement>('#stage-1 [aria-controls="stage-body-1"]')!);
+    expect(screen.queryByDisplayValue("Medidas conferidas.")).toBeNull();
+  });
+
+  it("doesn't rename the stage that moved into a row being renamed", async () => {
+    reorderable();
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Renomear etapa Levantamento" }));
+    expect(screen.getByLabelText("Nome da etapa")).toHaveValue("Levantamento");
+    await moveLevantamentoUp();
+    for (const field of screen.queryAllByLabelText("Nome da etapa")) {
+      const row = field.closest(".stage")!;
+      expect(field).toHaveValue(row.querySelector("h2")!.textContent);
+    }
+  });
+
+  it("keeps every stage closed after reordering when all were closed", async () => {
+    reorderable();
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: /Levantamento/, expanded: true }));
+    expect(document.querySelector(".stage.is-expanded")).toBeNull();
+    await moveLevantamentoUp();
+    expect(document.querySelector(".stage.is-expanded")).toBeNull();
+  });
+
+  it("closes the reorder list without saving on Cancelar", async () => {
+    const { sent } = asStaff();
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
+    const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
+    await userEvent.click(within(list).getByRole("button", { name: `Mover ${PAGE.stages[0]!.title} para baixo` }));
+    await userEvent.click(within(list).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Reordenar etapas" })).toBeNull());
+    expect(sent.some((r) => r.method === "PUT")).toBe(false);
   });
 
   it("offers staff an empty description to fill in", async () => {
@@ -636,6 +795,29 @@ describe("edit mode", () => {
       vi.stubGlobal("XMLHttpRequest", FakeXhr);
       return asStaff({ "GET /api/pages/casa-jardim/files": () => ({ body: FILES }), ...extra });
     }
+
+    it("on a touch screen, says to tap rather than drop files", async () => {
+      vi.stubGlobal("matchMedia", (query: string) => ({
+        matches: query === "(pointer: coarse)",
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }));
+      asEditor();
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      expect(await within(stage).findByLabelText("Toque para escolher arquivos")).toBeInTheDocument();
+      expect(within(stage).queryByText(/Solte arquivos/)).toBeNull();
+    });
+
+    it("opens the file chooser from a click anywhere in a stage's drop area", async () => {
+      asEditor();
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      const input = (await within(stage).findByLabelText("escolha no computador")) as HTMLInputElement;
+      const opened = vi.spyOn(input, "click");
+      await userEvent.click(within(stage).getByText("Solte arquivos aqui ou"));
+      expect(opened).toHaveBeenCalledTimes(1);
+    });
 
     it("sends a chosen file straight to the address the app opened, then lists again", async () => {
       const { sent } = asEditor({
