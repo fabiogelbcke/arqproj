@@ -745,6 +745,14 @@ export function ProjectPage({
   };
   // One stage open at a time: the current one, until the client opens another.
   const [openStage, setOpenStage] = useState(() => Math.max(0, (page.current_position ?? 1) - 1));
+  // After a reorder the open stage stays open wherever the new order puts it, and
+  // a stage's notes or rename, kept by row, close: another stage is on that row now.
+  const [reorders, setReorders] = useState(0);
+  const reordered = (order: number[]) => {
+    setOpenStage((open) => (open < 0 ? open : Math.max(0, order.indexOf(open + 1))));
+    setOpenEditor((editor) => (editor?.startsWith("notes-") ? null : editor));
+    setReorders((n) => n + 1);
+  };
   // The file tools (FileTools): search, type, order, view, and the file in preview.
   const [query, setQuery] = useState("");
   const [prefs, setPrefs] = usePrefs();
@@ -926,8 +934,7 @@ export function ProjectPage({
               page={page}
               staff={staff!}
               onChanged={stagesChanged}
-              // The open stage stays open wherever the new order puts it.
-              onReordered={(order) => setOpenStage((open) => Math.max(0, order.indexOf(open + 1)))}
+              onReordered={reordered}
               locked={stagesLocked}
             />
           </Suspense>
@@ -996,6 +1003,7 @@ export function ProjectPage({
               canEdit ? (
                 <Suspense fallback={null}>
                   <StageControls
+                    key={reorders}
                     page={page}
                     staff={staff!}
                     index={i}
