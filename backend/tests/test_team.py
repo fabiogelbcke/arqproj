@@ -16,6 +16,7 @@ from backend.notifications.email import EmailError
 from backend.tests.conftest import TEST_DATABASE_URL
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as, tenant_id
 from backend.web import attempts, team
+from backend.web.errors import ApiError
 
 pytestmark = pytest.mark.anyio
 
@@ -417,3 +418,16 @@ async def test_an_account_that_came_in_meanwhile_is_never_deleted(client, db_ses
         text("SELECT count(*) FROM users WHERE email = 'bia@alinea.example'")
     )
     assert still == 1
+
+
+async def test_a_pending_check_reads_the_database_not_the_sessions_copy(db_session, owner):
+    """After waiting for a lock, "still pending?" must see what changed meanwhile:
+    the session's earlier copy of the account would still say pending."""
+    pending = await accounts.create_user(db_session, email="bia@alinea.example", name="Bia")
+    assert (await team._pending(db_session, pending.id)).password_hash is None
+    await db_session.execute(
+        text("UPDATE users SET password_hash = 'chosen' WHERE id = :u"), {"u": str(pending.id)}
+    )
+    with pytest.raises(ApiError) as refused:
+        await team._pending(db_session, pending.id)
+    assert refused.value.code == "not_an_invite"
