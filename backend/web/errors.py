@@ -55,6 +55,7 @@ class ErrorCode(StrEnum):
     PAGE_LOCKED = "page_locked"  # protected by a password
     WRONG_PAGE_PASSWORD = "wrong_page_password"
     TOO_MANY_ATTEMPTS = "too_many_attempts"  # wait 15 minutes
+    RECIPIENTS_FULL = "recipients_full"  # the project has as many addresses as it may (20)
     PASSWORD_REQUIRED = "password_required"  # password access needs a password
     INVALID_DETAIL = "invalid_detail"  # unknown, repeated, or a value of the wrong kind
     INVALID_STAGE = "invalid_stage"  # unknown, already there, blank, or nowhere to move

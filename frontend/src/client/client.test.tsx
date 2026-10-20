@@ -101,12 +101,12 @@ describe("the client page", () => {
     expect(localStorage.getItem("theme")).toBe("light");
   });
 
-  it("lets a client ask for the updates by email, and says to confirm from the inbox", async () => {
+  it("signs a client up for the updates by email", async () => {
     window.history.pushState({}, "", "/casa-jardim");
     const sent = fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
-      "POST /api/pages/casa-jardim/subscribe": () => ({ status: 202 }),
+      "POST /api/pages/casa-jardim/subscribe": () => ({ status: 204 }),
     });
     render(<ClientApp />);
     const box = await screen.findByRole("region", { name: "Novidades por e-mail" });
@@ -118,7 +118,7 @@ describe("the client page", () => {
     await userEvent.type(field, ".con");
     await userEvent.click(within(box).getByRole("button", { name: "ana@gmail.com" })); // the typo's fix
     await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
-    expect(await within(box).findByRole("status")).toHaveTextContent("Enviamos um link para ana@gmail.com");
+    expect(await within(box).findByRole("status")).toHaveTextContent("Pronto! ana@gmail.com vai receber as novidades deste projeto.");
     expect(sent.find((r) => r.path.endsWith("/subscribe"))?.body).toEqual({ email: "ana@gmail.com" });
   });
 

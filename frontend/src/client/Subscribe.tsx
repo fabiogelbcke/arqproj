@@ -1,5 +1,5 @@
-// "Receber as novidades por e-mail" on the client's page (A32, 20 Oct 2026): the
-// address gets a link to confirm, and is listed only once confirmed.
+// "Novidades por e-mail" on the client's page (A32, 20 Oct 2026): the address is
+// signed up at once and gets a welcome email with a link to stop them.
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 

@@ -174,6 +174,7 @@
     "en": "English"
   },
   "errors": {
+    "recipients_full": "Este projeto já tem o número máximo de e-mails. Fale com o escritório.",
     "not_signed_in": "Sua sessão terminou. Entre novamente.",
     "csrf_token_missing_or_wrong": "Não foi possível confirmar esta ação. Recarregue a página e tente de novo.",
     "invalid_credentials": "E-mail ou senha incorretos.",
@@ -514,18 +515,12 @@
     "orderSaved": "Ordem das etapas salva."
   },
   "email": {
-    "subscribeSubject": "Confirme para receber as novidades de {{project}}",
-    "subscribeHello": "Olá!",
-    "subscribeIntro": "Alguém pediu para este e-mail receber as novidades do projeto {{project}}, do {{office}}: arquivos novos, etapas e reuniões. Se foi você, confirme:",
-    "subscribeButton": "Confirmar e receber as novidades",
-    "subscribeExpiry": "O link vale por 7 dias.",
-    "subscribeIgnore": "Se não foi você, ignore este e-mail: sem a confirmação, nada é enviado.",
-    "subscribeConfirmTitle": "Receber as novidades de {{project}}",
-    "subscribeConfirmAsk": "Confirme para {{email}} receber por e-mail as novidades do projeto {{project}}.",
-    "subscribeConfirm": "Confirmar",
-    "subscribed": "Pronto: {{email}} vai receber as novidades do projeto {{project}}. Cada e-mail tem um link para parar de receber.",
-    "subscribeInvalid": "Este link não funciona mais. Peça de novo na página do projeto.",
-    "subscribeFull": "Este projeto já tem o número máximo de e-mails. Fale com o escritório.",
+    "welcomeSubject": "Você vai receber as novidades de {{project}}",
+    "welcomeHello": "Olá!",
+    "welcomeIntro": "A partir de agora, este e-mail recebe as novidades do projeto {{project}}, do {{office}}: arquivos novos, etapas e reuniões.",
+    "welcomeButton": "Ver a página do projeto",
+    "welcomeNotYou": "Não foi você, ou não quer receber?",
+    "welcomeStop": "Parar de receber",
       "subject": "Novidades em {{project}}",
       "intro": "Há novidades no projeto {{project}}:",
       "files_one": "1 arquivo novo em {{stage}}: {{names}}",
@@ -639,7 +634,7 @@
     "email": "Seu e-mail",
     "placeholder": "seu@email.com",
     "submit": "Receber",
-    "sent": "Enviamos um link para {{email}}. Abra-o para confirmar e começar a receber.",
+    "sent": "Pronto! {{email}} vai receber as novidades deste projeto. Enviamos um e-mail confirmando.",
     "archived": "Este projeto não envia mais novidades."
   }
 }
