@@ -174,6 +174,7 @@
     "en": "English"
   },
   "errors": {
+    "recipients_full": "This project already has the most emails it can. Talk to the office.",
     "not_signed_in": "Your session has ended. Please sign in again.",
     "csrf_token_missing_or_wrong": "We could not confirm this action. Reload the page and try again.",
     "invalid_credentials": "Incorrect email or password.",
@@ -514,6 +515,12 @@
     "orderSaved": "Stage order saved."
   },
   "email": {
+    "welcomeSubject": "You'll get {{project}}'s updates",
+    "welcomeHello": "Hello!",
+    "welcomeIntro": "From now on, this email gets the updates of {{office}}'s project {{project}}: new files, stages and meetings.",
+    "welcomeButton": "See the project's page",
+    "welcomeNotYou": "Wasn't you, or don't want them?",
+    "welcomeStop": "Stop getting them",
       "subject": "News on {{project}}",
       "intro": "There's news on the {{project}} project:",
       "files_one": "1 new file in {{stage}}: {{names}}",
@@ -620,5 +627,14 @@
     "didYouMean": "Did you mean",
     "invalidSome_one": "This doesn't look like an email: {{emails}}. Check it and try again.",
     "invalidSome_other": "These don't look like emails: {{emails}}. Check them and try again."
+  },
+  "subscribe": {
+    "title": "Updates by email",
+    "intro": "Get an email when there are new files, a stage changes or a meeting is set.",
+    "email": "Your email",
+    "placeholder": "you@email.com",
+    "submit": "Get them",
+    "sent": "Done! {{email}} will get this project's updates. We sent an email to say so.",
+    "archived": "This project no longer sends updates."
   }
 }

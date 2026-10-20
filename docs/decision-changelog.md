@@ -19,6 +19,23 @@ a new entry too.
 
 ---
 
+## 2026-10-20 — A32: clients add themselves to a project's emails
+
+**Was:** only staff listed the client's addresses (the Projeto dialog, and since
+earlier today creation and edit mode).
+
+**Now:** the project page offers "Novidades por e-mail". The address is listed at
+once and gets a welcome email saying so, with a small "Não foi você?" link to stop
+them. A client who had unsubscribed can sign up again this way; staff still can't.
+
+**Why:** Fabio (20 Oct 2026) asked for clients to sign up themselves, and then for
+no confirmation step: simpler for clients. **Considered and set aside:** a link to
+confirm before listing (double opt-in). It stops anyone signing up a stranger, but
+the welcome email lets that person leave with one click, and the device limit
+caps how often it can happen; for a handful of offices that's proportionate.
+
+---
+
 ## 2026-10-20 — A24, A32: the client's emails asked at creation, and missing ones flagged
 
 **Was:** creation asked for the name, the client, the type and the stages; the

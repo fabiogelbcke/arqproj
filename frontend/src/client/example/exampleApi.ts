@@ -105,6 +105,8 @@ export function installExampleApi(now = new Date()) {
     ["GET", new RegExp(`^${PAGE}$`), () => ({ body: page() })],
     ["GET", new RegExp(`^${PAGE}/files$`), () => ({ body: files() })],
     ["POST", /^\/api\/me\/tour-seen$/, () => done], // the example's tour stores nothing
+    // "Novidades por e-mail": as if signed up; nothing leaves the browser.
+    ["POST", new RegExp(`^${PAGE}/subscribe$`), () => done],
     [
       "PATCH",
       new RegExp(`^${PROJECT}$`),
