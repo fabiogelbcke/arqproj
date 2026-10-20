@@ -45,10 +45,10 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
       const accessChanged = access !== saved.access_mode || (access === "password" && password !== "");
       // An address typed but not added yet counts too: easy to forget "Adicionar".
       // One that isn't an address stops the save; the field says which.
-      const { list: wanted, rejected } = addEmails(recipients, newRecipient, RECIPIENTS_MAX);
-      if (rejected.length) {
+      const { list: wanted, left } = addEmails(recipients, newRecipient, RECIPIENTS_MAX);
+      if (left.length) {
         setRecipients(wanted);
-        setNewRecipient(rejected.join(", "));
+        setNewRecipient(left.join(", "));
         return;
       }
       const recipientsChanged = !sameList(

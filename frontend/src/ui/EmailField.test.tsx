@@ -50,6 +50,21 @@ describe("the email field", () => {
     expect(sent).not.toHaveBeenCalled();
     expect(screen.getByText(/Confira o e-mail/)).toBeInTheDocument();
   });
+
+  it("keeps it from being sent with Enter too, before the field is left", async () => {
+    const sent = vi.fn();
+    render(
+      <Form onSubmit={(event) => (event.preventDefault(), sent())}>
+        <EmailField label="E-mail" name="email" />
+        <button type="submit">Enviar</button>
+      </Form>,
+    );
+    await userEvent.type(screen.getByLabelText("E-mail"), "ana@gmail{Enter}");
+    expect(sent).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Confira o e-mail/)).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("E-mail"), ".com{Enter}");
+    expect(sent).toHaveBeenCalledOnce();
+  });
 });
 
 function List({ start = [] as string[], locked = [] as string[] }) {
@@ -100,6 +115,15 @@ describe("the email list", () => {
     await userEvent.type(screen.getByLabelText("Novo e-mail"), "bia@gmail.con");
     await userEvent.click(screen.getByRole("button", { name: "bia@gmail.com" }));
     expect(screen.getByLabelText("Novo e-mail")).toHaveValue("bia@gmail.com");
+  });
+
+  it("keeps the addresses past the maximum in the box, and says why", async () => {
+    render(<List start={["ana@x.com", "bia@x.com"]} />);
+    await userEvent.click(screen.getByLabelText("Novo e-mail"));
+    await userEvent.paste("caio@x.com, dani@x.com, edu@x.com");
+    expect(listed()).toBe("ana@x.com bia@x.com caio@x.com"); // 3 at most here
+    expect(screen.getByLabelText("Novo e-mail")).toHaveValue("dani@x.com, edu@x.com");
+    expect(screen.getByRole("alert")).toHaveTextContent("Já são 3 e-mails, o máximo.");
   });
 
   it("removes an address, except one the client unsubscribed", async () => {

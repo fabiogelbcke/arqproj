@@ -614,6 +614,7 @@
     "skip": "Pular"
   },
   "emailField": {
+    "tooMany": "Já são {{max}} e-mails, o máximo. Remova um para adicionar outro.",
     "invalid": "Confira o e-mail: falta algo, como em contato@escritorio.com.br.",
     "didYouMean": "Você quis dizer",
     "invalidSome_one": "Este não parece um e-mail: {{emails}}. Confira e tente de novo.",

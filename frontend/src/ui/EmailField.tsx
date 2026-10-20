@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { FieldError, Input, Label, Text, TextField as AriaTextField } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
@@ -29,7 +29,12 @@ export function EmailField({ label, description, name, value, onChange, isRequir
   // Checked once the field is left, not at each letter typed.
   const [left, setLeft] = useState(false);
   const email = tidyEmail(current);
+  const bad = email !== "" && !isEmail(email);
   const suggestion = left && isEmail(email) ? emailSuggestion(email) : null;
+  // The browser's own check, so a form isn't sent with a bad address even when
+  // Enter sends it before the field is left; its "invalid" shows our message.
+  const input = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => input.current?.setCustomValidity(bad ? t("emailField.invalid") : ""));
   return (
     <div className={styles.emailField}>
       <AriaTextField
@@ -53,12 +58,22 @@ export function EmailField({ label, description, name, value, onChange, isRequir
         inputMode="email"
         autoComplete={autoComplete}
         spellCheck="false"
-        // Shown from when the field is left (sending the form leaves it too), and
-        // gone as soon as it's fixed; while shown, the form won't send.
-        isInvalid={left && email !== "" && !isEmail(email)}
+        // Shown once the field is left or the form sent, gone as soon as it's fixed.
+        // "aria": the library leaves the browser's check to the effect above.
+        validationBehavior="aria"
+        isInvalid={left && bad}
       >
         <Label className={styles.label}>{label}</Label>
-        <Input className={styles.input} autoCapitalize="none" autoCorrect="off" />
+        <Input
+          ref={input}
+          className={styles.input}
+          autoCapitalize="none"
+          autoCorrect="off"
+          onInvalid={(event) => {
+            event.preventDefault(); // our message, not the browser's bubble
+            setLeft(true);
+          }}
+        />
         {description && (
           <Text slot="description" className={styles.hint}>
             {description}
