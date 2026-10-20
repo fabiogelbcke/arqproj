@@ -391,3 +391,29 @@ async def test_a_shared_link_stops_working_after_24_hours(client, db_session, ow
     assert (response.status_code, response.json()["error"]) == (404, "join_link_invalid")
     assert (await join(client, token)).status_code == 404
     assert (await client.get("/api/team", headers=owner)).json()["join_link"]["on"] is False
+
+
+async def test_a_pending_owner_invite_gets_no_link_through_the_shared_link(
+    client, db_session, owner, sent
+):
+    await invite(client, owner, email="caio@gmail.com", role="owner")
+    await db_session.execute(
+        text("UPDATE password_links SET created_at = now() - interval '1 hour'")
+    )
+    token = token_in(await turn_on(client, owner))
+    assert (await join(client, token)).status_code == 202  # the same answer
+    assert len(sent.emails) == 1  # only the owner's own invite
+
+
+async def test_an_account_that_came_in_meanwhile_is_never_deleted(client, db_session, owner, sent):
+    """Its invite used between reading it and deleting it: the delete finds
+    nothing to delete, and the account stays."""
+    pending = await accounts.create_user(db_session, email="bia@alinea.example", name="Bia")
+    await db_session.execute(
+        text("UPDATE users SET password_hash = 'chosen' WHERE id = :u"), {"u": str(pending.id)}
+    )
+    assert await team._delete_pending(db_session, pending) is False
+    still = await db_session.scalar(
+        text("SELECT count(*) FROM users WHERE email = 'bia@alinea.example'")
+    )
+    assert still == 1

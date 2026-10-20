@@ -28,7 +28,7 @@ from typing import Literal
 import anyio
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
@@ -205,17 +205,26 @@ async def invite(
     found = await accounts.find_user(db, email)
     if found is not None and found.password_hash is not None:
         raise ApiError(409, ErrorCode.ALREADY_STAFF, found.name)
-    if found is not None:
-        # Invited before and not in yet: a new invite, with what's given now (its
-        # old link goes with the old account; the app never edits an account's role).
-        await db.delete(found)
-        await db.flush()
+    # Invited before and not in yet: a new invite, with what's given now (its old
+    # link goes with the old account; the app never edits an account's role).
+    if found is not None and not await _delete_pending(db, found):
+        raise ApiError(409, ErrorCode.ALREADY_STAFF, found.name)  # in, just now
     user = await accounts.create_user(db, email=email, name=name, role=body.role)
     link, message = await _invite(db, request, tenant, user, staff.name)
     await db.commit()
     emailed = await _send(request, tenant, message, "/api/team/invites")
     log.info("staff %s invited to %s by %s", user.id, tenant.slug, staff.user_id)
     return InviteOut(member=_member(user, staff), link=link, emailed=emailed)
+
+
+async def _delete_pending(db: AsyncSession, user: User) -> bool:
+    """Deletes the account only if it's still pending, in one statement: if its
+    invite is used meanwhile (a password chosen), the row is in and stays."""
+    gone = await db.scalar(
+        delete(User).where(User.id == user.id, User.password_hash.is_(None)).returning(User.id)
+    )
+    db.expunge(user)
+    return gone is not None
 
 
 async def _pending(db: AsyncSession, user_id: uuid.UUID) -> User:
@@ -257,7 +266,8 @@ async def cancel_invite(
     comes later, A36)."""
     _owner(staff)
     user = await _pending(db, user_id)
-    await db.delete(user)
+    if not await _delete_pending(db, user):
+        raise ApiError(409, ErrorCode.NOT_AN_INVITE)  # in, just now
     await db.commit()
     log.info("invite %s cancelled in %s by %s", user_id, tenant.slug, staff.user_id)
 
@@ -348,7 +358,13 @@ async def join(
     if found is None:
         user = await accounts.create_user(db, email=email, name=name, role=Role.MEMBER)
         message = (await _invite(db, request, tenant, user, None))[1]
-    elif found.password_hash is None and not await _recent_invite(db, found):
+    # A pending invite gets a new link only if it's a member's: the shared link
+    # never lets anyone in as an owner (A36), even through an owner's invite.
+    elif (
+        found.password_hash is None
+        and found.role is Role.MEMBER
+        and not await _recent_invite(db, found)
+    ):
         message = (await _invite(db, request, tenant, found, None))[1]
     await db.commit()  # the connection goes back before the wait
     await anyio.sleep(max(0.0, JOIN_ANSWER_AT - (anyio.current_time() - started)))
