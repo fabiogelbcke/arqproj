@@ -1,0 +1,32 @@
+{
+  "_about": "Addresses both email rules must agree on: the staff app's (frontend/src/ui/email.ts) and the server's (backend/identity/emails.py).",
+  "valid": [
+    "ana@escritorio.com.br",
+    "ana.souza+obra@gmail.com",
+    "a_b-c@sub.dominio.arq.br",
+    "x@y.io",
+    "o'neil@escritorio.com"
+  ],
+  "invalid": [
+    "",
+    "ana",
+    "ana@",
+    "@gmail.com",
+    "ana@gmail",
+    "ana@gmail.c",
+    "ana@gmail.c0m",
+    "ana@@gmail.com",
+    "ana souza@gmail.com",
+    "ana..souza@gmail.com",
+    ".ana@gmail.com",
+    "ana.@gmail.com",
+    "ana@gmail..com",
+    "ana@-gmail.com",
+    "ana@gmail-.com",
+    "ana@gmail.com.",
+    "ana@gmail,com",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@gmail.com",
+    "ana@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com",
+    "ana@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+  ]
+}

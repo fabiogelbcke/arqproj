@@ -565,6 +565,22 @@ test("on a phone the staff bar holds all its buttons", async ({ page }) => {
   }
 });
 
+// Counts are round, like the painel's tabs; the client page's straight edges had
+// squared the updates bell's.
+test("the updates bell's count is round, on a computer and a phone", async ({ page }) => {
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/tour-projeto"); // the example project has unread updates
+    const count = page.locator(".client-notifications .notification-count");
+    await count.waitFor();
+    const { radius, height } = await count.evaluate((el) => ({
+      radius: parseFloat(getComputedStyle(el).borderTopLeftRadius),
+      height: el.getBoundingClientRect().height,
+    }));
+    expect(radius).toBeGreaterThanOrEqual(height / 2);
+  }
+});
+
 test("the example project: from the painel, its own tour, and edits that never leave the browser", async ({ page }) => {
   const link = invite("exemplo@alinea.example");
   await page.goto(link);

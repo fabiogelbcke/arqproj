@@ -92,12 +92,23 @@ describe("Configurações → Escritório", () => {
     expect(screen.getByText("13/28")).toBeInTheDocument();
   });
 
-  it("shows a refused email in Portuguese", async () => {
-    api(OFFICE, LOCAL, ME, {
+  it("says an email isn't one before sending it", async () => {
+    const sent = api(OFFICE, LOCAL, ME, {
       "PATCH /api/office": () => ({ status: 422, body: { error: "invalid_email" } }),
     });
     renderAt("/configuracoes/escritorio");
     await userEvent.type(await screen.findByLabelText(/E-mail de contato/), "x@y");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText(/Confira o e-mail/)).toBeInTheDocument();
+    expect(sent.some((request) => request.method === "PATCH")).toBe(false);
+  });
+
+  it("shows the server's refusal of an email in Portuguese", async () => {
+    api(OFFICE, LOCAL, ME, {
+      "PATCH /api/office": () => ({ status: 422, body: { error: "invalid_email" } }),
+    });
+    renderAt("/configuracoes/escritorio");
+    await userEvent.type(await screen.findByLabelText(/E-mail de contato/), "contato@escritorio.com.br");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Informe um e-mail válido");
   });

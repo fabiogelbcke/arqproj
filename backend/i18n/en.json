@@ -604,5 +604,11 @@
     "endTitle": "Now, your own project",
     "end": "Go back to Getting started in the dashboard to connect Google Drive and create your first project.",
     "skip": "Skip"
+  },
+  "emailField": {
+    "invalid": "Check the email: something's missing, as in contact@office.com.",
+    "didYouMean": "Did you mean",
+    "invalidSome_one": "This doesn't look like an email: {{emails}}. Check it and try again.",
+    "invalidSome_other": "These don't look like emails: {{emails}}. Check them and try again."
   }
 }

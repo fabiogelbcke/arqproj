@@ -604,5 +604,11 @@
     "endTitle": "Agora, o seu projeto",
     "end": "Volte aos Primeiros passos, no painel, para conectar o Google Drive e criar o seu primeiro projeto.",
     "skip": "Pular"
+  },
+  "emailField": {
+    "invalid": "Confira o e-mail: falta algo, como em contato@escritorio.com.br.",
+    "didYouMean": "Você quis dizer",
+    "invalidSome_one": "Este não parece um e-mail: {{emails}}. Confira e tente de novo.",
+    "invalidSome_other": "Estes não parecem e-mails: {{emails}}. Confira e tente de novo."
   }
 }

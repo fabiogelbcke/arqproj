@@ -62,7 +62,15 @@ async def test_an_address_the_client_unsubscribed_stays_off(client, db_session, 
 
 @pytest.mark.parametrize(
     "recipients",
-    [["sem-arroba"], ["a@b"], ["ana@x.com", "x" * 250 + "@x.com"]],
+    [
+        ["sem-arroba"],
+        ["a@b"],
+        ["ana@x.com", "x" * 250 + "@x.com"],
+        # Refused since the shared rule (identity/emails.py); the old pattern let them by.
+        ["ana..souza@x.com"],
+        ["ana@gmail,com.br"],
+        ["ana@-x.com"],
+    ],
 )
 async def test_a_bad_address_is_refused_and_nothing_changes(client, owner, recipients):
     found = await project(client)

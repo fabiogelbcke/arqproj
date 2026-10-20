@@ -30,9 +30,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.identity.emails import is_email, tidy_email
 from backend.identity.passwords import hash_password
 from backend.notifications.models import (
-    EMAIL_MAX,
     RECIPIENTS_MAX,
     ProjectRecipient,
     RecipientStatus,
@@ -48,7 +48,7 @@ from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
-from backend.web.office import _EMAIL, image_type
+from backend.web.office import image_type
 from backend.web.projects import ProjectSummary, summaries
 
 log = logging.getLogger(__name__)
@@ -98,10 +98,10 @@ def _addresses(given: list[str]) -> list[str]:
     """Trimmed, lowercase, each once, in the order given."""
     found: list[str] = []
     for raw in given:
-        email = raw.strip().lower()
+        email = tidy_email(raw)
         if not email:
             continue
-        if len(email) > EMAIL_MAX or not _EMAIL.match(email):
+        if not is_email(email):
             raise ApiError(422, ErrorCode.INVALID_EMAIL)
         if email not in found:
             found.append(email)

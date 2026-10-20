@@ -8,7 +8,7 @@ import { api, call } from "../api/client";
 import { useTenant } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
-import { TextField } from "../ui/TextField";
+import { EmailField } from "../ui/EmailField";
 import { AuthBrand } from "./AuthBrand";
 import styles from "./pages.module.css";
 
@@ -43,9 +43,8 @@ export function ForgotPasswordPage() {
                 ask.mutate(email);
               }}
             >
-              <TextField
+              <EmailField
                 name="email"
-                type="email"
                 autoComplete="username"
                 isRequired
                 value={email}

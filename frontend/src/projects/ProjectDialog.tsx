@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError } from "../api/client";
 import { Button } from "../ui/Button";
 import { CloseButton } from "../ui/CloseButton";
+import { EmailListField, addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { toast } from "../ui/Toast";
@@ -36,11 +37,6 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
   const [recipients, setRecipients] = useState(() => project.recipients.map((r) => r.email));
   const [newRecipient, setNewRecipient] = useState("");
   const unsubscribed = new Set(saved.recipients.filter((r) => !r.subscribed).map((r) => r.email));
-  const addRecipient = () => {
-    const email = newRecipient.trim().toLowerCase();
-    if (email && !recipients.includes(email)) setRecipients([...recipients, email]);
-    setNewRecipient("");
-  };
   const saving = change.isPending;
 
   const save = async () => {
@@ -48,8 +44,13 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
       const linkChanged = slug !== saved.slug;
       const accessChanged = access !== saved.access_mode || (access === "password" && password !== "");
       // An address typed but not added yet counts too: easy to forget "Adicionar".
-      const typed = newRecipient.trim().toLowerCase();
-      const wanted = typed && !recipients.includes(typed) ? [...recipients, typed] : recipients;
+      // One that isn't an address stops the save; the field says which.
+      const { list: wanted, rejected } = addEmails(recipients, newRecipient, RECIPIENTS_MAX);
+      if (rejected.length) {
+        setRecipients(wanted);
+        setNewRecipient(rejected.join(", "));
+        return;
+      }
       const recipientsChanged = !sameList(
         wanted,
         saved.recipients.map((r) => r.email),
@@ -170,51 +171,20 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
               />
             )}
 
-            <fieldset className={styles.recipientsField}>
-              <legend className={styles.label}>{t("projectSettings.recipients")}</legend>
-              <p className={styles.choiceNote}>{t("projectSettings.recipientsHint")}</p>
-              {recipients.length > 0 && (
-                <ul className={styles.recipients}>
-                  {recipients.map((email) => (
-                    <li key={email} className={styles.recipient}>
-                      <span className={styles.recipientEmail}>{email}</span>
-                      {unsubscribed.has(email) ? (
-                        // The client's choice: staff can't undo it (A32).
-                        <small className={styles.choiceNote}>{t("projectSettings.unsubscribed")}</small>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          aria-label={t("projectSettings.removeRecipient", { email })}
-                          onPress={() => setRecipients(recipients.filter((other) => other !== email))}
-                        >
-                          ×
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {recipients.length < RECIPIENTS_MAX && (
-                <div className={styles.recipientAdd}>
-                  <TextField
-                    label={t("projectSettings.newRecipient")}
-                    type="email"
-                    value={newRecipient}
-                    onChange={setNewRecipient}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault(); // add it, don't save the dialog
-                        addRecipient();
-                      }
-                    }}
-                    autoComplete="off"
-                  />
-                  <Button onPress={addRecipient} isDisabled={!newRecipient.trim()}>
-                    {t("projectSettings.addRecipient")}
-                  </Button>
-                </div>
-              )}
-            </fieldset>
+            <EmailListField
+              label={t("projectSettings.recipients")}
+              description={t("projectSettings.recipientsHint")}
+              emails={recipients}
+              onChange={setRecipients}
+              draft={newRecipient}
+              onDraft={setNewRecipient}
+              max={RECIPIENTS_MAX}
+              // The client's choice: staff can't undo it (A32).
+              locked={(email) => (unsubscribed.has(email) ? t("projectSettings.unsubscribed") : null)}
+              addLabel={t("projectSettings.addRecipient")}
+              newLabel={t("projectSettings.newRecipient")}
+              removeLabel={(email) => t("projectSettings.removeRecipient", { email })}
+            />
 
             {nameTaken ? (
               <p role="alert" className={styles.problem}>

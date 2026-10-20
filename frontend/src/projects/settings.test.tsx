@@ -184,6 +184,22 @@ describe("the Projeto dialog", () => {
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ recipients: ["ana@example.com"] });
   });
 
+  it("doesn't save while a typed email isn't one, and says which", async () => {
+    const sent = api({ [`PATCH ${PATH}`]: () => ({ body: { ...CASA, row_version: 5 } }) });
+    const dialog = await openSettings();
+    await userEvent.type(within(dialog).getByLabelText("Novo e-mail"), "ana@example.com, joao@example");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Este não parece um e-mail: joao@example");
+    expect(sent.some((r) => r.method === "PATCH")).toBe(false);
+    // The good one was added; fixed, both are saved.
+    const field = within(dialog).getByLabelText("Novo e-mail");
+    await userEvent.clear(field);
+    await userEvent.type(field, "joao@example.com");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ recipients: ["ana@example.com", "joao@example.com"] });
+  });
+
   it("shows who unsubscribed, and staff can't remove them to add them back", async () => {
     api({
       "GET /api/projects": () => ({
