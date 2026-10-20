@@ -420,11 +420,11 @@ export function RecipientsEditor({ staff, onDone }: { staff: Staff; onDone: (sav
       {...save}
       onCancel={() => onDone(false)}
       onSubmit={() => {
-        // One typed but not added counts too; one that isn't an address stops it.
-        const { list, rejected } = addEmails(emails, draft, RECIPIENTS_MAX);
+        // One typed but not added counts too; one that can't be added stops it.
+        const { list, left } = addEmails(emails, draft, RECIPIENTS_MAX);
         setEmails(list);
-        setDraft(rejected.join(", "));
-        if (rejected.length) return;
+        setDraft(left.join(", "));
+        if (left.length) return;
         void save.run(() =>
           call(
             api.PATCH("/api/projects/{project_id}", {

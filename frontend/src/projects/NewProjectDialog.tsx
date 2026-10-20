@@ -66,11 +66,11 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
       className={styles.form}
       onSubmit={(event) => {
         event.preventDefault();
-        // One typed but not added counts too; one that isn't an address stops it.
-        const { list, rejected } = addEmails(recipients, newRecipient, RECIPIENTS_MAX);
+        // One typed but not added counts too; one that can't be added stops it.
+        const { list, left } = addEmails(recipients, newRecipient, RECIPIENTS_MAX);
         setRecipients(list);
-        setNewRecipient(rejected.join(", "));
-        if (rejected.length) return;
+        setNewRecipient(left.join(", "));
+        if (left.length) return;
         create.mutate(
           {
             name,
