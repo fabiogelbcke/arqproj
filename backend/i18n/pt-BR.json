@@ -606,6 +606,7 @@
     "skip": "Pular"
   },
   "emailField": {
+    "required": "Informe o e-mail.",
     "tooMany": "Já são {{max}} e-mails, o máximo. Remova um para adicionar outro.",
     "invalid": "Confira o e-mail: falta algo, como em contato@escritorio.com.br.",
     "didYouMean": "Você quis dizer",

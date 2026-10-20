@@ -47,6 +47,7 @@ export function ForgotPasswordPage() {
                 name="email"
                 autoComplete="username"
                 isRequired
+                lookup
                 value={email}
                 onChange={setEmail}
                 label={t("signIn.email")}
