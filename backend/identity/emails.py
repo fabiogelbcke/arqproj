@@ -10,8 +10,12 @@ _LABEL = re.compile(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?")
 
 
 def tidy_email(raw: str) -> str:
-    """Trimmed and lowercase."""
-    return raw.strip().lower()
+    """Trimmed and lowercase, without what comes along when one is pasted from an
+    email program ("<ana@x.com>", "mailto:ana@x.com"): as the staff app's tidyEmail."""
+    email = raw.strip()
+    email = re.sub(r"^mailto:", "", email, flags=re.IGNORECASE)
+    email = re.sub(r"^<(.*)>$", r"\1", email)
+    return email.strip().lower()
 
 
 def is_email(email: str) -> bool:
