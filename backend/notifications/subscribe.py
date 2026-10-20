@@ -4,7 +4,7 @@ welcome email, saying they're in, with a small "Não foi você?" link to stop th
 
 from __future__ import annotations
 
-import hashlib
+import secrets
 from html import escape
 from pathlib import Path
 from string import Template
@@ -58,8 +58,8 @@ def welcome_email(office: Office, project: str, page: str, to: str, unsubscribe:
         subject=t(locale, "welcomeSubject", project=project),
         html=html,
         text=text,
-        # One welcome per signing up, however often a retry sends it.
-        idempotency_key="welcome-" + hashlib.sha256(f"{page}|{to}".encode()).hexdigest()[:32],
+        # Each signing up its own (one back after unsubscribing gets a new welcome).
+        idempotency_key=f"welcome-{secrets.token_hex(16)}",
         reply_to=office.reply_to,
         # The email program's own "unsubscribe" button too, as the updates have.
         headers={

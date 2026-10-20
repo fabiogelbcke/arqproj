@@ -3,15 +3,12 @@ once, and welcomed with a link to stop them."""
 
 import re
 
-import anyio
 import pytest
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import event, select, text
 
 from backend.notifications.email import EmailError
 from backend.notifications.models import ProjectRecipient
 from backend.tests import test_office
-from backend.tests.conftest import TEST_DATABASE_URL
 from backend.tests.test_office import ALINEA, tenant_id
 from backend.tests.test_pages import project_id
 from backend.web import attempts, subscribe
@@ -129,34 +126,23 @@ async def test_a_full_list_takes_no_more(client, db_session, sent):
     assert "ana@gmail.com" not in await listed(db_session) and sent.emails == []
 
 
-async def test_sign_ups_for_one_project_wait_for_each_other(client, db_session, sent):
-    """Two at once must not both find room, or both insert: the second waits for
-    the first's lock, which holds across connections."""
-    pid = str(await project_id(db_session, "casa-jardim"))
-    other = create_async_engine(TEST_DATABASE_URL)
-    done = anyio.Event()
-    answers = []
+async def test_a_sign_up_locks_the_projects_row_as_staff_edits_do(client, db_session, sent):
+    """Sign-ups and the Projeto dialog lock the same row (the project's), so
+    together they never pass 20 addresses or race an archive, and a double click
+    waits. (Two connections can't share this test's uncommitted data, so the
+    statement is what's checked.)"""
+    seen = []
+    engine = db_session.bind.engine if hasattr(db_session.bind, "engine") else db_session.bind
 
-    async def request():
-        answers.append((await ask(client, "ana@gmail.com")).status_code)
-        done.set()
+    def record(conn, cursor, statement, *args):
+        seen.append(statement)
 
+    event.listen(engine.sync_engine, "before_cursor_execute", record)
     try:
-        async with other.connect() as holder:
-            async with holder.begin():
-                await holder.execute(
-                    text("SELECT pg_advisory_xact_lock(hashtext('recipients'), hashtext(:p))"),
-                    {"p": pid},
-                )
-                async with anyio.create_task_group() as tasks:
-                    tasks.start_soon(request)
-                    await anyio.sleep(0.5)
-                    assert not done.is_set()  # waiting for the lock
-                    await holder.commit()
-            await done.wait()
+        assert (await ask(client, "ana@gmail.com")).status_code == 204
     finally:
-        await other.dispose()
-    assert answers == [204]
+        event.remove(engine.sync_engine, "before_cursor_execute", record)
+    assert any("FROM projects" in sql and "FOR UPDATE" in sql for sql in seen)
 
 
 async def test_a_device_asking_again_and_again_must_wait(client, sent):
@@ -164,3 +150,11 @@ async def test_a_device_asking_again_and_again_must_wait(client, sent):
         await ask(client, f"p{n}@gmail.com")
     response = await ask(client, "outra@gmail.com")
     assert (response.status_code, response.json()) == (429, {"error": "too_many_attempts"})
+
+
+async def test_signing_up_again_after_stopping_gets_a_new_welcome(client, db_session, sent):
+    await ask(client, "ana@gmail.com")
+    await client.post(stop_link_in(sent.emails[0]), headers=ALINEA)
+    await ask(client, "ana@gmail.com")
+    first, second = sent.emails
+    assert first.idempotency_key != second.idempotency_key  # not deduplicated away

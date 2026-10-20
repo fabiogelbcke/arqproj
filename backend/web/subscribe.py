@@ -13,7 +13,7 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
@@ -24,6 +24,7 @@ from backend.notifications.models import RECIPIENTS_MAX, ProjectRecipient, Recip
 from backend.notifications.office import office_of
 from backend.notifications.subscribe import welcome_email
 from backend.projects.enums import ProjectStatus
+from backend.projects.models import Project
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
 from backend.web.auth import CurrentStaff, optional_staff
@@ -31,9 +32,6 @@ from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.pages import _readable
 
 TRIES = "subscribe"  # a few requests per device in 15 minutes
-# One sign-up per project at a time: two at once must not both find room, or both
-# find no row and both insert (a double click).
-_LOCK = text("SELECT pg_advisory_xact_lock(hashtext('recipients'), hashtext(:project))")
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -77,7 +75,11 @@ async def subscribe(
     email = tidy_email(body.email)
     if not is_email(email):
         raise ApiError(422, ErrorCode.INVALID_EMAIL)
-    await db.execute(_LOCK, {"project": str(project.id)})
+    # The project's row, locked as staff edits lock it: one change to its addresses
+    # at a time across both (room for 20, a double click), and its status as of now.
+    project = await db.scalar(select(Project).where(Project.id == project.id).with_for_update())
+    if project.status is ProjectStatus.ARCHIVED:
+        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
     recipient = await db.scalar(
         select(ProjectRecipient).where(
             ProjectRecipient.project_id == project.id, ProjectRecipient.email == email

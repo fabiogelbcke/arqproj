@@ -1079,13 +1079,8 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
+          "204": {
+            "description": "Successful Response"
           },
           "403": {
             "content": {
@@ -3247,6 +3242,7 @@
           "page_locked",
           "wrong_page_password",
           "too_many_attempts",
+          "recipients_full",
           "password_required",
           "invalid_detail",
           "invalid_stage",
