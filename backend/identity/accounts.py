@@ -10,6 +10,7 @@ from __future__ import annotations
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.identity.emails import tidy_email
 from backend.identity.models import LoginSession, Role, User
 from backend.identity.passwords import hash_password
 
@@ -26,7 +27,7 @@ class PasswordTooShort(AccountError):
 
 
 def normalize_email(email: str) -> str:
-    return email.strip().lower()
+    return tidy_email(email)
 
 
 def _check_password(password: str) -> None:
