@@ -170,6 +170,10 @@
     "en": "English"
   },
   "errors": {
+    "invalid_staff_name": "Informe o nome (até 80 caracteres).",
+    "already_staff": "Esta pessoa já faz parte da equipe.",
+    "not_an_invite": "Este convite não existe mais ou a pessoa já entrou. Recarregue a página.",
+    "join_link_invalid": "Este link não funciona mais. Peça o link atual a quem administra o escritório.",
     "not_signed_in": "Sua sessão terminou. Entre novamente.",
     "csrf_token_missing_or_wrong": "Não foi possível confirmar esta ação. Recarregue a página e tente de novo.",
     "invalid_credentials": "E-mail ou senha incorretos.",
@@ -236,6 +240,7 @@
     "password": "Com senha"
   },
   "settings": {
+    "team": "Equipe",
     "title": "Configurações",
     "drive": "Google Drive",
     "office": "Escritório"
@@ -617,5 +622,56 @@
     "didYouMean": "Você quis dizer",
     "invalidSome_one": "Este não parece um e-mail: {{emails}}. Confira e tente de novo.",
     "invalidSome_other": "Estes não parecem e-mails: {{emails}}. Confira e tente de novo."
+  },
+  "team": {
+    "title": "Equipe",
+    "you": "(você)",
+    "pending": "Convite pendente",
+    "role": {
+      "member": "Equipe",
+      "owner": "Administrador(a)"
+    },
+    "roleHint": {
+      "member": "Cuida dos projetos: páginas, arquivos, reuniões.",
+      "owner": "Também convida pessoas e cuida das configurações e do Google Drive."
+    },
+    "roleLabel": "Acesso",
+    "ownerOnly": "Só administradores convidam pessoas.",
+    "inviteTitle": "Convidar uma pessoa",
+    "inviteIntro": "Ela recebe um e-mail com um link para escolher a senha. Você também pode copiar o link e mandar por WhatsApp.",
+    "name": "Nome",
+    "email": "E-mail",
+    "invite": "Enviar convite",
+    "inviting": "Enviando…",
+    "invited": "Convite enviado para {{email}}. Se preferir, mande o link você mesmo:",
+    "notEmailed": "Não deu para enviar o e-mail agora. Copie o link e mande você mesmo:",
+    "inviteLink": "Link do convite",
+    "inviteLinkOf": "Link do convite de {{name}}",
+    "alreadyIn": "{{name}} já faz parte da equipe com este e-mail.",
+    "sendAgain": "Enviar de novo",
+    "sentAgain": "Convite enviado de novo para {{email}}.",
+    "cancel": "Cancelar convite",
+    "cancelled": "Convite para {{email}} cancelado.",
+    "copy": "Copiar link",
+    "copied": "Link copiado.",
+    "linkTitle": "Link da equipe",
+    "linkIntro": "Um link para compartilhar com várias pessoas, num grupo por exemplo. Quem abre informa nome e e-mail e recebe um e-mail para escolher a senha. Entra como equipe, nunca como administrador(a).",
+    "linkOn": "Criar link da equipe",
+    "linkNew": "Criar novo link",
+    "linkNewNote": "Um link novo desativa o anterior.",
+    "linkOnce": "Copie e guarde agora: por segurança, o link só aparece uma vez. Para compartilhar de novo depois, crie um novo.",
+    "linkOnSince": "Há um link ativo, criado em {{date}}.",
+    "linkOff": "Desativar link",
+    "linkOffDone": "Link da equipe desativado."
+  },
+  "join": {
+    "title": "Entrar na equipe do {{office}}",
+    "intro": "Informe seu nome e e-mail. Você vai receber um e-mail com um link para escolher sua senha.",
+    "submit": "Receber o link",
+    "sentTitle": "Confira seu e-mail",
+    "sent": "Se tudo estiver certo, enviamos um link para {{email}}. Abra-o para escolher sua senha. Se já tem conta, é só entrar.",
+    "invalidTitle": "Este link não funciona mais",
+    "invalidBody": "Ele foi desativado ou trocado por um novo. Peça o link atual a quem administra o escritório.",
+    "haveAccount": "Já tenho conta"
   }
 }
