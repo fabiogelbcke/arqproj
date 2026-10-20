@@ -134,8 +134,6 @@ class NewProject:
     recipients: tuple[str, ...] = ()  # the client's addresses for updates (A32), optional
 
 
-
-
 async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
     """The project's stages, in order, once everything in `new` checks out."""
     if not new.name.strip() or len(new.name.strip()) > NAME_MAX:

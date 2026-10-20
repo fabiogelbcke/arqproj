@@ -50,6 +50,8 @@
     "toSignIn": "Go to the sign-in page"
   },
   "projects": {
+    "noClientEmail": "No client email",
+    "addClientEmail": "Add",
     "title": "Projects",
     "emptyTitle": "No projects here yet",
     "emptyBody": "Create the first project to get started.",
@@ -94,6 +96,8 @@
     "directionDesc": "Descending order. Change to ascending"
   },
   "newProject": {
+    "recipients": "Client's emails (optional)",
+    "recipientsHint": "They get an email with each update (files, stages, meetings). You can add them later.",
     "title": "New project",
     "name": "Project name",
     "client": "Client",
@@ -422,6 +426,10 @@
     "downloadFile": "Download {{name}}"
   },
   "edit": {
+    "clientEmails": "Client's emails",
+    "noClientEmail": "Nobody gets this project's updates by email.",
+    "noClientEmailWhy": "With the client's email, they hear about new files, stages and meetings without opening the page.",
+    "addClientEmail": "Add the client's emails",
     "name": "Project name",
     "nameHint": "Shown at the top of the client's page and in the painel. The page's address stays the same.",
     "dropFiles": "Drop files here or",

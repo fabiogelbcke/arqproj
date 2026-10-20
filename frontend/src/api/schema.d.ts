@@ -1093,6 +1093,11 @@ export interface components {
             stages: string[];
             /** Slug */
             slug: string;
+            /**
+             * Recipients
+             * @default []
+             */
+            recipients: string[];
             /** Creation Key */
             creation_key: string;
         };
@@ -1200,6 +1205,11 @@ export interface components {
             status: components["schemas"]["ProjectStatus"];
             /** Row Version */
             row_version: number;
+            /**
+             * Recipients
+             * @default []
+             */
+            recipients: components["schemas"]["RecipientOut"][];
         };
         /** StageFilesOut */
         StageFilesOut: {

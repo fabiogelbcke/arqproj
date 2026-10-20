@@ -20,6 +20,7 @@ import { useConnectDrive, useDrive } from "../drive/drive";
 import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
 import { CloseButton } from "../ui/CloseButton";
+import { EmailListField, addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { suggestedSlug, useCreateProject, useCreationOptions, type ProjectSummary } from "./projects";
@@ -27,6 +28,7 @@ import styles from "./projects.module.css";
 
 const CLIENT_MAX = 30; // for now (Fabio, 18 Oct 2026); the API checks the same
 const NAME_MAX = 120;
+const RECIPIENTS_MAX = 20; // the server checks it too
 
 function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: ProjectSummary) => void }) {
   const { t } = useTranslation();
@@ -36,6 +38,9 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
   const [creationKey] = useState(() => crypto.randomUUID());
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
+  // The client's addresses for updates (A32, asked here too since 20 Oct 2026).
+  const [recipients, setRecipients] = useState<string[]>([]);
+  const [newRecipient, setNewRecipient] = useState("");
   const [typeKey, setTypeKey] = useState<string | null>(null);
   // null: the chosen type's usual stages; a list once staff tick or untick one.
   const [ticked, setTicked] = useState<string[] | null>(null);
@@ -61,8 +66,21 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
       className={styles.form}
       onSubmit={(event) => {
         event.preventDefault();
+        // One typed but not added counts too; one that isn't an address stops it.
+        const { list, rejected } = addEmails(recipients, newRecipient, RECIPIENTS_MAX);
+        setRecipients(list);
+        setNewRecipient(rejected.join(", "));
+        if (rejected.length) return;
         create.mutate(
-          { name, client_name: client, project_type: type?.key ?? "", stages, slug, creation_key: creationKey },
+          {
+            name,
+            client_name: client,
+            project_type: type?.key ?? "",
+            stages,
+            slug,
+            recipients: list,
+            creation_key: creationKey,
+          },
           {
             onSuccess: (project) => {
               onCreated(project);
@@ -89,6 +107,18 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         isRequired
         maxLength={CLIENT_MAX}
         autoComplete="off"
+      />
+      <EmailListField
+        label={t("newProject.recipients")}
+        description={t("newProject.recipientsHint")}
+        emails={recipients}
+        onChange={setRecipients}
+        draft={newRecipient}
+        onDraft={setNewRecipient}
+        max={RECIPIENTS_MAX}
+        addLabel={t("projectSettings.addRecipient")}
+        newLabel={t("projectSettings.newRecipient")}
+        removeLabel={(email) => t("projectSettings.removeRecipient", { email })}
       />
       <RadioGroup
         className={styles.types}
