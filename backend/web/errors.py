@@ -69,6 +69,10 @@ class ErrorCode(StrEnum):
     UPLOAD_FAILED = "upload_failed"  # the browser couldn't finish sending: logged, with the code
     FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
     FILE_NOT_OURS_TO_MOVE = "file_not_ours_to_move"  # put straight into Drive: move it there
+    INVALID_STAFF_NAME = "invalid_staff_name"  # blank, or over 80 characters
+    ALREADY_STAFF = "already_staff"  # `conflict_name`: the account with that email
+    NOT_AN_INVITE = "not_an_invite"  # unknown, or already in (only pending invites)
+    JOIN_LINK_INVALID = "join_link_invalid"  # turned off, replaced, or another office's
 
 
 class ErrorOut(BaseModel):

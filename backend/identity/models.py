@@ -16,6 +16,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKeyConstraint,
+    Index,
     Text,
     UniqueConstraint,
     text,
@@ -102,3 +103,30 @@ class PasswordLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
     token_hash: Mapped[str] = mapped_column(Text, unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class JoinLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
+    """An office's shared link for joining its staff (A36). Whoever opens it gives
+    a name and an email and is emailed an invite link, so the email is proven
+    theirs; they join as members. Only a hash of its token is here. At most one
+    is on at a time: turning it off, or making a new one, sets `revoked_at`."""
+
+    __tablename__ = "join_links"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "created_by"],
+            ["users.tenant_id", "users.id"],
+            ondelete="CASCADE",
+            name="fk_join_links_creator",
+        ),
+        Index(
+            "uq_join_links_one_on",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+    )
+
+    created_by: Mapped[uuid.UUID]
+    token_hash: Mapped[str] = mapped_column(Text, unique=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

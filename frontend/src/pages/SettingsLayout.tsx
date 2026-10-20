@@ -11,6 +11,7 @@ export function SettingsLayout() {
       <nav className={styles.subnav} aria-label={t("settings.title")}>
         <NavLink to="/configuracoes/escritorio">{t("settings.office")}</NavLink>
         <NavLink to="/configuracoes/drive">{t("settings.drive")}</NavLink>
+        <NavLink to="/configuracoes/equipe">{t("settings.team")}</NavLink>
       </nav>
       <Outlet />
     </>

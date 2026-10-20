@@ -67,6 +67,10 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("tenants", "SELECT"),
         ("tenant_domains", "SELECT"),
         ("users", "SELECT"),
+        ("users", "INSERT"),  # an owner's invite, or the shared link, makes an account (A36)
+        ("users", "DELETE"),  # a cancelled invite (only one not in yet)
+        ("join_links", "SELECT"),
+        ("join_links", "INSERT"),
         ("sessions", "SELECT"),
         ("sessions", "INSERT"),
         ("sessions", "UPDATE"),
@@ -120,6 +124,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("users", "password_hash", "UPDATE"),
         ("users", "tour_seen_at", "UPDATE"),  # the project page's tour, once per account
         ("password_links", "used_at", "UPDATE"),
+        ("join_links", "revoked_at", "UPDATE"),  # turned off, or replaced by a new one
         *(
             ("projects", column, "UPDATE")
             for column in (

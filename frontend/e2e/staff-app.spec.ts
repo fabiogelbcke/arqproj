@@ -206,6 +206,38 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeVisible();
 });
 
+// A36: an owner invites from Configurações → Equipe; the invited person uses the
+// link (emailed, or copied from the page) to choose a password, and is in.
+test("an owner invites a person, who chooses a password from the link and is in", async ({ page, browser }) => {
+  await page.goto(invite("dona-equipe@alinea.example", "owner"));
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.goto("/painel/configuracoes/equipe");
+  await page.getByRole("button", { name: "Convidar pessoa" }).click();
+  await page.getByLabel("Nome", { exact: true }).fill("Caio Reis");
+  await page.getByLabel("E-mail").fill("caio-equipe@alinea.example");
+  await page.getByRole("button", { name: "Enviar convite" }).click();
+  const link = await page.getByLabel("Link do convite").inputValue();
+  await expect(page.getByRole("list", { name: "Equipe" })).toContainText("Convite pendente");
+
+  // On the office's address, as emailed; this test server listens on its own port.
+  const other = await browser.newPage();
+  await other.goto(link.replace(/:\d+\//, `:${PORT}/`));
+  await other.getByLabel("Nova senha").fill("outra-senha-boa");
+  await other.getByLabel("Repita a senha").fill("outra-senha-boa");
+  await other.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await expect(other.getByRole("heading", { name: "Projetos" })).toBeVisible();
+  await other.close();
+
+  await page.getByRole("button", { name: "Pronto" }).click();
+  await page.reload();
+  const caio = page.getByRole("list", { name: "Equipe" }).getByRole("listitem").filter({ hasText: "Caio Reis" });
+  await expect(caio).toContainText("Equipe");
+  await expect(caio).not.toContainText("Convite pendente");
+});
+
 test("cards in a row line up, whatever their content", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const link = invite("alinhamento@alinea.example");

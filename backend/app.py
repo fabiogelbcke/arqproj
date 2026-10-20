@@ -39,6 +39,7 @@ from backend.web import (
     project_settings,
     projects,
     subscribe,
+    team,
     tenant,
     unsubscribe,
 )
@@ -162,6 +163,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(drive.router)
     app.include_router(onboarding.router)
     app.include_router(office.router)
+    app.include_router(team.router)
     app.include_router(projects.router)
     app.include_router(subscribe.router)
     app.include_router(project_settings.router)
