@@ -673,9 +673,14 @@ test("a file's open menu is above the other files and the next stage, on a phone
   await page.setViewportSize({ width: 390, height: 844 });
   await signInAsNewStaff(page, `menu-arquivo-${info.project.name}@alinea.example`);
   await page.goto("/casa-jardim");
+  // A phone has no timeline: the stage opens from its own arrow, before edit mode
+  // (where the arrow gives way to the stage's controls).
+  const third = page.locator("#stage-2");
+  if (!/is-expanded/.test((await third.getAttribute("class")) ?? "")) await third.locator('[aria-controls="stage-body-2"]').click();
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
-  await openThirdStage(page);
-  await page.locator("#stage-2").getByRole("button", { name: /^Ações para / }).first().click();
+  await page.locator("#stage-2.is-expanded .file").first().waitFor();
+  await page.waitForTimeout(400); // the opening's fade
+  await third.getByRole("button", { name: /^Ações para / }).first().click();
   await page.locator("#stage-2 .filemenu.is-open [role=menuitem]").first().waitFor();
   await page.waitForTimeout(300); // the menu's rise
   expect(await coveringPopup(page, "#stage-2 .filemenu.is-open .menu__list")).toEqual([]);
