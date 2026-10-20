@@ -10,6 +10,7 @@ import { useTheme } from "../ui/theme";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton, openOnClick } from "./EditButton";
 import { splitTitle } from "./titleLead";
+import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import { FilePreview, FileToolbar, linkedFile, shownFiles, usePrefs, type FilePlace, type FileView } from "./FileTools";
 
@@ -948,6 +949,8 @@ export function ProjectPage({
                 <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
               )}
             </div>
+            {/* Clients add themselves to the emails (A32); not in edit mode, not when done. */}
+            {!canEdit && !page.completed && <Subscribe slug={slug} />}
           </div>
         </div>
         {canEdit && (

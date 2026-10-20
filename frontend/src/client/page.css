@@ -280,3 +280,18 @@ a.site__brand { color: inherit; text-decoration: none; }
 @media (max-width: 760px) { .client-email-notice { flex-direction: column; align-items: flex-start; } }
 :root[data-theme="dark"] .client-email-notice { border-left-color: #e9a58a; background: color-mix(in srgb, #e9a58a 8%, var(--brand-bg)); }
 .cwrap > .editor { margin: 20px 0 8px; }
+
+/* "Novidades por e-mail": clients add themselves (A32). */
+.client-subscribe { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--brand-line); font-size: 14px; }
+.client-subscribe h2 { margin: 0 0 6px; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--brand-muted); }
+.client-subscribe > p { margin: 0 0 12px; color: var(--brand-ink); line-height: 1.45; }
+.client-subscribe form { display: flex; gap: 8px; }
+.client-subscribe input {
+  flex: 1; min-width: 0; min-height: var(--control-small); padding: 0 12px; border: 1px solid var(--brand-line);
+  background: var(--brand-bg); color: var(--brand-ink); font: inherit;
+}
+.client-subscribe input[aria-invalid] { border-color: #9b3d1d; }
+.client-subscribe .client-subscribe__hint { margin: 8px 0 0; font-size: 13px; color: var(--brand-muted); }
+.client-subscribe__hint button { padding: 0; border: 0; background: none; color: var(--brand-ink); font: inherit; font-weight: 500; text-decoration: underline; cursor: pointer; }
+.client-subscribe .client-subscribe__problem { margin: 8px 0 0; font-size: 13px; color: #9b3d1d; }
+:root[data-theme="dark"] .client-subscribe .client-subscribe__problem { color: #e9a58a; }

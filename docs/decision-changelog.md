@@ -19,6 +19,22 @@ a new entry too.
 
 ---
 
+## 2026-10-20 — A32: clients add themselves to a project's emails
+
+**Was:** only staff listed the client's addresses (the Projeto dialog, and since
+earlier today creation and edit mode).
+
+**Now:** the project page offers "Receber as novidades por e-mail". The address
+gets a link to confirm, and only then is listed. A client who had unsubscribed
+can turn the emails back on this way; staff still can't.
+
+**Why:** Fabio (20 Oct 2026) asked whether clients could sign up themselves. A
+confirmation link is needed because the page is public or shared by password:
+without it anyone could subscribe a stranger, and the office's domain would be
+sending unwanted email.
+
+---
+
 ## 2026-10-20 — A24, A32: the client's emails asked at creation, and missing ones flagged
 
 **Was:** creation asked for the name, the client, the type and the stages; the
