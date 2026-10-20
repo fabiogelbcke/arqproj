@@ -104,7 +104,7 @@ by `portal-staging@` and named in `deploy/staging/service.yaml`.
 
 Same shape as staging (`deploy/production/service.yaml`), 0–4 instances, running
 as `portal-production@`. Addresses: `alineaarquitetos.com` and `www.`, and
-`myunio.app` (Cloud Run domain mappings until the load balancer, plan A21), and
+`myunio.app` (Cloud Run domain mappings until they move to the load balancer below, A21), and
 `https://portal-496714293251.us-east1.run.app`. Secrets:
 `portal-production-app-secret` (its own), `portal-oauth-client-secret` and
 `portal-resend-api-key` (production's, from the old site). Drive uses the production OAuth client
@@ -120,6 +120,24 @@ in Resend), Alinea's from `alineaarquitetos.com`.
 2. The `myunio.app` domain mapping moves from `portal-staging` to `portal`.
 3. The office: `make tenant ENV=production SLUG=alinea NAME="ALINEA ARQUITETOS"
    HOST=alineaarquitetos.com`, then `make staff ENV=production …`.
+
+## Load balancer (A21)
+
+Built 20 Oct 2026: a global external Application Load Balancer in front of
+`portal`, at `34.149.133.166` (`portal-lb-ip`). Serverless NEG `portal-neg`
+(us-east1), backend `portal-backend`, URL map `portal-lb`; HTTPS proxy
+`portal-https` (port 443) with the certificate map `portal-cert-map`; port 80
+only redirects to HTTPS (`portal-http-redirect`). Certificate Manager
+`portal-cert` covers `*.myunio.app`, `myunio.app`, `alineaarquitetos.com` and
+`www.alineaarquitetos.com`, proven by DNS records at GoDaddy (`_acme-challenge`
+CNAMEs: `myunio-auth`, `alinea-auth`, `www-alinea-auth`). Every office on a
+`myunio.app` subdomain reaches it through the `*.myunio.app` record; staging keeps
+its own domain mapping (`staging.myunio.app`).
+
+**Switching an address to it:** its DNS points at `34.149.133.166` (an A record;
+the Cloud Run mapping's A/AAAA or `ghs.googlehosted.com` records go). Once every
+production address goes through it, `portal` runs with `FORWARDED_HOPS=2` and
+ingress `internal-and-cloud-load-balancing` (`deploy/production/service.yaml`).
 
 ## Images: Artifact Registry `portal`
 
