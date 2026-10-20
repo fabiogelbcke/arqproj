@@ -50,6 +50,8 @@
     "toSignIn": "Go to the sign-in page"
   },
   "projects": {
+    "noClientEmail": "No client email",
+    "addClientEmail": "Add",
     "title": "Projects",
     "emptyTitle": "No projects here yet",
     "emptyBody": "Create the first project to get started.",
@@ -94,6 +96,8 @@
     "directionDesc": "Descending order. Change to ascending"
   },
   "newProject": {
+    "recipients": "Client's emails (optional)",
+    "recipientsHint": "They get an email with each update (files, stages, meetings). You can add them later.",
     "title": "New project",
     "name": "Project name",
     "client": "Client",
@@ -170,6 +174,11 @@
     "en": "English"
   },
   "errors": {
+    "invalid_staff_name": "Give the name (up to 80 characters).",
+    "already_staff": "This person is already on the team.",
+    "not_an_invite": "This invite no longer exists, or they're already in. Reload the page.",
+    "join_link_invalid": "This link no longer works. Ask whoever runs the office for the current link.",
+    "recipients_full": "This project already has the most emails it can. Talk to the office.",
     "not_signed_in": "Your session has ended. Please sign in again.",
     "csrf_token_missing_or_wrong": "We could not confirm this action. Reload the page and try again.",
     "invalid_credentials": "Incorrect email or password.",
@@ -236,6 +245,7 @@
     "password": "Password protected"
   },
   "settings": {
+    "team": "Team",
     "title": "Settings",
     "drive": "Google Drive",
     "office": "Office"
@@ -422,6 +432,10 @@
     "downloadFile": "Download {{name}}"
   },
   "edit": {
+    "clientEmails": "Client's emails",
+    "noClientEmail": "Nobody gets this project's updates by email.",
+    "noClientEmailWhy": "With the client's email, they hear about new files, stages and meetings without opening the page.",
+    "addClientEmail": "Add the client's emails",
     "name": "Project name",
     "nameHint": "Shown at the top of the client's page and in the painel. The page's address stays the same.",
     "dropFiles": "Drop files here or",
@@ -506,6 +520,18 @@
     "orderSaved": "Stage order saved."
   },
   "email": {
+    "inviteSubject": "Invitation to {{office}}'s panel",
+    "inviteIntro": "{{inviter}} invited you to {{office}}'s panel, where the team looks after the project pages. To come in, choose your password:",
+    "inviteIntroLink": "You asked to join {{office}}'s panel. To confirm this email is yours, choose your password:",
+    "inviteButton": "Choose my password",
+    "inviteExpiry": "The link works for 7 days, once.",
+    "inviteIgnore": "If you weren't expecting this, you can ignore this email: no account works without the password chosen through this link.",
+    "welcomeSubject": "You'll get {{project}}'s updates",
+    "welcomeHello": "Hello!",
+    "welcomeIntro": "From now on, this email gets the updates of {{office}}'s project {{project}}: new files, stages and meetings.",
+    "welcomeButton": "See the project's page",
+    "welcomeNotYou": "Wasn't you, or don't want them?",
+    "welcomeStop": "Stop getting them",
       "subject": "News on {{project}}",
       "intro": "There's news on the {{project}} project:",
       "files_one": "1 new file in {{stage}}: {{names}}",
@@ -604,5 +630,76 @@
     "endTitle": "Now, your own project",
     "end": "Go back to Getting started in the dashboard to connect Google Drive and create your first project.",
     "skip": "Skip"
+  },
+  "emailField": {
+    "required": "Enter the email.",
+    "tooMany": "That's {{max}} emails, the most there can be. Remove one to add another.",
+    "invalid": "Check the email: something's missing, as in contact@office.com.",
+    "didYouMean": "Did you mean",
+    "invalidSome_one": "This doesn't look like an email: {{emails}}. Check it and try again.",
+    "invalidSome_other": "These don't look like emails: {{emails}}. Check them and try again."
+  },
+  "team": {
+    "linkOnUntil": "A link is on until {{when}}.",
+    "inviteAnother": "Invite someone else",
+    "done": "Done",
+    "close": "Cancel",
+    "title": "Team",
+    "you": "(you)",
+    "pending": "Invite pending",
+    "role": {
+      "member": "Team",
+      "owner": "Administrator"
+    },
+    "roleHint": {
+      "member": "Looks after projects: pages, files, meetings.",
+      "owner": "Also invites people and looks after the settings and Google Drive."
+    },
+    "roleLabel": "Access",
+    "ownerOnly": "Only administrators invite people.",
+    "inviteTitle": "Invite someone",
+    "inviteIntro": "They get an email with a link to choose their password. You can also copy the link and send it by WhatsApp.",
+    "name": "Name",
+    "email": "Email",
+    "invite": "Send invite",
+    "inviting": "Sending…",
+    "invited": "Invite sent to {{email}}. If you like, send the link yourself:",
+    "notEmailed": "The email couldn't go just now. Copy the link and send it yourself:",
+    "inviteLink": "Invite link",
+    "inviteLinkOf": "{{name}}'s invite link",
+    "alreadyIn": "{{name}} is already on the team with this email.",
+    "sendAgain": "Send again",
+    "sentAgain": "Invite sent again to {{email}}.",
+    "cancel": "Cancel invite",
+    "cancelled": "Invite to {{email}} cancelled.",
+    "copy": "Copy link",
+    "copied": "Link copied.",
+    "linkTitle": "Invite with a link",
+    "linkIntro": "A link to share with several people, in a group for example. It works for 24 hours. Whoever opens it gives a name and an email and gets an email to choose a password. They join as team, never as administrators.",
+    "linkOn": "Create team link",
+    "linkNew": "Create a new link",
+    "linkNewNote": "A new link turns the previous one off.",
+    "linkOnce": "Copy and share it now: for safety, the link shows only once and works for 24 hours. After that, create a new one.",
+    "linkOff": "Turn link off",
+    "linkOffDone": "Team link turned off."
+  },
+  "join": {
+    "title": "Join {{office}}'s team",
+    "intro": "Give your name and email. You'll get an email with a link to choose your password.",
+    "submit": "Get the link",
+    "sentTitle": "Check your email",
+    "sent": "If all is well, we sent a link to {{email}}. Open it to choose your password. If you already have an account, just sign in.",
+    "invalidTitle": "This link no longer works",
+    "invalidBody": "It was turned off or replaced by a new one. Ask whoever runs the office for the current link.",
+    "haveAccount": "I already have an account"
+  },
+  "subscribe": {
+    "title": "Updates by email",
+    "intro": "Get an email when there are new files, a stage changes or a meeting is set.",
+    "email": "Your email",
+    "placeholder": "you@email.com",
+    "submit": "Get them",
+    "sent": "Done! {{email}} will get this project's updates. We sent an email to say so.",
+    "archived": "This project no longer sends updates."
   }
 }

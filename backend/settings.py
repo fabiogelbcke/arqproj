@@ -12,7 +12,7 @@ import re
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The app connects as a restricted role that row-level security applies to; only
@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     # Derives the keys for signing short-lived notes and encrypting stored tokens
     # (backend.security.keys). Required, at least 32 characters, when deployed.
     app_secret: str = "local-development-secret-never-used-when-deployed"
+    # Google proxies in front of the app, each appending the address it saw to
+    # X-Forwarded-For: 1 with Cloud Run alone, 2 behind the external load balancer
+    # (A21). The visitor's own address is that many entries from the end; anything
+    # before it the visitor may have written themselves.
+    forwarded_hops: int = Field(default=1, ge=1, le=3)
     # Google sign-in for connecting an office's Drive (the app registration).
     google_oauth_client_id: str | None = None
     google_oauth_client_secret: str | None = None

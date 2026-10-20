@@ -269,3 +269,32 @@
   .navInMenu { display: none; } /* the sections are in the ☰ drawer */
   .topbarIn { padding-block: 8px; }
 }
+
+/* Configurações → Equipe (A36). */
+.members { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
+.member {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px;
+  padding: 14px 0; border-bottom: 1px solid var(--line);
+}
+.member > div:first-child { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.member strong { font-weight: 500; }
+.memberRole { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.member > .actions, .member > .linkToCopy { grid-column: 1 / -1; }
+.teamBlock { display: grid; gap: 12px; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+.teamBlock h3 { font-size: 18px; font-weight: 500; }
+.teamResult { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--raise); }
+.teamResult p { margin: 0; }
+.problem { color: var(--danger); font-size: 14px; }
+.fieldLabel { font-size: 14px; font-weight: 500; }
+.roles { display: grid; gap: 8px; }
+.roleChoice {
+  display: grid; gap: 2px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r); cursor: pointer;
+}
+.roleChoice small { color: var(--muted); font-size: 13px; }
+.roleChoice[data-selected] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.roleChoice[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 2px; }
+.linkToCopy { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.linkToCopy input {
+  flex: 1; min-width: 0; min-height: var(--control-small); padding: 0 10px; border: 1px solid var(--line);
+  border-radius: var(--r); background: var(--bg); color: var(--ink); font: 13px/1 ui-monospace, monospace;
+}

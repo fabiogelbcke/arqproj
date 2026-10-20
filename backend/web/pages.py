@@ -35,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity.passwords import verify_password
+from backend.notifications.models import ProjectRecipient, RecipientStatus
 from backend.office.profile import logo_urls
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import (
@@ -63,6 +64,7 @@ from backend.web.auth import CurrentStaff, optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
 from backend.web.project_settings import serve_cover
+from backend.web.projects import RecipientOut
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -158,6 +160,8 @@ class StaffView(BaseModel):
     status: ProjectStatus
     # Sent back with every change made from the page (plan section 7).
     row_version: int
+    # Who gets the project's updates (A32): edit mode says when nobody does.
+    recipients: list[RecipientOut] = []
 
 
 class PageOut(BaseModel):
@@ -327,7 +331,17 @@ async def page(
     shown = await _page(db, tenant, project, slug)
     if staff is not None:
         shown.staff = StaffView(
-            project_id=project.id, status=project.status, row_version=project.row_version
+            project_id=project.id,
+            status=project.status,
+            row_version=project.row_version,
+            recipients=[
+                RecipientOut(email=r.email, subscribed=r.status is RecipientStatus.SUBSCRIBED)
+                for r in await db.scalars(
+                    select(ProjectRecipient)
+                    .where(ProjectRecipient.project_id == project.id)
+                    .order_by(ProjectRecipient.created_at, ProjectRecipient.email)
+                )
+            ],
         )
     if staff is not None or project.access_mode is AccessMode.PASSWORD:
         response.headers.update(PRIVATE)

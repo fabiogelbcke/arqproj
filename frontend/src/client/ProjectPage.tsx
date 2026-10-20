@@ -10,6 +10,7 @@ import { useTheme } from "../ui/theme";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton, openOnClick } from "./EditButton";
 import { splitTitle } from "./titleLead";
+import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import { FilePreview, FileToolbar, linkedFile, shownFiles, usePrefs, type FilePlace, type FileView } from "./FileTools";
 
@@ -19,6 +20,7 @@ const NameEditor = lazy(() => import("./Editors").then((m) => ({ default: m.Name
 const DetailsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DetailsEditor })));
 const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.MeetingEditor })));
 const NotesEditor = lazy(() => import("./Editors").then((m) => ({ default: m.NotesEditor })));
+const RecipientsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.RecipientsEditor })));
 const AddStage = lazy(() => import("./StageEditing").then((m) => ({ default: m.AddStage })));
 const ProgressRail = lazy(() => import("./StageEditing").then((m) => ({ default: m.ProgressRail })));
 const StageControls = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageControls })));
@@ -448,11 +450,15 @@ function Stage({
   hidden = false,
   total,
   onOpenFile,
+  help,
+  onHelp,
 }: {
   page: Page;
   index: number;
   open: boolean;
   onToggle: () => void;
+  help: boolean; // its "Sobre esta etapa" is open (one stage's at a time)
+  onHelp: (open: boolean) => void;
   files: StageFiles | undefined;
   reference: string | null;
   slug: string;
@@ -467,14 +473,13 @@ function Stage({
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
-  const [help, setHelp] = useState(false);
   const stage = page.stages[index]!;
   const state = stateOf(page, index);
   // "Sobre esta etapa": desktop only for now; on a phone its "+" beside the
   // stage's arrow read as another way to open it (Fabio, 19 Oct 2026).
   const helpPanel = stage.about && (
     <div className="stage-help-pop" hidden={!help}>
-      <button type="button" className="iconbtn stage-help-close" aria-label={t("page.closeAbout")} onClick={() => setHelp(false)}>
+      <button type="button" className="iconbtn stage-help-close" aria-label={t("page.closeAbout")} onClick={() => onHelp(false)}>
         <Icon name="x" />
       </button>
       <p>{stage.about}</p>
@@ -487,7 +492,7 @@ function Stage({
         type="button"
         aria-expanded={help}
         aria-label={t("page.aboutStageOf", { title: stage.title })}
-        onClick={() => setHelp(!help)}
+        onClick={() => onHelp(!help)}
       >
         <span className="stage-help-mark" aria-hidden="true">
           i
@@ -745,12 +750,15 @@ export function ProjectPage({
   };
   // One stage open at a time: the current one, until the client opens another.
   const [openStage, setOpenStage] = useState(() => Math.max(0, (page.current_position ?? 1) - 1));
+  // One stage's "Sobre esta etapa" open at a time: two would overlap.
+  const [openHelp, setOpenHelp] = useState<number | null>(null);
   // After a reorder the open stage stays open wherever the new order puts it, and
   // a stage's notes or rename, kept by row, close: another stage is on that row now.
   const [reorders, setReorders] = useState(0);
   const reordered = (order: number[]) => {
     setOpenStage((open) => (open < 0 ? open : Math.max(0, order.indexOf(open + 1))));
     setOpenEditor((editor) => (editor?.startsWith("notes-") ? null : editor));
+    setOpenHelp(null);
     setReorders((n) => n + 1);
   };
   // The file tools (FileTools): search, type, order, view, and the file in preview.
@@ -835,6 +843,27 @@ export function ProjectPage({
         }
       />
       <div className="cwrap">
+        {canEdit &&
+          (openEditor === "emails" ? (
+            <Suspense fallback={null}>
+              <RecipientsEditor staff={staff!} onDone={done} />
+            </Suspense>
+          ) : (
+            staff!.status === "active" &&
+            // (A page from a server before this list came along says nothing.)
+            staff!.recipients !== undefined &&
+            !staff!.recipients.some((recipient) => recipient.subscribed) && (
+              // Nobody gets this project's updates (A32): said first, with the way to fix it.
+              <div className="client-email-notice" role="note">
+                <p>
+                  <strong>{t("edit.noClientEmail")}</strong> {t("edit.noClientEmailWhy")}
+                </p>
+                <button type="button" className="b b--small b--primary" onClick={() => setOpenEditor("emails")}>
+                  {t("edit.addClientEmail")}
+                </button>
+              </div>
+            )
+          ))}
         <div className="project-opening">
           <header className="project-heading">
             {canEdit && openEditor === "name" ? (
@@ -926,6 +955,8 @@ export function ProjectPage({
                 <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
               )}
             </div>
+            {/* Clients add themselves to the emails (A32); not in edit mode, not when done. */}
+            {!canEdit && !page.completed && <Subscribe slug={slug} />}
           </div>
         </div>
         {canEdit && (
@@ -963,6 +994,8 @@ export function ProjectPage({
                 : i === openStage
             }
             hidden={filtering && shown[i]!.count === 0 && !unreadable(i)}
+            help={openHelp === i}
+            onHelp={(open) => setOpenHelp(open ? i : null)}
             onToggle={() =>
               filtering
                 ? setClosed((was) => {

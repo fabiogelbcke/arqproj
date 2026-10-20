@@ -21,6 +21,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.identity.emails import InvalidEmail, email_list
+from backend.notifications.models import ProjectRecipient
 from backend.projects.enums import RESERVED_SLUGS, ProjectStatus
 from backend.projects.models import (
     Project,
@@ -129,6 +131,7 @@ class NewProject:
     stages: tuple[str, ...]  # built-in stage keys; listed in their fixed order
     slug: str
     creation_key: str
+    recipients: tuple[str, ...] = ()  # the client's addresses for updates (A32), optional
 
 
 async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
@@ -158,6 +161,10 @@ async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
         raise CreationProblem("slug_taken", conflict_name=taken)
     if (same_name := await project_named(db, new.name)) is not None:
         raise CreationProblem("project_name_taken", conflict_name=same_name)
+    try:
+        email_list(new.recipients)
+    except InvalidEmail:
+        raise CreationProblem("invalid_email") from None
     return stages
 
 
@@ -209,6 +216,8 @@ async def create_project(
         db.add(project)
         await db.flush()
         db.add(ProjectSlug(project_id=project.id, slug=new.slug))
+        for email in email_list(new.recipients):
+            db.add(ProjectRecipient(project_id=project.id, email=email))
         for (position, stage), folder in zip(stages, stage_folders, strict=True):
             db.add(
                 ProjectStage(

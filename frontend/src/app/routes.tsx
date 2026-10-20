@@ -5,11 +5,13 @@ import { Navigate, Outlet, type RouteObject } from "react-router";
 import { type Locale, useOfficeLocale } from "../i18n";
 import { ChoosePasswordPage } from "../pages/ChoosePasswordPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import { JoinPage } from "../pages/JoinPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import { SettingsDrivePage } from "../pages/SettingsDrivePage";
 import { SettingsLayout } from "../pages/SettingsLayout";
 import { SettingsOfficePage } from "../pages/SettingsOfficePage";
+import { SettingsTeamPage } from "../pages/SettingsTeamPage";
 import { SignInPage } from "../pages/SignInPage";
 import { useMe, useTenant } from "../session/session";
 import { Toaster } from "../ui/Toast";
@@ -38,6 +40,7 @@ export const routes: RouteObject[] = [
       { path: "entrar", element: <SignInPage /> },
       { path: "definir-senha", element: <ChoosePasswordPage /> },
       { path: "esqueci-a-senha", element: <ForgotPasswordPage /> },
+      { path: "entrar-na-equipe", element: <JoinPage /> },
       {
         element: <SignedInLayout />,
         children: [
@@ -49,6 +52,7 @@ export const routes: RouteObject[] = [
               { index: true, element: <Navigate to="/configuracoes/escritorio" replace /> },
               { path: "escritorio", element: <SettingsOfficePage /> },
               { path: "drive", element: <SettingsDrivePage /> },
+              { path: "equipe", element: <SettingsTeamPage /> },
             ],
           },
           { path: "*", element: <NotFoundPage /> },

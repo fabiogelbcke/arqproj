@@ -19,6 +19,61 @@ a new entry too.
 
 ---
 
+## 2026-10-20 — A36 (new), section 5: owners invite staff from the painel
+
+**Was:** section 5 deferred invitation screens as an add-on for larger offices;
+staff accounts were made with the `staff` command, which prints a one-time link
+to pass on.
+
+**Now:** Configurações → Equipe. An owner invites a person (name, email, role),
+and the app emails the one-time link, with "Copiar link" too. An owner can also
+turn on a shared office link, for 24 hours: joiners give a name and an email and
+get the same emailed link, so they always prove the email is theirs, and they join
+as members.
+
+**Why:** Fabio (20 Oct 2026): offices should add their own people rather than us
+doing it for them, and asked for both a personal invite and a shared link.
+**Considered and set aside:** a shared link that creates the account on the spot
+with a password typed there. Section 5 requires invitations to bind a verified
+email, and a link passed around a group would let anyone claim any address.
+**Kept for later:** removing active staff and changing roles.
+
+---
+
+## 2026-10-20 — A32: clients add themselves to a project's emails
+
+**Was:** only staff listed the client's addresses (the Projeto dialog, and since
+earlier today creation and edit mode).
+
+**Now:** the project page offers "Novidades por e-mail". The address is listed at
+once and gets a welcome email saying so, with a small "Não foi você?" link to stop
+them. A client who had unsubscribed can sign up again this way; staff still can't.
+
+**Why:** Fabio (20 Oct 2026) asked for clients to sign up themselves, and then for
+no confirmation step: simpler for clients. **Considered and set aside:** a link to
+confirm before listing (double opt-in). It stops anyone signing up a stranger, but
+the welcome email lets that person leave with one click, and the device limit
+caps how often it can happen; for a handful of offices that's proportionate.
+
+---
+
+## 2026-10-20 — A24, A32: the client's emails asked at creation, and missing ones flagged
+
+**Was:** creation asked for the name, the client, the type and the stages; the
+client's email addresses were added afterwards in the Projeto dialog, opened from
+the card's menu. Nothing showed that a project had none.
+
+**Now:** "Novo projeto" asks for them too, optionally. A project nobody receives
+updates for (no address, or only unsubscribed ones) shows "Sem e-mail do
+cliente" on its painel card, and a notice in the project page's edit mode; both
+lead to adding them.
+
+**Why:** Fabio (20 Oct 2026): the emails are an important part of the process,
+and tucked in the settings they felt like an afterthought. Clients signing up
+for the emails themselves is a separate change.
+
+---
+
 ## 2026-10-19 — Plan section 16: the example project at the top of Primeiros passos; a painel tour
 
 **Was:** the example project's entry was an optional line at the bottom of
