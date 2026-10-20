@@ -8,6 +8,7 @@ import { useDarkLogo, useOffice, useSaveOffice, useUploadLogo } from "../office/
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
+import { EmailField } from "../ui/EmailField";
 import { TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import styles from "./pages.module.css";
@@ -93,10 +94,9 @@ export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
           maxLength={28} // for now (Fabio, 18 Oct 2026); the API checks the same
           isReadOnly={!manage}
         />
-        <TextField
+        <EmailField
           label={t("office.email")}
           description={t("office.emailHint")}
-          type="email"
           value={values.contact_email}
           onChange={(contact_email) => setDraft({ ...values, contact_email })}
           isReadOnly={!manage}

@@ -10,6 +10,7 @@ import { useTheme } from "../ui/theme";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton, openOnClick } from "./EditButton";
 import { splitTitle } from "./titleLead";
+import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import { FilePreview, FileToolbar, linkedFile, shownFiles, usePrefs, type FilePlace, type FileView } from "./FileTools";
 
@@ -19,6 +20,7 @@ const NameEditor = lazy(() => import("./Editors").then((m) => ({ default: m.Name
 const DetailsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DetailsEditor })));
 const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.MeetingEditor })));
 const NotesEditor = lazy(() => import("./Editors").then((m) => ({ default: m.NotesEditor })));
+const RecipientsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.RecipientsEditor })));
 const AddStage = lazy(() => import("./StageEditing").then((m) => ({ default: m.AddStage })));
 const ProgressRail = lazy(() => import("./StageEditing").then((m) => ({ default: m.ProgressRail })));
 const StageControls = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageControls })));
@@ -841,6 +843,27 @@ export function ProjectPage({
         }
       />
       <div className="cwrap">
+        {canEdit &&
+          (openEditor === "emails" ? (
+            <Suspense fallback={null}>
+              <RecipientsEditor staff={staff!} onDone={done} />
+            </Suspense>
+          ) : (
+            staff!.status === "active" &&
+            // (A page from a server before this list came along says nothing.)
+            staff!.recipients !== undefined &&
+            !staff!.recipients.some((recipient) => recipient.subscribed) && (
+              // Nobody gets this project's updates (A32): said first, with the way to fix it.
+              <div className="client-email-notice" role="note">
+                <p>
+                  <strong>{t("edit.noClientEmail")}</strong> {t("edit.noClientEmailWhy")}
+                </p>
+                <button type="button" className="b b--small b--primary" onClick={() => setOpenEditor("emails")}>
+                  {t("edit.addClientEmail")}
+                </button>
+              </div>
+            )
+          ))}
         <div className="project-opening">
           <header className="project-heading">
             {canEdit && openEditor === "name" ? (
@@ -932,6 +955,8 @@ export function ProjectPage({
                 <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
               )}
             </div>
+            {/* Clients add themselves to the emails (A32); not in edit mode, not when done. */}
+            {!canEdit && !page.completed && <Subscribe slug={slug} />}
           </div>
         </div>
         {canEdit && (

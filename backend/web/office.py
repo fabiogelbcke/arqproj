@@ -23,7 +23,6 @@ site), stored beside it as `logo.png`. The server only checks that it is a PNG.
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request, UploadFile
@@ -33,6 +32,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.identity.emails import is_email, tidy_email
 from backend.identity.models import Role
 from backend.office.models import LogoType, OfficeProfile
 from backend.office.profile import logo_urls
@@ -61,7 +61,6 @@ _EXTENSIONS = {
     LogoType.WEBP: "webp",
     LogoType.SVG: "svg",
 }
-_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
 # Served as an image only: nothing in it may run, load or be framed.
 LOGO_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
@@ -139,8 +138,8 @@ async def change_office(
             raise ApiError(422, ErrorCode.INVALID_OFFICE_NAME)
         found.display_name = name
     if body.contact_email is not None:
-        email = body.contact_email.strip().lower()
-        if email and not _EMAIL.match(email):
+        email = tidy_email(body.contact_email)
+        if email and not is_email(email):
             raise ApiError(422, ErrorCode.INVALID_EMAIL)
         found.contact_email = email or None
     await db.commit()

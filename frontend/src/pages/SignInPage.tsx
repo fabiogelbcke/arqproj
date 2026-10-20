@@ -7,6 +7,7 @@ import { api, call } from "../api/client";
 import { useMe, useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { EmailField } from "../ui/EmailField";
 import { TextField } from "../ui/TextField";
 import { AuthBrand } from "./AuthBrand";
 import styles from "./pages.module.css";
@@ -45,7 +46,7 @@ export function SignInPage() {
             signIn.mutate({ email: String(form.get("email")), password: String(form.get("password")) });
           }}
         >
-          <TextField name="email" type="email" autoComplete="username" isRequired label={t("signIn.email")} />
+          <EmailField name="email" autoComplete="username" isRequired lookup label={t("signIn.email")} />
           <TextField
             name="password"
             type="password"

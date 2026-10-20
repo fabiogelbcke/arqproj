@@ -229,6 +229,17 @@ test("cards in a row line up, whatever their content", async ({ page }) => {
   });
   expect(rows.some((tops) => tops.length > 1)).toBe(true); // at least one row to compare
   for (const tops of rows) expect(new Set(tops).size).toBe(1);
+  // And nothing in a card runs into what's under it (a sixth part once pushed the
+  // meeting onto the update's line: the card has five rows).
+  const overlaps = await active.getByTestId("project-card").evaluateAll((cards) =>
+    cards.flatMap((card) => {
+      const parts = [...card.children].filter((el) => el.getBoundingClientRect().height > 0 && getComputedStyle(el).position !== "absolute");
+      return parts.slice(1).flatMap((part, i) =>
+        part.getBoundingClientRect().top < parts[i]!.getBoundingClientRect().bottom - 1 ? [`${card.textContent?.slice(0, 20)}: ${part.className}`] : [],
+      );
+    }),
+  );
+  expect(overlaps).toEqual([]);
 });
 
 test("the client page: content, redirects, not found and protected", async ({ page }) => {
@@ -562,6 +573,22 @@ test("on a phone the staff bar holds all its buttons", async ({ page }) => {
       const label = bar.getByRole("button", { name: "Ver como cliente" });
       expect(await label.evaluate((b) => b.scrollWidth <= b.clientWidth), `${width}px`).toBe(true);
     }
+  }
+});
+
+// Counts are round, like the painel's tabs; the client page's straight edges had
+// squared the updates bell's.
+test("the updates bell's count is round, on a computer and a phone", async ({ page }) => {
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/tour-projeto"); // the example project has unread updates
+    const count = page.locator(".client-notifications .notification-count");
+    await count.waitFor();
+    const { radius, height } = await count.evaluate((el) => ({
+      radius: parseFloat(getComputedStyle(el).borderTopLeftRadius),
+      height: el.getBoundingClientRect().height,
+    }));
+    expect(radius).toBeGreaterThanOrEqual(height / 2);
   }
 });
 

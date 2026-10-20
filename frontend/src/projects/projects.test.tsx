@@ -213,6 +213,52 @@ describe("Novo projeto", () => {
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-123");
   });
 
+  it("sends the client's emails with the project, a typed one too, and stops for one that isn't an email", async () => {
+    const sent = api(LOCAL, {
+      "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago" }) }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa do Lago");
+    await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Família Souza");
+    const emails = within(dialog).getByLabelText("Novo e-mail");
+    await userEvent.type(emails, "ana@souza.com.br{Enter}joao@souza");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Este não parece um e-mail: joao@souza");
+    expect(sent.some((r) => r.method === "POST")).toBe(false);
+    await userEvent.type(emails, ".com.br");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    await screen.findByText("Projeto “Casa do Lago” criado.");
+    expect(sent.find((r) => r.method === "POST")?.body).toMatchObject({
+      recipients: ["ana@souza.com.br", "joao@souza.com.br"],
+    });
+  });
+
+  it("flags an active project nobody gets updates for, and its flag opens where to add them", async () => {
+    api(LOCAL, {
+      "GET /api/projects": () => ({
+        body: [
+          project({}), // no address
+          project({ id: "2", name: "Conceição", slug: "conceicao", recipients: [{ email: "ana@x.com", subscribed: true }] }),
+          project({ id: "3", name: "Refúgio", slug: "refugio", recipients: [{ email: "ana@x.com", subscribed: false }] }),
+          project({ id: "4", name: "Pronto", slug: "pronto", status: "completed" }),
+        ],
+      }),
+    });
+    renderAt("/");
+    const card = async (name: string) => (await screen.findByRole("link", { name })).closest("li")!;
+    expect(within(await card("Casa Jardim")).getByRole("button", { name: /Sem e-mail do cliente/ })).toBeInTheDocument();
+    expect(within(await card("Conceição")).queryByRole("button", { name: /Sem e-mail do cliente/ })).toBeNull();
+    // Only an unsubscribed address: nobody gets them either.
+    expect(within(await card("Refúgio")).getByRole("button", { name: /Sem e-mail do cliente/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Concluídos" })); // unfolded
+    expect(within(await card("Pronto")).queryByRole("button", { name: /Sem e-mail do cliente/ })).toBeNull();
+    await userEvent.click(within(await card("Casa Jardim")).getByRole("button", { name: /Sem e-mail do cliente/ }));
+    expect(await screen.findByRole("dialog", { name: "Projeto" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Novo e-mail")).toBeInTheDocument();
+  });
+
   it("if the types fail to load, offers to try again and blocks creating", async () => {
     let fail = true;
     api(LOCAL, {

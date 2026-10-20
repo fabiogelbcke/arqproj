@@ -23,10 +23,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from backend.db.base import Base, IdMixin, TimestampsMixin
 from backend.db.isolation import TenantOwned
 from backend.db.types import TextEnum, enum_check
+from backend.identity.emails import EMAIL_MAX
 from backend.projects.models import _project_fk
 
 RECIPIENTS_MAX = 20  # a family or a company's few contacts, not a mailing list
-EMAIL_MAX = 254
 
 
 class RecipientStatus(StrEnum):
