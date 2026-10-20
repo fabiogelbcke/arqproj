@@ -281,7 +281,7 @@ async def test_a_faked_forwarded_address_doesnt_make_a_new_device():
     the address it saw at the end (Cloud Run alone)."""
     from types import SimpleNamespace
 
-    settings = SimpleNamespace(deployed=True)
+    settings = SimpleNamespace(deployed=True, forwarded_hops=1)
     request = SimpleNamespace(
         app=SimpleNamespace(state=SimpleNamespace(settings=settings)),
         headers={"x-forwarded-for": "1.2.3.4, 203.0.113.9"},
@@ -290,6 +290,25 @@ async def test_a_faked_forwarded_address_doesnt_make_a_new_device():
     assert attempts.device(request) == "203.0.113.9"
     request.headers = {"x-forwarded-for": "5.6.7.8, 203.0.113.9"}
     assert attempts.device(request) == "203.0.113.9"  # same device, whatever it sends
+
+
+async def test_behind_the_load_balancer_the_visitor_is_the_second_to_last():
+    """A21: the balancer adds the visitor's address, then Cloud Run adds the
+    balancer's own; counting the balancer as the visitor would put everyone in
+    one bucket, so five tries by anyone would block everyone."""
+    from types import SimpleNamespace
+
+    settings = SimpleNamespace(deployed=True, forwarded_hops=2)
+    request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(settings=settings)),
+        headers={"x-forwarded-for": "1.2.3.4, 203.0.113.9, 35.191.0.1"},
+        client=None,
+    )
+    assert attempts.device(request) == "203.0.113.9"
+    request.headers = {"x-forwarded-for": "198.51.100.7, 35.191.0.1"}
+    assert attempts.device(request) == "198.51.100.7"  # another visitor, another device
+    request.headers = {"x-forwarded-for": "35.191.0.1"}  # too few entries: never the balancer
+    assert attempts.device(request) == "unknown"
 
 
 async def test_two_people_giving_the_same_new_address_at_once(client, owner, monkeypatch):

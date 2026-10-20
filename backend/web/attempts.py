@@ -27,15 +27,16 @@ _in_flight: dict[tuple[str, str], int] = defaultdict(int)
 
 
 def device(request: Request) -> str:
-    """The visitor's address. Google's front end appends the address it saw to
-    X-Forwarded-For, after anything the visitor sent (which can be faked), so
-    the last entry is the trustworthy one with Cloud Run alone. With an external
-    load balancer in front (A21 option A), the second to last is: revisit then.
-    Locally, the socket's."""
-    if request.app.state.settings.deployed:
+    """The visitor's address. Each Google proxy in front appends the address it saw
+    to X-Forwarded-For, after anything the visitor sent (which can be faked): the
+    visitor's own is `forwarded_hops` entries from the end (1 with Cloud Run
+    alone, 2 behind the A21 load balancer). Locally, the socket's."""
+    settings = request.app.state.settings
+    if settings.deployed:
         entries = [e.strip() for e in request.headers.get("x-forwarded-for", "").split(",")]
-        if entries and entries[-1]:
-            return entries[-1]
+        hops = settings.forwarded_hops
+        if len(entries) >= hops and entries[-hops]:
+            return entries[-hops]
     return request.client.host if request.client else "unknown"
 
 
