@@ -109,6 +109,16 @@ describe("the client page", () => {
     expect(screen.queryByRole("button", { name: "Sobre esta etapa: Estudo Preliminar" })).toBeNull();
   });
 
+  // Two open at once overlapped, the later stage's over the earlier one's.
+  it("keeps one stage's \"Sobre esta etapa\" open at a time", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    await userEvent.click(await screen.findByRole("button", { name: "Sobre esta etapa: Levantamento" }));
+    expect(screen.getByText("Análise do terreno.")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Sobre esta etapa: Briefing" }));
+    expect(screen.getByText("Necessidades e orçamento.")).toBeVisible();
+    expect(screen.getByText("Análise do terreno.")).not.toBeVisible();
+  });
+
   it("opens a stage from the timeline", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
     const timeline = await screen.findByRole("list", { name: "Etapas" });
