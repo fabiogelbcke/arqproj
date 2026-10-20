@@ -22,7 +22,7 @@ from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
-from backend.notifications.models import ProjectRecipient, RecipientStatus
+from backend.notifications.models import RECIPIENTS_MAX, ProjectRecipient, RecipientStatus
 from backend.projects.creation import (
     CreationProblem,
     FolderMaker,
@@ -116,6 +116,8 @@ class ProjectIn(BaseModel):
     project_type: str = Field(max_length=100)
     stages: list[str] = Field(max_length=50)
     slug: str = Field(max_length=200)
+    # The client's addresses for updates (A32), optional.
+    recipients: list[str] = Field(default=[], max_length=RECIPIENTS_MAX)
     # Made by the screen once per dialog: a retried or double-sent request
     # returns the project already created.
     creation_key: str = Field(min_length=16, max_length=100)
@@ -284,6 +286,7 @@ async def new_project(
         stages=tuple(body.stages),
         slug=body.slug.strip().lower(),
         creation_key=body.creation_key,
+        recipients=tuple(body.recipients),
     )
     try:
         project = await create_project(db, maker, root, tenant.locale, new)

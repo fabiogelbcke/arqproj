@@ -323,6 +323,43 @@ describe("edit mode", () => {
     await userEvent.click(within(bar).getByRole("button", { name: "Editar" }));
   }
 
+  function withRecipients(recipients: { email: string; subscribed: boolean }[], extra = {}) {
+    let saved = recipients;
+    return asStaff({
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: 4, recipients: saved } },
+      }),
+      "PATCH /api/projects/p-1": (body: unknown) => {
+        saved = (body as { recipients: string[] }).recipients.map((email) => ({ email, subscribed: true }));
+        return { body: {} };
+      },
+      ...extra,
+    });
+  }
+
+  it("in edit mode, says first when nobody gets the project's updates, and adds the client's emails there", async () => {
+    const { sent } = withRecipients([{ email: "ana@x.com", subscribed: false }]);
+    expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(screen.queryByText(/Ninguém recebe as novidades/)).toBeNull(); // only in edit mode
+    await startEditing();
+    const notice = screen.getByRole("note");
+    expect(notice).toHaveTextContent("Ninguém recebe as novidades deste projeto por e-mail.");
+    await userEvent.click(within(notice).getByRole("button", { name: "Adicionar e-mails do cliente" }));
+    // The unsubscribed address stays, and can't be removed (A32).
+    expect(await screen.findByText("Cancelou os e-mails")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Novo e-mail"), "joao@x.com");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({ row_version: 4, recipients: ["ana@x.com", "joao@x.com"] });
+    await waitFor(() => expect(screen.queryByRole("note")).toBeNull()); // someone gets them now
+  });
+
+  it("in edit mode, says nothing about emails when the client gets the updates", async () => {
+    withRecipients([{ email: "ana@x.com", subscribed: true }]);
+    await startEditing();
+    expect(screen.queryByText(/Ninguém recebe as novidades/)).toBeNull();
+  });
+
   it("in edit mode, a page without a cover offers one in its place, cropped to 3:2", async () => {
     const { sent } = asStaff({
       "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),

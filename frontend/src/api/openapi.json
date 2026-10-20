@@ -3983,6 +3983,15 @@
             "maxLength": 200,
             "title": "Slug"
           },
+          "recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Recipients",
+            "default": []
+          },
           "creation_key": {
             "type": "string",
             "maxLength": 100,
@@ -4274,6 +4283,14 @@
           "row_version": {
             "type": "integer",
             "title": "Row Version"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/RecipientOut"
+            },
+            "type": "array",
+            "title": "Recipients",
+            "default": []
           }
         },
         "type": "object",

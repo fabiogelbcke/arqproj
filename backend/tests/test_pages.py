@@ -286,6 +286,24 @@ async def test_the_example_project_is_on_every_offices_address(client, dist, own
     assert (moved.status_code, moved.headers["location"]) == (301, "/tour-projeto")
 
 
+async def test_staff_see_who_gets_the_projects_updates(client, owner):
+    """A32, 20 Oct 2026: edit mode says when nobody does; clients never see the list."""
+    staff = (await page(client, "casa-jardim")).json()["staff"]
+    changed = await client.patch(
+        f"/api/projects/{staff['project_id']}",
+        json={"row_version": staff["row_version"], "recipients": ["ana@x.com", "joao@x.com"]},
+        headers=owner,
+    )
+    assert changed.status_code == 200
+    shown = (await page(client, "casa-jardim")).json()["staff"]["recipients"]
+    assert shown == [
+        {"email": "ana@x.com", "subscribed": True},
+        {"email": "joao@x.com", "subscribed": True},
+    ]
+    client.cookies.clear()
+    assert "ana@x.com" not in (await page(client, "casa-jardim")).text
+
+
 async def test_staff_see_the_clients_page_plus_what_the_staff_bar_needs(client, owner):
     as_staff = (await page(client, "casa-jardim")).json()
     assert as_staff["staff"]["status"] == "active" and as_staff["staff"]["project_id"]

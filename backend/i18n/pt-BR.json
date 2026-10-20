@@ -50,6 +50,8 @@
     "toSignIn": "Ir para a página de entrada"
   },
   "projects": {
+    "noClientEmail": "Sem e-mail do cliente",
+    "addClientEmail": "Adicionar",
     "title": "Projetos",
     "emptyTitle": "Nenhum projeto por aqui ainda",
     "emptyBody": "Crie o primeiro projeto para começar.",
@@ -94,6 +96,8 @@
     "directionDesc": "Ordem decrescente. Alterar para crescente"
   },
   "newProject": {
+    "recipients": "E-mails do cliente (opcional)",
+    "recipientsHint": "Cada novidade do projeto (arquivos, etapas, reuniões) chega por e-mail para eles. Dá para adicionar depois.",
     "title": "Novo projeto",
     "name": "Nome do projeto",
     "client": "Cliente",
@@ -422,6 +426,10 @@
     "downloadFile": "Baixar {{name}}"
   },
   "edit": {
+    "clientEmails": "E-mails do cliente",
+    "noClientEmail": "Ninguém recebe as novidades deste projeto por e-mail.",
+    "noClientEmailWhy": "Com o e-mail do cliente, ele fica sabendo de arquivos novos, etapas e reuniões sem precisar abrir a página.",
+    "addClientEmail": "Adicionar e-mails do cliente",
     "name": "Nome do projeto",
     "nameHint": "Aparece no topo da página do cliente e no painel. O endereço da página não muda.",
     "dropFiles": "Solte arquivos aqui ou",
