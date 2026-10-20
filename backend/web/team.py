@@ -54,6 +54,9 @@ RESEND_AFTER = timedelta(minutes=2)  # at most one emailed link per address in t
 # One request per address at a time, until its transaction ends: two at once must not
 # both find no account and both make one (the second would fail, and say it exists).
 _LOCK_EMAIL = text("SELECT pg_advisory_xact_lock(hashtext('staff-email'), hashtext(:email))")
+# One change to an office's shared link at a time (a double click on "Criar novo
+# link" must not try to turn on two).
+_LOCK_JOIN_LINK = text("SELECT pg_advisory_xact_lock(hashtext('join-link'), hashtext(:tenant))")
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -229,6 +232,9 @@ async def invite_again(
 ) -> InviteOut:
     _owner(staff)
     user = await _pending(db, user_id)
+    # As an invite: two at once must not leave two links working.
+    await db.execute(_LOCK_EMAIL, {"email": user.email})
+    user = await _pending(db, user_id)  # still pending once it's this request's turn
     link, message = await _invite(db, request, tenant, user, staff.name)
     await db.commit()
     emailed = await _send(request, tenant, message, "/api/team/invites/{user_id}/link")
@@ -259,6 +265,7 @@ async def join_link_on(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> LinkOnOut:
     _owner(staff)
+    await db.execute(_LOCK_JOIN_LINK, {"tenant": str(tenant.id)})
     await db.execute(
         update(JoinLink).where(JoinLink.revoked_at.is_(None)).values(revoked_at=func.now())
     )
@@ -272,9 +279,11 @@ async def join_link_on(
 @router.delete("/team/join-link", status_code=204, responses=documented(401, 403))
 async def join_link_off(
     staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
     _owner(staff)
+    await db.execute(_LOCK_JOIN_LINK, {"tenant": str(tenant.id)})
     await db.execute(
         update(JoinLink).where(JoinLink.revoked_at.is_(None)).values(revoked_at=func.now())
     )

@@ -10,10 +10,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from backend.commands.seed import seed
+from backend.identity import accounts
 from backend.identity.models import Role
 from backend.notifications.email import EmailError
 from backend.tests.conftest import TEST_DATABASE_URL
-from backend.tests.test_office import ALINEA, NORTE, sign_in_as
+from backend.tests.test_office import ALINEA, NORTE, sign_in_as, tenant_id
 from backend.web import attempts, team
 
 pytestmark = pytest.mark.anyio
@@ -325,3 +326,57 @@ async def test_requests_for_one_address_wait_for_each_other(client, owner, sent)
         await other.dispose()
     assert answers == [202]
     assert (await join(client, token)).status_code == 202  # and again: the same answer
+
+
+async def _waits_for(lock_sql: str, key: str, call) -> int:
+    """Runs `call` while another connection holds the lock: it must wait, then answer."""
+    other = create_async_engine(TEST_DATABASE_URL)
+    done = anyio.Event()
+    answers = []
+
+    async def request():
+        answers.append((await call()).status_code)
+        done.set()
+
+    try:
+        async with other.connect() as holder:
+            async with holder.begin():
+                await holder.execute(text(lock_sql), {"k": key})
+                async with anyio.create_task_group() as tasks:
+                    tasks.start_soon(request)
+                    await anyio.sleep(0.5)
+                    assert not done.is_set()  # waiting for the lock
+                    await holder.commit()
+            await done.wait()
+    finally:
+        await other.dispose()
+    return answers[0]
+
+
+# Each test makes one locking request: the tests run inside one transaction
+# (conftest), so a lock an earlier request took would be held until the test ends.
+
+
+async def test_turning_the_shared_link_on_waits_for_another_change(client, db_session, owner, sent):
+    office = str(await tenant_id(db_session, "alinea"))
+    lock = "SELECT pg_advisory_xact_lock(hashtext('join-link'), hashtext(:k))"
+    call = lambda: client.post("/api/team/join-link", headers=owner)  # noqa: E731
+    assert await _waits_for(lock, office, call) == 201
+
+
+async def test_turning_the_shared_link_off_waits_for_another_change(
+    client, db_session, owner, sent
+):
+    office = str(await tenant_id(db_session, "alinea"))
+    lock = "SELECT pg_advisory_xact_lock(hashtext('join-link'), hashtext(:k))"
+    call = lambda: client.delete("/api/team/join-link", headers=owner)  # noqa: E731
+    assert await _waits_for(lock, office, call) == 204
+
+
+async def test_sending_an_invite_again_waits_for_another_on_the_same_address(
+    client, db_session, owner, sent
+):
+    pending = await accounts.create_user(db_session, email="bia@alinea.example", name="Bia")
+    lock = "SELECT pg_advisory_xact_lock(hashtext('staff-email'), hashtext(:k))"
+    call = lambda: client.post(f"/api/team/invites/{pending.id}/link", headers=owner)  # noqa: E731
+    assert await _waits_for(lock, "bia@alinea.example", call) == 200
