@@ -11,6 +11,8 @@ export function Subscribe({ slug }: { slug: string }) {
   const id = useId();
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
+  // The address actually sent: the box may change while it's on its way.
+  const [sent, setSent] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const tidy = tidyEmail(email);
   const suggestion = isEmail(tidy) ? emailSuggestion(tidy) : null;
@@ -19,8 +21,10 @@ export function Subscribe({ slug }: { slug: string }) {
     if (!isEmail(tidy)) return setProblem(t("emailField.invalid"));
     setProblem(null);
     setState("sending");
+    const address = tidy;
     try {
-      await call(api.POST("/api/pages/{slug}/subscribe", { params: { path: { slug } }, body: { email: tidy } }));
+      await call(api.POST("/api/pages/{slug}/subscribe", { params: { path: { slug } }, body: { email: address } }));
+      setSent(address);
       setState("sent");
     } catch (failure) {
       const code = failure instanceof ApiError ? failure.code : "unexpected";
@@ -34,7 +38,7 @@ export function Subscribe({ slug }: { slug: string }) {
     return (
       <section className="client-subscribe" aria-labelledby={`${id}-title`}>
         <h2 id={`${id}-title`}>{t("subscribe.title")}</h2>
-        <p role="status">{t("subscribe.sent", { email: tidy })}</p>
+        <p role="status">{t("subscribe.sent", { email: sent })}</p>
       </section>
     );
   return (
@@ -54,6 +58,7 @@ export function Subscribe({ slug }: { slug: string }) {
           spellCheck={false}
           placeholder={t("subscribe.placeholder")}
           value={email}
+          readOnly={state === "sending"}
           onChange={(event) => setEmail(event.target.value)}
           aria-invalid={problem ? true : undefined}
           aria-describedby={problem ? `${id}-problem` : undefined}

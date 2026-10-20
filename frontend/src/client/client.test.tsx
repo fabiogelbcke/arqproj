@@ -122,6 +122,30 @@ describe("the client page", () => {
     expect(sent.find((r) => r.path.endsWith("/subscribe"))?.body).toEqual({ email: "ana@gmail.com" });
   });
 
+  it("names the address it sent, even if the box changed meanwhile", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    // The sign-up answers only when the test says so.
+    const others = globalThis.fetch;
+    let answer: (value: Response) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((given: Request) =>
+        new URL(given.url).pathname.endsWith("/subscribe")
+          ? new Promise<Response>((resolve) => (answer = resolve))
+          : others(given),
+      ),
+    );
+    render(<ClientApp />);
+    const box = await screen.findByRole("region", { name: "Novidades por e-mail" });
+    const field = within(box).getByLabelText("Seu e-mail");
+    await userEvent.type(field, "ana@gmail.com");
+    await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
+    await userEvent.type(field, "x"); // while it's on its way
+    answer(new Response(null, { status: 204 }));
+    expect(await within(box).findByRole("status")).toHaveTextContent("Pronto! ana@gmail.com vai receber");
+  });
+
   it("offers no email updates on a completed project", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, completed: true } }) });
     expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
