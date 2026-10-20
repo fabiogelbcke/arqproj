@@ -50,6 +50,8 @@
     "toSignIn": "Ir para a página de entrada"
   },
   "projects": {
+    "noClientEmail": "Sem e-mail do cliente",
+    "addClientEmail": "Adicionar",
     "title": "Projetos",
     "emptyTitle": "Nenhum projeto por aqui ainda",
     "emptyBody": "Crie o primeiro projeto para começar.",
@@ -94,6 +96,8 @@
     "directionDesc": "Ordem decrescente. Alterar para crescente"
   },
   "newProject": {
+    "recipients": "E-mails do cliente (opcional)",
+    "recipientsHint": "Cada novidade do projeto (arquivos, etapas, reuniões) chega por e-mail para eles. Dá para adicionar depois.",
     "title": "Novo projeto",
     "name": "Nome do projeto",
     "client": "Cliente",
@@ -174,6 +178,7 @@
     "already_staff": "Esta pessoa já faz parte da equipe.",
     "not_an_invite": "Este convite não existe mais ou a pessoa já entrou. Recarregue a página.",
     "join_link_invalid": "Este link não funciona mais. Peça o link atual a quem administra o escritório.",
+    "recipients_full": "Este projeto já tem o número máximo de e-mails. Fale com o escritório.",
     "not_signed_in": "Sua sessão terminou. Entre novamente.",
     "csrf_token_missing_or_wrong": "Não foi possível confirmar esta ação. Recarregue a página e tente de novo.",
     "invalid_credentials": "E-mail ou senha incorretos.",
@@ -427,6 +432,10 @@
     "downloadFile": "Baixar {{name}}"
   },
   "edit": {
+    "clientEmails": "E-mails do cliente",
+    "noClientEmail": "Ninguém recebe as novidades deste projeto por e-mail.",
+    "noClientEmailWhy": "Com o e-mail do cliente, ele fica sabendo de arquivos novos, etapas e reuniões sem precisar abrir a página.",
+    "addClientEmail": "Adicionar e-mails do cliente",
     "name": "Nome do projeto",
     "nameHint": "Aparece no topo da página do cliente e no painel. O endereço da página não muda.",
     "dropFiles": "Solte arquivos aqui ou",
@@ -517,6 +526,12 @@
     "inviteButton": "Escolher minha senha",
     "inviteExpiry": "O link vale por 7 dias e funciona uma vez.",
     "inviteIgnore": "Se você não esperava este convite, pode ignorar este e-mail: nenhuma conta funciona sem a senha escolhida por este link.",
+    "welcomeSubject": "Você vai receber as novidades de {{project}}",
+    "welcomeHello": "Olá!",
+    "welcomeIntro": "A partir de agora, este e-mail recebe as novidades do projeto {{project}}, do {{office}}: arquivos novos, etapas e reuniões.",
+    "welcomeButton": "Ver a página do projeto",
+    "welcomeNotYou": "Não foi você, ou não quer receber?",
+    "welcomeStop": "Parar de receber",
       "subject": "Novidades em {{project}}",
       "intro": "Há novidades no projeto {{project}}:",
       "files_one": "1 arquivo novo em {{stage}}: {{names}}",
@@ -677,5 +692,14 @@
     "invalidTitle": "Este link não funciona mais",
     "invalidBody": "Ele foi desativado ou trocado por um novo. Peça o link atual a quem administra o escritório.",
     "haveAccount": "Já tenho conta"
+  },
+  "subscribe": {
+    "title": "Novidades por e-mail",
+    "intro": "Receba um e-mail quando houver arquivos novos, mudança de etapa ou reunião marcada.",
+    "email": "Seu e-mail",
+    "placeholder": "seu@email.com",
+    "submit": "Receber",
+    "sent": "Pronto! {{email}} vai receber as novidades deste projeto. Enviamos um e-mail confirmando.",
+    "archived": "Este projeto não envia mais novidades."
   }
 }

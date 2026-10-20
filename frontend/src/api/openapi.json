@@ -1475,6 +1475,88 @@
         }
       }
     },
+    "/api/pages/{slug}/subscribe": {
+      "post": {
+        "summary": "Subscribe",
+        "operationId": "subscribe_api_pages__slug__subscribe_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}": {
       "patch": {
         "summary": "Change Project",
@@ -3582,6 +3664,7 @@
           "page_locked",
           "wrong_page_password",
           "too_many_attempts",
+          "recipients_full",
           "password_required",
           "invalid_detail",
           "invalid_stage",
@@ -4593,6 +4676,15 @@
             "maxLength": 200,
             "title": "Slug"
           },
+          "recipients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Recipients",
+            "default": []
+          },
           "creation_key": {
             "type": "string",
             "maxLength": 100,
@@ -4884,6 +4976,14 @@
           "row_version": {
             "type": "integer",
             "title": "Row Version"
+          },
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/RecipientOut"
+            },
+            "type": "array",
+            "title": "Recipients",
+            "default": []
           }
         },
         "type": "object",
@@ -4981,6 +5081,20 @@
           "folder"
         ],
         "title": "StorageKind"
+      },
+      "SubscribeIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "SubscribeIn"
       },
       "TeamOut": {
         "properties": {

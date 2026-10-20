@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Cover } from "./Cover";
+import { ProjectDialog } from "./ProjectDialog";
 import { ProjectMenu } from "./ProjectMenu";
 import { type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
@@ -52,6 +54,9 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
     minute: "2-digit",
   });
   const updated = project.last_activity_at ?? project.created_at;
+  // An active project whose updates reach nobody: no address, or only unsubscribed ones.
+  const needsEmails = project.status === "active" && !project.recipients.some((recipient) => recipient.subscribed);
+  const [settings, setSettings] = useState(false);
   return (
     <li className={styles.card} data-testid="project-card" data-tour="project-card">
       <Cover project={project} className={styles.cardCover} />
@@ -68,7 +73,17 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
           <span>{project.client_name}</span>
           <span>{project.project_type_label}</span>
         </p>
+        {needsEmails && (
+          // Nobody gets this project's updates (A32): the way to add them, on top of
+          // the card's link. In the name's row, so the card keeps its five rows.
+          <button type="button" className={styles.noEmails} onClick={() => setSettings(true)}>
+            <span aria-hidden="true">!</span>
+            {t("projects.noClientEmail")}
+            <span className={styles.noEmailsAction}>{t("projects.addClientEmail")}</span>
+          </button>
+        )}
       </div>
+      {settings && <ProjectDialog project={project} onClose={() => setSettings(false)} />}
       <Progress project={project} />
       <div className={styles.meta}>
         <small>{t("projects.nextMeeting")}</small>

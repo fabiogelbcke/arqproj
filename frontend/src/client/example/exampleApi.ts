@@ -29,6 +29,8 @@ export function installExampleApi(now = new Date()) {
   let locale: Page["locale"] = "pt-BR"; // the office's: the page around the (Portuguese) project
   let signedIn = false;
   let version = 1; // the page's row version: each change makes a new one
+  // The fictional client's address for updates (A32), in the browser like the rest.
+  let recipients = ["marina.andrade@exemplo.com.br"];
   let options: Schemas["CreationOptions"] | null = null;
   let detailTypes: Schemas["DetailTypeOut"][] | null = null;
   const pending = new Map<string, { position: number; name: string }>();
@@ -52,7 +54,14 @@ export function installExampleApi(now = new Date()) {
     stages: project.stages.map(({ title, about, notes }, i) => ({ position: i + 1, title, about, notes })),
     next_meeting: project.next_meeting,
     // Staff see the staff bar and can try edit mode.
-    staff: signedIn ? { project_id: EXAMPLE_SLUG, status: project.status, row_version: version } : null,
+    staff: signedIn
+      ? {
+          project_id: EXAMPLE_SLUG,
+          status: project.status,
+          row_version: version,
+          recipients: recipients.map((email) => ({ email, subscribed: true })),
+        }
+      : null,
   });
 
   const files = (): Schemas["PageFilesOut"] => ({
@@ -96,11 +105,14 @@ export function installExampleApi(now = new Date()) {
     ["GET", new RegExp(`^${PAGE}$`), () => ({ body: page() })],
     ["GET", new RegExp(`^${PAGE}/files$`), () => ({ body: files() })],
     ["POST", /^\/api\/me\/tour-seen$/, () => done], // the example's tour stores nothing
+    // "Novidades por e-mail": as if signed up; nothing leaves the browser.
+    ["POST", new RegExp(`^${PAGE}/subscribe$`), () => done],
     [
       "PATCH",
       new RegExp(`^${PROJECT}$`),
       (_, body) => {
         if (typeof body.name === "string" && body.name.trim()) project.name = body.name.trim();
+        if (Array.isArray(body.recipients)) recipients = body.recipients as string[];
         return changed();
       },
     ],

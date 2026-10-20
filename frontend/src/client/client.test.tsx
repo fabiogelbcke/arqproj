@@ -101,12 +101,84 @@ describe("the client page", () => {
     expect(localStorage.getItem("theme")).toBe("light");
   });
 
+  it("signs a client up for the updates by email", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "POST /api/pages/casa-jardim/subscribe": () => ({ status: 204 }),
+    });
+    render(<ClientApp />);
+    const box = await screen.findByRole("region", { name: "Novidades por e-mail" });
+    const field = within(box).getByLabelText("Seu e-mail");
+    await userEvent.type(field, "ana@gmail");
+    await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
+    expect(within(box).getByRole("alert")).toHaveTextContent("Confira o e-mail");
+    expect(sent.some((r) => r.path.endsWith("/subscribe"))).toBe(false);
+    await userEvent.type(field, ".con");
+    await userEvent.click(within(box).getByRole("button", { name: "ana@gmail.com" })); // the typo's fix
+    await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
+    expect(await within(box).findByRole("status")).toHaveTextContent("Pronto! ana@gmail.com vai receber as novidades deste projeto.");
+    expect(sent.find((r) => r.path.endsWith("/subscribe"))?.body).toEqual({ email: "ana@gmail.com" });
+  });
+
+  it("names the address it sent, even if the box changed meanwhile", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    // The sign-up answers only when the test says so.
+    const others = globalThis.fetch;
+    let answer: (value: Response) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((given: Request) =>
+        new URL(given.url).pathname.endsWith("/subscribe")
+          ? new Promise<Response>((resolve) => (answer = resolve))
+          : others(given),
+      ),
+    );
+    render(<ClientApp />);
+    const box = await screen.findByRole("region", { name: "Novidades por e-mail" });
+    const field = within(box).getByLabelText("Seu e-mail");
+    await userEvent.type(field, "ana@gmail.com");
+    await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
+    await userEvent.type(field, "x"); // while it's on its way
+    answer(new Response(null, { status: 204 }));
+    expect(await within(box).findByRole("status")).toHaveTextContent("Pronto! ana@gmail.com vai receber");
+  });
+
+  it("offers no email updates on a completed project", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, completed: true } }) });
+    expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Novidades por e-mail" })).toBeNull();
+  });
+
+  it("says when an archived project sends no more updates", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "POST /api/pages/casa-jardim/subscribe": () => ({ status: 409, body: { error: "project_archived" } }),
+    });
+    const box = await screen.findByRole("region", { name: "Novidades por e-mail" });
+    await userEvent.type(within(box).getByLabelText("Seu e-mail"), "ana@gmail.com");
+    await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
+    expect(await within(box).findByRole("alert")).toHaveTextContent("Este projeto não envia mais novidades.");
+  });
+
   it("explains a stage in the project type's words", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
     await userEvent.click(await screen.findByRole("button", { name: "Sobre esta etapa: Briefing" }));
     expect(screen.getByText("Necessidades e orçamento.")).toBeVisible();
     // A stage without a description has no "Sobre esta etapa".
     expect(screen.queryByRole("button", { name: "Sobre esta etapa: Estudo Preliminar" })).toBeNull();
+  });
+
+  // Two open at once overlapped, the later stage's over the earlier one's.
+  it("keeps one stage's \"Sobre esta etapa\" open at a time", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    await userEvent.click(await screen.findByRole("button", { name: "Sobre esta etapa: Levantamento" }));
+    expect(screen.getByText("Análise do terreno.")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Sobre esta etapa: Briefing" }));
+    expect(screen.getByText("Necessidades e orçamento.")).toBeVisible();
+    expect(screen.getByText("Análise do terreno.")).not.toBeVisible();
   });
 
   it("opens a stage from the timeline", async () => {
@@ -322,6 +394,50 @@ describe("edit mode", () => {
     await waitFor(() => expect(within(bar).getByRole("button", { name: "Editar" })).toBeEnabled());
     await userEvent.click(within(bar).getByRole("button", { name: "Editar" }));
   }
+
+  function withRecipients(recipients: { email: string; subscribed: boolean }[], extra = {}) {
+    let saved = recipients;
+    return asStaff({
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: 4, recipients: saved } },
+      }),
+      "PATCH /api/projects/p-1": (body: unknown) => {
+        saved = (body as { recipients: string[] }).recipients.map((email) => ({ email, subscribed: true }));
+        return { body: {} };
+      },
+      ...extra,
+    });
+  }
+
+  it("in edit mode, says first when nobody gets the project's updates, and adds the client's emails there", async () => {
+    const { sent } = withRecipients([{ email: "ana@x.com", subscribed: false }]);
+    expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(screen.queryByText(/Ninguém recebe as novidades/)).toBeNull(); // only in edit mode
+    await startEditing();
+    const notice = screen.getByRole("note");
+    expect(notice).toHaveTextContent("Ninguém recebe as novidades deste projeto por e-mail.");
+    await userEvent.click(within(notice).getByRole("button", { name: "Adicionar e-mails do cliente" }));
+    // The unsubscribed address stays, and can't be removed (A32).
+    expect(await screen.findByText("Cancelou os e-mails")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Novo e-mail"), "joao@x.com");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({ row_version: 4, recipients: ["ana@x.com", "joao@x.com"] });
+    await waitFor(() => expect(screen.queryByRole("note")).toBeNull()); // someone gets them now
+  });
+
+  it("in edit mode, says nothing about emails when the client gets the updates", async () => {
+    withRecipients([{ email: "ana@x.com", subscribed: true }]);
+    await startEditing();
+    expect(screen.queryByText(/Ninguém recebe as novidades/)).toBeNull();
+  });
+
+  it("in edit mode, the client's own \"Novidades por e-mail\" box gives way", async () => {
+    withRecipients([{ email: "ana@x.com", subscribed: true }]);
+    expect(await screen.findByRole("region", { name: "Novidades por e-mail" })).toBeInTheDocument();
+    await startEditing();
+    expect(screen.queryByRole("region", { name: "Novidades por e-mail" })).toBeNull();
+  });
 
   it("in edit mode, a page without a cover offers one in its place, cropped to 3:2", async () => {
     const { sent } = asStaff({

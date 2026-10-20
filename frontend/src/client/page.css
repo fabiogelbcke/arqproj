@@ -256,6 +256,12 @@ a.site__brand { color: inherit; text-decoration: none; }
 /* A file's open "⋯" menu above the next files' "⋯" buttons: each sits on its own
    layer (z-index 3), so the open one's layer rises. */
 .client.editing .filemenu.is-open { z-index: 30; }
+/* Each stage is its own layer (isolation, for its band), and later stages paint
+   over earlier ones, so a popup reaching past its stage's edge went under the next
+   stage. The stage with an open popup rises above them: a file's "⋯" in edit mode,
+   "Sobre esta etapa" outside it (edit mode hides that one, even if left open). */
+.client.editing .stage:has(.filemenu.is-open),
+.client:not(.editing) .stage:has(.stage-help-pop:not([hidden])) { z-index: 3; }
 
 /* A file's "⋯" over its thumbnail looks like a tag (ui/sizes.css) and is tapped
    like an icon: an invisible ring makes its target the icon size. */
@@ -266,3 +272,32 @@ a.site__brand { color: inherit; text-decoration: none; }
 /* Counts are round across the site, like the painel's tabs (Fabio, 20 Oct 2026):
    the updates bell's count, which the client page's straight edges had squared. */
 .client-notifications summary .notification-count { border-radius: 999px; }
+
+/* Edit mode: nobody gets this project's updates by email (A32), said first. */
+.client-email-notice {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin: 20px 0 8px; padding: 14px 16px; font-size: 14px; line-height: 1.45;
+  border: 1px solid var(--brand-line); border-left: 3px solid #9b3d1d;
+  background: color-mix(in srgb, #9b3d1d 6%, var(--brand-bg)); color: var(--brand-ink);
+}
+.client-email-notice p { margin: 0; }
+.client-email-notice strong { font-weight: 600; }
+.client-email-notice .b { flex-shrink: 0; }
+@media (max-width: 760px) { .client-email-notice { flex-direction: column; align-items: flex-start; } }
+:root[data-theme="dark"] .client-email-notice { border-left-color: #e9a58a; background: color-mix(in srgb, #e9a58a 8%, var(--brand-bg)); }
+.cwrap > .editor { margin: 20px 0 8px; }
+
+/* "Novidades por e-mail": clients add themselves (A32). */
+.client-subscribe { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--brand-line); font-size: 14px; }
+.client-subscribe h2 { margin: 0 0 6px; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--brand-muted); }
+.client-subscribe > p { margin: 0 0 12px; font-size: 13px; color: var(--brand-muted); line-height: 1.45; }
+.client-subscribe form { display: flex; gap: 8px; }
+.client-subscribe input {
+  flex: 1; min-width: 0; min-height: var(--control-small); padding: 0 12px; border: 1px solid var(--brand-line);
+  background: var(--brand-bg); color: var(--brand-ink); font: inherit;
+}
+.client-subscribe input[aria-invalid] { border-color: #9b3d1d; }
+.client-subscribe .client-subscribe__hint { margin: 8px 0 0; font-size: 13px; color: var(--brand-muted); }
+.client-subscribe__hint button { padding: 0; border: 0; background: none; color: var(--brand-ink); font: inherit; font-weight: 500; text-decoration: underline; cursor: pointer; }
+.client-subscribe .client-subscribe__problem { margin: 8px 0 0; font-size: 13px; color: #9b3d1d; }
+:root[data-theme="dark"] .client-subscribe .client-subscribe__problem { color: #e9a58a; }

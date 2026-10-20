@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
+import { EmailListField, addEmails } from "../ui/EmailListField";
 import { TextInput } from "../ui/TextInput";
 import { toast } from "../ui/Toast";
 import type { Page } from "./format";
@@ -399,6 +400,54 @@ export function NotesEditor({
           autoFocus
         />
       </div>
+    </Editor>
+  );
+}
+
+const RECIPIENTS_MAX = 20; // the server checks it too
+
+/** The client's email addresses for the project's updates (A32), from edit mode's
+ *  notice when nobody gets them: the same list as the painel's Projeto dialog. */
+export function RecipientsEditor({ staff, onDone }: { staff: Staff; onDone: (saved: boolean) => void }) {
+  const { t } = useTranslation();
+  const [emails, setEmails] = useState(() => staff.recipients.map((recipient) => recipient.email));
+  const [draft, setDraft] = useState("");
+  const unsubscribed = new Set(staff.recipients.filter((recipient) => !recipient.subscribed).map((r) => r.email));
+  const save = useSave(() => onDone(true));
+  return (
+    <Editor
+      title={t("edit.clientEmails")}
+      {...save}
+      onCancel={() => onDone(false)}
+      onSubmit={() => {
+        // One typed but not added counts too; one that can't be added stops it.
+        const { list, left } = addEmails(emails, draft, RECIPIENTS_MAX);
+        setEmails(list);
+        setDraft(left.join(", "));
+        if (left.length) return;
+        void save.run(() =>
+          call(
+            api.PATCH("/api/projects/{project_id}", {
+              params: { path: { project_id: staff.project_id } },
+              body: { row_version: staff.row_version, recipients: list },
+            }),
+          ),
+        );
+      }}
+    >
+      <EmailListField
+        label={t("projectSettings.recipients")}
+        description={t("projectSettings.recipientsHint")}
+        emails={emails}
+        onChange={setEmails}
+        draft={draft}
+        onDraft={setDraft}
+        max={RECIPIENTS_MAX}
+        locked={(email) => (unsubscribed.has(email) ? t("projectSettings.unsubscribed") : null)}
+        addLabel={t("projectSettings.addRecipient")}
+        newLabel={t("projectSettings.newRecipient")}
+        removeLabel={(email) => t("projectSettings.removeRecipient", { email })}
+      />
     </Editor>
   );
 }
