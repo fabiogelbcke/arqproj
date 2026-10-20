@@ -8,6 +8,33 @@ import { EmailField } from "./EmailField";
 import { EmailListField } from "./EmailListField";
 
 describe("the email field", () => {
+  it("keeps a form from being sent while a required one is empty", async () => {
+    const sent = vi.fn();
+    render(
+      <Form onSubmit={(event) => (event.preventDefault(), sent())}>
+        <EmailField label="E-mail" name="email" isRequired />
+        <button type="submit">Enviar</button>
+      </Form>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+    expect(sent).not.toHaveBeenCalled();
+    expect(await screen.findByText("Informe o e-mail.")).toBeInTheDocument();
+  });
+
+  it("for signing in, looks an address up as typed (tidied), without judging it", async () => {
+    const sent = vi.fn();
+    render(
+      <Form onSubmit={(event) => (event.preventDefault(), sent(new FormData(event.currentTarget).get("email")))}>
+        <EmailField label="E-mail" name="email" isRequired lookup />
+        <button type="submit">Entrar</button>
+      </Form>,
+    );
+    await userEvent.type(screen.getByLabelText("E-mail"), " A@B ");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(sent).toHaveBeenCalledWith("a@b");
+    expect(screen.queryByText(/Confira o e-mail/)).toBeNull();
+  });
+
   it("tidies the address when it's left, and says nothing of a good one", async () => {
     render(<EmailField label="E-mail" />);
     await userEvent.type(screen.getByLabelText("E-mail"), "  Ana@Escritorio.com.BR ");

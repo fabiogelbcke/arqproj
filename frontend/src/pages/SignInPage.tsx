@@ -46,7 +46,7 @@ export function SignInPage() {
             signIn.mutate({ email: String(form.get("email")), password: String(form.get("password")) });
           }}
         >
-          <EmailField name="email" autoComplete="username" isRequired label={t("signIn.email")} />
+          <EmailField name="email" autoComplete="username" isRequired lookup label={t("signIn.email")} />
           <TextField
             name="password"
             type="password"
