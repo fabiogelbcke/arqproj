@@ -307,7 +307,9 @@ async def test_behind_the_load_balancer_the_visitor_is_the_second_to_last():
     assert attempts.device(request) == "203.0.113.9"
     request.headers = {"x-forwarded-for": "198.51.100.7, 35.191.0.1"}
     assert attempts.device(request) == "198.51.100.7"  # another visitor, another device
-    request.headers = {"x-forwarded-for": "35.191.0.1"}  # too few entries: never the balancer
+    # Too few entries: never the balancer, whether it's the header's or the socket's.
+    request.headers = {"x-forwarded-for": "35.191.0.1"}
+    request.client = SimpleNamespace(host="35.191.0.1")
     assert attempts.device(request) == "unknown"
 
 

@@ -35,8 +35,8 @@ def device(request: Request) -> str:
     if settings.deployed:
         entries = [e.strip() for e in request.headers.get("x-forwarded-for", "").split(",")]
         hops = settings.forwarded_hops
-        if len(entries) >= hops and entries[-hops]:
-            return entries[-hops]
+        # Too few entries: "unknown", never the socket's (that's the last proxy).
+        return entries[-hops] if len(entries) >= hops and entries[-hops] else "unknown"
     return request.client.host if request.client else "unknown"
 
 
