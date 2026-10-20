@@ -22,5 +22,9 @@ def test_refuses(email):
     assert not is_email(email)
 
 
-def test_tidies():
+def test_tidies_as_the_staff_app_does():
+    # The same as frontend/src/ui/email.test.ts, so a pasted address sent before
+    # the field tidied it (Enter straight away) reads the same here.
     assert tidy_email("  Ana@Gmail.COM ") == "ana@gmail.com"
+    assert tidy_email("<ana@gmail.com>") == "ana@gmail.com"
+    assert tidy_email(" MAILTO:Ana@gmail.com") == "ana@gmail.com"
