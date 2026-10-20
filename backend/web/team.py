@@ -28,7 +28,7 @@ from typing import Literal
 import anyio
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
@@ -51,6 +51,9 @@ JOIN_PATH = "/painel/entrar-na-equipe"
 JOIN_TRIES = "join"
 JOIN_ANSWER_AT = 0.5
 RESEND_AFTER = timedelta(minutes=2)  # at most one emailed link per address in this time
+# One request per address at a time, until its transaction ends: two at once must not
+# both find no account and both make one (the second would fail, and say it exists).
+_LOCK_EMAIL = text("SELECT pg_advisory_xact_lock(hashtext('staff-email'), hashtext(:email))")
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -190,6 +193,7 @@ async def invite(
 ) -> InviteOut:
     _owner(staff)
     name, email = _name(body.name), _address(body.email)
+    await db.execute(_LOCK_EMAIL, {"email": email})
     found = await accounts.find_user(db, email)
     if found is not None and found.password_hash is not None:
         raise ApiError(409, ErrorCode.ALREADY_STAFF, found.name)
@@ -314,6 +318,7 @@ async def join(
     started = anyio.current_time()
     await _join_link(db, body.token)
     name, email = _name(body.name), _address(body.email)
+    await db.execute(_LOCK_EMAIL, {"email": email})
     found = await accounts.find_user(db, email)
     message: Email | None = None
     if found is None:

@@ -4,11 +4,15 @@ link whose joiners still prove their email."""
 import logging
 import re
 
+import anyio
 import pytest
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from backend.commands.seed import seed
 from backend.identity.models import Role
 from backend.notifications.email import EmailError
+from backend.tests.conftest import TEST_DATABASE_URL
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as
 from backend.web import attempts, team
 
@@ -289,3 +293,35 @@ async def test_a_device_asking_again_and_again_must_wait(client, owner, sent):
         await join(client, token, email=f"pessoa{n}@gmail.com")
     response = await join(client, token, email="outra@gmail.com")
     assert (response.status_code, response.json()) == (429, {"error": "too_many_attempts"})
+
+
+async def test_requests_for_one_address_wait_for_each_other(client, owner, sent):
+    """Two at once for a new address must not both find no account and both make
+    one (the second would fail, and say the account exists): the second waits for
+    the first's lock, which holds across connections."""
+    token = token_in(await turn_on(client, owner))
+    other = create_async_engine(TEST_DATABASE_URL)
+    done = anyio.Event()
+    answers = []
+
+    async def request():
+        answers.append((await join(client, token)).status_code)
+        done.set()
+
+    try:
+        async with other.connect() as holder:
+            async with holder.begin():
+                await holder.execute(
+                    text("SELECT pg_advisory_xact_lock(hashtext('staff-email'), hashtext(:e))"),
+                    {"e": "caio@gmail.com"},
+                )
+                async with anyio.create_task_group() as tasks:
+                    tasks.start_soon(request)
+                    await anyio.sleep(0.5)
+                    assert not done.is_set()  # waiting for the lock
+                    await holder.commit()  # let go
+            await done.wait()
+    finally:
+        await other.dispose()
+    assert answers == [202]
+    assert (await join(client, token)).status_code == 202  # and again: the same answer
