@@ -73,16 +73,16 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
           <span>{project.client_name}</span>
           <span>{project.project_type_label}</span>
         </p>
+        {needsEmails && (
+          // Nobody gets this project's updates (A32): the way to add them, on top of
+          // the card's link. In the name's row, so the card keeps its five rows.
+          <button type="button" className={styles.noEmails} onClick={() => setSettings(true)}>
+            <span aria-hidden="true">!</span>
+            {t("projects.noClientEmail")}
+            <span className={styles.noEmailsAction}>{t("projects.addClientEmail")}</span>
+          </button>
+        )}
       </div>
-      {needsEmails && (
-        // Nobody gets this project's updates (A32): the way to add them, on top of
-        // the card's link.
-        <button type="button" className={styles.noEmails} onClick={() => setSettings(true)}>
-          <span aria-hidden="true">!</span>
-          {t("projects.noClientEmail")}
-          <span className={styles.noEmailsAction}>{t("projects.addClientEmail")}</span>
-        </button>
-      )}
       {settings && <ProjectDialog project={project} onClose={() => setSettings(false)} />}
       <Progress project={project} />
       <div className={styles.meta}>
