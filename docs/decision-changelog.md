@@ -19,6 +19,23 @@ a new entry too.
 
 ---
 
+## 2026-10-20 — A24, A32: the client's emails asked at creation, and missing ones flagged
+
+**Was:** creation asked for the name, the client, the type and the stages; the
+client's email addresses were added afterwards in the Projeto dialog, opened from
+the card's menu. Nothing showed that a project had none.
+
+**Now:** "Novo projeto" asks for them too, optionally. A project nobody receives
+updates for (no address, or only unsubscribed ones) shows "Sem e-mail do
+cliente" on its painel card, and a notice in the project page's edit mode; both
+lead to adding them.
+
+**Why:** Fabio (20 Oct 2026): the emails are an important part of the process,
+and tucked in the settings they felt like an afterthought. Clients signing up
+for the emails themselves is a separate change.
+
+---
+
 ## 2026-10-19 — Plan section 16: the example project at the top of Primeiros passos; a painel tour
 
 **Was:** the example project's entry was an optional line at the bottom of

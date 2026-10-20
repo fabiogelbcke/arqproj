@@ -29,3 +29,22 @@ def is_email(email: str) -> bool:
         and all(len(label) <= 63 and _LABEL.fullmatch(label) for label in labels)
         and re.fullmatch(r"[a-z]{2,}", labels[-1]) is not None
     )
+
+
+class InvalidEmail(ValueError):
+    """One of the addresses given isn't an address."""
+
+
+def email_list(given: list[str] | tuple[str, ...]) -> list[str]:
+    """Tidied, each once, in the order given, the empty ones dropped; InvalidEmail
+    if any isn't an address."""
+    found: list[str] = []
+    for raw in given:
+        email = tidy_email(raw)
+        if not email:
+            continue
+        if not is_email(email):
+            raise InvalidEmail(email)
+        if email not in found:
+            found.append(email)
+    return found
