@@ -1035,8 +1035,8 @@ export interface components {
         JoinLinkOut: {
             /** On */
             on: boolean;
-            /** Made At */
-            made_at: string | null;
+            /** Expires At */
+            expires_at: string | null;
         };
         /** LinkIn */
         LinkIn: {
@@ -1052,6 +1052,8 @@ export interface components {
         LinkOnOut: {
             /** Link */
             link: string;
+            /** Expires At */
+            expires_at: string;
         };
         /** LinkOut */
         LinkOut: {

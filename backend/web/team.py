@@ -50,6 +50,7 @@ JOIN_PATH = "/painel/entrar-na-equipe"
 # senha?"), and every answer as late as the slowest, so none tells who has an account.
 JOIN_TRIES = "join"
 JOIN_ANSWER_AT = 0.5
+JOIN_LINK_LIFETIME = timedelta(hours=24)  # Fabio, 20 Oct 2026: a link passed around goes stale
 RESEND_AFTER = timedelta(minutes=2)  # at most one emailed link per address in this time
 # One request per address at a time, until its transaction ends: two at once must not
 # both find no account and both make one (the second would fail, and say it exists).
@@ -74,7 +75,7 @@ class MemberOut(BaseModel):
 
 class JoinLinkOut(BaseModel):
     on: bool
-    made_at: str | None  # when the one that's on was made (ISO), to say since when
+    expires_at: str | None  # when the one that's on stops working (ISO)
 
 
 class TeamOut(BaseModel):
@@ -97,6 +98,7 @@ class InviteOut(BaseModel):
 
 class LinkOnOut(BaseModel):
     link: str  # shown now only: only its hash is kept
+    expires_at: str
 
 
 class JoinCheckIn(BaseModel):
@@ -178,10 +180,13 @@ async def team(
     users = list(await db.scalars(select(User)))
     # People who can sign in first, by name; then pending invites.
     users.sort(key=lambda user: (user.password_hash is None, user.name.lower()))
-    on = await db.scalar(select(JoinLink).where(JoinLink.revoked_at.is_(None)))
+    on = await db.scalar(select(JoinLink).where(*_working()))
     return TeamOut(
         members=[_member(user, staff) for user in users],
-        join_link=JoinLinkOut(on=on is not None, made_at=on.created_at.isoformat() if on else None),
+        join_link=JoinLinkOut(
+            on=on is not None,
+            expires_at=(on.created_at + JOIN_LINK_LIFETIME).isoformat() if on else None,
+        ),
         can_manage=staff.role is Role.OWNER,
     )
 
@@ -270,10 +275,15 @@ async def join_link_on(
         update(JoinLink).where(JoinLink.revoked_at.is_(None)).values(revoked_at=func.now())
     )
     token = secrets.token_urlsafe(24)
-    db.add(JoinLink(created_by=staff.user_id, token_hash=_hash(token)))
+    made = JoinLink(created_by=staff.user_id, token_hash=_hash(token))
+    db.add(made)
     office = await office_of(db, request.app.state.settings, tenant.id)
     await db.commit()
-    return LinkOnOut(link=f"{office.base}{JOIN_PATH}#token={token}")
+    await db.refresh(made)
+    return LinkOnOut(
+        link=f"{office.base}{JOIN_PATH}#token={token}",
+        expires_at=(made.created_at + JOIN_LINK_LIFETIME).isoformat(),
+    )
 
 
 @router.delete("/team/join-link", status_code=204, responses=documented(401, 403))
@@ -290,9 +300,14 @@ async def join_link_off(
     await db.commit()
 
 
+def _working():
+    """A shared link that's on: not turned off or replaced, and under 24 hours old."""
+    return (JoinLink.revoked_at.is_(None), JoinLink.created_at > func.now() - JOIN_LINK_LIFETIME)
+
+
 async def _join_link(db: AsyncSession, token: str) -> JoinLink:
     found = await db.scalar(
-        select(JoinLink).where(JoinLink.token_hash == _hash(token), JoinLink.revoked_at.is_(None))
+        select(JoinLink).where(JoinLink.token_hash == _hash(token), *_working())
     )
     if found is None:
         raise ApiError(404, ErrorCode.JOIN_LINK_INVALID)

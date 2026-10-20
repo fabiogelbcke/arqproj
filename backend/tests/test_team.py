@@ -105,7 +105,7 @@ async def test_the_team_lists_who_is_in_then_who_is_invited(client, owner, sent)
         ("zeca@alinea.example", "invited", False),
     ]
     assert team_now["can_manage"] is True
-    assert team_now["join_link"] == {"on": False, "made_at": None}
+    assert team_now["join_link"] == {"on": False, "expires_at": None}
 
 
 @pytest.mark.parametrize(
@@ -231,7 +231,7 @@ async def test_whoever_opens_the_shared_link_is_emailed_a_link_and_joins_as_a_me
     link = await turn_on(client, owner)
     assert link.startswith("http://alinea.localhost:5173/painel/entrar-na-equipe#token=")
     on = (await client.get("/api/team", headers=owner)).json()["join_link"]
-    assert on["on"] is True and on["made_at"]
+    assert on["on"] is True and on["expires_at"]
     client.cookies.clear()
     token = token_in(link)
     checked = await client.post("/api/join/check", json={"token": token}, headers=ALINEA)
@@ -380,3 +380,14 @@ async def test_sending_an_invite_again_waits_for_another_on_the_same_address(
     lock = "SELECT pg_advisory_xact_lock(hashtext('staff-email'), hashtext(:k))"
     call = lambda: client.post(f"/api/team/invites/{pending.id}/link", headers=owner)  # noqa: E731
     assert await _waits_for(lock, "bia@alinea.example", call) == 200
+
+
+async def test_a_shared_link_stops_working_after_24_hours(client, db_session, owner, sent):
+    token = token_in(await turn_on(client, owner))
+    await db_session.execute(
+        text("UPDATE join_links SET created_at = now() - interval '24 hours 1 minute'")
+    )
+    response = await client.post("/api/join/check", json={"token": token}, headers=ALINEA)
+    assert (response.status_code, response.json()["error"]) == (404, "join_link_invalid")
+    assert (await join(client, token)).status_code == 404
+    assert (await client.get("/api/team", headers=owner)).json()["join_link"]["on"] is False

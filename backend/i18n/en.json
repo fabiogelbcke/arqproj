@@ -625,6 +625,10 @@
     "invalidSome_other": "These don't look like emails: {{emails}}. Check them and try again."
   },
   "team": {
+    "linkOnUntil": "A link is on until {{when}}.",
+    "inviteAnother": "Invite someone else",
+    "done": "Done",
+    "close": "Cancel",
     "title": "Team",
     "you": "(you)",
     "pending": "Invite pending",
@@ -655,13 +659,12 @@
     "cancelled": "Invite to {{email}} cancelled.",
     "copy": "Copy link",
     "copied": "Link copied.",
-    "linkTitle": "Team link",
-    "linkIntro": "A link to share with several people, in a group for example. Whoever opens it gives a name and an email and gets an email to choose a password. They join as team, never as administrators.",
+    "linkTitle": "Invite with a link",
+    "linkIntro": "A link to share with several people, in a group for example. It works for 24 hours. Whoever opens it gives a name and an email and gets an email to choose a password. They join as team, never as administrators.",
     "linkOn": "Create team link",
     "linkNew": "Create a new link",
     "linkNewNote": "A new link turns the previous one off.",
-    "linkOnce": "Copy and keep it now: for safety, the link shows only once. To share it again later, create a new one.",
-    "linkOnSince": "A link is on, created on {{date}}.",
+    "linkOnce": "Copy and share it now: for safety, the link shows only once and works for 24 hours. After that, create a new one.",
     "linkOff": "Turn link off",
     "linkOffDone": "Team link turned off."
   },

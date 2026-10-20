@@ -215,6 +215,7 @@ test("an owner invites a person, who chooses a password from the link and is in"
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
   await skipTour(page);
   await page.goto("/painel/configuracoes/equipe");
+  await page.getByRole("button", { name: "Convidar pessoa" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Caio Reis");
   await page.getByLabel("E-mail").fill("caio-equipe@alinea.example");
   await page.getByRole("button", { name: "Enviar convite" }).click();
@@ -230,6 +231,7 @@ test("an owner invites a person, who chooses a password from the link and is in"
   await expect(other.getByRole("heading", { name: "Projetos" })).toBeVisible();
   await other.close();
 
+  await page.getByRole("button", { name: "Pronto" }).click();
   await page.reload();
   const caio = page.getByRole("list", { name: "Equipe" }).getByRole("listitem").filter({ hasText: "Caio Reis" });
   await expect(caio).toContainText("Equipe");

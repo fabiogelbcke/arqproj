@@ -3826,7 +3826,7 @@
             "type": "boolean",
             "title": "On"
           },
-          "made_at": {
+          "expires_at": {
             "anyOf": [
               {
                 "type": "string"
@@ -3835,13 +3835,13 @@
                 "type": "null"
               }
             ],
-            "title": "Made At"
+            "title": "Expires At"
           }
         },
         "type": "object",
         "required": [
           "on",
-          "made_at"
+          "expires_at"
         ],
         "title": "JoinLinkOut"
       },
@@ -3871,11 +3871,16 @@
           "link": {
             "type": "string",
             "title": "Link"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
           }
         },
         "type": "object",
         "required": [
-          "link"
+          "link",
+          "expires_at"
         ],
         "title": "LinkOnOut"
       },

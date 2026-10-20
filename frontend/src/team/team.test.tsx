@@ -15,7 +15,7 @@ function api(team: { members?: object[]; join_link?: object; can_manage?: boolea
     "GET /api/drive": () => ({ body: { kind: "folder", writer_status: "none", reader_status: "unknown", can_manage: true } }),
     "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: true, has_project: true } }),
     "GET /api/team": () => ({
-      body: { members, join_link: team.join_link ?? { on: false, made_at: null }, can_manage: team.can_manage ?? true },
+      body: { members, join_link: team.join_link ?? { on: false, expires_at: null }, can_manage: team.can_manage ?? true },
     }),
     "POST /api/team/invites": (body: unknown) => {
       const { name, email, role } = body as { name: string; email: string; role: string };
@@ -48,6 +48,7 @@ describe("Configurações → Equipe", () => {
     vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
     const sent = api();
     renderAt("/configuracoes/equipe");
+    await userEvent.click(await screen.findByRole("button", { name: "Convidar pessoa" }));
     await userEvent.type(await screen.findByLabelText("Nome"), "Caio Reis");
     await userEvent.type(screen.getByLabelText("E-mail"), "Caio@Gmail.com");
     await userEvent.click(screen.getByRole("radio", { name: /Administrador/ }));
@@ -56,8 +57,11 @@ describe("Configurações → Equipe", () => {
     expect(sent.find((r) => r.method === "POST")?.body).toEqual({ name: "Caio Reis", email: "caio@gmail.com", role: "owner" });
     await userEvent.click(screen.getByRole("button", { name: "Copiar link" }));
     expect(writeText).toHaveBeenCalledWith("http://alinea.localhost/painel/definir-senha#token=abc");
-    // The form is ready for the next person.
+    // Done, or the next person.
+    await userEvent.click(screen.getByRole("button", { name: "Convidar outra pessoa" }));
     expect(screen.getByLabelText("Nome")).toHaveValue("");
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("says so when the email couldn't go, and the link is there to send", async () => {
@@ -68,6 +72,7 @@ describe("Configurações → Equipe", () => {
       }),
     });
     renderAt("/configuracoes/equipe");
+    await userEvent.click(await screen.findByRole("button", { name: "Convidar pessoa" }));
     await userEvent.type(await screen.findByLabelText("Nome"), "Bia");
     await userEvent.type(screen.getByLabelText("E-mail"), "bia@alinea.example");
     await userEvent.click(screen.getByRole("button", { name: "Enviar convite" }));
@@ -80,6 +85,7 @@ describe("Configurações → Equipe", () => {
       "POST /api/team/invites": () => ({ status: 409, body: { error: "already_staff", conflict_name: "Ana Lima" } }),
     });
     renderAt("/configuracoes/equipe");
+    await userEvent.click(await screen.findByRole("button", { name: "Convidar pessoa" }));
     await userEvent.type(await screen.findByLabelText("Nome"), "Ana");
     await userEvent.type(screen.getByLabelText("E-mail"), "dona@alinea.example");
     await userEvent.click(screen.getByRole("button", { name: "Enviar convite" }));
@@ -105,11 +111,11 @@ describe("Configurações → Equipe", () => {
       {},
       {
         "GET /api/team": () => ({
-          body: { members: [DONA], join_link: { on, made_at: on ? "2026-10-20T12:00:00Z" : null }, can_manage: true },
+          body: { members: [DONA], join_link: { on, expires_at: on ? "2026-10-21T12:00:00Z" : null }, can_manage: true },
         }),
         "POST /api/team/join-link": () => {
           on = true;
-          return { status: 201, body: { link: "http://alinea.localhost/painel/entrar-na-equipe#token=xyz" } };
+          return { status: 201, body: { link: "http://alinea.localhost/painel/entrar-na-equipe#token=xyz", expires_at: "2026-10-21T12:00:00Z" } };
         },
         "DELETE /api/team/join-link": () => {
           on = false;
@@ -119,21 +125,28 @@ describe("Configurações → Equipe", () => {
     );
     renderAt("/configuracoes/equipe");
     await userEvent.click(await screen.findByRole("button", { name: "Criar link da equipe" }));
-    expect(await screen.findByLabelText("Link da equipe")).toHaveValue("http://alinea.localhost/painel/entrar-na-equipe#token=xyz");
-    expect(screen.getByText(/o link só aparece uma vez/)).toBeInTheDocument();
+    expect(await screen.findByLabelText("Convidar através de um link")).toHaveValue("http://alinea.localhost/painel/entrar-na-equipe#token=xyz");
+    expect(screen.getByText(/o link só aparece uma vez e vale por 24 horas/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Criar novo link" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Desativar link" }));
     expect(await screen.findByRole("button", { name: "Criar link da equipe" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Link da equipe")).toBeNull();
+    expect(screen.queryByLabelText("Convidar através de um link")).toBeNull();
+  });
+
+  it("says until when a shared link made earlier works", async () => {
+    api({ join_link: { on: true, expires_at: "2026-10-21T15:30:00Z" } });
+    renderAt("/configuracoes/equipe");
+    expect(await screen.findByText("Há um link ativo até 21/10, 12:30.")).toBeInTheDocument(); // São Paulo
+    expect(screen.queryByLabelText("Convidar através de um link")).toBeNull(); // shown only when made
   });
 
   it("a member sees the team, without invites or the shared link", async () => {
     api({ members: [DONA, BIA], can_manage: false });
     renderAt("/configuracoes/equipe");
     expect(await screen.findByText("Só administradores convidam pessoas.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Enviar convite" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Convidar pessoa" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Enviar de novo" })).toBeNull();
-    expect(screen.queryByText("Link da equipe")).toBeNull();
+    expect(screen.queryByText("Convidar através de um link")).toBeNull();
   });
 });
 

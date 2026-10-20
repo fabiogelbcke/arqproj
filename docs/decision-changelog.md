@@ -27,8 +27,9 @@ to pass on.
 
 **Now:** Configurações → Equipe. An owner invites a person (name, email, role),
 and the app emails the one-time link, with "Copiar link" too. An owner can also
-turn on a shared office link: joiners give a name and an email and get the same
-emailed link, so they always prove the email is theirs, and they join as members.
+turn on a shared office link, for 24 hours: joiners give a name and an email and
+get the same emailed link, so they always prove the email is theirs, and they join
+as members.
 
 **Why:** Fabio (20 Oct 2026): offices should add their own people rather than us
 doing it for them, and asked for both a personal invite and a shared link.

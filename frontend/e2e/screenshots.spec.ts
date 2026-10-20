@@ -118,8 +118,12 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(page, "05-configuracoes-drive");
 
   await page.goto("/painel/configuracoes/equipe");
-  await page.getByRole("button", { name: "Enviar convite" }).waitFor();
+  await page.getByRole("button", { name: "Convidar pessoa" }).waitFor();
   await shoot(page, "05b-configuracoes-equipe");
+  await page.getByRole("button", { name: "Convidar pessoa" }).click();
+  await page.getByRole("dialog").waitFor();
+  await shoot(page, "05c-convidar-pessoa");
+  await page.keyboard.press("Escape");
 
   // The client's page (no sign-in needed; the staff session doesn't change it).
   await page.setViewportSize(SIZES[0]!);

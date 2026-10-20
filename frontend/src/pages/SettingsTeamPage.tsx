@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Form, Label, Radio, RadioGroup } from "react-aria-components";
+import { Dialog, Form, Heading, Label, Modal, ModalOverlay, Radio, RadioGroup } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "../api/client";
+import { useMe } from "../session/session";
 import { useCancelInvite, useInvite, useInviteAgain, useJoinLinkOff, useJoinLinkOn, useTeam, type Member } from "../team/team";
+import dialog from "../projects/projects.module.css";
 import { Button } from "../ui/Button";
+import { CloseButton } from "../ui/CloseButton";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
@@ -49,8 +52,8 @@ export function SettingsTeamPage() {
       </h2>
       {!manage && <p className={styles.small}>{t("team.ownerOnly")}</p>}
       <Members members={team.data.members} manage={manage} />
-      {manage && <InviteForm />}
-      {manage && <SharedLink on={team.data.join_link.on} since={team.data.join_link.made_at} />}
+      {manage && <InviteButton />}
+      {manage && <SharedLink on={team.data.join_link.on} until={team.data.join_link.expires_at} />}
     </section>
   );
 }
@@ -116,7 +119,21 @@ function Members({ members, manage }: { members: Member[]; manage: boolean }) {
   );
 }
 
-function InviteForm() {
+/** "Convidar pessoa" under the team: the invite in a dialog (Fabio, 20 Oct 2026). */
+function InviteButton() {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={styles.actions}>
+      <Button variant="primary" onPress={() => setOpen(true)}>
+        {t("team.inviteTitle")}
+      </Button>
+      {open && <InviteDialog onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
+function InviteDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const invite = useInvite();
   const [name, setName] = useState("");
@@ -127,62 +144,81 @@ function InviteForm() {
   const already =
     error instanceof ApiError && error.code === "already_staff" ? t("team.alreadyIn", { name: error.conflictName }) : null;
   return (
-    <div className={styles.teamBlock}>
-      <h3>{t("team.inviteTitle")}</h3>
-      <p className={styles.small}>{t("team.inviteIntro")}</p>
-      <Form
-        className={styles.form}
-        onSubmit={(event) => {
-          event.preventDefault();
-          invite.mutate(
-            { name, email, role },
-            {
-              onSuccess: (out) => {
-                setSent({ email: out.member.email, link: out.link, emailed: out.emailed });
-                setName("");
-                setEmail("");
-                setRole("member");
-              },
-            },
-          );
-        }}
-      >
-        <TextField label={t("team.name")} value={name} onChange={setName} isRequired maxLength={NAME_MAX} autoComplete="off" />
-        <EmailField label={t("team.email")} value={email} onChange={setEmail} isRequired autoComplete="off" />
-        <RadioGroup className={styles.roles} value={role} onChange={(value) => setRole(value as "member" | "owner")}>
-          <Label className={styles.fieldLabel}>{t("team.roleLabel")}</Label>
-          {(["member", "owner"] as const).map((option) => (
-            <Radio key={option} value={option} className={styles.roleChoice}>
-              <strong>{t(`team.role.${option}`)}</strong>
-              <small>{t(`team.roleHint.${option}`)}</small>
-            </Radio>
-          ))}
-        </RadioGroup>
-        {already ? (
-          <p role="alert" className={styles.problem}>
-            {already}
-          </p>
-        ) : (
-          <ErrorNotice error={error} />
-        )}
-        <div className={styles.actions}>
-          <Button type="submit" variant="primary" isDisabled={invite.isPending}>
-            {invite.isPending ? t("team.inviting") : t("team.invite")}
-          </Button>
-        </div>
-      </Form>
-      {sent && (
-        <div role="status" className={styles.teamResult}>
-          <p>{sent.emailed ? t("team.invited", { email: sent.email }) : t("team.notEmailed")}</p>
-          <LinkToCopy link={sent.link} label={t("team.inviteLink")} />
-        </div>
-      )}
-    </div>
+    <ModalOverlay className={dialog.overlay} isDismissable isOpen onOpenChange={(open) => !open && onClose()}>
+      <Modal className={dialog.modal}>
+        <Dialog className={dialog.dialog}>
+          <Heading slot="title" className={dialog.dialogTitle}>
+            {t("team.inviteTitle")}
+          </Heading>
+          <CloseButton onPress={onClose} />
+          {sent ? (
+            // Sent: the link to copy too, then done (or invite someone else).
+            <div className={styles.form}>
+              <div role="status" className={styles.teamResult}>
+                <p>{sent.emailed ? t("team.invited", { email: sent.email }) : t("team.notEmailed")}</p>
+                <LinkToCopy link={sent.link} label={t("team.inviteLink")} />
+              </div>
+              <div className={styles.actions}>
+                <Button onPress={() => setSent(null)}>{t("team.inviteAnother")}</Button>
+                <Button variant="primary" onPress={onClose}>
+                  {t("team.done")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Form
+              className={styles.form}
+              onSubmit={(event) => {
+                event.preventDefault();
+                invite.mutate(
+                  { name, email, role },
+                  {
+                    onSuccess: (out) => {
+                      setSent({ email: out.member.email, link: out.link, emailed: out.emailed });
+                      setName("");
+                      setEmail("");
+                      setRole("member");
+                    },
+                  },
+                );
+              }}
+            >
+              <p className={styles.small}>{t("team.inviteIntro")}</p>
+              <TextField label={t("team.name")} value={name} onChange={setName} isRequired maxLength={NAME_MAX} autoComplete="off" autoFocus />
+              <EmailField label={t("team.email")} value={email} onChange={setEmail} isRequired autoComplete="off" />
+              <RadioGroup className={styles.roles} value={role} onChange={(value) => setRole(value as "member" | "owner")}>
+                <Label className={styles.fieldLabel}>{t("team.roleLabel")}</Label>
+                {(["member", "owner"] as const).map((option) => (
+                  <Radio key={option} value={option} className={styles.roleChoice}>
+                    <strong>{t(`team.role.${option}`)}</strong>
+                    <small>{t(`team.roleHint.${option}`)}</small>
+                  </Radio>
+                ))}
+              </RadioGroup>
+              {already ? (
+                <p role="alert" className={styles.problem}>
+                  {already}
+                </p>
+              ) : (
+                <ErrorNotice error={error} />
+              )}
+              <div className={styles.actions}>
+                <Button onPress={onClose}>{t("team.close")}</Button>
+                <Button type="submit" variant="primary" isDisabled={invite.isPending}>
+                  {invite.isPending ? t("team.inviting") : t("team.invite")}
+                </Button>
+              </div>
+            </Form>
+          )}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }
 
-function SharedLink({ on, since }: { on: boolean; since: string | null | undefined }) {
+function SharedLink({ on, until }: { on: boolean; until: string | null | undefined }) {
   const { t, i18n } = useTranslation();
+  const me = useMe();
   const turnOn = useJoinLinkOn();
   const turnOff = useJoinLinkOff();
   // Only shown when made: the server keeps just its hash.
@@ -192,6 +228,15 @@ function SharedLink({ on, since }: { on: boolean; since: string | null | undefin
       onSuccess: (out) => setLink(out.link),
       onError: (failure) => toastError(failure),
     });
+  const ends = (iso: string) =>
+    // The office's clock, as everywhere in the painel.
+    new Intl.DateTimeFormat(i18n.language, {
+      timeZone: me.data?.tenant_timezone,
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(iso));
   return (
     <div className={styles.teamBlock}>
       <h3>{t("team.linkTitle")}</h3>
@@ -202,13 +247,7 @@ function SharedLink({ on, since }: { on: boolean; since: string | null | undefin
           <p className={styles.small}>{t("team.linkOnce")}</p>
         </div>
       ) : (
-        on && (
-          <p>
-            {t("team.linkOnSince", {
-              date: since ? new Date(since).toLocaleDateString(i18n.language) : "",
-            })}
-          </p>
-        )
+        on && until && <p>{t("team.linkOnUntil", { when: ends(until) })}</p>
       )}
       <div className={styles.actions}>
         <Button onPress={make} isDisabled={turnOn.isPending}>
