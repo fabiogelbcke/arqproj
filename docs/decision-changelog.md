@@ -19,6 +19,26 @@ a new entry too.
 
 ---
 
+## 2026-10-20 — A36 (new), section 5: owners invite staff from the painel
+
+**Was:** section 5 deferred invitation screens as an add-on for larger offices;
+staff accounts were made with the `staff` command, which prints a one-time link
+to pass on.
+
+**Now:** Configurações → Equipe. An owner invites a person (name, email, role),
+and the app emails the one-time link, with "Copiar link" too. An owner can also
+turn on a shared office link: joiners give a name and an email and get the same
+emailed link, so they always prove the email is theirs, and they join as members.
+
+**Why:** Fabio (20 Oct 2026): offices should add their own people rather than us
+doing it for them, and asked for both a personal invite and a shared link.
+**Considered and set aside:** a shared link that creates the account on the spot
+with a password typed there. Section 5 requires invitations to bind a verified
+email, and a link passed around a group would let anyone claim any address.
+**Kept for later:** removing active staff and changing roles.
+
+---
+
 ## 2026-10-19 — Plan section 16: the example project at the top of Primeiros passos; a painel tour
 
 **Was:** the example project's entry was an optional line at the bottom of

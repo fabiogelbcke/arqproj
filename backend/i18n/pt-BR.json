@@ -506,6 +506,12 @@
     "orderSaved": "Ordem das etapas salva."
   },
   "email": {
+    "inviteSubject": "Convite para o painel do {{office}}",
+    "inviteIntro": "{{inviter}} convidou você para o painel do {{office}}, onde a equipe cuida das páginas dos projetos. Para entrar, escolha sua senha:",
+    "inviteIntroLink": "Você pediu para entrar no painel do {{office}}. Para confirmar que este e-mail é seu, escolha sua senha:",
+    "inviteButton": "Escolher minha senha",
+    "inviteExpiry": "O link vale por 7 dias e funciona uma vez.",
+    "inviteIgnore": "Se você não esperava este convite, pode ignorar este e-mail: nenhuma conta funciona sem a senha escolhida por este link.",
       "subject": "Novidades em {{project}}",
       "intro": "Há novidades no projeto {{project}}:",
       "files_one": "1 arquivo novo em {{stage}}: {{names}}",

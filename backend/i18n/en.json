@@ -506,6 +506,12 @@
     "orderSaved": "Stage order saved."
   },
   "email": {
+    "inviteSubject": "Invitation to {{office}}'s panel",
+    "inviteIntro": "{{inviter}} invited you to {{office}}'s panel, where the team looks after the project pages. To come in, choose your password:",
+    "inviteIntroLink": "You asked to join {{office}}'s panel. To confirm this email is yours, choose your password:",
+    "inviteButton": "Choose my password",
+    "inviteExpiry": "The link works for 7 days, once.",
+    "inviteIgnore": "If you weren't expecting this, you can ignore this email: no account works without the password chosen through this link.",
       "subject": "News on {{project}}",
       "intro": "There's news on the {{project}} project:",
       "files_one": "1 new file in {{stage}}: {{names}}",
