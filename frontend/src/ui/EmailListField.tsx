@@ -5,16 +5,17 @@ import { Button } from "./Button";
 import { emailSuggestion, isEmail, splitEmails } from "./email";
 import styles from "./ui.module.css";
 
-/** Adds the addresses in `text` to `list`: each once, up to `max`. Those that
- *  aren't addresses come back in `rejected`, to stay in the box for fixing. */
-export function addEmails(list: string[], text: string, max: number): { list: string[]; rejected: string[] } {
+/** Adds the addresses in `text` to `list`: each once, up to `max`. What can't be
+ *  added comes back in `left`, to stay in the box: those that aren't addresses,
+ *  and those past the maximum. A form saves only once nothing is left. */
+export function addEmails(list: string[], text: string, max: number): { list: string[]; left: string[] } {
   const next = [...list];
-  const rejected: string[] = [];
+  const left: string[] = [];
   for (const email of splitEmails(text)) {
-    if (!isEmail(email)) rejected.push(email);
-    else if (!next.includes(email) && next.length < max) next.push(email);
+    if (!isEmail(email) || (!next.includes(email) && next.length >= max)) left.push(email);
+    else if (!next.includes(email)) next.push(email);
   }
-  return { list: next, rejected };
+  return { list: next, left };
 }
 
 type Props = {
@@ -54,11 +55,13 @@ export function EmailListField({
   const { t } = useTranslation();
   const id = useId();
   const add = (text = draft) => {
-    const { list, rejected } = addEmails(emails, text, max);
+    const { list, left } = addEmails(emails, text, max);
     if (list.length !== emails.length) onChange(list);
-    onDraft(rejected.join(", "));
+    onDraft(left.join(", "));
   };
   const rejected = splitEmails(draft).filter((email) => !isEmail(email));
+  // Full, with addresses still in the box: they'd be lost if the box went away.
+  const tooMany = emails.length >= max && splitEmails(draft).some(isEmail);
   // A typed address waiting to be added: shown with its fix once it's complete.
   const typed = splitEmails(draft);
   const draftSuggestion = typed.length === 1 && isEmail(typed[0]!) ? emailSuggestion(typed[0]!) : null;
@@ -99,7 +102,7 @@ export function EmailListField({
           })}
         </ul>
       )}
-      {emails.length < max && (
+      {(emails.length < max || draft.trim() !== "") && (
         <div className={styles.emailListAdd}>
           <div className={styles.field}>
             <label className={styles.label} htmlFor={id}>
@@ -147,6 +150,11 @@ export function EmailListField({
       {rejected.length > 0 && (
         <p id={`${id}-error`} className={styles.fieldError} role="alert">
           {t("emailField.invalidSome", { count: rejected.length, emails: rejected.join(", ") })}
+        </p>
+      )}
+      {tooMany && (
+        <p className={styles.fieldError} role="alert">
+          {t("emailField.tooMany", { max })}
         </p>
       )}
       {draftSuggestion && (

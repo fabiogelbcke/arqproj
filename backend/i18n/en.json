@@ -606,6 +606,7 @@
     "skip": "Skip"
   },
   "emailField": {
+    "tooMany": "That's {{max}} emails, the most there can be. Remove one to add another.",
     "invalid": "Check the email: something's missing, as in contact@office.com.",
     "didYouMean": "Did you mean",
     "invalidSome_one": "This doesn't look like an email: {{emails}}. Check it and try again.",
