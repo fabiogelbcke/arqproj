@@ -694,6 +694,23 @@ test("\"Sobre esta etapa\" is above the stages after it @safari", async ({ page 
   expect(await coveringPopup(page, "#stage-0 .stage-help-pop:not([hidden])")).toEqual([]);
 });
 
+// Edit mode hides "Sobre esta etapa" but may leave it open: its stage mustn't stay
+// raised, level with the stage whose file menu is open (the later one would win).
+test("in edit mode only the stage with the open file menu is raised", async ({ page }) => {
+  await signInAsNewStaff(page, "menu-e-sobre@alinea.example");
+  await page.goto("/casa-jardim");
+  const later = page.locator(".stage-help-toggle").last();
+  await later.click();
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await openThirdStage(page);
+  await page.locator("#stage-2").getByRole("button", { name: /^Ações para / }).first().click();
+  await page.locator("#stage-2 .filemenu.is-open [role=menuitem]").first().waitFor();
+  const raised = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>(".stage")].filter((stage) => getComputedStyle(stage).zIndex === "3").map((stage) => stage.id),
+  );
+  expect(raised).toEqual(["stage-2"]);
+});
+
 // A file's "⋯" looks tag-sized over its thumbnail but is tapped like an icon
 // button (ui/sizes.css): a tap just outside its circle still opens it.
 test("a file's \"⋯\" is small to look at and icon-sized to tap", async ({ page }) => {

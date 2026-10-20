@@ -258,8 +258,10 @@ a.site__brand { color: inherit; text-decoration: none; }
 .client.editing .filemenu.is-open { z-index: 30; }
 /* Each stage is its own layer (isolation, for its band), and later stages paint
    over earlier ones, so a popup reaching past its stage's edge went under the next
-   stage. The stage with an open popup ("⋯", "Sobre esta etapa") rises above them. */
-.client .stage:has(.filemenu.is-open, .stage-help-pop:not([hidden])) { z-index: 3; }
+   stage. The stage with an open popup rises above them: a file's "⋯" in edit mode,
+   "Sobre esta etapa" outside it (edit mode hides that one, even if left open). */
+.client.editing .stage:has(.filemenu.is-open),
+.client:not(.editing) .stage:has(.stage-help-pop:not([hidden])) { z-index: 3; }
 
 /* A file's "⋯" over its thumbnail looks like a tag (ui/sizes.css) and is tapped
    like an icon: an invisible ring makes its target the icon size. */
