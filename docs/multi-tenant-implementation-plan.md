@@ -1612,6 +1612,28 @@ Update generator, exporter, regeneration version inputs, folder adapter and test
 when required. Do not copy real customer documents into fixtures or recorded HTTP
 responses. Contract fixtures derived from real sandbox tests must be sanitized.
 
+### Visual variants: the preview page
+
+Agreed with Fabio (20 Oct 2026), not yet built. For UI review, one page shows
+the real client project page with fictional data and a control panel to change
+that data live, so anyone can see how each combination looks without creating
+projects. It checks looks only: nothing touches the server, Drive or the
+database.
+
+- **Reuse the example project** (`frontend/src/client/example`: `fixture.ts`,
+  `exampleApi.ts`, `ExampleApp.tsx`): it already renders the real page from
+  data in the browser. The preview page builds its data from that fixture plus
+  the panel's settings; the page components themselves are not forked.
+- **Controls, at least:** cover photo on/off; description none, short, long
+  (with a length slider); meeting none, short name, long name; number of
+  stages and of files per stage; long file and stage names; client emails
+  present or missing; staff view vs client view; light/dark; phone/desktop
+  width. Adding a control later is a small change in one place.
+- **Where it runs:** locally (`make dev`) and on staging, not in production.
+  Staff only on staging.
+- Shareable: the settings live in the address, so a link reproduces a
+  combination. Usable by `make screenshots` for pull requests.
+
 ## 19. Build, review and release process
 
 Recommended flow:
