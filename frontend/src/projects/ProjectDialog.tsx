@@ -166,6 +166,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
                 onChange={setPassword}
                 isRequired={saved.access_mode !== "password"}
                 minLength={6}
+                maxLength={LIMITS.pagePassword}
                 autoComplete="new-password"
               />
             )}

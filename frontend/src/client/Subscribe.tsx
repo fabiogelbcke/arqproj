@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { emailSuggestion, isEmail, tidyEmail } from "../ui/email";
 
 export function Subscribe({ slug }: { slug: string }) {
@@ -54,6 +55,7 @@ export function Subscribe({ slug }: { slug: string }) {
           type="text"
           inputMode="email"
           autoComplete="email"
+          maxLength={LIMITS.email}
           autoCapitalize="none"
           spellCheck={false}
           placeholder={t("subscribe.placeholder")}

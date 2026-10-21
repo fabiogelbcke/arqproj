@@ -35,7 +35,7 @@ from backend.tenancy.models import Locale
 
 log = logging.getLogger(__name__)
 
-NAME_MAX = 120
+NAME_MAX = 50  # the client page's large heading (Fabio, 20 Oct 2026)
 # The client's name as shown on the page: 30 characters for now (Fabio, 18 Oct
 # 2026). The database allows CLIENT_NAME_MAX (48), so this can grow without a migration.
 CLIENT_NAME_LIMIT = 30

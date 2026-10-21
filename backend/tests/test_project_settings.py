@@ -87,12 +87,27 @@ async def test_a_name_another_project_has_is_refused_but_its_own_is_fine(client,
     ("body", "error"),
     [
         ({"name": "  "}, "invalid_project_name"),
+        ({"name": "x" * 51}, "invalid_project_name"),  # 50 (FIELD_LIMITS)
         ({"client_name": "x" * 31}, "invalid_client_name"),  # 30 for now
     ],
 )
 async def test_bad_values_are_refused(client, owner, body, error):
     response = await change(client, owner, await project(client), **body)
     assert (response.status_code, response.json()["error"]) == (422, error)
+
+
+async def test_a_name_saved_before_the_limit_stays(client, owner, db_session):
+    """The limit is for names entered from now on (like the client's): saving the
+    project's settings with its old, longer name still works."""
+    found = await project(client)
+    old = "Residência de veraneio da família Andrade em Urubici"  # 52 characters
+    await db_session.execute(
+        text("UPDATE projects SET name = :name WHERE id = :id"), {"name": old, "id": found["id"]}
+    )
+    kept = await change(client, owner, await project(client), name=old, client_name="Família")
+    assert kept.status_code == 200 and kept.json()["name"] == old
+    other = await change(client, owner, await project(client), name=old + "!")
+    assert (other.status_code, other.json()["error"]) == (422, "invalid_project_name")
 
 
 async def test_archiving_hides_the_project_and_undo_brings_it_back(client, owner):

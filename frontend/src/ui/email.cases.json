@@ -5,9 +5,11 @@
     "ana.souza+obra@gmail.com",
     "a_b-c@sub.dominio.arq.br",
     "x@y.io",
-    "o'neil@escritorio.com"
+    "o'neil@escritorio.com",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@arquitetura-e-urbanismo-exemplo.com.br"
   ],
   "invalid": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@arquitetura-e-urbanismo-exemplo.com.br",
     "",
     "ana",
     "ana@",

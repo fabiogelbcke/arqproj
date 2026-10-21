@@ -166,7 +166,7 @@ async def test_a_deleted_projects_name_can_be_used_again(client, db_session, own
     ("changes", "error"),
     [
         ({"name": "   "}, "invalid_project_name"),
-        ({"name": "x" * 121}, "invalid_project_name"),
+        ({"name": "x" * 51}, "invalid_project_name"),  # 50 (FIELD_LIMITS)
         ({"client_name": " "}, "invalid_client_name"),
         ({"client_name": "x" * 31}, "invalid_client_name"),  # 30 for now
         ({"project_type": "pools"}, "unknown_project_type"),

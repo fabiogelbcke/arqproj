@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { catalogs } from "../i18n";
 import { LIMITS } from "./limits";
 
 // Every screen's source, as text.
@@ -12,6 +13,21 @@ const sources = import.meta.glob<string>(["../**/*.tsx", "!../**/*.test.tsx"], {
 /** maxLength written as a number of its own, instead of read from LIMITS. */
 function ownLimits(source: string): string[] {
   return source.match(/maxLength=(\{\s*\d+\s*\}|"\d+")/g) ?? [];
+}
+
+// Error messages that tell people a field's limit, by the limit they tell.
+const TOLD: Record<string, keyof typeof LIMITS> = {
+  invalid_project_name: "projectName",
+  invalid_client_name: "clientName",
+  invalid_office_name: "officeName",
+  invalid_staff_name: "staffName",
+  invalid_meeting: "meetingTitle",
+  invalid_detail: "detailText",
+};
+
+/** The numbers a message mentions. */
+function numbersIn(message: string): number[] {
+  return (message.match(/\d+/g) ?? []).map(Number);
 }
 
 describe("field limits", () => {
@@ -29,5 +45,17 @@ describe("field limits", () => {
   it("would notice a screen's own number (the check above can fail)", () => {
     expect(ownLimits('<input maxLength={40} /> <input maxLength="60" />')).toHaveLength(2);
     expect(ownLimits("<input maxLength={LIMITS.meetingTitle} />")).toEqual([]);
+  });
+
+  it("are what the error messages tell, in every language", () => {
+    for (const [locale, catalog] of Object.entries(catalogs))
+      for (const [code, limit] of Object.entries(TOLD)) {
+        const message = (catalog.errors as Record<string, string>)[code]!;
+        expect(numbersIn(message), `${locale} ${code}`).toContain(LIMITS[limit]);
+      }
+  });
+
+  it("would notice a message telling an old limit", () => {
+    expect(numbersIn("Informe o nome do projeto, com até 120 caracteres.")).not.toContain(LIMITS.projectName);
   });
 });

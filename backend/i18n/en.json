@@ -202,7 +202,7 @@
     "logo_wrong_type": "Use a PNG, JPG, WebP or SVG image.",
     "logo_too_large": "Use an image of up to 5 MB.",
     "drive_unreadable": "The portal cannot read the office's Google Drive folder. Check its sharing in Settings → Google Drive.",
-    "invalid_project_name": "Enter the project's name, up to 120 characters.",
+    "invalid_project_name": "Enter the project's name, up to 50 characters.",
     "invalid_client_name": "Enter the client, up to 30 characters.",
     "invalid_slug": "Use only lowercase letters, numbers and hyphens, with no hyphen at the start or end. Some words are reserved by the portal.",
     "slug_taken": "This address is already in use. Choose another.",
@@ -229,7 +229,7 @@
     "stage_has_no_folder": "This stage has no file folder, so it can't take files.",
     "file_not_ours": "This file wasn't sent through the site. To hide it, rename it in the stage's folder starting with _.",
     "file_not_ours_to_move": "This file wasn't sent through the site. To move it to another stage, move it into that stage's folder.",
-    "invalid_detail": "Check the details: each appears once, areas are numbers and dates are dates.",
+    "invalid_detail": "Check the details: each appears once, text is up to 40 characters, areas are numbers and dates are dates.",
     "invalid_meeting": "Check the meeting: a subject of up to 40 characters, a date ahead, an end after the start, and a link starting with https://.",
     "invalid_stage": "This stage couldn't be changed. Reload the page and try again.",
     "files_unavailable": "The file couldn't be opened just now. Try again in a moment."

@@ -1,12 +1,15 @@
 {
-  "projectName": 120,
+  "projectName": 50,
   "clientName": 30,
   "slug": 80,
-  "description": 5000,
+  "description": 600,
   "stageTitle": 80,
-  "stageNotes": 2000,
+  "stageNotes": 300,
+  "detailText": 40,
   "meetingTitle": 40,
   "meetingLocation": 60,
   "officeName": 28,
-  "staffName": 80
+  "staffName": 80,
+  "email": 100,
+  "pagePassword": 25
 }

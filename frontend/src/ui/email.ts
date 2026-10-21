@@ -2,8 +2,7 @@
 // (backend/identity/emails.py), and a likely typo in the domain pointed out
 // ("gmial.com" → "gmail.com"), so a misspelt address is caught while it's typed
 // rather than when an email bounces.
-
-export const EMAIL_MAX = 254;
+import { LIMITS } from "../api/limits";
 
 const LOCAL = /^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
 const LABEL = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
@@ -22,7 +21,7 @@ export function tidyEmail(raw: string): string {
 /** The server's rule: a name, "@", and a domain of at least two parts ending in
  *  letters ("ana@escritorio.com.br"), with no spaces or doubled dots. */
 export function isEmail(email: string): boolean {
-  if (email.length > EMAIL_MAX) return false;
+  if (email.length > LIMITS.email) return false;
   const at = email.lastIndexOf("@");
   if (at <= 0 || at > 64) return false;
   const local = email.slice(0, at);

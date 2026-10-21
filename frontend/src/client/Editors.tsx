@@ -210,7 +210,7 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
                   <span>m²</span>
                 </div>
               ) : (
-                <input className="input" id={id} type={kind === "date" ? "date" : "text"} value={row.value} onChange={(e) => set(e.target.value)} />
+                <input className="input" id={id} type={kind === "date" ? "date" : "text"} maxLength={LIMITS.detailText} value={row.value} onChange={(e) => set(e.target.value)} />
               )}
               <button
                 className="iconbtn"
