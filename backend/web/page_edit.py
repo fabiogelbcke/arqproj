@@ -49,7 +49,7 @@ from backend.web.errors import ApiError, ErrorCode, documented
 router = APIRouter(prefix="/api")
 
 DESCRIPTION_MAX = 600  # a few short paragraphs (Fabio, 20 Oct 2026)
-NOTES_MAX = 300  # a short update per stage (Fabio, 20 Oct 2026)
+NOTES_MAX = 120  # a short update per stage, on one line (Fabio, 20 Oct 2026)
 DETAIL_TEXT_MAX = 40  # one line beside its label (Fabio, 20 Oct 2026)
 _WEB_LINK = re.compile(r"^https?://\S+$")
 

@@ -438,9 +438,10 @@ test("staff edit the page in place and the client sees it", async ({ page, brows
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByText("Salvo.")).toBeVisible();
 
+  // "Recado para o cliente" opens the stage's "Editar etapa".
   await page.locator("#stage-2").getByRole("button", { name: "Recado para o cliente" }).click();
   await page.getByLabel("Recado da etapa").fill("Confira as plantas v2 antes de sexta.");
-  await page.getByRole("button", { name: "Salvar" }).click();
+  await page.locator("#stage-2").getByRole("button", { name: "Salvar" }).click();
   await expect(page.locator("#stage-2").getByText("Confira as plantas v2 antes de sexta.")).toBeVisible();
 
   // A cover added from the page: "Trocar capa" and "Remover capa" side by side on it,
@@ -488,9 +489,9 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   await bar.getByRole("button", { name: "Editar" }).click();
 
   // Rename the second stage.
-  await page.getByRole("button", { name: "Renomear etapa Levantamento" }).click();
+  await page.getByRole("button", { name: "Editar etapa Levantamento" }).click();
   await page.getByLabel("Nome da etapa").fill("Medição do apartamento");
-  await page.getByRole("button", { name: "Salvar" }).click();
+  await page.locator("#stage-1").getByRole("button", { name: "Salvar" }).click();
   await expect(page.locator("#st-1")).toHaveText("Medição do apartamento");
 
   // Add the office's own stage, then remove it.
@@ -498,12 +499,14 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   await page.getByLabel("Ou uma etapa do escritório").fill("Visita técnica");
   await page.getByRole("button", { name: "Adicionar", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Visita técnica" })).toBeVisible();
-  await page.getByRole("button", { name: "Remover etapa Visita técnica" }).click();
-  await page.getByRole("button", { name: "Remover", exact: true }).click();
+  await page.getByRole("button", { name: "Editar etapa Visita técnica" }).click();
+  await page.getByRole("button", { name: "Remover etapa", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Remover", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Visita técnica" })).toHaveCount(0);
 
   // Advance: the client sees the next stage in progress.
   await page.getByRole("button", { name: /Avançar para 04/ }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Avançar", exact: true }).click(); // asked first
   await expect(page.getByText(/Avançou para/)).toBeVisible();
   const client = await browser.newPage();
   await client.goto("/casa-jardim");

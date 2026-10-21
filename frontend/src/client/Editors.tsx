@@ -10,6 +10,7 @@ import { EmailListField, addEmails } from "../ui/EmailListField";
 import { TextInput } from "../ui/TextInput";
 import { toast } from "../ui/Toast";
 import type { Page } from "./format";
+import { DayField, TimeOfDayField } from "./WhenFields";
 
 type Staff = NonNullable<Page["staff"]>;
 
@@ -327,81 +328,22 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
         <label htmlFor="m-title">{t("edit.subject")}</label>
         <TextInput className="input" id="m-title" value={form.title} onChange={set("title")} maxLength={LIMITS.meetingTitle} required autoFocus />
       </div>
-      <div className="row3">
-        <div className="field">
-          <label htmlFor="m-date">{t("edit.day")}</label>
-          <input className="input" type="date" id="m-date" value={form.day} onChange={set("day")} required />
-        </div>
-        <div className="field">
-          <label htmlFor="m-start">{t("edit.start")}</label>
-          <input className="input" type="time" id="m-start" value={form.start} onChange={set("start")} required />
-        </div>
-        <div className="field">
-          <label htmlFor="m-end">{t("edit.end")}</label>
-          <input className="input" type="time" id="m-end" value={form.end} onChange={set("end")} />
-        </div>
+      {/* The day on its own line, then the times side by side (even on a phone); the
+          place and the video link one per line, either or both. */}
+      <DayField label={t("edit.day")} value={form.day} onChange={(day) => setForm({ ...form, day })} />
+      <div className="meeting-times">
+        <TimeOfDayField label={t("edit.start")} value={form.start} onChange={(start) => setForm({ ...form, start })} required />
+        <TimeOfDayField label={t("edit.end")} value={form.end} onChange={(end) => setForm({ ...form, end })} />
       </div>
-      <div className="row2">
-        <div className="field">
-          <label htmlFor="m-loc">{t("edit.location")}</label>
-          <TextInput className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={LIMITS.meetingLocation} />
-        </div>
-        <div className="field">
-          <label htmlFor="m-link">{t("edit.link")}</label>
-          <input className="input" type="url" id="m-link" value={form.link} onChange={set("link")} placeholder="https://meet.google.com/…" />
-        </div>
+      <div className="field">
+        <label htmlFor="m-loc">{t("edit.location")}</label>
+        <TextInput className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={LIMITS.meetingLocation} />
+      </div>
+      <div className="field">
+        <label htmlFor="m-link">{t("edit.link")}</label>
+        <input className="input" type="url" id="m-link" value={form.link} onChange={set("link")} placeholder="https://meet.google.com/…" />
       </div>
       <p className="hint">{t("edit.timeZoneHint")}</p>
-    </Editor>
-  );
-}
-
-export function NotesEditor({
-  page,
-  staff,
-  index,
-  onDone,
-}: {
-  page: Page;
-  staff: Staff;
-  index: number;
-  onDone: (saved: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  const stage = page.stages[index]!;
-  const [notes, setNotes] = useState(stage.notes);
-  const save = useSave(() => onDone(true));
-  return (
-    <Editor
-      title={t("edit.notes")}
-      {...save}
-      onCancel={() => onDone(false)}
-      onSubmit={() =>
-        save.run(() =>
-          call(
-            api.PUT("/api/projects/{project_id}/stages/{position}/notes", {
-              params: { path: { project_id: staff.project_id, position: stage.position } },
-              body: { row_version: staff.row_version, notes },
-            }),
-          ),
-        )
-      }
-    >
-      <div className="field">
-        <label className="sr" htmlFor={`ed-notes-${index}`}>
-          {t("edit.notes")}
-        </label>
-        <textarea
-          className="textarea"
-          id={`ed-notes-${index}`}
-          maxLength={LIMITS.stageNotes}
-          rows={4}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder={t("edit.notesPlaceholder")}
-          autoFocus
-        />
-      </div>
     </Editor>
   );
 }

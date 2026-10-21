@@ -973,7 +973,8 @@ checks; `backend/web/limits.py` lists them. `make api-types` copies that list to
 `frontend/src/api/limits.json`, which the screens' inputs and the preview page
 read, and a test fails if the copy is out of date or a screen writes its own
 number (20 Oct 2026). Set by Fabio the same day, for text entered from then on:
-project name 50, description 600, a stage's notes 300, a text detail 40, email
+project name 50, description 600, a stage's notes 120 (one line; first set at
+300 that day), a text detail 40, email
 addresses 100, the page password 6 to 25. Names saved before a limit stay.
 
 A new project is published at once (`active`, A35): its client page answers as

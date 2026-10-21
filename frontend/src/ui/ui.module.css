@@ -175,9 +175,10 @@
 .confirmDialog { padding: 24px; display: grid; gap: 14px; outline: none; }
 .confirmTitle { margin: 0; font-size: 21px; font-weight: 400; letter-spacing: -0.02em; }
 .confirmText { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.confirmNote { margin: 0; padding: 10px 12px; border-left: 2px solid var(--line-strong, var(--line)); background: var(--mark-soft); font-size: 13px; line-height: 1.45; }
 .confirmActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 6px; }
-.dangerAction { background: var(--danger); border-color: var(--danger); color: #fff; }
-.dangerAction[data-hovered] { border-color: var(--danger); }
+.dangerAction { background: var(--danger, #c4673f); border-color: var(--danger, #c4673f); color: #fff; }
+.dangerAction[data-hovered] { border-color: var(--danger, #c4673f); }
 
 /* Email addresses (EmailField, EmailListField). */
 .emailField { display: grid; gap: 6px; }
