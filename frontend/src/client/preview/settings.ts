@@ -3,13 +3,15 @@
 // the address (only those changed from the start), so a link reproduces a view.
 // To add a control: one entry here, its label in the catalogs, its use in variant.ts.
 
+import { LIMITS } from "./limits";
+
 export const CONTROLS = {
   view: { kind: "choice", options: ["client", "staff"], initial: "client" },
   theme: { kind: "choice", options: ["light", "dark"], initial: "light" },
   width: { kind: "choice", options: ["desktop", "phone"], initial: "desktop" },
   cover: { kind: "toggle", initial: true },
   description: { kind: "choice", options: ["none", "short", "long"], initial: "long" },
-  length: { kind: "range", min: 200, max: 4000, step: 100, initial: 600 }, // a long description's
+  length: { kind: "range", min: 200, max: LIMITS.description, step: 100, initial: 600 }, // a long description's
   meeting: { kind: "choice", options: ["none", "short", "long"], initial: "short" },
   stages: { kind: "range", min: 1, max: 12, step: 1, initial: 7 },
   files: { kind: "range", min: 0, max: 20, step: 1, initial: 3 }, // per stage, up to the current one

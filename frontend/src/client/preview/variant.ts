@@ -2,6 +2,7 @@
 // the panel's settings. Fictional and in Brazilian Portuguese, like all demo data.
 import type { ExamplePreview } from "../example/exampleApi";
 import { exampleProject, type ExampleFile, type ExampleStage } from "../example/fixture";
+import { LIMITS } from "./limits";
 import type { Settings } from "./settings";
 
 export const PREVIEW_OFFICE = { name: "Estúdio Vale Verde", logo_url: null, logo_dark_url: null };
@@ -18,6 +19,7 @@ const PARAGRAPHS = [
 ];
 
 const MORE_STAGES = ["Interiores", "Paisagismo", "Luminotécnico", "Compatibilização", "Acompanhamento de Obra"];
+// "Long" is the longest allowed (limits.ts): these are cut to it, as typing stops there.
 const LONG_STAGE = "Estudos Preliminares, Anteprojeto e Compatibilização com os Projetos Complementares";
 // Long names (each file keeps its own extension), one with no spaces to break at.
 const LONG_FILES = [
@@ -26,11 +28,16 @@ const LONG_FILES = [
   "Perspectiva da varanda ao entardecer vista a partir do jardim inferior junto à piscina",
 ];
 
+/** The text cut to the field's limit. */
+function fit(text: string, limit: number): string {
+  return text.slice(0, limit);
+}
+
 const MEETINGS = {
   short: { title: "Reunião", location: "No escritório" },
   long: {
-    title: "Apresentação do estudo preliminar de implantação e cobertura com a família e o engenheiro estrutural",
-    location: "Rua das Araucárias, 1234, sala 56, Centro, Urubici - SC, ao lado da praça da matriz",
+    title: fit("Apresentação do estudo preliminar de implantação e cobertura", LIMITS.meetingTitle),
+    location: fit("Rua das Araucárias, 1234, sala 56, Centro, Urubici - SC, junto à praça", LIMITS.meetingLocation),
   },
 };
 
@@ -59,7 +66,7 @@ export function previewData(settings: Settings, now: Date, timeZone: string): Ex
     });
   const stages: ExampleStage[] = Array.from({ length: settings.stages }, (_, i) => {
     const stage = base.stages[i] ?? { title: MORE_STAGES[i - base.stages.length] ?? `Etapa ${i + 1}`, about: null, notes: "", groups: [] };
-    const title = settings.longNames && i % 2 === 0 ? LONG_STAGE : stage.title;
+    const title = settings.longNames && i % 2 === 0 ? fit(LONG_STAGE, LIMITS.stageTitle) : stage.title;
     const shown = files(i + 1);
     return { ...stage, title, groups: shown.length ? [{ folder: null, files: shown }] : [] };
   });

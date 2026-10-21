@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "../../test/render";
 import { PreviewApp, PreviewFrame } from "./PreviewApp";
+import { LIMITS } from "./limits";
 import { CONTROLS, KEYS, readSettings, writeSettings } from "./settings";
 import { previewData } from "./variant";
 
@@ -84,6 +85,16 @@ describe("the preview's data", () => {
     expect(data("").project.stages.every((stage) => stage.title.length < 60)).toBe(true);
   });
 
+  it("makes \"long\" the longest each field allows, never more", () => {
+    const { project } = data("meeting=long&longNames=1&length=5000");
+    expect(project.next_meeting!.title).toHaveLength(LIMITS.meetingTitle);
+    expect(project.next_meeting!.location).toHaveLength(LIMITS.meetingLocation);
+    expect(Math.max(...project.stages.map((stage) => stage.title.length))).toBe(LIMITS.stageTitle);
+    expect(project.description.length).toBeLessThanOrEqual(LIMITS.description);
+    expect(project.description.length).toBeGreaterThan(LIMITS.description - 100);
+    expect(CONTROLS.length.max).toBe(LIMITS.description);
+  });
+
   it("is the staff's or the client's view", () => {
     expect(data("view=staff").staff).toBe(true);
     expect(data("").staff).toBe(false);
@@ -98,7 +109,7 @@ describe("the preview page", () => {
     render(<PreviewFrame />);
     expect(await screen.findByRole("heading", { level: 1, name: "Casa das Araucárias" })).toBeInTheDocument();
     expect(screen.getAllByText("Estúdio Vale Verde").length).toBeGreaterThan(0);
-    expect(await screen.findByText(/Apresentação do estudo preliminar de implantação/)).toBeInTheDocument();
+    expect(await screen.findByText(/Apresentação do estudo preliminar/)).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
     expect(sent).toEqual([]);
   });
@@ -135,6 +146,31 @@ describe("the preview page", () => {
     expect(await screen.findByRole("button", { name: "Salvar" })).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 50)); // the editor's lists, asked for
     expect(sent).toEqual([]);
+  });
+
+  // The preview's limits (limits.ts) are copies of the editors': if an editor's
+  // limit changes, these fail until the preview follows.
+  it("fills the meeting editor's fields exactly to their limits", async () => {
+    window.history.pushState({}, "", "/painel/previa?frame&view=staff&meeting=long");
+    fakeApi({});
+    render(<PreviewFrame />);
+    await userEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Editar reunião" }));
+    const title = (await screen.findByLabelText("Assunto")) as HTMLInputElement;
+    const place = screen.getByLabelText("Local") as HTMLInputElement;
+    expect([title.maxLength, place.maxLength]).toEqual([LIMITS.meetingTitle, LIMITS.meetingLocation]);
+    expect([title.value.length, place.value.length]).toEqual([LIMITS.meetingTitle, LIMITS.meetingLocation]);
+  });
+
+  it("fills a stage's name exactly to the rename field's limit", async () => {
+    window.history.pushState({}, "", "/painel/previa?frame&view=staff&longNames=1");
+    fakeApi({});
+    render(<PreviewFrame />);
+    await userEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    await userEvent.click((await screen.findAllByRole("button", { name: /^Renomear etapa Estudos Preliminares, Anteprojeto e Compat/ }))[0]!);
+    const name = (await screen.findByLabelText("Nome da etapa")) as HTMLInputElement;
+    expect(name.maxLength).toBe(LIMITS.stageTitle);
+    expect(name.value).toHaveLength(LIMITS.stageTitle);
   });
 
   it("keeps the panel's choices in the address and sends each to the frame", async () => {

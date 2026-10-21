@@ -661,7 +661,7 @@ test("the preview page: the client page in a frame, changed live from the panel 
   page.on("request", (r) => r.url().includes("/api/") && asked.push(r.url()));
   await page.goto("/painel/previa?width=phone&meeting=long");
   const frame = page.frameLocator("iframe");
-  await expect(frame.getByText(/Apresentação do estudo preliminar de implantação/).locator("visible=true")).toBeVisible();
+  await expect(frame.getByText(/Apresentação do estudo preliminar/).locator("visible=true")).toBeVisible();
   expect(await page.locator("iframe").evaluate((el) => el.getBoundingClientRect().width)).toBe(390);
   await expect(frame.getByRole("navigation", { name: "Ferramentas do escritório" })).toHaveCount(0);
 
