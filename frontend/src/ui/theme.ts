@@ -5,7 +5,14 @@ import { useEffect, useState } from "react";
 
 export type Theme = "light" | "dark";
 const KEY = "theme";
-const CHANGED = "theme-changed";
+export const THEME_CHANGED = "theme-changed";
+const CHANGED = THEME_CHANGED;
+let saving = true;
+
+/** For the preview page: a change shows, but isn't kept as this device's choice. */
+export function keepThemeUnsaved(): void {
+  saving = false;
+}
 
 function stored(): Theme {
   try {
@@ -38,7 +45,7 @@ export function useTheme(): [Theme, (theme: Theme) => void] {
   const change = (next: Theme) => {
     document.documentElement.dataset.theme = next;
     try {
-      localStorage.setItem(KEY, next);
+      if (saving) localStorage.setItem(KEY, next);
     } catch {
       // Private browsing: the choice lasts until the tab closes.
     }

@@ -57,8 +57,9 @@ export function previewData(settings: Settings, now: Date, timeZone: string): Ex
   const patterns = base.stages.flatMap((stage) => stage.groups.flatMap((group) => group.files));
   const current = Math.min(base.current_position, settings.stages);
   let key = 0;
+  // In every stage: the page takes files in any of them.
   const files = (position: number): ExampleFile[] =>
-    Array.from({ length: position <= current ? settings.files : 0 }, (_, i) => {
+    Array.from({ length: settings.files }, (_, i) => {
       const pattern = patterns[(position + i) % patterns.length]!;
       const extension = pattern.name.slice(pattern.name.lastIndexOf("."));
       const name = settings.longNames && i < LONG_FILES.length ? LONG_FILES[i]! + extension : pattern.name;

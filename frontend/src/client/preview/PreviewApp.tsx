@@ -10,11 +10,13 @@ import { EXAMPLE_TIMEZONE } from "../example/fixture";
 import { EXAMPLE_SLUG } from "../example/address";
 import { installExampleApi } from "../example/exampleApi";
 import type { Page } from "../format";
+import { keepThemeUnsaved, THEME_CHANGED } from "../../ui/theme";
 import { ProjectPage } from "../ProjectPage";
 import { CONTROLS, KEYS, type Key, readSettings, type Settings, writeSettings } from "./settings";
 import { previewData } from "./variant";
 
 const SETTINGS = "preview-settings"; // the panel's message to the frame
+const THEME = "preview-theme"; // the frame's, when the page's own theme switch is used
 
 /** The panel, and the page in its frame. */
 export function PreviewApp() {
@@ -34,6 +36,22 @@ export function PreviewApp() {
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
     frame.current?.contentWindow?.postMessage({ type: SETTINGS, settings: next }, window.location.origin);
   };
+  // The page's own theme switch, used in the frame: the panel and the address follow
+  // (the frame already shows it).
+  useEffect(() => {
+    const receive = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.data?.type !== THEME) return;
+      const theme = event.data.theme === "dark" ? "dark" : "light";
+      setSettings((current) => {
+        const next = { ...current, theme } as Settings;
+        const query = writeSettings(next);
+        window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+        return next;
+      });
+    };
+    window.addEventListener("message", receive);
+    return () => window.removeEventListener("message", receive);
+  }, []);
 
   return (
     <div className="preview">
@@ -99,11 +117,19 @@ export function PreviewFrame() {
   const [drawn, setDrawn] = useState(0); // a new page component for each change of data
 
   useEffect(() => {
+    keepThemeUnsaved(); // the preview's theme is the address's, not this device's choice
     const receive = (event: MessageEvent) => {
       if (event.origin === window.location.origin && event.data?.type === SETTINGS) setSettings(event.data.settings);
     };
+    // The page's own theme switch: the panel is told, so its control and the address follow.
+    const tell = () =>
+      window.parent.postMessage({ type: THEME, theme: document.documentElement.dataset.theme }, window.location.origin);
     window.addEventListener("message", receive);
-    return () => window.removeEventListener("message", receive);
+    window.addEventListener(THEME_CHANGED, tell);
+    return () => {
+      window.removeEventListener("message", receive);
+      window.removeEventListener(THEME_CHANGED, tell);
+    };
   }, []);
 
   useEffect(() => {

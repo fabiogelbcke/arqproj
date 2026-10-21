@@ -36,15 +36,15 @@ describe("the preview's settings", () => {
 describe("the preview's data", () => {
   const data = (query: string) => previewData(readSettings(query), NOW, ZONE);
 
-  it("has as many stages as asked, past the example's own, with files up to the current stage", () => {
+  it("has as many stages as asked, past the example's own, each with the files asked for", () => {
     const { project } = data("stages=10&files=5");
     expect(project.stages).toHaveLength(10);
     expect(new Set(project.stages.map((stage) => stage.title)).size).toBe(10);
     const counts = project.stages.map((stage) => stage.groups.flatMap((group) => group.files).length);
-    expect(counts).toEqual([5, 5, 5, 0, 0, 0, 0, 0, 0, 0]);
+    expect(counts).toEqual(Array(10).fill(5)); // the page takes files in any stage
     // Every file is a different one to the page.
     const keys = project.stages.flatMap((stage) => stage.groups.flatMap((group) => group.files.map((f) => f.key)));
-    expect(new Set(keys).size).toBe(15);
+    expect(new Set(keys).size).toBe(50);
   });
 
   it("keeps the current stage and the updates within fewer stages", () => {
@@ -171,6 +171,30 @@ describe("the preview page", () => {
     const name = (await screen.findByLabelText("Nome da etapa")) as HTMLInputElement;
     expect(name.maxLength).toBe(LIMITS.stageTitle);
     expect(name.value).toHaveLength(LIMITS.stageTitle);
+  });
+
+  it("tells the panel when the page's own theme switch is used, and saves nothing", async () => {
+    window.history.pushState({}, "", "/painel/previa?frame");
+    localStorage.setItem("theme", "light"); // the person's own choice for the real pages
+    fakeApi({});
+    const told = vi.spyOn(window.parent, "postMessage");
+    render(<PreviewFrame />);
+    await userEvent.click((await screen.findAllByRole("button", { name: "Usar tema escuro" }))[0]!);
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(told).toHaveBeenCalledWith({ type: "preview-theme", theme: "dark" }, window.location.origin);
+    expect(localStorage.getItem("theme")).toBe("light");
+  });
+
+  it("follows the page's theme switch in its own control and the address", async () => {
+    window.history.pushState({}, "", "/painel/previa?stages=4");
+    render(<PreviewApp />);
+    act(() =>
+      window.dispatchEvent(
+        new MessageEvent("message", { origin: window.location.origin, data: { type: "preview-theme", theme: "dark" } }),
+      ),
+    );
+    expect(screen.getByLabelText("Escuro")).toBeChecked();
+    expect(readSettings(window.location.search)).toEqual({ ...start, stages: 4, theme: "dark" });
   });
 
   it("keeps the panel's choices in the address and sends each to the frame", async () => {

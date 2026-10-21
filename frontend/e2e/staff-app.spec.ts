@@ -670,6 +670,14 @@ test("the preview page: the client page in a frame, changed live from the panel 
   await expect(frame.getByRole("navigation", { name: "Ferramentas do escritório" })).toBeVisible();
   expect(await page.frames()[1]!.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
 
+  // The page's own theme switch: the panel and the address follow, and the device's
+  // own choice for the real pages is left as it was.
+  await frame.getByRole("button", { name: "Usar tema claro" }).locator("visible=true").click();
+  await expect(page.getByRole("radio", { name: "Claro" })).toBeChecked();
+  expect(page.url()).not.toContain("theme=");
+  expect(await page.evaluate(() => localStorage.getItem("theme"))).toBeNull();
+  await page.getByRole("radio", { name: "Escuro" }).check();
+
   // A link reproduces the combination.
   await page.reload();
   await expect(page.getByRole("radio", { name: "Equipe" })).toBeChecked();
