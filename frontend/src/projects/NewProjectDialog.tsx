@@ -16,6 +16,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { useConnectDrive, useDrive } from "../drive/drive";
 import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
@@ -26,8 +27,6 @@ import { TextField } from "../ui/TextField";
 import { suggestedSlug, useCreateProject, useCreationOptions, type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
-const CLIENT_MAX = 30; // for now (Fabio, 18 Oct 2026); the API checks the same
-const NAME_MAX = 120;
 const RECIPIENTS_MAX = 20; // the server checks it too
 
 function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: ProjectSummary) => void }) {
@@ -95,7 +94,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         value={name}
         onChange={setName}
         isRequired
-        maxLength={NAME_MAX}
+        maxLength={LIMITS.projectName}
         autoFocus
         autoComplete="off"
       />
@@ -105,7 +104,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         value={client}
         onChange={setClient}
         isRequired
-        maxLength={CLIENT_MAX}
+        maxLength={LIMITS.clientName}
         autoComplete="off"
       />
       <EmailListField
@@ -160,7 +159,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         value={slug}
         onChange={(value) => setTypedSlug(value.toLowerCase())}
         isRequired
-        maxLength={80}
+        maxLength={LIMITS.slug}
         autoComplete="off"
         spellCheck="false"
       />

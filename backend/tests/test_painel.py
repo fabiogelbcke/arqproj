@@ -6,15 +6,18 @@ from enum import StrEnum
 from pathlib import Path
 
 import pytest
+from sqlalchemy import select, text
 
 from backend.commands import openapi
 from backend.commands.seed import seed
+from backend.identity import accounts
 from backend.identity.models import Role
 from backend.projects.enums import (
     AccessMode,
     ProjectStatus,
 )
-from backend.tenancy.models import Locale
+from backend.settings import Environment
+from backend.tenancy.models import Locale, Tenant
 from backend.web import painel
 from backend.web.errors import ErrorCode
 
@@ -75,6 +78,69 @@ async def test_an_unbuilt_app_says_how_to_build_it(app, client, tenants, tmp_pat
     app.state.settings = app.state.settings.model_copy(update={"frontend_dist": str(tmp_path)})
     response = await client.get("/painel", headers=ALINEA)
     assert response.status_code == 503 and "make build" in response.text
+
+
+@pytest.fixture
+def preview_built(dist):
+    (dist / "preview.html").write_text("<html>preview</html>")
+    return dist
+
+
+def environment(app, name):
+    app.state.settings = app.state.settings.model_copy(update={"environment": name})
+
+
+async def test_the_preview_page_is_open_locally_and_may_be_framed_by_its_own_site(
+    client, preview_built, tenants
+):
+    """Plan section 18, "Visual variants": the page draws the client page in a frame
+    of its own address; nothing else may frame it."""
+    response = await client.get("/painel/previa?frame&view=staff", headers=ALINEA)
+    assert (response.status_code, response.text) == (200, "<html>preview</html>")
+    assert response.headers["cache-control"] == painel.SHELL_CACHE
+    policy = response.headers["content-security-policy"]
+    assert "frame-ancestors 'self'" in policy and "frame-ancestors 'none'" not in policy
+    assert "script-src 'self'" in policy
+    # Every other painel address still refuses to be framed.
+    shell = await client.get("/painel/entrar", headers=ALINEA)
+    assert "frame-ancestors 'none'" in shell.headers["content-security-policy"]
+
+
+async def test_the_preview_page_is_never_in_production(app, client, preview_built, db_session):
+    await seed(db_session)
+    environment(app, Environment.PRODUCTION)
+    staff = await sign_in_as(client, db_session, "dona@alinea.example")
+    response = await client.get("/painel/previa", headers=staff)
+    assert response.status_code == 404 and "preview" not in response.text
+
+
+async def test_on_staging_the_preview_page_is_for_the_offices_staff(
+    app, client, preview_built, db_session
+):
+    await seed(db_session)
+    environment(app, Environment.STAGING)
+    visitor = await client.get("/painel/previa?stages=3", headers=ALINEA)
+    assert (visitor.status_code, visitor.headers["location"]) == (302, "/painel/")
+    assert "preview" not in visitor.text
+
+    # Signed in locally: deployed, the session cookie only travels over HTTPS.
+    environment(app, Environment.LOCAL)
+    staff = await sign_in_as(client, db_session, "dona@alinea.example")
+    environment(app, Environment.STAGING)
+    response = await client.get("/painel/previa?stages=3", headers=staff)
+    assert (response.status_code, response.text) == (200, "<html>preview</html>")
+
+
+async def sign_in_as(client, db, email):
+    tenant = await db.scalar(select(Tenant.id).where(Tenant.slug == "alinea"))
+    await db.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant)})
+    await accounts.create_user(
+        db, email=email, name="Ana", password="a good password", role=Role.OWNER
+    )
+    await client.post(
+        "/api/session", json={"email": email, "password": "a good password"}, headers=ALINEA
+    )
+    return ALINEA
 
 
 async def test_every_response_names_its_build(app, client, tenants):
@@ -157,3 +223,10 @@ def test_the_frontends_api_description_is_current():
     `make api-types` after changing the API."""
     committed = (ROOT / "frontend" / "src" / "api" / "openapi.json").read_text("utf-8")
     assert committed == openapi.schema(), "run `make api-types`"
+
+
+def test_the_frontends_field_limits_are_current():
+    """The screens' maxLength comes from this file (backend/web/limits.py): a limit
+    changed on the server reaches them through `make api-types`."""
+    committed = (ROOT / "frontend" / "src" / "api" / "limits.json").read_text("utf-8")
+    assert committed == openapi.limits(), "run `make api-types`"

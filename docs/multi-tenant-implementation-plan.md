@@ -961,12 +961,20 @@ type**, and its stages: all built-in stages listed in order, the type's usual
 ones ticked, any of them ticked or unticked (A27). The client name (at most 30
 characters for now, so it fits the page on a phone; the database allows 48, and a
 name saved before the limit stays) is the main label in the painel. The office's
-name follows the same rule at 28 characters (the database allows 80). The slug is derived from the name and editable; duplicates of an
+name follows the same rule at 28 characters (the database allows 80). The slug is derived from the name and editable, at most 80 characters; duplicates of an
 existing name or slug in the office are refused with the conflicting project
 named. The **client's email addresses** for updates (A32) are asked too,
 optionally (20 Oct 2026): checked as they're typed, several at once, the same
 list as the Projeto dialog's. Everything else starts empty or from office
 defaults and is edited later.
+
+Every text field's length limit is written once, in the constant the server
+checks; `backend/web/limits.py` lists them. `make api-types` copies that list to
+`frontend/src/api/limits.json`, which the screens' inputs and the preview page
+read, and a test fails if the copy is out of date or a screen writes its own
+number (20 Oct 2026). Set by Fabio the same day, for text entered from then on:
+project name 50, description 600, a stage's notes 300, a text detail 40, email
+addresses 100, the page password 6 to 25. Names saved before a limit stay.
 
 A new project is published at once (`active`, A35): its client page answers as
 soon as it exists. Later `completed` (all stages done) and `archived` (still
@@ -1611,6 +1619,33 @@ different offices and edge-case projects as the architecture is introduced.
 Update generator, exporter, regeneration version inputs, folder adapter and tests
 when required. Do not copy real customer documents into fixtures or recorded HTTP
 responses. Contract fixtures derived from real sandbox tests must be sanitized.
+
+### Visual variants: the preview page
+
+Agreed with Fabio (20 Oct 2026). The client project page's preview is built:
+`/painel/previa` (`frontend/src/client/preview`, served by
+`backend/web/painel.py`). Other pages can get one later. For UI review, one page shows
+the real client project page with fictional data and a control panel to change
+that data live, so anyone can see how each combination looks without creating
+projects. It checks looks only: nothing touches the server, Drive or the
+database.
+
+- **Reuse the example project** (`frontend/src/client/example`: `fixture.ts`,
+  `exampleApi.ts`, `ExampleApp.tsx`): it already renders the real page from
+  data in the browser. The preview page builds its data from that fixture plus
+  the panel's settings; the page components themselves are not forked.
+- **Controls, at least:** cover photo on/off; description none, short, long
+  (with a length slider); meeting none, short name, long name; number of
+  stages and of files per stage; long file and stage names; client emails
+  present or missing; staff view vs client view; light/dark; phone/desktop
+  width. Adding a control later is a small change in one place.
+- **Where it runs:** locally (`make dev`) and on staging, not in production
+  (404 there). Staff only on staging: others go to the sign-in.
+- **Phone width:** the page is drawn in a frame of the same address
+  (`?frame`), which the panel sends each change to. Only this address may be
+  framed, and only by its own site.
+- Shareable: the settings live in the address, so a link reproduces a
+  combination. `make screenshots` shoots a few (`08-previa-*`) by address.
 
 ## 19. Build, review and release process
 

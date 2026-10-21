@@ -3,7 +3,8 @@ app checks with the same rule while it's typed: frontend/src/ui/email.ts)."""
 
 import re
 
-EMAIL_MAX = 254  # the longest address mail servers accept
+EMAIL_MAX = 254  # the longest address mail servers accept (the database allows it)
+EMAIL_LIMIT = 100  # for addresses entered from now on (Fabio, 20 Oct 2026)
 
 _LOCAL = re.compile(r"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*")
 _LABEL = re.compile(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?")
@@ -21,7 +22,7 @@ def tidy_email(raw: str) -> str:
 def is_email(email: str) -> bool:
     """A name, "@", and a domain of at least two parts ending in letters
     ("ana@escritorio.com.br"), with no spaces or doubled dots. Expects it tidied."""
-    if len(email) > EMAIL_MAX:
+    if len(email) > EMAIL_LIMIT:
         return False
     local, at, domain = email.rpartition("@")
     if not at or not 0 < len(local) <= 64:
