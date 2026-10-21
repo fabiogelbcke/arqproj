@@ -39,12 +39,14 @@ NAME_MAX = 120
 # The client's name as shown on the page: 30 characters for now (Fabio, 18 Oct
 # 2026). The database allows CLIENT_NAME_MAX (48), so this can grow without a migration.
 CLIENT_NAME_LIMIT = 30
+SLUG_MAX = 80  # the page's address: short enough to read out and to fit a message
 _SLUG = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
 
 
 def valid_slug(slug: str) -> bool:
-    """Lowercase letters, digits and inner hyphens; never one of the app's words."""
-    return bool(_SLUG.match(slug)) and slug not in RESERVED_SLUGS
+    """Lowercase letters, digits and inner hyphens, at most SLUG_MAX; never one of
+    the app's words."""
+    return len(slug) <= SLUG_MAX and bool(_SLUG.match(slug)) and slug not in RESERVED_SLUGS
 
 
 class CreationProblem(Exception):

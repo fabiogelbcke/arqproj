@@ -3,6 +3,7 @@ import { Dialog, Form, Heading, Label, Modal, ModalOverlay, Radio, RadioGroup } 
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { useMe } from "../session/session";
 import { useCancelInvite, useInvite, useInviteAgain, useJoinLinkOff, useJoinLinkOn, useTeam, type Member } from "../team/team";
 import dialog from "../projects/projects.module.css";
@@ -14,7 +15,6 @@ import { TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import styles from "./pages.module.css";
 
-const NAME_MAX = 80; // the server checks the same
 
 /** A link to pass on, with "Copiar link" (a WhatsApp message, say). */
 function LinkToCopy({ link, label }: { link: string; label: string }) {
@@ -184,7 +184,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
               }}
             >
               <p className={styles.small}>{t("team.inviteIntro")}</p>
-              <TextField label={t("team.name")} value={name} onChange={setName} isRequired maxLength={NAME_MAX} autoComplete="off" autoFocus />
+              <TextField label={t("team.name")} value={name} onChange={setName} isRequired maxLength={LIMITS.staffName} autoComplete="off" autoFocus />
               <EmailField label={t("team.email")} value={email} onChange={setEmail} isRequired autoComplete="off" />
               <RadioGroup className={styles.roles} value={role} onChange={(value) => setRole(value as "member" | "owner")}>
                 <Label className={styles.fieldLabel}>{t("team.roleLabel")}</Label>

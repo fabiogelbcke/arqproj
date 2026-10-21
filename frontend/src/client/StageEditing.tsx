@@ -5,6 +5,7 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { TextInput } from "../ui/TextInput";
 import { toast, toastError } from "../ui/Toast";
 import type { Page } from "./format";
@@ -108,7 +109,7 @@ export function StageControls({
         <TextInput
           id={`rn-${index}`}
           value={title}
-          maxLength={80}
+          maxLength={LIMITS.stageTitle}
           autoFocus
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && setMode("idle")}
@@ -242,7 +243,7 @@ export function AddStage({
         >
           <label htmlFor="custom-stage">{t("edit.ownStage")}</label>
           <div className="add-stage__row">
-            <TextInput className="input" id="custom-stage" value={custom} maxLength={80} onChange={(e) => setCustom(e.target.value)} />
+            <TextInput className="input" id="custom-stage" value={custom} maxLength={LIMITS.stageTitle} onChange={(e) => setCustom(e.target.value)} />
             <button className="b b--primary" type="submit" disabled={change.busy || !custom.trim()}>
               {t("edit.add")}
             </button>

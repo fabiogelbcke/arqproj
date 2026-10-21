@@ -3,6 +3,7 @@ import { Dialog, Form, Heading, Label, Modal, ModalOverlay, Radio, RadioGroup } 
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { Button } from "../ui/Button";
 import { CloseButton } from "../ui/CloseButton";
 import { EmailListField, addEmails } from "../ui/EmailListField";
@@ -12,8 +13,6 @@ import { toast } from "../ui/Toast";
 import { useChangeProject, type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
-const NAME_MAX = 120;
-const CLIENT_MAX = 30; // for now (Fabio, 18 Oct 2026); the API checks the same
 const RECIPIENTS_MAX = 20; // the server checks it too
 
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -115,7 +114,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
                 value={name}
                 onChange={setName}
                 isRequired
-                maxLength={NAME_MAX}
+                maxLength={LIMITS.projectName}
                 autoComplete="off"
               />
               <TextField
@@ -123,7 +122,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
                 value={client}
                 onChange={setClient}
                 isRequired
-                maxLength={CLIENT_MAX}
+                maxLength={LIMITS.clientName}
                 autoComplete="off"
               />
             </div>
@@ -135,7 +134,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
               value={slug}
               onChange={(value) => setSlug(value.toLowerCase())}
               isRequired
-              maxLength={80}
+              maxLength={LIMITS.slug}
               autoComplete="off"
               spellCheck="false"
             />

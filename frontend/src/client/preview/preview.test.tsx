@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "../../test/render";
 import { PreviewApp, PreviewFrame } from "./PreviewApp";
-import { LIMITS } from "./limits";
+import { LIMITS } from "../../api/limits";
 import { CONTROLS, KEYS, readSettings, writeSettings } from "./settings";
 import { previewData } from "./variant";
 
@@ -148,8 +148,8 @@ describe("the preview page", () => {
     expect(sent).toEqual([]);
   });
 
-  // The preview's limits (limits.ts) are copies of the editors': if an editor's
-  // limit changes, these fail until the preview follows.
+  // The editors and the preview read the same limits (api/limits.ts): the editor's
+  // field takes the preview's longest text exactly, no more and no less.
   it("fills the meeting editor's fields exactly to their limits", async () => {
     window.history.pushState({}, "", "/painel/previa?frame&view=staff&meeting=long");
     fakeApi({});

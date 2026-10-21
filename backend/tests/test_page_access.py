@@ -263,7 +263,7 @@ async def test_another_projects_address_is_never_given_away(client, owner):
         )
 
 
-@pytest.mark.parametrize("slug", ["Casa Jardim", "painel", "-casa", ""])
+@pytest.mark.parametrize("slug", ["Casa Jardim", "painel", "-casa", "", "a" * 81])
 async def test_a_bad_address_is_refused(client, owner, slug):
     response = await change(client, owner, "casa-jardim", slug=slug)
     assert (response.status_code, response.json()["error"]) == (422, "invalid_slug")
