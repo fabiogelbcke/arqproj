@@ -75,8 +75,10 @@ export function StageEditForm({
   const [notes, setNotes] = useState(stage.notes);
   const [removing, setRemoving] = useState(false);
   const save = () => {
-    const renamed = title.trim() !== "" && title.trim() !== stage.title;
-    const noted = notes !== stage.notes;
+    if (!title.trim()) return; // Salvar is off: a stage needs a name
+    const renamed = title.trim() !== stage.title;
+    // The server keeps notes trimmed and leaves them be when that's all that changed.
+    const noted = notes.trim() !== stage.notes;
     if (!renamed && !noted) return onDone();
     void change
       .run(async () => {
@@ -93,12 +95,18 @@ export function StageEditForm({
           version += 1;
         }
         if (noted)
-          await call(
-            api.PUT("/api/projects/{project_id}/stages/{position}/notes", {
-              params: { path: { ...path(staff), position } },
-              body: { row_version: version, notes },
-            }),
-          );
+          try {
+            await call(
+              api.PUT("/api/projects/{project_id}/stages/{position}/notes", {
+                params: { path: { ...path(staff), position } },
+                body: { row_version: version, notes },
+              }),
+            );
+          } catch (failure) {
+            // The rename is in: the page reloads with it, so trying again saves the notes alone.
+            if (renamed) onChanged();
+            throw failure;
+          }
       })
       .then((ok) => ok && onDone());
   };
@@ -146,7 +154,7 @@ export function StageEditForm({
             <button className="b b--small" type="button" onClick={() => onDone()}>
               {t("projectSettings.cancel")}
             </button>
-            <button className="b b--small b--primary" type="submit" disabled={change.busy}>
+            <button className="b b--small b--primary" type="submit" disabled={change.busy || !title.trim()}>
               {t("projectSettings.save")}
             </button>
           </div>

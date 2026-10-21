@@ -426,6 +426,26 @@ describe("edit mode", () => {
     await userEvent.keyboard(" ");
   }
 
+  /** A page whose second stage's title and row version come from `state`, as saved. */
+  function fakeApiStages(
+    state: () => { title: string; version: number },
+    extra: Record<string, (body: unknown) => { status?: number; body?: unknown }>,
+  ) {
+    window.history.pushState({}, "", "/casa-jardim");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => {
+        const { title, version } = state();
+        const stages = PAGE.stages.map((stage, i) => (i === 1 ? { ...stage, title } : stage));
+        return { body: { ...PAGE, stages, staff: { project_id: "p-1", status: "active", row_version: version } } };
+      },
+      ...extra,
+    });
+    render(<ClientApp />);
+    return sent;
+  }
+
   async function startEditing() {
     const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
     await waitFor(() => expect(within(bar).getByRole("button", { name: "Editar" })).toBeEnabled());
@@ -789,6 +809,62 @@ describe("edit mode", () => {
     await waitFor(() => expect(sent.some((r) => r.path.endsWith("/notes"))).toBe(true));
     expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({ row_version: 4, title: "Levantamento II" });
     expect(sent.find((r) => r.path.endsWith("/notes"))?.body).toEqual({ row_version: 5, notes: "Medidas revistas." });
+  });
+
+  it("after a rename saved but the notes failed, reloads the page so a retry saves only the notes", async () => {
+    let title = "Levantamento";
+    let version = 4;
+    let notesTries = 0;
+    const sent = fakeApiStages(() => ({ title, version }), {
+      "PATCH /api/projects/p-1/stages/2": (body) => {
+        title = (body as { title: string }).title;
+        version += 1;
+        return { status: 204 };
+      },
+      "PUT /api/projects/p-1/stages/2/notes": () => {
+        notesTries += 1;
+        if (notesTries === 1) return { status: 503, body: { error: "service_unavailable" } };
+        version += 1;
+        return { status: 204 };
+      },
+    });
+    await startEditing();
+    const stage = document.getElementById("stage-1")!;
+    await userEvent.click(within(stage).getByRole("button", { name: "Editar etapa Levantamento" }));
+    await userEvent.type(await within(stage).findByLabelText("Nome da etapa"), " II");
+    await userEvent.type(within(stage).getByLabelText("Recado da etapa"), " Até sexta.");
+    await userEvent.click(within(stage).getByRole("button", { name: "Salvar" }));
+    // The rename is in: the page reloads with it and the next row version.
+    await waitFor(() => expect(within(stage).getByRole("button", { name: "Salvar" })).toBeEnabled());
+    await waitFor(() => expect(stage.querySelector("h2")).toHaveTextContent("Levantamento II"));
+    await userEvent.click(within(stage).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(notesTries).toBe(2));
+    expect(sent.filter((r) => r.method === "PATCH")).toHaveLength(1);
+    expect(sent.filter((r) => r.path.endsWith("/notes")).at(-1)?.body).toMatchObject({ row_version: 5 });
+  });
+
+  it("a note changed only by spaces the server trims saves nothing and locks nothing", async () => {
+    const { sent } = asStaff();
+    await startEditing();
+    const stage = document.getElementById("stage-1")!;
+    await userEvent.click(within(stage).getByRole("button", { name: "Editar etapa Levantamento" }));
+    await userEvent.type(await within(stage).findByLabelText("Recado da etapa"), "  ");
+    await userEvent.click(within(stage).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(within(stage).queryByLabelText("Nome da etapa")).toBeNull());
+    expect(sent.some((r) => r.method !== "GET")).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Editar etapa Briefing" }));
+    expect(within(document.getElementById("stage-0")!).getByRole("button", { name: "Salvar" })).toBeEnabled();
+  });
+
+  it("won't save a stage name of only spaces", async () => {
+    asStaff();
+    await startEditing();
+    const stage = document.getElementById("stage-1")!;
+    await userEvent.click(within(stage).getByRole("button", { name: "Editar etapa Levantamento" }));
+    const name = await within(stage).findByLabelText("Nome da etapa");
+    await userEvent.clear(name);
+    await userEvent.type(name, "   ");
+    expect(within(stage).getByRole("button", { name: "Salvar" })).toBeDisabled();
   });
 
   it("Cancelar and Escape leave Editar etapa without saving", async () => {
