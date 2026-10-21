@@ -13,8 +13,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, Response
+
+from backend.settings import Environment
+from backend.web.auth import CurrentStaff, optional_staff
 
 PREFIX = "/painel"
 ASSETS = f"{PREFIX}/assets/"
@@ -42,6 +45,10 @@ CONTENT_SECURITY_POLICY = "; ".join(
     ]
 )
 
+# The preview page shows the client page in a frame of its own address, to give it
+# a phone's width; nothing else may frame it.
+PREVIEW_POLICY = CONTENT_SECURITY_POLICY.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
+
 router = APIRouter(include_in_schema=False)
 
 
@@ -59,6 +66,28 @@ async def asset(name: str, request: Request) -> Response:
     if not path.is_relative_to(root) or not path.is_file():
         return PlainTextResponse("Not found", status_code=404)
     return FileResponse(path, headers={"Cache-Control": ASSET_CACHE})
+
+
+@router.get(PREFIX + "/previa")
+async def preview(
+    request: Request, staff: CurrentStaff | None = Depends(optional_staff)
+) -> Response:
+    """The preview page (plan section 18, "Visual variants"): the client page with
+    fictional data and a panel to change it. Its own bundle, all in the browser.
+    Never in production; on staging, for the office's staff only."""
+    environment = request.app.state.settings.environment
+    if environment is Environment.PRODUCTION:
+        return PlainTextResponse("Not found", status_code=404)
+    if environment is Environment.STAGING and staff is None:
+        return RedirectResponse(PREFIX + "/", status_code=302)  # sign in, then come back
+    page = _dist(request) / "preview.html"
+    if not page.is_file():
+        return PlainTextResponse(
+            "The preview page is not built. Run `make build` (or `make dev`).", status_code=503
+        )
+    return FileResponse(
+        page, headers={"Cache-Control": SHELL_CACHE, "Content-Security-Policy": PREVIEW_POLICY}
+    )
 
 
 @router.get(PREFIX)

@@ -656,6 +656,27 @@ test("the example project: from the painel, its own tour, and edits that never l
   await expect(page.getByText("Uma casa só nossa.")).toHaveCount(0);
 });
 
+test("the preview page: the client page in a frame, changed live from the panel and kept in the address", async ({ page }) => {
+  const asked: string[] = [];
+  page.on("request", (r) => r.url().includes("/api/") && asked.push(r.url()));
+  await page.goto("/painel/previa?width=phone&meeting=long");
+  const frame = page.frameLocator("iframe");
+  await expect(frame.getByText(/Apresentação do estudo preliminar de implantação/).locator("visible=true")).toBeVisible();
+  expect(await page.locator("iframe").evaluate((el) => el.getBoundingClientRect().width)).toBe(390);
+  await expect(frame.getByRole("navigation", { name: "Ferramentas do escritório" })).toHaveCount(0);
+
+  await page.getByRole("radio", { name: "Equipe" }).check();
+  await page.getByRole("radio", { name: "Escuro" }).check();
+  await expect(frame.getByRole("navigation", { name: "Ferramentas do escritório" })).toBeVisible();
+  expect(await page.frames()[1]!.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
+
+  // A link reproduces the combination.
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "Equipe" })).toBeChecked();
+  await expect(frame.getByRole("navigation", { name: "Ferramentas do escritório" })).toBeVisible();
+  expect(asked).toEqual([]); // nothing reached the server
+});
+
 /** Opens Casa Jardim's third stage, the one with files (earlier tests may have
  *  moved the current stage on). */
 async function openThirdStage(page: Page) {

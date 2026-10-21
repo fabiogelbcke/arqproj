@@ -1,0 +1,28 @@
+/* The preview page (PreviewApp.tsx): the panel at the left, the page's frame at the
+   right at the chosen width. Above each other on a narrow screen. */
+.preview { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+.preview-panel {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto; box-sizing: border-box;
+  padding: 20px 16px; display: grid; gap: 14px; align-content: start;
+  background: var(--surface); border-right: 1px solid var(--line); font-size: 13px;
+}
+.preview-panel h1 { margin: 0; font-size: 16px; }
+.preview-hint { margin: 0; color: var(--muted); }
+.preview-panel fieldset { margin: 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.preview-panel legend { padding: 0; margin-bottom: 4px; width: 100%; font-weight: 600; }
+.preview-panel label { display: flex; align-items: center; gap: 6px; }
+.preview-range { flex-direction: column; align-items: stretch !important; }
+.preview-range span { font-weight: 600; }
+.preview-range output { font-weight: 400; color: var(--muted); }
+.preview-toggle { font-weight: 600; }
+
+.preview-stage { display: flex; justify-content: center; background: var(--line); }
+.preview-stage iframe { border: 0; width: 100%; height: 100vh; background: var(--bg); }
+.preview-phone { padding: 16px 0; }
+.preview-phone iframe { width: 390px; height: calc(100vh - 32px); border-radius: 12px; box-shadow: var(--shadow); }
+
+@media (max-width: 760px) {
+  .preview { grid-template-columns: 1fr; }
+  .preview-panel { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .preview-phone iframe { max-width: 100%; }
+}

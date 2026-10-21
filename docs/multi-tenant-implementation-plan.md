@@ -1614,7 +1614,9 @@ responses. Contract fixtures derived from real sandbox tests must be sanitized.
 
 ### Visual variants: the preview page
 
-Agreed with Fabio (20 Oct 2026), not yet built. For UI review, one page shows
+Agreed with Fabio (20 Oct 2026). The client project page's preview is built:
+`/painel/previa` (`frontend/src/client/preview`, served by
+`backend/web/painel.py`). Other pages can get one later. For UI review, one page shows
 the real client project page with fictional data and a control panel to change
 that data live, so anyone can see how each combination looks without creating
 projects. It checks looks only: nothing touches the server, Drive or the
@@ -1629,10 +1631,13 @@ database.
   stages and of files per stage; long file and stage names; client emails
   present or missing; staff view vs client view; light/dark; phone/desktop
   width. Adding a control later is a small change in one place.
-- **Where it runs:** locally (`make dev`) and on staging, not in production.
-  Staff only on staging.
+- **Where it runs:** locally (`make dev`) and on staging, not in production
+  (404 there). Staff only on staging: others go to the sign-in.
+- **Phone width:** the page is drawn in a frame of the same address
+  (`?frame`), which the panel sends each change to. Only this address may be
+  framed, and only by its own site.
 - Shareable: the settings live in the address, so a link reproduces a
-  combination. Usable by `make screenshots` for pull requests.
+  combination. `make screenshots` shoots a few (`08-previa-*`) by address.
 
 ## 19. Build, review and release process
 
