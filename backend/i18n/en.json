@@ -701,5 +701,35 @@
     "submit": "Get them",
     "sent": "Done! {{email}} will get this project's updates. We sent an email to say so.",
     "archived": "This project no longer sends updates."
+  },
+  "preview": {
+    "title": "Project page preview",
+    "hint": "Fictional data: nothing is saved and nothing reaches Drive. The address keeps the choices, to share.",
+    "panel": "Preview options",
+    "frame": "Project page",
+    "controls": {
+      "view": "View",
+      "theme": "Theme",
+      "width": "Width",
+      "cover": "Cover photo",
+      "description": "Description",
+      "length": "Long description length",
+      "meeting": "Meeting",
+      "stages": "Stages",
+      "files": "Files per stage",
+      "longNames": "Long names (stages and files)",
+      "emails": "Client emails on file"
+    },
+    "options": {
+      "client": "Client",
+      "staff": "Staff",
+      "light": "Light",
+      "dark": "Dark",
+      "desktop": "Desktop",
+      "phone": "Phone",
+      "none": "None",
+      "short": "Short",
+      "long": "Long"
+    }
   }
 }

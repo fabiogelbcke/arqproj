@@ -27,6 +27,12 @@ const devRedirects: Plugin = {
         response.end();
         return;
       }
+      // The preview page (backend/web/painel.py): its own entry.
+      if (path === "/painel/previa") {
+        request.url = "/painel/preview.html" + (query ? `?${query}` : "");
+        next();
+        return;
+      }
       // A client page address (`/casa-jardim`): the client page's entry. Deployed,
       // the backend serves it with the preview tags (backend/web/pages.py).
       if (/^\/[a-z0-9-]+$/.test(path ?? "") && path !== "/api") {
@@ -58,9 +64,9 @@ export default defineConfig({
     outDir: "dist",
     assetsDir: "assets",
     assetsInlineLimit: 0,
-    // Two apps: the painel (index.html) and the client page (client.html), each
-    // with only its own code.
-    rollupOptions: { input: { painel: "index.html", client: "client.html" } },
+    // Three apps: the painel (index.html), the client page (client.html) and the
+    // preview page (preview.html), each with only its own code.
+    rollupOptions: { input: { painel: "index.html", client: "client.html", preview: "preview.html" } },
   },
   test: {
     environment: "jsdom",

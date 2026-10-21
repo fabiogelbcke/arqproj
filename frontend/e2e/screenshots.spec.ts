@@ -196,3 +196,26 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(visitor, "07b-projeto-de-exemplo");
   await visitor.close();
 });
+
+// The preview page (plan section 18, "Visual variants"): the panel, then the page
+// alone in a few combinations, by the same addresses a person would share.
+test("@screenshots preview page", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  mkdirSync(OUT, { recursive: true });
+  await page.goto("/painel/previa?width=phone&meeting=long&longNames=1");
+  await page.frameLocator("iframe").getByRole("heading", { level: 1 }).waitFor();
+  for (const size of SIZES) {
+    await page.setViewportSize(size);
+    await page.screenshot({ path: `${OUT}/08-previa-painel-${size.name}.png` });
+  }
+  const combinations = {
+    "08b-previa-sem-capa-nomes-longos": "cover=0&longNames=1&files=6&meeting=long",
+    "08c-previa-minima": "cover=0&description=none&meeting=none&stages=1&files=0",
+    "08d-previa-equipe-sem-emails": "view=staff&emails=0&description=short",
+  };
+  for (const [name, query] of Object.entries(combinations)) {
+    await page.goto(`/painel/previa?frame&${query}`);
+    await page.getByRole("heading", { level: 1 }).waitFor();
+    await shoot(page, name);
+  }
+});

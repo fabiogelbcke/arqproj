@@ -106,6 +106,25 @@ decision in the [decision changelog](decision-changelog.md).
   account's folders, through the site, so the new grant can reach them. Fabio,
   18 Oct 2026: "We could also plan a migration tool for later".
 
+## Signup links for new offices
+
+- Paused (20 Oct 2026) while UI work goes first. Fabio chose links we
+  generate, not an open signup page.
+- Proposed shape, not yet confirmed by Fabio: we run one command (e.g. `make
+  office SLUG=… HOST=….myunio.app EMAIL=…`) that creates the office, its
+  address and an owner, and prints a one-time link (7 days, like a staff
+  invite). The link's page asks the first person for their name, the office
+  name clients see, a contact email for clients (prefilled with theirs) and a
+  password. Then a short setup checklist in the panel: logo, connect Google
+  Drive, invite the team.
+- Why this shape: the app never needs permission to create offices or
+  addresses (the registry stays read-only for it, as today); it already edits
+  the office profile and sets passwords from links. Trade-off: the office
+  cannot pick its own address; we agree it before running the command.
+- Existing pieces: `make tenant` (`backend/commands/tenants.py`), `make staff
+  ROLE=owner` (`backend/commands/staff.py`, prints an invite link),
+  `SettingsOfficePage.tsx`, `SettingsDrivePage.tsx`, `SettingsTeamPage.tsx`.
+
 ## Guided tours and an example project
 
 - Agreed and designed: see the plan, section 16, "Onboarding help". Kept here

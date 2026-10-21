@@ -701,5 +701,35 @@
     "submit": "Receber",
     "sent": "Pronto! {{email}} vai receber as novidades deste projeto. Enviamos um e-mail confirmando.",
     "archived": "Este projeto não envia mais novidades."
+  },
+  "preview": {
+    "title": "Prévia da página do projeto",
+    "hint": "Dados fictícios: nada é salvo e nada chega ao Drive. O endereço guarda as escolhas, para compartilhar.",
+    "panel": "Opções da prévia",
+    "frame": "Página do projeto",
+    "controls": {
+      "view": "Visão",
+      "theme": "Tema",
+      "width": "Largura",
+      "cover": "Foto de capa",
+      "description": "Descrição",
+      "length": "Tamanho da descrição longa",
+      "meeting": "Reunião",
+      "stages": "Etapas",
+      "files": "Arquivos por etapa",
+      "longNames": "Nomes longos (etapas e arquivos)",
+      "emails": "E-mails do cliente cadastrados"
+    },
+    "options": {
+      "client": "Cliente",
+      "staff": "Equipe",
+      "light": "Claro",
+      "dark": "Escuro",
+      "desktop": "Computador",
+      "phone": "Celular",
+      "none": "Nenhuma",
+      "short": "Curta",
+      "long": "Longa"
+    }
   }
 }

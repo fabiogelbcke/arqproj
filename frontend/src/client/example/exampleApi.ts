@@ -15,22 +15,31 @@ const UPLOADS = "/exemplo-upload/"; // where the page "sends" a file: ExampleUpl
 
 type Reply = { status?: number; body?: unknown };
 type Body = Record<string, unknown>;
+/** The preview page's data (plan section 18, "Visual variants"): the project, the
+ *  office and the view are given, and even the reads stay in the browser. */
+export type ExamplePreview = {
+  project: ExampleProject;
+  office: Page["office"];
+  staff: boolean; // the staff view (staff bar, edit mode) or the client's
+  recipients: string[];
+};
 type Route = [method: string, path: RegExp, answer: (match: string[], body: Body, request: Request) => Reply | Promise<Reply>];
 
 const done: Reply = { status: 204 };
 const refused = (error: Schemas["ErrorCode"], status = 422): Reply => ({ status, body: { error } });
 
-/** Answers the example page's API calls from now on, starting from the fixture. */
-export function installExampleApi(now = new Date()) {
+/** Answers the example page's API calls from now on, starting from the fixture
+ *  (or from the preview page's data, with no request reaching the server). */
+export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
   const real: typeof fetch = (globalThis.fetch as { real?: typeof fetch }).real ?? globalThis.fetch;
   let timeZone = EXAMPLE_TIMEZONE;
-  let project: ExampleProject = exampleProject(now, timeZone);
-  let office: Page["office"] = { name: "", logo_url: null, logo_dark_url: null };
+  let project: ExampleProject = preview?.project ?? exampleProject(now, timeZone);
+  let office: Page["office"] = preview?.office ?? { name: "", logo_url: null, logo_dark_url: null };
   let locale: Page["locale"] = "pt-BR"; // the office's: the page around the (Portuguese) project
-  let signedIn = false;
+  let signedIn = preview?.staff ?? false;
   let version = 1; // the page's row version: each change makes a new one
   // The fictional client's address for updates (A32), in the browser like the rest.
-  let recipients = ["marina.andrade@exemplo.com.br"];
+  let recipients = preview?.recipients ?? ["marina.andrade@exemplo.com.br"];
   let options: Schemas["CreationOptions"] | null = null;
   let detailTypes: Schemas["DetailTypeOut"][] | null = null;
   const pending = new Map<string, { position: number; name: string }>();
@@ -307,6 +316,7 @@ export function installExampleApi(now = new Date()) {
 
   /** A list the editors offer, read from the server (null: not signed in). */
   async function list<T>(path: string): Promise<T | null> {
+    if (preview) return null; // nothing from the server
     const answer = await real(new URL(path, window.location.origin)).catch(() => null);
     return answer?.ok ? ((await answer.json()) as T) : null;
   }
@@ -340,7 +350,11 @@ export function installExampleApi(now = new Date()) {
     const url = new URL(request.url);
     // The page's own files (images, the bundle) load as usual.
     if (url.origin !== window.location.origin || !url.pathname.startsWith("/api/")) return real(given, init);
-    if (request.method === "GET" && READS.includes(url.pathname)) return read(request, url.pathname);
+    if (request.method === "GET" && READS.includes(url.pathname)) {
+      // The preview stays in the browser: no office, no staff, no lists to edit with.
+      if (preview) return Response.json({ error: "page_not_found" }, { status: 404 });
+      return read(request, url.pathname);
+    }
     const route = routes.find(([method, path]) => method === request.method && path.test(url.pathname));
     if (!route) return Response.json({ error: "page_not_found" }, { status: 404 });
     const body = request.method === "GET" || request.method === "DELETE" ? {} : await request.clone().json().catch(() => ({}));
