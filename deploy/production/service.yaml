@@ -7,6 +7,10 @@ metadata:
   annotations:
     # Public website: no Google sign-in needed to reach it.
     run.googleapis.com/invoker-iam-disabled: "true"
+    # A21: visitors reach it only through the load balancer (its certificate, its
+    # address); Google's own callers in this project (Cloud Scheduler's maintenance
+    # call) count as internal and still reach it directly.
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
 spec:
   template:
     metadata:
@@ -28,6 +32,10 @@ spec:
           env:
             - name: ENVIRONMENT
               value: production
+            # Behind the load balancer (A21): the visitor's address is the second to
+            # last X-Forwarded-For entry (backend/web/attempts.py).
+            - name: FORWARDED_HOPS
+              value: "2"
             - name: BUILD_ID
               # Quoted: a commit ID like 14e4836 would otherwise read as a number.
               value: "BUILD_ID_PLACEHOLDER"
