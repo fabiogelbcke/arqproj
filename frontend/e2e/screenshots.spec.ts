@@ -176,9 +176,12 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.locator("#stage-2").getByRole("button", { name: "Recado para o cliente" }).click();
+  // "Recado para o cliente" opens the stage's "Editar etapa": its name, note, uploads and remove.
   await page.getByLabel("Recado da etapa").fill("As plantas da sala estão prontas para a sua revisão.");
-  await page.getByRole("button", { name: "Salvar" }).click();
-  await page.getByText("As plantas da sala estão prontas para a sua revisão.").waitFor();
+  await page.locator("#stage-2").scrollIntoViewIfNeeded();
+  await shoot(page, "06i-etapa-editando");
+  await page.locator("#stage-2").getByRole("button", { name: "Salvar" }).click();
+  await page.locator("#stage-2").getByText("As plantas da sala estão prontas para a sua revisão.").waitFor();
   const visitor = await browser.newPage();
   await visitor.emulateMedia({ reducedMotion: "reduce" });
   await visitor.goto("/casa-jardim");

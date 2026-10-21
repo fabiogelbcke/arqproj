@@ -4289,7 +4289,7 @@
           },
           "notes": {
             "type": "string",
-            "maxLength": 300,
+            "maxLength": 120,
             "title": "Notes"
           }
         },

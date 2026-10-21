@@ -9,6 +9,7 @@ import styles from "./ui.module.css";
 export function ConfirmDialog({
   title,
   text,
+  note,
   confirm,
   danger = false,
   busy = false,
@@ -17,6 +18,7 @@ export function ConfirmDialog({
 }: {
   title: string;
   text: string;
+  note?: string; // a short heads-up under the text, e.g. who will be emailed
   confirm: string;
   danger?: boolean;
   busy?: boolean;
@@ -32,6 +34,7 @@ export function ConfirmDialog({
             {title}
           </Heading>
           <p className={styles.confirmText}>{text}</p>
+          {note && <p className={styles.confirmNote}>{note}</p>}
           <div className={styles.confirmActions}>
             <Button onPress={onCancel}>{t("confirm.cancel")}</Button>
             <Button

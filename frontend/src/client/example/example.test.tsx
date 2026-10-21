@@ -88,6 +88,7 @@ describe("the example project", () => {
 
     // "Avançar": the next stage becomes the current one, and the bell tells the client.
     await userEvent.click(await screen.findByRole("button", { name: /Avançar para 04 Projeto 3D/ }));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Avançar" })); // asked first
     await waitFor(() =>
       expect(document.getElementById("stage-3")?.querySelector(".pill--current")).toHaveTextContent("Em andamento"),
     );

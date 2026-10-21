@@ -42,12 +42,55 @@ a.site__brand { color: inherit; text-decoration: none; }
 .addnote { margin-top: 4px; }
 /* Editors fit their column: date and time inputs otherwise refuse to shrink. */
 .editor { min-width: 0; }
-.editor .row2 > *, .editor .row3 > * { min-width: 0; }
+.editor .row2 > * { min-width: 0; }
 .editor .input { min-width: 0; }
-@media (max-width: 560px) { .editor .row3 { grid-template-columns: 1fr 1fr; } .editor .row3 > :first-child { grid-column: 1 / -1; } }
-/* Fields side by side line up by their boxes, even when one label wraps
-   ("Link da videochamada" next to "Local"). */
-.editor .row2, .editor .row3 { align-items: end; }
+/* Fields side by side line up by their boxes, even when one label wraps. */
+.editor .row2 { align-items: end; }
+/* The meeting: start and end side by side, phones too (WhenFields). A day or time
+   is one box of segments, the day's with a calendar button opening a month. */
+.meeting-times { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.meeting-times > * { min-width: 0; }
+.field.when > .react-aria-Label { font-size: 14px; font-weight: 500; } /* a <span>: no input to point at */
+.when__box { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; cursor: text; }
+.when__box[data-focus-within] { border-color: var(--focus); box-shadow: 0 0 0 3px var(--mark-soft); }
+.when__input { display: flex; flex: 1; gap: 0; min-width: 0; }
+.when__segment { padding: 0 1px; border-radius: 3px; outline: none; }
+.when__segment[data-placeholder] { color: var(--muted); }
+.when__segment[data-type="literal"] { color: var(--muted); padding: 0; }
+.when__segment[data-focused] { background: var(--ink); color: var(--raise); }
+.when__open {
+  display: grid; place-items: center; flex: none; width: 32px; height: 32px; margin: -6px -8px -6px 0; padding: 0;
+  border: 0; border-radius: var(--r); background: none; color: var(--muted); cursor: pointer;
+}
+.when__open svg { width: 18px; height: 18px; }
+.when__open[data-hovered], .when__open[data-pressed] { background: var(--mark-soft); color: var(--ink); }
+.when__open[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 1px; }
+.when__popover {
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--raise); color: var(--ink); box-shadow: var(--shadow);
+}
+.when__popover[data-entering] { animation: rise .18s var(--ease); }
+.when__dialog { padding: 14px; outline: none; }
+.when__month { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.when__month h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 500; text-align: center; }
+.when__month h2::first-letter { text-transform: uppercase; }
+.when__nav {
+  width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--r); background: none; color: inherit;
+  font-size: 20px; line-height: 1; cursor: pointer;
+}
+.when__nav[data-hovered] { background: var(--mark-soft); }
+.when__grid { border-collapse: collapse; }
+.when__grid th { padding-bottom: 4px; font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; }
+.when__grid td { padding: 1px; }
+.when__day {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; font-size: 14px;
+  font-variant-numeric: tabular-nums; cursor: pointer; outline: none;
+}
+.when__day[data-outside-month] { display: none; }
+.when__day[data-hovered] { background: var(--mark-soft); }
+.when__day[data-selected] { background: var(--ink); color: var(--raise); }
+.when__day[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 1px; }
+.when__day[data-disabled] { color: var(--muted); opacity: .5; }
+@media (max-width: 400px) { .when__day { width: 34px; height: 34px; } }
 /* "Informações": every value box the same width, the × column kept on every row
    (the project type's row has none, but keeps its room). */
 .facts-edit li { grid-template-columns: 136px minmax(0, 1fr) 36px; }
@@ -55,11 +98,45 @@ a.site__brand { color: inherit; text-decoration: none; }
 @media (max-width: 560px) { .facts-edit li { grid-template-columns: minmax(0, 1fr) 36px; } }
 
 /* Edit mode (part 2): renaming, removing and adding stages. */
-.stage-rename, .stage-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
-.stage-rename input { font: inherit; min-width: 0; width: min(360px, 100%); background: transparent; color: inherit; border: 0; border-bottom: 1.5px solid currentColor; padding: 2px; }
-.stage-confirm p { margin: 0; font-size: 13px; }
-.stagectl .iconbtn { font-size: 16px; color: inherit; }
-.stagectl .iconbtn:disabled { opacity: .3; }
+/* "Editar etapa": the stage being edited is outlined; its name sits where the title was. */
+/* In edit mode the stage keeps its arrow (the prototype hid it) beside "Editar etapa". */
+.client.editing .stage .client-stage-controls { display: flex; align-items: center; gap: 8px; }
+.stage-edit-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.stage-edit-toggle svg { width: 14px; height: 14px; }
+/* Phones: the pencil alone (it keeps its name for screen readers), so long titles keep their room. */
+@media (max-width: 760px) {
+  .stage-edit-toggle { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  .stage-edit-toggle span { display: none; }
+}
+.client.editing .stage.is-editing { outline: 1.5px dashed var(--brand-muted); outline-offset: -1px; border-radius: 4px; padding-inline: 16px; }
+.client.editing .stage__title .stage-name-field { flex: 1; min-width: 0; }
+.client.editing .stage__title .stage-name-field > *, .client.editing .stage__title .stage-name-field input { width: 100%; }
+/* The form takes no room: its parts sit in the stage's own places. */
+.stage > .stage-edit { display: contents; }
+.stage-edit__actions { display: flex; gap: 8px; }
+/* Phones: the name gets the whole row; Cancelar and Salvar go under it. */
+@media (max-width: 760px) {
+  .client.editing .stage.is-editing .stage__title { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .client.editing .stage.is-editing .stage__title .stage__name { grid-column: 1; grid-row: 1; }
+  .client.editing .stage.is-editing .client-stage-controls { grid-column: 1; grid-row: 2; justify-content: flex-end; width: 100%; }
+}
+.client .stage.current .stage-edit__actions .b--primary { background: #fff; border-color: #fff; color: #242629; }
+.stage-edit__notes { display: grid; gap: 6px; max-width: 640px; margin: 0 0 18px; }
+.stage-edit__notes label { font-size: 12px; color: var(--brand-muted); }
+.client .stage-edit__notes .input { background: transparent; color: inherit; border-color: color-mix(in srgb, currentColor 35%, transparent); }
+.client .stage-edit__notes .input::placeholder { color: inherit; opacity: .5; }
+.client .stage.current .stage-edit__notes label { color: #c9cbcd; }
+.stage-edit__remove { margin-top: 18px; }
+.client .stage.current .stage-edit__remove .b--danger { color: #f0a58a; }
+
+/* The stage's name, with "Sobre esta etapa" as a small (i) right after it. */
+.stage__name { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.client .stage__title .stage__name h2 { flex: 0 1 auto; min-width: 0; }
+.client.editing .stage__title .stage__name { grid-column: 1; grid-row: 1; }
+.client .stage .stage__name .stage-help { flex: none; }
+.client .stage .stage__name .stage-help-toggle { display: grid; place-items: center; width: 22px; height: 22px; min-height: 22px; padding: 0; }
+.client .stage .stage__name .stage-help-mark { display: grid; place-items: center; width: 15px; height: 15px; border: 1px solid currentColor; border-radius: 50%; font-size: 10px; line-height: 1; font-weight: 500; }
+.client .stage .stage__name .stage-help-pop { left: 0; right: auto; }
 .add-stage { width: min(560px, 100%); }
 .add-stage .field > span { font-size: 14px; font-weight: 500; }
 .add-stage__row { display: flex; gap: 8px; }
@@ -110,6 +187,9 @@ a.site__brand { color: inherit; text-decoration: none; }
   .client .project-layout { margin-top: 0; }
   .client .project-layout__main, .client .project-layout__side { gap: 28px; }
   .client .project-layout__main:not(:has(> :not(.mobile-view-hidden))) { display: none; }
+  /* Edit mode on a phone: the description, first under the cover, keeps clear of it
+     (and of its pencil, which sits above the text). */
+  .client .project-opening:has(.banner) + .project-layout .project-layout__desc:not(.mobile-view-hidden) { margin-top: 44px; }
 }
 
 /* The meeting's title and subtext wrap to two lines at most, instead of "…" (the
@@ -187,6 +267,19 @@ a.site__brand { color: inherit; text-decoration: none; }
 .client .stage.is-expanded:not(.current) .stage__n, .client .stage.is-expanded:not(.current) h2 { color: var(--brand-ink); }
 .client:not(.editing) .stage.is-expanded:not(.current) .stage__n { border-color: var(--brand-ink); }
 
+/* A click anywhere on a stage's number or head opens or closes it (ProjectPage's
+   Stage). With a mouse its head says so on hover: a faint band and the title in
+   full ink; touch screens get no hover, nor the tap's grey flash. */
+.client .stage__n, .client .stage__head { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+@media (hover: hover) {
+  .client .stage:not(.current):not(.is-expanded):has(> .stage__n:hover, > .stage__head:hover)::before {
+    opacity: 1; background: color-mix(in srgb, var(--brand-surface) 55%, transparent);
+  }
+  .client .stage:not(.current):has(> .stage__n:hover, > .stage__head:hover) .stage__title h2 { color: var(--brand-ink); }
+  .client .stage.current:has(> .stage__n:hover, > .stage__head:hover)::before { background: #2e3033; }
+  :root[data-theme="dark"] .client .stage.current:has(> .stage__n:hover, > .stage__head:hover)::before { background: #3a3d41; }
+}
+
 /* Phones: a finished stage's number is a small green circle with a plain check
    (Fabio, 19 Oct 2026: a standard green for now), drawn rather than a ✓ so it
    stays white whatever colour an open stage gives its number. Finished stages sit
@@ -217,12 +310,12 @@ a.site__brand { color: inherit; text-decoration: none; }
 .stage-order__hint { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .stage-order__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .stage-order__row {
-  position: relative; display: grid; grid-template-columns: 32px 28px minmax(0, 1fr) 36px 36px; align-items: center; gap: 6px;
+  position: relative; display: grid; grid-template-columns: 40px 28px minmax(0, 1fr); align-items: center; gap: 6px;
   padding: 6px 6px 6px 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--raise);
 }
 .stage-order__row.is-dragging { z-index: 2; box-shadow: var(--shadow); border-color: var(--ink); }
 .stage-order__handle {
-  display: grid; place-items: center; width: 32px; height: 36px; padding: 0; border: 0; background: none;
+  display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; background: none;
   color: var(--muted); cursor: grab; touch-action: none;
 }
 .stage-order__handle:active { cursor: grabbing; }
@@ -301,3 +394,10 @@ a.site__brand { color: inherit; text-decoration: none; }
 .client-subscribe__hint button { padding: 0; border: 0; background: none; color: var(--brand-ink); font: inherit; font-weight: 500; text-decoration: underline; cursor: pointer; }
 .client-subscribe .client-subscribe__problem { margin: 8px 0 0; font-size: 13px; color: #9b3d1d; }
 :root[data-theme="dark"] .client-subscribe .client-subscribe__problem { color: #e9a58a; }
+
+/* "Adicionar à agenda" opens toward the room it has: from its left edge when it is
+   the meeting's only action (the first column), from its right when it follows
+   "Entrar na reunião". Never wider than the screen less its gutters. */
+.client .meeting-actions .calendar-menu { max-width: calc(100vw - 32px); box-sizing: border-box; }
+.client .meeting-actions > .calendar-options:first-child .calendar-menu { left: 0; right: auto; }
+.client .meeting-actions > .calendar-options:not(:first-child) .calendar-menu { left: auto; right: 0; }
