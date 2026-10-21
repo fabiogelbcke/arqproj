@@ -204,6 +204,12 @@ async def _scan_office(
                     error.problem,
                     error.detail,
                 )
+            except Exception:
+                # Anything else is a bug in this project's work: logged with its
+                # traceback, and the pass goes on to the others (and records itself).
+                await db.rollback()
+                report.failed += 1
+                log.exception("maintenance: project %s/%s failed", tenant_id, project_id)
 
 
 async def run_maintenance(

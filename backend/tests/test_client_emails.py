@@ -1,8 +1,11 @@
 """Client email updates (A12, A32, plan section 14): batching, what an email
 says, who gets it, sending once, and unsubscribing."""
 
+import json
 import os
+import re
 import time
+from pathlib import Path
 
 import httpx2
 import pytest
@@ -18,9 +21,12 @@ from backend.notifications.email import (
 )
 from backend.notifications.scan import run_maintenance
 from backend.settings import Environment, Settings
+from backend.tenancy.models import Locale
 from backend.tests import test_office
 from backend.tests.test_maintenance_scan import CASA, casa, folders  # noqa: F401
 from backend.tests.test_office import ALINEA, NORTE
+
+ROOT = Path(__file__).resolve().parents[2]
 
 owner = test_office.owner  # fixtures
 
@@ -306,6 +312,19 @@ async def test_the_email_says_what_changed_and_links_the_page(app, db_session, o
     assert "/casa-jardim" in email.text
     assert email.headers["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
     assert email.headers["List-Unsubscribe"].startswith("<http")
+
+
+@pytest.mark.parametrize(("count", "more"), [(4, "e mais 1"), (5, "e mais 2")])
+async def test_more_files_than_listed_end_with_how_many_more(
+    app, db_session, outbox, ready, count, more
+):
+    """Once a missing text here stopped every email (21 Oct 2026)."""
+    for i in range(count):
+        await new_file(app, outbox, ready, f"Prancha {i + 1}.pdf")
+    await make_due(db_session)
+    await run(app, outbox)
+    assert f"{count} arquivos novos em 02 " in outbox.sent[0].text
+    assert more in outbox.sent[0].text
 
 
 async def test_a_file_taken_down_before_sending_is_left_out(app, db_session, outbox, ready):
@@ -652,3 +671,34 @@ def test_without_a_key_emails_are_written_locally_and_never_when_deployed(tmp_pa
         sender_for(staging, http)
     keyed = local.model_copy(update={"resend_api_key": "re_test"})
     assert isinstance(sender_for(keyed, http), ResendSender)
+
+
+# -- the email's words ----------------------------------------------------------------
+
+_COUNTED = re.compile(r'\bt\(\s*\w+,\s*"(\w+)",\s*count=')
+
+
+def counted_keys(source: str) -> set[str]:
+    """The texts the code asks for by a count: each needs its _one and _other."""
+    return set(_COUNTED.findall(source))
+
+
+def test_every_text_asked_for_by_a_count_has_both_forms_in_every_language():
+    """A missing form only fails when that count comes up: once, every email
+    stopped (21 Oct 2026). So every such call is checked here, ahead of time."""
+    code = "\n".join(
+        p.read_text("utf-8") for p in (ROOT / "backend").rglob("*.py") if "tests" not in p.parts
+    )
+    keys = counted_keys(code)
+    assert {"files", "andMore"} <= keys
+    for locale in Locale:
+        texts = json.loads((ROOT / "backend" / "i18n" / f"{locale.value}.json").read_text("utf-8"))[
+            "email"
+        ]
+        for key in keys:
+            assert {f"{key}_one", f"{key}_other"} <= texts.keys(), (locale, key)
+
+
+def test_the_count_check_finds_such_calls():
+    assert counted_keys('x = t(locale, "andMore", count=2)') == {"andMore"}
+    assert counted_keys('x = t(locale, "subject", name=n)') == set()
