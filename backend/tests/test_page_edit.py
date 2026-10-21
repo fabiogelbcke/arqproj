@@ -7,6 +7,7 @@ import pytest
 from backend.identity.models import Role
 from backend.tests import test_office
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as
+from backend.web.page_edit import NOTES_MAX
 
 owner = test_office.owner  # fixtures
 
@@ -179,9 +180,11 @@ async def test_a_stage_note_reaches_the_page_and_moves_atualizado(client, owner)
 
 
 async def test_a_note_may_be_as_long_as_its_limit_and_no_longer(client, owner):
-    assert (await edit(client, owner, "PUT", "/stages/3/notes", notes="x" * 300)).status_code == 204
-    assert (await edit(client, owner, "PUT", "/stages/3/notes", notes="y" * 301)).status_code == 422
-    assert (await page(client))["stages"][2]["notes"] == "x" * 300
+    longest = "x" * NOTES_MAX
+    assert (await edit(client, owner, "PUT", "/stages/3/notes", notes=longest)).status_code == 204
+    too_long = longest + "y"
+    assert (await edit(client, owner, "PUT", "/stages/3/notes", notes=too_long)).status_code == 422
+    assert (await page(client))["stages"][2]["notes"] == longest
 
 
 async def test_a_note_for_a_stage_that_doesnt_exist_is_refused(client, owner):

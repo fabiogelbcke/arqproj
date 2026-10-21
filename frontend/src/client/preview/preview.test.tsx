@@ -167,7 +167,7 @@ describe("the preview page", () => {
     fakeApi({});
     render(<PreviewFrame />);
     await userEvent.click(await screen.findByRole("button", { name: "Editar" }));
-    await userEvent.click((await screen.findAllByRole("button", { name: /^Renomear etapa Estudos Preliminares, Anteprojeto e Compat/ }))[0]!);
+    await userEvent.click((await screen.findAllByRole("button", { name: /^Editar etapa Estudos Preliminares, Anteprojeto e Compat/ }))[0]!);
     const name = (await screen.findByLabelText("Nome da etapa")) as HTMLInputElement;
     expect(name.maxLength).toBe(LIMITS.stageTitle);
     expect(name.value).toHaveLength(LIMITS.stageTitle);

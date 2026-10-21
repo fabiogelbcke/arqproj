@@ -1,11 +1,12 @@
-// Edit mode, part 2: the prototype's stage controls (rename, move, remove), its
+// Edit mode, part 2: "Editar etapa" (name, notes, remove), the prototype's
 // "Adicionar etapa" and its progress rail (advance, back, complete, reopen).
 // Every change carries the page's row version; folders follow in Drive.
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { TextInput } from "../ui/TextInput";
 import { toast, toastError } from "../ui/Toast";
 import type { Page } from "./format";
@@ -42,133 +43,147 @@ export function useChange(onChanged: () => void, locked: boolean) {
 
 const path = (staff: Staff) => ({ project_id: staff.project_id });
 
-/** Rename, move up or down, remove: on each stage's title row in edit mode. */
-export function StageControls({
+/** A stage's parts in "Editar etapa", for the stage to lay out where they belong:
+ *  the name where its title was, Cancelar and Salvar beside it (they save the
+ *  whole stage), the notes above its files, and "Remover etapa" at its end. */
+export type StageEditParts = { name: ReactNode; actions: ReactNode; notes: ReactNode; remove: ReactNode };
+
+/** "Editar etapa": Salvar saves the name and the notes (files save as they go). The
+ *  form takes no room of its own, so the stage keeps its layout. */
+export function StageEditForm({
   page,
   staff,
   index,
+  onDone,
   onChanged,
   locked = false,
+  layout,
 }: {
   page: Page;
   staff: Staff;
   index: number;
+  onDone: (removed?: boolean) => void;
   onChanged: () => void;
   locked?: boolean;
+  layout: (parts: StageEditParts) => ReactNode;
 }) {
   const { t } = useTranslation();
   const stage = page.stages[index]!;
-  const [mode, setMode] = useState<"idle" | "rename" | "remove">("idle");
-  const [title, setTitle] = useState(stage.title);
-  const change = useChange(onChanged, locked);
   const position = stage.position;
-
-  const rename = () =>
-    change
-      .run(() =>
-        call(
-          api.PATCH("/api/projects/{project_id}/stages/{position}", {
-            params: { path: { ...path(staff), position } },
-            body: { row_version: staff.row_version, title },
-          }),
-        ),
-      )
-      .then((ok) => ok && setMode("idle"));
-  const move = (direction: -1 | 1) =>
-    change.run(() =>
-      call(
-        api.POST("/api/projects/{project_id}/stages/{position}/move", {
-          params: { path: { ...path(staff), position } },
-          body: { row_version: staff.row_version, direction },
-        }),
-      ),
-    );
+  const change = useChange(onChanged, locked);
+  const [title, setTitle] = useState(stage.title);
+  const [notes, setNotes] = useState(stage.notes);
+  const [removing, setRemoving] = useState(false);
+  const save = () => {
+    const renamed = title.trim() !== "" && title.trim() !== stage.title;
+    const noted = notes !== stage.notes;
+    if (!renamed && !noted) return onDone();
+    void change
+      .run(async () => {
+        // Each change moves the row version on by one, so the notes, saved
+        // after a rename, carry the next one.
+        let version = staff.row_version;
+        if (renamed) {
+          await call(
+            api.PATCH("/api/projects/{project_id}/stages/{position}", {
+              params: { path: { ...path(staff), position } },
+              body: { row_version: version, title: title.trim() },
+            }),
+          );
+          version += 1;
+        }
+        if (noted)
+          await call(
+            api.PUT("/api/projects/{project_id}/stages/{position}/notes", {
+              params: { path: { ...path(staff), position } },
+              body: { row_version: version, notes },
+            }),
+          );
+      })
+      .then((ok) => ok && onDone());
+  };
   const remove = () =>
-    change.run(
-      () =>
-        call(
-          api.DELETE("/api/projects/{project_id}/stages/{position}", {
-            params: { path: { ...path(staff), position }, query: { row_version: staff.row_version } },
-          }),
-        ),
-      t("edit.stageRemoved", { title: stage.title }),
-    ).then((ok) => ok && setMode("idle")); // this row shows the next stage now
-
-  if (mode === "rename")
-    return (
-      <form
-        className="stage-rename"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void rename();
-        }}
-      >
-        <label className="sr" htmlFor={`rn-${index}`}>
-          {t("edit.stageName")}
-        </label>
-        <TextInput
-          id={`rn-${index}`}
-          value={title}
-          maxLength={LIMITS.stageTitle}
-          autoFocus
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === "Escape" && setMode("idle")}
-        />
-        <button className="b b--small" type="button" onClick={() => setMode("idle")}>
-          {t("projectSettings.cancel")}
-        </button>
-        <button className="b b--small b--primary" type="submit" disabled={change.busy || !title.trim()}>
-          {t("projectSettings.save")}
-        </button>
-      </form>
-    );
-  if (mode === "remove")
-    return (
-      <div className="stage-confirm" role="group" aria-label={t("edit.removeStage", { title: stage.title })}>
-        <p>{t("edit.removeStageConfirm", { title: stage.title })}</p>
-        <button className="b b--small" type="button" onClick={() => setMode("idle")}>
-          {t("projectSettings.cancel")}
-        </button>
-        <button className="b b--small b--danger" type="button" disabled={change.busy} onClick={() => void remove()}>
-          {t("edit.remove")}
-        </button>
-      </div>
-    );
+    change
+      .run(
+        () =>
+          call(
+            api.DELETE("/api/projects/{project_id}/stages/{position}", {
+              params: { path: { ...path(staff), position }, query: { row_version: staff.row_version } },
+            }),
+          ),
+        t("edit.stageRemoved", { title: stage.title }),
+      )
+      .then((ok) => {
+        setRemoving(false);
+        if (ok) onDone(true); // this row shows the next stage now
+      });
   return (
-    <span className="stagectl">
-      <button
-        className="iconbtn"
-        type="button"
-        aria-label={t("edit.renameStage", { title: stage.title })}
-        onClick={() => {
-          setTitle(stage.title); // this row's stage now: rows stay put while stages move
-          setMode("rename");
-        }}
-      >
-        ✎
-      </button>
-      <button
-        className="iconbtn"
-        type="button"
-        aria-label={t("edit.moveUp", { title: stage.title })}
-        disabled={index === 0 || change.busy}
-        onClick={() => void move(-1)}
-      >
-        ↑
-      </button>
-      <button
-        className="iconbtn"
-        type="button"
-        aria-label={t("edit.moveDown", { title: stage.title })}
-        disabled={index === page.stages.length - 1 || change.busy}
-        onClick={() => void move(1)}
-      >
-        ↓
-      </button>
-      <button className="iconbtn" type="button" aria-label={t("edit.removeStage", { title: stage.title })} onClick={() => setMode("remove")}>
-        ×
-      </button>
-    </span>
+    <form
+      className="stage-edit"
+      aria-label={t("edit.editStageOf", { title: stage.title })}
+      onSubmit={(event) => {
+        event.preventDefault();
+        save();
+      }}
+      // Escape leaves it (the remove question keeps its own Escape to itself).
+      onKeyDown={(event) => event.key === "Escape" && onDone()}
+    >
+      {layout({
+        name: (
+          <div className="stage-name-field">
+            <TextInput
+              aria-label={t("edit.stageName")}
+              value={title}
+              maxLength={LIMITS.stageTitle}
+              required
+              autoFocus
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+        ),
+        actions: (
+          <div className="stage-edit__actions">
+            <button className="b b--small" type="button" onClick={() => onDone()}>
+              {t("projectSettings.cancel")}
+            </button>
+            <button className="b b--small b--primary" type="submit" disabled={change.busy}>
+              {t("projectSettings.save")}
+            </button>
+          </div>
+        ),
+        notes: (
+          <div className="field stage-edit__notes">
+            <label htmlFor={`ed-notes-${index}`}>{t("edit.notes")}</label>
+            <TextInput
+              className="input"
+              id={`ed-notes-${index}`}
+              value={notes}
+              maxLength={LIMITS.stageNotes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t("edit.notesPlaceholder")}
+            />
+          </div>
+        ),
+        remove: (
+          <div className="stage-edit__remove">
+            <button className="b b--ghost b--danger b--small" type="button" disabled={change.busy} onClick={() => setRemoving(true)}>
+              {t("edit.removeStageShort")}
+            </button>
+            {removing && (
+              <ConfirmDialog
+                title={t("edit.removeStage", { title: stage.title })}
+                text={t("edit.removeStageConfirm", { title: stage.title })}
+                confirm={t("edit.remove")}
+                danger
+                busy={change.busy}
+                onCancel={() => setRemoving(false)}
+                onConfirm={() => void remove()}
+              />
+            )}
+          </div>
+        ),
+      })}
+    </form>
   );
 }
 
@@ -277,6 +292,8 @@ export function ProgressRail({
   const { t } = useTranslation();
   const change = useChange(onChanged, locked);
   const [ordering, setOrdering] = useState(false);
+  // Advancing, completing and going back ask first; reopening doesn't.
+  const [confirming, setConfirming] = useState<"advance" | "complete" | "back" | null>(null);
   // "Reordenar etapas": every stage on one list to drag into a new order.
   const reorder = page.stages.length > 1 && (
     <>
@@ -323,6 +340,27 @@ export function ProgressRail({
   const current = Math.max(1, page.current_position ?? 1);
   const here = page.stages[current - 1];
   const next = page.stages[current];
+  const previous = page.stages[current - 2];
+  const confirmations = {
+    advance: {
+      title: t("edit.advanceAsk", { title: next?.title }),
+      text: t("edit.advanceMeans", { from: here?.title, title: next?.title }),
+      confirm: t("edit.advance"),
+      done: t("edit.advanced", { title: next?.title }),
+    },
+    complete: {
+      title: t("edit.completeAsk"),
+      text: t("edit.completeMeans"),
+      confirm: t("edit.complete"),
+      done: t("edit.completed"),
+    },
+    back: {
+      title: t("edit.backAsk", { title: previous?.title }),
+      text: t("edit.backMeans", { title: previous?.title }),
+      confirm: t("edit.back"),
+      done: undefined,
+    },
+  };
   return (
     <div className="rail" data-tour="stage">
       <div className="rail__now">
@@ -330,12 +368,11 @@ export function ProgressRail({
         <p>
           <small className="rail__label">{t("edit.currentStage")}</small>
           {here?.title}
-          <small>{t("edit.currentNote")}</small>
         </p>
       </div>
       {reorder}
       {current > 1 && (
-        <button className="b b--ghost b--small" type="button" disabled={change.busy} onClick={() => void change.run(() => send("back"))}>
+        <button className="b b--ghost b--small" type="button" disabled={change.busy} onClick={() => setConfirming("back")}>
           {t("edit.back")}
         </button>
       )}
@@ -345,15 +382,24 @@ export function ProgressRail({
           className="b b--primary"
           type="button"
           disabled={change.busy}
-          onClick={() =>
-            void change.run(
-              () => send(next ? "advance" : "complete"),
-              next ? t("edit.advanced", { title: next.title }) : t("edit.completed"),
-            )
-          }
+          onClick={() => setConfirming(next ? "advance" : "complete")}
         >
           {next ? t("edit.advanceTo", { n: pad(current + 1), title: next.title }) : t("edit.complete")}
         </button>
+      )}
+      {confirming && (
+        <ConfirmDialog
+          {...confirmations[confirming]}
+          // Advancing and completing email whoever gets the project's updates (A32).
+          note={
+            confirming !== "back" && staff.recipients?.some((recipient) => recipient.subscribed)
+              ? t("edit.clientsNotified")
+              : undefined
+          }
+          busy={change.busy}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => void change.run(() => send(confirming), confirmations[confirming].done).then(() => setConfirming(null))}
+        />
       )}
     </div>
   );

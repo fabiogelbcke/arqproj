@@ -1,5 +1,5 @@
 // Edit mode: "Reordenar etapas", every stage on one short list (no files) to drag
-// into a new order, or move with the arrows (phones, keyboards). Saved at once on
+// into a new order by its handle (with a keyboard: space, the arrows, space). Saved at once on
 // "Salvar": one change, its folders renumbered; the current stage stays the same.
 // Loaded only when staff open it.
 import {
@@ -29,15 +29,11 @@ function Row({
   index,
   title,
   current,
-  count,
-  onMove,
 }: {
   position: number; // the stage's place now, its id here
   index: number; // its place in the new order
   title: string;
   current: boolean;
-  count: number;
-  onMove: (to: number) => void;
 }) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
@@ -68,24 +64,6 @@ function Row({
         {title}
         {current && <small>{t("edit.currentStage")}</small>}
       </span>
-      <button
-        type="button"
-        className="iconbtn"
-        aria-label={t("edit.moveUp", { title })}
-        disabled={index === 0}
-        onClick={() => onMove(index - 1)}
-      >
-        ↑
-      </button>
-      <button
-        type="button"
-        className="iconbtn"
-        aria-label={t("edit.moveDown", { title })}
-        disabled={index === count - 1}
-        onClick={() => onMove(index + 1)}
-      >
-        ↓
-      </button>
     </li>
   );
 }
@@ -152,8 +130,6 @@ export default function StageOrder({
                     index={index}
                     title={byPosition.get(position)!.title}
                     current={!page.completed && position === page.current_position}
-                    count={order.length}
-                    onMove={(to) => setOrder((now) => arrayMove(now, index, to))}
                   />
                 ))}
               </ol>

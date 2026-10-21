@@ -188,10 +188,31 @@ describe("the client page", () => {
     await userEvent.click(within(timeline).getByRole("button", { name: /Estudo Preliminar/ }));
     const section = document.getElementById("stage-2")!;
     expect(section.className).toContain("is-expanded");
-    // The current stage stays the current one (its dark band), whichever is open.
+    // The current stage stays the current one (its dark band), and open: several can be.
     expect(document.getElementById("stage-1")!.className).toMatch(/\bcurrent\b/);
-    expect(document.getElementById("stage-1")!.className).not.toContain("is-expanded");
+    expect(document.getElementById("stage-1")!.className).toContain("is-expanded");
     expect(section.className).not.toMatch(/\bcurrent\b/);
+  });
+
+  it("opens and closes a stage on a click anywhere on its head, several at once", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    const expanded = () => [...document.querySelectorAll(".stage.is-expanded")].map((stage) => stage.id);
+    await screen.findByRole("heading", { level: 2, name: "Briefing" });
+    expect(expanded()).toEqual(["stage-1"]); // the current one
+    await userEvent.click(screen.getByRole("heading", { level: 2, name: "Briefing" }));
+    await userEvent.click(document.querySelector("#stage-2 .stage__n")!);
+    expect(expanded()).toEqual(["stage-0", "stage-1", "stage-2"]);
+    expect(screen.getByRole("button", { name: /Briefing/, expanded: true })).toBeInTheDocument(); // the arrow says so too
+    await userEvent.click(document.querySelector("#stage-1 .stage__meta")!);
+    expect(expanded()).toEqual(["stage-0", "stage-2"]);
+    // Its own controls keep their job: "Sobre esta etapa" opens, the stage stays as it was.
+    await userEvent.click(screen.getByRole("button", { name: "Sobre esta etapa: Briefing" }));
+    expect(screen.getByText("Necessidades e orçamento.")).toBeVisible();
+    expect(expanded()).toEqual(["stage-0", "stage-2"]);
+    // A click in an open stage's body (its notes, its files) doesn't close it.
+    await userEvent.click(screen.getByRole("heading", { level: 2, name: "Levantamento" }));
+    await userEvent.click(screen.getByText("Medidas conferidas."));
+    expect(expanded()).toContain("stage-1");
   });
 
   it("on a phone, has no \"Sobre esta etapa\" beside a stage's arrow (for now)", async () => {
@@ -389,6 +410,22 @@ describe("edit mode", () => {
     return { sent, bump: () => (version += 1) };
   }
 
+  /** Moves a stage in the reorder list by keyboard, as dnd-kit offers it: space on
+   *  its handle, the arrows, space. jsdom lays nothing out, so each row gets a box. */
+  async function dragStage(list: HTMLElement, title: string, steps: number) {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const row = this.closest(".stage-order__row");
+      const index = row ? [...row.parentElement!.children].indexOf(row) : 0;
+      return DOMRect.fromRect({ x: 0, y: index * 50, width: 400, height: 44 });
+    });
+    onTestFinished(() => void vi.restoreAllMocks());
+    const handle = within(list).getByRole("button", { name: `Arrastar ${title}` });
+    handle.focus();
+    await userEvent.keyboard(" ");
+    for (let i = 0; i < Math.abs(steps); i++) await userEvent.keyboard(steps > 0 ? "{ArrowDown}" : "{ArrowUp}");
+    await userEvent.keyboard(" ");
+  }
+
   async function startEditing() {
     const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
     await waitFor(() => expect(within(bar).getByRole("button", { name: "Editar" })).toBeEnabled());
@@ -540,9 +577,9 @@ describe("edit mode", () => {
     asStaff();
     await startEditing();
     await userEvent.click(await screen.findByText("Adicionar à agenda"));
-    expect(screen.queryByLabelText("Início")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Início" })).toBeNull();
     await userEvent.click(screen.getByText("Apresentação"));
-    expect(await screen.findByLabelText("Início")).toBeInTheDocument();
+    expect(await screen.findByRole("group", { name: "Início" })).toBeInTheDocument();
   });
 
   it("with no meeting, says so; in edit mode, the card is where to add one", async () => {
@@ -555,7 +592,7 @@ describe("edit mode", () => {
     expect(screen.queryByText("Clique aqui para adicionar uma reunião")).toBeNull();
     await startEditing();
     await userEvent.click(screen.getByText("Clique aqui para adicionar uma reunião"));
-    expect(await screen.findByLabelText("Início")).toBeInTheDocument();
+    expect(await screen.findByRole("group", { name: "Início" })).toBeInTheDocument();
   });
 
   it("names the stage the advancer moves on from as the current one", async () => {
@@ -573,8 +610,7 @@ describe("edit mode", () => {
     const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
     expect(within(list).getByRole("button", { name: "Salvar" })).toBeDisabled(); // nothing changed yet
     expect(within(list).getByText("Etapa atual").closest("li")).toHaveTextContent(PAGE.stages[1]!.title);
-    expect(within(list).getByRole("button", { name: `Mover ${PAGE.stages[0]!.title} para cima` })).toBeDisabled();
-    await userEvent.click(within(list).getByRole("button", { name: `Mover ${PAGE.stages[0]!.title} para baixo` }));
+    await dragStage(list, PAGE.stages[0]!.title, 1);
     await userEvent.click(within(list).getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText("Ordem das etapas salva.")).toBeInTheDocument();
     const order = PAGE.stages.map((stage) => stage.position);
@@ -612,7 +648,7 @@ describe("edit mode", () => {
     expect(open()).toBe("Levantamento");
     await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
     const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
-    await userEvent.click(within(list).getByRole("button", { name: "Mover Levantamento para cima" }));
+    await dragStage(list, "Levantamento", -1);
     await userEvent.click(within(list).getByRole("button", { name: "Salvar" }));
     await screen.findByText("Ordem das etapas salva.");
     await waitFor(() => expect(document.querySelector("#stage-0 h2")?.textContent).toBe("Levantamento"));
@@ -648,33 +684,21 @@ describe("edit mode", () => {
   const moveLevantamentoUp = async () => {
     await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
     const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
-    await userEvent.click(within(list).getByRole("button", { name: "Mover Levantamento para cima" }));
+    await dragStage(list, "Levantamento", -1);
     await userEvent.click(within(list).getByRole("button", { name: "Salvar" }));
     await screen.findByText("Ordem das etapas salva.");
     await waitFor(() => expect(document.querySelector("#stage-0 h2")?.textContent).toBe("Levantamento"));
   };
 
-  it("doesn't leave a stage's notes open on the row another stage moved into", async () => {
+  it("closes Editar etapa after a reorder: another stage is on that row now", async () => {
     reorderable();
     await startEditing();
-    await userEvent.click(screen.getByRole("button", { name: "Editar recado" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Editar etapa Levantamento" }));
+    expect(await screen.findByLabelText("Nome da etapa")).toHaveValue("Levantamento");
     expect(await screen.findByDisplayValue("Medidas conferidas.")).toBeInTheDocument();
     await moveLevantamentoUp();
-    // Briefing now sits where Levantamento's notes were being edited.
-    await userEvent.click(document.querySelector<HTMLElement>('#stage-1 [aria-controls="stage-body-1"]')!);
+    expect(screen.queryByLabelText("Nome da etapa")).toBeNull();
     expect(screen.queryByDisplayValue("Medidas conferidas.")).toBeNull();
-  });
-
-  it("doesn't rename the stage that moved into a row being renamed", async () => {
-    reorderable();
-    await startEditing();
-    await userEvent.click(await screen.findByRole("button", { name: "Renomear etapa Levantamento" }));
-    expect(screen.getByLabelText("Nome da etapa")).toHaveValue("Levantamento");
-    await moveLevantamentoUp();
-    for (const field of screen.queryAllByLabelText("Nome da etapa")) {
-      const row = field.closest(".stage")!;
-      expect(field).toHaveValue(row.querySelector("h2")!.textContent);
-    }
   });
 
   it("keeps every stage closed after reordering when all were closed", async () => {
@@ -691,7 +715,7 @@ describe("edit mode", () => {
     await startEditing();
     await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
     const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
-    await userEvent.click(within(list).getByRole("button", { name: `Mover ${PAGE.stages[0]!.title} para baixo` }));
+    await dragStage(list, PAGE.stages[0]!.title, 1);
     await userEvent.click(within(list).getByRole("button", { name: "Cancelar" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Reordenar etapas" })).toBeNull());
     expect(sent.some((r) => r.method === "PUT")).toBe(false);
@@ -731,30 +755,94 @@ describe("edit mode", () => {
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-9");
   });
 
-  it("renames the stage now on that row, after stages moved", async () => {
-    let moved = false;
-    const stages = () =>
-      (moved ? [PAGE.stages[1]!, PAGE.stages[0]!, PAGE.stages[2]!] : PAGE.stages).map((stage, i) => ({
-        ...stage,
-        position: i + 1,
-      }));
-    window.history.pushState({}, "", "/casa-jardim");
-    fakeApi({
-      "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
-      "GET /api/pages/casa-jardim": () => ({
-        body: { ...PAGE, stages: stages(), staff: { project_id: "p-1", status: "active", row_version: 4 } },
-      }),
-      "POST /api/projects/p-1/stages/1/move": () => {
-        moved = true;
-        return { status: 204 };
-      },
-    });
-    render(<ClientApp />);
+  it("Editar etapa opens the stage with its name in place of the title, and saves the new name", async () => {
+    const { sent } = asStaff({ "PATCH /api/projects/p-1/stages/1": () => ({ status: 204 }) });
     await startEditing();
-    await userEvent.click(await screen.findByRole("button", { name: "Mover Briefing para baixo" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Renomear etapa Levantamento" }));
+    const briefing = document.getElementById("stage-0")!;
+    expect(briefing).not.toHaveClass("is-expanded");
+    await userEvent.click(within(briefing).getByRole("button", { name: "Editar etapa Briefing" }));
+    expect(briefing).toHaveClass("is-expanded", "is-editing");
+    const name = within(briefing).getByLabelText("Nome da etapa");
+    await userEvent.clear(name);
+    await userEvent.type(name, "Conversa inicial");
+    await userEvent.click(within(briefing).getByRole("button", { name: "Salvar" }));
+    await waitFor(() =>
+      expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({ row_version: 4, title: "Conversa inicial" }),
+    );
+    expect(sent.some((r) => r.path.endsWith("/notes"))).toBe(false); // the notes didn't change
+    await waitFor(() => expect(within(briefing).queryByLabelText("Nome da etapa")).toBeNull());
+  });
+
+  it("saves a new name and notes together, the notes with the row version the rename left", async () => {
+    const { sent } = asStaff({
+      "PATCH /api/projects/p-1/stages/2": () => ({ status: 204 }),
+      "PUT /api/projects/p-1/stages/2/notes": () => ({ status: 204 }),
+    });
+    await startEditing();
+    const stage = document.getElementById("stage-1")!;
+    await userEvent.click(within(stage).getByRole("button", { name: "Editar etapa Levantamento" }));
+    await userEvent.type(within(stage).getByLabelText("Nome da etapa"), " II");
+    const notes = within(stage).getByLabelText("Recado da etapa");
+    await userEvent.clear(notes);
+    await userEvent.type(notes, "Medidas revistas.");
+    await userEvent.click(within(stage).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(sent.some((r) => r.path.endsWith("/notes"))).toBe(true));
+    expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({ row_version: 4, title: "Levantamento II" });
+    expect(sent.find((r) => r.path.endsWith("/notes"))?.body).toEqual({ row_version: 5, notes: "Medidas revistas." });
+  });
+
+  it("Cancelar and Escape leave Editar etapa without saving", async () => {
+    const { sent } = asStaff();
+    await startEditing();
+    const stage = document.getElementById("stage-1")!;
+    await userEvent.click(within(stage).getByRole("button", { name: "Editar etapa Levantamento" }));
+    await userEvent.type(within(stage).getByLabelText("Nome da etapa"), " II");
+    await userEvent.click(within(stage).getByRole("button", { name: "Cancelar" }));
+    expect(within(stage).getByRole("heading", { name: "Levantamento" })).toBeInTheDocument();
+    await userEvent.click(within(stage).getByRole("button", { name: "Editar etapa Levantamento" }));
+    expect(within(stage).getByLabelText("Nome da etapa")).toHaveValue("Levantamento"); // the draft went
+    await userEvent.keyboard("{Escape}");
+    expect(within(stage).queryByLabelText("Nome da etapa")).toBeNull();
+    expect(sent.some((r) => r.method !== "GET")).toBe(false);
+  });
+
+  it("Escape in the remove question closes only the question, not Editar etapa", async () => {
+    const { sent } = asStaff();
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar etapa Levantamento" }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Remover etapa$/ }));
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(screen.getByLabelText("Nome da etapa")).toHaveValue("Levantamento");
+    expect(sent.some((r) => r.method === "DELETE")).toBe(false);
+  });
+
+  it("several stages can be in Editar etapa at once, and the head's click doesn't close one", async () => {
+    asStaff();
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar etapa Briefing" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar etapa Estudo Preliminar" }));
+    expect(screen.getAllByLabelText("Nome da etapa")).toHaveLength(2);
+    await userEvent.click(document.querySelector<HTMLElement>("#stage-0 .stage__n")!);
+    expect(document.getElementById("stage-0")).toHaveClass("is-expanded", "is-editing");
+  });
+
+  it("the stage's note, or its \"Recado para o cliente\", opens Editar etapa", async () => {
+    asStaff();
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar recado" }));
+    expect(within(document.getElementById("stage-1")!).getByLabelText("Nome da etapa")).toBeInTheDocument();
+  });
+
+  it("leaving edit mode closes every Editar etapa", async () => {
+    asStaff();
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar etapa Briefing" }));
+    const bar = screen.getByRole("navigation", { name: "Ferramentas do escritório" });
+    await userEvent.click(within(bar).getByRole("button", { name: "Ver como cliente" }));
+    await userEvent.click(within(bar).getByRole("button", { name: "Editar" }));
+    expect(screen.queryByLabelText("Nome da etapa")).toBeNull();
   });
 
   it.each([
@@ -827,7 +915,7 @@ describe("edit mode", () => {
     render(<ClientApp />);
   }
 
-  it("closes the remove confirmation once the stage is gone", async () => {
+  it("removes a stage from Editar etapa, after asking, and closes the edit", async () => {
     let removed = false;
     stagePage(
       () => (removed ? [PAGE.stages[0]!, PAGE.stages[2]!] : PAGE.stages).map((s, i) => ({ ...s, position: i + 1 })),
@@ -840,32 +928,30 @@ describe("edit mode", () => {
       },
     );
     await startEditing();
-    await userEvent.click(await screen.findByRole("button", { name: "Remover etapa Levantamento" }));
-    const confirm = screen.getByRole("group", { name: "Remover etapa Levantamento" });
+    await userEvent.click(await screen.findByRole("button", { name: "Editar etapa Levantamento" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Remover etapa$/ }));
+    const confirm = screen.getByRole("alertdialog", { name: "Remover etapa Levantamento" });
     await userEvent.click(within(confirm).getByRole("button", { name: "Remover" }));
-    // The row now shows Estudo Preliminar: no confirmation waits one click from removing it.
-    await screen.findByRole("button", { name: "Remover etapa Estudo Preliminar" });
-    expect(screen.queryByRole("group", { name: /Remover etapa/ })).toBeNull();
+    // The row now shows Estudo Preliminar, not in Editar etapa: nothing waits one click from removing it.
+    await screen.findByRole("button", { name: "Editar etapa Estudo Preliminar" });
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.queryByLabelText("Nome da etapa")).toBeNull();
   });
 
-  it("keeps stage controls off until the page shows the change", async () => {
-    let moved = false;
+  it("keeps stage saves off until the page shows the change", async () => {
     stagePage(
       () => PAGE.stages,
       () => 4, // the reload hasn't brought the new version yet
-      {
-        "POST /api/projects/p-1/stages/1/move": () => {
-          moved = true;
-          return { status: 204 };
-        },
-      },
+      { "PATCH /api/projects/p-1/stages/1": () => ({ status: 204 }) },
     );
     await startEditing();
-    await userEvent.click(await screen.findByRole("button", { name: "Mover Briefing para baixo" }));
-    expect(moved).toBe(true);
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Mover Levantamento para baixo" })).toBeDisabled(),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: "Editar etapa Briefing" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar etapa Levantamento" }));
+    const [briefing, levantamento] = [document.getElementById("stage-0")!, document.getElementById("stage-1")!];
+    await userEvent.type(within(briefing).getByLabelText("Nome da etapa"), " II");
+    await userEvent.click(within(briefing).getByRole("button", { name: "Salvar" }));
+    // A second save would carry the old row version and be refused as "changed meanwhile".
+    await waitFor(() => expect(within(levantamento).getByRole("button", { name: "Salvar" })).toBeDisabled());
   });
 
   describe("uploads and hiding (A31)", () => {
@@ -1077,8 +1163,9 @@ describe("edit mode", () => {
     asStaff({ "PUT /api/projects/p-1/stages/2/notes": () => ({ status: 409, body: { error: "project_changed" } }) });
     await startEditing();
     await userEvent.click(screen.getByRole("button", { name: "Editar recado" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Salvar" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("alterado por outra pessoa");
+    await userEvent.type(await screen.findByLabelText("Recado da etapa"), " Até sexta.");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText(/alterado por outra pessoa/)).toBeInTheDocument();
   });
 
   it("schedules the meeting on the office's clock", async () => {
@@ -1086,8 +1173,8 @@ describe("edit mode", () => {
     await startEditing();
     await userEvent.click(screen.getByRole("button", { name: "Editar reunião" }));
     // The existing meeting (19:00 UTC) shows as 16:00, São Paulo's time.
-    expect(await screen.findByLabelText("Início")).toHaveValue("16:00");
-    expect(screen.getByLabelText("Data")).toHaveValue("2026-10-21");
+    expect(await screen.findByRole("group", { name: "Início" })).toHaveTextContent("16:00");
+    expect(screen.getByRole("group", { name: "Data" })).toHaveTextContent("21/10/2026");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     await screen.findByText("Salvo.");
     expect(sent.find((r) => r.method === "PUT")?.body).toMatchObject({
@@ -1097,6 +1184,88 @@ describe("edit mode", () => {
       start: "16:00",
       end: "17:00",
     });
+  });
+
+  it("picks the meeting's day from a month and types its times, sending the same strings", async () => {
+    const { sent } = asStaff({ "PUT /api/projects/p-1/meeting": () => ({ status: 204 }) });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar reunião" }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Escolher no calendário/ }));
+    const month = await screen.findByRole("dialog");
+    expect(within(month).getByRole("heading")).toHaveTextContent("outubro de 2026"); // the office's language
+    await userEvent.click(within(month).getByRole("button", { name: /23 de outubro de 2026/ }));
+    expect(screen.getByRole("group", { name: "Data" })).toHaveTextContent("23/10/2026");
+    const [hour] = within(screen.getByRole("group", { name: "Início" })).getAllByRole("spinbutton");
+    await userEvent.click(hour!);
+    await userEvent.keyboard("09");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PUT")?.body).toMatchObject({ day: "2026-10-23", start: "09:00", end: "17:00" });
+  });
+
+  describe("moving the project on asks first (A32)", () => {
+    const progress = (recipients: { email: string; subscribed: boolean }[], current = 2) =>
+      asStaff({
+        "GET /api/pages/casa-jardim": () => ({
+          body: {
+            ...PAGE,
+            current_position: current,
+            staff: { project_id: "p-1", status: "active", row_version: 4, recipients },
+          },
+        }),
+        "POST /api/projects/p-1/progress": () => ({ status: 204 }),
+      });
+    const posted = (sent: { method: string; path: string; body?: unknown }[]) =>
+      sent.filter((r) => r.method === "POST" && r.path.endsWith("/progress")).map((r) => r.body);
+
+    it("advances only once confirmed, warning that subscribed clients get an email", async () => {
+      const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }]);
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Avançar para 03 Estudo Preliminar" }));
+      let ask = screen.getByRole("alertdialog", { name: "Avançar para “Estudo Preliminar”?" });
+      expect(ask).toHaveTextContent("“Levantamento” fica concluída");
+      expect(ask).toHaveTextContent("serão notificados por e-mail");
+      await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
+      expect(posted(sent)).toEqual([]);
+      await userEvent.click(screen.getByRole("button", { name: "Avançar para 03 Estudo Preliminar" }));
+      ask = screen.getByRole("alertdialog");
+      await userEvent.click(within(ask).getByRole("button", { name: "Avançar" }));
+      await waitFor(() => expect(posted(sent)).toEqual([{ row_version: 4, action: "advance" }]));
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    });
+
+    it("says nothing about emails when nobody gets the updates", async () => {
+      progress([{ email: "ana@exemplo.com.br", subscribed: false }]);
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Avançar para 03 Estudo Preliminar" }));
+      expect(screen.getByRole("alertdialog")).not.toHaveTextContent("e-mail");
+    });
+
+    it("completes the last stage only once confirmed, with the same warning", async () => {
+      const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }], 3);
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Concluir projeto" }));
+      const ask = screen.getByRole("alertdialog", { name: "Concluir o projeto?" });
+      expect(ask).toHaveTextContent("serão notificados por e-mail");
+      await userEvent.click(within(ask).getByRole("button", { name: "Concluir projeto" }));
+      await waitFor(() => expect(posted(sent)).toEqual([{ row_version: 4, action: "complete" }]));
+    });
+
+    it("goes back a stage once confirmed, with no email warning (going back emails nobody)", async () => {
+      const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }]);
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Voltar etapa" }));
+      const ask = screen.getByRole("alertdialog", { name: "Voltar para “Briefing”?" });
+      expect(ask).not.toHaveTextContent("e-mail");
+      expect(posted(sent)).toEqual([]);
+      await userEvent.click(within(ask).getByRole("button", { name: "Voltar etapa" }));
+      await waitFor(() => expect(posted(sent)).toEqual([{ row_version: 4, action: "back" }]));
+    });
+  });
+
+  it("offers the file search with the stages even before any file", async () => {
+    asStaff();
+    expect(await screen.findByLabelText("Pesquisar arquivos")).toBeInTheDocument();
   });
 });
 

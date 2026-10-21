@@ -12,6 +12,7 @@ import { EditButton, openOnClick } from "./EditButton";
 import { splitTitle } from "./titleLead";
 import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
+import type { StageEditParts } from "./StageEditing";
 import { FilePreview, FileToolbar, linkedFile, shownFiles, usePrefs, type FilePlace, type FileView } from "./FileTools";
 
 // Staff editing code loads only once staff press "Editar" (A20): visitors never get it.
@@ -19,11 +20,10 @@ const DescriptionEditor = lazy(() => import("./Editors").then((m) => ({ default:
 const NameEditor = lazy(() => import("./Editors").then((m) => ({ default: m.NameEditor })));
 const DetailsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DetailsEditor })));
 const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.MeetingEditor })));
-const NotesEditor = lazy(() => import("./Editors").then((m) => ({ default: m.NotesEditor })));
 const RecipientsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.RecipientsEditor })));
 const AddStage = lazy(() => import("./StageEditing").then((m) => ({ default: m.AddStage })));
 const ProgressRail = lazy(() => import("./StageEditing").then((m) => ({ default: m.ProgressRail })));
-const StageControls = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageControls })));
+const StageEditForm = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageEditForm })));
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
 const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
@@ -185,6 +185,13 @@ function StageFilesList({
       ))}
     </>
   );
+}
+
+/** The set with the row added, or taken out if it was there. */
+function toggled(set: ReadonlySet<number>, index: number): ReadonlySet<number> {
+  const next = new Set(set);
+  if (!next.delete(index)) next.add(index);
+  return next;
 }
 
 function countFiles(files: StageFiles | undefined): number {
@@ -443,7 +450,6 @@ function Stage({
   reference,
   slug,
   editor,
-  controls,
   uploads,
   fileMenu,
   view = "grid",
@@ -462,8 +468,8 @@ function Stage({
   files: StageFiles | undefined;
   reference: string | null;
   slug: string;
-  editor?: { open: boolean; onOpen: () => void; render: () => ReactNode };
-  controls?: ReactNode;
+  // Edit mode: "Editar etapa" lays the stage out with its form's parts (StageEditParts).
+  editor?: { editing: boolean; onEdit: () => void; form: (layout: (parts?: StageEditParts) => ReactNode) => ReactNode };
   uploads?: ReactNode; // edit mode: the drop area
   fileMenu?: (file: FileItem) => ReactNode;
   view?: FileView;
@@ -475,7 +481,7 @@ function Stage({
   const narrow = useNarrow();
   const stage = page.stages[index]!;
   const state = stateOf(page, index);
-  // "Sobre esta etapa": desktop only for now; on a phone its "+" beside the
+  // "Sobre esta etapa", an (i) beside the title: desktop only for now; on a phone its "+" beside the
   // stage's arrow read as another way to open it (Fabio, 19 Oct 2026).
   const helpPanel = stage.about && (
     <div className="stage-help-pop" hidden={!help}>
@@ -497,18 +503,24 @@ function Stage({
         <span className="stage-help-mark" aria-hidden="true">
           i
         </span>
-        <span>{t("page.aboutStage")}</span>
       </button>
       {helpPanel}
     </div>
   );
-  return (
-    <section
-      className={`stage ${open ? "is-expanded " : ""}${state}`}
-      id={`stage-${index}`}
-      aria-labelledby={`st-${index}`}
-      hidden={hidden}
-    >
+  // A click anywhere on the stage's number or head opens or closes it, as its arrow
+  // does (the arrow stays the control for keyboards and screen readers); its own
+  // buttons, links and forms keep their job. A stage being edited stays open.
+  const headClick = (event: React.MouseEvent) => {
+    const target = event.target as Element;
+    if (editor?.editing) return;
+    if (!target.closest(".stage__head, .stage__n")) return;
+    if (target.closest("button, a, input, select, textarea, label, form, [role='group'], .stage-help")) return;
+    if (window.getSelection?.()?.toString()) return; // selecting the title's text
+    onToggle();
+  };
+  // The stage's markup; in "Editar etapa", its form's parts in their places.
+  const layout = (parts?: StageEditParts) => (
+    <>
       <span className="stage__n">
         {/* On a phone a finished stage shows a green check (drawn in CSS); its number stays for screen readers. */}
         {narrow && state === "done" ? (
@@ -522,23 +534,40 @@ function Stage({
       </span>
       <div className="stage__head">
         <div className="stage__title">
-          <h2 id={`st-${index}`} tabIndex={-1}>
-            {stage.title}
-          </h2>
-          <div className="client-stage-controls">
-            <button
-              className="iconbtn"
-              type="button"
-              aria-controls={`stage-body-${index}`}
-              aria-expanded={open}
-              aria-label={t(open ? "page.stageOpen" : "page.openStage", { title: stage.title })}
-              onClick={onToggle}
-            >
-              <Icon name={open ? "up" : "down"} />
-            </button>
-            {helpControl}
+          <div className="stage__name">
+            <h2 id={`st-${index}`} tabIndex={-1} className={parts ? "sr" : undefined}>
+              {stage.title}
+            </h2>
+            {parts ? parts.name : helpControl}
           </div>
-          {controls}
+          <div className="client-stage-controls">
+            {parts?.actions}
+            {editor && !parts && (
+              <button
+                className="b b--small stage-edit-toggle"
+                type="button"
+                aria-label={t("edit.editStageOf", { title: stage.title })}
+                onClick={editor.onEdit}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                  <path d="M4 20h4L19 9l-4-4L4 16v4Z M13.5 6.5l4 4" />
+                </svg>
+                <span>{t("edit.editStage")}</span>
+              </button>
+            )}
+            {!parts && (
+              <button
+                className="iconbtn"
+                type="button"
+                aria-controls={`stage-body-${index}`}
+                aria-expanded={open}
+                aria-label={t(open ? "page.stageOpen" : "page.openStage", { title: stage.title })}
+                onClick={onToggle}
+              >
+                <Icon name={open ? "up" : "down"} />
+              </button>
+            )}
+          </div>
         </div>
         <p className="stage__meta">
           {state === "done" && <span className="pill">{t("page.stageDone")}</span>}
@@ -557,16 +586,16 @@ function Stage({
       </div>
       <div className="stage__body" id={`stage-body-${index}`} aria-hidden={!open} inert={!open}>
         <div className="stage__body-inner">
-          {editor?.open ? (
-            editor.render()
+          {parts ? (
+            parts.notes
           ) : stage.notes ? (
-            <div className="notes" data-editable {...openOnClick(editor?.onOpen)}>
-              {editor &&<EditButton label={t("edit.notesShort")} onClick={editor.onOpen} />}
+            <div className="notes" data-editable {...openOnClick(editor?.onEdit)}>
+              {editor && <EditButton label={t("edit.notesShort")} onClick={editor.onEdit} />}
               <p>{stage.notes}</p>
             </div>
           ) : (
             editor && (
-              <button className="ghostline addnote" type="button" onClick={editor.onOpen}>
+              <button className="ghostline addnote" type="button" onClick={editor.onEdit}>
                 + {t("edit.addNote")}
               </button>
             )
@@ -581,8 +610,20 @@ function Stage({
             onOpen={onOpenFile}
           />
           {uploads}
+          {parts?.remove}
         </div>
       </div>
+    </>
+  );
+  return (
+    <section
+      className={`stage ${open ? "is-expanded " : ""}${editor?.editing ? "is-editing " : ""}${state}`}
+      id={`stage-${index}`}
+      aria-labelledby={`st-${index}`}
+      hidden={hidden}
+      onClick={headClick}
+    >
+      {editor?.editing ? editor.form(layout) : layout()}
     </section>
   );
 }
@@ -748,18 +789,21 @@ export function ProjectPage({
     setOpenEditor(null);
     if (saved) onChanged?.();
   };
-  // One stage open at a time: the current one, until the client opens another.
-  const [openStage, setOpenStage] = useState(() => Math.max(0, (page.current_position ?? 1) - 1));
+  // The stages open (by row): the current one at first; any number can be open.
+  const [openStages, setOpenStages] = useState<ReadonlySet<number>>(
+    () => new Set([Math.max(0, (page.current_position ?? 1) - 1)]),
+  );
+  const openStage = (index: number) => setOpenStages((open) => new Set(open).add(index));
   // One stage's "Sobre esta etapa" open at a time: two would overlap.
   const [openHelp, setOpenHelp] = useState<number | null>(null);
-  // After a reorder the open stage stays open wherever the new order puts it, and
-  // a stage's notes or rename, kept by row, close: another stage is on that row now.
-  const [reorders, setReorders] = useState(0);
+  // The stages in "Editar etapa" (by row); several can be at once.
+  const [editingStages, setEditingStages] = useState<ReadonlySet<number>>(new Set());
+  // After a reorder the open stages stay open wherever the new order puts them, and
+  // the stages being edited, kept by row, close: another stage is on that row now.
   const reordered = (order: number[]) => {
-    setOpenStage((open) => (open < 0 ? open : Math.max(0, order.indexOf(open + 1))));
-    setOpenEditor((editor) => (editor?.startsWith("notes-") ? null : editor));
+    setOpenStages((open) => new Set([...open].map((i) => order.indexOf(i + 1)).filter((i) => i >= 0)));
+    setEditingStages(new Set());
     setOpenHelp(null);
-    setReorders((n) => n + 1);
   };
   // The file tools (FileTools): search, type, order, view, and the file in preview.
   const [query, setQuery] = useState("");
@@ -774,7 +818,6 @@ export function ProjectPage({
     return files ? shownFiles(files, stage.title, query, prefs) : { files: undefined, count: 0 };
   });
   const unreadable = (i: number) => Boolean(filesFor(stageFiles, i + 1).files?.unavailable);
-  const hasFiles = shown.some((_, i) => countFiles(filesFor(stageFiles, i + 1).files) > 0);
 
   useEffect(() => {
     document.title = `${page.name} · ${page.office.name}`;
@@ -787,7 +830,7 @@ export function ProjectPage({
         setQuery("");
         setPrefs({ type: "all" });
       }
-      setOpenStage(index);
+      openStage(index);
     });
     const section = document.getElementById(`stage-${index}`);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -811,7 +854,7 @@ export function ProjectPage({
       .flatMap((g) => g.files)
       .find((candidate) => candidate.name === place.name);
     if (!file) return;
-    setOpenStage(place.position - 1);
+    openStage(place.position - 1);
     setPreview({ file, place });
     // Once the stage has opened, so the file is there to scroll to.
     requestAnimationFrame(() =>
@@ -970,7 +1013,8 @@ export function ProjectPage({
             />
           </Suspense>
         )}
-        {(hasFiles || filtering) && (
+        {/* With the stages, even before any files, so the page keeps its spacing. */}
+        {page.stages.length > 0 && (
           <FileToolbar
             query={query}
             onQuery={setQuery}
@@ -991,20 +1035,12 @@ export function ProjectPage({
             open={
               filtering
                 ? (shown[i]!.count > 0 || unreadable(i)) && !closed.has(i)
-                : i === openStage
+                : openStages.has(i) || (canEdit && editingStages.has(i))
             }
             hidden={filtering && shown[i]!.count === 0 && !unreadable(i)}
             help={openHelp === i}
             onHelp={(open) => setOpenHelp(open ? i : null)}
-            onToggle={() =>
-              filtering
-                ? setClosed((was) => {
-                    const next = new Set(was);
-                    if (!next.delete(i)) next.add(i);
-                    return next;
-                  })
-                : setOpenStage(i === openStage ? -1 : i)
-            }
+            onToggle={() => (filtering ? setClosed : setOpenStages)((was) => toggled(was, i))}
             {...filesFor(stageFiles, i + 1)}
             files={shown[i]!.files}
             total={countFiles(filesFor(stageFiles, i + 1).files)}
@@ -1032,28 +1068,24 @@ export function ProjectPage({
                   )
                 : undefined
             }
-            controls={
-              canEdit ? (
-                <Suspense fallback={null}>
-                  <StageControls
-                    key={reorders}
-                    page={page}
-                    staff={staff!}
-                    index={i}
-                    onChanged={stagesChanged}
-                    locked={stagesLocked}
-                  />
-                </Suspense>
-              ) : undefined
-            }
             editor={
               canEdit
                 ? {
-                    open: openEditor === `notes-${i}`,
-                    onOpen: () => setOpenEditor(`notes-${i}`),
-                    render: () => (
-                      <Suspense fallback={null}>
-                        <NotesEditor page={page} staff={staff!} index={i} onDone={done} />
+                    editing: editingStages.has(i),
+                    onEdit: () => setEditingStages((was) => new Set(was).add(i)),
+                    form: (layout) => (
+                      // Until the form's code is in, the stage as it was.
+                      <Suspense fallback={layout()}>
+                        <StageEditForm
+                          page={page}
+                          staff={staff!}
+                          index={i}
+                          locked={stagesLocked}
+                          onChanged={stagesChanged}
+                          // A removed stage's row shows the next one: every edit closes.
+                          onDone={(removed) => setEditingStages((was) => (removed ? new Set() : toggled(was, i)))}
+                          layout={layout}
+                        />
                       </Suspense>
                     ),
                   }
@@ -1076,6 +1108,7 @@ export function ProjectPage({
           onMode={(next) => {
             setEditing(next);
             setOpenEditor(null);
+            setEditingStages(new Set());
           }}
           onTour={onTour ?? (() => tour(false))}
         />
