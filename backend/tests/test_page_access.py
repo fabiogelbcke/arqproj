@@ -216,9 +216,11 @@ async def test_making_a_page_public_opens_it_and_forgets_the_password(client, ow
     [
         ({"access_mode": "password"}, "password_required"),  # Casa Jardim has none
         ({"access_mode": "password", "password": "12345"}, "password_too_short"),
+        # 25 (FIELD_LIMITS): the field stops there, so only a bug sends more.
+        ({"access_mode": "password", "password": "x" * 26}, "invalid_request"),
     ],
 )
-async def test_password_access_needs_a_password_of_six_or_more(client, owner, body, error):
+async def test_password_access_needs_a_password_of_six_to_25(client, owner, body, error):
     response = await change(client, owner, "casa-jardim", **body)
     assert (response.status_code, response.json()["error"]) == (422, error)
 
@@ -263,7 +265,7 @@ async def test_another_projects_address_is_never_given_away(client, owner):
         )
 
 
-@pytest.mark.parametrize("slug", ["Casa Jardim", "painel", "-casa", ""])
+@pytest.mark.parametrize("slug", ["Casa Jardim", "painel", "-casa", "", "a" * 81])
 async def test_a_bad_address_is_refused(client, owner, slug):
     response = await change(client, owner, "casa-jardim", slug=slug)
     assert (response.status_code, response.json()["error"]) == (422, "invalid_slug")

@@ -2,7 +2,7 @@
 // the panel's settings. Fictional and in Brazilian Portuguese, like all demo data.
 import type { ExamplePreview } from "../example/exampleApi";
 import { exampleProject, type ExampleFile, type ExampleStage } from "../example/fixture";
-import { LIMITS } from "./limits";
+import { LIMITS } from "../../api/limits";
 import type { Settings } from "./settings";
 
 export const PREVIEW_OFFICE = { name: "Estúdio Vale Verde", logo_url: null, logo_dark_url: null };
@@ -19,7 +19,8 @@ const PARAGRAPHS = [
 ];
 
 const MORE_STAGES = ["Interiores", "Paisagismo", "Luminotécnico", "Compatibilização", "Acompanhamento de Obra"];
-// "Long" is the longest allowed (limits.ts): these are cut to it, as typing stops there.
+// "Long" is the longest the server allows (api/limits.ts): these are cut to it, as
+// typing stops there.
 const LONG_STAGE = "Estudos Preliminares, Anteprojeto e Compatibilização com os Projetos Complementares";
 // Long names (each file keeps its own extension), one with no spaces to break at.
 const LONG_FILES = [
@@ -28,9 +29,9 @@ const LONG_FILES = [
   "Perspectiva da varanda ao entardecer vista a partir do jardim inferior junto à piscina",
 ];
 
-/** The text cut to the field's limit. */
+/** The text made exactly the field's limit: repeated if short, cut where typing stops. */
 function fit(text: string, limit: number): string {
-  return text.slice(0, limit);
+  return text.padEnd(limit, ` ${text}`).slice(0, limit);
 }
 
 const MEETINGS = {

@@ -72,6 +72,7 @@ async def test_editing_the_description_doesnt_move_atualizado(client, owner):
         [{"key": "site_area", "value": "-3"}],
         [{"key": "start_date", "value": "amanhã"}],
         [{"key": "location", "value": "   "}],
+        [{"key": "location", "value": "x" * 41}],  # 40 (FIELD_LIMITS)
     ],
 )
 async def test_bad_details_are_refused_and_nothing_changes(client, owner, details):
@@ -152,6 +153,15 @@ async def test_a_bad_meeting_is_refused(client, owner, changes):
     assert (response.status_code, response.json()["error"]) == (422, "invalid_meeting")
 
 
+async def test_a_description_may_be_as_long_as_its_limit_and_no_longer(client, owner):
+    assert (
+        await edit(client, owner, "PATCH", "/content", description="x" * 600)
+    ).status_code == 204
+    too_long = await edit(client, owner, "PATCH", "/content", description="y" * 601)
+    assert too_long.status_code == 422  # the editor stops at 600: only a bug sends more
+    assert (await page(client))["description"] == "x" * 600
+
+
 # -- stage notes ----------------------------------------------------------------------
 
 
@@ -166,6 +176,12 @@ async def test_a_stage_note_reaches_the_page_and_moves_atualizado(client, owner)
     assert shown["last_update"] != before
     await edit(client, owner, "PUT", "/stages/3/notes", notes="")
     assert (await page(client))["stages"][2]["notes"] == ""
+
+
+async def test_a_note_may_be_as_long_as_its_limit_and_no_longer(client, owner):
+    assert (await edit(client, owner, "PUT", "/stages/3/notes", notes="x" * 300)).status_code == 204
+    assert (await edit(client, owner, "PUT", "/stages/3/notes", notes="y" * 301)).status_code == 422
+    assert (await page(client))["stages"][2]["notes"] == "x" * 300
 
 
 async def test_a_note_for_a_stage_that_doesnt_exist_is_refused(client, owner):

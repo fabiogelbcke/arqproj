@@ -3,6 +3,7 @@ import { FileTrigger, Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
+import { LIMITS } from "../api/limits";
 import { useConnectDrive, useDrive } from "../drive/drive";
 import { useDarkLogo, useOffice, useSaveOffice, useUploadLogo } from "../office/office";
 import { Button } from "../ui/Button";
@@ -91,7 +92,7 @@ export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
           value={values.name}
           onChange={(name) => setDraft({ ...values, name })}
           isRequired
-          maxLength={28} // for now (Fabio, 18 Oct 2026); the API checks the same
+          maxLength={LIMITS.officeName}
           isReadOnly={!manage}
         />
         <EmailField

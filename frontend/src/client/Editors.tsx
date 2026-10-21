@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { EmailListField, addEmails } from "../ui/EmailListField";
 import { TextInput } from "../ui/TextInput";
 import { toast } from "../ui/Toast";
@@ -105,7 +106,7 @@ export function NameEditor({ page, staff, onDone }: { page: Page; staff: Staff; 
         <label className="sr" htmlFor="ed-name">
           {t("edit.name")}
         </label>
-        <TextInput className="input" id="ed-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} autoFocus />
+        <TextInput className="input" id="ed-name" value={name} maxLength={LIMITS.projectName} onChange={(e) => setName(e.target.value)} autoFocus />
         <p className="hint">{t("edit.nameHint")}</p>
       </div>
     </Editor>
@@ -136,7 +137,7 @@ export function DescriptionEditor({ page, staff, onDone }: { page: Page; staff: 
         <label className="sr" htmlFor="ed-desc">
           {t("edit.description")}
         </label>
-        <textarea className="textarea" id="ed-desc" rows={7} value={text} onChange={(e) => setText(e.target.value)} autoFocus />
+        <textarea className="textarea" id="ed-desc" rows={7} maxLength={LIMITS.description} value={text} onChange={(e) => setText(e.target.value)} autoFocus />
         <p className="hint">{t("edit.descriptionHint")}</p>
       </div>
     </Editor>
@@ -209,7 +210,7 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
                   <span>m²</span>
                 </div>
               ) : (
-                <input className="input" id={id} type={kind === "date" ? "date" : "text"} value={row.value} onChange={(e) => set(e.target.value)} />
+                <input className="input" id={id} type={kind === "date" ? "date" : "text"} maxLength={LIMITS.detailText} value={row.value} onChange={(e) => set(e.target.value)} />
               )}
               <button
                 className="iconbtn"
@@ -324,7 +325,7 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
     >
       <div className="field">
         <label htmlFor="m-title">{t("edit.subject")}</label>
-        <TextInput className="input" id="m-title" value={form.title} onChange={set("title")} maxLength={40} required autoFocus />
+        <TextInput className="input" id="m-title" value={form.title} onChange={set("title")} maxLength={LIMITS.meetingTitle} required autoFocus />
       </div>
       <div className="row3">
         <div className="field">
@@ -343,7 +344,7 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
       <div className="row2">
         <div className="field">
           <label htmlFor="m-loc">{t("edit.location")}</label>
-          <TextInput className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={60} />
+          <TextInput className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={LIMITS.meetingLocation} />
         </div>
         <div className="field">
           <label htmlFor="m-link">{t("edit.link")}</label>
@@ -393,6 +394,7 @@ export function NotesEditor({
         <textarea
           className="textarea"
           id={`ed-notes-${index}`}
+          maxLength={LIMITS.stageNotes}
           rows={4}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}

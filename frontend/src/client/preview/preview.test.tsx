@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "../../test/render";
 import { PreviewApp, PreviewFrame } from "./PreviewApp";
-import { LIMITS } from "./limits";
+import { LIMITS } from "../../api/limits";
 import { CONTROLS, KEYS, readSettings, writeSettings } from "./settings";
 import { previewData } from "./variant";
 
@@ -66,7 +66,7 @@ describe("the preview's data", () => {
     const short = data("description=short").project.description;
     expect(short.length).toBeGreaterThan(0);
     expect(short.length).toBeLessThan(80);
-    for (const length of [200, 1500, 4000]) {
+    for (const length of [CONTROLS.length.min, 400, LIMITS.description]) {
       const text = data(`length=${length}`).project.description;
       expect(text.length).toBeLessThanOrEqual(length);
       expect(text.length).toBeGreaterThan(length - 100);
@@ -86,7 +86,7 @@ describe("the preview's data", () => {
   });
 
   it("makes \"long\" the longest each field allows, never more", () => {
-    const { project } = data("meeting=long&longNames=1&length=5000");
+    const { project } = data(`meeting=long&longNames=1&length=${LIMITS.description}`);
     expect(project.next_meeting!.title).toHaveLength(LIMITS.meetingTitle);
     expect(project.next_meeting!.location).toHaveLength(LIMITS.meetingLocation);
     expect(Math.max(...project.stages.map((stage) => stage.title.length))).toBe(LIMITS.stageTitle);
@@ -148,8 +148,8 @@ describe("the preview page", () => {
     expect(sent).toEqual([]);
   });
 
-  // The preview's limits (limits.ts) are copies of the editors': if an editor's
-  // limit changes, these fail until the preview follows.
+  // The editors and the preview read the same limits (api/limits.ts): the editor's
+  // field takes the preview's longest text exactly, no more and no less.
   it("fills the meeting editor's fields exactly to their limits", async () => {
     window.history.pushState({}, "", "/painel/previa?frame&view=staff&meeting=long");
     fakeApi({});

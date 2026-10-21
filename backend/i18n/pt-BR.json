@@ -202,7 +202,7 @@
     "logo_wrong_type": "Use uma imagem PNG, JPG, WebP ou SVG.",
     "logo_too_large": "Use uma imagem de até 5 MB.",
     "drive_unreadable": "O portal não consegue ler a pasta do escritório no Google Drive. Verifique o compartilhamento em Configurações → Google Drive.",
-    "invalid_project_name": "Informe o nome do projeto, com até 120 caracteres.",
+    "invalid_project_name": "Informe o nome do projeto, com até 50 caracteres.",
     "invalid_client_name": "Informe o cliente, com até 30 caracteres.",
     "invalid_slug": "Use só letras minúsculas, números e hífens, sem hífen no começo ou no fim. Algumas palavras são reservadas pelo portal.",
     "slug_taken": "Este endereço já está em uso. Escolha outro.",
@@ -229,7 +229,7 @@
     "stage_has_no_folder": "Esta etapa não tem uma pasta de arquivos, então não pode receber arquivos.",
     "file_not_ours": "Este arquivo não foi enviado pelo site. Para ocultá-lo, renomeie-o na pasta da etapa começando com _.",
     "file_not_ours_to_move": "Este arquivo não foi enviado pelo site. Para mudá-lo de etapa, mova-o para a pasta da outra etapa.",
-    "invalid_detail": "Confira as informações: cada uma aparece uma vez, áreas são números e datas são datas.",
+    "invalid_detail": "Confira as informações: cada uma aparece uma vez, textos têm até 40 caracteres, áreas são números e datas são datas.",
     "invalid_meeting": "Confira a reunião: assunto de até 40 caracteres, data no futuro, fim depois do início e link começando com https://.",
     "invalid_stage": "Não foi possível mudar esta etapa. Recarregue a página e tente de novo.",
     "files_unavailable": "Não foi possível abrir o arquivo agora. Tente de novo em instantes."

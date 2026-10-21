@@ -166,7 +166,7 @@ async def test_a_deleted_projects_name_can_be_used_again(client, db_session, own
     ("changes", "error"),
     [
         ({"name": "   "}, "invalid_project_name"),
-        ({"name": "x" * 121}, "invalid_project_name"),
+        ({"name": "x" * 51}, "invalid_project_name"),  # 50 (FIELD_LIMITS)
         ({"client_name": " "}, "invalid_client_name"),
         ({"client_name": "x" * 31}, "invalid_client_name"),  # 30 for now
         ({"project_type": "pools"}, "unknown_project_type"),
@@ -177,6 +177,7 @@ async def test_a_deleted_projects_name_can_be_used_again(client, db_session, own
         ({"slug": "painel"}, "invalid_slug"),
         ({"slug": "tour-projeto"}, "invalid_slug"),  # the example project (plan section 16)
         ({"slug": ""}, "invalid_slug"),
+        ({"slug": "a" * 81}, "invalid_slug"),  # the screens stop at 80 (FIELD_LIMITS)
         ({"recipients": ["ana@x.com", "joao@x"]}, "invalid_email"),
     ],
 )
@@ -186,6 +187,11 @@ async def test_bad_details_are_refused_before_anything_is_made(
     response = await create(client, owner, **changes)
     assert (response.status_code, response.json()["error"]) == (422, error)
     assert list(tmp_path.iterdir()) == []
+
+
+async def test_an_address_may_be_as_long_as_the_limit(client, owner):
+    response = await create(client, owner, slug="a" * 80)
+    assert response.status_code == 201
 
 
 async def test_the_clients_emails_can_be_given_at_creation(client, owner):

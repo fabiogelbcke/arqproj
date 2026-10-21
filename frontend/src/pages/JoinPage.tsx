@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
 import { ApiError, api, call } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { Button } from "../ui/Button";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
@@ -59,7 +60,7 @@ export function JoinPage() {
                 join.mutate();
               }}
             >
-              <TextField label={t("team.name")} value={name} onChange={setName} isRequired maxLength={80} autoComplete="name" />
+              <TextField label={t("team.name")} value={name} onChange={setName} isRequired maxLength={LIMITS.staffName} autoComplete="name" />
               <EmailField label={t("team.email")} value={email} onChange={setEmail} isRequired />
               <ErrorNotice error={link.error ?? join.error} />
               <Button type="submit" variant="primary" isDisabled={join.isPending || !link.data}>

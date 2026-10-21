@@ -3,7 +3,7 @@
 // the address (only those changed from the start), so a link reproduces a view.
 // To add a control: one entry here, its label in the catalogs, its use in variant.ts.
 
-import { LIMITS } from "./limits";
+import { LIMITS } from "../../api/limits";
 
 export const CONTROLS = {
   view: { kind: "choice", options: ["client", "staff"], initial: "client" },

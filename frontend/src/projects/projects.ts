@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, call, type Schemas } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { ONBOARDING } from "../drive/drive";
 
 export type ProjectSummary = Schemas["ProjectSummary"];
@@ -101,7 +102,7 @@ export function suggestedSlug(name: string): string {
   return plain(name)
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 80)
+    .slice(0, LIMITS.slug)
     .replace(/-+$/, "");
 }
 

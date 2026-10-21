@@ -55,6 +55,8 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 
 COVER_MAX_BYTES = 10 * 1024 * 1024
+PAGE_PASSWORD_MIN = 6  # Fabio, 16 Oct 2026
+PAGE_PASSWORD_MAX = 25  # Fabio, 20 Oct 2026
 COVER_FOLDER = "_capa"
 COVER_SIZE = 1280  # pixels on the long side, from Drive's thumbnails: enough for a card
 _EXTENSIONS = {CoverType.PNG: "png", CoverType.JPEG: "jpg", CoverType.WEBP: "webp"}
@@ -78,12 +80,9 @@ class ProjectChange(BaseModel):
     access_mode: AccessMode | None = None
     # Required when switching to password access; a new one locks out every
     # device that unlocked the page before.
-    password: str | None = Field(default=None, max_length=200)
+    password: str | None = Field(default=None, max_length=PAGE_PASSWORD_MAX)
     # The client's addresses for email updates, the whole list (A32).
     recipients: list[str] | None = Field(default=None, max_length=RECIPIENTS_MAX)
-
-
-PAGE_PASSWORD_MIN = 6  # Fabio, 16 Oct 2026
 
 
 async def _project(db: AsyncSession, project_id: uuid.UUID, lock: bool = False) -> Project:
@@ -142,7 +141,8 @@ async def change_project(
     values: dict = {}
     if body.name is not None:
         name = body.name.strip()
-        if not name or len(name) > NAME_MAX:
+        # The limit is for names entered from now on: one saved before it stays as is.
+        if not name or (name != project.name and len(name) > NAME_MAX):
             raise ApiError(422, ErrorCode.INVALID_PROJECT_NAME)
         if (other := await project_named(db, name, other_than=project.id)) is not None:
             raise ApiError(409, ErrorCode.PROJECT_NAME_TAKEN, other)

@@ -223,3 +223,10 @@ def test_the_frontends_api_description_is_current():
     `make api-types` after changing the API."""
     committed = (ROOT / "frontend" / "src" / "api" / "openapi.json").read_text("utf-8")
     assert committed == openapi.schema(), "run `make api-types`"
+
+
+def test_the_frontends_field_limits_are_current():
+    """The screens' maxLength comes from this file (backend/web/limits.py): a limit
+    changed on the server reaches them through `make api-types`."""
+    committed = (ROOT / "frontend" / "src" / "api" / "limits.json").read_text("utf-8")
+    assert committed == openapi.limits(), "run `make api-types`"
