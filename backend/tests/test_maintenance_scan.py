@@ -140,6 +140,28 @@ async def test_one_project_failing_is_logged_and_the_rest_go_on(
     assert any("scanning files" in m and "Drive said 503" in m for m in logged)
 
 
+async def test_a_bug_in_one_project_is_logged_and_the_pass_still_ends(
+    app, db_session, owner, folders, monkeypatch, caplog
+):
+    """Not only Drive failing: any error in one project's work (once, a missing email
+    text) is that project's, and the pass still reaches the others and its record."""
+    real = scan.stage_groups
+
+    async def breaks_for_briefing(storage, folder):
+        if folder.endswith("01 - Briefing"):
+            raise KeyError("andMore_other")
+        return await real(storage, folder)
+
+    monkeypatch.setattr(scan, "stage_groups", breaks_for_briefing)
+    report = await run(app)
+    assert report.failed >= 1
+    assert report.projects > 1  # the pass went on past it
+    logged = [
+        r for r in caplog.records if r.levelname == "ERROR" and "maintenance" in r.getMessage()
+    ]
+    assert logged and logged[0].exc_info  # with the traceback, to fix it
+
+
 async def test_a_project_another_pass_is_scanning_is_skipped(app, db_session, owner, folders):
     """Two Cloud Run instances may run a pass at once: each project is scanned by
     one of them, under a lock that holds across connections."""
