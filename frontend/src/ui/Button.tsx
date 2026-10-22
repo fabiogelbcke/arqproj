@@ -6,17 +6,20 @@ type Variant = "primary" | "secondary" | "ghost";
 
 /** The site's text button. Size by role (ui/sizes.css): "regular" for the action
  *  a screen or dialog is about and in forms; "small" in toolbars and beside
- *  content. Icon-only buttons are IconButton. */
+ *  content. "pill" rounds its ends (the painel). Icon-only buttons are IconButton. */
 export function Button({
   variant = "secondary",
   size = "regular",
+  shape,
   className,
   ...props
-}: ButtonProps & { variant?: Variant; size?: "regular" | "small" }) {
+}: ButtonProps & { variant?: Variant; size?: "regular" | "small"; shape?: "pill" }) {
   return (
     <AriaButton
       {...props}
-      className={[styles.button, styles[variant], size === "small" && styles.small, className].filter(Boolean).join(" ")}
+      className={[styles.button, styles[variant], size === "small" && styles.small, shape && styles.pill, className]
+        .filter(Boolean)
+        .join(" ")}
     />
   );
 }

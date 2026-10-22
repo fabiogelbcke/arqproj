@@ -113,7 +113,10 @@ describe("signed in", () => {
     });
     const router = renderAt("/");
     expect(await screen.findByRole("heading", { name: "Projetos" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Sair" }));
+    // Sair is in the account menu, under the round initial, with who is signed in.
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    expect(screen.getByText(ME.email)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Sair" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
     const signOut = sent.find((request) => request.method === "DELETE");
     expect(signOut?.headers.get("X-CSRF-Token")).toBe("csrf-123");
@@ -159,10 +162,24 @@ describe("the painel tour", () => {
     await userEvent.click(screen.getByRole("button", { name: "Ver o tour do painel" }));
     await waitFor(() => expect(startPainelTour).toHaveBeenCalledTimes(1));
   });
+
+  it("starts from the account menu and the phone's drawer too", async () => {
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    renderAt("/");
+    await screen.findByRole("heading", { name: "Projetos" });
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Ver o tour do painel" }));
+    await waitFor(() => expect(startPainelTour).toHaveBeenCalledTimes(1));
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const drawer = await screen.findByRole("dialog", { name: "Menu" });
+    await userEvent.click(within(drawer).getByRole("button", { name: "Ver o tour do painel" }));
+    await waitFor(() => expect(startPainelTour).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull()); // out of the tour's way
+  });
 });
 
 describe("the theme and the phone drawer", () => {
-  it("keeps the top bar's button and the drawer's switch in step", async () => {
+  it("keeps the account menu's switch and the drawer's in step", async () => {
     localStorage.clear();
     document.documentElement.dataset.theme = "light";
     fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
@@ -171,8 +188,17 @@ describe("the theme and the phone drawer", () => {
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
     const menu = await screen.findByRole("dialog", { name: "Menu" });
     await userEvent.click(within(menu).getByRole("switch", { name: "Modo escuro" }));
-    // The top bar's button (desktop) follows: it now offers the light theme.
-    expect(screen.getByRole("button", { name: "Usar tema claro", hidden: true })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull());
+    // The account menu (desktop) follows: its switch is on.
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    const dark = screen.getByRole("menuitemcheckbox", { name: "Modo escuro" });
+    expect(dark).toBeChecked();
+    // Switching it off there: the light theme, and the menu stays open for more.
+    await userEvent.click(dark);
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(localStorage.getItem("theme")).toBe("light");
+    expect(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" })).not.toBeChecked();
   });
 
   it("shows a failed sign-out inside the drawer, not behind it", async () => {
@@ -294,5 +320,34 @@ describe("a forgotten password", () => {
     await userEvent.type(await screen.findByLabelText(/E-mail/), "ana@alinea.example");
     await userEvent.click(screen.getByRole("button", { name: "Enviar link" }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+});
+
+describe("each screen's title and the skip link", () => {
+  it("names the screen and the office in the browser tab", async () => {
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    const router = renderAt("/");
+    await screen.findByRole("heading", { name: "Projetos" });
+    await waitFor(() => expect(document.title).toBe("Projetos · Alinea"));
+    await router.navigate("/configuracoes/equipe");
+    await waitFor(() => expect(document.title).toBe("Equipe · Configurações · Alinea"));
+  });
+
+  it("names the sign-in screen before anyone is signed in", async () => {
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }) });
+    renderAt("/entrar");
+    await screen.findByRole("heading", { name: "Entrar" });
+    await waitFor(() => expect(document.title).toBe("Entrar · Alinea"));
+  });
+
+  it("skips the top bar to the page's content, first thing on Tab", async () => {
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    renderAt("/");
+    await screen.findByRole("heading", { name: "Projetos" });
+    await userEvent.tab();
+    const skip = screen.getByRole("link", { name: "Pular para o conteúdo" });
+    expect(skip).toHaveFocus();
+    expect(skip).toHaveAttribute("href", "#content");
+    expect(document.getElementById("content")?.tagName).toBe("MAIN");
   });
 });

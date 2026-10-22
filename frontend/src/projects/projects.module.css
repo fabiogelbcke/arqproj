@@ -1,56 +1,59 @@
-/* The project list and the new-project dialog, after the prototype's painel
-   (arqprojprototypes, prototipo-v4: two-column cards, photo on top). */
+/* The project list and the new-project dialog. Painel redesign (22 Oct 2026,
+   Fabio's 003.pdf): a breadcrumb, then a toolbar, filter chips, grey group bars
+   and bordered cards; earlier, the prototype's painel (prototipo-v4). */
 
-/* The page head (prototype: kicker, a very large title, then the tools; no arrow,
-   Fabio 19 Oct 2026). */
-.head { position: relative; display: grid; gap: 38px; }
-.kicker { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; color: var(--muted); }
-@media (max-width: 720px) { .kicker { font-size: 9px; } }
-/* The sort select, its direction and "Novo projeto": toolbar controls, the small
-   size (ui/sizes.css). */
-.tools {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
-  border-top: 1px solid var(--line); padding-top: 24px;
+.head { position: relative; display: grid; gap: 18px; }
+.kicker {
+  font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--muted);
 }
-.search { position: relative; flex: 0 1 430px; min-width: 200px; }
+/* Search, the sort select, its direction and "Novo projeto": toolbar controls,
+   the small size (ui/sizes.css). */
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.search { position: relative; flex: 1 1 360px; min-width: 200px; }
 .searchIcon {
-  position: absolute; left: 0; top: 50%; translate: 0 -60%; width: 13px; height: 13px;
+  position: absolute; left: 16px; top: 50%; translate: 0 -60%; width: 12px; height: 12px;
   border: 1.5px solid var(--muted); border-radius: 50%; pointer-events: none;
 }
 .searchIcon::after {
   content: ""; position: absolute; right: -5px; bottom: -4px; width: 6px; height: 1.5px;
   background: var(--muted); rotate: 45deg;
 }
+/* A grey pill (the redesign's search). */
 .searchInput {
-  width: 100%; min-height: 48px; padding: 8px 0 8px 32px; border: 0; border-bottom: 1px solid var(--line);
-  border-radius: 0; background: transparent; color: var(--ink); font: inherit; font-size: 18px;
+  width: 100%; height: var(--control-small); padding: 0 16px 0 40px; border: 1px solid var(--line);
+  border-radius: var(--r-pill); background: var(--surface); color: var(--ink); font: inherit; font-size: var(--text-sm);
+  transition: border-color 0.2s, background 0.2s;
 }
 .searchInput::placeholder { color: var(--muted); }
-.searchInput[data-focused] { outline: none; border-bottom-color: var(--ink); }
-.sort { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
-.sort label { font-size: 12px; color: var(--muted); }
+.searchInput[data-focused] { outline: none; border-color: var(--ink); background: var(--raise); }
+.sort { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sort label { font-size: var(--text-2xs); color: var(--muted); }
 .select {
-  min-width: 165px; height: var(--control-small); padding: 6px 30px 6px 10px; border: 1px solid var(--line); border-radius: var(--r);
-  background: transparent; color: var(--ink); font: inherit; font-size: 14px;
+  min-width: 150px; height: var(--control-small); padding: 0 30px 0 12px; border: 1px solid var(--line-strong);
+  border-radius: var(--r-card); background: transparent; color: var(--ink); font: inherit; font-size: var(--text-sm);
   /* Our own chevron, a little in from the edge (the browser's sits against it). */
   appearance: none; -webkit-appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
   background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
   background-size: 5px 5px; background-repeat: no-repeat;
 }
-.newButton { gap: 10px; }
-.newButton > span { font-size: 20px; font-weight: 300; }
+/* "Novo projeto": a dark pill in small capitals. */
+.newButton {
+  gap: 10px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.newButton > span:first-child { display: none; } /* the + is for phones */
+/* One type of project at a time; a hairline under them closes the head. */
+.typeChips { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 @media (max-width: 720px) {
-  /* No big head on phones: the tabs say where you are. The title stays for screen readers. */
+  /* No big head on phones: the tabs say where you are. */
   .head { gap: 12px; }
   .kicker { display: none; }
-  .title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* No sideways scrolling on phones (Fabio): the chips wrap onto more lines. */
   /* Search and "Novo projeto" float at the bottom (iOS Contacts); no sorting for now. */
-  .tools { border-top: 0; padding-top: 0; }
   .sort { display: none; }
   .search {
     position: fixed; z-index: 40; left: 16px; right: 84px; bottom: calc(20px + env(safe-area-inset-bottom));
-    height: 56px; border: 1px solid var(--line); border-radius: 28px;
+    height: 56px; border-radius: 28px;
     /* Glass, like iOS: the page shows through, blurred; solid while you type. */
     background: color-mix(in srgb, var(--raise) 10%, transparent);
     backdrop-filter: blur(8px) saturate(1.6); -webkit-backdrop-filter: blur(8px) saturate(1.6);
@@ -59,171 +62,191 @@
   .search:focus-within { background: color-mix(in srgb, var(--raise) 96%, transparent); }
   @media (prefers-reduced-motion: reduce) { .search { transition: none; } }
   .search .searchIcon { left: 20px; }
-  .search .searchInput { height: 100%; min-height: 0; padding: 0 20px 0 46px; border: 0; font-size: 17px; }
-  .search .searchInput[data-focused] { border: 0; }
-  .search:focus-within { border-color: var(--ink); }
+  .search .searchInput { height: 100%; padding: 0 20px 0 46px; background: transparent; font-size: 17px; }
+  .search .searchInput[data-focused] { background: transparent; }
   /* "Novo projeto" is the round + beside it (its name stays for screen readers). */
   .tools .newButton { /* over the Button's own size */
     position: fixed; z-index: 40; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
     display: grid; place-items: center; width: var(--control-floating); height: var(--control-floating); min-height: 0; padding: 0; gap: 0;
     border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
   }
-  .newButton > span:first-child { font-size: 30px; font-weight: 300; line-height: 1; translate: 0 -2px; }
+  .newButton > span:first-child { display: block; font-size: 30px; font-weight: 300; line-height: 1; translate: 0 -2px; }
   .newLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 
-.group { display: grid; gap: 24px; }
+.group { display: grid; gap: 20px; }
+/* A grey bar: the group's name, and how many on the right. */
 .groupHead {
-  display: flex; align-items: baseline; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px; min-height: 30px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--surface);
 }
-.groupHead h2, .more {
-  margin: 0; font: 500 12px/1.4 var(--font); letter-spacing: 0.06em; text-transform: uppercase;
+.groupHead h2 {
+  margin: 0; font: 500 var(--text-2xs)/1.4 var(--font); letter-spacing: var(--caps-spacing); text-transform: uppercase;
 }
-.groupCount { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.more {
-  display: inline-flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none;
-  color: var(--ink); cursor: pointer;
-}
-.chevron {
-  width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
-  rotate: 45deg; translate: 0 -2px; transition: rotate 0.25s var(--ease);
-}
-.more[aria-expanded="false"] .chevron { rotate: -45deg; translate: 0 0; }
+.groupCount { margin-left: auto; font-size: var(--text-2xs); color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Cards gain columns as space allows: 2 on phones, 3, then 4. */
 .rows {
   list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; align-items: start;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start;
 }
-@media (min-width: 700px) { .rows { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 18px; } }
-@media (min-width: 1080px) { .rows { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; } }
-.rows[hidden] { display: none; }
+@media (min-width: 700px) { .rows { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; } }
+@media (min-width: 1080px) { .rows { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; } }
 
-/* A card turns charcoal under the pointer or keyboard focus (prototype). */
-/* Each card spans five rows shared with its neighbours (photo, name, stage,
-   meeting, update), so cards in a row line up whatever their content. */
+/* A bordered card, the photo inset at the top. Each card spans five rows shared
+   with its neighbours (photo, name, stage, meeting, update), so cards in a row
+   line up whatever their content. Under the pointer it lifts a little: a darker
+   edge, a soft shadow, the photo in full colour (Fabio, 22 Oct 2026: calmer
+   than the prototype's charcoal across a whole grid). */
 .card {
   position: relative; isolation: isolate; display: grid; grid-row: span 5; grid-template-rows: subgrid;
-  row-gap: 14px; align-content: start; min-width: 0; margin-bottom: 18px;
-  padding-bottom: 17px; border-bottom: 1px solid var(--line); transition: color 0.27s ease;
+  row-gap: 14px; align-content: start; min-width: 0; padding: 8px 8px 14px;
+  border: 1px solid var(--line); border-radius: var(--r-card); background: var(--raise);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, translate 0.25s var(--ease);
 }
-.card::before {
-  content: ""; position: absolute; inset: -14px; z-index: -1; background: #242629; opacity: 0;
-  pointer-events: none; transition: opacity 0.27s ease;
+.card > :not(.cardCover, .draftTag, .menuButton) { padding-inline: 4px; }
+/* Only with a pointer that hovers: on phones a tap would leave it on. */
+@media (hover: hover) {
+  .card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-lift); translate: 0 -2px; }
+  .card:hover .cardCover:not(.placeholder) img { transform: scale(1.035); filter: saturate(1); }
 }
-:root[data-theme="dark"] .card::before { background: #0e0f10; }
-.card:is(:hover, :focus-within) {
-  --ink: #fff; --muted: #c9cbcd; --line: #55585b; --line-strong: #8c8f92; --mark: #f1f1f1; color: #fff;
-}
-.card:is(:hover, :focus-within)::before { opacity: 1; }
-@media (max-width: 620px) { .card { row-gap: 7px; padding: 4px 4px 12px; } .card::before { inset: 0; } }
+.card:has(:focus-visible) { border-color: var(--line-strong); box-shadow: var(--shadow-lift); }
+@media (max-width: 620px) { .card { row-gap: 7px; padding: 6px 6px 10px; } .card > :not(.cardCover, .draftTag, .menuButton) { padding-inline: 2px; } }
 /* A cover is 3:2 wherever it shows, the shape it is cropped to (Fabio, 18 Oct 2026). */
 .cover {
   position: relative; display: block; aspect-ratio: 3 / 2; overflow: hidden; background: var(--surface);
 }
+.cardCover { border-radius: calc(var(--r-card) - 3px); }
 .cover img {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
   filter: saturate(0.65); transition: transform 0.9s var(--ease), filter 0.9s var(--ease);
 }
 .placeholder img { filter: blur(2px) saturate(0.45); transform: scale(1.02); }
-.card:hover .cardCover:not(.placeholder) img { transform: scale(1.035); filter: saturate(1); }
-/* On the photo: "Rascunho" top left, the pencil (Editar projeto) top right. */
+/* On the photo: "Rascunho" top left, the "⋯" (ui photoAction) top right. */
 .draftTag {
-  position: absolute; top: 12px; left: 12px; z-index: 2; padding: 4px 9px;
-  background: rgb(255 255 255 / 92%); color: #242629; font: 500 11px/1.3 var(--font); letter-spacing: 0.04em;
+  position: absolute; top: 18px; left: 18px; z-index: 2; padding: 4px 9px; border-radius: var(--r-pill);
+  background: var(--on-photo); color: var(--on-photo-ink); font: 500 var(--text-2xs)/1.3 var(--font); letter-spacing: 0.04em;
 }
-.editButton {
-  position: absolute; top: 12px; right: 12px; z-index: 2; width: var(--control-icon); height: var(--control-icon);
-  display: grid; place-items: center; padding: 0; border: 1px solid rgb(255 255 255 / 70%); border-radius: 3px;
-  background: rgb(243 242 236 / 92%); color: #252a22; cursor: pointer; transition: background 0.2s;
-}
-.editButton svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.editButton:hover { background: #fff; }
-.editButton:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.menuButton { position: absolute; top: 18px; right: 18px; z-index: 2; }
 @media (max-width: 620px) {
-  .draftTag { top: 10px; left: 10px; padding: 3px 6px; font-size: 9px; }
-  .editButton { top: 10px; right: 10px; }
+  .draftTag { top: 12px; left: 12px; padding: 3px 6px; font-size: var(--text-2xs); }
+  .menuButton { top: 12px; right: 12px; }
 }
 
 .identity { min-width: 0; }
 .cardLink { color: inherit; text-decoration: none; }
 .cardLink::after { content: ""; position: absolute; inset: 0; z-index: 1; }
 .cardLink:focus-visible { outline: none; }
-.card:has(.cardLink:focus-visible) { outline: 2px solid var(--focus); outline-offset: 16px; }
+.card:has(.cardLink:focus-visible) { outline: 2px solid var(--focus); outline-offset: 4px; }
 .name {
-  margin: 0; font: 400 clamp(17px, 1.7vw, 23px)/1.15 var(--display-font); overflow-wrap: anywhere;
+  margin: 0; font: 500 clamp(16px, 1.45vw, 20px)/1.15 var(--display-font); letter-spacing: -0.01em;
+  text-transform: uppercase; overflow-wrap: anywhere;
 }
 @media (max-width: 620px) { .name { font-size: clamp(13px, 3.6vw, 16px); } }
-.client { display: grid; gap: 4px; margin-top: 8px; min-width: 0; }
+.client { display: grid; gap: 4px; margin-top: 8px; min-width: 0; text-transform: uppercase; }
 .client span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.client span:first-child { font-size: 13px; color: var(--muted); }
-.client span:last-child { font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
-@media (max-width: 620px) { .client span:first-child { font-size: 10px; } .client span:last-child { font-size: 8px; } }
+.client span:first-child { font-size: var(--text-xs); letter-spacing: 0.03em; color: var(--muted); }
+.client span:last-child { font-size: var(--text-2xs); font-weight: 500; letter-spacing: 0.04em; }
+@media (max-width: 620px) { .client span:first-child { font-size: var(--text-2xs); } .client span:last-child { font-size: var(--text-2xs); } }
 
 .progress { min-width: 0; }
 .progressHead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
-.progressHead > span:first-child { font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.progressHead > span:first-child { font-size: var(--text-2xs); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
 .count {
-  padding: 3px 5px; border: 1px solid var(--line); font-size: 10px; line-height: 1; color: var(--ink);
+  padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--r-lg); font-size: var(--text-2xs); line-height: 1; color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 .stageTitle {
-  margin-bottom: 9px; font: 500 14px/1.25 var(--display-font); text-transform: uppercase; overflow-wrap: anywhere;
+  margin-bottom: 9px; font: 500 var(--text-sm)/1.25 var(--display-font); text-transform: uppercase; overflow-wrap: anywhere;
 }
-@media (max-width: 620px) { .stageTitle { font-size: 10px; } .progressHead > span:first-child, .count { font-size: 8px; } }
+@media (max-width: 620px) { .stageTitle { font-size: var(--text-2xs); } .progressHead > span:first-child, .count { font-size: var(--text-2xs); } }
 .bar { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 4px; height: 3px; }
-.bar i { background: var(--line); }
+.bar i { border-radius: 2px; background: var(--line); }
 .bar i[data-state] { background: var(--mark); }
-.meta { font-size: 13px; line-height: 1.3; }
-.meta small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 1px; }
+.meta { font-size: var(--text-xs); line-height: 1.3; }
+.meta small { display: block; color: var(--muted); font-size: var(--text-2xs); margin-bottom: 1px; }
 .muted { color: var(--muted); }
-.updated { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* One line, so cards in a row keep lining up (Fabio, 22 Oct 2026). */
+.updated {
+  font-size: var(--text-2xs); color: var(--muted); font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 /* A project whose updates reach nobody (A32): above the card's link, so it opens
-   the settings instead of the page. */
+   its own dialog instead of the page. */
 .noEmails {
   position: relative; z-index: 2; justify-self: start; display: inline-flex; margin-top: 10px; align-items: center; gap: 8px;
-  min-height: var(--control-tag); padding: 2px 10px 2px 4px; border: 1px solid var(--danger); border-radius: 999px;
-  background: var(--danger-soft); color: var(--danger); font: 500 12px/1.3 var(--font); cursor: pointer; text-align: left;
+  min-height: var(--control-tag); padding: 2px 10px 2px 4px; border: 1px solid var(--danger); border-radius: var(--r-pill);
+  background: var(--danger-soft); color: var(--danger); font: 500 var(--text-2xs)/1.3 var(--font); cursor: pointer; text-align: left;
 }
 .noEmails > span[aria-hidden] {
   display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%;
-  background: var(--danger); color: var(--bg); font-size: 11px; font-weight: 700;
+  background: var(--danger); color: var(--bg); font-size: var(--text-2xs); font-weight: 700;
 }
 .noEmailsAction { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
 .noEmails:hover .noEmailsAction { text-decoration-thickness: 2px; }
 .noEmails:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-/* Phones' cards are narrow: the warning alone, on one line (it still opens the settings). */
+/* Phones' cards are narrow: the warning alone, on one line (it still opens the dialog). */
 @media (max-width: 620px) {
-  .noEmails { margin-top: 6px; gap: 6px; padding-right: 8px; font-size: 11px; white-space: nowrap; }
+  .noEmails { margin-top: 6px; gap: 6px; padding-right: 8px; font-size: var(--text-2xs); white-space: nowrap; }
   .noEmailsAction { display: none; }
 }
 .updated small { font-size: inherit; margin-right: 6px; }
-@media (max-width: 620px) { .meta, .updated, .updated small, .meta small { font-size: 9px; } }
+@media (max-width: 620px) { .meta, .updated, .updated small, .meta small { font-size: var(--text-2xs); } }
 
-/* The dialog */
-.overlay {
-  /* Above the phone's floating search and + (z-index 40). */
-  position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 16px;
-  background: rgb(8 9 9 / 55%); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+/* Loading: the ghost cards, breathing. */
+.loading { display: grid; min-height: 300px; }
+.loading .ghost { animation: breathe 1.4s ease-in-out infinite alternate; }
+@keyframes breathe { from { opacity: 0.35; } to { opacity: 0.7; } }
+
+/* "Ver todos (n)" under a cut group; "Limpar busca" beside "nothing found". */
+.showAll { justify-self: center; }
+.noResults { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+
+/* Before the first project: four faded cards where the projects will be, and
+   over them what they are and "Novo projeto". */
+.emptyState { position: relative; display: grid; min-height: 300px; }
+.ghosts {
+  grid-area: 1 / 1; list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px;
+  /* Fading out downwards, so they read as a hint, not as content. */
+  mask-image: linear-gradient(to bottom, #000 10%, transparent 92%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 10%, transparent 92%);
 }
-.overlay[data-entering] { animation: fade 0.2s; }
-.modal {
-  width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto;
-  border: 1px solid var(--line); border-radius: 4px; background: var(--raise); color: var(--ink); box-shadow: var(--shadow);
+.ghost {
+  display: grid; gap: 10px; align-content: start; padding: 8px 8px 18px;
+  border: 1px dashed var(--line-strong); border-radius: var(--r-card); opacity: 0.55;
 }
-.modal[data-entering] { animation: rise 0.3s var(--ease); }
-@keyframes fade { from { opacity: 0; } }
-@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
-.dialog { position: relative; padding: 28px; display: grid; gap: 20px; outline: none; }
-@media (max-width: 480px) { .dialog { padding: 20px; } }
-.dialogTitle { margin: 0; padding-right: 40px; font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
+.ghost i { aspect-ratio: 3 / 2; border-radius: calc(var(--r-card) - 3px); background: var(--surface); }
+.ghost b { height: 8px; border-radius: 4px; background: var(--surface); }
+.ghost b:nth-of-type(1) { width: 70%; height: 12px; margin-top: 4px; }
+.ghost b:nth-of-type(2) { width: 45%; }
+.ghost b:nth-of-type(3) { width: 85%; height: 3px; margin-top: 10px; }
+.emptyText {
+  /* Above the ghosts, which their fade and opacity lift over plain content. */
+  position: relative; z-index: 1;
+  grid-area: 1 / 1; align-self: center; justify-self: center; display: grid; justify-items: center; gap: 8px;
+  max-width: 420px; padding: 24px 28px; text-align: center;
+  border: 1px solid var(--line); border-radius: var(--r-card); background: var(--raise); box-shadow: var(--shadow);
+}
+.emptyText h2 { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; }
+.emptyText p { font-size: var(--text-md); color: var(--muted); }
+.emptyAction {
+  margin-top: 8px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
+}
+@media (max-width: 720px) {
+  .ghosts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .ghost:nth-child(n + 3) { display: none; }
+  .emptyText { padding: 20px; }
+}
+
+/* Inside the dialogs (their frame is ui/DialogFrame) */
 .form { display: grid; gap: 18px; }
-.label { font-size: 14px; font-weight: 500; }
+.label { font-size: var(--text-md); font-weight: 500; }
 /* Project type: four choices; its usual stages come ticked below. */
 .types { display: grid; gap: 8px; }
 .typeOptions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .choice {
-  padding: 11px 14px; border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; font-size: 14px;
+  padding: 11px 14px; border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; font-size: var(--text-md);
 }
 .choice[data-hovered] { border-color: var(--line-strong); }
 .choice[data-selected] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
@@ -234,7 +257,7 @@
 .stageOptions > * { break-inside: avoid; }
 @media (max-width: 480px) { .typeOptions { grid-template-columns: 1fr; } .stageOptions { columns: 1; } }
 .stageOption {
-  display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: var(--text-md); cursor: pointer;
 }
 .box {
   flex: none; width: 16px; height: 16px; border: 1.5px solid var(--line-strong); border-radius: 2px;
@@ -246,25 +269,24 @@
   rotate: 45deg; translate: 0 -1px;
 }
 .stageOption[data-focus-visible] .box { outline: 2px solid var(--focus); outline-offset: 2px; }
-.note { font-size: 13px; color: var(--muted); }
+.note { font-size: var(--text-sm); color: var(--muted); }
 .problem {
   padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--r); background: var(--danger-soft);
 }
 .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .linkButton {
   display: inline-flex; align-items: center; min-height: 40px; padding: 0 18px; border-radius: 999px;
-  background: var(--primary); color: var(--on-primary); text-decoration: none; font-weight: 500; font-size: 14px;
+  background: var(--primary); color: var(--on-primary); text-decoration: none; font-weight: 500; font-size: var(--text-md);
 }
 
 /* The settings dialog (prototype: "Projeto") */
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
 .field { display: grid; gap: 8px; }
-.choiceNote { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+.choiceNote { display: block; margin-top: 2px; font-size: var(--text-xs); color: var(--muted); }
 
 /* Phones: "Em andamento" and "Concluídos" are two half-width tabs at the top of
-   the page (above search), one group at a time. Desktop: no tabs, both groups
-   (the completed one folded). */
+   the page (above search), one group at a time. Desktop: no tabs, both groups. */
 .groups { display: grid; gap: 32px; }
 .groupTabs, .phoneEmpty { display: none; }
 @media (max-width: 720px) {
@@ -272,33 +294,21 @@
   .groupTabs { display: flex; border-bottom: 1px solid var(--line); margin-top: -8px; }
   .groupTabs button {
     flex: 1 1 50%; padding: 12px 0; border: 0; background: none; color: var(--muted); cursor: pointer;
-    font: 500 12px/1.4 var(--font); letter-spacing: 0.08em; text-transform: uppercase;
+    font: 500 var(--text-xs)/1.4 var(--font); letter-spacing: 0.08em; text-transform: uppercase;
   }
   /* The count in a small pill: dark on the chosen tab, light on the other; none at 0. */
   .groupTabs button span {
     display: inline-block; min-width: 20px; margin-left: 6px; padding: 2px 6px; border-radius: 10px;
-    background: var(--line); color: var(--ink); font-size: 11px; font-weight: 500; letter-spacing: 0;
+    background: var(--line); color: var(--ink); font-size: var(--text-2xs); font-weight: 500; letter-spacing: 0;
     line-height: 16px; vertical-align: 1px;
   }
   .groupTabs button[aria-pressed="true"] { color: var(--ink); box-shadow: inset 0 -1.5px 0 var(--ink); }
   .groupTabs button[aria-pressed="true"] span { background: var(--ink); color: var(--bg); }
   .groupTabs button:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
-  /* The tabs name the group: no heads; the chosen group only, the completed one unfolded. */
+  /* The tabs name the group: no heads; the chosen group only. */
   .groups .groupHead { display: none; }
   .groups[data-phone-group="active"] .completedGroup,
   .groups[data-phone-group="completed"] .activeGroup { display: none; }
-  .groups[data-phone-group="completed"] .completedGroup ul[hidden] { display: grid; }
   .groups[data-phone-group="active"] .phoneEmpty[data-group="active"],
   .groups[data-phone-group="completed"] .phoneEmpty[data-group="completed"] { display: block; }
-}
-
-/* Phones, before the first project: a welcome at the top (desktop has its title). */
-.welcome { display: none; }
-@media (max-width: 720px) {
-  .welcome { display: grid; gap: 6px; padding-top: 8px; }
-  /* One line on any phone: the size follows the screen's width. */
-  .welcomeTitle {
-    margin: 0; font: 700 min(28px, 6.6vw)/1.15 var(--display-font); letter-spacing: -0.02em; white-space: nowrap;
-  }
-  .welcomeText { margin: 0; font-size: 13px; color: var(--muted); }
 }

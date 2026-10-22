@@ -99,7 +99,7 @@ describe("Configurações → Escritório", () => {
     renderAt("/configuracoes/escritorio");
     await userEvent.type(await screen.findByLabelText(/E-mail de contato/), "x@y");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText(/Confira o e-mail/)).toBeInTheDocument();
+    expect(await screen.findByText(/Informe um e-mail válido/)).toBeInTheDocument();
     expect(sent.some((request) => request.method === "PATCH")).toBe(false);
   });
 
@@ -156,7 +156,7 @@ describe("Configurações → Escritório", () => {
   it("shows the office's initials in an empty slot until there is a logo", async () => {
     api({ ...OFFICE, name: "ALINEA ARQUITETOS" });
     renderAt("/configuracoes/escritorio");
-    const slot = await screen.findByRole("img", { name: "Nenhum logo ainda." });
+    const slot = await screen.findByRole("img", { name: "Nenhum logo adicionado." });
     expect(slot).toHaveTextContent("AA");
   });
 
@@ -167,10 +167,10 @@ describe("Configurações → Escritório", () => {
       "POST /api/drive/connect": () => ({ body: { url: "https://accounts.google.com/o/oauth2/v2/auth?x" } }),
     });
     renderAt("/configuracoes/escritorio");
-    const warning = await screen.findByText(/Para enviar o logo, conecte primeiro o Google Drive/);
+    const warning = await screen.findByText(/Conecte o Google Drive para enviar o logo/);
     // No empty slot or file specs for a logo that can't go up yet.
     expect(screen.queryByText(/PNG, JPG, WebP ou SVG/)).toBeNull();
-    expect(screen.queryByRole("img", { name: "Nenhum logo ainda." })).toBeNull();
+    expect(screen.queryByRole("img", { name: "Nenhum logo adicionado." })).toBeNull();
     expect(screen.queryByRole("button", { name: "Escolher imagem" })).toBeNull();
     await userEvent.click(within(warning.parentElement!).getByRole("button", { name: "Conectar Google Drive" }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?x"));

@@ -6,7 +6,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./app/App";
-import { applyStoredTheme } from "./ui/ThemeToggle";
+import { applyStoredTheme } from "./ui/theme";
 
 applyStoredTheme();
 createRoot(document.getElementById("root")!).render(

@@ -53,7 +53,9 @@ test("invite → choose password → projects → deep link → sign out → sig
   await page.reload();
   await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Sair" }).click();
+  // Sair is in the account menu, under the round initial (painel redesign).
+  await page.getByRole("button", { name: "Sua conta" }).click();
+  await page.getByRole("menuitem", { name: "Sair" }).click();
   await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
   await page.goto("/painel");
   await expect(page).toHaveURL(/\/painel\/entrar/); // signed out for real
@@ -173,9 +175,8 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
 
-  // A completed project: open its group, then the card's pencil and its menu.
-  await page.getByRole("button", { name: "Concluídos" }).click();
-  const menu = (name: string) => page.getByRole("button", { name: `Editar o projeto ${name}` }).click();
+  // A completed project (its group is open too): the card's "⋯" and its menu.
+  const menu = (name: string) => page.getByRole("button", { name: `Opções do projeto ${name}` }).click();
   await menu("Refúgio da Mantiqueira");
   // The photo straight from the menu, cropped to the cover's shape first.
   const [chooser] = await Promise.all([
@@ -201,8 +202,7 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   await expect(page.getByText("Projeto “Refúgio da Serra” arquivado.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeHidden();
   await page.getByRole("button", { name: "Desfazer" }).click();
-  await expect(page.getByText("Projeto “Refúgio da Serra” de volta.")).toBeVisible();
-  await page.getByRole("button", { name: "Concluídos" }).click(); // its group, folded again
+  await expect(page.getByText("Projeto “Refúgio da Serra” restaurado.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeVisible();
 });
 
@@ -333,7 +333,7 @@ test("staff protect a page with a password; a client unlocks it once", async ({ 
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
 
-  await page.getByRole("button", { name: "Editar o projeto Apartamento Atlântico — Copacabana" }).click();
+  await page.getByRole("button", { name: "Opções do projeto Apartamento Atlântico — Copacabana" }).click();
   await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();
   const settings = page.getByRole("dialog", { name: "Projeto" });
   await settings.getByText("Com senha", { exact: true }).click();

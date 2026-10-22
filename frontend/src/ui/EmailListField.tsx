@@ -33,6 +33,8 @@ type Props = {
   addLabel: string;
   newLabel: string;
   removeLabel: (email: string) => string;
+  autoFocus?: boolean; // the new address's box, when the list is all a dialog is for
+  labelHidden?: boolean; // the dialog's title already says it: for screen readers only
 };
 
 /** Several email addresses, each a line that can be removed. Several can be typed
@@ -51,6 +53,8 @@ export function EmailListField({
   addLabel,
   newLabel,
   removeLabel,
+  autoFocus,
+  labelHidden,
 }: Props) {
   const { t } = useTranslation();
   const id = useId();
@@ -69,7 +73,7 @@ export function EmailListField({
     onChange(emails.includes(to) ? emails.filter((email) => email !== from) : emails.map((email) => (email === from ? to : email)));
   return (
     <fieldset className={styles.emailList}>
-      <legend className={styles.label}>{label}</legend>
+      <legend className={labelHidden ? "sr-only" : styles.label}>{label}</legend>
       {description && <p className={styles.hint}>{description}</p>}
       {emails.length > 0 && (
         <ul className={styles.emailListItems}>
@@ -117,6 +121,7 @@ export function EmailListField({
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
+              autoFocus={autoFocus}
               value={draft}
               aria-invalid={rejected.length > 0 || undefined}
               aria-describedby={rejected.length ? `${id}-error` : undefined}

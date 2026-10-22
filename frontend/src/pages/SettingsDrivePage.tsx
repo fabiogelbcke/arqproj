@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
+import { DialogTrigger } from "react-aria-components";
 import { useSearchParams } from "react-router";
 
 import { ApiError, type ErrorCode } from "../api/client";
 import { SPACE_LOW, bytes, useConnectDrive, useDisconnectDrive, useDrive, useDriveSpace } from "../drive/drive";
 import dialogs from "../projects/projects.module.css";
 import { Button } from "../ui/Button";
-import { CloseButton } from "../ui/CloseButton";
+import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { toast } from "../ui/Toast";
 import styles from "./pages.module.css";
@@ -214,39 +214,31 @@ function SwitchAccount({
   return (
     <DialogTrigger>
       <Button variant="ghost">{label}</Button>
-      <ModalOverlay className={dialogs.overlay} isDismissable>
-        <Modal className={dialogs.modal}>
-          <Dialog className={dialogs.dialog} role="alertdialog">
-            {({ close }) => (
-              <>
-                <Heading slot="title" className={dialogs.dialogTitle}>
-                  {t("drive.switchTitle")}
-                </Heading>
-                <CloseButton onPress={close} />
-                <div className={styles.switchWarning}>
-                  <p>
-                    <strong>{t("drive.switchWarning")}</strong>
-                  </p>
-                  <ul>
-                    <li>{t("drive.switchFiles")}</li>
-                    <li>{t("drive.switchEmpty")}</li>
-                    <li>{t("drive.switchKept")}</li>
-                  </ul>
-                </div>
-                <ErrorNotice error={error} />
-                <div className={dialogs.actions}>
-                  <Button variant="ghost" onPress={close}>
-                    {t("drive.switchCancel")}
-                  </Button>
-                  <Button variant="primary" className={styles.dangerButton} onPress={onConfirm} isDisabled={busy}>
-                    {t("drive.switchConfirm")}
-                  </Button>
-                </div>
-              </>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+      <DialogFrame title={t("drive.switchTitle")} role="alertdialog">
+        {(close) => (
+          <>
+            <div className={styles.switchWarning}>
+              <p>
+                <strong>{t("drive.switchWarning")}</strong>
+              </p>
+              <ul>
+                <li>{t("drive.switchFiles")}</li>
+                <li>{t("drive.switchEmpty")}</li>
+                <li>{t("drive.switchKept")}</li>
+              </ul>
+            </div>
+            <ErrorNotice error={error} />
+            <div className={dialogs.actions}>
+              <Button variant="ghost" onPress={close}>
+                {t("drive.switchCancel")}
+              </Button>
+              <Button variant="primary" className={styles.dangerButton} onPress={onConfirm} isDisabled={busy}>
+                {t("drive.switchConfirm")}
+              </Button>
+            </div>
+          </>
+        )}
+      </DialogFrame>
     </DialogTrigger>
   );
 }

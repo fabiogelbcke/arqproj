@@ -1,14 +1,13 @@
 import { useState } from "react";
-import { Dialog, Form, Heading, Label, Modal, ModalOverlay, Radio, RadioGroup } from "react-aria-components";
+import { Form, Label, Radio, RadioGroup } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { useMe } from "../session/session";
 import { useCancelInvite, useInvite, useInviteAgain, useJoinLinkOff, useJoinLinkOn, useTeam, type Member } from "../team/team";
-import dialog from "../projects/projects.module.css";
 import { Button } from "../ui/Button";
-import { CloseButton } from "../ui/CloseButton";
+import { DialogFrame } from "../ui/DialogFrame";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
@@ -144,75 +143,67 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
   const already =
     error instanceof ApiError && error.code === "already_staff" ? t("team.alreadyIn", { name: error.conflictName }) : null;
   return (
-    <ModalOverlay className={dialog.overlay} isDismissable isOpen onOpenChange={(open) => !open && onClose()}>
-      <Modal className={dialog.modal}>
-        <Dialog className={dialog.dialog}>
-          <Heading slot="title" className={dialog.dialogTitle}>
-            {t("team.inviteTitle")}
-          </Heading>
-          <CloseButton onPress={onClose} />
-          {sent ? (
-            // Sent: the link to copy too, then done (or invite someone else).
-            <div className={styles.form}>
-              <div role="status" className={styles.teamResult}>
-                <p>{sent.emailed ? t("team.invited", { email: sent.email }) : t("team.notEmailed")}</p>
-                <LinkToCopy link={sent.link} label={t("team.inviteLink")} />
-              </div>
-              <div className={styles.actions}>
-                <Button onPress={() => setSent(null)}>{t("team.inviteAnother")}</Button>
-                <Button variant="primary" onPress={onClose}>
-                  {t("team.done")}
-                </Button>
-              </div>
-            </div>
+    <DialogFrame title={t("team.inviteTitle")} onClose={onClose}>
+      {sent ? (
+        // Sent: the link to copy too, then done (or invite someone else).
+        <div className={styles.form}>
+          <div role="status" className={styles.teamResult}>
+            <p>{sent.emailed ? t("team.invited", { email: sent.email }) : t("team.notEmailed")}</p>
+            <LinkToCopy link={sent.link} label={t("team.inviteLink")} />
+          </div>
+          <div className={styles.actions}>
+            <Button onPress={() => setSent(null)}>{t("team.inviteAnother")}</Button>
+            <Button variant="primary" onPress={onClose}>
+              {t("team.done")}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Form
+          className={styles.form}
+          onSubmit={(event) => {
+            event.preventDefault();
+            invite.mutate(
+              { name, email, role },
+              {
+                onSuccess: (out) => {
+                  setSent({ email: out.member.email, link: out.link, emailed: out.emailed });
+                  setName("");
+                  setEmail("");
+                  setRole("member");
+                },
+              },
+            );
+          }}
+        >
+          <p className={styles.small}>{t("team.inviteIntro")}</p>
+          <TextField label={t("team.name")} value={name} onChange={setName} isRequired maxLength={LIMITS.staffName} autoComplete="off" autoFocus />
+          <EmailField label={t("team.email")} value={email} onChange={setEmail} isRequired autoComplete="off" />
+          <RadioGroup className={styles.roles} value={role} onChange={(value) => setRole(value as "member" | "owner")}>
+            <Label className={styles.fieldLabel}>{t("team.roleLabel")}</Label>
+            {(["member", "owner"] as const).map((option) => (
+              <Radio key={option} value={option} className={styles.roleChoice}>
+                <strong>{t(`team.role.${option}`)}</strong>
+                <small>{t(`team.roleHint.${option}`)}</small>
+              </Radio>
+            ))}
+          </RadioGroup>
+          {already ? (
+            <p role="alert" className={styles.problem}>
+              {already}
+            </p>
           ) : (
-            <Form
-              className={styles.form}
-              onSubmit={(event) => {
-                event.preventDefault();
-                invite.mutate(
-                  { name, email, role },
-                  {
-                    onSuccess: (out) => {
-                      setSent({ email: out.member.email, link: out.link, emailed: out.emailed });
-                      setName("");
-                      setEmail("");
-                      setRole("member");
-                    },
-                  },
-                );
-              }}
-            >
-              <p className={styles.small}>{t("team.inviteIntro")}</p>
-              <TextField label={t("team.name")} value={name} onChange={setName} isRequired maxLength={LIMITS.staffName} autoComplete="off" autoFocus />
-              <EmailField label={t("team.email")} value={email} onChange={setEmail} isRequired autoComplete="off" />
-              <RadioGroup className={styles.roles} value={role} onChange={(value) => setRole(value as "member" | "owner")}>
-                <Label className={styles.fieldLabel}>{t("team.roleLabel")}</Label>
-                {(["member", "owner"] as const).map((option) => (
-                  <Radio key={option} value={option} className={styles.roleChoice}>
-                    <strong>{t(`team.role.${option}`)}</strong>
-                    <small>{t(`team.roleHint.${option}`)}</small>
-                  </Radio>
-                ))}
-              </RadioGroup>
-              {already ? (
-                <p role="alert" className={styles.problem}>
-                  {already}
-                </p>
-              ) : (
-                <ErrorNotice error={error} />
-              )}
-              <div className={styles.actions}>
-                <Button onPress={onClose}>{t("team.close")}</Button>
-                <Button type="submit" variant="primary" isDisabled={invite.isPending}>
-                  {invite.isPending ? t("team.inviting") : t("team.invite")}
-                </Button>
-              </div>
-            </Form>
+            <ErrorNotice error={error} />
           )}
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+          <div className={styles.actions}>
+            <Button onPress={onClose}>{t("team.close")}</Button>
+            <Button type="submit" variant="primary" isDisabled={invite.isPending}>
+              {invite.isPending ? t("team.inviting") : t("team.invite")}
+            </Button>
+          </div>
+        </Form>
+      )}
+    </DialogFrame>
   );
 }
 

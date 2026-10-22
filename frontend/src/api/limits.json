@@ -11,5 +11,6 @@
   "officeName": 28,
   "staffName": 80,
   "email": 100,
-  "pagePassword": 25
+  "pagePassword": 25,
+  "recipients": 20
 }

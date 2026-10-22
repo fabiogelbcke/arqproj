@@ -59,7 +59,7 @@ function api(extra = {}) {
 /** The card's pencil opens its menu (A24, revised 19 Oct 2026). */
 async function openMenu() {
   renderAt("/");
-  await userEvent.click(await screen.findByRole("button", { name: "Editar o projeto Casa Jardim" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Opções do projeto Casa Jardim" }));
   return screen.findByRole("menu");
 }
 
@@ -303,7 +303,7 @@ describe("the card's menu", () => {
     expect(await screen.findByText("Projeto “Casa Jardim” arquivado.")).toBeInTheDocument();
     expect(screen.queryByRole("alertdialog")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Desfazer" }));
-    expect(await screen.findByText("Projeto “Casa Jardim” de volta.")).toBeInTheDocument();
+    expect(await screen.findByText("Projeto “Casa Jardim” restaurado.")).toBeInTheDocument();
     const patches = sent.filter((r) => r.method === "PATCH").map((r) => r.body);
     expect(patches).toEqual([
       { row_version: 4, status: "archived" },
@@ -332,8 +332,53 @@ describe("the card", () => {
     const card = await screen.findByTestId("project-card");
     expect(within(card).getByText("Rascunho")).toBeInTheDocument();
     expect(within(card).getByRole("heading", { name: "Casa Jardim" })).toBeInTheDocument();
-    expect(within(card).getAllByRole("button")).toHaveLength(1); // only the pencil (its menu)
+    expect(within(card).getAllByRole("button")).toHaveLength(1); // only the "⋯" (its menu)
     // The card opens the client's page.
     expect(within(card).getByRole("link", { name: "Casa Jardim" })).toHaveAttribute("href", "/casa-jardim");
+  });
+});
+
+// The card's "Sem e-mail do cliente → Adicionar" (A32): a dialog with only the addresses.
+describe("the client's emails dialog", () => {
+  async function openEmails() {
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: /Sem e-mail do cliente/ }));
+    return screen.findByRole("dialog", { name: "E-mails do cliente" });
+  }
+
+  it("saves only the addresses, typed ones included, and the flag goes", async () => {
+    let saved = CASA;
+    const sent = api({
+      "GET /api/projects": () => ({ body: [saved] }),
+      [`PATCH ${PATH}`]: () => {
+        saved = { ...CASA, row_version: 5, recipients: [{ email: "ana@example.com", subscribed: true }] };
+        return { body: saved };
+      },
+    });
+    const dialog = await openEmails();
+    await userEvent.type(within(dialog).getByLabelText("Novo e-mail"), "ana@example.com");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    await screen.findByText("E-mails salvos.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({ row_version: 4, recipients: ["ana@example.com"] });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "E-mails do cliente" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Sem e-mail do cliente/ })).toBeNull());
+  });
+
+  it("doesn't save while a typed email isn't one", async () => {
+    const sent = api({ [`PATCH ${PATH}`]: () => ({ body: { ...CASA, row_version: 5 } }) });
+    const dialog = await openEmails();
+    await userEvent.type(within(dialog).getByLabelText("Novo e-mail"), "joao@example");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Este não parece um e-mail: joao@example");
+    expect(sent.some((r) => r.method === "PATCH")).toBe(false);
+  });
+
+  it("keeps an address the client unsubscribed, which staff can't remove", async () => {
+    api({
+      "GET /api/projects": () => ({ body: [{ ...CASA, recipients: [{ email: "ana@example.com", subscribed: false }] }] }),
+    });
+    const dialog = await openEmails();
+    expect(within(dialog).getByText("Cancelou os e-mails")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Remover ana@example.com" })).toBeNull();
   });
 });
