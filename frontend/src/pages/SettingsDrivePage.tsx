@@ -14,10 +14,6 @@ import styles from "./pages.module.css";
 
 export function SettingsDrivePage() {
   const { t } = useTranslation();
-  const drive = useDrive();
-  const connect = useConnectDrive();
-  const disconnect = useDisconnectDrive();
-  const [confirming, setConfirming] = useState(false);
   const [params, setParams] = useSearchParams();
   // Google brings the person back with ?resultado=conectado or ?erro=<code>.
   const [returned] = useState(() => ({
@@ -33,6 +29,30 @@ export function SettingsDrivePage() {
       setParams({}, { replace: true });
   }, [params, setParams]);
 
+  return (
+    <section className={styles.panel} aria-labelledby="drive-title">
+      <h2 id="drive-title">{t("settings.drive")}</h2>
+      <DriveDetails returnedError={returned.error} returnedReference={returned.reference} />
+    </section>
+  );
+}
+
+/** The office's storage, and the buttons to connect or disconnect it: Configurações
+ *  › Drive, and the first steps' dialog. Google's sign-in is its own page; it
+ *  brings the person back to Configurações › Drive with its result. */
+export function DriveDetails({
+  returnedError = null,
+  returnedReference = null,
+}: {
+  returnedError?: string | null; // ?erro=<code> from Google's return
+  returnedReference?: string | null;
+}) {
+  const { t } = useTranslation();
+  const drive = useDrive();
+  const connect = useConnectDrive();
+  const disconnect = useDisconnectDrive();
+  const [confirming, setConfirming] = useState(false);
+
   const status = drive.data;
   if (drive.error) return <ErrorNotice error={drive.error} />;
   if (!status) return <p className={styles.lead}>{t("app.loading")}</p>;
@@ -41,89 +61,86 @@ export function SettingsDrivePage() {
 
   return (
     <>
-      <section className={styles.panel} aria-labelledby="drive-title">
-        <h2 id="drive-title">{t("settings.drive")}</h2>
-        <p className={styles.lead}>{t("drive.intro")}</p>
-        {returned.error && (
-          <ErrorNotice
-            error={new ApiError(returned.error as ErrorCode, undefined, returned.reference)}
-          />
-        )}
+      <p className={styles.lead}>{t("drive.intro")}</p>
+      {returnedError && (
+        <ErrorNotice
+          error={new ApiError(returnedError as ErrorCode, undefined, returnedReference)}
+        />
+      )}
 
-        {status.kind === "folder" ? (
-          <div className={styles.conn} data-state="ok">
-            <strong>{t("drive.local")}</strong>
-            <p>{t("drive.localBody")}</p>
-          </div>
-        ) : google ? (
-          <div className={styles.conn} data-state={expired ? "expired" : "ok"}>
-            <strong>{t(expired ? "drive.expired" : "drive.connected")}</strong>
-            {status.account_email && <p>{t("drive.connectedAs", { email: status.account_email })}</p>}
-            {expired && <p>{t("drive.expiredBody")}</p>}
-            {status.reader_status === "no_access" && <p>{t("drive.readerProblem")}</p>}
-            {status.folder_url && (
-              <a href={status.folder_url} target="_blank" rel="noopener noreferrer">
-                {t("drive.openFolder")}
-              </a>
+      {status.kind === "folder" ? (
+        <div className={styles.conn} data-state="ok">
+          <strong>{t("drive.local")}</strong>
+          <p>{t("drive.localBody")}</p>
+        </div>
+      ) : google ? (
+        <div className={styles.conn} data-state={expired ? "expired" : "ok"}>
+          <strong>{t(expired ? "drive.expired" : "drive.connected")}</strong>
+          {status.account_email && <p>{t("drive.connectedAs", { email: status.account_email })}</p>}
+          {expired && <p>{t("drive.expiredBody")}</p>}
+          {status.reader_status === "no_access" && <p>{t("drive.readerProblem")}</p>}
+          {status.folder_url && (
+            <a href={status.folder_url} target="_blank" rel="noopener noreferrer">
+              {t("drive.openFolder")}
+            </a>
+          )}
+          {!expired && <Space />}
+        </div>
+      ) : (
+        <div className={styles.conn} data-state="none">
+          <strong>{t("drive.notConnected")}</strong>
+          <p>
+            {status.has_folder && status.account_email
+              ? t("drive.notConnectedBefore", { email: status.account_email })
+              : t("drive.notConnectedBody")}
+          </p>
+        </div>
+      )}
+
+      {status.kind !== "folder" &&
+        (status.can_manage ? (
+          <div className={styles.actions}>
+            {(!google || expired) && (
+              <Button variant="primary" onPress={() => connect.mutate(false)} isDisabled={connect.isPending}>
+                {t(expired ? "drive.reconnect" : status.has_folder ? "drive.reconnectSame" : "drive.connect")}
+              </Button>
             )}
-            {!expired && <Space />}
-          </div>
-        ) : (
-          <div className={styles.conn} data-state="none">
-            <strong>{t("drive.notConnected")}</strong>
-            <p>
-              {status.has_folder && status.account_email
-                ? t("drive.notConnectedBefore", { email: status.account_email })
-                : t("drive.notConnectedBody")}
-            </p>
-          </div>
-        )}
-
-        {status.kind !== "folder" &&
-          (status.can_manage ? (
-            <div className={styles.actions}>
-              {(!google || expired) && (
-                <Button variant="primary" onPress={() => connect.mutate(false)} isDisabled={connect.isPending}>
-                  {t(expired ? "drive.reconnect" : status.has_folder ? "drive.reconnectSame" : "drive.connect")}
-                </Button>
-              )}
-              {/* Another account: its own folder, the projects' files left behind.
-                  Only once disconnected (or expired), so nothing changes meanwhile. */}
-              {status.has_folder && (!google || expired) && (
-                <SwitchAccount
-                  onConfirm={() => connect.mutate(true)}
-                  busy={connect.isPending}
-                  error={connect.error}
-                  label={t(returned.error === "drive_other_account" ? "drive.switchAnyway" : "drive.switch")}
-                />
-              )}
-              {google &&
-                (confirming ? (
-                  <>
-                    <p>{t("drive.disconnectConfirm")}</p>
-                    <Button
-                      onPress={() =>
-                        disconnect.mutate(undefined, {
-                          onSuccess: () => toast(t("drive.disconnectedNow")),
-                          onSettled: () => setConfirming(false),
-                        })
-                      }
-                      isDisabled={disconnect.isPending}
-                    >
-                      {t("drive.disconnect")}
-                    </Button>
-                  </>
-                ) : (
-                  <Button variant="ghost" onPress={() => setConfirming(true)}>
+            {/* Another account: its own folder, the projects' files left behind.
+                Only once disconnected (or expired), so nothing changes meanwhile. */}
+            {status.has_folder && (!google || expired) && (
+              <SwitchAccount
+                onConfirm={() => connect.mutate(true)}
+                busy={connect.isPending}
+                error={connect.error}
+                label={t(returnedError === "drive_other_account" ? "drive.switchAnyway" : "drive.switch")}
+              />
+            )}
+            {google &&
+              (confirming ? (
+                <>
+                  <p>{t("drive.disconnectConfirm")}</p>
+                  <Button
+                    onPress={() =>
+                      disconnect.mutate(undefined, {
+                        onSuccess: () => toast(t("drive.disconnectedNow")),
+                        onSettled: () => setConfirming(false),
+                      })
+                    }
+                    isDisabled={disconnect.isPending}
+                  >
                     {t("drive.disconnect")}
                   </Button>
-                ))}
-            </div>
-          ) : (
-            <p className={styles.small}>{t("drive.ownerOnly")}</p>
-          ))}
-        <ErrorNotice error={connect.error ?? disconnect.error} />
-      </section>
+                </>
+              ) : (
+                <Button variant="ghost" onPress={() => setConfirming(true)}>
+                  {t("drive.disconnect")}
+                </Button>
+              ))}
+          </div>
+        ) : (
+          <p className={styles.small}>{t("drive.ownerOnly")}</p>
+        ))}
+      <ErrorNotice error={connect.error ?? disconnect.error} />
     </>
   );
 }

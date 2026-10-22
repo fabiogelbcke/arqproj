@@ -25,7 +25,10 @@
     "password": "Senha",
     "submit": "Entrar",
     "forgot": "Esqueceu a senha?",
-    "with": "com"
+    "with": "com",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha",
+    "capsLock": "Caps Lock ativado"
   },
   "forgot": {
     "title": "Esqueceu a senha?",
@@ -294,6 +297,7 @@
     "storage": "Conectar o Google Drive",
     "storageHint": "Ao conectar, o site cria no seu Google Drive a pasta “Portal Clientes”, com uma subpasta para cada projeto.",
     "storageAction": "Conectar",
+    "storageDialogTitle": "Google Drive",
     "office": "Personalizar os dados do escritório",
     "officeHint": "Adicione o e-mail de contato e o logo (opcional). Eles aparecem nas páginas e nos e-mails que os clientes recebem.",
     "officeAction": "Personalizar",

@@ -1,9 +1,10 @@
 // The client page's "Atualizações" (A28, after the prototype): the latest changes,
 // worded from what the page shows now. Which ones were read stays in this browser.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Schemas } from "../api/client";
+import { useDismiss } from "../ui/useDismiss";
 import { day, meetingWhen, type Page } from "./format";
 
 type Update = Schemas["UpdateOut"];
@@ -78,6 +79,8 @@ export function UpdatesBell({
   const entries = useMemo(() => entriesFor(page, updates, t, i18n.language), [page, updates, t, i18n.language]);
   const [read, setRead] = useState(() => readIds(slug));
   const [open, setOpen] = useState(false);
+  const panel = useRef<HTMLDetailsElement>(null);
+  useDismiss(panel, open, () => setOpen(false));
   const unread = entries.filter((entry) => !read.has(entry.id)).length;
   const markRead = () => {
     const all = new Set([...read, ...entries.map((entry) => entry.id)]);
@@ -97,7 +100,7 @@ export function UpdatesBell({
     onStage(target);
   };
   return (
-    <details className="client-notifications" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+    <details ref={panel} className="client-notifications" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary
         className="b b--small"
         aria-label={unread ? t("updates.unread", { count: unread }) : t("updates.noneUnread")}

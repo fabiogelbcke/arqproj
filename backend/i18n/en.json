@@ -25,7 +25,10 @@
     "password": "Password",
     "submit": "Sign in",
     "forgot": "Forgot your password?",
-    "with": "with"
+    "with": "with",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "capsLock": "Caps Lock is on"
   },
   "forgot": {
     "title": "Forgot your password?",
@@ -294,6 +297,7 @@
     "storage": "Connect Google Drive",
     "storageHint": "Connecting creates a “Portal Clientes” folder in your Google Drive, with a subfolder for each project.",
     "storageAction": "Connect",
+    "storageDialogTitle": "Google Drive",
     "office": "Personalize the office's details",
     "officeHint": "Add the contact email and the logo (optional). They appear on the pages and emails clients receive.",
     "officeAction": "Personalize",
