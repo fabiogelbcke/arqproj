@@ -9,6 +9,7 @@ import dialogs from "../projects/projects.module.css";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { Panel } from "../ui/Panel";
 import { toast } from "../ui/Toast";
 import styles from "./pages.module.css";
 
@@ -30,10 +31,10 @@ export function SettingsDrivePage() {
   }, [params, setParams]);
 
   return (
-    <section className={styles.panel} aria-labelledby="drive-title">
+    <Panel className={styles.settingsPanel} aria-labelledby="drive-title">
       <h2 id="drive-title">{t("settings.drive")}</h2>
       <DriveDetails returnedError={returned.error} returnedReference={returned.reference} />
-    </section>
+    </Panel>
   );
 }
 

@@ -10,6 +10,7 @@ import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { Panel } from "../ui/Panel";
 import { TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import styles from "./pages.module.css";
@@ -45,7 +46,7 @@ export function SettingsTeamPage() {
   if (!team.data) return <p className={styles.lead}>{t("app.loading")}</p>;
   const manage = team.data.can_manage;
   return (
-    <section className={styles.panel} aria-labelledby="team-title">
+    <Panel className={styles.settingsPanel} aria-labelledby="team-title">
       <h2 id="team-title" className="sr-only">
         {t("settings.team")}
       </h2>
@@ -53,7 +54,7 @@ export function SettingsTeamPage() {
       <Members members={team.data.members} manage={manage} />
       {manage && <InviteButton />}
       {manage && <SharedLink on={team.data.join_link.on} until={team.data.join_link.expires_at} />}
-    </section>
+    </Panel>
   );
 }
 

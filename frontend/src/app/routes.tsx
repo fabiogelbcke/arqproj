@@ -42,7 +42,7 @@ export const routes: RouteObject[] = [
     element: <Root />,
     children: [
       { path: "entrar", element: <SignInPage />, handle: title("signIn.title") },
-      { path: "definir-senha", element: <ChoosePasswordPage />, handle: title("choosePassword.titleInvite") },
+      { path: "definir-senha", element: <ChoosePasswordPage />, handle: title("choosePassword.pageTitle") }, // invite, reset or spent link alike
       { path: "esqueci-a-senha", element: <ForgotPasswordPage />, handle: title("forgot.title") },
       { path: "entrar-na-equipe", element: <JoinPage />, handle: title("join.pageTitle") },
       {

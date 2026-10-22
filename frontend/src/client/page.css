@@ -429,6 +429,6 @@ a.site__brand { color: inherit; text-decoration: none; }
 /* Editing, the switch turns the painel's warm colour: hard to miss that the
    page is in edit mode (Fabio: "feel free to use some colour"). Dark text on
    it in both themes. */
-.client .dock .seg[data-on="edit"]::before { background: var(--progress, #e38b3c); }
+.client .dock .seg[data-on="edit"]::before { background: var(--warm, #e38b3c); }
 .client .dock .seg[data-on="edit"] button[aria-pressed="true"] { color: #242629; }
 .client .dock .seg button:disabled { opacity: 0.45; cursor: not-allowed; }

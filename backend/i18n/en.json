@@ -38,6 +38,7 @@
     "back": "Back to sign in"
   },
   "choosePassword": {
+    "pageTitle": "Set a password",
     "titleInvite": "Choose your password",
     "titleReset": "Choose a new password",
     "greeting": "Hi {{name}}. You will sign in as {{email}}.",

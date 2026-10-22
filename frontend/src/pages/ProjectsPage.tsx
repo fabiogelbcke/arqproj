@@ -76,7 +76,6 @@ function Group({
       {cut && (
         <Button
           size="small"
-          shape="pill"
           className={styles.showAll}
           aria-controls={listId}
           aria-expanded={all}
@@ -258,8 +257,7 @@ export function ProjectsPage() {
           {query.trim() && (
             <Button
               size="small"
-              shape="pill"
-              onPress={() => {
+                  onPress={() => {
                 setQuery("");
                 searchBox.current?.focus(); // the button goes with the message
               }}

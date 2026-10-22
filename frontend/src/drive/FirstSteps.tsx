@@ -11,6 +11,7 @@ import styles from "../pages/pages.module.css";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { InfoTip } from "../ui/InfoTip";
+import { Panel } from "../ui/Panel";
 import { toast } from "../ui/Toast";
 import { useOnboarding } from "./drive";
 // A pale roof and sky behind the invitation to the example project.
@@ -41,7 +42,7 @@ export function FirstSteps() {
   const action = (finished: boolean | undefined, control: ReactNode) =>
     finished ? <span className={styles.stepDone}>{t("firstSteps.done")}</span> : owner ? control : null;
   return (
-    <section className={styles.steps} aria-labelledby="first-steps" data-tour="first-steps">
+    <Panel className={styles.steps} aria-labelledby="first-steps" data-tour="first-steps">
       <div className={styles.stepsHead}>
         <h2 id="first-steps">{t("firstSteps.title")}</h2>
         <span className={styles.stepsCount} aria-label={t("firstSteps.progressLabel", { done, total })}>
@@ -96,7 +97,7 @@ export function FirstSteps() {
         />
       </ol>
       {!owner && <p className={styles.small}>{t("firstSteps.membersNote")}</p>}
-    </section>
+    </Panel>
   );
 }
 

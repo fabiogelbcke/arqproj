@@ -52,7 +52,10 @@ the exact moment on hover), on one line so cards still line up; on phones,
 something focused scrolls clear of the floating search. Also the project page's staff
 bar (Painel, Ver como cliente / Editar, link, "?") is solid and inverted
 instead of translucent, with a ring in the page's colour, because it blended
-into the page (Fabio).
+into the page (Fabio). Then Configurações, on Fabio's mockup: a
+plain title, small-capitals tabs, each tab's content in a grey rounded panel
+(the same one as Primeiros passos), rounded fields, pill buttons across the
+staff app, and notices of things to do with an edge in the warm colour.
 
 **Why:** Fabio's redesign of the painel (003.pdf, 22 Oct 2026), with his
 answers: "⋯" rather than the design's "+" for the menu; the ⓘ instead of a "+"

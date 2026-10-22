@@ -10,6 +10,7 @@ import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { EmailField } from "../ui/EmailField";
+import { Panel } from "../ui/Panel";
 import { TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import styles from "./pages.module.css";
@@ -26,12 +27,12 @@ export function initials(name: string): string {
 export function SettingsOfficePage() {
   const { t } = useTranslation();
   return (
-    <section className={styles.panel} aria-labelledby="office-title">
+    <Panel className={styles.settingsPanel} aria-labelledby="office-title">
       <h2 id="office-title" className="sr-only">
         {t("settings.office")}
       </h2>
       <OfficeDetails />
-    </section>
+    </Panel>
   );
 }
 

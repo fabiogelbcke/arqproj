@@ -1,6 +1,6 @@
 .button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: var(--control-main); padding: 0 var(--control-pad-main); border: 1px solid var(--line-strong); border-radius: var(--r);
+  min-height: var(--control-main); padding: 0 var(--control-pad-main); border: 1px solid var(--line-strong); border-radius: var(--r-pill);
   background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-weight: 500; font-size: var(--text-sm);
   white-space: nowrap; transition: background 0.2s, border-color 0.2s, transform 0.15s var(--ease);
 }
@@ -18,7 +18,6 @@
 .ghost[data-hovered] { border-color: var(--line-strong); }
 /* Toolbars and secondary actions (ui/sizes.css). */
 .small { min-height: var(--control-small); height: var(--control-small); padding-inline: var(--control-pad-small); }
-.pill { border-radius: var(--r-pill); }
 /* Round, icon only (IconButton). */
 .iconButton {
   display: inline-grid; place-items: center; width: var(--control-icon); height: var(--control-icon); padding: 0;
@@ -34,7 +33,7 @@
 .hint { font-size: var(--text-sm); color: var(--muted); }
 .input {
   width: 100%; min-height: var(--control-main); padding: 10px 14px; border: 1px solid var(--line);
-  border-radius: var(--r); background: var(--raise); color: var(--ink); font: inherit;
+  border-radius: var(--r-field); background: var(--raise); color: var(--ink); font: inherit;
   transition: border-color 0.2s;
 }
 .input[data-hovered] { border-color: var(--line-strong); }
@@ -45,7 +44,7 @@
 .fieldError { font-size: var(--text-sm); color: var(--danger); }
 
 .notice {
-  padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--r);
+  padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--r-card);
   color: var(--ink); background: var(--danger-soft);
 }
 .notice p { margin: 0; }
@@ -211,7 +210,7 @@
 .emailListItems { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .emailListItem {
   display: flex; align-items: center; gap: 10px; min-height: var(--control-small);
-  padding: 0 0 0 12px; border: 1px solid var(--line); border-radius: var(--r);
+  padding: 0 0 0 12px; border: 1px solid var(--line); border-radius: var(--r-field); background: var(--raise);
 }
 .emailListItem > .hint { margin-right: 12px; font-size: var(--text-xs); }
 .emailListAddress { flex: 1; min-width: 0; display: grid; gap: 2px; padding-block: 6px; overflow-wrap: anywhere; font-size: var(--text-md); }
@@ -303,3 +302,11 @@
 .dialog { position: relative; padding: 28px; display: grid; gap: 20px; outline: none; }
 @media (max-width: 480px) { .dialog { padding: 20px; } }
 .dialogTitle { margin: 0; padding-right: 40px; font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
+
+/* Panel: a grey rounded panel holding a section (Primeiros passos, each
+   settings tab). Its fields and rows are white on it. */
+.surfacePanel {
+  display: grid; gap: 18px; align-content: start; padding: 28px;
+  border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface);
+}
+@media (max-width: 560px) { .surfacePanel { padding: 18px; } }

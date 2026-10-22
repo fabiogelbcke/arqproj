@@ -340,6 +340,30 @@ describe("each screen's title and the skip link", () => {
     await waitFor(() => expect(document.title).toBe("Entrar · Alinea"));
   });
 
+  it("names the password screen the same for an invite, a reset and a spent link", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
+      "POST /api/password-link": () => ({ body: { email: "ana@alinea.example", name: "Ana", kind: "reset" } }),
+    });
+    window.location.hash = "#token=abc";
+    renderAt("/definir-senha");
+    await screen.findByRole("heading", { name: "Escolha uma nova senha" });
+    await waitFor(() => expect(document.title).toBe("Definir senha · Alinea"));
+  });
+
+  it("names a spent password link's screen the same", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
+      "POST /api/password-link": () => ({ status: 404, body: { error: "link_invalid" } }),
+    });
+    window.location.hash = "#token=old";
+    renderAt("/definir-senha");
+    await screen.findByRole("heading", { name: /link/i });
+    await waitFor(() => expect(document.title).toBe("Definir senha · Alinea"));
+  });
+
   it("skips the top bar to the page's content, first thing on Tab", async () => {
     fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
     renderAt("/");
