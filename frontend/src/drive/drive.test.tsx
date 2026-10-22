@@ -229,8 +229,8 @@ describe("the painel's first steps", () => {
     renderAt("/");
     const steps = await screen.findByRole("region", { name: "Primeiros passos" });
     expect(within(steps).getByLabelText("0 de 3 passos concluídos")).toBeInTheDocument();
-    expect(within(steps).getByRole("link", { name: "Conectar" })).toHaveAttribute("href", "/configuracoes/drive");
-    expect(within(steps).getByRole("button", { name: "Personalizar" })).toBeInTheDocument(); // a dialog, on this page
+    expect(within(steps).getByRole("button", { name: "Conectar" })).toBeInTheDocument(); // dialogs, on this page
+    expect(within(steps).getByRole("button", { name: "Personalizar" })).toBeInTheDocument();
     expect(within(steps).getByRole("button", { name: "Criar projeto" })).toBeInTheDocument();
     // The boxes tick themselves: nothing to click.
     expect(within(steps).queryByRole("checkbox")).toBeNull();
@@ -270,6 +270,32 @@ describe("the painel's first steps", () => {
     renderAt("/");
     expect(await screen.findByRole("link", { name: "Ver um projeto de exemplo" })).toHaveAttribute("href", "/tour-projeto");
     expect(screen.queryByRole("region", { name: "Primeiros passos" })).toBeNull();
+  });
+
+  it("connects Google Drive from a dialog on the page", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign, origin: window.location.origin });
+    api(NOT_CONNECTED, {
+      "POST /api/drive/connect": () => ({ body: { url: "https://accounts.google.com/o/oauth2/v2/auth?x" } }),
+    });
+    const router = renderAt("/");
+    const steps = await screen.findByRole("region", { name: "Primeiros passos" });
+    await userEvent.click(within(steps).getByRole("button", { name: "Conectar" }));
+    const dialog = await screen.findByRole("dialog", { name: "Google Drive" });
+    expect(router.state.location.pathname).toBe("/");
+    expect(within(dialog).getByText("Não conectado")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Conectar Google Drive" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?x"));
+  });
+
+  it("closes the Google Drive dialog with a click outside it", async () => {
+    api(NOT_CONNECTED);
+    renderAt("/");
+    const steps = await screen.findByRole("region", { name: "Primeiros passos" });
+    await userEvent.click(within(steps).getByRole("button", { name: "Conectar" }));
+    await screen.findByRole("dialog", { name: "Google Drive" });
+    await userEvent.click(document.body);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("the first project's button opens the new-project dialog", async () => {

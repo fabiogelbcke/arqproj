@@ -6,7 +6,9 @@ import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
 import { OfficeLogo } from "../ui/OfficeLogo";
+import { PopoverDetails } from "../ui/PopoverDetails";
 import { useTheme } from "../ui/theme";
+import { useDismiss } from "../ui/useDismiss";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton, openOnClick } from "./EditButton";
 import { splitTitle } from "./titleLead";
@@ -418,7 +420,7 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
               {t("page.joinMeeting")}
             </a>
           )}
-          <details className="calendar-options">
+          <PopoverDetails className="calendar-options">
             <summary className="b b--small">{t("page.addToCalendar")}</summary>
             <div className="calendar-menu">
               <a
@@ -434,7 +436,7 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
                 </a>
               )}
             </div>
-          </details>
+          </PopoverDetails>
         </div>
       )}
     </section>
@@ -481,6 +483,8 @@ function Stage({
   const narrow = useNarrow();
   const stage = page.stages[index]!;
   const state = stateOf(page, index);
+  const helpRef = useRef<HTMLDivElement>(null);
+  useDismiss(helpRef, help, () => onHelp(false));
   // "Sobre esta etapa", an (i) beside the title: desktop only for now; on a phone its "+" beside the
   // stage's arrow read as another way to open it (Fabio, 19 Oct 2026).
   const helpPanel = stage.about && (
@@ -492,7 +496,7 @@ function Stage({
     </div>
   );
   const helpControl = stage.about && !narrow && (
-    <div className="stage-help">
+    <div className="stage-help" ref={helpRef}>
       <button
         className="stage-help-toggle"
         type="button"

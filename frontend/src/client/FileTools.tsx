@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Schemas } from "../api/client";
+import { PopoverDetails } from "../ui/PopoverDetails";
+import { useDismiss } from "../ui/useDismiss";
 import { fileSource, type Page } from "./format";
 
 type FileItem = Schemas["FileOut"];
@@ -192,16 +194,16 @@ export function FileToolbar({
   if (narrow)
     return (
       <div className="client-file-tools">
-        <details className="client-search-disclosure">
+        <PopoverDetails className="client-search-disclosure">
           <summary aria-label={t("files.search")} title={t("files.search")}>
             <SearchIcon />
           </summary>
           <div className="client-tool-popover">{search}</div>
-        </details>
-        <details className="client-organize-disclosure">
+        </PopoverDetails>
+        <PopoverDetails className="client-organize-disclosure">
           <summary>{t("files.filterAndSort")}</summary>
           <div className="client-tool-popover client-file-controls">{selects}</div>
-        </details>
+        </PopoverDetails>
         {views}
         {status}
       </div>
@@ -264,6 +266,9 @@ export function FilePreview({
   const { t } = useTranslation();
   const dialog = useRef<HTMLDialogElement>(null);
   const [sending, setSending] = useState(false);
+  const sendButton = useRef<HTMLButtonElement>(null);
+  const sendMenu = useRef<HTMLDivElement>(null);
+  useDismiss([sendButton, sendMenu], sending, () => setSending(false));
   const [broken, setBroken] = useState(false); // gone, expired, or not an image after all
   const url = fileSource.address(slug, file.key, "file")!;
   const shown = fileSource.address(slug, file.key, "inline")!;
@@ -313,6 +318,8 @@ export function FilePreview({
       // Closed by the person (Esc), not by React re-running the effect in
       // development, which closes the dialog and opens it again at once.
       onClose={() => !dialog.current?.open && onClose()}
+      // A click on the dimmed page around it lands on the dialog itself (it has no padding).
+      onClick={(event) => event.target === dialog.current && onClose()}
     >
       <div className="file-preview__head">
         <h2 id="file-preview-title">{file.name}</h2>
@@ -335,6 +342,7 @@ export function FilePreview({
           {t("files.openOriginal")}
         </a>
         <button
+          ref={sendButton}
           type="button"
           aria-expanded={sending}
           aria-controls="file-preview-send-menu"
@@ -343,7 +351,7 @@ export function FilePreview({
           {t("files.send")}
         </button>
       </div>
-      <div className="file-preview__send-menu" id="file-preview-send-menu" hidden={!sending}>
+      <div ref={sendMenu} className="file-preview__send-menu" id="file-preview-send-menu" hidden={!sending}>
         <a href={`mailto:?subject=${encodeURIComponent(file.name)}&body=${encodeURIComponent(message)}`}>
           {t("files.byEmail")}
         </a>
