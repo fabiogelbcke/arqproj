@@ -105,7 +105,8 @@
 
 /* PasswordField: the eye button and the Caps Lock mark in the input's right edge. */
 .password { position: relative; }
-.password > input { padding-right: 76px; }
+.password > input { padding-right: 44px; }
+.password[data-caps-lock] > input { padding-right: 72px; }
 .passwordTools {
   position: absolute; right: 6px; top: 50%; translate: 0 -50%;
   display: flex; align-items: center; gap: 2px; color: var(--muted);

@@ -6,18 +6,28 @@ import styles from "./ui.module.css";
 
 type Props = Omit<TextFieldProps, "type"> & { label: string };
 
+/** Apple's systems show their own Caps Lock mark beside the cursor (macOS since
+ *  Sonoma, and iPadOS, which also says "Mac"), so ours would be a second one. */
+function systemShowsCapsLock() {
+  return /Mac|iPhone|iPad/.test(navigator.platform);
+}
+
 /** A labelled password input with an eye button that shows the password as typed,
- *  and a mark in its right edge while Caps Lock is on (said to screen readers too). */
+ *  and, except on Apple systems, a mark in its right edge while Caps Lock is on
+ *  (said to screen readers too). */
 export function PasswordField({ label, ...props }: Props) {
   const { t } = useTranslation();
   const [shown, setShown] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
   // The browser only tells Caps Lock's state with a key or click event.
-  const readCapsLock = (event: KeyboardEvent | MouseEvent) => setCapsLock(event.getModifierState("CapsLock"));
+  const readCapsLock = (event: KeyboardEvent | MouseEvent) =>
+    setCapsLock(event.getModifierState("CapsLock") && !systemShowsCapsLock());
   return (
     <AriaTextField {...props} type={shown ? "text" : "password"} className={styles.field}>
       <Label className={styles.label}>{label}</Label>
-      <div className={styles.password}>
+      {/* Room in the input for the mark only while it shows, so the browser's own
+          buttons there (Safari's passwords key) sit beside the eye. */}
+      <div className={styles.password} data-caps-lock={capsLock || undefined}>
         <Input
           className={styles.input}
           onKeyDown={readCapsLock}

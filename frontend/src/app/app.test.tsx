@@ -78,6 +78,18 @@ describe("signing in", () => {
     expect(screen.queryByTitle("Caps Lock ativado")).toBeNull();
   });
 
+  it("leaves Caps Lock to Apple's own mark on a Mac", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    renderAt("/entrar");
+    const password = await screen.findByLabelText(/Senha/);
+    const user = userEvent.setup();
+    await user.click(password);
+    await user.keyboard("{CapsLock}A");
+    expect(screen.queryByTitle("Caps Lock ativado")).toBeNull();
+    vi.restoreAllMocks();
+  });
+
   it("uses the office's language before anyone signs in", async () => {
     fakeApi({ "GET /api/tenant": () => ({ body: { ...TENANT, locale: "en" } }), "GET /api/me": () => notSignedIn });
     renderAt("/entrar");
