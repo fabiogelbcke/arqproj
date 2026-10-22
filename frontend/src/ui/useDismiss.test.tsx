@@ -6,33 +6,39 @@ import { describe, expect, it } from "vitest";
 import { PopoverDetails } from "./PopoverDetails";
 import { useDismiss } from "./useDismiss";
 
-/** A menu drawn by hand, its button and list apart (as the file preview's "Enviar"). */
-function Menu({ split = false }: { split?: boolean }) {
+/** A menu drawn by hand. "whole": button and list in the one element given (a
+ *  file's "⋯" menu); "split": the two given apart (the file preview's "Enviar");
+ *  "buttonOnly": only the button given, the list left out (for the self-test). */
+function Menu({ mode = "whole" }: { mode?: "whole" | "split" | "buttonOnly" }) {
   const [open, setOpen] = useState(false);
   const whole = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
-  useDismiss(split ? [button, list] : whole, open, () => setOpen(false));
+  useDismiss(mode === "split" ? [button, list] : mode === "whole" ? whole : button, open, () => setOpen(false));
+  const items = open && (
+    <ul ref={list} aria-label="Itens">
+      <li>
+        <button type="button">Item</button>
+      </li>
+    </ul>
+  );
   return (
     <>
       <div ref={whole}>
         <button ref={button} type="button" aria-expanded={open} onClick={() => setOpen(!open)}>
           Menu
         </button>
+        {mode === "whole" && items}
       </div>
       <p>Between</p>
-      {open && (
-        <ul ref={list} aria-label="Itens">
-          <li>Item</li>
-        </ul>
-      )}
+      {mode !== "whole" && items}
     </>
   );
 }
 
 describe("useDismiss", () => {
   it("closes on a click outside, not on one inside, and its button still toggles it", async () => {
-    render(<Menu split />);
+    render(<Menu mode="split" />);
     const button = screen.getByRole("button", { name: "Menu" });
     await userEvent.click(button);
     await userEvent.click(screen.getByText("Item"));
@@ -51,9 +57,21 @@ describe("useDismiss", () => {
     expect(screen.queryByRole("list")).toBeNull();
   });
 
+  it("gives the focus back to its button when Esc closes it from inside", async () => {
+    for (const mode of ["whole", "split"] as const) {
+      const { unmount } = render(<Menu mode={mode} />);
+      await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+      screen.getByRole("button", { name: "Item" }).focus();
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByRole("list")).toBeNull();
+      expect(screen.getByRole("button", { name: "Menu" })).toHaveFocus();
+      unmount();
+    }
+  });
+
   it("counts a click outside the element it was given as outside", async () => {
     // Self-test: the list sits outside the one element given, so a click on it closes the menu.
-    render(<Menu />);
+    render(<Menu mode="buttonOnly" />);
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
     await userEvent.click(screen.getByText("Item"));
     expect(screen.queryByRole("list")).toBeNull();
@@ -82,5 +100,11 @@ describe("PopoverDetails", () => {
     expect(details.open).toBe(true);
     await userEvent.keyboard("{Escape}");
     expect(details.open).toBe(false);
+    // From inside, Esc gives the focus back to its summary.
+    await userEvent.click(screen.getByText("Adicionar à agenda"));
+    screen.getByText("Google Agenda").focus();
+    await userEvent.keyboard("{Escape}");
+    expect(details.open).toBe(false);
+    expect(screen.getByText("Adicionar à agenda")).toHaveFocus();
   });
 });
