@@ -159,7 +159,7 @@ test("create a project → it is listed as a draft; a used address names its pro
   await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("familia teste");
   await expect(page.getByTestId("project-card")).toHaveCount(1);
   await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("nada parecido");
-  await expect(page.getByText("Nenhum projeto encontrado")).toBeVisible();
+  await expect(page.getByText(/Nenhum projeto encontrado para/)).toBeVisible();
 });
 
 // A real 1×1 PNG, so the browser can preview it.
@@ -507,7 +507,7 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   // Advance: the client sees the next stage in progress.
   await page.getByRole("button", { name: /Avançar para 04/ }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Avançar", exact: true }).click(); // asked first
-  await expect(page.getByText(/Avançou para/)).toBeVisible();
+  await expect(page.getByText(/Etapa atual: “/)).toBeVisible(); // the toast
   const client = await browser.newPage();
   await client.goto("/casa-jardim");
   await expect(client.locator("#stage-3 .pill--current")).toBeVisible();
@@ -566,7 +566,7 @@ test("a new staff member's first project page shows the tour once; \"?\" replays
   // Every step, upload area included (its part loads separately): 5 of them.
   await expect(popover).toContainText("1 de 5");
   await popover.getByRole("button", { name: /Próximo/ }).click();
-  await expect(popover).toContainText("Cada parte com o seu lápis");
+  await expect(popover).toContainText("Editar cada seção");
   // The tour runs in edit mode, where its steps' parts are.
   const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
   await expect(bar.getByRole("button", { name: "Editar" })).toHaveAttribute("aria-pressed", "true");
