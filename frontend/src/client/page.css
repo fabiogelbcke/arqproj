@@ -401,3 +401,34 @@ a.site__brand { color: inherit; text-decoration: none; }
 .client .meeting-actions .calendar-menu { max-width: calc(100vw - 32px); box-sizing: border-box; }
 .client .meeting-actions > .calendar-options:first-child .calendar-menu { left: 0; right: auto; }
 .client .meeting-actions > .calendar-options:not(:first-child) .calendar-menu { left: auto; right: 0; }
+
+/* The staff bar stands out from the page (Fabio, 22 Oct 2026: it blended in):
+   solid and inverted, charcoal on the light theme and light on the dark one,
+   with a deeper shadow, so it reads as the office's controls over the page. */
+.client .dock {
+  --dock-bg: var(--ink); --dock-fg: var(--bg);
+  background: var(--dock-bg); color: var(--dock-fg); border-color: transparent;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  /* A ring in the page's own colour keeps it apart over dark bands (the
+     current stage) and, in the dark theme, over light photos. */
+  box-shadow: 0 0 0 2px var(--dock-fg), 0 14px 36px rgb(0 0 0 / 30%), 0 3px 8px rgb(0 0 0 / 18%);
+}
+.client .dock .b, .client .dock .iconbtn, .client .dock__title { color: var(--dock-fg); }
+.client .dock .b:hover, .client .dock .iconbtn:hover {
+  background: color-mix(in srgb, var(--dock-fg) 12%, transparent); border-color: transparent; color: var(--dock-fg);
+}
+.client .dock .b:focus-visible, .client .dock .iconbtn:focus-visible, .client .dock .seg button:focus-visible {
+  outline: 2px solid var(--dock-fg); outline-offset: 2px;
+}
+.client .dock__sep { background: color-mix(in srgb, var(--dock-fg) 22%, transparent); }
+/* The view/edit switch: a lighter track, the chosen side in the page's colour. */
+.client .dock .seg { background: color-mix(in srgb, var(--dock-fg) 14%, transparent); }
+.client .dock .seg::before { background: var(--dock-fg); }
+.client .dock .seg button { color: var(--dock-fg); }
+.client .dock .seg button[aria-pressed="true"] { color: var(--dock-bg); }
+/* Editing, the switch turns the painel's warm colour: hard to miss that the
+   page is in edit mode (Fabio: "feel free to use some colour"). Dark text on
+   it in both themes. */
+.client .dock .seg[data-on="edit"]::before { background: var(--warm, #e38b3c); }
+.client .dock .seg[data-on="edit"] button[aria-pressed="true"] { color: #242629; }
+.client .dock .seg button:disabled { opacity: 0.45; cursor: not-allowed; }

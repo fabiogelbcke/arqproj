@@ -1,4 +1,5 @@
-"""The longest text staff can enter in each field: the limits the server enforces.
+"""The longest text staff can enter in each field, and how many client addresses a
+project keeps: the limits the server enforces.
 
 `make api-types` writes them to `frontend/src/api/limits.json`, which the screens'
 inputs (maxLength) and the preview page read. So a limit changes here, in the
@@ -10,6 +11,7 @@ database allows more, and a name saved before the limit stays as it is.
 from __future__ import annotations
 
 from backend.identity.emails import EMAIL_LIMIT
+from backend.notifications.models import RECIPIENTS_MAX
 from backend.projects.creation import CLIENT_NAME_LIMIT, SLUG_MAX
 from backend.projects.creation import NAME_MAX as PROJECT_NAME_MAX
 from backend.projects.models import MEETING_LOCATION_MAX, MEETING_TITLE_MAX
@@ -33,4 +35,5 @@ FIELD_LIMITS: dict[str, int] = {
     "staffName": STAFF_NAME_MAX,
     "email": EMAIL_LIMIT,
     "pagePassword": PAGE_PASSWORD_MAX,
+    "recipients": RECIPIENTS_MAX,
 }

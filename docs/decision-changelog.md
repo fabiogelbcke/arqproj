@@ -19,6 +19,57 @@ a new entry too.
 
 ---
 
+## 2026-10-22 — A24, A32, section 10: the painel redesign
+
+**Was:** the card's pencil opened its menu; "Sem e-mail do cliente → Adicionar"
+opened the whole "Projeto" dialog; the top bar showed "Conectado como …", a
+☀/☾ theme button and "Sair"; completed projects were folded under a
+"Concluídos" toggle; the list had no type filter; an office with no projects
+saw "Novo projeto" in a toolbar and a dashed box.
+
+**Now:** the card's menu opens from a "⋯" on the photo (same items). "Adicionar"
+opens a small dialog with only the client's addresses (the "Projeto" dialog
+still edits them too). The top bar has the sections in small capitals, "?" and
+a round initial that opens an account menu: who is signed in, "Modo escuro" and
+"Sair" (phones keep the ☰ drawer). "Em andamento" and "Concluídos" are both
+open card grids under grey bars. Chips filter by project type, one per type in
+use, shown only with two or more types. With no projects yet, the toolbar and
+chips are hidden and an empty state with faded cards offers "Novo projeto".
+Each first step's explanation sits behind an ⓘ instead of under its title.
+After review the same day: a card lifts under the pointer (darker edge, soft
+shadow) instead of turning charcoal; the sort is one dropdown of order and
+direction together ("Nome: A–Z"), without the separate "Recentes ↓" button;
+"Concluídos" shows its first 8 with "Ver todos (n)" (all of them while
+searching); a search with no results offers "Limpar busca"; the painel tour is
+also in the account menu and the phone's drawer; type chips wrap on phones
+instead of scrolling sideways; no text below 11px (10px on phones), from one
+set of text sizes in `global.css`. Then: each screen names itself in the browser tab
+("Equipe · Configurações · Alinea"); a "Pular para o conteúdo" link for keyboard
+users; screen readers hear how many projects a search or a chip leaves; the
+search and the chosen type are kept in the address (`?q=…&type=…`); faded cards
+while the list loads; the last update as "há 3 dias" (the date past a month,
+the exact moment on hover), on one line so cards still line up; on phones,
+something focused scrolls clear of the floating search. Also the project page's staff
+bar (Painel, Ver como cliente / Editar, link, "?") is solid and inverted
+instead of translucent, with a ring in the page's colour, because it blended
+into the page (Fabio). Then Configurações, on Fabio's mockup: a
+plain title, small-capitals tabs, each tab's content in a grey rounded panel
+(the same one as Primeiros passos), rounded fields, pill buttons across the
+staff app, and notices of things to do with an edge in the warm colour.
+
+**Why:** Fabio's redesign of the painel (003.pdf, 22 Oct 2026), with his
+answers: "⋯" rather than the design's "+" for the menu; the ⓘ instead of a "+"
+for the step explanations ("+" reads as "add"); a dedicated dialog for client
+emails "for ease"; the empty state because "we don't need the search bar on
+top" before there are projects. The review changes are his answers to
+suggestions (the charcoal hover is a lot across a grid; the direction button
+was easy to misread; "I hate horizontal scroll on phones"). **Kept:** "?" for the painel tour (section 16),
+although the design leaves it out. **Short names:** the chips show the
+design's short names ("Interiores"), from the text catalogs for the four
+built-in types (Fabio: "fine for now"); any other type shows its full name.
+Storing a short name per type in the database waits for office-defined types
+(A27).
+
 ## 2026-10-20 — A36 (new), section 5: owners invite staff from the painel
 
 **Was:** section 5 deferred invitation screens as an add-on for larger offices;

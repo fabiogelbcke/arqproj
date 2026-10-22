@@ -3,7 +3,7 @@
 // meeting is always ahead and the files are recent.
 import type { Schemas } from "../../api/client";
 import roof from "../../projects/covers/capa-01.jpg";
-import house from "../../projects/covers/capa-04.jpg";
+import house from "./images/capa-exemplo.jpg";
 import pool from "../../projects/covers/capa-07.jpg";
 import facade from "../../projects/covers/capa-09.jpg";
 import type { Detail } from "../format";

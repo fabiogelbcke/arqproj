@@ -6,7 +6,7 @@ type Variant = "primary" | "secondary" | "ghost";
 
 /** The site's text button. Size by role (ui/sizes.css): "regular" for the action
  *  a screen or dialog is about and in forms; "small" in toolbars and beside
- *  content. Icon-only buttons are IconButton. */
+ *  content. Pill-shaped (painel redesign). Icon-only buttons are IconButton. */
 export function Button({
   variant = "secondary",
   size = "regular",

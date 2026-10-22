@@ -5,12 +5,11 @@ import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-route
 import { api, call } from "../api/client";
 import { LogoPng, useOffice } from "../office/office";
 import { useMe, useSignedOut } from "../session/session";
-import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { OfficeLogo } from "../ui/OfficeLogo";
 import { IconButton } from "../ui/IconButton";
-import { ThemeToggle } from "../ui/ThemeToggle";
 import styles from "../pages/pages.module.css";
+import { AccountMenu } from "./AccountMenu";
 import { MobileMenu } from "./MobileMenu";
 
 /** Every screen behind sign-in: the top bar, or a redirect to sign-in. */
@@ -29,6 +28,9 @@ export function SignedInLayout() {
     },
   });
 
+  // The painel's tour, on demand only (plan section 16): from "?" and the menus. Loaded when asked for.
+  const startTour = () => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }));
+
   if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
   if (me.error) return <main className={styles.centered}><ErrorNotice error={me.error} /></main>;
   if (!me.data) {
@@ -37,6 +39,10 @@ export function SignedInLayout() {
   }
   return (
     <>
+      {/* Keyboard users: past the top bar in one step (WCAG 2.4.1). Shown on focus. */}
+      <a className={styles.skipLink} href="#content">
+        {t("nav.skipToContent")}
+      </a>
       <header className={styles.topbar}>
         <div className={styles.topbarIn}>
           {/* A logo usually carries the name already, so it replaces it. */}
@@ -55,31 +61,28 @@ export function SignedInLayout() {
               {t("nav.settings")}
             </NavLink>
           </nav>
-          <span className={styles.spacer} />
-          <span className={styles.who}>{t("nav.signedInAs", { name: me.data.name })}</span>
-          {/* "?": the painel's tour, on demand only (plan section 16). Loaded when pressed. */}
-          <IconButton
-            className={styles.help}
-            label={t("painelTour.again")}
-            onPress={() => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }))}
-          >
+          <IconButton className={styles.help} label={t("painelTour.again")} onPress={startTour}>
             ?
           </IconButton>
           <div className={styles.barActions}>
-            <ThemeToggle className={styles.theme} />
-            <Button variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
-              {t("nav.signOut")}
-            </Button>
+            <AccountMenu
+              name={me.data.name}
+              email={me.data.email}
+              onSignOut={() => signOut.mutate()}
+              signingOut={signOut.isPending}
+              onTour={startTour}
+            />
           </div>
           <MobileMenu
             name={me.data.name}
             onSignOut={() => signOut.mutate()}
             signingOut={signOut.isPending}
             signOutError={signOut.error}
+            onTour={startTour}
           />
         </div>
       </header>
-      <main className={styles.main}>
+      <main id="content" tabIndex={-1} className={styles.main}>
         <ErrorNotice error={signOut.error} />
         <Outlet />
       </main>

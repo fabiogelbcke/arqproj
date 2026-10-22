@@ -80,7 +80,7 @@ beforeEach(() => localStorage.clear());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the project list", () => {
-  it("groups projects, with completed ones folded away", async () => {
+  it("groups projects: in progress, then completed, both open", async () => {
     api();
     renderAt("/");
     const active = await screen.findByRole("region", { name: "Em andamento" });
@@ -88,11 +88,76 @@ describe("the project list", () => {
     expect(within(active).getByLabelText("3 projetos em andamento de 4 exibidos")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Rascunhos" })).toBeNull(); // no drafts (A35)
 
-    const fold = screen.getByRole("button", { name: "Concluídos" });
-    expect(screen.queryByText("Refúgio")).not.toBeVisible();
-    await userEvent.click(fold);
-    expect(screen.getByText("Refúgio")).toBeVisible();
-    expect(screen.getByText("Projeto concluído")).toBeInTheDocument();
+    const completed = screen.getByRole("region", { name: "Concluídos" });
+    expect(within(completed).getByText("Refúgio")).toBeVisible();
+    expect(within(completed).getByText("Projeto concluído")).toBeInTheDocument();
+  });
+
+  it("filters by project type with a chip for each type in use", async () => {
+    api(LOCAL, {
+      "GET /api/projects": () => ({
+        body: [
+          ...LIST,
+          project({ id: "5", name: "Loft", slug: "loft", project_type: "interiors", project_type_label: "Projeto de Interiores" }),
+        ],
+      }),
+    });
+    renderAt("/");
+    const chips = await screen.findByRole("radiogroup", { name: "Tipos de projeto" });
+    // "Todos", then the types in use only, by their short names, alphabetically
+    // (no Paisagismo here).
+    expect(within(chips).getAllByRole("radio").map((chip) => chip.textContent)).toEqual([
+      "Todos",
+      "Arquitetônico",
+      "Interiores",
+    ]);
+    expect(within(chips).getByRole("radio", { name: "Todos" })).toBeChecked();
+    await userEvent.click(within(chips).getByRole("radio", { name: "Interiores" }));
+    expect(screen.getAllByTestId("project-card").map((card) => within(card).getByRole("heading").textContent)).toEqual([
+      "Loft",
+    ]);
+    // With a search too: both apply, and an empty result says it's the type.
+    await userEvent.type(screen.getByRole("searchbox", { name: "Buscar projetos" }), "jardim");
+    expect(screen.getByText("Nenhum projeto encontrado para “jardim”.")).toBeInTheDocument();
+    await userEvent.click(within(chips).getByRole("radio", { name: "Todos" }));
+    expect(screen.getAllByTestId("project-card")).toHaveLength(1);
+  });
+
+  it("names a type without a short name by its full name", async () => {
+    const own = project({ id: "6", name: "Galpão", slug: "galpao", project_type: "warehouses", project_type_label: "Galpões Industriais" });
+    api(LOCAL, { "GET /api/projects": () => ({ body: [...LIST, own] }) });
+    renderAt("/");
+    const chips = await screen.findByRole("radiogroup", { name: "Tipos de projeto" });
+    expect(within(chips).getByRole("radio", { name: "Galpões Industriais" })).toBeInTheDocument();
+  });
+
+  it("shows no type chips when every project is of one type", async () => {
+    api();
+    renderAt("/");
+    await screen.findByRole("region", { name: "Em andamento" });
+    expect(screen.queryByRole("radiogroup", { name: "Tipos de projeto" })).toBeNull();
+  });
+
+  it("goes back to every project when the chosen type's last project is archived", async () => {
+    const loft = project({ id: "5", name: "Loft", slug: "loft", project_type: "interiors", project_type_label: "Projeto de Interiores" });
+    let list = [...LIST, loft];
+    api(LOCAL, {
+      "GET /api/projects": () => ({ body: list }),
+      [`PATCH /api/projects/${loft.id}`]: () => {
+        list = LIST;
+        return { body: { ...loft, status: "archived", row_version: 2 } };
+      },
+    });
+    renderAt("/");
+    const chips = await screen.findByRole("radiogroup", { name: "Tipos de projeto" });
+    await userEvent.click(within(chips).getByRole("radio", { name: "Interiores" }));
+    expect(screen.getAllByTestId("project-card")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Opções do projeto Loft" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Arquivar projeto" }));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Arquivar" }));
+    // One type left: no chips, and every project, not an empty list.
+    await waitFor(() => expect(screen.queryByRole("radiogroup", { name: "Tipos de projeto" })).toBeNull());
+    expect(screen.getAllByTestId("project-card")).toHaveLength(4);
   });
 
   it("on a phone, shows one group at a time from two tabs", async () => {
@@ -138,30 +203,127 @@ describe("the project list", () => {
     expect(screen.getByText("Nenhum projeto encontrado para “xyz”.")).toBeInTheDocument();
   });
 
-  it("remembers the chosen order on this device", async () => {
+  it("sorts by an order and its direction, chosen together, and remembers it on this device", async () => {
     api();
     renderAt("/");
-    await userEvent.selectOptions(await screen.findByLabelText("Ordenar por"), "name");
+    const select = await screen.findByLabelText("Ordenar por");
+    // Each order in both directions, dates newest first; no separate direction button.
+    expect(within(select).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Atualização: mais recentes",
+      "Atualização: mais antigas",
+      "Criação: mais recentes",
+      "Criação: mais antigas",
+      "Nome: A–Z",
+      "Nome: Z–A",
+      "Cliente: A–Z",
+      "Cliente: Z–A",
+      "Tipo: A–Z",
+      "Tipo: Z–A",
+    ]);
+    expect(screen.queryByRole("button", { name: /Ordem (de)?crescente/ })).toBeNull();
+    const names = () =>
+      within(screen.getByRole("region", { name: "Em andamento" }))
+        .getAllByRole("heading", { level: 3 })
+        .map((h) => h.textContent);
+    await userEvent.selectOptions(select, "Nome: A–Z");
     expect(loadSort()).toEqual({ key: "name", direction: "asc" });
-    const active = screen.getByRole("region", { name: "Em andamento" });
-    const names = within(active).getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-    expect(names).toEqual(["Apartamento", "Casa Jardim", "Conceição"]);
+    expect(names()).toEqual(["Apartamento", "Casa Jardim", "Conceição"]);
+    await userEvent.selectOptions(select, "Nome: Z–A");
+    expect(loadSort()).toEqual({ key: "name", direction: "desc" });
+    expect(names()).toEqual(["Conceição", "Casa Jardim", "Apartamento"]);
   });
 
-  it("an office with no projects is invited to create one", async () => {
+  it("shows the first 8 completed projects, and the rest on \"Ver todos\"", async () => {
+    const done = Array.from({ length: 10 }, (_, i) =>
+      project({ id: `c${i}`, name: `Concluído ${i + 1}`, slug: `c${i}`, status: "completed" }),
+    );
+    api(LOCAL, { "GET /api/projects": () => ({ body: [...LIST, ...done] }) });
+    saveSort({ key: "name", direction: "asc" });
+    renderAt("/");
+    const completed = await screen.findByRole("region", { name: "Concluídos" });
+    expect(within(completed).getAllByTestId("project-card")).toHaveLength(8);
+    expect(within(completed).getByText("11")).toBeInTheDocument(); // the bar counts them all
+    const more = within(completed).getByRole("button", { name: "Ver todos (11)" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(more);
+    expect(within(completed).getAllByTestId("project-card")).toHaveLength(11);
+    await userEvent.click(within(completed).getByRole("button", { name: "Ver menos" }));
+    expect(within(completed).getAllByTestId("project-card")).toHaveLength(8);
+    // While searching, every match shows.
+    await userEvent.type(screen.getByRole("searchbox", { name: "Buscar projetos" }), "concluído");
+    expect(within(screen.getByRole("region", { name: "Concluídos" })).getAllByTestId("project-card")).toHaveLength(10);
+    expect(screen.queryByRole("button", { name: /Ver todos/ })).toBeNull();
+  });
+
+  it("keeps the search and the type in the address, and starts from them", async () => {
+    const loft = project({ id: "5", name: "Loft", slug: "loft", project_type: "interiors", project_type_label: "Projeto de Interiores" });
+    api(LOCAL, { "GET /api/projects": () => ({ body: [...LIST, loft] }) });
+    const router = renderAt("/?type=interiors");
+    const chips = await screen.findByRole("radiogroup", { name: "Tipos de projeto" });
+    expect(within(chips).getByRole("radio", { name: "Interiores" })).toBeChecked();
+    expect(screen.getAllByTestId("project-card")).toHaveLength(1);
+    await userEvent.click(within(chips).getByRole("radio", { name: "Todos" }));
+    expect(router.state.location.search).toBe(""); // the default isn't written
+    await userEvent.type(screen.getByRole("searchbox", { name: "Buscar projetos" }), "casa");
+    expect(new URLSearchParams(router.state.location.search).get("q")).toBe("casa");
+    // Typing replaced the address rather than adding a step per letter.
+    expect(router.state.historyAction).toBe("REPLACE");
+  });
+
+  it("tells screen readers how many projects a search or a type leaves", async () => {
+    api();
+    renderAt("/");
+    const search = await screen.findByRole("searchbox", { name: "Buscar projetos" });
+    const status = screen.getByText("", { selector: "p[role=status]" });
+    expect(status).toBeEmptyDOMElement(); // nothing to say before a search
+    await userEvent.type(search, "casa");
+    expect(status).toHaveTextContent("1 projeto encontrado");
+    await userEvent.clear(search);
+    await userEvent.type(search, "a");
+    expect(status).toHaveTextContent("4 projetos encontrados");
+    await userEvent.type(search, "xyz");
+    expect(status).toHaveTextContent("Nenhum projeto encontrado");
+  });
+
+  it("shows faded cards while the projects load", async () => {
+    api(LOCAL, { "GET /api/projects": () => new Promise(() => {}) });
+    renderAt("/");
+    await waitFor(() => expect(document.querySelector("[aria-busy=true]")).not.toBeNull());
+    expect(screen.getByText("Carregando…")).toBeInTheDocument(); // for screen readers
+    expect(screen.queryByTestId("project-card")).toBeNull();
+  });
+
+  it("a search with no results offers to clear it, and goes back to the box", async () => {
+    api();
+    renderAt("/");
+    const search = await screen.findByRole("searchbox", { name: "Buscar projetos" });
+    await userEvent.type(search, "xyz");
+    await userEvent.click(screen.getByRole("button", { name: "Limpar busca" }));
+    expect(search).toHaveValue("");
+    expect(search).toHaveFocus();
+    expect(screen.getAllByTestId("project-card")).toHaveLength(4);
+  });
+
+  it("an office with no projects is invited to create one, without the list's tools", async () => {
     api(LOCAL, { "GET /api/projects": () => ({ body: [] }) });
     renderAt("/");
-    expect(await screen.findByText("Crie o primeiro projeto para começar.")).toBeInTheDocument();
-    // Phones show a welcome at the top instead of the tabs (the stylesheet hides it on desktop).
-    expect(screen.getByText("Seu escritório no Unio")).toBeInTheDocument();
+    const empty = await screen.findByRole("region", { name: "Seus projetos aparecem aqui" });
+    // Nothing to search, sort, filter or switch between yet.
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByLabelText("Ordenar por")).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Tipos de projeto" })).toBeNull();
     expect(screen.queryByRole("group", { name: "Grupos de projetos" })).toBeNull();
+    // The way to start is in the empty state itself.
+    await userEvent.click(within(empty).getByRole("button", { name: "Novo projeto" }));
+    expect(await screen.findByRole("dialog", { name: "Novo projeto" })).toBeInTheDocument();
   });
 
-  it("an office with projects gets the tabs, not the welcome", async () => {
+  it("an office with projects gets the tools and the tabs, not the empty state", async () => {
     api();
     renderAt("/");
     await screen.findByRole("group", { name: "Grupos de projetos" });
-    expect(screen.queryByText("Seu escritório no Unio")).toBeNull();
+    expect(screen.getByRole("searchbox", { name: "Buscar projetos" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Seus projetos aparecem aqui" })).toBeNull();
   });
 });
 
@@ -252,11 +414,11 @@ describe("Novo projeto", () => {
     expect(within(await card("Conceição")).queryByRole("button", { name: /Sem e-mail do cliente/ })).toBeNull();
     // Only an unsubscribed address: nobody gets them either.
     expect(within(await card("Refúgio")).getByRole("button", { name: /Sem e-mail do cliente/ })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Concluídos" })); // unfolded
     expect(within(await card("Pronto")).queryByRole("button", { name: /Sem e-mail do cliente/ })).toBeNull();
+    // Its own dialog, just the addresses, ready to type into.
     await userEvent.click(within(await card("Casa Jardim")).getByRole("button", { name: /Sem e-mail do cliente/ }));
-    expect(await screen.findByRole("dialog", { name: "Projeto" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Novo e-mail")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "E-mails do cliente" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Novo e-mail")).toHaveFocus();
   });
 
   it("if the types fail to load, offers to try again and blocks creating", async () => {
@@ -267,7 +429,7 @@ describe("Novo projeto", () => {
     renderAt("/");
     await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
     const dialog = await screen.findByRole("dialog");
-    const retry = await within(dialog).findByRole("button", { name: "Tentar de novo" });
+    const retry = await within(dialog).findByRole("button", { name: "Tentar novamente" });
     expect(within(dialog).getByRole("button", { name: "Criar projeto" })).toBeDisabled();
     fail = false;
     await userEvent.click(retry);

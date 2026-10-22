@@ -91,7 +91,7 @@ describe("Drive status unavailable", () => {
     });
     renderAt("/configuracoes/drive");
     const alert = await screen.findByRole("alert", {}, { timeout: 4000 });
-    expect(alert).toHaveTextContent("Algo deu errado");
+    expect(alert).toHaveTextContent("Não foi possível concluir a ação");
     expect(alert).toHaveTextContent("req7");
   });
 });
@@ -129,7 +129,7 @@ describe("another Google account", () => {
     expect(screen.getByRole("button", { name: "Reconectar a mesma conta" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Usar outra conta" }));
     const warning = await screen.findByRole("alertdialog", { name: "Usar outra conta Google?" });
-    expect(warning).toHaveTextContent("Os arquivos dos projetos não vêm para a nova conta");
+    expect(warning).toHaveTextContent("Os arquivos existentes não serão transferidos");
     await userEvent.click(within(warning).getByRole("button", { name: "Entendi, usar outra conta" }));
     await waitFor(() => expect(assign).toHaveBeenCalled());
     expect(sent.find((r) => r.path === "/api/drive/connect")?.body).toEqual({ fresh: true });
@@ -161,7 +161,7 @@ describe("another Google account", () => {
     window.history.pushState({}, "", "/painel/configuracoes/drive?erro=drive_other_account");
     api(BEFORE);
     renderAt("/configuracoes/drive?erro=drive_other_account");
-    expect(await screen.findByRole("button", { name: "Usar esta outra conta mesmo assim" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Continuar com outra conta" })).toBeInTheDocument();
   });
 
   it("while connected, offers to disconnect first rather than to switch", async () => {
@@ -185,14 +185,14 @@ describe("the Drive's space", () => {
     renderAt("/configuracoes/drive");
     expect(await screen.findByText("12 GB de 15 GB usados (80%)")).toBeInTheDocument();
     expect(screen.getByRole("meter", { name: "Espaço no Google Drive" })).toHaveAttribute("aria-valuenow", "80");
-    expect(screen.getByText(/Pouco espaço livre/)).toBeInTheDocument();
+    expect(screen.getByText(/Há pouco espaço disponível/)).toBeInTheDocument();
   });
 
   it("doesn't warn with room to spare, and shows small amounts in MB", async () => {
     api(CONNECTED, { "GET /api/drive/space": () => ({ body: { used: 850 * 2 ** 20, total: 15 * 2 ** 30 } }) });
     renderAt("/configuracoes/drive");
     expect(await screen.findByText("850 MB de 15 GB usados (6%)")).toBeInTheDocument();
-    expect(screen.queryByText(/Pouco espaço livre/)).toBeNull();
+    expect(screen.queryByText(/Há pouco espaço disponível/)).toBeNull();
   });
 
   it("says pooled Workspace storage has no total of its own", async () => {
@@ -314,8 +314,26 @@ describe("the painel's first steps", () => {
     const links = within(steps).getAllByRole("link");
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute("href", "/tour-projeto");
-    expect(within(steps).queryByRole("button")).toBeNull();
+    // No step's button: only each step's ⓘ.
+    const buttons = within(steps).getAllByRole("button").map((button) => button.getAttribute("aria-label"));
+    expect(buttons).toEqual([
+      "Sobre: Conectar o Google Drive",
+      "Sobre: Personalizar os dados do escritório",
+      "Sobre: Criar o primeiro projeto",
+    ]);
     expect(within(steps).getByText(/Só o responsável pelo escritório/)).toBeInTheDocument();
+  });
+
+  it("explains each step behind its ⓘ, closed with Esc", async () => {
+    api(NOT_CONNECTED, {});
+    renderAt("/");
+    const steps = await screen.findByRole("region", { name: "Primeiros passos" });
+    expect(screen.queryByText(/a pasta “Portal Clientes”/)).toBeNull(); // not until asked
+    await userEvent.click(within(steps).getByRole("button", { name: "Sobre: Conectar o Google Drive" }));
+    const tip = await screen.findByRole("dialog", { name: "Sobre: Conectar o Google Drive" });
+    expect(tip).toHaveTextContent(/a pasta “Portal Clientes”/);
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Sobre: Conectar o Google Drive" })).toBeNull());
   });
 });
 

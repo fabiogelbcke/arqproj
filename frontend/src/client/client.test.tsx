@@ -109,16 +109,16 @@ describe("the client page", () => {
       "POST /api/pages/casa-jardim/subscribe": () => ({ status: 204 }),
     });
     render(<ClientApp />);
-    const box = await screen.findByRole("region", { name: "Novidades por e-mail" });
+    const box = await screen.findByRole("region", { name: "Atualizações por e-mail" });
     const field = within(box).getByLabelText("Seu e-mail");
     await userEvent.type(field, "ana@gmail");
-    await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
-    expect(within(box).getByRole("alert")).toHaveTextContent("Confira o e-mail");
+    await userEvent.click(within(box).getByRole("button", { name: "Receber atualizações" }));
+    expect(within(box).getByRole("alert")).toHaveTextContent("Informe um e-mail válido");
     expect(sent.some((r) => r.path.endsWith("/subscribe"))).toBe(false);
     await userEvent.type(field, ".con");
     await userEvent.click(within(box).getByRole("button", { name: "ana@gmail.com" })); // the typo's fix
-    await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
-    expect(await within(box).findByRole("status")).toHaveTextContent("Pronto! ana@gmail.com vai receber as novidades deste projeto.");
+    await userEvent.click(within(box).getByRole("button", { name: "Receber atualizações" }));
+    expect(await within(box).findByRole("status")).toHaveTextContent("ana@gmail.com foi cadastrado para receber atualizações deste projeto.");
     expect(sent.find((r) => r.path.endsWith("/subscribe"))?.body).toEqual({ email: "ana@gmail.com" });
   });
 
@@ -137,19 +137,19 @@ describe("the client page", () => {
       ),
     );
     render(<ClientApp />);
-    const box = await screen.findByRole("region", { name: "Novidades por e-mail" });
+    const box = await screen.findByRole("region", { name: "Atualizações por e-mail" });
     const field = within(box).getByLabelText("Seu e-mail");
     await userEvent.type(field, "ana@gmail.com");
-    await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
+    await userEvent.click(within(box).getByRole("button", { name: "Receber atualizações" }));
     await userEvent.type(field, "x"); // while it's on its way
     answer(new Response(null, { status: 204 }));
-    expect(await within(box).findByRole("status")).toHaveTextContent("Pronto! ana@gmail.com vai receber");
+    expect(await within(box).findByRole("status")).toHaveTextContent("ana@gmail.com foi cadastrado para receber");
   });
 
   it("offers no email updates on a completed project", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, completed: true } }) });
     expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Novidades por e-mail" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Atualizações por e-mail" })).toBeNull();
   });
 
   it("says when an archived project sends no more updates", async () => {
@@ -157,10 +157,10 @@ describe("the client page", () => {
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
       "POST /api/pages/casa-jardim/subscribe": () => ({ status: 409, body: { error: "project_archived" } }),
     });
-    const box = await screen.findByRole("region", { name: "Novidades por e-mail" });
+    const box = await screen.findByRole("region", { name: "Atualizações por e-mail" });
     await userEvent.type(within(box).getByLabelText("Seu e-mail"), "ana@gmail.com");
-    await userEvent.click(within(box).getByRole("button", { name: "Receber" }));
-    expect(await within(box).findByRole("alert")).toHaveTextContent("Este projeto não envia mais novidades.");
+    await userEvent.click(within(box).getByRole("button", { name: "Receber atualizações" }));
+    expect(await within(box).findByRole("alert")).toHaveTextContent("Este projeto não envia mais atualizações.");
   });
 
   it("explains a stage in the project type's words", async () => {
@@ -304,14 +304,14 @@ describe("the client page", () => {
     });
     await userEvent.type(await screen.findByLabelText("Senha"), "qualquer");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Tente de novo em 15 minutos.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Tente novamente em 15 minutos.");
   });
 
   it("shows any other failure with its support code, never the server's words", async () => {
     at("/casa", {
       "GET /api/pages/casa": () => ({ status: 500, body: { error: "boom", detail: "Traceback…" } }),
     });
-    expect(await screen.findByRole("heading", { name: "Algo deu errado. Tente de novo em instantes." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Não foi possível concluir a ação. Tente novamente em instantes." })).toBeInTheDocument();
     expect(screen.queryByText(/Traceback/)).toBeNull();
   });
 });
@@ -344,7 +344,7 @@ describe("the files", () => {
     const first = screen.getByRole("region", { name: "Briefing" });
     expect(within(first).getByText(/Não foi possível carregar os arquivos/)).toBeInTheDocument();
     const third = screen.getByRole("region", { name: "Estudo Preliminar" });
-    expect(within(third).getByText("Ainda sem arquivos nesta etapa.")).toBeInTheDocument();
+    expect(within(third).getByText("Nenhum arquivo nesta etapa.")).toBeInTheDocument();
   });
 });
 
@@ -481,10 +481,10 @@ describe("edit mode", () => {
   it("in edit mode, says first when nobody gets the project's updates, and adds the client's emails there", async () => {
     const { sent } = withRecipients([{ email: "ana@x.com", subscribed: false }]);
     expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
-    expect(screen.queryByText(/Ninguém recebe as novidades/)).toBeNull(); // only in edit mode
+    expect(screen.queryByText(/Este projeto ainda não tem contatos/)).toBeNull(); // only in edit mode
     await startEditing();
     const notice = screen.getByRole("note");
-    expect(notice).toHaveTextContent("Ninguém recebe as novidades deste projeto por e-mail.");
+    expect(notice).toHaveTextContent("Este projeto ainda não tem contatos para receber atualizações por e-mail.");
     await userEvent.click(within(notice).getByRole("button", { name: "Adicionar e-mails do cliente" }));
     // The unsubscribed address stays, and can't be removed (A32).
     expect(await screen.findByText("Cancelou os e-mails")).toBeInTheDocument();
@@ -498,14 +498,14 @@ describe("edit mode", () => {
   it("in edit mode, says nothing about emails when the client gets the updates", async () => {
     withRecipients([{ email: "ana@x.com", subscribed: true }]);
     await startEditing();
-    expect(screen.queryByText(/Ninguém recebe as novidades/)).toBeNull();
+    expect(screen.queryByText(/Este projeto ainda não tem contatos/)).toBeNull();
   });
 
-  it("in edit mode, the client's own \"Novidades por e-mail\" box gives way", async () => {
+  it("in edit mode, the client's own \"Atualizações por e-mail\" box gives way", async () => {
     withRecipients([{ email: "ana@x.com", subscribed: true }]);
-    expect(await screen.findByRole("region", { name: "Novidades por e-mail" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Atualizações por e-mail" })).toBeInTheDocument();
     await startEditing();
-    expect(screen.queryByRole("region", { name: "Novidades por e-mail" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Atualizações por e-mail" })).toBeNull();
   });
 
   it("in edit mode, a page without a cover offers one in its place, cropped to 3:2", async () => {
@@ -620,7 +620,7 @@ describe("edit mode", () => {
         body: { ...PAGE, next_meeting: null, staff: { project_id: "p-1", status: "active", row_version: 4 } },
       }),
     });
-    expect(await screen.findByText("Nenhuma reunião agendada ainda")).toBeInTheDocument();
+    expect(await screen.findByText("Nenhuma reunião agendada")).toBeInTheDocument();
     expect(screen.queryByText("Clique aqui para adicionar uma reunião")).toBeNull();
     await startEditing();
     await userEvent.click(screen.getByText("Clique aqui para adicionar uma reunião"));
@@ -1147,7 +1147,7 @@ describe("edit mode", () => {
         new File(["%PDF"], "Corte.pdf", { type: "application/pdf" }),
       );
       expect(await within(stage).findByRole("alert")).toHaveTextContent(
-        "Não foi possível enviar o arquivo. Tente de novo; se continuar, fale com o suporte. Código de suporte: ref-77",
+        "Não foi possível enviar o arquivo. Tente novamente; se continuar, fale com o suporte. Código de suporte: ref-77",
       );
       expect(sent.find((r) => r.path.endsWith("/uploads/failed"))?.body).toEqual({
         name: "Corte.pdf",
@@ -1364,7 +1364,7 @@ describe("edit mode", () => {
 
   it("offers the file search with the stages even before any file", async () => {
     asStaff();
-    expect(await screen.findByLabelText("Pesquisar arquivos")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Buscar arquivos")).toBeInTheDocument();
   });
 });
 
@@ -1458,7 +1458,7 @@ describe("Atualizações (A28)", () => {
     expect(screen.getByRole("button", { name: "Etapa aberta: Briefing" })).toBeInTheDocument(); // stage 1 now open
     await userEvent.click(bell);
     await userEvent.click(within(panel).getByRole("button", { name: "Marcar todas como lidas" }));
-    expect(screen.getByLabelText("Últimas atualizações, nenhuma não lida")).toBeInTheDocument();
+    expect(screen.getByLabelText("Últimas atualizações: todas lidas")).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("updates-read:casa-jardim")!)).toEqual(["u1", "u2"]);
   });
 
@@ -1467,7 +1467,7 @@ describe("Atualizações (A28)", () => {
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
       "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
     });
-    await userEvent.click(await screen.findByLabelText("Últimas atualizações, nenhuma não lida"));
+    await userEvent.click(await screen.findByLabelText("Últimas atualizações: todas lidas"));
     expect(screen.getByText(/Ainda não há atualizações/)).toBeInTheDocument();
   });
 });
@@ -1519,7 +1519,7 @@ describe("the page's file tools", () => {
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
       "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
     });
-    await userEvent.type(await screen.findByLabelText("Pesquisar arquivos"), "baixa"); // "planta" would also find "Implantação"
+    await userEvent.type(await screen.findByLabelText("Buscar arquivos"), "baixa"); // "planta" would also find "Implantação"
     expect(screen.getByText("1 arquivo encontrado")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Levantamento" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Briefing" })).toBeNull(); // hidden
@@ -1531,7 +1531,7 @@ describe("the page's file tools", () => {
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
       "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
     });
-    const search = await screen.findByLabelText("Pesquisar arquivos");
+    const search = await screen.findByLabelText("Buscar arquivos");
     await userEvent.type(search, "baixa");
     expect(screen.queryByRole("region", { name: "Briefing" })).toBeNull();
     Element.prototype.scrollIntoView = vi.fn();
@@ -1647,7 +1647,7 @@ describe("the page's file tools", () => {
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
       "GET /api/pages/casa-jardim/files": () => ({ body: { ...FILES, stages } }),
     });
-    await userEvent.type(await screen.findByLabelText("Pesquisar arquivos"), "baixa");
+    await userEvent.type(await screen.findByLabelText("Buscar arquivos"), "baixa");
     expect(screen.queryByRole("region", { name: "Briefing" })).toBeNull(); // no match: hidden
     const unread = screen.getByRole("region", { name: "Estudo Preliminar" });
     expect(within(unread).getByText(/Não foi possível carregar os arquivos/)).toBeVisible();
@@ -1659,7 +1659,7 @@ describe("the page's file tools", () => {
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
       "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
     });
-    const search = await screen.findByLabelText("Pesquisar arquivos");
+    const search = await screen.findByLabelText("Buscar arquivos");
     await userEvent.type(search, "baixa");
     await userEvent.click(screen.getByRole("button", { name: "Etapa aberta: Levantamento" }));
     expect(screen.getByRole("button", { name: "Abrir etapa Levantamento" })).toHaveAttribute("aria-expanded", "false");
@@ -1688,7 +1688,7 @@ describe("the page's file tools", () => {
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
       "GET /api/pages/casa-jardim/files": () => ({ body: { ...FILES, updates: [news] } }),
     });
-    await userEvent.type(await screen.findByLabelText("Pesquisar arquivos"), "baixa");
+    await userEvent.type(await screen.findByLabelText("Buscar arquivos"), "baixa");
     expect(screen.queryByRole("region", { name: "Briefing" })).toBeNull();
     Element.prototype.scrollIntoView = vi.fn();
     await userEvent.click(screen.getByLabelText("Últimas atualizações, 1 não lida"));

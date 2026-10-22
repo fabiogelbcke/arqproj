@@ -1,7 +1,7 @@
 import { coverIndex, type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
-// 10 CC0 photos (StockSnap; see covers/LICENSES.json) for projects without a cover.
+// 26 CC0 photos (StockSnap and rawpixel; see covers/LICENSES.json) for projects without a cover.
 const PLACEHOLDERS = Object.values(
   import.meta.glob<string>("./covers/*.jpg", { eager: true, import: "default", query: "?url" }),
 ).sort();

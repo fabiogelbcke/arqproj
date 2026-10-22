@@ -53,7 +53,9 @@ test("invite → choose password → projects → deep link → sign out → sig
   await page.reload();
   await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Sair" }).click();
+  // Sair is in the account menu, under the round initial (painel redesign).
+  await page.getByRole("button", { name: "Sua conta" }).click();
+  await page.getByRole("menuitem", { name: "Sair" }).click();
   await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
   await page.goto("/painel");
   await expect(page).toHaveURL(/\/painel\/entrar/); // signed out for real
@@ -157,7 +159,7 @@ test("create a project → it is listed as a draft; a used address names its pro
   await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("familia teste");
   await expect(page.getByTestId("project-card")).toHaveCount(1);
   await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("nada parecido");
-  await expect(page.getByText("Nenhum projeto encontrado")).toBeVisible();
+  await expect(page.getByText(/Nenhum projeto encontrado para/)).toBeVisible();
 });
 
 // A real 1×1 PNG, so the browser can preview it.
@@ -173,9 +175,8 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
 
-  // A completed project: open its group, then the card's pencil and its menu.
-  await page.getByRole("button", { name: "Concluídos" }).click();
-  const menu = (name: string) => page.getByRole("button", { name: `Editar o projeto ${name}` }).click();
+  // A completed project (its group is open too): the card's "⋯" and its menu.
+  const menu = (name: string) => page.getByRole("button", { name: `Opções do projeto ${name}` }).click();
   await menu("Refúgio da Mantiqueira");
   // The photo straight from the menu, cropped to the cover's shape first.
   const [chooser] = await Promise.all([
@@ -201,8 +202,7 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   await expect(page.getByText("Projeto “Refúgio da Serra” arquivado.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeHidden();
   await page.getByRole("button", { name: "Desfazer" }).click();
-  await expect(page.getByText("Projeto “Refúgio da Serra” de volta.")).toBeVisible();
-  await page.getByRole("button", { name: "Concluídos" }).click(); // its group, folded again
+  await expect(page.getByText("Projeto “Refúgio da Serra” restaurado.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeVisible();
 });
 
@@ -333,7 +333,7 @@ test("staff protect a page with a password; a client unlocks it once", async ({ 
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
 
-  await page.getByRole("button", { name: "Editar o projeto Apartamento Atlântico — Copacabana" }).click();
+  await page.getByRole("button", { name: "Opções do projeto Apartamento Atlântico — Copacabana" }).click();
   await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();
   const settings = page.getByRole("dialog", { name: "Projeto" });
   await settings.getByText("Com senha", { exact: true }).click();
@@ -507,7 +507,7 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   // Advance: the client sees the next stage in progress.
   await page.getByRole("button", { name: /Avançar para 04/ }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Avançar", exact: true }).click(); // asked first
-  await expect(page.getByText(/Avançou para/)).toBeVisible();
+  await expect(page.getByText(/Etapa atual: “/)).toBeVisible(); // the toast
   const client = await browser.newPage();
   await client.goto("/casa-jardim");
   await expect(client.locator("#stage-3 .pill--current")).toBeVisible();
@@ -566,7 +566,7 @@ test("a new staff member's first project page shows the tour once; \"?\" replays
   // Every step, upload area included (its part loads separately): 5 of them.
   await expect(popover).toContainText("1 de 5");
   await popover.getByRole("button", { name: /Próximo/ }).click();
-  await expect(popover).toContainText("Cada parte com o seu lápis");
+  await expect(popover).toContainText("Editar cada seção");
   // The tour runs in edit mode, where its steps' parts are.
   const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
   await expect(bar.getByRole("button", { name: "Editar" })).toHaveAttribute("aria-pressed", "true");

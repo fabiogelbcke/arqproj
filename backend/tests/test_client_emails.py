@@ -306,7 +306,7 @@ async def test_the_email_says_what_changed_and_links_the_page(app, db_session, o
     await make_due(db_session)
     await run(app, outbox)
     email = outbox.sent[0]
-    assert email.subject == "Novidades em Casa Jardim"
+    assert "Casa Jardim" in email.subject  # the project it's about (the wording is the catalog's)
     assert "2 arquivos novos em 02 " in email.text
     assert "Croqui.pdf" in email.text and "Fachada.pdf" in email.text
     assert "/casa-jardim" in email.text
@@ -557,7 +557,8 @@ async def test_opening_the_link_asks_and_confirming_unsubscribes(
     assert page.status_code == 200 and "<form" in page.text
     assert await status(db_session) == "subscribed"  # a mail scanner opening it changes nothing
     done = await client.post(path, headers=ALINEA)
-    assert done.status_code == 200 and "Pronto." in done.text
+    # Says whose emails stop (the wording is the catalog's).
+    assert done.status_code == 200 and "dona@alinea.example" in done.text
     assert await status(db_session) == "unsubscribed"
 
 
