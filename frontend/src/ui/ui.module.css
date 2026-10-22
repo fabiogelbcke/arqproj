@@ -103,6 +103,24 @@
   font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
 }
 
+/* PasswordField: the eye button and the Caps Lock mark in the input's right edge. */
+.password { position: relative; }
+.password > input { padding-right: 44px; }
+.password[data-caps-lock] > input { padding-right: 72px; }
+.passwordTools {
+  position: absolute; right: 6px; top: 50%; translate: 0 -50%;
+  display: flex; align-items: center; gap: 2px; color: var(--muted);
+}
+.capsLock { display: inline-grid; place-items: center; width: 24px; height: 24px; color: var(--ink); }
+.capsLock svg { width: 18px; height: 18px; }
+.reveal {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0;
+  border: 0; border-radius: var(--r); background: transparent; color: inherit; cursor: pointer;
+}
+.reveal svg { width: 20px; height: 20px; }
+.reveal[data-hovered] { color: var(--ink); }
+.reveal[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 1px; }
+
 /* The office's logo (OfficeLogo): its height grows as it gets squarer, within the
    place's limits. Each place sets --logo-ref (a 4:1 wordmark's height), --logo-min,
    --logo-max (never taller than its bar allows) and --logo-max-width. */

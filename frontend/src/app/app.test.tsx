@@ -55,6 +55,41 @@ describe("signing in", () => {
     expect(alert).toHaveTextContent("Código de suporte: req42");
   });
 
+  it("shows the password as typed on request, and says when Caps Lock is on", async () => {
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    renderAt("/entrar");
+    const password = await screen.findByLabelText(/Senha/);
+    await userEvent.type(password, "segredo");
+    expect(password).toHaveAttribute("type", "password");
+    await userEvent.click(screen.getByRole("button", { name: "Mostrar senha" }));
+    expect(password).toHaveAttribute("type", "text");
+    expect(password).toHaveValue("segredo");
+    await userEvent.click(screen.getByRole("button", { name: "Ocultar senha" }));
+    expect(password).toHaveAttribute("type", "password");
+
+    expect(screen.queryByTitle("Caps Lock ativado")).toBeNull();
+    const user = userEvent.setup(); // one keyboard, so Caps Lock stays on between calls
+    await user.click(password);
+    await user.keyboard("{CapsLock}A");
+    expect(screen.getByTitle("Caps Lock ativado")).toBeInTheDocument();
+    // Said to screen readers too, not only drawn.
+    expect(screen.getAllByRole("status").some((status) => status.textContent === "Caps Lock ativado")).toBe(true);
+    await user.keyboard("{CapsLock}a");
+    expect(screen.queryByTitle("Caps Lock ativado")).toBeNull();
+  });
+
+  it("leaves Caps Lock to Apple's own mark on a Mac", async () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    renderAt("/entrar");
+    const password = await screen.findByLabelText(/Senha/);
+    const user = userEvent.setup();
+    await user.click(password);
+    await user.keyboard("{CapsLock}A");
+    expect(screen.queryByTitle("Caps Lock ativado")).toBeNull();
+    vi.restoreAllMocks();
+  });
+
   it("uses the office's language before anyone signs in", async () => {
     fakeApi({ "GET /api/tenant": () => ({ body: { ...TENANT, locale: "en" } }), "GET /api/me": () => notSignedIn });
     renderAt("/entrar");

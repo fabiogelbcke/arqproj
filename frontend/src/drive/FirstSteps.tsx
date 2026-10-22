@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
 
 import { EXAMPLE_SLUG } from "../client/example/address";
+import { DriveDetails } from "../pages/SettingsDrivePage";
 import { OfficeDetails } from "../pages/SettingsOfficePage";
 import { NewProjectDialog } from "../projects/NewProjectDialog";
 import dialogs from "../projects/projects.module.css";
@@ -68,9 +68,9 @@ export function FirstSteps() {
           hint={t("firstSteps.storageHint")}
           action={action(
             steps.storage_connected,
-            <Link className={styles.stepAction} to="/configuracoes/drive">
-              {t("firstSteps.storageAction")}
-            </Link>,
+            <StepDialog label={t("firstSteps.storageAction")} title={t("firstSteps.storageDialogTitle")}>
+              {() => <DriveDetails />}
+            </StepDialog>,
           )}
         />
         <Step
@@ -79,7 +79,9 @@ export function FirstSteps() {
           hint={t("firstSteps.officeHint")}
           action={action(
             steps.office_details,
-            <OfficeDialog />,
+            <StepDialog label={t("firstSteps.officeAction")} title={t("firstSteps.officeDialogTitle")}>
+              {(close) => <OfficeDetails onSaved={close} />}
+            </StepDialog>,
           )}
         />
         <Step
@@ -100,13 +102,20 @@ export function FirstSteps() {
   );
 }
 
-/** The office's details in a dialog, so the first steps don't leave the page. */
-function OfficeDialog() {
-  const { t } = useTranslation();
+/** A step's settings in a dialog, so the first steps don't leave the page. */
+function StepDialog({
+  label,
+  title,
+  children,
+}: {
+  label: string;
+  title: string;
+  children: (close: () => void) => ReactNode;
+}) {
   return (
     <DialogTrigger>
       <Button variant="primary" className={styles.stepAction}>
-        {t("firstSteps.officeAction")}
+        {label}
       </Button>
       <ModalOverlay className={dialogs.overlay} isDismissable>
         <Modal className={dialogs.modal}>
@@ -114,10 +123,10 @@ function OfficeDialog() {
             {({ close }) => (
               <>
                 <Heading slot="title" className={dialogs.dialogTitle}>
-                  {t("firstSteps.officeDialogTitle")}
+                  {title}
                 </Heading>
                 <CloseButton onPress={close} />
-                <OfficeDetails onSaved={close} />
+                {children(close)}
               </>
             )}
           </Dialog>

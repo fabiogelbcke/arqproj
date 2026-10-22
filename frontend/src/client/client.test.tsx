@@ -181,6 +181,18 @@ describe("the client page", () => {
     expect(screen.getByText("Análise do terreno.")).not.toBeVisible();
   });
 
+  it("closes \"Sobre esta etapa\" with a click elsewhere on the page, or Esc", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    await userEvent.click(await screen.findByRole("button", { name: "Sobre esta etapa: Briefing" }));
+    await userEvent.click(screen.getByText("Necessidades e orçamento.")); // its own text: stays
+    expect(screen.getByText("Necessidades e orçamento.")).toBeVisible();
+    await userEvent.click(document.body);
+    expect(screen.getByText("Necessidades e orçamento.")).not.toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Sobre esta etapa: Briefing" }));
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByText("Necessidades e orçamento.")).not.toBeVisible();
+  });
+
   it("opens a stage from the timeline", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
     const timeline = await screen.findByRole("list", { name: "Etapas" });
@@ -1166,6 +1178,17 @@ describe("edit mode", () => {
       expect(sent.some((r) => r.method === "POST" && r.path.endsWith("/k1/hide"))).toBe(true);
     });
 
+    it("closes a file's menu with a click outside it", async () => {
+      asEditor();
+      await startEditing();
+      const button = await screen.findByRole("button", { name: "Ações para Planta.pdf" });
+      await userEvent.click(button);
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      await userEvent.click(document.body);
+      expect(screen.queryByRole("menu")).toBeNull();
+      expect(button).toHaveAttribute("aria-expanded", "false");
+    });
+
     it("explains how to hide a file not sent through the site", async () => {
       asEditor({
         "POST /api/pages/casa-jardim/files/k1/hide": () => ({ status: 409, body: { error: "file_not_ours" } }),
@@ -1705,6 +1728,23 @@ describe("the page's file tools", () => {
     // The page's address, not the file's (which works only for a while).
     expect(decodeURIComponent(whatsapp.getAttribute("href")!)).toContain(`${window.location.origin}/casa-jardim`);
     await userEvent.click(within(preview).getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("closes the send menu with a click elsewhere in the preview, and the preview with a click around it", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Abrir Terreno.jpg" }));
+    const preview = screen.getByRole("dialog", { name: "Terreno.jpg" });
+    await userEvent.click(within(preview).getByRole("button", { name: "Enviar" }));
+    expect(within(preview).getByRole("link", { name: "WhatsApp" })).toBeVisible();
+    await userEvent.click(within(preview).getByRole("heading", { name: "Terreno.jpg" }));
+    expect(within(preview).queryByRole("link", { name: "WhatsApp" })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Terreno.jpg" })).toBeInTheDocument(); // inside: stays open
+    // The dimmed page around it: the click lands on the dialog element itself.
+    await userEvent.click(preview);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

@@ -8,7 +8,7 @@ import { useMe, useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { EmailField } from "../ui/EmailField";
-import { TextField } from "../ui/TextField";
+import { PasswordField } from "../ui/PasswordField";
 import { AuthBrand } from "./AuthBrand";
 import styles from "./pages.module.css";
 
@@ -47,13 +47,7 @@ export function SignInPage() {
           }}
         >
           <EmailField name="email" autoComplete="username" isRequired lookup label={t("signIn.email")} />
-          <TextField
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            isRequired
-            label={t("signIn.password")}
-          />
+          <PasswordField name="password" autoComplete="current-password" isRequired label={t("signIn.password")} />
           <ErrorNotice error={signIn.error} />
           <Button type="submit" variant="primary" isDisabled={signIn.isPending}>
             {t("signIn.submit")}

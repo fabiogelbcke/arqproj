@@ -8,6 +8,7 @@ import { ApiError, api, call, type Schemas } from "../api/client";
 import { errorMessage } from "../ui/ErrorNotice";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { toast, toastError } from "../ui/Toast";
+import { useDismiss } from "../ui/useDismiss";
 import { fileSource, type Page } from "./format";
 
 type Staff = NonNullable<Page["staff"]>;
@@ -260,6 +261,8 @@ export function FileMenu({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<false | "menu" | "move">(false);
+  const menu = useRef<HTMLDivElement>(null);
+  useDismiss(menu, open !== false, () => setOpen(false));
   const [busy, setBusy] = useState(false);
   const path = { slug, key: file.key };
   const act = async (request: () => Promise<unknown>, done: string) => {
@@ -313,9 +316,9 @@ export function FileMenu({
     );
   return (
     <div
+      ref={menu}
       className={`filemenu menu${open ? " is-open" : ""}`}
       onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setOpen(false)}
-      onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
     >
       <button
         type="button"
