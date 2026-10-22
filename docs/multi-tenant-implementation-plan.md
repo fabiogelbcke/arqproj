@@ -1744,7 +1744,7 @@ log retention and review it before paid onboarding.
 
 Built (22 Oct 2026, Fabio): email alerts for the live site, applied from
 `deploy/production/monitoring/` with `make alerts` (README, "Alerts"): any ERROR
-in its logs (one email an hour at most), and no maintenance pass run to the end
+in its logs (one email an hour at most), and no maintenance pass finished
 for 30 minutes. Both rely on Cloud Monitoring's free allowances. Not yet: uptime
 checks, a 5xx-rate alert, a billing budget alert, bounce tracking, and showing
 notification failures to the office.

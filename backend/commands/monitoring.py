@@ -26,7 +26,7 @@ PROJECT = "arq-proj"
 # Passes run every 10 minutes: none in 20 means they have stopped.
 LATELY = timedelta(minutes=20)
 STOPPED_NOW = (
-    "WARNING: no maintenance pass has run to the end in the last 20 minutes. The "
+    "WARNING: no maintenance pass has finished in the last 20 minutes. The "
     "“passes stopped” alert only fires after it has counted a pass, so it can't tell "
     "you about this one: check Cloud Scheduler job portal-production-maintenance and "
     "the portal logs for /internal/maintenance."
@@ -60,7 +60,21 @@ def _channel(call: Call, project: str, email: str) -> tuple[str, str]:
         "listing channels",
     ).get("notificationChannels", [])
     if found:
-        return found[0]["name"], f"kept email channel for {email}"
+        channel = found[0]
+        # A channel turned off (in the console) forwards nothing: the alerts would
+        # look set up and never arrive.
+        if channel.get("enabled") is False:
+            _ok(
+                call(
+                    "PATCH",
+                    f"{MONITORING}/{channel['name']}",
+                    {"updateMask": "enabled"},
+                    {"enabled": True},
+                ),
+                f"turning on the channel for {email}",
+            )
+            return channel["name"], f"turned the email channel for {email} back on"
+        return channel["name"], f"kept email channel for {email}"
     body = {"type": "email", "displayName": f"Alerts: {email}", "labels": {"email_address": email}}
     made = _ok(call("POST", url, None, body), f"creating channel for {email}")
     return made["name"], f"created email channel for {email}"
@@ -82,7 +96,7 @@ def _policy(call: Call, project: str, policy: dict, channel: str) -> str:
 
 
 def _passes_lately(call: Call, project: str, metric: dict, now: datetime) -> bool:
-    """Whether the logs show a pass that ran to the end lately: read from the logs,
+    """Whether the logs show a pass that finished lately: read from the logs,
     not the metric, which counts nothing before it exists."""
     since = (now - LATELY).isoformat().replace("+00:00", "Z")
     body = {

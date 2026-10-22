@@ -46,7 +46,11 @@ class FakeGoogle:
                         c for c in self.channels if c["labels"]["email_address"] == email
                     ]
                 }
-            made = {**body, "name": f"projects/p/notificationChannels/{len(self.channels) + 1}"}
+            made = {
+                **body,
+                "name": f"projects/p/notificationChannels/{len(self.channels) + 1}",
+                "enabled": True,
+            }
             self.channels.append(made)
             return 200, made
         if url.endswith("/alertPolicies"):
@@ -58,6 +62,11 @@ class FakeGoogle:
             made = {**body, "name": f"projects/p/alertPolicies/{len(self.policies) + 1}"}
             self.policies.append(made)
             return 200, made
+        if "/notificationChannels/" in url and method == "PATCH":
+            assert query == {"updateMask": "enabled"}
+            channel = next(c for c in self.channels if url.endswith(c["name"]))
+            channel.update(body)
+            return 200, channel
         if "/alertPolicies/" in url and method == "PATCH":
             path = url.split(monitoring.MONITORING + "/", 1)[1]
             index = next(i for i, p in enumerate(self.policies) if p["name"] == path)
@@ -122,6 +131,17 @@ def test_another_address_gets_its_own_channel():
     monitoring.apply(google, "p", "caio@alinea.example", now=NOW)
     assert len(google.channels) == 2
     assert all(p["notificationChannels"] == [google.channels[1]["name"]] for p in google.policies)
+
+
+def test_turns_a_channel_that_was_turned_off_back_on():
+    """Off, it forwards nothing: the alerts would look set up and never arrive."""
+    google = FakeGoogle()
+    monitoring.apply(google, "p", "ana@alinea.example", now=NOW)
+    google.channels[0]["enabled"] = False
+    changes = monitoring.apply(google, "p", "ana@alinea.example", now=NOW)
+    assert google.channels[0]["enabled"] is True
+    assert len(google.channels) == 1
+    assert "turned the email channel for ana@alinea.example back on" in changes
 
 
 def test_a_refusal_stops_with_what_failed():

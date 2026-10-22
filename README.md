@@ -353,7 +353,7 @@ address after 5 tries (21 Oct 2026: `myunio.app`, verified in another account).
 ### Alerts
 
 The live site emails an address when it logs an error, and when no maintenance
-pass has run to the end for 30 minutes (plan section 21). Both are defined in
+pass has finished for 30 minutes (plan section 21). Both are defined in
 `deploy/production/monitoring/` and applied with:
 
 ```bash

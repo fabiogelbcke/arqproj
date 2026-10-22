@@ -2,12 +2,12 @@
   "displayName": "portal: maintenance passes stopped",
   "documentation": {
     "mimeType": "text/markdown",
-    "content": "No maintenance pass on the live site has run to the end for 30 minutes (they run every 10). Until they do, no new files are noticed and no update emails go out.\n\nCheck Cloud Scheduler job `portal-production-maintenance` (its last attempt and status) and the `portal` logs for `/internal/maintenance`."
+    "content": "No maintenance pass on the live site has finished for 30 minutes (they run every 10). Until they do, no new files are noticed and no update emails go out.\n\nCheck Cloud Scheduler job `portal-production-maintenance` (its last attempt and status) and the `portal` logs for `/internal/maintenance`."
   },
   "combiner": "OR",
   "conditions": [
     {
-      "displayName": "No pass ran to the end for 30 minutes",
+      "displayName": "No pass finished for 30 minutes",
       "conditionAbsent": {
         "filter": "metric.type=\"logging.googleapis.com/user/portal_maintenance_passes\" AND resource.type=\"cloud_run_revision\"",
         "duration": "1800s",
