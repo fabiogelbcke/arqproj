@@ -1,0 +1,17 @@
+{
+  "displayName": "portal: an error on the live site",
+  "documentation": {
+    "mimeType": "text/markdown",
+    "content": "The live site (Cloud Run `portal`) logged an ERROR. See the log lines: Logs Explorer, project arq-proj, query `resource.labels.service_name=\"portal\" severity>=ERROR`.\n\nUsual causes: a maintenance pass failing (no new files scanned, no update emails), the email provider refusing an email, or a bug in a request. At most one email an hour while errors go on."
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "An ERROR log line from portal",
+      "conditionMatchedLog": {
+        "filter": "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"portal\" AND severity>=ERROR"
+      }
+    }
+  ],
+  "alertStrategy": { "notificationRateLimit": { "period": "3600s" }, "autoClose": "1800s" }
+}

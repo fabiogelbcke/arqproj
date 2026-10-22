@@ -10,6 +10,7 @@ from backend.notifications.scan import MAINTENANCE_LOCK, run_maintenance
 from backend.storage.base import StorageError, StorageProblem
 from backend.tests import test_office
 from backend.tests.conftest import TEST_DATABASE_URL
+from backend.tests.test_monitoring_command import pass_line_pattern
 from backend.tests.test_office import ALINEA
 
 owner = test_office.owner  # fixtures
@@ -272,6 +273,17 @@ async def test_a_pass_out_of_time_leaves_the_rest_for_the_next(app, db_session, 
     report = await run(app)
     assert report.unfinished == 0
     assert await casa(db_session, "files_scanned_at") is not None
+
+
+async def test_a_pass_logs_the_line_the_stopped_alert_counts(
+    app, db_session, owner, folders, caplog
+):
+    """The live site's "maintenance passes stopped" alert counts these lines
+    (deploy/production/monitoring): a reworded line would set it off for good."""
+    caplog.set_level("INFO", logger=scan.log.name)
+    await run(app)
+    pattern = pass_line_pattern()
+    assert [r.getMessage() for r in caplog.records if pattern in r.getMessage()] != []
 
 
 async def test_each_pass_records_when_it_last_ran_to_the_end(app, db_session, owner, folders):
