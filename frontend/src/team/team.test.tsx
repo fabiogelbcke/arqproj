@@ -76,7 +76,7 @@ describe("Configurações → Equipe", () => {
     await userEvent.type(await screen.findByLabelText("Nome"), "Bia");
     await userEvent.type(screen.getByLabelText("E-mail"), "bia@alinea.example");
     await userEvent.click(screen.getByRole("button", { name: "Enviar convite" }));
-    expect(await screen.findByText(/Não deu para enviar o e-mail agora/)).toBeInTheDocument();
+    expect(await screen.findByText(/Não foi possível enviar o e-mail/)).toBeInTheDocument();
     expect(screen.getByLabelText("Link do convite")).toHaveValue("http://x/painel/definir-senha#token=abc");
   });
 
@@ -98,8 +98,8 @@ describe("Configurações → Equipe", () => {
       "DELETE /api/team/invites/u-2": () => ({ status: 204 }),
     });
     renderAt("/configuracoes/equipe");
-    await userEvent.click(await screen.findByRole("button", { name: "Enviar de novo" }));
-    expect(await screen.findByText("Convite enviado de novo para bia@alinea.example.")).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "Reenviar" }));
+    expect(await screen.findByText("Convite reenviado para bia@alinea.example.")).toBeInTheDocument();
     expect(screen.getByLabelText("Link do convite de Bia Souza")).toHaveValue("http://x/#token=new");
     await userEvent.click(screen.getByRole("button", { name: "Cancelar convite" }));
     await waitFor(() => expect(sent.some((r) => r.method === "DELETE")).toBe(true));
@@ -145,7 +145,7 @@ describe("Configurações → Equipe", () => {
     renderAt("/configuracoes/equipe");
     expect(await screen.findByText("Só administradores convidam pessoas.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Convidar pessoa" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Enviar de novo" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reenviar" })).toBeNull();
     expect(screen.queryByText("Convidar através de um link")).toBeNull();
   });
 });

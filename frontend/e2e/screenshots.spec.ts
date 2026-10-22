@@ -94,7 +94,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByLabel("Cliente").fill("Família Souza");
   await shoot(page, "03b-novo-projeto");
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Editar o projeto Casa Jardim" }).click();
+  await page.getByRole("button", { name: "Opções do projeto Casa Jardim" }).click();
   await page.getByRole("menu").waitFor();
   await shoot(page, "03f-menu-do-projeto");
   await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();

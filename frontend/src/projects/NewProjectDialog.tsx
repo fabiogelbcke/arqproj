@@ -1,18 +1,5 @@
 import { useState } from "react";
-import {
-  Checkbox,
-  CheckboxGroup,
-  Dialog,
-  DialogTrigger,
-  Form,
-  Heading,
-  Label,
-  Modal,
-  ModalOverlay,
-  Radio,
-  RadioGroup,
-  Text,
-} from "react-aria-components";
+import { Checkbox, CheckboxGroup, DialogTrigger, Form, Label, Radio, RadioGroup, Text } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "../api/client";
@@ -20,14 +7,13 @@ import { LIMITS } from "../api/limits";
 import { useConnectDrive, useDrive } from "../drive/drive";
 import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
-import { CloseButton } from "../ui/CloseButton";
-import { EmailListField, addEmails } from "../ui/EmailListField";
+import { DialogFrame } from "../ui/DialogFrame";
+import { addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { suggestedSlug, useCreateProject, useCreationOptions, type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
-
-const RECIPIENTS_MAX = 20; // the server checks it too
+import { RecipientsField } from "./RecipientsField";
 
 function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: ProjectSummary) => void }) {
   const { t } = useTranslation();
@@ -66,7 +52,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
       onSubmit={(event) => {
         event.preventDefault();
         // One typed but not added counts too; one that can't be added stops it.
-        const { list, left } = addEmails(recipients, newRecipient, RECIPIENTS_MAX);
+        const { list, left } = addEmails(recipients, newRecipient, LIMITS.recipients);
         setRecipients(list);
         setNewRecipient(left.join(", "));
         if (left.length) return;
@@ -107,17 +93,13 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         maxLength={LIMITS.clientName}
         autoComplete="off"
       />
-      <EmailListField
+      <RecipientsField
         label={t("newProject.recipients")}
         description={t("newProject.recipientsHint")}
         emails={recipients}
         onChange={setRecipients}
         draft={newRecipient}
         onDraft={setNewRecipient}
-        max={RECIPIENTS_MAX}
-        addLabel={t("projectSettings.addRecipient")}
-        newLabel={t("projectSettings.newRecipient")}
-        removeLabel={(email) => t("projectSettings.removeRecipient", { email })}
       />
       <RadioGroup
         className={styles.types}
@@ -239,27 +221,17 @@ export function NewProjectDialog({
           <span className={styles.newLabel}>{t("projects.new")}</span>
         </Button>
       )}
-      <ModalOverlay className={styles.overlay} isDismissable>
-        <Modal className={styles.modal}>
-          <Dialog className={styles.dialog}>
-            {({ close }) => (
-              <>
-                <Heading slot="title" className={styles.dialogTitle}>
-                  {t("newProject.title")}
-                </Heading>
-                <CloseButton onPress={close} />
-                {!drive.data ? (
-                  <ErrorNotice error={drive.error} />
-                ) : storageReady ? (
-                  <CreateForm close={close} onCreated={onCreated} />
-                ) : (
-                  <NeedsDrive close={close} />
-                )}
-              </>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+      <DialogFrame title={t("newProject.title")}>
+        {(close) =>
+          !drive.data ? (
+            <ErrorNotice error={drive.error} />
+          ) : storageReady ? (
+            <CreateForm close={close} onCreated={onCreated} />
+          ) : (
+            <NeedsDrive close={close} />
+          )
+        }
+      </DialogFrame>
     </DialogTrigger>
   );
 }

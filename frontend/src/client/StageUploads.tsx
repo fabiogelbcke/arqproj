@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, api, call, type Schemas } from "../api/client";
 import { errorMessage } from "../ui/ErrorNotice";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
+import { MoreIcon } from "../ui/MoreIcon";
 import { toast, toastError } from "../ui/Toast";
 import { useDismiss } from "../ui/useDismiss";
 import { fileSource, type Page } from "./format";
@@ -327,11 +328,7 @@ export function FileMenu({
         aria-label={t("edit.fileActions", { name: file.name })}
         onClick={() => setOpen(open ? false : "menu")}
       >
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="5" cy="12" r="1.8" />
-          <circle cx="12" cy="12" r="1.8" />
-          <circle cx="19" cy="12" r="1.8" />
-        </svg>
+        <MoreIcon />
       </button>
       {open === "menu" && (
         <div className="menu__list" role="menu">
