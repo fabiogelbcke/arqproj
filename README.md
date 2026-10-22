@@ -365,6 +365,11 @@ and logging in `arq-proj`. Re-run it after editing those files: it updates the
 alerts in place. They cost nothing at this size (Cloud Monitoring's free
 allowances; alert policies themselves aren't charged today).
 
+The "passes stopped" alert only fires once it has counted a pass after being
+created or changed, so it can't report an outage already under way: `make
+alerts` checks the logs for a pass in the last 20 minutes and warns if there is
+none.
+
 ## Run all automated tests locally
 
 No Google account, `.env`, or manually started website is required. Install the

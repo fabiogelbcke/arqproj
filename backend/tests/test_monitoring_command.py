@@ -4,6 +4,7 @@ what they watch is what the app really logs."""
 import json
 import re
 import shutil
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -21,10 +22,16 @@ class FakeGoogle:
         self.channels: list[dict] = []
         self.policies: list[dict] = []
         self.refuse: str | None = None  # a URL part to answer 403 for
+        self.logged_at: list[str] = ["2026-10-22T05:31:06Z"]  # the passes' log lines
+        self.log_filters: list[str] = []
 
     def __call__(self, method, url, query, body):
         if self.refuse and self.refuse in url:
             return 403, {"error": {"message": "Permission denied"}}
+        if url.endswith("/entries:list"):
+            self.log_filters.append(body["filter"])
+            since = re.search(r'timestamp>="([^"]+)"', body["filter"])[1]
+            return 200, {"entries": [{"timestamp": t} for t in self.logged_at if t >= since]}
         if "/metrics" in url:
             name = url.rsplit("/", 1)[1]
             if method == "GET":
@@ -59,9 +66,12 @@ class FakeGoogle:
         raise AssertionError(f"unexpected {method} {url}")
 
 
+NOW = datetime(2026, 10, 22, 5, 40, tzinfo=UTC)
+
+
 def test_sets_up_the_metric_the_channel_and_the_alerts_sending_to_it():
     google = FakeGoogle()
-    changes = monitoring.apply(google, "p", "ana@alinea.example")
+    changes = monitoring.apply(google, "p", "ana@alinea.example", now=NOW)
     assert set(google.metrics) == {"portal_maintenance_passes"}
     assert [c["labels"]["email_address"] for c in google.channels] == ["ana@alinea.example"]
     assert {p["displayName"] for p in google.policies} == {
@@ -71,20 +81,33 @@ def test_sets_up_the_metric_the_channel_and_the_alerts_sending_to_it():
     assert all(p["notificationChannels"] == [google.channels[0]["name"]] for p in google.policies)
     # The metric comes before the alert that watches it.
     assert changes[0].startswith("created metric")
+    assert monitoring.STOPPED_NOW not in changes  # a pass 9 minutes ago
+
+
+def test_says_when_passes_have_already_stopped():
+    """The "stopped" alert can't report an outage under way when it is installed
+    (it needs a pass counted after it exists): the command says so instead."""
+    google = FakeGoogle()
+    google.logged_at = ["2026-10-22T05:10:00Z"]  # 30 minutes ago
+    changes = monitoring.apply(google, "p", "ana@alinea.example", now=NOW)
+    assert changes[-1] == monitoring.STOPPED_NOW
+    # It asked the logs for the passes' own lines, since 20 minutes ago.
+    passes = json.loads((monitoring.FILES / "maintenance-passes.metric.json").read_text())
+    assert google.log_filters == [f'{passes["filter"]} AND timestamp>="2026-10-22T05:20:00Z"']
 
 
 def test_running_again_updates_in_place_and_adds_nothing(tmp_path):
     files = tmp_path / "monitoring"
     shutil.copytree(monitoring.FILES, files)
     google = FakeGoogle()
-    monitoring.apply(google, "p", "ana@alinea.example", files)
+    monitoring.apply(google, "p", "ana@alinea.example", files, now=NOW)
     first = [p["name"] for p in google.policies]
 
     errors = files / "errors.policy.json"
     edited = json.loads(errors.read_text())
     edited["alertStrategy"]["notificationRateLimit"]["period"] = "7200s"
     errors.write_text(json.dumps(edited))
-    changes = monitoring.apply(google, "p", "ana@alinea.example", files)
+    changes = monitoring.apply(google, "p", "ana@alinea.example", files, now=NOW)
 
     assert [p["name"] for p in google.policies] == first
     assert len(google.channels) == 1
@@ -95,8 +118,8 @@ def test_running_again_updates_in_place_and_adds_nothing(tmp_path):
 
 def test_another_address_gets_its_own_channel():
     google = FakeGoogle()
-    monitoring.apply(google, "p", "ana@alinea.example")
-    monitoring.apply(google, "p", "caio@alinea.example")
+    monitoring.apply(google, "p", "ana@alinea.example", now=NOW)
+    monitoring.apply(google, "p", "caio@alinea.example", now=NOW)
     assert len(google.channels) == 2
     assert all(p["notificationChannels"] == [google.channels[1]["name"]] for p in google.policies)
 
@@ -107,7 +130,7 @@ def test_a_refusal_stops_with_what_failed():
     with pytest.raises(
         SystemExit, match="listing alert policies failed \\(403\\): Permission denied"
     ):
-        monitoring.apply(google, "p", "ana@alinea.example")
+        monitoring.apply(google, "p", "ana@alinea.example", now=NOW)
 
 
 def test_every_alert_watches_the_live_service():

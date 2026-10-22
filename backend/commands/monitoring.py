@@ -16,12 +16,21 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 MONITORING = "https://monitoring.googleapis.com/v3"
 LOGGING = "https://logging.googleapis.com/v2"
 FILES = Path(__file__).resolve().parents[2] / "deploy" / "production" / "monitoring"
 PROJECT = "arq-proj"
+# Passes run every 10 minutes: none in 20 means they have stopped.
+LATELY = timedelta(minutes=20)
+STOPPED_NOW = (
+    "WARNING: no maintenance pass has run to the end in the last 20 minutes. The "
+    "“passes stopped” alert only fires after it has counted a pass, so it can't tell "
+    "you about this one: check Cloud Scheduler job portal-production-maintenance and "
+    "the portal logs for /internal/maintenance."
+)
 
 # method, url, query, body -> (status, body)
 Call = Callable[[str, str, dict | None, dict | None], tuple[int, dict]]
@@ -72,8 +81,25 @@ def _policy(call: Call, project: str, policy: dict, channel: str) -> str:
     return f"created alert “{name}”"
 
 
-def apply(call: Call, project: str, email: str, files: Path = FILES) -> list[str]:
-    """Metrics first: a policy may watch one."""
+def _passes_lately(call: Call, project: str, metric: dict, now: datetime) -> bool:
+    """Whether the logs show a pass that ran to the end lately: read from the logs,
+    not the metric, which counts nothing before it exists."""
+    since = (now - LATELY).isoformat().replace("+00:00", "Z")
+    body = {
+        "resourceNames": [f"projects/{project}"],
+        "filter": f'{metric["filter"]} AND timestamp>="{since}"',
+        "pageSize": 1,
+    }
+    found = _ok(call("POST", f"{LOGGING}/entries:list", None, body), "reading the logs")
+    return bool(found.get("entries"))
+
+
+def apply(
+    call: Call, project: str, email: str, files: Path = FILES, now: datetime | None = None
+) -> list[str]:
+    """Metrics first: a policy may watch one. Then a check that passes are running
+    now: Cloud Monitoring's "absent" alert only fires once it has seen data after
+    being created or changed, so an outage already under way would go unreported."""
     changes = [
         _metric(call, project, json.loads(f.read_text()))
         for f in sorted(files.glob("*.metric.json"))
@@ -84,6 +110,9 @@ def apply(call: Call, project: str, email: str, files: Path = FILES) -> list[str
         _policy(call, project, json.loads(f.read_text()), channel)
         for f in sorted(files.glob("*.policy.json"))
     ]
+    passes = json.loads((files / "maintenance-passes.metric.json").read_text())
+    if not _passes_lately(call, project, passes, now or datetime.now(UTC)):
+        changes.append(STOPPED_NOW)
     return changes
 
 
