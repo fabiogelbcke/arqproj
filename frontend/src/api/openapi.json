@@ -2465,7 +2465,7 @@
       },
       "delete": {
         "summary": "Remove Stage",
-        "description": "The stage leaves the page; its folder and files stay in Drive. The stages\nafter it move up, and their folders are renumbered. Removing the last open\nstage of an active project completes it, as completing that stage would.",
+        "description": "The stage leaves the page; its folder and files stay in Drive. The stages\nafter it move up, and their folders are renumbered.",
         "operationId": "remove_stage_api_projects__project_id__stages__position__delete",
         "parameters": [
           {
@@ -2763,6 +2763,80 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CompletionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/completion": {
+      "put": {
+        "summary": "Complete Project",
+        "description": "\"Concluir projeto\": an active project whose stages are all completed. Staff\nare asked when they complete the last stage, and can do it later; the client\nsees it at once and is told by email (A32).",
+        "operationId": "complete_project_api_projects__project_id__completion_put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCompletionIn"
               }
             }
           }
@@ -4748,6 +4822,19 @@
           "row_version"
         ],
         "title": "ProjectChange"
+      },
+      "ProjectCompletionIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version"
+        ],
+        "title": "ProjectCompletionIn"
       },
       "ProjectIn": {
         "properties": {

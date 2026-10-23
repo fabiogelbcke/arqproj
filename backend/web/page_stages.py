@@ -6,6 +6,7 @@
     PUT    /api/projects/{id}/stages/order            every stage in a new order at once
     DELETE /api/projects/{id}/stages/{n}?row_version= remove it (its folder stays)
     PUT    /api/projects/{id}/stages/{n}/completion   mark it as completed, or reopen it
+    PUT    /api/projects/{id}/completion              complete the project, once every stage is
     POST   /api/projects/{id}/progress                the previous release's (A30), for one release
 
 Stage folders follow the stages in the office's Drive (Fabio, 16 Oct 2026):
@@ -14,8 +15,10 @@ removing a stage keeps its folder and files. Drive goes first; if it fails, the
 names already changed are put back and nothing is saved (`drive_connect_failed`).
 Every change carries the page's `row_version` (plan section 7). Completing or
 reopening a stage moves "Atualizado"; stage edits don't (the A28 interim rule).
-Stages complete on their own, in any order (0032, for review): a project is
-completed when all its stages are, and active again when one is reopened.
+Stages complete on their own, in any order (0032, for review). Staff complete the
+project themselves once every stage is (asked when the last one is completed:
+Fabio, 23 Oct 2026); reopening or adding a stage makes a completed project
+active again.
 """
 
 from __future__ import annotations
@@ -376,25 +379,13 @@ async def remove_stage(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """The stage leaves the page; its folder and files stay in Drive. The stages
-    after it move up, and their folders are renumbered. Removing the last open
-    stage of an active project completes it, as completing that stage would."""
+    after it move up, and their folders are renumbered."""
     stages = await _stages(db, project_id)
     removed = next((s for s in stages if s.position == position), None)
     if removed is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
-    current = await _project(db, project_id)
-    maker = await _maker(request, db, current)
-    rest = [s for s in stages if s.id != removed.id]
-    finishes = (
-        current.status is ProjectStatus.ACTIVE
-        and removed.completed_at is None
-        and bool(rest)
-        and all(s.completed_at is not None for s in rest)
-    )
-    values = {"status": ProjectStatus.COMPLETED, "last_activity_at": datetime.now(UTC)}
-    project = await _change(db, project_id, row_version, values if finishes else None)
-    if finishes:
-        record(db, project, EventKind.PROJECT_COMPLETED)
+    maker = await _maker(request, db, await _project(db, project_id))
+    await _change(db, project_id, row_version)
     later = [s for s in stages if s.position > position]
     titles = {s.id: await _title(db, s, tenant.locale) for s in later}
     renames = Renames(maker)
@@ -458,8 +449,9 @@ async def _complete(
     completed: bool,
     row_version: int,
 ) -> None:
-    """Mark `stage` as completed or reopen it, keeping the project's status in step
-    (completed exactly when all its stages are), and commit."""
+    """Mark `stage` as completed or reopen it, and commit. Reopening a stage makes a
+    completed project active again; completing the last one leaves the project to
+    staff ("Concluir projeto")."""
     project = await db.scalar(
         select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
     )
@@ -468,12 +460,8 @@ async def _complete(
     if (stage.completed_at is not None) == completed:
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # already so
     now = datetime.now(UTC)
-    others_done = all(s.completed_at is not None for s in stages if s.id != stage.id)
     values: dict = {"last_activity_at": now}
-    finishes = completed and others_done and project.status is ProjectStatus.ACTIVE
-    if finishes:
-        values["status"] = ProjectStatus.COMPLETED
-    elif not completed and project.status is ProjectStatus.COMPLETED:
+    if not completed and project.status is ProjectStatus.COMPLETED:
         values["status"] = ProjectStatus.ACTIVE
     await _change(db, project_id, row_version, values)
     await db.execute(
@@ -490,8 +478,41 @@ async def _complete(
             stage_id=stage.id,
             title=await _title(db, stage, tenant.locale),
         )
-    if finishes:
-        record(db, project, EventKind.PROJECT_COMPLETED)
+    await db.commit()
+
+
+class ProjectCompletionIn(BaseModel):
+    row_version: int
+
+
+@router.put(
+    "/projects/{project_id}/completion",
+    status_code=204,
+    responses=documented(401, 404, 409, 422),
+)
+async def complete_project(
+    project_id: uuid.UUID,
+    body: ProjectCompletionIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """ "Concluir projeto": an active project whose stages are all completed. Staff
+    are asked when they complete the last stage, and can do it later; the client
+    sees it at once and is told by email (A32)."""
+    await _finish(db, project_id, body.row_version)
+    return Response(status_code=204)
+
+
+async def _finish(db: AsyncSession, project_id: uuid.UUID, row_version: int) -> None:
+    project = await _project(db, project_id)
+    stages = await _stages(db, project_id)
+    if project.status is ProjectStatus.ARCHIVED:
+        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)  # as every change (section 22)
+    if project.status is not ProjectStatus.ACTIVE or any(s.completed_at is None for s in stages):
+        raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
+    values = {"status": ProjectStatus.COMPLETED, "last_activity_at": datetime.now(UTC)}
+    await _change(db, project_id, row_version, values)
+    record(db, project, EventKind.PROJECT_COMPLETED)
     await db.commit()
 
 
@@ -524,4 +545,6 @@ async def progress(
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
     stage = candidates[0] if finishing else candidates[-1]
     await _complete(db, tenant, project_id, stages, stage, finishing, body.row_version)
+    if body.action == "complete" and len(candidates) == 1:  # it completed the project
+        await _finish(db, project_id, body.row_version + 1)
     return Response(status_code=204)

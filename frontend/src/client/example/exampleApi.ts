@@ -219,13 +219,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       (match) => {
         const position = Number(match[1]);
         if (!stage(match)) return refused("project_not_found", 404);
-        const [removed] = project.stages.splice(position - 1, 1);
-        // As the server: removing the last open stage completes an active project.
-        const rest = project.stages;
-        if (project.status === "active" && !removed!.completed && rest.length && rest.every((s) => s.completed)) {
-          project.status = "completed";
-          return changed({ kind: "project_completed", stage_position: null });
-        }
+        project.stages.splice(position - 1, 1);
         return changed();
       },
     ],
@@ -248,7 +242,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       "PUT",
       new RegExp(`^${PROJECT}/stages/(\\d+)/completion$`),
       (match, body) => {
-        // As the server: any stage, any order; the last one open completes the project.
+        // As the server: any stage, any order; the project is staff's to complete.
         const position = Number(match[1]);
         const target = stage(match);
         if (!target) return refused("project_not_found", 404);
@@ -259,12 +253,16 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
           project.status = "active";
           return changed();
         }
-        const update = changed({ kind: "stage_completed", stage_position: position });
-        if (project.status === "active" && project.stages.every((s) => s.completed)) {
-          project.status = "completed";
-          return changed({ kind: "project_completed", stage_position: null });
-        }
-        return update;
+        return changed({ kind: "stage_completed", stage_position: position });
+      },
+    ],
+    [
+      "PUT",
+      new RegExp(`^${PROJECT}/completion$`),
+      () => {
+        if (project.status !== "active" || project.stages.some((s) => !s.completed)) return refused("invalid_status_change");
+        project.status = "completed";
+        return changed({ kind: "project_completed", stage_position: null });
       },
     ],
     [

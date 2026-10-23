@@ -212,7 +212,8 @@ async def test_completing_a_stage_or_the_project_is_recorded_reopening_is_not(
             "AND position <> 7"
         )
     )
-    completed = await call(client, owner, "PUT", "/stages/7/completion", completed=True)
+    await call(client, owner, "PUT", "/stages/7/completion", completed=True)
+    completed = await call(client, owner, "PUT", "/completion")  # "Concluir projeto"
     assert completed.status_code == 204, completed.text
     # (One test transaction: every event has the same time, so not in order here.)
     assert sorted(await events(db_session)) == [

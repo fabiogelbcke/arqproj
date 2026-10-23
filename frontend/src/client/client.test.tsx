@@ -225,6 +225,8 @@ describe("the client page", () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
     expect(await screen.findByRole("progressbar", { name: "1 de 3 etapas concluídas" })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Etapas" })).toBeNull();
+    // A closed completed stage says so with a check beside its name.
+    expect(within(document.getElementById("stage-0")!).getByRole("img", { name: "Etapa concluída" })).toBeInTheDocument();
   });
 
   it("opens a stage from the timeline", async () => {
@@ -1041,24 +1043,46 @@ describe("edit mode", () => {
   it.each([
     ["active", true],
     ["draft", false],
-  ])("says the last open stage completes the project only for an active one (%s)", async (status, completes) => {
+  ])("after the last open stage, asks whether to complete an active project (%s)", async (status, asked) => {
+    let done = false; // Levantamento, once completed
     window.history.pushState({}, "", "/casa-jardim");
-    fakeApi({
+    const sent = fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
         body: {
           ...PAGE,
-          stages: PAGE.stages.map((stage, i) => ({ ...stage, completed: i !== 1 })), // only Levantamento open
-          staff: { project_id: "p-1", status, row_version: 4 },
+          stages: PAGE.stages.map((stage, i) => ({ ...stage, completed: i !== 1 || done })), // only Levantamento open
+          staff: { project_id: "p-1", status, row_version: done ? 5 : 4 },
         },
       }),
+      "PUT /api/projects/p-1/stages/2/completion": () => {
+        done = true;
+        return { status: 204 };
+      },
+      "PUT /api/projects/p-1/completion": () => ({ status: 204 }),
     });
     render(<ClientApp />);
     await startEditing();
     await userEvent.click(within(document.getElementById("stage-1")!).getByRole("button", { name: "Marcar como concluída" }));
-    const ask = screen.getByRole("alertdialog", { name: "Concluir “Levantamento”?" });
-    expect(ask.textContent!.includes("o projeto também será marcado como concluído")).toBe(completes);
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Concluir etapa" }));
+    await screen.findByText("Etapa “Levantamento” concluída.");
+    if (!asked) {
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+      expect(screen.queryByRole("button", { name: "Concluir projeto" })).toBeNull();
+      return;
+    }
+    // A second question: the project is completed (and emailed) only if staff say so.
+    const ask = await screen.findByRole("alertdialog", { name: "Concluir o projeto?" });
+    await userEvent.click(within(ask).getByRole("button", { name: "Agora não" }));
+    expect(sent.filter((r) => r.path === "/api/projects/p-1/completion")).toEqual([]);
+    // Later, from "Concluir projeto" beside "Adicionar etapa", asked again.
+    await userEvent.click(await screen.findByRole("button", { name: "Concluir projeto" }));
+    const again = screen.getByRole("alertdialog", { name: "Concluir o projeto?" });
+    await userEvent.click(within(again).getByRole("button", { name: "Concluir projeto" }));
+    await waitFor(() =>
+      expect(sent.filter((r) => r.path === "/api/projects/p-1/completion").map((r) => r.body)).toEqual([{ row_version: 5 }]),
+    );
   });
 
   it("changes the project type with the details, only when it changed", async () => {

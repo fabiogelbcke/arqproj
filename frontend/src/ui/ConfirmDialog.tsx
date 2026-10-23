@@ -11,6 +11,7 @@ export function ConfirmDialog({
   text,
   note,
   confirm,
+  cancel,
   danger = false,
   busy = false,
   onConfirm,
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   text: string;
   note?: string; // a short heads-up under the text, e.g. who will be emailed
   confirm: string;
+  cancel?: string; // the way out's own word, e.g. "Agora não"; "Cancelar" by default
   danger?: boolean;
   busy?: boolean;
   onConfirm: () => void;
@@ -36,7 +38,7 @@ export function ConfirmDialog({
           <p className={styles.confirmText}>{text}</p>
           {note && <p className={styles.confirmNote}>{note}</p>}
           <div className={styles.confirmActions}>
-            <Button onPress={onCancel}>{t("confirm.cancel")}</Button>
+            <Button onPress={onCancel}>{cancel ?? t("confirm.cancel")}</Button>
             <Button
               variant="primary"
               className={danger ? styles.dangerAction : undefined}

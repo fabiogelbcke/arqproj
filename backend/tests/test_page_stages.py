@@ -260,43 +260,58 @@ async def test_stages_are_completed_and_reopened_in_any_order(client, owner, fol
     assert completed(await page(client)) == [False, True, False, False, True, False, False]
 
 
-async def test_the_last_open_stage_completes_the_project_and_reopening_one_reactivates_it(
-    client, owner, folders
-):
-    for position in (3, 4, 5, 6):
+async def kinds(db_session):
+    return (await db_session.execute(text("SELECT kind FROM project_events"))).scalars().all()
+
+
+async def test_staff_complete_the_project_once_every_stage_is(client, db_session, owner, folders):
+    """Completing the last stage leaves the project to staff: they are asked, and
+    only "Concluir projeto" completes it and tells the client (Fabio, 23 Oct 2026)."""
+    early = await call(client, owner, "PUT", "/completion")
+    assert (early.status_code, early.json()["error"]) == (
+        422,
+        "invalid_status_change",
+    )  # open stages
+    for position in range(3, 8):
         await call(client, owner, "PUT", f"/stages/{position}/completion", completed=True)
-    assert (await page(client))["completed"] is False  # 07 still open
-    await call(client, owner, "PUT", "/stages/7/completion", completed=True)
+    assert (await page(client))["completed"] is False  # every stage, not yet the project
+    assert "project_completed" not in await kinds(db_session)
+    response = await call(client, owner, "PUT", "/completion")
+    assert response.status_code == 204, response.text
     assert (await page(client))["completed"] is True
+    assert "project_completed" in await kinds(db_session)
+    again = await call(client, owner, "PUT", "/completion")
+    assert (again.status_code, again.json()["error"]) == (422, "invalid_status_change")
+    # Reopening a stage makes the project active again.
     await call(client, owner, "PUT", "/stages/2/completion", completed=False)
     shown = await page(client)
     assert (shown["completed"], completed(shown)[1]) == (False, False)
 
 
-async def test_adding_a_stage_to_a_completed_project_makes_it_active_again(client, owner, folders):
+async def complete_all(client, owner):
     for position in range(3, 8):
         await call(client, owner, "PUT", f"/stages/{position}/completion", completed=True)
+    await call(client, owner, "PUT", "/completion")
     assert (await page(client))["completed"] is True
+
+
+async def test_adding_a_stage_to_a_completed_project_makes_it_active_again(client, owner, folders):
+    await complete_all(client, owner)
     response = await call(client, owner, "POST", "/stages", title="Visita técnica")
     assert response.status_code == 204, response.text
     shown = await page(client)
     assert (shown["completed"], completed(shown)[-1]) == (False, False)
 
 
-async def test_removing_the_last_open_stage_completes_the_project(
+async def test_removing_the_last_open_stage_leaves_the_project_to_staff(
     client, db_session, owner, folders
 ):
     for position in range(3, 7):  # all but 07
         await call(client, owner, "PUT", f"/stages/{position}/completion", completed=True)
     assert (await call(client, owner, "DELETE", "/stages/7")).status_code == 204
-    assert (await page(client))["completed"] is True
-    kinds = (await db_session.execute(text("SELECT kind FROM project_events"))).scalars().all()
-    assert "project_completed" in kinds  # the client hears of it, as from the last stage
-
-
-async def test_removing_a_completed_stage_leaves_the_project_as_it_is(client, owner, folders):
-    assert (await call(client, owner, "DELETE", "/stages/1")).status_code == 204
-    assert (await page(client))["completed"] is False  # stages still open
+    assert (await page(client))["completed"] is False  # "Concluir projeto" is theirs to press
+    assert "project_completed" not in await kinds(db_session)
+    assert (await call(client, owner, "PUT", "/completion")).status_code == 204
 
 
 async def test_the_previous_releases_progress_still_works_for_one_release(client, owner, folders):
@@ -308,12 +323,13 @@ async def test_the_previous_releases_progress_still_works_for_one_release(client
     assert (completed(shown)[:4], shown["current_position"]) == ([True, True, True, False], 4)
     await call(client, owner, "POST", "/progress", action="back")  # the last completed
     assert completed(await page(client))[:4] == [True, True, False, False]
-    for _ in range(5):  # 03 to 07: the last one completes the project
+    for _ in range(4):  # 03 to 06
         await call(client, owner, "POST", "/progress", action="advance")
+    # "complete" on the last stage: it and the project, as the previous release did.
+    response = await call(client, owner, "POST", "/progress", action="complete")
+    assert response.status_code == 204, response.text
     shown = await page(client)
     assert (shown["completed"], shown["current_position"]) == (True, 7)
-    response = await call(client, owner, "POST", "/progress", action="complete")
-    assert (response.status_code, response.json()["error"]) == (422, "invalid_status_change")
     await call(client, owner, "POST", "/progress", action="reopen")
     shown = await page(client)
     assert (shown["completed"], completed(shown)[-1]) == (False, False)
@@ -380,6 +396,7 @@ async def test_if_saving_a_new_stage_fails_its_new_folder_goes_too(
         ("POST", "/stages/1/move", {"direction": 1}),
         ("DELETE", "/stages/1", {}),
         ("PUT", "/stages/3/completion", {"completed": True}),
+        ("PUT", "/completion", {}),
     ],
 )
 async def test_an_archived_projects_stages_cant_change(

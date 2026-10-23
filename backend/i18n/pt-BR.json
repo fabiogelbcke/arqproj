@@ -397,6 +397,7 @@
     "again": "Ver o tour da página"
   },
   "page": {
+    "stageDoneMark": "Etapa concluída",
     "stagesDone": "{{done}} de {{total}} etapas concluídas",
     "noFilesTitle": "Ainda não há arquivos nesta etapa",
     "noFilesBody": "Assim que o escritório enviar, eles aparecem aqui.",
@@ -446,9 +447,12 @@
     "downloadFile": "Baixar {{name}}"
   },
   "edit": {
+    "completeProjectAsk": "Concluir o projeto?",
+    "completeProjectMeans": "Todas as etapas foram concluídas. O projeto passará a constar como concluído para o cliente. Você poderá reabri-lo depois, reabrindo uma etapa.",
+    "completeProject": "Concluir projeto",
+    "notNow": "Agora não",
     "completeStage": "Marcar como concluída",
     "completeStageMeans": "A etapa será marcada como concluída para o cliente. Você poderá reabri-la depois.",
-    "completeLastStageMeans": "Esta é a última etapa em aberto, portanto o projeto também será marcado como concluído. Você poderá reabrir a etapa depois.",
     "reopenStageMeans": "A etapa voltará a constar como em aberto para o cliente.",
     "reopenStageOfCompletedMeans": "A etapa voltará a constar como em aberto, e o projeto deixará de constar como concluído.",
     "stageCompleted": "Etapa “{{title}}” concluída.",

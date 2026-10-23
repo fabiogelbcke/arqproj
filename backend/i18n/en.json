@@ -397,6 +397,7 @@
     "again": "Page tour"
   },
   "page": {
+    "stageDoneMark": "Stage done",
     "stagesDone": "{{done}} of {{total}} stages done",
     "noFilesTitle": "No files in this stage yet",
     "noFilesBody": "They'll show up here as soon as the office sends them.",
@@ -446,9 +447,12 @@
     "downloadFile": "Download {{name}}"
   },
   "edit": {
+    "completeProjectAsk": "Complete the project?",
+    "completeProjectMeans": "All stages are done. The project will appear as completed to the client. You will be able to reopen it later by reopening a stage.",
+    "completeProject": "Complete project",
+    "notNow": "Not now",
     "completeStage": "Mark as done",
     "completeStageMeans": "The stage will be marked as done for the client. You will be able to reopen it later.",
-    "completeLastStageMeans": "This is the last open stage, so the project will also be marked as completed. You will be able to reopen the stage later.",
     "reopenStageMeans": "The stage will appear as open to the client again.",
     "reopenStageOfCompletedMeans": "The stage will appear as open again, and the project will no longer appear as completed.",
     "stageCompleted": "Stage “{{title}}” done.",

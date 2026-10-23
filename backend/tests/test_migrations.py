@@ -446,7 +446,7 @@ def test_drafts_are_published_in_every_office(migrated_url):
 
 def test_stage_completion_is_filled_in_every_office(migrated_url):
     """0032 marks as completed the stages before each project's current one, and
-    every stage of a completed project, in every office, even as an owner that
+    every stage of a completed project (archived since, too), in every office, even as an owner that
     tenant isolation binds (Cloud SQL's migration login)."""
     from backend.commands import local_db
 
@@ -459,14 +459,18 @@ def test_stage_completion_is_filled_in_every_office(migrated_url):
             tenant = connection.scalar(
                 text("INSERT INTO tenants (slug, name) VALUES (:s, 'X') RETURNING id"), {"s": slug}
             )
-            for name, status, current in (("Ativo", "active", 3), ("Concluido", "completed", 2)):
+            for name, status, archived_from, current in (
+                ("Ativo", "active", None, 3),
+                ("Arquivado", "archived", "completed", 2),
+                ("Concluido", "completed", None, 2),
+            ):
                 project = connection.scalar(
                     text(
                         "INSERT INTO projects (tenant_id, name, client_name, project_type, "
-                        "status, current_position) "
-                        "VALUES (:t, :n, 'C', 'architecture', :s, :c) RETURNING id"
+                        "status, archived_from, current_position) "
+                        "VALUES (:t, :n, 'C', 'architecture', :s, :a, :c) RETURNING id"
                     ),
-                    {"t": tenant, "n": name, "s": status, "c": current},
+                    {"t": tenant, "n": name, "s": status, "a": archived_from, "c": current},
                 )
                 for position in (1, 2, 3, 4):
                     connection.execute(
@@ -505,8 +509,16 @@ def test_stage_completion_is_filled_in_every_office(migrated_url):
                     "GROUP BY p.id, p.name ORDER BY p.name"
                 )
             ).all()
-            # Ativo: stages 1 and 2 (before its current 3); Concluido: all four.
-            assert rows == [("Ativo", 2), ("Ativo", 2), ("Concluido", 4), ("Concluido", 4)]
+            # Ativo: stages 1 and 2 (before its current 3); Concluido, and Arquivado
+            # (archived when completed, restored completed): all four.
+            assert rows == [
+                ("Arquivado", 4),
+                ("Arquivado", 4),
+                ("Ativo", 2),
+                ("Ativo", 2),
+                ("Concluido", 4),
+                ("Concluido", 4),
+            ]
             forced = connection.execute(
                 text(
                     "SELECT relname, relforcerowsecurity FROM pg_class "

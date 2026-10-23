@@ -342,9 +342,10 @@ export function ReorderStages({
 }
 
 /** Each stage's own "Marcar como concluída", or "Reabrir etapa" once it is
- *  (Fabio, 23 Oct 2026: stages complete in any order). Both ask first. The last
- *  open stage completed completes the project; reopening a stage of a completed
- *  project makes it active again. */
+ *  (Fabio, 23 Oct 2026: stages complete in any order). Both ask first. Completing
+ *  the last open stage of an active project then asks whether to complete the
+ *  project too, so nothing is shown or emailed as finished by surprise; reopening
+ *  a stage of a completed project makes it active again. */
 export function StageProgress({
   page,
   staff,
@@ -361,17 +362,18 @@ export function StageProgress({
   const { t } = useTranslation();
   const change = useChange(onChanged, locked);
   const [confirming, setConfirming] = useState(false);
+  // After the last open stage: "Concluir o projeto?", once the page shows it completed.
+  const [askProject, setAskProject] = useState(false);
   const stage = page.stages[index]!;
   const completing = !stage.completed;
-  // Only an active project is completed by its last stage.
   const last = completing && staff.status === "active" && page.stages.every((s, i) => i === index || s.completed);
   const title = stage.title;
   const ask = completing
     ? {
         title: t("edit.completeStageAsk", { title }),
-        text: t(last ? "edit.completeLastStageMeans" : "edit.completeStageMeans"),
+        text: t("edit.completeStageMeans"),
         confirm: t("edit.completeStageConfirm"),
-        done: last ? t("edit.completed") : t("edit.stageCompleted", { title }),
+        done: t("edit.stageCompleted", { title }),
       }
     : {
         title: t("edit.reopenStageAsk", { title }),
@@ -409,9 +411,56 @@ export function StageProgress({
           }
           busy={change.busy}
           onCancel={() => setConfirming(false)}
-          onConfirm={() => void change.run(send, ask.done).then(() => setConfirming(false))}
+          onConfirm={() =>
+            void change.run(send, ask.done).then((saved) => {
+              setConfirming(false);
+              if (saved && last) setAskProject(true);
+            })
+          }
         />
       )}
+      {askProject && stage.completed && (
+        <CompleteProjectDialog staff={staff} onChanged={onChanged} onClose={() => setAskProject(false)} />
+      )}
+    </>
+  );
+}
+
+/** "Concluir o projeto?": asked when the last open stage is completed, and from
+ *  "Concluir projeto" later. Only this completes a project: the client then sees
+ *  it as completed and gets the email (A32). */
+function CompleteProjectDialog({ staff, onChanged, onClose }: { staff: Staff; onChanged: () => void; onClose: () => void }) {
+  const { t } = useTranslation();
+  const change = useChange(onChanged, false);
+  const send = () =>
+    call(api.PUT("/api/projects/{project_id}/completion", { params: { path: path(staff) }, body: { row_version: staff.row_version } }));
+  return (
+    <ConfirmDialog
+      title={t("edit.completeProjectAsk")}
+      text={t("edit.completeProjectMeans")}
+      note={staff.recipients?.some((recipient) => recipient.subscribed) ? t("edit.clientsNotified") : undefined}
+      confirm={t("edit.completeProject")}
+      cancel={t("edit.notNow")}
+      busy={change.busy}
+      onCancel={onClose}
+      onConfirm={() => void change.run(send, t("edit.completed")).then(onClose)}
+    />
+  );
+}
+
+/** "Concluir projeto", beside "Adicionar etapa": for an active project whose
+ *  stages are all completed, when staff answered "Agora não" (or removed the last
+ *  open stage). */
+export function CompleteProject({ page, staff, onChanged }: { page: Page; staff: Staff; onChanged: () => void }) {
+  const { t } = useTranslation();
+  const [asking, setAsking] = useState(false);
+  if (staff.status !== "active" || !page.stages.length || page.stages.some((stage) => !stage.completed)) return null;
+  return (
+    <>
+      <button className="b b--small b--primary" type="button" onClick={() => setAsking(true)}>
+        {t("edit.completeProject")}
+      </button>
+      {asking && <CompleteProjectDialog staff={staff} onChanged={onChanged} onClose={() => setAsking(false)} />}
     </>
   );
 }

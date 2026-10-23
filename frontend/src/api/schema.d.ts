@@ -664,8 +664,7 @@ export interface paths {
         /**
          * Remove Stage
          * @description The stage leaves the page; its folder and files stay in Drive. The stages
-         *     after it move up, and their folders are renumbered. Removing the last open
-         *     stage of an active project completes it, as completing that stage would.
+         *     after it move up, and their folders are renumbered.
          */
         delete: operations["remove_stage_api_projects__project_id__stages__position__delete"];
         options?: never;
@@ -734,6 +733,28 @@ export interface paths {
          *     active one), and reopening one makes a completed project active again.
          */
         put: operations["set_completion_api_projects__project_id__stages__position__completion_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Complete Project
+         * @description "Concluir projeto": an active project whose stages are all completed. Staff
+         *     are asked when they complete the last stage, and can do it later; the client
+         *     sees it at once and is told by email (A32).
+         */
+        put: operations["complete_project_api_projects__project_id__completion_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1331,6 +1352,11 @@ export interface components {
             password?: string | null;
             /** Recipients */
             recipients?: string[] | null;
+        };
+        /** ProjectCompletionIn */
+        ProjectCompletionIn: {
+            /** Row Version */
+            row_version: number;
         };
         /** ProjectIn */
         ProjectIn: {
@@ -4047,6 +4073,66 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CompletionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    complete_project_api_projects__project_id__completion_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCompletionIn"];
             };
         };
         responses: {

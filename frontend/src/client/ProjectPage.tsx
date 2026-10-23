@@ -25,6 +25,7 @@ const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.M
 const RecipientsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.RecipientsEditor })));
 const AddStage = lazy(() => import("./StageEditing").then((m) => ({ default: m.AddStage })));
 const StageProgress = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageProgress })));
+const CompleteProject = lazy(() => import("./StageEditing").then((m) => ({ default: m.CompleteProject })));
 const ReorderStages = lazy(() => import("./StageEditing").then((m) => ({ default: m.ReorderStages })));
 const StageEditForm = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageEditForm })));
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
@@ -580,6 +581,14 @@ function Stage({
             <h2 id={`st-${index}`} tabIndex={-1} className={parts ? "sr" : undefined}>
               {stage.title}
             </h2>
+            {/* On a phone, a closed stage hides its "Concluída": a check says it instead. */}
+            {state === "done" && !parts && (
+              <span className="stage__done-mark" role="img" aria-label={t("page.stageDoneMark")}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                  <path d="M6 12.5l4 4 8-9" />
+                </svg>
+              </span>
+            )}
             {parts ? parts.name : helpControl}
           </div>
           <div className="client-stage-controls">
@@ -1140,6 +1149,7 @@ export function ProjectPage({
             <Suspense fallback={null}>
               <AddStage page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
               <ReorderStages page={page} staff={staff!} onChanged={stagesChanged} onReordered={reordered} locked={stagesLocked} />
+              <CompleteProject page={page} staff={staff!} onChanged={stagesChanged} />
             </Suspense>
           </div>
         )}

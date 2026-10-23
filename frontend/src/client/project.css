@@ -82,7 +82,15 @@
   display: grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid var(--line-strong); border-radius: 50%;
 }
 .client .stage-check svg { width: 12px; height: 12px; }
-.client .stage-steps__item.is-done .stage-check { border-color: var(--mark); background: var(--mark); color: var(--raise); }
+.client .stage-steps__item.is-done .stage-check,
+.client .stage__done-mark { border-color: var(--mark); background: var(--mark); color: var(--raise); }
+/* A completed stage's check beside its name: phones only, on a closed stage (its
+   "Concluída" line is hidden there to keep the list compact). */
+.client .stage__done-mark { display: none; place-items: center; flex: none; width: 16px; height: 16px; border-radius: 50%; }
+.client .stage__done-mark svg { width: 11px; height: 11px; }
+@media (max-width: 760px) {
+  .client .stage:not(.is-expanded) .stage__done-mark { display: inline-grid; }
+}
 .client .stage-steps__item .n { font-size: var(--text-2xs); color: var(--muted); font-variant-numeric: tabular-nums; }
 .client .stage-steps__item b { font-size: var(--text-2xs); font-weight: 500; letter-spacing: var(--caps-spacing); text-transform: uppercase; }
 .client .stage-steps__item.is-done b { color: var(--muted); }

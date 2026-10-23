@@ -194,6 +194,8 @@ async def test_progress_taken_back_within_the_quiet_period_is_not_news(
     if setup:
         await db_session.execute(text(setup))
     await call(client, owner, "PUT", f"/stages/{position}/completion", completed=True)
+    if setup:
+        await call(client, owner, "PUT", "/completion")  # "Concluir projeto"
     await call(client, owner, "PUT", f"/stages/{position}/completion", completed=False)
     await run(app, outbox)
     await make_due(db_session)
@@ -249,6 +251,21 @@ async def test_each_stage_still_completed_is_news_named_where_it_is_now(
     ]
 
 
+async def test_the_last_stage_completed_says_nothing_of_the_project_until_staff_complete_it(
+    app, client, db_session, owner, outbox, ready
+):
+    from backend.tests.test_maintenance_scan import call
+
+    await db_session.execute(text(ALL_BUT_THE_LAST))
+    await call(client, owner, "PUT", "/stages/7/completion", completed=True)  # "Agora não"
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    text_ = outbox.sent[0].text
+    assert "A etapa 07 Compatibilização foi concluída." in text_
+    assert "O projeto foi concluído." not in text_
+
+
 async def test_the_last_stage_completed_is_news_with_the_project(
     app, client, db_session, owner, outbox, ready
 ):
@@ -256,6 +273,7 @@ async def test_the_last_stage_completed_is_news_with_the_project(
 
     await db_session.execute(text(ALL_BUT_THE_LAST))
     await call(client, owner, "PUT", "/stages/7/completion", completed=True)
+    await call(client, owner, "PUT", "/completion")  # "Concluir projeto", when asked
     await run(app, outbox)
     await make_due(db_session)
     await run(app, outbox)

@@ -51,7 +51,7 @@ def upgrade() -> None:
     op.execute("ALTER TABLE project_stages NO FORCE ROW LEVEL SECURITY")
     op.execute(
         "UPDATE project_stages s SET completed_at = now() FROM projects p "
-        "WHERE p.id = s.project_id AND (p.status = 'completed' "
+        "WHERE p.id = s.project_id AND (p.status = 'completed' OR p.archived_from = 'completed' "
         "OR (p.current_position IS NOT NULL AND s.position < p.current_position))"
     )
     op.execute("ALTER TABLE project_stages FORCE ROW LEVEL SECURITY")
