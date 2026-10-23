@@ -348,7 +348,9 @@ describe("the files", () => {
     const first = screen.getByRole("region", { name: "Briefing" });
     expect(within(first).getByText(/Não foi possível carregar os arquivos/)).toBeInTheDocument();
     const third = screen.getByRole("region", { name: "Estudo Preliminar" });
-    expect(within(third).getByText("Nenhum arquivo nesta etapa.")).toBeInTheDocument();
+    // Still to come: what to expect, not just "nothing".
+    expect(within(third).getByText("Ainda não há arquivos nesta etapa")).toBeInTheDocument();
+    expect(within(third).getByText("Assim que o escritório enviar, eles aparecem aqui.")).toBeInTheDocument();
   });
 });
 
@@ -643,6 +645,16 @@ describe("edit mode", () => {
     expect(within(stage(2)).queryByRole("button", { name: /concluída|Reabrir/ })).toBeNull();
     // "Reordenar etapas" waits beside "Adicionar etapa".
     expect(screen.getByRole("button", { name: "Reordenar etapas" }).closest(".stage-list-actions")).not.toBeNull();
+  });
+
+  it("says a finished stage had no files, and gives edit mode's empty stages to the drop area", async () => {
+    const empty = { stages: PAGE.stages.map((stage) => ({ position: stage.position, groups: [] })), updates: [] };
+    asStaff({ "GET /api/pages/casa-jardim/files": () => ({ body: empty }) }); // stage 2 is current
+    const done = await screen.findByRole("region", { name: "Briefing" });
+    await userEvent.click(within(done).getByRole("button", { name: "Abrir etapa Briefing" }));
+    expect(await within(done).findByText("Esta etapa foi concluída sem arquivos.")).toBeInTheDocument();
+    await startEditing();
+    expect(document.querySelector(".stage-empty")).toBeNull();
   });
 
   it("reopens a finished project from its last stage, without asking", async () => {

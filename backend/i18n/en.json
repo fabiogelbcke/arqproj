@@ -401,6 +401,9 @@
     "again": "Page tour"
   },
   "page": {
+    "noFilesTitle": "No files in this stage yet",
+    "noFilesBody": "They'll show up here as soon as the office sends them.",
+    "noFilesDone": "This stage was finished without files.",
     "loading": "Loading…",
     "journeyTitle": "Stages and next steps",
     "timeline": "Project stages",
@@ -439,7 +442,6 @@
     "linkCopied": "Link copied.",
     "password": "Password",
     "enter": "Enter",
-    "noFiles": "No files in this stage.",
     "noFilesShort": "No files",
     "fileCount_one": "{{padded}} file",
     "fileCount_other": "{{padded}} files",

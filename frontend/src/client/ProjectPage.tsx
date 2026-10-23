@@ -147,6 +147,7 @@ function StageFilesList({
   fileMenu,
   view,
   onOpen,
+  empty,
 }: {
   files: StageFiles | undefined;
   reference: string | null;
@@ -155,6 +156,9 @@ function StageFilesList({
   fileMenu?: (file: FileItem) => ReactNode;
   view: FileView;
   onOpen: (file: FileItem, folder: string | null) => void; // folder: its subfolder's name
+  // No files yet: "done" (finished without any), "waiting" (they're still to
+  // come), or null in edit mode, where the drop area below says it.
+  empty: "done" | "waiting" | null;
 }) {
   const { t } = useTranslation();
   if (!files) return null; // still loading
@@ -165,7 +169,26 @@ function StageFilesList({
         {reference && ` ${t("errors.reference", { id: reference })}`}
       </p>
     );
-  if (!files.groups.length) return <p className="empty-stage">{t("page.noFiles")}</p>;
+  if (!files.groups.length)
+    return (
+      empty && (
+        <div className="stage-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+            <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" />
+          </svg>
+          {empty === "done" ? (
+            <p>
+              <strong>{t("page.noFilesDone")}</strong>
+            </p>
+          ) : (
+            <p>
+              <strong>{t("page.noFilesTitle")}</strong>
+              <span>{t("page.noFilesBody")}</span>
+            </p>
+          )}
+        </div>
+      )
+    );
   return (
     <>
       {files.groups.map((group) => (
@@ -603,6 +626,7 @@ function Stage({
             fileMenu={fileMenu}
             view={view}
             onOpen={onOpenFile}
+            empty={editor ? null : state === "done" ? "done" : "waiting"}
           />
           {uploads}
           {parts?.remove}

@@ -176,6 +176,16 @@
   border-radius: var(--r-pill); background: var(--raise); color: var(--ink); font-size: var(--text-xs); cursor: pointer;
 }
 .client .stage .file { border-radius: var(--r-card); overflow: hidden; background: var(--raise); }
+/* An open stage with no files yet (clients): a quiet card, an empty folder and
+   what to expect. In edit mode the drop area takes its place. */
+.client .stage-empty {
+  display: flex; align-items: center; gap: 14px; max-width: 560px; margin-top: 14px; padding: 16px 18px;
+  border: 1px dashed var(--line-strong); border-radius: var(--r-card); background: var(--raise); color: var(--ink);
+}
+.client .stage-empty svg { flex: none; width: 28px; height: 28px; color: var(--muted); }
+.client .stage-empty p { display: grid; gap: 2px; margin: 0; }
+.client .stage-empty strong { font-size: var(--text-sm); font-weight: 500; }
+.client .stage-empty span { font-size: var(--text-xs); color: var(--muted); }
 .client .stage .notes { padding: 12px 14px; border-radius: var(--r-card); background: var(--raise); font-size: var(--text-sm); }
 
 /* After the stages, in edit mode: "Adicionar etapa" and "Reordenar etapas". */

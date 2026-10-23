@@ -401,6 +401,9 @@
     "again": "Ver o tour da página"
   },
   "page": {
+    "noFilesTitle": "Ainda não há arquivos nesta etapa",
+    "noFilesBody": "Assim que o escritório enviar, eles aparecem aqui.",
+    "noFilesDone": "Esta etapa foi concluída sem arquivos.",
     "loading": "Carregando…",
     "journeyTitle": "Etapas e próximos passos",
     "timeline": "Etapas do projeto",
@@ -439,7 +442,6 @@
     "linkCopied": "Link copiado.",
     "password": "Senha",
     "enter": "Entrar",
-    "noFiles": "Nenhum arquivo nesta etapa.",
     "noFilesShort": "Sem arquivos",
     "fileCount_one": "{{padded}} arquivo",
     "fileCount_other": "{{padded}} arquivos",
