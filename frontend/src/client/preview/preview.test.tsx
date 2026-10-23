@@ -109,7 +109,8 @@ describe("the preview page", () => {
     render(<PreviewFrame />);
     expect(await screen.findByRole("heading", { level: 1, name: "Casa das Araucárias" })).toBeInTheDocument();
     expect(screen.getAllByText("Estúdio Vale Verde").length).toBeGreaterThan(0);
-    expect(await screen.findByText(/Apresentação do estudo preliminar/)).toBeInTheDocument();
+    // In the meeting's card (and, some days, in the updates too: the sample is dated from today).
+    expect((await screen.findAllByText(/Apresentação do estudo preliminar/)).length).toBeGreaterThan(0);
     expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
     expect(sent).toEqual([]);
   });
@@ -179,7 +180,9 @@ describe("the preview page", () => {
     fakeApi({});
     const told = vi.spyOn(window.parent, "postMessage");
     render(<PreviewFrame />);
-    await userEvent.click((await screen.findAllByRole("button", { name: "Usar tema escuro" }))[0]!);
+    // The header's menu, as on the painel: "Modo escuro".
+    await userEvent.click((await screen.findAllByRole("button", { name: "Menu" }))[0]!);
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(told).toHaveBeenCalledWith({ type: "preview-theme", theme: "dark" }, window.location.origin);
     expect(localStorage.getItem("theme")).toBe("light");

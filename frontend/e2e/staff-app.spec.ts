@@ -277,7 +277,7 @@ test("cards in a row line up, whatever their content", async ({ page }) => {
 test("the client page: content, redirects, not found and protected", async ({ page }) => {
   // No sign-in: it's the client's page.
   await page.goto("/casa-jardim");
-  await expect(page.getByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveText("/casa jardim");
+  await expect(page.getByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveText("Casa Jardim"); // capitals by CSS
   await expect(page).toHaveTitle("Casa Jardim · Alinea (dev)");
   await expect(page.getByRole("heading", { name: "Etapas e próximos passos" })).toBeVisible();
   await expect(page.getByText("Apresentação do layout")).toBeVisible();
@@ -504,9 +504,9 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   await page.getByRole("alertdialog").getByRole("button", { name: "Remover", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Visita técnica" })).toHaveCount(0);
 
-  // Advance: the client sees the next stage in progress.
-  await page.getByRole("button", { name: /Avançar para 04/ }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Avançar", exact: true }).click(); // asked first
+  // Finish the current stage: the client sees the next one in progress.
+  await page.getByRole("button", { name: "Marcar etapa como concluída" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Concluir etapa" }).click(); // asked first
   await expect(page.getByText(/Etapa atual: “/)).toBeVisible(); // the toast
   const client = await browser.newPage();
   await client.goto("/casa-jardim");
@@ -611,6 +611,51 @@ test("on a phone the staff bar holds all its buttons", async ({ page }) => {
   }
 });
 
+// The project page on a phone: nothing a person can see runs past the screen's
+// edge, as the client sees it and in edit mode (Fabio, 22 Oct 2026: "no sideways
+// scrolling"). A panel that is closed (invisible) doesn't count.
+test("on a phone nothing on the project page is wider than the screen", async ({ page }) => {
+  const link = invite("phonewidth@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/casa-jardim");
+  const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
+  const tooWide = () =>
+    page.evaluate(() => {
+      const edge = document.documentElement.clientWidth;
+      const seen = (el: Element) => {
+        for (let at: Element | null = el; at; at = at.parentElement) {
+          const style = getComputedStyle(at);
+          if (style.visibility === "hidden" || style.opacity === "0" || style.display === "none") return false;
+          // A closed <details> draws only its summary.
+          const parent = at.parentElement;
+          if (parent instanceof HTMLDetailsElement && !parent.open && at.tagName !== "SUMMARY") return false;
+        }
+        return true;
+      };
+      return [...document.querySelectorAll(".client *")]
+        .filter((el) => el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().right > edge + 1 && seen(el))
+        .map((el) => `${el.tagName.toLowerCase()}.${String(el.getAttribute("class"))}`);
+    });
+  await bar.getByRole("button", { name: "Ver como cliente" }).click();
+  expect(await tooWide()).toEqual([]);
+  await bar.getByRole("button", { name: "Editar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Marcar etapa como concluída" })).toBeVisible();
+  expect(await tooWide()).toEqual([]);
+  // The check itself: something too wide is caught.
+  await page.evaluate(() => {
+    const wide = document.createElement("div");
+    wide.className = "too-wide";
+    wide.style.width = "600px";
+    document.querySelector(".cwrap")!.append(wide);
+  });
+  expect(await tooWide()).toContain("div.too-wide");
+});
+
 // Counts are round, like the painel's tabs; the client page's straight edges had
 // squared the updates bell's.
 test("the updates bell's count is round, on a computer and a phone", async ({ page }) => {
@@ -673,9 +718,10 @@ test("the preview page: the client page in a frame, changed live from the panel 
   await expect(frame.getByRole("navigation", { name: "Ferramentas do escritório" })).toBeVisible();
   expect(await page.frames()[1]!.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
 
-  // The page's own theme switch: the panel and the address follow, and the device's
-  // own choice for the real pages is left as it was.
-  await frame.getByRole("button", { name: "Usar tema claro" }).locator("visible=true").click();
+  // The page's own theme switch (its header menu, as on the painel): the panel and
+  // the address follow, and the device's own choice for the real pages is left as it was.
+  await frame.getByRole("button", { name: /^(Sua conta|Menu)$/ }).locator("visible=true").first().click();
+  await frame.getByRole("menuitemcheckbox", { name: "Modo escuro" }).click();
   await expect(page.getByRole("radio", { name: "Claro" })).toBeChecked();
   expect(page.url()).not.toContain("theme=");
   expect(await page.evaluate(() => localStorage.getItem("theme"))).toBeNull();
@@ -743,7 +789,10 @@ async function coveringPopup(page: Page, selector: string): Promise<string[]> {
     for (let x = 0.05; x < 1; x += 0.15)
       for (let y = 0.05; y < 1; y += 0.15) {
         const top = document.elementFromPoint(box.left + box.width * x, box.top + box.height * y);
-        if (top && !popup.contains(top)) covers.add(`${top.tagName.toLowerCase()}.${[...top.classList].join(".")}`);
+        // The staff bar floats over the whole page on purpose (content scrolls out
+        // from under it), so it doesn't count as covering: only the page's own parts do.
+        if (top && !popup.contains(top) && !top.closest(".dock"))
+          covers.add(`${top.tagName.toLowerCase()}.${[...top.classList].join(".")}`);
       }
     return [...covers];
   }, selector);

@@ -74,6 +74,8 @@ async def test_editing_the_description_doesnt_move_atualizado(client, owner):
         [{"key": "start_date", "value": "amanhã"}],
         [{"key": "location", "value": "   "}],
         [{"key": "location", "value": "x" * 41}],  # 40 (FIELD_LIMITS)
+        # The client's name comes from creation, not from a detail (22 Oct 2026).
+        [{"key": "client", "value": "Família Souza"}],
     ],
 )
 async def test_bad_details_are_refused_and_nothing_changes(client, owner, details):
@@ -205,6 +207,8 @@ async def test_members_edit_too_but_only_with_their_csrf_token(client, db_sessio
 async def test_detail_types_come_in_the_offices_language(client, owner):
     types = (await client.get("/api/detail-types", headers=ALINEA)).json()
     assert {"key": "site_area", "label": "Área do terreno", "type": "area"} in types
+    # Not "Cliente": the name from creation heads the details already.
+    assert "client" not in {t["key"] for t in types}
 
 
 async def test_the_project_type_changes_and_the_stages_stay(client, owner):
