@@ -641,6 +641,8 @@ export interface paths {
         /**
          * Add Stage
          * @description At the end: a built-in stage (not already in the project) or the office's own.
+         *     A new stage is open, so a completed project is active again (stages complete
+         *     independently).
          */
         post: operations["add_stage_api_projects__project_id__stages_post"];
         delete?: never;
@@ -662,7 +664,8 @@ export interface paths {
         /**
          * Remove Stage
          * @description The stage leaves the page; its folder and files stay in Drive. The stages
-         *     after it move up, and their folders are renumbered.
+         *     after it move up, and their folders are renumbered. Removing the last open
+         *     stage of an active project completes it, as completing that stage would.
          */
         delete: operations["remove_stage_api_projects__project_id__stages__position__delete"];
         options?: never;
