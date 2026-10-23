@@ -249,6 +249,7 @@ async def _move_address(db: AsyncSession, project_id: uuid.UUID, slug: str) -> N
 
 @router.post("/projects/{project_id}/publish", responses=documented(401, 404, 409, 422))
 async def publish(
+    request: Request,
     project_id: uuid.UUID,
     _staff: CurrentStaff = Depends(require_csrf),
     tenant: CurrentTenant = Depends(current_tenant),
@@ -268,6 +269,9 @@ async def publish(
         if published.rowcount != 1:  # someone archived it meanwhile
             raise ApiError(409, ErrorCode.PROJECT_CHANGED)
         await db.commit()
+        posthog = getattr(request.app.state, "posthog", None)
+        if posthog is not None:
+            posthog.capture("project_published")
     elif project.status is not ProjectStatus.ACTIVE:
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # completed or archived
     db.expire_all()

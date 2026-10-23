@@ -291,6 +291,9 @@ async def hide_file(
             "uploads: hiding %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture("project_file_hidden")
     return Response(status_code=204)
 
 
@@ -351,4 +354,9 @@ async def move_file(
             "uploads: moving %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture(
+            "project_file_moved", properties={"destination_stage_position": body.position}
+        )
     return Response(status_code=204)

@@ -212,6 +212,9 @@ async def invite(
     user = await accounts.create_user(db, email=email, name=name, role=body.role)
     link, message = await _invite(db, request, tenant, user, staff.name)
     await db.commit()
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture("staff_invited", properties={"role": str(body.role)})
     emailed = await _send(request, tenant, message, "/api/team/invites")
     log.info("staff %s invited to %s by %s", user.id, tenant.slug, staff.user_id)
     return InviteOut(member=_member(user, staff), link=link, emailed=emailed)

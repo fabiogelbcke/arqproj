@@ -307,6 +307,9 @@ async def _complete(
         if switching:
             await writer.trash(root)  # all or nothing: the new account's folders go too
         raise
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture("drive_connected")
     if old_token:
         # Still connected to the old account: let go of its grant, as disconnecting does.
         try:

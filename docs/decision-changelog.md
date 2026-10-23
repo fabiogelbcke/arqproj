@@ -19,6 +19,23 @@ a new entry too.
 
 ---
 
+## 2026-10-23 — A37 (new): product analytics with PostHog
+
+**Was:** no product analytics; the privacy policy listed Google Cloud and Resend
+as the only providers.
+
+**Now:** the backend sends PostHog (US region) staff action events, ties each
+request to the signed-in account's id and sets its profile (name, email, role)
+at sign-in, reports errors, and exports records from one dedicated logger. Off
+unless both settings are present; not yet set on Cloud Run. No browser script,
+no cookies. The privacy policy names PostHog among the providers.
+
+**Why:** Fabio wants to see how offices use the painel (23 Oct 2026); he ran
+PostHog's setup wizard. **Open (section 24):** the live settings, whether
+profiles keep names and emails, and browser tracking.
+
+---
+
 ## 2026-10-22 — A24, A32, section 10: the painel redesign
 
 **Was:** the card's pencil opened its menu; "Sem e-mail do cliente → Adicionar"

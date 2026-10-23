@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     # (locally), that address doesn't exist; run backend.commands.maintenance.
     maintenance_audience: str | None = None
     maintenance_caller: str | None = None
+    # Optional product analytics. Production remains a no-op until both are configured.
+    posthog_api_key: str | None = None
+    posthog_host: str | None = None
 
     @field_validator("log_level")
     @classmethod
@@ -134,6 +137,10 @@ class Settings(BaseSettings):
             "app_secret" not in self.model_fields_set or len(self.app_secret) < 32
         ):
             raise ValueError("APP_SECRET (32+ characters) must be set in staging and production")
+
+    @property
+    def posthog_configured(self) -> bool:
+        return bool(self.posthog_api_key and self.posthog_host)
 
     @property
     def drive_configured(self) -> bool:

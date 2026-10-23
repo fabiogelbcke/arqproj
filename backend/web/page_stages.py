@@ -198,6 +198,12 @@ async def add_stage(
         if isinstance(error, ConnectError):
             raise _drive_failed("add stage", tenant, project_id, error) from None
         raise
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture(
+            "project_stage_added",
+            properties={"stage_kind": "built_in" if body.builtin_key is not None else "custom"},
+        )
     return Response(status_code=204)
 
 
@@ -433,6 +439,7 @@ class ProgressIn(BaseModel):
     "/projects/{project_id}/progress", status_code=204, responses=documented(401, 404, 409, 422)
 )
 async def progress(
+    request: Request,
     project_id: uuid.UUID,
     body: ProgressIn,
     _staff: CurrentStaff = Depends(require_csrf),
@@ -475,4 +482,7 @@ async def progress(
     elif body.action == "complete":
         record(db, project, EventKind.PROJECT_COMPLETED)
     await db.commit()
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture("project_progress_changed", properties={"action": body.action})
     return Response(status_code=204)

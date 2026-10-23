@@ -121,6 +121,19 @@ def _set_cookie(request: Request, response: Response, token: str, expires_at: da
     )
 
 
+def _identify_signed_in_staff(request: Request, user: User) -> None:
+    """Identify the fresh auth context with the stable account UUID."""
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is None:
+        return
+    user_id = str(user.id)
+    posthog.identify_context(user_id)
+    posthog.set(
+        distinct_id=user_id,
+        properties={"email": user.email, "name": user.name, "role": str(user.role)},
+    )
+
+
 async def current_staff(
     request: Request, response: Response, db: AsyncSession = Depends(get_tenant_session)
 ) -> CurrentStaff:
@@ -199,6 +212,10 @@ async def sign_in(
         raise ApiError(401, ErrorCode.INVALID_CREDENTIALS)
     token, row = await sessions.start(db, user)
     await db.commit()
+    _identify_signed_in_staff(request, user)
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture("staff_signed_in", properties={"authentication_method": "password"})
     _set_cookie(request, response, token, row.expires_at)
     return _me(
         user.email,
@@ -213,6 +230,7 @@ async def sign_in(
 
 @router.delete("/session", status_code=204, responses=documented(401, 403))
 async def sign_out(
+    request: Request,
     response: Response,
     staff: CurrentStaff = Depends(require_csrf),
     db: AsyncSession = Depends(get_tenant_session),
@@ -220,6 +238,9 @@ async def sign_out(
     row = await db.get(LoginSession, staff.session_id)
     await sessions.revoke(db, row)
     await db.commit()
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture("staff_signed_out")
     del response.headers["set-cookie"]  # current_staff's refresh of the same cookie
     response.delete_cookie(COOKIE, path="/")
 
@@ -258,6 +279,10 @@ async def choose_password(
     await accounts.set_password(db, user, password_hash)
     token, row = await sessions.start(db, user)
     await db.commit()
+    _identify_signed_in_staff(request, user)
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture("staff_password_completed")
     _set_cookie(request, response, token, row.expires_at)
     return _me(
         user.email,
