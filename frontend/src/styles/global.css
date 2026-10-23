@@ -1,28 +1,11 @@
-/* Design values from the prototype (arqprojprototypes), as CSS variables.
-   Light is the default theme; dark is a per-device choice. */
+/* The painel's base styles; the design's values are in tokens.css. */
 @import "@fontsource-variable/hanken-grotesk";
+@import "./tokens.css";
 
-:root {
-  /* Monochrome: white canvas, neutral greys and charcoal (prototype, 16 Oct 2026). */
-  --bg: #ffffff; --raise: #ffffff; --surface: #f3f3f3; --ink: #242629; --muted: #66686b;
-  --line: #dedfe0; --line-strong: #a7a9ab; --mark: #444649; --mark-soft: rgb(36 38 41 / 6%); --focus: #242629;
-  --primary: #242629; --on-primary: #ffffff; --accent: #444649;
-  --danger: #9b3d1d; --danger-soft: rgb(155 61 29 / 7%);
-  --shadow: 0 18px 48px rgb(36 38 41 / 12%);
-  /* Helvetica for reading and controls; Hanken Grotesk for headings. */
-  --font: Helvetica, Arial, sans-serif;
-  --display-font: "Hanken Grotesk Variable", Helvetica, Arial, sans-serif;
-  --r: 2px; --r-lg: 3px; --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  color-scheme: light;
-}
-:root[data-theme="dark"] {
-  --bg: #1d1e20; --raise: #2a2c2e; --surface: #303235; --ink: #f1f1f1; --muted: #babdc0;
-  --line: #55585b; --line-strong: #777a7d; --mark: #d4d6d8; --mark-soft: rgb(255 255 255 / 9%); --focus: #ffffff;
-  --primary: #f1f1f1; --on-primary: #1d1e20; --accent: #d4d6d8;
-  --danger: #e9a58a; --danger-soft: rgb(233 165 138 / 9%);
-  --shadow: 0 18px 48px rgb(0 0 0 / 25%);
-  color-scheme: dark;
-}
+/* Phones: the painel's floating search and + sit at the bottom; something
+   focused there scrolls clear of them (WCAG 2.4.11). */
+@media (max-width: 720px) { html { scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom)); } }
+
 *, *::before, *::after { box-sizing: border-box; }
 html { background: var(--bg); }
 body {

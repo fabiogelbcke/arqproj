@@ -19,6 +19,114 @@ a new entry too.
 
 ---
 
+## 2026-10-23 — A27, section 10: project page follow-ups
+
+**Was:** a meeting had both a place and a video link field; "Adicionar etapa"
+offered a list and, separately, a field for the office's own stage; only a
+stage's number or head opened it; the painel's logo wasn't a link; the built-in
+details had no total area.
+
+**Now:** the meeting is "Presencial" or "On-line", and only that one's field
+shows and is saved; "Adicionar etapa" is one list ending in "Etapa
+personalizada…", which asks for the name; a closed stage opens on a click
+anywhere on it (a shade darker under the mouse), an open one closes from its
+head; the office's mark leads back to the projects from every painel screen
+(ui/OfficeBrand, shared with the project pages); "Área total" is a built-in
+detail (migration 0031, data only), listed after "Área construída".
+
+**Why:** Fabio's review of the redesign (23 Oct 2026).
+
+---
+
+## 2026-10-23 — A24, A27, section 10: the project page on the painel's patterns
+
+**Was:** the project page kept the prototype's look: a light grey page, the name
+as "/casa **jardim**", a dark band across the current stage, a vertical
+timeline of numbered circles, a ☀/☾ button, the details as a plain list with
+"Cliente" one of the details staff could add, and a separate progress rail
+("Etapa atual", "Reordenar etapas", "Voltar etapa", "Avançar para…"). The file
+tools had their own search, a type and an order dropdown without direction.
+
+**Now:** the painel's patterns (Fabio's 004.pdf): white page, the name in
+capitals, grey rounded panels for each stage (the current one edged in the warm
+colour, none of them a dark band), the stages as a numbered list that opens each
+one, one rounded row per detail with the client's name from creation first
+("Cliente" is no longer a detail to add, nor shown if saved before), the next
+meeting in a grey panel with "Agendar reunião" in edit mode. The header has the
+updates bell and the same menu as the painel (ui/HeaderMenu): "Modo escuro", and
+for staff their initial, the tour and Sair. No progress rail: the current stage
+has "Marcar etapa como concluída", which asks first and says the next stage
+starts (the last one's completes the project); the stage finished last has
+"Reabrir etapa"; a finished project's last stage has "Reabrir projeto";
+"Reordenar etapas" sits beside "Adicionar etapa". The files' search and order
+are the painel's (ui/SearchBox, ui/SelectField, ui/sort): one dropdown of order
+and direction. The floating staff bar stays, its chosen side in the sketch's
+lime. The design values (colours, corners, text sizes) are one file,
+styles/tokens.css, loaded by the painel and the project page alike.
+
+**Why:** Fabio's answers on the sketch (22–23 Oct 2026): the same patterns for
+clients ("of course they shouldn't see photo inputs"); "remove client as an
+option since that's populated from creation"; the theme switch "goes into the
+menu same as the menu from painel. This should be a standard component"; remove
+the section that advances a stage in favour of "mark step as complete" in the
+current stage, with a dialog; search and sort "the same pattern as the painel
+(one sort dropdown)", shared. **Set aside:** the sketch's full-width lime bar
+(Fabio: keep the floating one, with some of the colour). **Kept for later:**
+storing short type names per type waits for office-defined types (A27).
+
+---
+
+## 2026-10-22 — A24, A32, section 10: the painel redesign
+
+**Was:** the card's pencil opened its menu; "Sem e-mail do cliente → Adicionar"
+opened the whole "Projeto" dialog; the top bar showed "Conectado como …", a
+☀/☾ theme button and "Sair"; completed projects were folded under a
+"Concluídos" toggle; the list had no type filter; an office with no projects
+saw "Novo projeto" in a toolbar and a dashed box.
+
+**Now:** the card's menu opens from a "⋯" on the photo (same items). "Adicionar"
+opens a small dialog with only the client's addresses (the "Projeto" dialog
+still edits them too). The top bar has the sections in small capitals, "?" and
+a round initial that opens an account menu: who is signed in, "Modo escuro" and
+"Sair" (phones keep the ☰ drawer). "Em andamento" and "Concluídos" are both
+open card grids under grey bars. Chips filter by project type, one per type in
+use, shown only with two or more types. With no projects yet, the toolbar and
+chips are hidden and an empty state with faded cards offers "Novo projeto".
+Each first step's explanation sits behind an ⓘ instead of under its title.
+After review the same day: a card lifts under the pointer (darker edge, soft
+shadow) instead of turning charcoal; the sort is one dropdown of order and
+direction together ("Nome: A–Z"), without the separate "Recentes ↓" button;
+"Concluídos" shows its first 8 with "Ver todos (n)" (all of them while
+searching); a search with no results offers "Limpar busca"; the painel tour is
+also in the account menu and the phone's drawer; type chips wrap on phones
+instead of scrolling sideways; no text below 11px (10px on phones), from one
+set of text sizes in `global.css`. Then: each screen names itself in the browser tab
+("Equipe · Configurações · Alinea"); a "Pular para o conteúdo" link for keyboard
+users; screen readers hear how many projects a search or a chip leaves; the
+search and the chosen type are kept in the address (`?q=…&type=…`); faded cards
+while the list loads; the last update as "há 3 dias" (the date past a month,
+the exact moment on hover), on one line so cards still line up; on phones,
+something focused scrolls clear of the floating search. Also the project page's staff
+bar (Painel, Ver como cliente / Editar, link, "?") is solid and inverted
+instead of translucent, with a ring in the page's colour, because it blended
+into the page (Fabio). Then Configurações, on Fabio's mockup: a
+plain title, small-capitals tabs, each tab's content in a grey rounded panel
+(the same one as Primeiros passos), rounded fields, pill buttons across the
+staff app, and notices of things to do with an edge in the warm colour.
+
+**Why:** Fabio's redesign of the painel (003.pdf, 22 Oct 2026), with his
+answers: "⋯" rather than the design's "+" for the menu; the ⓘ instead of a "+"
+for the step explanations ("+" reads as "add"); a dedicated dialog for client
+emails "for ease"; the empty state because "we don't need the search bar on
+top" before there are projects. The review changes are his answers to
+suggestions (the charcoal hover is a lot across a grid; the direction button
+was easy to misread; "I hate horizontal scroll on phones"). **Kept:** "?" for the painel tour (section 16),
+although the design leaves it out. **Short names:** the chips show the
+design's short names ("Interiores"), from the text catalogs for the four
+built-in types (Fabio: "fine for now"); any other type shows its full name.
+Storing a short name per type in the database waits for office-defined types
+(A27).
+
 ## 2026-10-20 — A36 (new), section 5: owners invite staff from the painel
 
 **Was:** section 5 deferred invitation screens as an add-on for larger offices;

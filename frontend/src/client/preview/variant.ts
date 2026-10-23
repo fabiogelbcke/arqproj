@@ -18,6 +18,17 @@ const PARAGRAPHS = [
     "a frente do lote para o jardim. As aberturas a oeste ganham brises de madeira para o sol da tarde.",
 ];
 
+// After the fixture's own details, for as many as asked for.
+const MORE_DETAILS = [
+  { key: "architect", label: "Responsável", value: "Arq. Helena Duarte" },
+  { key: "floors", label: "Pavimentos", value: "2" },
+  { key: "bedrooms", label: "Dormitórios", value: "3 suítes" },
+  { key: "parking", label: "Vagas de garagem", value: "2" },
+  { key: "finish", label: "Padrão de acabamento", value: "Alto" },
+  { key: "structure", label: "Estrutura", value: "Concreto e madeira" },
+  { key: "builder", label: "Construtora", value: "Construtora Serra Alta" },
+];
+
 const MORE_STAGES = ["Interiores", "Paisagismo", "Luminotécnico", "Compatibilização", "Acompanhamento de Obra"];
 // "Long" is the longest the server allows (api/limits.ts): these are cut to it, as
 // typing stops there.
@@ -77,6 +88,10 @@ export function previewData(settings: Settings, now: Date, timeZone: string): Ex
     project: {
       ...base,
       description: description(settings),
+      details: [...base.details, ...MORE_DETAILS.map((detail) => ({ ...detail, type: "text" as const }))].slice(
+        0,
+        settings.details,
+      ),
       cover_url: settings.cover ? base.cover_url : null,
       stages,
       current_position: current,

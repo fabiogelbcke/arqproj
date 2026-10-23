@@ -2,6 +2,10 @@
 import "../ui/sizes.css";
 import "./prototype.css";
 import "./page.css";
+// The site's shared design values, then the redesigned page (22 Oct 2026), both
+// after the older stylesheets so they win where they meet.
+import "../styles/tokens.css";
+import "./project.css";
 import "../i18n";
 
 import { StrictMode, Suspense, lazy } from "react";

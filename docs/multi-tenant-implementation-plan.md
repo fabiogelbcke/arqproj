@@ -109,7 +109,7 @@ its affected tests before coding proceeds.
 | A21 | Office address scheme: **office subdomains, `{office}.myunio.app`, behind a global load balancer** (option A) | Agreed 17 Oct 2026 (Fabio), choosing between the two options recorded 14 Oct. Each office is its own origin (cookies, storage and script bugs stay inside one office), addresses read as the office's own, and custom domains fit later. The load balancer (~$18.25/month plus processing; Fabio has credits for the first three months) is a global external Application Load Balancer with a serverless backend for the production service, certificates from Certificate Manager (DNS authorization at GoDaddy) covering `*.myunio.app`, `myunio.app` and each office's own domain (`alineaarquitetos.com`, `www.`) before its DNS moves, and Cloud Run ingress limited to it. It is built before the second office's first client link; `alineaarquitetos.com` and `myunio.app` move behind it then, leaving Cloud Run domain mappings (Preview, "not recommended for production"). Staging keeps its domain mapping (`staging.myunio.app`, one office), so it does not pay for a second balancer. See section 4 and the [changelog](decision-changelog.md) |
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
-| A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Revised 20 Oct 2026 (Fabio): it also asks, optionally, for the client's email addresses (A32), so the updates start with the project. Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits the project's settings in the prototype's "Projeto" dialog: name, client, client link and access (with the client page, slice 2) and the client's email addresses (A32). Revised 19 Oct 2026 (Fabio): the card's pencil opens a short menu instead of the dialog at once: "Trocar foto" (straight to the photo picker and cropper, saved on its own), "Remover foto" (when there is one), "Configurações do projeto" (the dialog, without the cover) and "Arquivar projeto", which asks for confirmation first. No delete for now. Uploads happen per stage on the project page. Revised 18 Oct 2026 (Fabio): the name can also be changed from the title in the project page's edit mode (the same change as the dialog's; the address stays). See section 10 and the [changelog](decision-changelog.md) |
+| A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Revised 20 Oct 2026 (Fabio): it also asks, optionally, for the client's email addresses (A32), so the updates start with the project. Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits the project's settings in the prototype's "Projeto" dialog: name, client, client link and access (with the client page, slice 2) and the client's email addresses (A32). Revised 19 Oct 2026 (Fabio): the card's pencil (a "⋯" since the painel redesign of 22 Oct 2026) opens a short menu instead of the dialog at once: "Trocar foto" (straight to the photo picker and cropper, saved on its own), "Remover foto" (when there is one), "Configurações do projeto" (the dialog, without the cover) and "Arquivar projeto", which asks for confirmation first. No delete for now. Uploads happen per stage on the project page. Revised 18 Oct 2026 (Fabio): the name can also be changed from the title in the project page's edit mode (the same change as the dialog's; the address stays). See section 10 and the [changelog](decision-changelog.md) |
 | A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original is shown as v1. Refined 15 Oct 2026: the client page shows the clean name with a separate version badge, while the copy in Drive carries the version (`Planta v3.pdf`); grouping only within one folder; clashes are flagged, never merged; current = highest version. See section 12 and the [changelog](decision-changelog.md) |
 | A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Refined the same day: values the code **acts on** (status, access mode, roles, a detail's value type, languages, error codes) are enums stored with a CHECK; **content the app only displays** (project types, detail types, built-in stages with their descriptions, each type's usual stages) lives in reference tables with its texts per language, referenced by foreign key, and the code keeps enums naming the built-in rows (a test keeps them in step). Interface text lives in one translation catalog per language shared by the server and the staff app. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
 | A27 | Typed project details; project type chosen at creation, with its usual stages | Agreed 15 Oct 2026 (prototype review). Details are text, choice, area (m²) or date, formatted per language. Project type is a column with four built-in types: Projeto Arquitetônico, Projeto de Interiores, Projeto de Reforma, Projeto de Paisagismo. Revised 16 Oct 2026 (Alinea's partners): creation asks for the type; all 12 built-in stages are listed in one fixed order, the type's usual ones ticked, and staff tick or untick any. Each type gives its stages its own description; a stage outside its type's list uses a general one. Built-in stages have a description only (no separate deliverables). Stage templates are gone. The pilot offers only built-in details, types and stages; office-defined ones are a later addition. See sections 7 and 10 |
@@ -988,7 +988,7 @@ Editable after creation, by office staff:
 | --- | --- |
 | Description | Plain paragraphs and `- ` bullet lines, as today |
 | Project type | One of the built-in types (A27), chosen at creation; changing it later leaves the stages as they are |
-| Project details | Chosen from the built-in details (Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável), each with a fixed type (text, choice, area, date); reorder, hide empty ones. Areas and dates are formatted per language. Custom details are a later addition (A27) |
+| Project details | The client's name from creation heads them (revised 22 Oct 2026: "Cliente" is no longer a detail to add); then chosen from the built-in details (Localização, Área do terreno, Área construída, Área total (added 23 Oct 2026), Início, Previsão de entrega, Responsável), each with a fixed type (text, choice, area, date); reorder, hide empty ones. Areas and dates are formatted per language. Custom details are a later addition (A27) |
 | Stages | Add, rename, reorder, remove (only when empty, or with explicit confirmation that its files stay in Drive); per-stage notes; built-in stages carry a translated description, the project type's own where it has one (A27); custom stages the office's own |
 | Progress | "Advance stage" moves the current-stage pointer; "mark complete" finishes the project. Status (done/current/upcoming) derives from the pointer |
 | Meeting | Start, end (after start), subject (≤ 40), location (≤ 60), link (`http`/`https` only, so a pasted `javascript:` link can never run in a client's browser); clearing it shows "no meeting scheduled". Clients can add it to their calendar: a Google Calendar link and an `.ics` file generated by the server in the office's timezone |
@@ -1006,8 +1006,14 @@ Where it is edited:
 - **Painel.** Project list with status at a glance (current stage of how many,
   project type, client, last client-visible activity), sortable by project type,
   client, project name, creation date or last activity, in either direction
-  (sorted in the browser; office project counts are small). Project creation;
-  from each card's pencil, a menu: the cover photo (change or remove), the
+  (sorted in the browser; office project counts are small; one dropdown holds
+  the order and its direction), and filtered by project type with a chip per
+  type in use (redesign, 22 Oct 2026); the search and the type stay in the
+  address (`?q=…&type=…`). Completed projects show the first 8, with "Ver
+  todos". Before the
+  first project there is nothing to search, sort or filter: an empty state
+  with "Novo projeto" instead. Project creation;
+  from each card's "⋯", a menu: the cover photo (change or remove), the
   project's settings in the "Projeto" dialog (name, client, client link, access,
   client emails), and archiving after a confirmation (A24);
   office settings and Drive connection. Office-wide
@@ -1414,6 +1420,19 @@ is per office. Long Portuguese labels, accents, duplicate filenames and non-Lati
 names belong in fixtures. Template content and default stage descriptions are
 versioned: updating defaults does not overwrite an office's edited project stages.
 
+### Interface voice and wording
+
+Use a calm, professional and approachable voice in both languages. Brazilian
+Portuguese should sound natural without slang, chatty asides or unnecessary
+exclamation marks. Keep labels short; use help text to explain the consequence
+of an action and what to do next. Avoid internal jargon such as “card” when
+“project” describes what the person sees. Use “atualizações” for project
+notifications and “Tente novamente” for retries consistently. Do not promise
+immediate or successful email delivery when updates may be grouped or delivery
+may fail. Access, publication and storage explanations must match the actual
+behavior. Preserve office-written content and keep equivalent meanings in both
+translation catalogs when changing product copy.
+
 ### Onboarding help: the project page tour and the example project
 
 Agreed with Fabio on 18 Oct 2026 to try. His partners may still change the
@@ -1461,7 +1480,7 @@ the reserved address (a migration).
   images from the bundled placeholder covers, PDFs shown with the sheet
   thumbnail, one DWG. Updates for the bell. No cover, or a bundled one.
 - **Edits:** the page's calls go to an in-browser fake of the API, like the
-  tests' `fakeApi`. Pencils, "Avançar", the file menu and uploads change the
+  tests' `fakeApi`. Pencils, "Marcar etapa como concluída", the file menu and uploads change the
   page in memory, and a reload resets it. A banner says "Projeto de exemplo:
   nada é salvo". Downloads and "Abrir original" use the bundled files.
   Anything that needs the server (publishing, emails, the real cover upload) is
@@ -1480,8 +1499,9 @@ the reserved address (a migration).
   projects list was considered and rejected: while there are no projects, the
   steps are on screen too, above it.
 
-**Built: the painel tour.** "?" in the painel's top bar (desktop and phone)
-starts a short Driver.js tour: "Novo projeto", a project's card and its pencil
+**Built: the painel tour.** "?" in the painel's top bar (desktop and phone),
+also in the account menu and the phone's drawer (22 Oct 2026),
+starts a short Driver.js tour: "Novo projeto", a project's card and its "⋯"
 menu, Configurações and Primeiros passos, each left out when it isn't on the
 screen. Its last step, "Ver o exemplo", opens the example project, whose own
 tour then starts. It stores nothing and never starts on its own. Code:
@@ -1637,7 +1657,7 @@ database.
   the panel's settings; the page components themselves are not forked.
 - **Controls, at least:** cover photo on/off; description none, short, long
   (with a length slider); meeting none, short name, long name; number of
-  stages and of files per stage; long file and stage names; client emails
+  stages, of files per stage and of project details; long file and stage names; client emails
   present or missing; staff view vs client view; light/dark; phone/desktop
   width. Adding a control later is a small change in one place.
 - **Where it runs:** locally (`make dev`) and on staging, not in production
@@ -1885,7 +1905,7 @@ choices need an owner before their corresponding feature ships:
 | Database instance size/backup retention | Cloud SQL, smallest shared-core instance (A16); confirm price, backups and point-in-time recovery at creation, then prove a restore | Infrastructure purchase |
 | Background dispatch technology and refresh interval | In-app maintenance every 10 minutes for the POC (A09); add a queue/worker when needed | Maintenance implementation |
 | Timer setup | Prefer Cloud Scheduler within account-wide free allowance; local cron is the alternative | Confirm allowance and cadence before setup |
-| Detail presets and stages | Built in (A26, A27): Cliente, Localização, Área do terreno, Área construída, Início, Previsão de entrega, Responsável; 12 stages, each project type ticking its usual ones, with descriptions per type | Slice 3 |
+| Detail presets and stages | Built in (A26, A27): Localização, Área do terreno, Área construída, Área total, Início, Previsão de entrega, Responsável; 12 stages, each project type ticking its usual ones, with descriptions per type | Slice 3 |
 | Custom project details and types | Not in the pilot (A27). Before migrating the first office, list the detail labels its existing `_project` files use; any outside the built-in list becomes a built-in or is mapped, so migration drops nothing | Before migration (section 20); custom details after pilot feedback |
 | Editing on the project page and in the painel | Build editing components once in React and load them onto the client page for signed-in staff only, sharing the painel's components and API validation, rather than implementing both editing experiences separately | Step 1.6 (affects how `frontend/` is built) |
 | "Precisa de você" (projects needing staff action) | Left out of the pilot; re-evaluate project-level triggers later (broken folder binding, bounced client email, version clash, unreadable file). Office-wide problems such as a lapsed Drive connection are an office notice, and failed creation is part of the creation flow (A07) | After pilot feedback |

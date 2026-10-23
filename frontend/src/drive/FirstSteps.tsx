@@ -1,20 +1,21 @@
 import type { ReactNode } from "react";
-import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
+import { DialogTrigger } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { EXAMPLE_SLUG } from "../client/example/address";
 import { DriveDetails } from "../pages/SettingsDrivePage";
 import { OfficeDetails } from "../pages/SettingsOfficePage";
 import { NewProjectDialog } from "../projects/NewProjectDialog";
-import dialogs from "../projects/projects.module.css";
 import { useMe } from "../session/session";
 import styles from "../pages/pages.module.css";
 import { Button } from "../ui/Button";
-import { CloseButton } from "../ui/CloseButton";
+import { DialogFrame } from "../ui/DialogFrame";
+import { InfoTip } from "../ui/InfoTip";
+import { Panel } from "../ui/Panel";
 import { toast } from "../ui/Toast";
 import { useOnboarding } from "./drive";
-// The example project's own cover, to show what a finished page looks like.
-import exampleCover from "../projects/covers/capa-04.jpg";
+// A pale roof and sky behind the invitation to the example project.
+import exampleBand from "../client/example/images/convite.jpg";
 // Google's own Drive icon, unaltered (Google's branding rules for "connect to Drive").
 import driveIcon from "./google-drive.png";
 
@@ -41,7 +42,7 @@ export function FirstSteps() {
   const action = (finished: boolean | undefined, control: ReactNode) =>
     finished ? <span className={styles.stepDone}>{t("firstSteps.done")}</span> : owner ? control : null;
   return (
-    <section className={styles.steps} aria-labelledby="first-steps" data-tour="first-steps">
+    <Panel className={styles.steps} aria-labelledby="first-steps" data-tour="first-steps">
       <div className={styles.stepsHead}>
         <h2 id="first-steps">{t("firstSteps.title")}</h2>
         <span className={styles.stepsCount} aria-label={t("firstSteps.progressLabel", { done, total })}>
@@ -54,11 +55,9 @@ export function FirstSteps() {
       {/* Not a step: first, so a phone shows it before the steps fill the screen
           (plan section 16). A new office's own first page will look empty. */}
       <a className={styles.exampleInvite} href={`/${EXAMPLE_SLUG}`}>
-        <img src={exampleCover} alt="" />
-        <span>
-          {t("firstSteps.exampleIntro")}
-          <strong>{t("firstSteps.exampleAction")} →</strong>
-        </span>
+        <img src={exampleBand} alt="" />
+        <span>{t("firstSteps.exampleIntro")}</span>
+        <strong>{t("firstSteps.exampleAction")} →</strong>
       </a>
       <ol>
         <Step
@@ -98,7 +97,7 @@ export function FirstSteps() {
         />
       </ol>
       {!owner && <p className={styles.small}>{t("firstSteps.membersNote")}</p>}
-    </section>
+    </Panel>
   );
 }
 
@@ -117,21 +116,7 @@ function StepDialog({
       <Button variant="primary" className={styles.stepAction}>
         {label}
       </Button>
-      <ModalOverlay className={dialogs.overlay} isDismissable>
-        <Modal className={dialogs.modal}>
-          <Dialog className={dialogs.dialog}>
-            {({ close }) => (
-              <>
-                <Heading slot="title" className={dialogs.dialogTitle}>
-                  {title}
-                </Heading>
-                <CloseButton onPress={close} />
-                {children(close)}
-              </>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+      <DialogFrame title={title}>{children}</DialogFrame>
     </DialogTrigger>
   );
 }
@@ -146,20 +131,19 @@ function Step({
   done?: boolean;
   icon?: string; // after the title
   title: string;
-  hint: string;
+  hint: string; // what the step means, behind its ⓘ
   action: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <li className={styles.step} data-done={done || undefined}>
       {/* A box that ticks itself; for screen readers the "Concluído" beside it says it. */}
       <span className={styles.stepBox} aria-hidden="true" />
-      <span className={styles.stepText}>
-        <strong>
-          {title}
-          {icon && <img className={styles.stepIcon} src={icon} alt="" />}
-        </strong>
-        <small>{hint}</small>
+      <span className={styles.stepTitle}>
+        {title}
+        {icon && <img className={styles.stepIcon} src={icon} alt="" />}
       </span>
+      <InfoTip label={t("firstSteps.about", { step: title })}>{hint}</InfoTip>
       {action}
     </li>
   );

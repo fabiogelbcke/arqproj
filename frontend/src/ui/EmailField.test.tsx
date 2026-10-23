@@ -32,7 +32,7 @@ describe("the email field", () => {
     await userEvent.type(screen.getByLabelText("E-mail"), " A@B ");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     expect(sent).toHaveBeenCalledWith("a@b");
-    expect(screen.queryByText(/Confira o e-mail/)).toBeNull();
+    expect(screen.queryByText(/Informe um e-mail válido/)).toBeNull();
   });
 
   it("tidies the address when it's left, and says nothing of a good one", async () => {
@@ -40,19 +40,19 @@ describe("the email field", () => {
     await userEvent.type(screen.getByLabelText("E-mail"), "  Ana@Escritorio.com.BR ");
     await userEvent.tab();
     expect(screen.getByLabelText("E-mail")).toHaveValue("ana@escritorio.com.br");
-    expect(screen.queryByText(/Confira o e-mail/)).toBeNull();
+    expect(screen.queryByText(/Informe um e-mail válido/)).toBeNull();
   });
 
   it("says when it isn't an address once it's left, not while it's typed", async () => {
     render(<EmailField label="E-mail" />);
     const field = screen.getByLabelText("E-mail");
     await userEvent.type(field, "ana@gmail");
-    expect(screen.queryByText(/Confira o e-mail/)).toBeNull();
+    expect(screen.queryByText(/Informe um e-mail válido/)).toBeNull();
     await userEvent.tab();
-    expect(screen.getByText(/Confira o e-mail/)).toBeInTheDocument();
+    expect(screen.getByText(/Informe um e-mail válido/)).toBeInTheDocument();
     // Fixed: the message goes as soon as it's an address.
     await userEvent.type(field, ".com");
-    expect(screen.queryByText(/Confira o e-mail/)).toBeNull();
+    expect(screen.queryByText(/Informe um e-mail válido/)).toBeNull();
   });
 
   it("offers the likely address for a typo in the domain, and takes it on a click", async () => {
@@ -75,7 +75,7 @@ describe("the email field", () => {
     await userEvent.type(screen.getByLabelText("E-mail"), "ana@");
     await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
     expect(sent).not.toHaveBeenCalled();
-    expect(screen.getByText(/Confira o e-mail/)).toBeInTheDocument();
+    expect(screen.getByText(/Informe um e-mail válido/)).toBeInTheDocument();
   });
 
   it("keeps it from being sent with Enter too, before the field is left", async () => {
@@ -88,7 +88,7 @@ describe("the email field", () => {
     );
     await userEvent.type(screen.getByLabelText("E-mail"), "ana@gmail{Enter}");
     expect(sent).not.toHaveBeenCalled();
-    expect(await screen.findByText(/Confira o e-mail/)).toBeInTheDocument();
+    expect(await screen.findByText(/Informe um e-mail válido/)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("E-mail"), ".com{Enter}");
     expect(sent).toHaveBeenCalledOnce();
   });
@@ -150,7 +150,7 @@ describe("the email list", () => {
     await userEvent.paste("caio@x.com, dani@x.com, edu@x.com");
     expect(listed()).toBe("ana@x.com bia@x.com caio@x.com"); // 3 at most here
     expect(screen.getByLabelText("Novo e-mail")).toHaveValue("dani@x.com, edu@x.com");
-    expect(screen.getByRole("alert")).toHaveTextContent("Já são 3 e-mails, o máximo.");
+    expect(screen.getByRole("alert")).toHaveTextContent("Limite de 3 e-mails atingido.");
   });
 
   it("removes an address, except one the client unsubscribed", async () => {

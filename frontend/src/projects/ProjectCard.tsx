@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { relativeDay } from "../ui/dates";
 import { Cover } from "./Cover";
-import { ProjectDialog } from "./ProjectDialog";
+import { ClientEmailsDialog } from "./ClientEmailsDialog";
 import { ProjectMenu } from "./ProjectMenu";
 import { type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
@@ -43,8 +44,8 @@ function Progress({ project }: { project: ProjectSummary }) {
 /** A project in the list. Times are the office's, wherever the viewer is. */
 export function ProjectCard({ project, timeZone }: { project: ProjectSummary; timeZone: string }) {
   const { t, i18n } = useTranslation();
-  // Numeric dates, as in the prototype: 15/10/2026 and 17/10/2026, 16:00.
-  const day = new Intl.DateTimeFormat(i18n.language, { timeZone, day: "2-digit", month: "2-digit", year: "numeric" });
+  // Meetings as numeric dates, as in the prototype: 17/10/2026, 16:00. The last
+  // update as people say it ("há 3 dias"), the exact moment on hover.
   const meeting = new Intl.DateTimeFormat(i18n.language, {
     timeZone,
     day: "2-digit",
@@ -56,7 +57,7 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
   const updated = project.last_activity_at ?? project.created_at;
   // An active project whose updates reach nobody: no address, or only unsubscribed ones.
   const needsEmails = project.status === "active" && !project.recipients.some((recipient) => recipient.subscribed);
-  const [settings, setSettings] = useState(false);
+  const [addingEmails, setAddingEmails] = useState(false);
   return (
     <li className={styles.card} data-testid="project-card" data-tour="project-card">
       <Cover project={project} className={styles.cardCover} />
@@ -64,7 +65,7 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
       <ProjectMenu project={project} />
       <div className={styles.identity}>
         <h3 className={styles.name}>
-          {/* The whole card opens the client's page (the pencil stays on top). */}
+          {/* The whole card opens the client's page (the "⋯" stays on top). */}
           <a className={styles.cardLink} href={`/${project.slug}`}>
             {project.name}
           </a>
@@ -74,16 +75,16 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
           <span>{project.project_type_label}</span>
         </p>
         {needsEmails && (
-          // Nobody gets this project's updates (A32): the way to add them, on top of
-          // the card's link. In the name's row, so the card keeps its five rows.
-          <button type="button" className={styles.noEmails} onClick={() => setSettings(true)}>
+          // Nobody gets this project's updates (A32): a dialog to add them, on top
+          // of the card's link. In the name's row, so the card keeps its five rows.
+          <button type="button" className={styles.noEmails} onClick={() => setAddingEmails(true)}>
             <span aria-hidden="true">!</span>
             {t("projects.noClientEmail")}
             <span className={styles.noEmailsAction}>{t("projects.addClientEmail")}</span>
           </button>
         )}
       </div>
-      {settings && <ProjectDialog project={project} onClose={() => setSettings(false)} />}
+      {addingEmails && <ClientEmailsDialog project={project} onClose={() => setAddingEmails(false)} />}
       <Progress project={project} />
       <div className={styles.meta}>
         <small>{t("projects.nextMeeting")}</small>
@@ -93,8 +94,8 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
           <span className={styles.muted}>{t("projects.noMeeting")}</span>
         )}
       </div>
-      <p className={styles.updated}>
-        <small>{t("projects.updated")}</small> {day.format(new Date(updated))}
+      <p className={styles.updated} title={meeting.format(new Date(updated))}>
+        <small>{t("projects.updated")}</small> {relativeDay(updated, new Date(), i18n.language, timeZone)}
       </p>
     </li>
   );

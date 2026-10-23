@@ -355,6 +355,8 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       if (preview) return Response.json({ error: "page_not_found" }, { status: 404 });
       return read(request, url.pathname);
     }
+    // "Sair" is real: the session is the person's, not the example's.
+    if (request.method === "DELETE" && url.pathname === "/api/session") return real(given, init);
     const route = routes.find(([method, path]) => method === request.method && path.test(url.pathname));
     if (!route) return Response.json({ error: "page_not_found" }, { status: 404 });
     const body = request.method === "GET" || request.method === "DELETE" ? {} : await request.clone().json().catch(() => ({}));

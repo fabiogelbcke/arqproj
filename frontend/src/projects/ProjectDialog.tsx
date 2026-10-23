@@ -1,19 +1,18 @@
 import { useState } from "react";
-import { Dialog, Form, Heading, Label, Modal, ModalOverlay, Radio, RadioGroup } from "react-aria-components";
+import { Form, Label, Radio, RadioGroup } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { Button } from "../ui/Button";
-import { CloseButton } from "../ui/CloseButton";
-import { EmailListField, addEmails } from "../ui/EmailListField";
+import { DialogFrame } from "../ui/DialogFrame";
+import { addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { toast } from "../ui/Toast";
 import { useChangeProject, type ProjectSummary } from "./projects";
+import { RecipientsField } from "./RecipientsField";
 import styles from "./projects.module.css";
-
-const RECIPIENTS_MAX = 20; // the server checks it too
 
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
@@ -44,7 +43,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
       const accessChanged = access !== saved.access_mode || (access === "password" && password !== "");
       // An address typed but not added yet counts too: easy to forget "Adicionar".
       // One that isn't an address stops the save; the field says which.
-      const { list: wanted, left } = addEmails(recipients, newRecipient, RECIPIENTS_MAX);
+      const { list: wanted, left } = addEmails(recipients, newRecipient, LIMITS.recipients);
       if (left.length) {
         setRecipients(wanted);
         setNewRecipient(left.join(", "));
@@ -94,114 +93,101 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           : null
       : null;
   return (
-    <ModalOverlay className={styles.overlay} isDismissable isOpen onOpenChange={(open) => !open && onClose()}>
-      <Modal className={styles.modal}>
-        <Dialog className={styles.dialog}>
-          <Heading slot="title" className={styles.dialogTitle}>
-            {t("projectSettings.title")}
-          </Heading>
-          <CloseButton onPress={onClose} />
-          <Form
-            className={styles.form}
-            onSubmit={(event) => {
-              event.preventDefault();
-              void save();
-            }}
-          >
-            <div className={styles.row2}>
-              <TextField
-                label={t("projectSettings.name")}
-                value={name}
-                onChange={setName}
-                isRequired
-                maxLength={LIMITS.projectName}
-                autoComplete="off"
-              />
-              <TextField
-                label={t("projectSettings.client")}
-                value={client}
-                onChange={setClient}
-                isRequired
-                maxLength={LIMITS.clientName}
-                autoComplete="off"
-              />
-            </div>
+    <DialogFrame title={t("projectSettings.title")} onClose={onClose}>
+      <Form
+        className={styles.form}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        <div className={styles.row2}>
+          <TextField
+            label={t("projectSettings.name")}
+            value={name}
+            onChange={setName}
+            isRequired
+            maxLength={LIMITS.projectName}
+            autoComplete="off"
+          />
+          <TextField
+            label={t("projectSettings.client")}
+            value={client}
+            onChange={setClient}
+            isRequired
+            maxLength={LIMITS.clientName}
+            autoComplete="off"
+          />
+        </div>
 
 
-            <TextField
-              label={t("projectSettings.link")}
-              description={t("projectSettings.linkHint", { address: `${window.location.host}/${slug || "…"}` })}
-              value={slug}
-              onChange={(value) => setSlug(value.toLowerCase())}
-              isRequired
-              maxLength={LIMITS.slug}
-              autoComplete="off"
-              spellCheck="false"
-            />
-            <RadioGroup
-              className={styles.types}
-              value={access}
-              onChange={(value) => setAccess(value as typeof access)}
-            >
-              <Label className={styles.label}>{t("projectSettings.access")}</Label>
-              <Radio value="public" className={styles.choice}>
-                <b>{t("projectSettings.public")}</b>
-                <small className={styles.choiceNote}>{t("projectSettings.publicHint")}</small>
-              </Radio>
-              <Radio value="password" className={styles.choice}>
-                <b>{t("projectSettings.withPassword")}</b>
-                <small className={styles.choiceNote}>{t("projectSettings.withPasswordHint")}</small>
-              </Radio>
-            </RadioGroup>
-            {access === "password" && (
-              <TextField
-                label={t("projectSettings.password")}
-                description={
-                  saved.access_mode === "password"
-                    ? t("projectSettings.passwordKeep")
-                    : t("projectSettings.passwordNew")
-                }
-                type="password"
-                value={password}
-                onChange={setPassword}
-                isRequired={saved.access_mode !== "password"}
-                minLength={6}
-                maxLength={LIMITS.pagePassword}
-                autoComplete="new-password"
-              />
-            )}
+        <TextField
+          label={t("projectSettings.link")}
+          description={t("projectSettings.linkHint", { address: `${window.location.host}/${slug || "…"}` })}
+          value={slug}
+          onChange={(value) => setSlug(value.toLowerCase())}
+          isRequired
+          maxLength={LIMITS.slug}
+          autoComplete="off"
+          spellCheck="false"
+        />
+        <RadioGroup
+          className={styles.types}
+          value={access}
+          onChange={(value) => setAccess(value as typeof access)}
+        >
+          <Label className={styles.label}>{t("projectSettings.access")}</Label>
+          <Radio value="public" className={styles.choice}>
+            <b>{t("projectSettings.public")}</b>
+            <small className={styles.choiceNote}>{t("projectSettings.publicHint")}</small>
+          </Radio>
+          <Radio value="password" className={styles.choice}>
+            <b>{t("projectSettings.withPassword")}</b>
+            <small className={styles.choiceNote}>{t("projectSettings.withPasswordHint")}</small>
+          </Radio>
+        </RadioGroup>
+        {access === "password" && (
+          <TextField
+            label={t("projectSettings.password")}
+            description={
+              saved.access_mode === "password"
+                ? t("projectSettings.passwordKeep")
+                : t("projectSettings.passwordNew")
+            }
+            type="password"
+            value={password}
+            onChange={setPassword}
+            isRequired={saved.access_mode !== "password"}
+            minLength={6}
+            maxLength={LIMITS.pagePassword}
+            autoComplete="new-password"
+          />
+        )}
 
-            <EmailListField
-              label={t("projectSettings.recipients")}
-              description={t("projectSettings.recipientsHint")}
-              emails={recipients}
-              onChange={setRecipients}
-              draft={newRecipient}
-              onDraft={setNewRecipient}
-              max={RECIPIENTS_MAX}
-              // The client's choice: staff can't undo it (A32).
-              locked={(email) => (unsubscribed.has(email) ? t("projectSettings.unsubscribed") : null)}
-              addLabel={t("projectSettings.addRecipient")}
-              newLabel={t("projectSettings.newRecipient")}
-              removeLabel={(email) => t("projectSettings.removeRecipient", { email })}
-            />
+        <RecipientsField
+          label={t("projectSettings.recipients")}
+          description={t("projectSettings.recipientsHint")}
+          emails={recipients}
+          onChange={setRecipients}
+          draft={newRecipient}
+          onDraft={setNewRecipient}
+          unsubscribed={unsubscribed}
+        />
 
-            {nameTaken ? (
-              <p role="alert" className={styles.problem}>
-                {nameTaken}
-              </p>
-            ) : (
-              <ErrorNotice error={error} values={{ min: 6 }} />
-            )}
-            <div className={styles.actions}>
-              <Button onPress={onClose}>{t("projectSettings.cancel")}</Button>
-              <Button type="submit" variant="primary" isDisabled={saving}>
-                {saving ? t("projectSettings.saving") : t("projectSettings.save")}
-              </Button>
-            </div>
-          </Form>
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+        {nameTaken ? (
+          <p role="alert" className={styles.problem}>
+            {nameTaken}
+          </p>
+        ) : (
+          <ErrorNotice error={error} values={{ min: 6 }} />
+        )}
+        <div className={styles.actions}>
+          <Button onPress={onClose}>{t("projectSettings.cancel")}</Button>
+          <Button type="submit" variant="primary" isDisabled={saving}>
+            {saving ? t("projectSettings.saving") : t("projectSettings.save")}
+          </Button>
+        </div>
+      </Form>
+    </DialogFrame>
   );
 }

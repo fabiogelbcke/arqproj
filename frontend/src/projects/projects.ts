@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { ONBOARDING } from "../drive/drive";
+import { sortOptions, type Sort as AnySort } from "../ui/sort";
 
 export type ProjectSummary = Schemas["ProjectSummary"];
 export type CreationOptions = Schemas["CreationOptions"];
@@ -112,15 +113,28 @@ export function matches(project: ProjectSummary, query: string): boolean {
   return words.every((word) => haystack.includes(word));
 }
 
+/** The types the office has projects of, once each, in alphabetical order: the
+ *  painel's filter chips (only types in use, so no chip ever shows nothing).
+ *  `name` gives a type's chip its name ("Interiores"; the full one by default). */
+export function projectTypes(
+  projects: ProjectSummary[],
+  locale: string,
+  name: (key: string, label: string) => string = (_key, label) => label,
+): { id: string; label: string }[] {
+  const labels = new Map(projects.map((p) => [p.project_type, p.project_type_label]));
+  const text = new Intl.Collator(locale, { sensitivity: "base" });
+  return [...labels]
+    .map(([id, label]) => ({ id, label: name(id, label) }))
+    .sort((a, b) => text.compare(a.label, b.label));
+}
+
 export const SORT_KEYS = ["updated", "created", "name", "client", "type"] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
-export type Sort = { key: SortKey; direction: "asc" | "desc" };
+export type Sort = AnySort<SortKey>;
 export const DEFAULT_SORT: Sort = { key: "updated", direction: "desc" };
 
-/** Dates newest first by default; names A–Z. */
-export function defaultDirection(key: SortKey): Sort["direction"] {
-  return key === "updated" || key === "created" ? "desc" : "asc";
-}
+/** Every order the list offers, each in both directions (ui/sort). */
+export const SORTS = sortOptions(SORT_KEYS, ["updated", "created"]);
 
 const lastUpdate = (p: ProjectSummary) => Date.parse(p.last_activity_at ?? p.created_at);
 

@@ -1,15 +1,14 @@
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 
 import { api, call } from "../api/client";
 import { LogoPng, useOffice } from "../office/office";
 import { useMe, useSignedOut } from "../session/session";
-import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
-import { OfficeLogo } from "../ui/OfficeLogo";
+import { HeaderMenu } from "../ui/HeaderMenu";
+import { OfficeBrand } from "../ui/OfficeBrand";
 import { IconButton } from "../ui/IconButton";
-import { ThemeToggle } from "../ui/ThemeToggle";
 import styles from "../pages/pages.module.css";
 import { MobileMenu } from "./MobileMenu";
 
@@ -29,6 +28,9 @@ export function SignedInLayout() {
     },
   });
 
+  // The painel's tour, on demand only (plan section 16): from "?" and the menus. Loaded when asked for.
+  const startTour = () => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }));
+
   if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
   if (me.error) return <main className={styles.centered}><ErrorNotice error={me.error} /></main>;
   if (!me.data) {
@@ -37,16 +39,16 @@ export function SignedInLayout() {
   }
   return (
     <>
+      {/* Keyboard users: past the top bar in one step (WCAG 2.4.1). Shown on focus. */}
+      <a className={styles.skipLink} href="#content">
+        {t("nav.skipToContent")}
+      </a>
       <header className={styles.topbar}>
         <div className={styles.topbarIn}>
-          {/* A logo usually carries the name already, so it replaces it. */}
-          <span className={styles.brand}>
-            {office.data?.logo_url ? (
-              <OfficeLogo light={office.data.logo_url} dark={office.data.logo_dark_url} alt={me.data.tenant_name} />
-            ) : (
-              me.data.tenant_name
-            )}
-          </span>
+          {/* The office's mark (its logo carries the name): always the way back to the projects. */}
+          <Link className={styles.brand} to="/" title={t("page.backToPainel")}>
+            <OfficeBrand name={me.data.tenant_name} logo={office.data?.logo_url} logoDark={office.data?.logo_dark_url} />
+          </Link>
           <nav className={`${styles.nav} ${styles.navInMenu}`} aria-label={t("app.name")}>
             <NavLink to="/" end>
               {t("nav.projects")}
@@ -55,31 +57,27 @@ export function SignedInLayout() {
               {t("nav.settings")}
             </NavLink>
           </nav>
-          <span className={styles.spacer} />
-          <span className={styles.who}>{t("nav.signedInAs", { name: me.data.name })}</span>
-          {/* "?": the painel's tour, on demand only (plan section 16). Loaded when pressed. */}
-          <IconButton
-            className={styles.help}
-            label={t("painelTour.again")}
-            onPress={() => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }))}
-          >
+          <IconButton className={styles.help} label={t("painelTour.again")} onPress={startTour}>
             ?
           </IconButton>
           <div className={styles.barActions}>
-            <ThemeToggle className={styles.theme} />
-            <Button variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
-              {t("nav.signOut")}
-            </Button>
+            <HeaderMenu
+              person={me.data}
+              onSignOut={() => signOut.mutate()}
+              signingOut={signOut.isPending}
+              onTour={startTour}
+            />
           </div>
           <MobileMenu
             name={me.data.name}
             onSignOut={() => signOut.mutate()}
             signingOut={signOut.isPending}
             signOutError={signOut.error}
+            onTour={startTour}
           />
         </div>
       </header>
-      <main className={styles.main}>
+      <main id="content" tabIndex={-1} className={styles.main}>
         <ErrorNotice error={signOut.error} />
         <Outlet />
       </main>

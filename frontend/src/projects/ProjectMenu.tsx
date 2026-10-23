@@ -6,7 +6,9 @@ import { ApiError, api, call } from "../api/client";
 import { ActionMenu, type MenuAction } from "../ui/ActionMenu";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
+import { MoreIcon } from "../ui/MoreIcon";
 import { toast, toastError } from "../ui/Toast";
+import ui from "../ui/ui.module.css";
 import { ProjectDialog } from "./ProjectDialog";
 import {
   COVER_MAX_BYTES,
@@ -19,7 +21,7 @@ import {
 } from "./projects";
 import styles from "./projects.module.css";
 
-/** The card's pencil (A24, revised 19 Oct 2026): a short menu. The photo is
+/** The card's "⋯" (A24, revised 19 Oct 2026; a pencil until 22 Oct): a short menu. The photo is
  *  changed straight from it (picker, then the 3:2 crop) or removed; "Configurações
  *  do projeto" opens the "Projeto" dialog; archiving asks first, then offers
  *  "Desfazer". */
@@ -94,7 +96,7 @@ export function ProjectMenu({ project }: { project: ProjectSummary }) {
     <>
       <ActionMenu
         label={t("projectSettings.open", { name: project.name })}
-        className={styles.editButton}
+        className={`${ui.photoAction} ${styles.menuButton}`}
         items={items}
         onAction={(id) => {
           if (id === "photo") chooser.current?.click();
@@ -102,9 +104,7 @@ export function ProjectMenu({ project }: { project: ProjectSummary }) {
           else setOpen(id as "settings" | "archive");
         }}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 20h4L19 9l-4-4L4 16v4Z M13.5 6.5l4 4" />
-        </svg>
+        <MoreIcon />
       </ActionMenu>
       <input
         ref={chooser}

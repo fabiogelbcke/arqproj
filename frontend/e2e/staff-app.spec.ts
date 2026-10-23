@@ -53,7 +53,9 @@ test("invite → choose password → projects → deep link → sign out → sig
   await page.reload();
   await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Sair" }).click();
+  // Sair is in the account menu, under the round initial (painel redesign).
+  await page.getByRole("button", { name: "Sua conta" }).click();
+  await page.getByRole("menuitem", { name: "Sair" }).click();
   await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
   await page.goto("/painel");
   await expect(page).toHaveURL(/\/painel\/entrar/); // signed out for real
@@ -157,7 +159,7 @@ test("create a project → it is listed as a draft; a used address names its pro
   await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("familia teste");
   await expect(page.getByTestId("project-card")).toHaveCount(1);
   await page.getByRole("searchbox", { name: "Buscar projetos" }).fill("nada parecido");
-  await expect(page.getByText("Nenhum projeto encontrado")).toBeVisible();
+  await expect(page.getByText(/Nenhum projeto encontrado para/)).toBeVisible();
 });
 
 // A real 1×1 PNG, so the browser can preview it.
@@ -173,9 +175,8 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
 
-  // A completed project: open its group, then the card's pencil and its menu.
-  await page.getByRole("button", { name: "Concluídos" }).click();
-  const menu = (name: string) => page.getByRole("button", { name: `Editar o projeto ${name}` }).click();
+  // A completed project (its group is open too): the card's "⋯" and its menu.
+  const menu = (name: string) => page.getByRole("button", { name: `Opções do projeto ${name}` }).click();
   await menu("Refúgio da Mantiqueira");
   // The photo straight from the menu, cropped to the cover's shape first.
   const [chooser] = await Promise.all([
@@ -201,8 +202,7 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   await expect(page.getByText("Projeto “Refúgio da Serra” arquivado.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeHidden();
   await page.getByRole("button", { name: "Desfazer" }).click();
-  await expect(page.getByText("Projeto “Refúgio da Serra” de volta.")).toBeVisible();
-  await page.getByRole("button", { name: "Concluídos" }).click(); // its group, folded again
+  await expect(page.getByText("Projeto “Refúgio da Serra” restaurado.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Refúgio da Serra" })).toBeVisible();
 });
 
@@ -277,7 +277,7 @@ test("cards in a row line up, whatever their content", async ({ page }) => {
 test("the client page: content, redirects, not found and protected", async ({ page }) => {
   // No sign-in: it's the client's page.
   await page.goto("/casa-jardim");
-  await expect(page.getByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveText("/casa jardim");
+  await expect(page.getByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveText("Casa Jardim"); // capitals by CSS
   await expect(page).toHaveTitle("Casa Jardim · Alinea (dev)");
   await expect(page.getByRole("heading", { name: "Etapas e próximos passos" })).toBeVisible();
   await expect(page.getByText("Apresentação do layout")).toBeVisible();
@@ -333,7 +333,7 @@ test("staff protect a page with a password; a client unlocks it once", async ({ 
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
 
-  await page.getByRole("button", { name: "Editar o projeto Apartamento Atlântico — Copacabana" }).click();
+  await page.getByRole("button", { name: "Opções do projeto Apartamento Atlântico — Copacabana" }).click();
   await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();
   const settings = page.getByRole("dialog", { name: "Projeto" });
   await settings.getByText("Com senha", { exact: true }).click();
@@ -496,7 +496,8 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
 
   // Add the office's own stage, then remove it.
   await page.getByRole("button", { name: "+ Adicionar etapa" }).click();
-  await page.getByLabel("Ou uma etapa do escritório").fill("Visita técnica");
+  await page.getByRole("combobox", { name: "Etapa", exact: true }).selectOption({ label: "Etapa personalizada…" });
+  await page.getByLabel("Nome da etapa").fill("Visita técnica");
   await page.getByRole("button", { name: "Adicionar", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Visita técnica" })).toBeVisible();
   await page.getByRole("button", { name: "Editar etapa Visita técnica" }).click();
@@ -504,10 +505,10 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   await page.getByRole("alertdialog").getByRole("button", { name: "Remover", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Visita técnica" })).toHaveCount(0);
 
-  // Advance: the client sees the next stage in progress.
-  await page.getByRole("button", { name: /Avançar para 04/ }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Avançar", exact: true }).click(); // asked first
-  await expect(page.getByText(/Avançou para/)).toBeVisible();
+  // Finish the current stage: the client sees the next one in progress.
+  await page.getByRole("button", { name: "Marcar etapa como concluída" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Concluir etapa" }).click(); // asked first
+  await expect(page.getByText(/Etapa atual: “/)).toBeVisible(); // the toast
   const client = await browser.newPage();
   await client.goto("/casa-jardim");
   await expect(client.locator("#stage-3 .pill--current")).toBeVisible();
@@ -566,7 +567,7 @@ test("a new staff member's first project page shows the tour once; \"?\" replays
   // Every step, upload area included (its part loads separately): 5 of them.
   await expect(popover).toContainText("1 de 5");
   await popover.getByRole("button", { name: /Próximo/ }).click();
-  await expect(popover).toContainText("Cada parte com o seu lápis");
+  await expect(popover).toContainText("Editar cada seção");
   // The tour runs in edit mode, where its steps' parts are.
   const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
   await expect(bar.getByRole("button", { name: "Editar" })).toHaveAttribute("aria-pressed", "true");
@@ -609,6 +610,51 @@ test("on a phone the staff bar holds all its buttons", async ({ page }) => {
       expect(await label.evaluate((b) => b.scrollWidth <= b.clientWidth), `${width}px`).toBe(true);
     }
   }
+});
+
+// The project page on a phone: nothing a person can see runs past the screen's
+// edge, as the client sees it and in edit mode (Fabio, 22 Oct 2026: "no sideways
+// scrolling"). A panel that is closed (invisible) doesn't count.
+test("on a phone nothing on the project page is wider than the screen", async ({ page }) => {
+  const link = invite("phonewidth@alinea.example");
+  await page.goto(link);
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/casa-jardim");
+  const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
+  const tooWide = () =>
+    page.evaluate(() => {
+      const edge = document.documentElement.clientWidth;
+      const seen = (el: Element) => {
+        for (let at: Element | null = el; at; at = at.parentElement) {
+          const style = getComputedStyle(at);
+          if (style.visibility === "hidden" || style.opacity === "0" || style.display === "none") return false;
+          // A closed <details> draws only its summary.
+          const parent = at.parentElement;
+          if (parent instanceof HTMLDetailsElement && !parent.open && at.tagName !== "SUMMARY") return false;
+        }
+        return true;
+      };
+      return [...document.querySelectorAll(".client *")]
+        .filter((el) => el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().right > edge + 1 && seen(el))
+        .map((el) => `${el.tagName.toLowerCase()}.${String(el.getAttribute("class"))}`);
+    });
+  await bar.getByRole("button", { name: "Ver como cliente" }).click();
+  expect(await tooWide()).toEqual([]);
+  await bar.getByRole("button", { name: "Editar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Marcar etapa como concluída" })).toBeVisible();
+  expect(await tooWide()).toEqual([]);
+  // The check itself: something too wide is caught.
+  await page.evaluate(() => {
+    const wide = document.createElement("div");
+    wide.className = "too-wide";
+    wide.style.width = "600px";
+    document.querySelector(".cwrap")!.append(wide);
+  });
+  expect(await tooWide()).toContain("div.too-wide");
 });
 
 // Counts are round, like the painel's tabs; the client page's straight edges had
@@ -671,11 +717,13 @@ test("the preview page: the client page in a frame, changed live from the panel 
   await page.getByRole("radio", { name: "Equipe" }).check();
   await page.getByRole("radio", { name: "Escuro" }).check();
   await expect(frame.getByRole("navigation", { name: "Ferramentas do escritório" })).toBeVisible();
-  expect(await page.frames()[1]!.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
+  // The frame applies the theme a moment after the panel changes it.
+  await expect.poll(() => page.frames()[1]!.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
 
-  // The page's own theme switch: the panel and the address follow, and the device's
-  // own choice for the real pages is left as it was.
-  await frame.getByRole("button", { name: "Usar tema claro" }).locator("visible=true").click();
+  // The page's own theme switch (its header menu, as on the painel): the panel and
+  // the address follow, and the device's own choice for the real pages is left as it was.
+  await frame.getByRole("button", { name: /^(Sua conta|Menu)$/ }).locator("visible=true").first().click();
+  await frame.getByRole("menuitemcheckbox", { name: "Modo escuro" }).click();
   await expect(page.getByRole("radio", { name: "Claro" })).toBeChecked();
   expect(page.url()).not.toContain("theme=");
   expect(await page.evaluate(() => localStorage.getItem("theme"))).toBeNull();
@@ -743,7 +791,10 @@ async function coveringPopup(page: Page, selector: string): Promise<string[]> {
     for (let x = 0.05; x < 1; x += 0.15)
       for (let y = 0.05; y < 1; y += 0.15) {
         const top = document.elementFromPoint(box.left + box.width * x, box.top + box.height * y);
-        if (top && !popup.contains(top)) covers.add(`${top.tagName.toLowerCase()}.${[...top.classList].join(".")}`);
+        // The staff bar floats over the whole page on purpose (content scrolls out
+        // from under it), so it doesn't count as covering: only the page's own parts do.
+        if (top && !popup.contains(top) && !top.closest(".dock"))
+          covers.add(`${top.tagName.toLowerCase()}.${[...top.classList].join(".")}`);
       }
     return [...covers];
   }, selector);
