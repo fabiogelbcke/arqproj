@@ -19,6 +19,44 @@ a new entry too.
 
 ---
 
+## 2026-10-23 — A24, A27, section 10: the project page on the painel's patterns
+
+**Was:** the project page kept the prototype's look: a light grey page, the name
+as "/casa **jardim**", a dark band across the current stage, a vertical
+timeline of numbered circles, a ☀/☾ button, the details as a plain list with
+"Cliente" one of the details staff could add, and a separate progress rail
+("Etapa atual", "Reordenar etapas", "Voltar etapa", "Avançar para…"). The file
+tools had their own search, a type and an order dropdown without direction.
+
+**Now:** the painel's patterns (Fabio's 004.pdf): white page, the name in
+capitals, grey rounded panels for each stage (the current one edged in the warm
+colour, none of them a dark band), the stages as a numbered list that opens each
+one, one rounded row per detail with the client's name from creation first
+("Cliente" is no longer a detail to add, nor shown if saved before), the next
+meeting in a grey panel with "Agendar reunião" in edit mode. The header has the
+updates bell and the same menu as the painel (ui/HeaderMenu): "Modo escuro", and
+for staff their initial, the tour and Sair. No progress rail: the current stage
+has "Marcar etapa como concluída", which asks first and says the next stage
+starts (the last one's completes the project); the stage finished last has
+"Reabrir etapa"; a finished project's last stage has "Reabrir projeto";
+"Reordenar etapas" sits beside "Adicionar etapa". The files' search and order
+are the painel's (ui/SearchBox, ui/SelectField, ui/sort): one dropdown of order
+and direction. The floating staff bar stays, its chosen side in the sketch's
+lime. The design values (colours, corners, text sizes) are one file,
+styles/tokens.css, loaded by the painel and the project page alike.
+
+**Why:** Fabio's answers on the sketch (22–23 Oct 2026): the same patterns for
+clients ("of course they shouldn't see photo inputs"); "remove client as an
+option since that's populated from creation"; the theme switch "goes into the
+menu same as the menu from painel. This should be a standard component"; remove
+the section that advances a stage in favour of "mark step as complete" in the
+current stage, with a dialog; search and sort "the same pattern as the painel
+(one sort dropdown)", shared. **Set aside:** the sketch's full-width lime bar
+(Fabio: keep the floating one, with some of the colour). **Kept for later:**
+storing short type names per type waits for office-defined types (A27).
+
+---
+
 ## 2026-10-22 — A24, A32, section 10: the painel redesign
 
 **Was:** the card's pencil opened its menu; "Sem e-mail do cliente → Adicionar"

@@ -6,10 +6,10 @@ import { api, call } from "../api/client";
 import { LogoPng, useOffice } from "../office/office";
 import { useMe, useSignedOut } from "../session/session";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { HeaderMenu } from "../ui/HeaderMenu";
 import { OfficeLogo } from "../ui/OfficeLogo";
 import { IconButton } from "../ui/IconButton";
 import styles from "../pages/pages.module.css";
-import { AccountMenu } from "./AccountMenu";
 import { MobileMenu } from "./MobileMenu";
 
 /** Every screen behind sign-in: the top bar, or a redirect to sign-in. */
@@ -65,9 +65,8 @@ export function SignedInLayout() {
             ?
           </IconButton>
           <div className={styles.barActions}>
-            <AccountMenu
-              name={me.data.name}
-              email={me.data.email}
+            <HeaderMenu
+              person={me.data}
               onSignOut={() => signOut.mutate()}
               signingOut={signOut.isPending}
               onTour={startTour}

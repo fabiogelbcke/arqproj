@@ -34,10 +34,10 @@ export async function startExploreTour(t: TFunction) {
   const steps = [
     step(".project-heading", "title"),
     step(".project-layout__desc .desc", "description"),
-    step(".project-layout__side .facts", "details"),
+    step(".project-layout__side .details-list", "details"),
     step(".mobile-project-summary", "summary"), // phones: the description and details
-    step(".meet", "meeting"),
-    step(".tl", "timeline"),
+    step(".meeting", "meeting"),
+    step(".stage-steps", "timeline"),
     step(".stage.is-expanded .files", "files"),
     step(".client-notifications", "updates"),
     step('[data-tour="mode"]', "edit"),

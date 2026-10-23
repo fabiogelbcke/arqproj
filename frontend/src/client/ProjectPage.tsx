@@ -5,13 +5,12 @@ import { useTranslation } from "react-i18next";
 import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
+import { HeaderMenu } from "../ui/HeaderMenu";
 import { OfficeLogo } from "../ui/OfficeLogo";
 import { PopoverDetails } from "../ui/PopoverDetails";
-import { useTheme } from "../ui/theme";
 import { useDismiss } from "../ui/useDismiss";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton, openOnClick } from "./EditButton";
-import { splitTitle } from "./titleLead";
 import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import type { StageEditParts } from "./StageEditing";
@@ -24,7 +23,8 @@ const DetailsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.D
 const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.MeetingEditor })));
 const RecipientsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.RecipientsEditor })));
 const AddStage = lazy(() => import("./StageEditing").then((m) => ({ default: m.AddStage })));
-const ProgressRail = lazy(() => import("./StageEditing").then((m) => ({ default: m.ProgressRail })));
+const StageProgress = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageProgress })));
+const ReorderStages = lazy(() => import("./StageEditing").then((m) => ({ default: m.ReorderStages })));
 const StageEditForm = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageEditForm })));
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
 const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
@@ -230,32 +230,23 @@ export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "l
   );
 }
 
-export function ThemeSwitch() {
-  const { t } = useTranslation();
-  const [theme, setTheme] = useTheme(); // the same choice as the painel's
-  const next = theme === "dark" ? "light" : "dark";
-  return (
-    <button
-      className="theme-switch"
-      type="button"
-      aria-label={t(next === "dark" ? "page.useDark" : "page.useLight")}
-      onClick={() => setTheme(next)}
-    >
-      <Icon name={next === "dark" ? "moon" : "sun"} />
-      <span className="theme-switch__label">{t(next === "dark" ? "page.themeDark" : "page.themeLight")}</span>
-    </button>
-  );
-}
-
-/** The office's logo (it carries the name) or, without one, its name. */
+/** The office's logo (it carries the name) or, without one, its name; on the
+ *  right the page's tools and the site's header menu (ui/HeaderMenu): "Modo
+ *  escuro" for anyone, and for staff who they are, the tour and Sair. */
 export function SiteHeader({
   office,
   tools,
   painel = false,
+  person,
+  onTour,
+  onSignOut,
 }: {
   office: { name: string; logo_url?: string | null; logo_dark_url?: string | null };
   tools?: ReactNode; // e.g. the project's "Atualizações"
   painel?: boolean; // staff: the logo goes back to the painel
+  person?: { name: string; email: string } | null; // staff signed in
+  onTour?: () => void;
+  onSignOut?: () => void;
 }) {
   const { t } = useTranslation();
   const brand = office.logo_url ? (
@@ -275,7 +266,7 @@ export function SiteHeader({
         )}
         <div className="client-header-tools">
           {tools}
-          <ThemeSwitch />
+          <HeaderMenu person={person} onTour={onTour} tourLabel={t("tour.again")} onSignOut={onSignOut} />
         </div>
       </div>
     </div>
@@ -332,7 +323,7 @@ function MobileSummary({ page }: { page: Page }) {
           <Icon name="down" />
         </span>
       </summary>
-      <dl className="facts">
+      <dl className="details-list">
         <Facts page={page} />
         {page.description && (
           <div className="mobile-project-description">
@@ -365,11 +356,11 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
           )}
         </div>
       </div>
-      <ol className="tl" style={{ "--n": page.stages.length } as React.CSSProperties} aria-label={t("page.stages")}>
+      <ol className="stage-steps" aria-label={t("page.stages")}>
         {page.stages.map((stage, i) => {
           const state = stateOf(page, i);
           return (
-            <li key={i} className={state === "upcoming" ? "" : state}>
+            <li key={i} className={`stage-steps__item is-${state}`}>
               <button type="button" onClick={() => onJump(i)}>
                 <span className="n">{pad(i + 1)}</span>
                 <b>{stage.title}</b>
@@ -391,24 +382,31 @@ function MeetingCard({ page, slug, onEdit }: { page: Page; slug: string; onEdit?
   const title = meeting ? meeting.title || t("page.defaultMeetingTitle") : t("page.noMeetingTitle");
   const calendar = fileSource.calendar(slug);
   return (
-    <section className="meet" data-editable aria-label={t("page.nextMeeting")} {...openOnClick(onEdit)}>
+    <section className="meeting" data-editable aria-label={t("page.nextMeeting")} {...openOnClick(onEdit)}>
       {onEdit && <EditButton label={meeting ? t("edit.meeting") : t("edit.schedule")} onClick={onEdit} />}
       <div>
         <h2>{narrow && meeting ? t("page.meetingScheduled") : t("page.nextMeeting")}</h2>
-        <p className="meet__title" title={title}>
+        <p className="meeting__title" title={title}>
           {title}
         </p>
         {when ? (
-          <p className="meet__meta meet__schedule">
+          <p className="meeting__meta meeting__when">
             <span>{when.day}</span>
             <span>{when.time}</span>
           </p>
         ) : (
-          // Staff in edit mode: the whole card opens the meeting editor.
-          <p className="meet__meta">{onEdit ? t("edit.noMeetingHint") : t("page.noMeeting")}</p>
+          // Staff in edit mode: a button to schedule one (the card opens the editor too).
+          <>
+            {!onEdit && <p className="meeting__meta">{t("page.noMeeting")}</p>}
+            {onEdit && (
+              <button type="button" className="b b--small meeting__schedule" onClick={onEdit}>
+                {t("edit.scheduleMeeting")}
+              </button>
+            )}
+          </>
         )}
         {meeting?.location && (
-          <p className="meet__meta" title={meeting.location}>
+          <p className="meeting__meta" title={meeting.location}>
             {meeting.location}
           </p>
         )}
@@ -455,6 +453,7 @@ function Stage({
   uploads,
   fileMenu,
   view = "grid",
+  progress,
   hidden = false,
   total,
   onOpenFile,
@@ -475,6 +474,7 @@ function Stage({
   uploads?: ReactNode; // edit mode: the drop area
   fileMenu?: (file: FileItem) => ReactNode;
   view?: FileView;
+  progress?: ReactNode; // edit mode: "Marcar etapa como concluída", "Reabrir etapa"
   hidden?: boolean; // a search or filter found nothing here
   total?: number; // its files before any search or filter
   onOpenFile: (file: FileItem, folder: string | null) => void;
@@ -525,17 +525,7 @@ function Stage({
   // The stage's markup; in "Editar etapa", its form's parts in their places.
   const layout = (parts?: StageEditParts) => (
     <>
-      <span className="stage__n">
-        {/* On a phone a finished stage shows a green check (drawn in CSS); its number stays for screen readers. */}
-        {narrow && state === "done" ? (
-          <>
-            <span className="stage__check" aria-hidden="true" />
-            <span className="sr">{pad(index + 1)}</span>
-          </>
-        ) : (
-          pad(index + 1)
-        )}
-      </span>
+      <span className="stage__n">{pad(index + 1)}</span>
       <div className="stage__head">
         <div className="stage__title">
           <div className="stage__name">
@@ -586,6 +576,7 @@ function Stage({
                 : t("page.noFilesShort")}
             </span>
           )}
+          {progress && !parts && <span className="stage__progress">{progress}</span>}
         </p>
       </div>
       <div className="stage__body" id={`stage-body-${index}`} aria-hidden={!open} inert={!open}>
@@ -621,7 +612,8 @@ function Stage({
   );
   return (
     <section
-      className={`stage ${open ? "is-expanded " : ""}${editor?.editing ? "is-editing " : ""}${state}`}
+      // "stage--current", not the prototype's "current": its dark band is gone (redesign).
+      className={`stage ${open ? "is-expanded " : ""}${editor?.editing ? "is-editing " : ""}stage--${state}`}
       id={`stage-${index}`}
       aria-labelledby={`st-${index}`}
       hidden={hidden}
@@ -725,24 +717,9 @@ function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
-/** "/casa de praia" (the property or work type, else the first word) then the rest
- *  in bold, on two lines; a short name (under 15 characters) on one. */
+/** The project's name, in capitals (painel redesign: no more "/casa jardim"). */
 function Title({ name }: { name: string }) {
-  const { i18n } = useTranslation();
-  const { lead, rest } = splitTitle(name);
-  const oneLine = name.trim().length < 15;
-  return (
-    // The two parts are one name for screen readers ("/casa" + "jardim").
-    <h1 className={`client-project-title${oneLine ? " client-project-title--one-line" : ""}`} title={name} aria-label={name}>
-      <span className="project-title__lead">/{lead.toLocaleLowerCase(i18n.language)}</span>
-      {rest && (
-        <>
-          {oneLine && " "}
-          <strong className="project-title__tail">{rest.toLocaleLowerCase(i18n.language)}</strong>
-        </>
-      )}
-    </h1>
-  );
+  return <h1 className="project-title">{name}</h1>;
 }
 
 let tourOffered = false;
@@ -754,9 +731,13 @@ export function ProjectPage({
   tourSeen = true,
   onChanged,
   onTour,
+  person,
+  onSignOut,
 }: {
   page: Page;
   slug: string;
+  person?: { name: string; email: string } | null; // staff signed in
+  onSignOut?: () => void;
   ready?: boolean; // the staff session's CSRF token is in hand
   tourSeen?: boolean; // false: this staff account hasn't had the tour yet
   onChanged?: () => void;
@@ -878,6 +859,9 @@ export function ProjectPage({
       <SiteHeader
         office={page.office}
         painel={!!page.staff}
+        person={page.staff ? person : null}
+        onTour={page.staff ? (onTour ?? (() => tour(false))) : undefined}
+        onSignOut={page.staff ? onSignOut : undefined}
         tools={
           stageFiles && (
             <UpdatesBell
@@ -987,7 +971,7 @@ export function ProjectPage({
                   <DetailsEditor page={page} staff={staff!} onDone={done} />
                 </Suspense>
               ) : (
-                <dl className="facts" data-editable {...openOnClick(canEdit ? () => setOpenEditor("facts") : undefined)}>
+                <dl className="details-list" data-editable {...openOnClick(canEdit ? () => setOpenEditor("facts") : undefined)}>
                   {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
                   <Facts page={page} />
                 </dl>
@@ -1006,17 +990,6 @@ export function ProjectPage({
             {!canEdit && !page.completed && <Subscribe slug={slug} />}
           </div>
         </div>
-        {canEdit && (
-          <Suspense fallback={null}>
-            <ProgressRail
-              page={page}
-              staff={staff!}
-              onChanged={stagesChanged}
-              onReordered={reordered}
-              locked={stagesLocked}
-            />
-          </Suspense>
-        )}
         {/* With the stages, even before any files, so the page keeps its spacing. */}
         {page.stages.length > 0 && (
           <FileToolbar
@@ -1049,6 +1022,13 @@ export function ProjectPage({
             files={shown[i]!.files}
             total={countFiles(filesFor(stageFiles, i + 1).files)}
             view={prefs.view}
+            progress={
+              canEdit ? (
+                <Suspense fallback={null}>
+                  <StageProgress page={page} staff={staff!} index={i} onChanged={stagesChanged} locked={stagesLocked} />
+                </Suspense>
+              ) : undefined
+            }
             onOpenFile={(file, folder) => setPreview({ file, place: { position: i + 1, folder } })}
             slug={slug}
             uploads={
@@ -1098,9 +1078,12 @@ export function ProjectPage({
           />
         ))}
         {canEdit && (
-          <Suspense fallback={null}>
-            <AddStage page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
-          </Suspense>
+          <div className="stage-list-actions">
+            <Suspense fallback={null}>
+              <AddStage page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
+              <ReorderStages page={page} staff={staff!} onChanged={stagesChanged} onReordered={reordered} locked={stagesLocked} />
+            </Suspense>
+          </div>
         )}
         <footer className="client-footer">{page.office.name}</footer>
       </div>

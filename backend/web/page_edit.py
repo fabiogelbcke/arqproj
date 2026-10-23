@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.engine import get_tenant_session
 from backend.notifications.events import record
 from backend.notifications.models import EventKind
-from backend.projects.enums import DetailType, ProjectStatus
+from backend.projects.enums import DetailKey, DetailType, ProjectStatus
 from backend.projects.models import (
     MEETING_LOCATION_MAX,
     MEETING_TITLE_MAX,
@@ -66,7 +66,13 @@ async def detail_types(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> list[DetailTypeOut]:
-    rows = await db.scalars(select(DetailTypeDef).order_by(DetailTypeDef.position))
+    # Not "Cliente": the client's name comes from creation and heads the details
+    # anyway (Fabio, 22 Oct 2026).
+    rows = await db.scalars(
+        select(DetailTypeDef)
+        .where(DetailTypeDef.key != DetailKey.CLIENT)
+        .order_by(DetailTypeDef.position)
+    )
     return [
         DetailTypeOut(
             key=row.key,
@@ -151,7 +157,15 @@ async def change_content(
         values["project_type"] = body.project_type
     rows = []
     if body.details is not None:
-        known = dict((await db.execute(select(DetailTypeDef.key, DetailTypeDef.value_type))).all())
+        known = dict(
+            (
+                await db.execute(
+                    select(DetailTypeDef.key, DetailTypeDef.value_type).where(
+                        DetailTypeDef.key != DetailKey.CLIENT  # offered no more, see above
+                    )
+                )
+            ).all()
+        )
         if len({d.key for d in body.details}) != len(body.details):
             raise ApiError(422, ErrorCode.INVALID_DETAIL)  # one of each
         for position, detail in enumerate(body.details, start=1):

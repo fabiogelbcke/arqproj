@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { type Locale, useOfficeLocale } from "../i18n";
+import { toastError } from "../ui/Toast";
 import type { Page } from "./format";
 import { PasswordGate } from "./PasswordGate";
 import { PageMessage, ProjectPage } from "./ProjectPage";
@@ -28,6 +29,8 @@ export function ClientApp() {
   const [signedIn, setSignedIn] = useState(false);
   // Staff who haven't seen the project page's tour yet (per account).
   const [tourSeen, setTourSeen] = useState(true);
+  // Who is signed in, for the header menu (their initial, name and Sair).
+  const [person, setPerson] = useState<{ name: string; email: string } | null>(null);
 
   useEffect(() => {
     // The office (name, language) is public, so even "not found" is in its language.
@@ -38,6 +41,7 @@ export function ClientApp() {
         setCsrfToken(me.csrf_token);
         setSignedIn(true);
         setTourSeen(me.page_tour_seen);
+        setPerson({ name: me.name, email: me.email });
       },
       () => undefined,
     );
@@ -59,6 +63,9 @@ export function ClientApp() {
         slug={slug}
         ready={signedIn}
         tourSeen={tourSeen}
+        person={person}
+        // Sair: the session ends and the page shows as clients see it.
+        onSignOut={() => void call(api.DELETE("/api/session")).then(() => window.location.reload(), toastError)}
         onChanged={() => setVersion((v) => v + 1)}
       />
     );

@@ -84,20 +84,26 @@ describe("the client page", () => {
   });
   it("shows the project with the current stage open", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
-    expect(await screen.findByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveTextContent("/casa jardim"); // under 15 characters: one line, with a space
+    // The name as typed (the stylesheet sets it in capitals).
+    expect(await screen.findByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveTextContent(/^Casa Jardim$/);
     expect(screen.getByText("Medidas conferidas.")).toBeVisible(); // stage 2 is current
     expect(screen.getByText("1.240 m²")).toBeInTheDocument();
     expect(screen.getByText("15/10/2026")).toBeInTheDocument(); // the office's day
     await waitFor(() => expect(document.title).toBe("Casa Jardim · Alinea")); // set after drawing
   });
 
-  it("saves the theme where the painel reads it, so the choice holds across the site", async () => {
+  it("saves the theme where the painel reads it, from the header's menu as on the painel", async () => {
     localStorage.clear();
+    document.documentElement.dataset.theme = "light";
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
-    await userEvent.click(await screen.findByRole("button", { name: "Usar tema escuro" }));
+    // A client: the same menu as the painel's, behind a ☰, with only "Modo escuro".
+    await userEvent.click(await screen.findByRole("button", { name: "Menu" }));
+    expect(screen.queryAllByRole("menuitem")).toEqual([]); // no tour, no Sair: not signed in
+    expect(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem("theme")).toBe("dark"); // the painel's key too (app.test)
-    await userEvent.click(screen.getByRole("button", { name: "Usar tema claro" }));
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" }));
     expect(localStorage.getItem("theme")).toBe("light");
   });
 
@@ -235,15 +241,13 @@ describe("the client page", () => {
     expect(screen.getAllByRole("button", { name: /^Abrir etapa/ }).length).toBeGreaterThan(0);
   });
 
-  it("on a phone, a finished stage shows a check instead of its number", async () => {
+  it("numbers every stage the same way on a phone, finished ones too (redesign)", async () => {
     phoneViewport();
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) }); // stage 2 is current
     await screen.findByRole("heading", { level: 1, name: "Casa Jardim" });
     const number = (index: number) => document.querySelector(`#stage-${index} .stage__n`)!;
-    expect(number(0).querySelector(".stage__check")).not.toBeNull();
-    expect(number(0)).toHaveTextContent("01"); // still there for screen readers
-    expect(number(1).querySelector(".stage__check")).toBeNull();
-    expect(number(1)).toHaveTextContent("02");
+    expect(number(0)).toHaveTextContent(/^01$/);
+    expect(number(1)).toHaveTextContent(/^02$/);
   });
 
   it("shows the project's type under its title, not among the details", async () => {
@@ -378,7 +382,7 @@ describe("the staff bar", () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
         body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: 1 } },
       }),
@@ -393,7 +397,7 @@ describe("the staff bar", () => {
       window.history.pushState({}, "", "/casa-jardim");
       fakeApi({
         "GET /api/tenant": () => ({ body: TENANT }),
-        "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+        "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
         "GET /api/pages/casa-jardim": () => ({
           body: { ...PAGE, staff: { project_id: "p-1", status, row_version: 1 } },
         }),
@@ -412,7 +416,7 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     const sent = fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
         body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: version } },
       }),
@@ -446,7 +450,7 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     const sent = fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => {
         const { title, version } = state();
         const stages = PAGE.stages.map((stage, i) => (i === 1 ? { ...stage, title } : stage));
@@ -529,7 +533,7 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
         body: { ...PAGE, cover_url: "/api/pages/casa-jardim/cover?v=1", staff: { project_id: "p-1", status: "active", row_version: 4 } },
       }),
@@ -545,7 +549,7 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     const sent = fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
         body: { ...PAGE, cover_url: "/api/pages/casa-jardim/cover?v=1", staff: { project_id: "p-1", status: "active", row_version: 4 } },
       }),
@@ -564,7 +568,7 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9", page_tour_seen: false } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9", page_tour_seen: false } }),
       "GET /api/pages/casa-jardim": () => ({
         body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: 4 } },
       }),
@@ -601,7 +605,7 @@ describe("edit mode", () => {
     await startEditing();
     await userEvent.click(screen.getByText("Residência no alto."));
     expect(await screen.findByLabelText("Descrição")).toBeInTheDocument();
-    await userEvent.click(document.querySelector("dl.facts[data-opens] dd")!);
+    await userEvent.click(document.querySelector("dl.details-list[data-opens] dd")!);
     expect(await screen.findByLabelText("Tipo de projeto")).toBeInTheDocument();
   });
 
@@ -614,25 +618,47 @@ describe("edit mode", () => {
     expect(await screen.findByRole("group", { name: "Início" })).toBeInTheDocument();
   });
 
-  it("with no meeting, says so; in edit mode, the card is where to add one", async () => {
+  it("with no meeting, says so; in edit mode, a button schedules one", async () => {
     asStaff({
       "GET /api/pages/casa-jardim": () => ({
         body: { ...PAGE, next_meeting: null, staff: { project_id: "p-1", status: "active", row_version: 4 } },
       }),
     });
     expect(await screen.findByText("Nenhuma reunião agendada")).toBeInTheDocument();
-    expect(screen.queryByText("Clique aqui para adicionar uma reunião")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Agendar reunião" })).toBeNull(); // not for clients
     await startEditing();
-    await userEvent.click(screen.getByText("Clique aqui para adicionar uma reunião"));
+    await userEvent.click(screen.getByRole("button", { name: "Agendar reunião" }));
     expect(await screen.findByRole("group", { name: "Início" })).toBeInTheDocument();
   });
 
-  it("names the stage the advancer moves on from as the current one", async () => {
-    asStaff();
+  it("moves the project on from its stages: no separate bar, the current stage finishes", async () => {
+    asStaff(); // stage 2 is current
     await startEditing();
-    const rail = document.querySelector(".rail__now p")!;
-    expect(rail).toHaveTextContent("Etapa atual");
-    expect(rail).toHaveTextContent(PAGE.stages[1]!.title);
+    expect(document.querySelector(".rail")).toBeNull();
+    const stage = (index: number) => document.getElementById(`stage-${index}`)!;
+    // Only the current stage offers to finish; the one finished last, to reopen.
+    expect(screen.getAllByRole("button", { name: "Marcar etapa como concluída" })).toHaveLength(1);
+    expect(within(stage(1)).getByRole("button", { name: "Marcar etapa como concluída" })).toBeInTheDocument();
+    expect(within(stage(0)).getByRole("button", { name: "Reabrir etapa" })).toBeInTheDocument();
+    expect(within(stage(2)).queryByRole("button", { name: /concluída|Reabrir/ })).toBeNull();
+    // "Reordenar etapas" waits beside "Adicionar etapa".
+    expect(screen.getByRole("button", { name: "Reordenar etapas" }).closest(".stage-list-actions")).not.toBeNull();
+  });
+
+  it("reopens a finished project from its last stage, without asking", async () => {
+    const { sent } = asStaff({
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, completed: true, staff: { project_id: "p-1", status: "active", row_version: 4 } },
+      }),
+      "POST /api/projects/p-1/progress": () => ({ status: 204 }),
+    });
+    await startEditing();
+    const last = document.getElementById(`stage-${PAGE.stages.length - 1}`)!;
+    expect(screen.getAllByRole("button", { name: "Reabrir projeto" })).toHaveLength(1);
+    await userEvent.click(within(last).getByRole("button", { name: "Reabrir projeto" }));
+    await waitFor(() =>
+      expect(sent.filter((r) => r.path.endsWith("/progress")).map((r) => r.body)).toEqual([{ row_version: 4, action: "reopen" }]),
+    );
   });
 
   it("reorders the stages on one list and saves the new order at once", async () => {
@@ -656,7 +682,7 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => {
         const [briefing, levantamento, estudo] = PAGE.stages;
         const stages = reordered ? [levantamento!, briefing!, estudo!] : PAGE.stages;
@@ -693,7 +719,7 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => {
         const [briefing, levantamento, estudo] = PAGE.stages;
         const stages = reordered ? [levantamento!, briefing!, estudo!] : PAGE.stages;
@@ -940,15 +966,15 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
         body: { ...PAGE, current_position: PAGE.stages.length, staff: { project_id: "p-1", status, row_version: 4 } },
       }),
     });
     render(<ClientApp />);
     await startEditing();
-    expect(await screen.findByText(/Estudo Preliminar/, { selector: ".rail__now p" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Concluir projeto" }) !== null).toBe(offered);
+    const last = document.getElementById(`stage-${PAGE.stages.length - 1}`)!;
+    expect(within(last).queryByRole("button", { name: "Marcar etapa como concluída" }) !== null).toBe(offered);
   });
 
   it("changes the project type with the details, only when it changed", async () => {
@@ -978,7 +1004,7 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
         body: { ...PAGE, staff: { project_id: "p-1", status: "archived", row_version: 4 } },
       }),
@@ -994,7 +1020,7 @@ describe("edit mode", () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ body: { csrf_token: "csrf-9" } }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
         body: { ...PAGE, stages: stages(), staff: { project_id: "p-1", status: "active", row_version: version() } },
       }),
@@ -1317,18 +1343,18 @@ describe("edit mode", () => {
     const posted = (sent: { method: string; path: string; body?: unknown }[]) =>
       sent.filter((r) => r.method === "POST" && r.path.endsWith("/progress")).map((r) => r.body);
 
-    it("advances only once confirmed, warning that subscribed clients get an email", async () => {
+    it("finishes the current stage only once confirmed, saying the next one starts and clients get an email", async () => {
       const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }]);
       await startEditing();
-      await userEvent.click(await screen.findByRole("button", { name: "Avançar para 03 Estudo Preliminar" }));
-      let ask = screen.getByRole("alertdialog", { name: "Avançar para “Estudo Preliminar”?" });
-      expect(ask).toHaveTextContent("“Levantamento” fica concluída");
+      await userEvent.click(await screen.findByRole("button", { name: "Marcar etapa como concluída" }));
+      let ask = screen.getByRole("alertdialog", { name: "Concluir “Levantamento”?" });
+      expect(ask).toHaveTextContent("“Levantamento” fica marcada como concluída e “Estudo Preliminar” passa a estar em andamento");
       expect(ask).toHaveTextContent("serão notificados por e-mail");
       await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
       expect(posted(sent)).toEqual([]);
-      await userEvent.click(screen.getByRole("button", { name: "Avançar para 03 Estudo Preliminar" }));
+      await userEvent.click(screen.getByRole("button", { name: "Marcar etapa como concluída" }));
       ask = screen.getByRole("alertdialog");
-      await userEvent.click(within(ask).getByRole("button", { name: "Avançar" }));
+      await userEvent.click(within(ask).getByRole("button", { name: "Concluir etapa" }));
       await waitFor(() => expect(posted(sent)).toEqual([{ row_version: 4, action: "advance" }]));
       await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     });
@@ -1336,28 +1362,29 @@ describe("edit mode", () => {
     it("says nothing about emails when nobody gets the updates", async () => {
       progress([{ email: "ana@exemplo.com.br", subscribed: false }]);
       await startEditing();
-      await userEvent.click(await screen.findByRole("button", { name: "Avançar para 03 Estudo Preliminar" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Marcar etapa como concluída" }));
       expect(screen.getByRole("alertdialog")).not.toHaveTextContent("e-mail");
     });
 
     it("completes the last stage only once confirmed, with the same warning", async () => {
       const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }], 3);
       await startEditing();
-      await userEvent.click(await screen.findByRole("button", { name: "Concluir projeto" }));
+      // The last stage's "Marcar etapa como concluída" completes the project.
+      await userEvent.click(await screen.findByRole("button", { name: "Marcar etapa como concluída" }));
       const ask = screen.getByRole("alertdialog", { name: "Concluir o projeto?" });
       expect(ask).toHaveTextContent("serão notificados por e-mail");
       await userEvent.click(within(ask).getByRole("button", { name: "Concluir projeto" }));
       await waitFor(() => expect(posted(sent)).toEqual([{ row_version: 4, action: "complete" }]));
     });
 
-    it("goes back a stage once confirmed, with no email warning (going back emails nobody)", async () => {
+    it("reopens the stage finished last once confirmed, with no email warning (going back emails nobody)", async () => {
       const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }]);
       await startEditing();
-      await userEvent.click(await screen.findByRole("button", { name: "Voltar etapa" }));
-      const ask = screen.getByRole("alertdialog", { name: "Voltar para “Briefing”?" });
+      await userEvent.click(await screen.findByRole("button", { name: "Reabrir etapa" }));
+      const ask = screen.getByRole("alertdialog", { name: "Reabrir “Briefing”?" });
       expect(ask).not.toHaveTextContent("e-mail");
       expect(posted(sent)).toEqual([]);
-      await userEvent.click(within(ask).getByRole("button", { name: "Voltar etapa" }));
+      await userEvent.click(within(ask).getByRole("button", { name: "Reabrir etapa" }));
       await waitFor(() => expect(posted(sent)).toEqual([{ row_version: 4, action: "back" }]));
     });
   });
@@ -1496,17 +1523,21 @@ describe("the page's file tools", () => {
     updates: [],
   };
 
-  it("sorts by date, newest first, by type, or by name", () => {
+  it("sorts by date, type or name, in either direction", () => {
     const files = FILES.stages[1]!.groups[0]!.files as never[];
-    const names = (sort: "updated" | "type" | "name") => sortFiles(files, sort).map((f: { name: string }) => f.name);
-    expect(names("updated")).toEqual(["Implantação.dwg", "Planta baixa.pdf", "Terreno.jpg"]);
-    expect(names("type")).toEqual(["Implantação.dwg", "Terreno.jpg", "Planta baixa.pdf"]);
-    expect(names("name")).toEqual(["Implantação.dwg", "Planta baixa.pdf", "Terreno.jpg"]);
+    const names = (key: "updated" | "type" | "name", direction: "asc" | "desc") =>
+      sortFiles(files, { key, direction }).map((f: { name: string }) => f.name);
+    expect(names("updated", "desc")).toEqual(["Implantação.dwg", "Planta baixa.pdf", "Terreno.jpg"]);
+    expect(names("updated", "asc")).toEqual(["Terreno.jpg", "Planta baixa.pdf", "Implantação.dwg"]);
+    expect(names("type", "asc")).toEqual(["Implantação.dwg", "Terreno.jpg", "Planta baixa.pdf"]);
+    expect(names("type", "desc")).toEqual(["Planta baixa.pdf", "Terreno.jpg", "Implantação.dwg"]);
+    expect(names("name", "asc")).toEqual(["Implantação.dwg", "Planta baixa.pdf", "Terreno.jpg"]);
+    expect(names("name", "desc")).toEqual(["Terreno.jpg", "Planta baixa.pdf", "Implantação.dwg"]);
   });
 
   it("finds files by name or by their stage, without minding accents or case", () => {
     const stage = FILES.stages[1] as never;
-    const prefs = { type: "all", sort: "name", view: "grid" } as const;
+    const prefs = { type: "all", sort: { key: "name", direction: "asc" }, view: "grid" } as const;
     expect(shownFiles(stage, "Levantamento", "implantacao", prefs).count).toBe(1);
     expect(shownFiles(stage, "Levantamento", "LEVANTAMENTO", prefs).count).toBe(3);
     expect(shownFiles(stage, "Levantamento", "", { ...prefs, type: "pdf" }).count).toBe(1);
@@ -1695,6 +1726,26 @@ describe("the page's file tools", () => {
     const panel = screen.getByRole("region", { name: "Últimas atualizações" });
     await userEvent.click(within(panel).getByRole("button", { name: /Ver etapa/ }));
     expect(screen.getByRole("region", { name: "Briefing" })).toBeVisible();
+  });
+
+  it("orders files from one dropdown, the painel's, and keeps an order saved before directions", async () => {
+    localStorage.setItem("file-prefs", JSON.stringify({ sort: "name", view: "grid" })); // saved before 22 Oct 2026
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+    });
+    const order = (await screen.findByLabelText("Ordenar por")) as HTMLSelectElement;
+    expect([...order.options].map((option) => option.text)).toEqual([
+      "Atualização: mais recentes",
+      "Atualização: mais antigas",
+      "Nome: A–Z",
+      "Nome: Z–A",
+      "Tipo: A–Z",
+      "Tipo: Z–A",
+    ]);
+    expect(order).toHaveValue("name-asc"); // "name", from before, is A–Z
+    await userEvent.selectOptions(order, "Nome: Z–A");
+    expect(JSON.parse(localStorage.getItem("file-prefs")!)).toMatchObject({ sort: "name-desc" });
   });
 
   it("switches to a list, and remembers it", async () => {

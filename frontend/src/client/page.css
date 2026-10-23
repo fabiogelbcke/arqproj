@@ -421,14 +421,10 @@ a.site__brand { color: inherit; text-decoration: none; }
   outline: 2px solid var(--dock-fg); outline-offset: 2px;
 }
 .client .dock__sep { background: color-mix(in srgb, var(--dock-fg) 22%, transparent); }
-/* The view/edit switch: a lighter track, the chosen side in the page's colour. */
+/* The view/edit switch: a lighter track, the chosen side in the sketch's lime
+   (004.pdf, Fabio 22 Oct 2026), with dark text, in both themes. */
 .client .dock .seg { background: color-mix(in srgb, var(--dock-fg) 14%, transparent); }
-.client .dock .seg::before { background: var(--dock-fg); }
+.client .dock .seg::before { background: var(--lime, #e6f4b1); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%); }
 .client .dock .seg button { color: var(--dock-fg); }
-.client .dock .seg button[aria-pressed="true"] { color: var(--dock-bg); }
-/* Editing, the switch turns the painel's warm colour: hard to miss that the
-   page is in edit mode (Fabio: "feel free to use some colour"). Dark text on
-   it in both themes. */
-.client .dock .seg[data-on="edit"]::before { background: var(--warm, #e38b3c); }
-.client .dock .seg[data-on="edit"] button[aria-pressed="true"] { color: #242629; }
+.client .dock .seg button[aria-pressed="true"] { color: var(--on-lime, #242629); }
 .client .dock .seg button:disabled { opacity: 0.45; cursor: not-allowed; }

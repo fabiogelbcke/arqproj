@@ -42,6 +42,7 @@ from backend.projects.enums import (
     EXAMPLE_SLUG,
     RESERVED_SLUGS,
     AccessMode,
+    DetailKey,
     DetailType,
     ProjectStatus,
 )
@@ -213,6 +214,9 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             select(ProjectDetail, DetailTypeDef.labels)
             .join(DetailTypeDef, DetailTypeDef.key == ProjectDetail.key)
             .where(ProjectDetail.project_id == project.id)
+            # A "Cliente" saved before it stopped being offered: the name from
+            # creation is shown instead, first.
+            .where(ProjectDetail.key != DetailKey.CLIENT)
             .order_by(ProjectDetail.position)
         )
         if (value := _value(row)) is not None

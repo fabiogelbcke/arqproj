@@ -94,7 +94,7 @@ export function UpdatesBell({
   const go = (target: number | "meeting") => {
     setOpen(false);
     if (target === "meeting") {
-      document.querySelector(".meet")?.scrollIntoView({ block: "center" });
+      document.querySelector(".meeting")?.scrollIntoView({ block: "center" });
       return;
     }
     onStage(target);
