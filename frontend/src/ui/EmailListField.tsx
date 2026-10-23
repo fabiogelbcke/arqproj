@@ -73,7 +73,7 @@ export function EmailListField({
     onChange(emails.includes(to) ? emails.filter((email) => email !== from) : emails.map((email) => (email === from ? to : email)));
   return (
     <fieldset className={styles.emailList}>
-      <legend className={labelHidden ? "sr-only" : styles.label}>{label}</legend>
+      <legend className={labelHidden ? styles.visuallyHidden : styles.label}>{label}</legend>
       {description && <p className={styles.hint}>{description}</p>}
       {emails.length > 0 && (
         <ul className={styles.emailListItems}>

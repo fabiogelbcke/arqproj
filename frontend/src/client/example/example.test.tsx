@@ -38,6 +38,7 @@ function visit(signedIn: boolean, locale = TENANT.locale) {
       signedIn ? { body: { ...ME, page_tour_seen: false, csrf_token: "csrf-123" } } : notSignedIn,
     "GET /api/detail-types": () => ({ body: [] }),
     "GET /api/project-types": () => ({ body: { types: [], stages: [] } }),
+    "DELETE /api/session": () => ({ status: 204 }),
   });
   const view = render(<ExampleApp />);
   return { sent, view };
@@ -63,6 +64,16 @@ describe("the example project", () => {
     expect(sent.map((r) => `${r.method} ${r.path}`).sort()).toEqual(["GET /api/me", "GET /api/tenant"]);
   });
 
+  it("gives signed-in staff their own header menu, whose Sair really signs them out", async () => {
+    const { sent } = visit(true);
+    await screen.findByRole("heading", { level: 1, name: "Casa das Araucárias" });
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    expect(screen.getByText(ME.email)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Sair" }));
+    // Not the example's in-browser stand-in: the person's real session ends.
+    await waitFor(() => expect(sent.some((r) => r.method === "DELETE" && r.path === "/api/session")).toBe(true));
+  });
+
   it("speaks the office's language around the fictional (Portuguese) project", async () => {
     visit(false, "en");
     expect(await screen.findByText(/Example project: nothing is saved/)).toBeInTheDocument();
@@ -86,9 +97,9 @@ describe("the example project", () => {
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText("Uma casa só nossa.")).toBeInTheDocument();
 
-    // "Avançar": the next stage becomes the current one, and the bell tells the client.
-    await userEvent.click(await screen.findByRole("button", { name: /Avançar para 04 Projeto 3D/ }));
-    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Avançar" })); // asked first
+    // "Marcar etapa como concluída": the next stage becomes the current one, and the bell tells the client.
+    await userEvent.click(await screen.findByRole("button", { name: "Marcar etapa como concluída" }));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Concluir etapa" })); // asked first
     await waitFor(() =>
       expect(document.getElementById("stage-3")?.querySelector(".pill--current")).toHaveTextContent("Em andamento"),
     );

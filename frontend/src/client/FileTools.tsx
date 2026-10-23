@@ -6,6 +6,9 @@ import { useTranslation } from "react-i18next";
 
 import type { Schemas } from "../api/client";
 import { PopoverDetails } from "../ui/PopoverDetails";
+import { SearchBox } from "../ui/SearchBox";
+import { SelectField } from "../ui/SelectField";
+import { sortFromValue, sortLabelKey, sortOptions, sortValue, type Sort } from "../ui/sort";
 import { useDismiss } from "../ui/useDismiss";
 import { fileSource, type Page } from "./format";
 
@@ -13,21 +16,30 @@ type FileItem = Schemas["FileOut"];
 type StageFiles = Schemas["StageFilesOut"];
 
 export type FileType = "all" | "pdf" | "image" | "dwg" | "other";
-export type FileSort = "updated" | "type" | "name";
+export const FILE_SORT_KEYS = ["updated", "name", "type"] as const;
+export type FileSort = Sort<(typeof FILE_SORT_KEYS)[number]>;
+/** The files' orders, each in both directions, as the painel's (ui/sort). */
+export const FILE_SORTS = sortOptions(FILE_SORT_KEYS, ["updated"]);
 export type FileView = "grid" | "list";
 export type Prefs = { type: FileType; sort: FileSort; view: FileView };
 
 const PREFS_KEY = "file-prefs";
-const DEFAULT_PREFS: Prefs = { type: "all", sort: "updated", view: "grid" };
+const DEFAULT_PREFS: Prefs = { type: "all", sort: { key: "updated", direction: "desc" }, view: "grid" };
+
+/** A saved order: "name-desc", or from before directions "name" (its first direction). */
+function savedSort(value: unknown): FileSort | null {
+  if (typeof value !== "string") return null;
+  return FILE_SORTS.find((sort) => sortValue(sort) === value) ?? FILE_SORTS.find((sort) => sort.key === value) ?? null;
+}
 
 /** View and order as this browser last left them; the type filter starts fresh. */
 export function usePrefs(): [Prefs, (change: Partial<Prefs>) => void] {
   const [prefs, setPrefs] = useState<Prefs>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}") as Partial<Prefs>;
+      const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}") as { sort?: unknown; view?: FileView };
       return {
         ...DEFAULT_PREFS,
-        ...(saved.sort && ["updated", "type", "name"].includes(saved.sort) ? { sort: saved.sort } : {}),
+        sort: savedSort(saved.sort) ?? DEFAULT_PREFS.sort,
         ...(saved.view && ["grid", "list"].includes(saved.view) ? { view: saved.view } : {}),
       };
     } catch {
@@ -38,7 +50,7 @@ export function usePrefs(): [Prefs, (change: Partial<Prefs>) => void] {
     setPrefs((current) => {
       const merged = { ...current, ...next };
       try {
-        localStorage.setItem(PREFS_KEY, JSON.stringify({ sort: merged.sort, view: merged.view }));
+        localStorage.setItem(PREFS_KEY, JSON.stringify({ sort: sortValue(merged.sort), view: merged.view }));
       } catch {
         // Not remembered on this device.
       }
@@ -65,11 +77,12 @@ const normalize = (text: string) =>
 const byName = new Intl.Collator("pt-BR", { numeric: true, sensitivity: "base" });
 
 export function sortFiles(files: FileItem[], sort: FileSort): FileItem[] {
+  const way = sort.direction === "asc" ? 1 : -1;
   return [...files].sort((a, b) => {
     const name = byName.compare(a.name, b.name);
-    if (sort === "name") return name;
-    if (sort === "type") return byName.compare(extension(a.name), extension(b.name)) || name;
-    return Date.parse(b.modified_at) - Date.parse(a.modified_at) || name; // newest first
+    if (sort.key === "name") return way * name;
+    if (sort.key === "type") return way * byName.compare(extension(a.name), extension(b.name)) || name;
+    return way * (Date.parse(a.modified_at) - Date.parse(b.modified_at)) || name;
   });
 }
 
@@ -120,41 +133,42 @@ export function FileToolbar({
   narrow: boolean;
 }) {
   const { t } = useTranslation();
+  // The painel's search and sort (ui/SearchBox, ui/SelectField): one order
+  // dropdown with its direction; the labels are for screen readers.
   const search = (
-    <>
-      <label className="sr" htmlFor="client-file-search">
-        {t("files.search")}
-      </label>
-      <input
-        className="input"
-        type="search"
-        id="client-file-search"
-        placeholder={t("files.searchPlaceholder")}
-        value={query}
-        onChange={(e) => onQuery(e.target.value)}
-      />
-    </>
+    <SearchBox
+      className="client-file-search"
+      id="client-file-search"
+      label={t("files.search")}
+      placeholder={t("files.searchPlaceholder")}
+      value={query}
+      onChange={onQuery}
+    />
   );
   const selects = (
     <>
-      <label htmlFor="client-file-type">
-        {t("files.type")}
-        <select id="client-file-type" value={prefs.type} onChange={(e) => onPrefs({ type: e.target.value as FileType })}>
-          <option value="all">{t("files.allTypes")}</option>
-          <option value="pdf">PDF</option>
-          <option value="image">{t("files.images")}</option>
-          <option value="dwg">DWG</option>
-          <option value="other">{t("files.others")}</option>
-        </select>
-      </label>
-      <label htmlFor="client-file-sort">
-        {t("files.sortBy")}
-        <select id="client-file-sort" value={prefs.sort} onChange={(e) => onPrefs({ sort: e.target.value as FileSort })}>
-          <option value="updated">{t("files.byUpdated")}</option>
-          <option value="type">{t("files.byType")}</option>
-          <option value="name">{t("files.byName")}</option>
-        </select>
-      </label>
+      <SelectField
+        id="client-file-type"
+        label={t("files.type")}
+        labelHidden
+        value={prefs.type}
+        options={[
+          { value: "all", label: t("files.allTypes") },
+          { value: "pdf", label: "PDF" },
+          { value: "image", label: t("files.images") },
+          { value: "dwg", label: "DWG" },
+          { value: "other", label: t("files.others") },
+        ]}
+        onChange={(value) => onPrefs({ type: value as FileType })}
+      />
+      <SelectField
+        id="client-file-sort"
+        label={t("files.sortBy")}
+        labelHidden
+        value={sortValue(prefs.sort)}
+        options={FILE_SORTS.map((option) => ({ value: sortValue(option), label: t(sortLabelKey(option)) }))}
+        onChange={(value) => onPrefs({ sort: sortFromValue(value, FILE_SORTS, DEFAULT_PREFS.sort) })}
+      />
     </>
   );
   const views = (
@@ -202,7 +216,7 @@ export function FileToolbar({
         </PopoverDetails>
         <PopoverDetails className="client-organize-disclosure">
           <summary>{t("files.filterAndSort")}</summary>
-          <div className="client-tool-popover client-file-controls">{selects}</div>
+          <div className="client-tool-popover file-tools__controls">{selects}</div>
         </PopoverDetails>
         {views}
         {status}
@@ -210,11 +224,8 @@ export function FileToolbar({
     );
   return (
     <div className="client-file-tools">
-      <div className="search">
-        <SearchIcon />
-        {search}
-      </div>
-      <div className="client-file-controls">
+      {search}
+      <div className="file-tools__controls">
         {selects}
         {views}
       </div>

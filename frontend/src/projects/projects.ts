@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { ONBOARDING } from "../drive/drive";
+import { sortOptions, type Sort as AnySort } from "../ui/sort";
 
 export type ProjectSummary = Schemas["ProjectSummary"];
 export type CreationOptions = Schemas["CreationOptions"];
@@ -127,23 +128,13 @@ export function projectTypes(
     .sort((a, b) => text.compare(a.label, b.label));
 }
 
-export const SORT_KEYS =["updated", "created", "name", "client", "type"] as const;
+export const SORT_KEYS = ["updated", "created", "name", "client", "type"] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
-export type Sort = { key: SortKey; direction: "asc" | "desc" };
+export type Sort = AnySort<SortKey>;
 export const DEFAULT_SORT: Sort = { key: "updated", direction: "desc" };
 
-/** Every order the list offers, each key in both directions (one dropdown,
- *  Fabio 22 Oct 2026): dates newest first, names A–Z first. */
-export const SORTS: Sort[] = SORT_KEYS.flatMap((key): Sort[] => {
-  const dates = key === "updated" || key === "created";
-  return dates
-    ? [{ key, direction: "desc" }, { key, direction: "asc" }]
-    : [{ key, direction: "asc" }, { key, direction: "desc" }];
-});
-
-/** A sort as the dropdown's value, "updated-desc", and back. */
-export const sortValue = (sort: Sort) => `${sort.key}-${sort.direction}`;
-export const sortFromValue = (value: string): Sort => SORTS.find((sort) => sortValue(sort) === value) ?? DEFAULT_SORT;
+/** Every order the list offers, each in both directions (ui/sort). */
+export const SORTS = sortOptions(SORT_KEYS, ["updated", "created"]);
 
 const lastUpdate = (p: ProjectSummary) => Date.parse(p.last_activity_at ?? p.created_at);
 

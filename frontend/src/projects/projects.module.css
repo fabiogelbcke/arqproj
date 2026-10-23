@@ -9,34 +9,8 @@
 /* Search, the sort select, its direction and "Novo projeto": toolbar controls,
    the small size (ui/sizes.css). */
 .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
-.search { position: relative; flex: 1 1 360px; min-width: 200px; }
-.searchIcon {
-  position: absolute; left: 16px; top: 50%; translate: 0 -60%; width: 12px; height: 12px;
-  border: 1.5px solid var(--muted); border-radius: 50%; pointer-events: none;
-}
-.searchIcon::after {
-  content: ""; position: absolute; right: -5px; bottom: -4px; width: 6px; height: 1.5px;
-  background: var(--muted); rotate: 45deg;
-}
-/* A grey pill (the redesign's search). */
-.searchInput {
-  width: 100%; height: var(--control-small); padding: 0 16px 0 40px; border: 1px solid var(--line);
-  border-radius: var(--r-pill); background: var(--surface); color: var(--ink); font: inherit; font-size: var(--text-sm);
-  transition: border-color 0.2s, background 0.2s;
-}
-.searchInput::placeholder { color: var(--muted); }
-.searchInput[data-focused] { outline: none; border-color: var(--ink); background: var(--raise); }
-.sort { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.sort label { font-size: var(--text-2xs); color: var(--muted); }
-.select {
-  min-width: 150px; height: var(--control-small); padding: 0 30px 0 12px; border: 1px solid var(--line-strong);
-  border-radius: var(--r-card); background: transparent; color: var(--ink); font: inherit; font-size: var(--text-sm);
-  /* Our own chevron, a little in from the edge (the browser's sits against it). */
-  appearance: none; -webkit-appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
-  background-size: 5px 5px; background-repeat: no-repeat;
-}
+/* The search (ui/SearchBox) takes the room left; the sort is a ui/SelectField. */
+.search { flex: 1 1 360px; min-width: 200px; }
 /* "Novo projeto": a dark pill in small capitals. */
 .newButton {
   gap: 10px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
@@ -61,9 +35,9 @@
   }
   .search:focus-within { background: color-mix(in srgb, var(--raise) 96%, transparent); }
   @media (prefers-reduced-motion: reduce) { .search { transition: none; } }
-  .search .searchIcon { left: 20px; }
-  .search .searchInput { height: 100%; padding: 0 20px 0 46px; background: transparent; font-size: 17px; }
-  .search .searchInput[data-focused] { background: transparent; }
+  .search svg { left: 20px; }
+  .search input { height: 100%; padding: 0 20px 0 46px; border: 0; background: transparent; font-size: 17px; }
+  .search input[data-focused] { background: transparent; }
   /* "Novo projeto" is the round + beside it (its name stays for screen readers). */
   .tools .newButton { /* over the Button's own size */
     position: fixed; z-index: 40; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));

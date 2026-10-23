@@ -1,5 +1,4 @@
 import { useId, useMemo, useRef, useState } from "react";
-import { Input, SearchField } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 
@@ -8,14 +7,13 @@ import { FirstSteps } from "../drive/FirstSteps";
 import { NewProjectDialog } from "../projects/NewProjectDialog";
 import { ProjectCard } from "../projects/ProjectCard";
 import {
+  DEFAULT_SORT,
   SORTS,
   compareProjects,
   loadSort,
   matches,
   projectTypes,
   saveSort,
-  sortFromValue,
-  sortValue,
   useProjects,
   type ProjectSummary,
   type Sort,
@@ -25,6 +23,9 @@ import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
 import { ChipGroup } from "../ui/ChipGroup";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { SearchBox } from "../ui/SearchBox";
+import { SelectField } from "../ui/SelectField";
+import { sortFromValue, sortLabelKey, sortValue } from "../ui/sort";
 import { toast } from "../ui/Toast";
 import pageStyles from "./pages.module.css";
 
@@ -150,7 +151,6 @@ export function ProjectsPage() {
   // Phones: one group at a time, chosen with two tabs (desktop shows both).
   const [phoneGroup, setPhoneGroup] = useState<"active" | "completed">("active");
   const [sort, setSort] = useState<Sort>(loadSort);
-  const sortId = useId();
 
   const changeSort = (next: Sort) => {
     setSort(next);
@@ -200,26 +200,22 @@ export function ProjectsPage() {
             </div>
             <div className={styles.tools}>
               {/* Phones: a floating pill at the bottom, beside the + (iOS Contacts). */}
-              <SearchField className={styles.search} value={query} onChange={setQuery} aria-label={t("projects.search")}>
-                <span className={styles.searchIcon} aria-hidden="true" />
-                <Input ref={searchBox} className={styles.searchInput} placeholder={t("projects.searchPlaceholder")} />
-              </SearchField>
-              <div className={styles.sort}>
-                <label htmlFor={sortId}>{t("projects.sortBy")}</label>
-                {/* The order and its direction in one choice: "Nome: A–Z". */}
-                <select
-                  id={sortId}
-                  className={styles.select}
-                  value={sortValue(sort)}
-                  onChange={(event) => changeSort(sortFromValue(event.target.value))}
-                >
-                  {SORTS.map((option) => (
-                    <option key={sortValue(option)} value={sortValue(option)}>
-                      {t(`projects.sort.${option.key}_${option.direction}`)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <SearchBox
+                className={styles.search}
+                inputRef={searchBox}
+                label={t("projects.search")}
+                placeholder={t("projects.searchPlaceholder")}
+                value={query}
+                onChange={setQuery}
+              />
+              {/* The order and its direction in one choice: "Nome: A–Z". */}
+              <SelectField
+                className={styles.sort}
+                label={t("projects.sortBy")}
+                value={sortValue(sort)}
+                options={SORTS.map((option) => ({ value: sortValue(option), label: t(sortLabelKey(option)) }))}
+                onChange={(value) => changeSort(sortFromValue(value, SORTS, DEFAULT_SORT))}
+              />
               <NewProjectDialog onCreated={(project) => toast(t("newProject.created", { name: project.name }))} />
             </div>
             {types.length > 1 && (

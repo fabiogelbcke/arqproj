@@ -1,5 +1,6 @@
-// Edit mode, part 2: "Editar etapa" (name, notes, remove), the prototype's
-// "Adicionar etapa" and its progress rail (advance, back, complete, reopen).
+// Edit mode, part 2: "Editar etapa" (name, notes, remove), "Adicionar etapa",
+// "Reordenar etapas", and moving the project along from its stages (finish the
+// current one, reopen the last finished, reopen a finished project).
 // Every change carries the page's row version; folders follow in Drive.
 import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,7 +16,6 @@ import type { Page } from "./format";
 const StageOrder = lazy(() => import("./StageOrder"));
 
 type Staff = NonNullable<Page["staff"]>;
-const pad = (n: number) => String(n).padStart(2, "0");
 
 /** `locked`: a change was saved and the page hasn't reloaded yet, so another
  * click would carry the old row version and be refused as "changed meanwhile". */
@@ -283,8 +283,9 @@ export function AddStage({
   );
 }
 
-/** The prototype's rail: where the project is, and the next step. */
-export function ProgressRail({
+/** "Reordenar etapas": every stage on one list to drag into a new order. Beside
+ *  "Adicionar etapa", at the end of the stages. */
+export function ReorderStages({
   page,
   staff,
   onChanged,
@@ -298,62 +299,75 @@ export function ProgressRail({
   locked?: boolean;
 }) {
   const { t } = useTranslation();
-  const change = useChange(onChanged, locked);
   const [ordering, setOrdering] = useState(false);
-  // Advancing, completing and going back ask first; reopening doesn't.
-  const [confirming, setConfirming] = useState<"advance" | "complete" | "back" | null>(null);
-  // "Reordenar etapas": every stage on one list to drag into a new order.
-  const reorder = page.stages.length > 1 && (
+  if (page.stages.length < 2) return null;
+  return (
     <>
-      <button className="b b--ghost b--small" type="button" disabled={change.busy} onClick={() => setOrdering(true)}>
+      <button className="b b--small" type="button" disabled={locked} onClick={() => setOrdering(true)}>
         {t("edit.reorderStages")}
       </button>
       {ordering && (
         <Suspense fallback={null}>
-          <StageOrder
-            page={page}
-            staff={staff}
-            onClose={() => setOrdering(false)}
-            onChanged={onChanged}
-            onReordered={onReordered}
-          />
+          <StageOrder page={page} staff={staff} onClose={() => setOrdering(false)} onChanged={onChanged} onReordered={onReordered} />
         </Suspense>
       )}
     </>
   );
-  const send = (action: "advance" | "back" | "complete" | "reopen", version = staff.row_version) =>
+}
+
+/** Moving the project along, from its stages (Fabio, 22 Oct 2026; it was a rail
+ *  of its own): the current stage's "Marcar etapa como concluída" (on the last
+ *  stage it completes the project), "Reabrir etapa" on the one finished last,
+ *  and "Reabrir projeto" on a finished project's last stage. Each asks first,
+ *  except reopening a finished project. Nothing on the other stages. */
+export function StageProgress({
+  page,
+  staff,
+  index,
+  onChanged,
+  locked = false,
+}: {
+  page: Page;
+  staff: Staff;
+  index: number;
+  onChanged: () => void;
+  locked?: boolean;
+}) {
+  const { t } = useTranslation();
+  const change = useChange(onChanged, locked);
+  const [confirming, setConfirming] = useState<"advance" | "complete" | "back" | null>(null);
+  const send = (action: "advance" | "back" | "complete" | "reopen") =>
     call(
       api.POST("/api/projects/{project_id}/progress", {
         params: { path: path(staff) },
-        body: { row_version: version, action },
+        body: { row_version: staff.row_version, action },
       }),
     );
-  if (!page.stages.length) return <div className="rail" data-tour="stage"><div className="rail__now"><p>{t("edit.noStagesYet")}</p></div></div>;
+  const last = index === page.stages.length - 1;
   if (page.completed)
-    return (
-      <div className="rail" data-tour="stage">
-        <div className="rail__now">
-          <span className="big">✓</span>
-          <p>
-            {t("page.allDone")}
-            <small>{t("edit.allDoneNote")}</small>
-          </p>
-        </div>
-        {reorder}
-        <button className="b b--small" type="button" disabled={change.busy} onClick={() => void change.run(() => send("reopen"), t("edit.reopened"))}>
-          {t("edit.reopen")}
-        </button>
-      </div>
-    );
+    return last ? (
+      <button
+        className="b b--small"
+        type="button"
+        disabled={change.busy}
+        onClick={() => void change.run(() => send("reopen"), t("edit.reopened"))}
+      >
+        {t("edit.reopenProject")}
+      </button>
+    ) : null;
   const current = Math.max(1, page.current_position ?? 1);
   const here = page.stages[current - 1];
   const next = page.stages[current];
   const previous = page.stages[current - 2];
+  const isCurrent = index === current - 1;
+  const isJustDone = index === current - 2;
+  // Only an active project can be completed.
+  if (!(isCurrent && (next || staff.status === "active")) && !isJustDone) return null;
   const confirmations = {
     advance: {
-      title: t("edit.advanceAsk", { title: next?.title }),
-      text: t("edit.advanceMeans", { from: here?.title, title: next?.title }),
-      confirm: t("edit.advance"),
+      title: t("edit.completeStageAsk", { title: here?.title }),
+      text: t("edit.completeStageMeans", { from: here?.title, title: next?.title }),
+      confirm: t("edit.completeStageConfirm"),
       done: t("edit.advanced", { title: next?.title }),
     },
     complete: {
@@ -363,42 +377,33 @@ export function ProgressRail({
       done: t("edit.completed"),
     },
     back: {
-      title: t("edit.backAsk", { title: previous?.title }),
+      title: t("edit.reopenStageAsk", { title: previous?.title }),
       text: t("edit.backMeans", { title: previous?.title }),
-      confirm: t("edit.back"),
+      confirm: t("edit.reopenStage"),
       done: undefined,
     },
   };
   return (
-    <div className="rail" data-tour="stage">
-      <div className="rail__now">
-        <span className="big tnum">{pad(current)}</span>
-        <p>
-          <small className="rail__label">{t("edit.currentStage")}</small>
-          {here?.title}
-        </p>
-      </div>
-      {reorder}
-      {current > 1 && (
-        <button className="b b--ghost b--small" type="button" disabled={change.busy} onClick={() => setConfirming("back")}>
-          {t("edit.back")}
-        </button>
-      )}
-      {/* Only an active project can be completed. */}
-      {(next || staff.status === "active") && (
+    <>
+      {isCurrent ? (
         <button
-          className="b b--primary"
+          className="b b--small b--primary stage-progress"
           type="button"
+          data-tour="stage"
           disabled={change.busy}
           onClick={() => setConfirming(next ? "advance" : "complete")}
         >
-          {next ? t("edit.advanceTo", { n: pad(current + 1), title: next.title }) : t("edit.complete")}
+          {t("edit.completeStage")}
+        </button>
+      ) : (
+        <button className="b b--small stage-progress" type="button" disabled={change.busy} onClick={() => setConfirming("back")}>
+          {t("edit.reopenStage")}
         </button>
       )}
       {confirming && (
         <ConfirmDialog
           {...confirmations[confirming]}
-          // Advancing and completing email whoever gets the project's updates (A32).
+          // Finishing a stage or the project emails whoever gets the project's updates (A32).
           note={
             confirming !== "back" && staff.recipients?.some((recipient) => recipient.subscribed)
               ? t("edit.clientsNotified")
@@ -406,9 +411,11 @@ export function ProgressRail({
           }
           busy={change.busy}
           onCancel={() => setConfirming(null)}
-          onConfirm={() => void change.run(() => send(confirming), confirmations[confirming].done).then(() => setConfirming(null))}
+          onConfirm={() =>
+            void change.run(() => send(confirming), confirmations[confirming].done).then(() => setConfirming(null))
+          }
         />
       )}
-    </div>
+    </>
   );
 }
