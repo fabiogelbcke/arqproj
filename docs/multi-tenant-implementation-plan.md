@@ -1657,7 +1657,7 @@ database.
   the panel's settings; the page components themselves are not forked.
 - **Controls, at least:** cover photo on/off; description none, short, long
   (with a length slider); meeting none, short name, long name; number of
-  stages and of files per stage; long file and stage names; client emails
+  stages, of files per stage and of project details; long file and stage names; client emails
   present or missing; staff view vs client view; light/dark; phone/desktop
   width. Adding a control later is a small change in one place.
 - **Where it runs:** locally (`make dev`) and on staging, not in production

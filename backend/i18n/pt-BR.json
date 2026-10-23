@@ -739,6 +739,7 @@
       "description": "Descrição",
       "length": "Tamanho da descrição longa",
       "meeting": "Reunião",
+      "details": "Detalhes do projeto",
       "stages": "Etapas",
       "files": "Arquivos por etapa",
       "longNames": "Nomes longos (etapas e arquivos)",

@@ -90,8 +90,9 @@ loads anything from `backend/migrations/` or `backend/commands/`.
   browser test with `npx playwright test -g "<name>"` (after `make build`).
   CI runs the full suite (backend, staff app, browser tests, image) on every
   pull request into `staging`; it takes minutes, the full local run much longer.
-- Push to the pull request and wait for CI to pass before asking for a review
-  (Codex or Fabio); fix what it finds. Don't hand over a red pull request.
+- Push to the pull request and ask Codex for its review right away, while CI
+  runs (Fabio, 23 Oct 2026: waiting doubled each round); fix what either finds.
+  Hand the pull request to Fabio only once CI has passed: never a red one.
 - Run the full suite locally (`make test`, `make e2e`) only when there is no
   pull request to run CI on, or when asked.
 - Fix any test failures introduced by the changes.
