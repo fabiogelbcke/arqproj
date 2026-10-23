@@ -7,6 +7,8 @@ import { PreviewApp, PreviewFrame } from "./PreviewApp";
 import { LIMITS } from "../../api/limits";
 import { CONTROLS, KEYS, readSettings, writeSettings } from "./settings";
 import { previewData } from "./variant";
+import clientEntry from "../main.tsx?raw";
+import previewEntry from "./main.tsx?raw";
 
 const NOW = new Date("2026-10-20T12:00:00Z");
 const ZONE = "America/Sao_Paulo";
@@ -33,6 +35,26 @@ describe("the preview's settings", () => {
   });
 });
 
+describe("the preview's entry", () => {
+  // It draws the client page, so it needs every stylesheet that page loads, in
+  // the same order (the redesign's two were missing once: the preview looked broken).
+  const stylesheets = (entry: string) =>
+    [...entry.matchAll(/^import "(.+\.css)";$/gm)].map(([, path]) => path!.split("/").pop());
+
+  it("loads the client page's stylesheets, in the same order", () => {
+    const client = stylesheets(clientEntry);
+    expect(client.length).toBeGreaterThan(0);
+    expect(stylesheets(previewEntry).filter((name) => client.includes(name))).toEqual(client);
+  });
+
+  it("would notice one missing (self-test)", () => {
+    const without = previewEntry.replace(/^import ".+project\.css";$/m, "");
+    expect(stylesheets(without).filter((name) => stylesheets(clientEntry).includes(name))).not.toEqual(
+      stylesheets(clientEntry),
+    );
+  });
+});
+
 describe("the preview's data", () => {
   const data = (query: string) => previewData(readSettings(query), NOW, ZONE);
 
@@ -51,6 +73,14 @@ describe("the preview's data", () => {
     const { project } = data("stages=1");
     expect(project.current_position).toBe(1);
     expect(project.updates.every((update) => (update.stage_position ?? 0) <= 1)).toBe(true);
+  });
+
+  it("has as many details as asked, past the example's own, each a different one", () => {
+    expect(data("details=0").project.details).toEqual([]);
+    const { details } = data(`details=${CONTROLS.details.max}`).project;
+    expect(details).toHaveLength(CONTROLS.details.max);
+    expect(new Set(details.map((detail) => detail.key)).size).toBe(CONTROLS.details.max);
+    expect(new Set(details.map((detail) => detail.label)).size).toBe(CONTROLS.details.max);
   });
 
   it("drops the cover, the meeting (and its updates) and the client's emails when asked", () => {

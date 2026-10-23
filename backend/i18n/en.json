@@ -742,6 +742,7 @@
       "description": "Description",
       "length": "Long description length",
       "meeting": "Meeting",
+      "details": "Project details",
       "stages": "Stages",
       "files": "Files per stage",
       "longNames": "Long names (stages and files)",
