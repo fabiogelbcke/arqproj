@@ -183,6 +183,8 @@
    doesn't clip, so its "⋯" menu opens past it (Fabio, 23 Oct 2026). */
 .client .stage .file { border-radius: var(--r-card); overflow: visible; background: var(--raise); }
 .client .stage .files:not([data-view="list"]) .file__thumb { border-radius: var(--r-card) var(--r-card) 0 0; overflow: hidden; }
+/* The card whose menu is open sits above the files after it, so the menu does too. */
+.client .stage .file:has(.filemenu.is-open) { position: relative; z-index: 5; }
 /* An open stage with no files yet (clients): a quiet card, an empty folder and
    what to expect. In edit mode the drop area takes its place. */
 .client .stage-empty {

@@ -1363,7 +1363,8 @@ describe("edit mode", () => {
       await startEditing();
       await userEvent.click(await screen.findByRole("button", { name: "Marcar etapa como concluída" }));
       let ask = screen.getByRole("alertdialog", { name: "Concluir “Levantamento”?" });
-      expect(ask).toHaveTextContent("“Levantamento” fica marcada como concluída e “Estudo Preliminar” passa a estar em andamento");
+      expect(ask).toHaveTextContent("“Levantamento” será marcada como concluída e “Estudo Preliminar” passará a estar em andamento");
+      expect(ask).toHaveTextContent("Você poderá desfazer essa ação.");
       expect(ask).toHaveTextContent("serão notificados por e-mail");
       await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
       expect(posted(sent)).toEqual([]);

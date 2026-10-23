@@ -452,7 +452,7 @@
   "edit": {
     "completeStage": "Mark stage as done",
     "completeStageAsk": "Finish “{{title}}”?",
-    "completeStageMeans": "“{{from}}” is marked as done and “{{title}}” becomes the stage in progress. You can reopen it later.",
+    "completeStageMeans": "“{{from}}” will be marked as done and “{{title}}” will become the stage in progress. You will be able to undo this action.",
     "completeStageConfirm": "Finish stage",
     "reopenStage": "Reopen stage",
     "reopenStageAsk": "Reopen “{{title}}”?",

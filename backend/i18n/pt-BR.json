@@ -452,7 +452,7 @@
   "edit": {
     "completeStage": "Marcar etapa como concluída",
     "completeStageAsk": "Concluir “{{title}}”?",
-    "completeStageMeans": "“{{from}}” fica marcada como concluída e “{{title}}” passa a estar em andamento. Dá para reabrir depois.",
+    "completeStageMeans": "“{{from}}” será marcada como concluída e “{{title}}” passará a estar em andamento. Você poderá desfazer essa ação.",
     "completeStageConfirm": "Concluir etapa",
     "reopenStage": "Reabrir etapa",
     "reopenStageAsk": "Reabrir “{{title}}”?",
