@@ -283,7 +283,7 @@ test("the client page: content, redirects, not found and protected", async ({ pa
   await expect(page.getByText("Apresentação do layout")).toBeVisible();
   // The current stage is open; another opens from the timeline.
   await expect(page.getByText("Levantamento concluído", { exact: false })).toBeHidden();
-  await page.getByRole("button", { name: /02\s*Levantamento/ }).click();
+  await page.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Levantamento/ }).click();
   await expect(page.getByText("Levantamento concluído", { exact: false })).toBeVisible();
   // "Sobre esta etapa": the project type's own description.
   await page.getByRole("button", { name: "Sobre esta etapa: Levantamento" }).click();
@@ -374,7 +374,7 @@ test("the client page lists each stage's files, with subfolders as groups", asyn
   await preview.getByRole("button", { name: "Fechar" }).click();
   await expect(page).toHaveURL(/\/casa-jardim$/); // the page stays
 
-  await page.getByRole("button", { name: /01\s*Briefing/ }).click();
+  await page.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Briefing/ }).click();
   const first = page.locator("#stage-0");
   await expect(first.getByText("Programa de necessidades.pdf")).toBeVisible();
   await expect(first.getByRole("heading", { name: "Levantamento" })).toBeVisible(); // a subfolder
@@ -392,7 +392,7 @@ test("staff upload a file into a stage, the client sees it, and staff hide it", 
 
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
-  await page.getByRole("button", { name: /01\s*Briefing/ }).click();
+  await page.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Briefing/ }).click();
   const briefing = page.locator("#stage-0");
   await briefing.getByLabel("escolha no computador").setInputFiles({
     name: "Levantamento fotográfico.pdf",
@@ -404,7 +404,7 @@ test("staff upload a file into a stage, the client sees it, and staff hide it", 
 
   const client = await browser.newPage();
   await client.goto("/casa-jardim");
-  await client.getByRole("button", { name: /01\s*Briefing/ }).click();
+  await client.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Briefing/ }).click();
   await expect(client.locator("#stage-0").getByText("Levantamento fotográfico.pdf")).toBeVisible();
 
   await briefing.getByRole("button", { name: "Ações para Levantamento fotográfico.pdf" }).click();
@@ -414,7 +414,7 @@ test("staff upload a file into a stage, the client sees it, and staff hide it", 
   // A new visitor (a returning one may keep the list up to two minutes, A10).
   const later = await browser.newPage();
   await later.goto("/casa-jardim");
-  await later.getByRole("button", { name: /01\s*Briefing/ }).click();
+  await later.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Briefing/ }).click();
   await expect(later.locator("#stage-0").getByText("Programa de necessidades.pdf")).toBeVisible();
   await expect(later.locator("#stage-0").getByText("Levantamento fotográfico.pdf")).toHaveCount(0);
   await later.close();
@@ -743,7 +743,7 @@ async function openThirdStage(page: Page) {
   const stage = page.locator("#stage-2");
   // From the timeline, as in edit mode (where the stage's own arrow gives way to its controls).
   if (!/is-expanded/.test((await stage.getAttribute("class")) ?? ""))
-    await page.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^03 / }).click();
+    await page.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Estudo Preliminar/ }).click();
   await page.locator("#stage-2.is-expanded .file").first().waitFor();
   await page.waitForTimeout(400); // the opening's fade
 }
