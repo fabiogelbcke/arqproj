@@ -450,6 +450,12 @@
     "downloadFile": "Download {{name}}"
   },
   "edit": {
+    "stageToAdd": "Stage",
+    "customStage": "Custom stage…",
+    "customStageName": "Stage name",
+    "meetingFormat": "Format",
+    "inPerson": "In person",
+    "online": "Online",
     "completeStage": "Mark stage as done",
     "completeStageAsk": "Finish “{{title}}”?",
     "completeStageMeans": "“{{from}}” will be marked as done and “{{title}}” will become the stage in progress. You will be able to undo this action.",
@@ -518,9 +524,7 @@
     "remove": "Remove",
     "stageRemoved": "Stage “{{title}}” removed. Its folder stays in Drive.",
     "addStage": "Add a stage",
-    "builtInStage": "A stage from the list",
     "chooseStage": "Choose…",
-    "ownStage": "Or the office's own stage",
     "add": "Add",
     "addStageHint": "The stage will be added at the end, with a new folder in Drive.",
     "reopened": "Project reopened.",

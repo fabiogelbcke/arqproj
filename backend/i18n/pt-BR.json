@@ -450,6 +450,12 @@
     "downloadFile": "Baixar {{name}}"
   },
   "edit": {
+    "stageToAdd": "Etapa",
+    "customStage": "Etapa personalizada…",
+    "customStageName": "Nome da etapa",
+    "meetingFormat": "Formato",
+    "inPerson": "Presencial",
+    "online": "On-line",
     "completeStage": "Marcar etapa como concluída",
     "completeStageAsk": "Concluir “{{title}}”?",
     "completeStageMeans": "“{{from}}” será marcada como concluída e “{{title}}” passará a estar em andamento. Você poderá desfazer essa ação.",
@@ -518,9 +524,7 @@
     "remove": "Remover",
     "stageRemoved": "Etapa “{{title}}” removida. A pasta continua no Drive.",
     "addStage": "Adicionar etapa",
-    "builtInStage": "Uma etapa da lista",
     "chooseStage": "Escolher…",
-    "ownStage": "Ou uma etapa do escritório",
     "add": "Adicionar",
     "addStageHint": "A etapa será adicionada ao final, com uma nova pasta no Drive.",
     "reopened": "Projeto reaberto.",

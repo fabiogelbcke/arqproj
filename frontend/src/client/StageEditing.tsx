@@ -195,6 +195,9 @@ export function StageEditForm({
   );
 }
 
+// The dropdown's last option: a stage of the office's own, named below it.
+const CUSTOM_STAGE = "custom";
+
 /** "Adicionar etapa": a built-in stage the project doesn't have yet, or the office's own. */
 export function AddStage({
   page,
@@ -211,6 +214,7 @@ export function AddStage({
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<Schemas["StageOption"][]>([]);
   const [custom, setCustom] = useState("");
+  const [naming, setNaming] = useState(false); // "Etapa personalizada…" chosen
   const change = useChange(onChanged, locked);
   useEffect(() => {
     if (open) call(api.GET("/api/project-types")).then((found) => setOptions(found.stages), () => setOptions([]));
@@ -229,6 +233,7 @@ export function AddStage({
       .then((ok) => {
         if (ok) {
           setOpen(false);
+          setNaming(false);
           setCustom("");
         }
       });
@@ -244,9 +249,20 @@ export function AddStage({
     <div className="addstage">
       <div className="editor add-stage">
         <h3>{t("edit.addStage")}</h3>
+        {/* One list: the built-in stages the project doesn't have, then "Etapa
+            personalizada…", which asks for its name (Fabio, 23 Oct 2026). */}
         <label className="field">
-          <span>{t("edit.builtInStage")}</span>
-          <select className="select" value="" disabled={change.busy} onChange={(e) => e.target.value && void add({ builtin_key: e.target.value })}>
+          <span>{t("edit.stageToAdd")}</span>
+          <select
+            className="select"
+            value={naming ? CUSTOM_STAGE : ""}
+            disabled={change.busy}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === CUSTOM_STAGE) setNaming(true);
+              else if (value) void add({ builtin_key: value });
+            }}
+          >
             <option value="">{t("edit.chooseStage")}</option>
             {options
               .filter((option) => !used.has(option.title))
@@ -255,26 +271,36 @@ export function AddStage({
                   {option.title}
                 </option>
               ))}
+            <option value={CUSTOM_STAGE}>{t("edit.customStage")}</option>
           </select>
         </label>
-        <form
-          className="field"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (custom.trim()) void add({ title: custom.trim() });
-          }}
-        >
-          <label htmlFor="custom-stage">{t("edit.ownStage")}</label>
-          <div className="add-stage__row">
-            <TextInput className="input" id="custom-stage" value={custom} maxLength={LIMITS.stageTitle} onChange={(e) => setCustom(e.target.value)} />
-            <button className="b b--primary" type="submit" disabled={change.busy || !custom.trim()}>
-              {t("edit.add")}
-            </button>
-          </div>
-        </form>
+        {naming && (
+          <form
+            className="field"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (custom.trim()) void add({ title: custom.trim() });
+            }}
+          >
+            <label htmlFor="custom-stage">{t("edit.customStageName")}</label>
+            <div className="add-stage__row">
+              <TextInput className="input" id="custom-stage" value={custom} maxLength={LIMITS.stageTitle} autoFocus onChange={(e) => setCustom(e.target.value)} />
+              <button className="b b--primary" type="submit" disabled={change.busy || !custom.trim()}>
+                {t("edit.add")}
+              </button>
+            </div>
+          </form>
+        )}
         <p className="hint">{t("edit.addStageHint")}</p>
         <div className="editor__actions">
-          <button className="b" type="button" onClick={() => setOpen(false)}>
+          <button
+            className="b"
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setNaming(false);
+            }}
+          >
             {t("projectSettings.cancel")}
           </button>
         </div>

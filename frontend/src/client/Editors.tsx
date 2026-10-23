@@ -277,6 +277,9 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
     location: meeting?.location ?? "",
     link: meeting?.link ?? "",
   });
+  // In person (a place) or online (a video call link): one or the other is saved
+  // (Fabio, 23 Oct 2026). A meeting with a link opens as online.
+  const [format, setFormat] = useState<"in_person" | "online">(meeting?.link ? "online" : "in_person");
   const set = (field: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [field]: e.target.value });
   const save = useSave(() => onDone(true));
   const path = { params: { path: { project_id: staff.project_id } } };
@@ -296,8 +299,8 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
                 day: form.day,
                 start: form.start,
                 end: form.end || null,
-                location: form.location || null,
-                link: form.link || null,
+                location: (format === "in_person" && form.location) || null,
+                link: (format === "online" && form.link) || null,
               },
             }),
           ),
@@ -328,21 +331,33 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
         <label htmlFor="m-title">{t("edit.subject")}</label>
         <TextInput className="input" id="m-title" value={form.title} onChange={set("title")} maxLength={LIMITS.meetingTitle} required autoFocus />
       </div>
-      {/* The day on its own line, then the times side by side (even on a phone); the
-          place and the video link one per line, either or both. */}
+      {/* The day on its own line, then the times side by side (even on a phone);
+          then in person or online, with the place or the video link. */}
       <DayField label={t("edit.day")} value={form.day} onChange={(day) => setForm({ ...form, day })} />
       <div className="meeting-times">
         <TimeOfDayField label={t("edit.start")} value={form.start} onChange={(start) => setForm({ ...form, start })} required />
         <TimeOfDayField label={t("edit.end")} value={form.end} onChange={(end) => setForm({ ...form, end })} />
       </div>
-      <div className="field">
-        <label htmlFor="m-loc">{t("edit.location")}</label>
-        <TextInput className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={LIMITS.meetingLocation} />
-      </div>
-      <div className="field">
-        <label htmlFor="m-link">{t("edit.link")}</label>
-        <input className="input" type="url" id="m-link" value={form.link} onChange={set("link")} placeholder="https://meet.google.com/…" />
-      </div>
+      <fieldset className="meeting-format">
+        <legend>{t("edit.meetingFormat")}</legend>
+        {(["in_person", "online"] as const).map((option) => (
+          <label key={option} className="meeting-format__option">
+            <input type="radio" name="meeting-format" value={option} checked={format === option} onChange={() => setFormat(option)} />
+            <span>{t(option === "in_person" ? "edit.inPerson" : "edit.online")}</span>
+          </label>
+        ))}
+      </fieldset>
+      {format === "in_person" ? (
+        <div className="field">
+          <label htmlFor="m-loc">{t("edit.location")}</label>
+          <TextInput className="input" id="m-loc" value={form.location} onChange={set("location")} maxLength={LIMITS.meetingLocation} />
+        </div>
+      ) : (
+        <div className="field">
+          <label htmlFor="m-link">{t("edit.link")}</label>
+          <input className="input" type="url" id="m-link" value={form.link} onChange={set("link")} placeholder="https://meet.google.com/…" />
+        </div>
+      )}
       <p className="hint">{t("edit.timeZoneHint")}</p>
     </Editor>
   );

@@ -1,13 +1,13 @@
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 
 import { api, call } from "../api/client";
 import { LogoPng, useOffice } from "../office/office";
 import { useMe, useSignedOut } from "../session/session";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { HeaderMenu } from "../ui/HeaderMenu";
-import { OfficeLogo } from "../ui/OfficeLogo";
+import { OfficeBrand } from "../ui/OfficeBrand";
 import { IconButton } from "../ui/IconButton";
 import styles from "../pages/pages.module.css";
 import { MobileMenu } from "./MobileMenu";
@@ -45,14 +45,10 @@ export function SignedInLayout() {
       </a>
       <header className={styles.topbar}>
         <div className={styles.topbarIn}>
-          {/* A logo usually carries the name already, so it replaces it. */}
-          <span className={styles.brand}>
-            {office.data?.logo_url ? (
-              <OfficeLogo light={office.data.logo_url} dark={office.data.logo_dark_url} alt={me.data.tenant_name} />
-            ) : (
-              me.data.tenant_name
-            )}
-          </span>
+          {/* The office's mark (its logo carries the name): always the way back to the projects. */}
+          <Link className={styles.brand} to="/" title={t("page.backToPainel")}>
+            <OfficeBrand name={me.data.tenant_name} logo={office.data?.logo_url} logoDark={office.data?.logo_dark_url} />
+          </Link>
           <nav className={`${styles.nav} ${styles.navInMenu}`} aria-label={t("app.name")}>
             <NavLink to="/" end>
               {t("nav.projects")}
