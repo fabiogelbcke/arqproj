@@ -97,7 +97,6 @@
     "needsDrive": "To create projects, connect the office's Google Drive.",
     "needsDriveMember": "To create projects, the office's Google Drive needs to be connected. Ask the office's owner.",
     "noMeeting": "None",
-    "done": "Project completed",
     "groupCountLabel": "{{shown}} projects in progress of {{total}} shown",
     "kicker": "Project space"
   },

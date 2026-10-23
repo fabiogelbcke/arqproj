@@ -40,6 +40,8 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
     stage_count: 7,
     recipients: [],
     completed_stage_count: 2,
+    current_position: null, // the previous release's (A30), unread now
+    current_stage_title: null,
     next_meeting: null,
     created_at: "2026-09-01T12:00:00Z",
     last_activity_at: null,
@@ -89,7 +91,7 @@ describe("the project list", () => {
 
     const completed = screen.getByRole("region", { name: "Concluídos" });
     expect(within(completed).getByText("Refúgio")).toBeVisible();
-    expect(within(completed).getByText("Projeto concluído")).toBeInTheDocument();
+    expect(within(completed).getByText("7 de 7 etapas concluídas")).toBeInTheDocument();
   });
 
   it("shows on each card how many stages are completed, in words and as a bar", async () => {

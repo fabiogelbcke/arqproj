@@ -299,6 +299,26 @@ async def test_removing_a_completed_stage_leaves_the_project_as_it_is(client, ow
     assert (await page(client))["completed"] is False  # stages still open
 
 
+async def test_the_previous_releases_progress_still_works_for_one_release(client, owner, folders):
+    """A tab still running the previous release during a deploy (A30)."""
+    assert (await page(client))["current_position"] == 3  # the first stage still open
+    response = await call(client, owner, "POST", "/progress", action="advance")
+    assert response.status_code == 204, response.text
+    shown = await page(client)
+    assert (completed(shown)[:4], shown["current_position"]) == ([True, True, True, False], 4)
+    await call(client, owner, "POST", "/progress", action="back")  # the last completed
+    assert completed(await page(client))[:4] == [True, True, False, False]
+    for _ in range(5):  # 03 to 07: the last one completes the project
+        await call(client, owner, "POST", "/progress", action="advance")
+    shown = await page(client)
+    assert (shown["completed"], shown["current_position"]) == (True, 7)
+    response = await call(client, owner, "POST", "/progress", action="complete")
+    assert (response.status_code, response.json()["error"]) == (422, "invalid_status_change")
+    await call(client, owner, "POST", "/progress", action="reopen")
+    shown = await page(client)
+    assert (shown["completed"], completed(shown)[-1]) == (False, False)
+
+
 async def test_completing_a_completed_stage_or_reopening_an_open_one_is_refused(
     client, owner, folders
 ):

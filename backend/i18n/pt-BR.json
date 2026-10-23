@@ -97,7 +97,6 @@
     "needsDrive": "Para criar projetos, conecte o Google Drive do escritório.",
     "needsDriveMember": "Para criar projetos, o Google Drive do escritório precisa estar conectado. Peça ao responsável pelo escritório.",
     "noMeeting": "Nenhuma",
-    "done": "Projeto concluído",
     "groupCountLabel": "{{shown}} projetos em andamento de {{total}} exibidos",
     "kicker": "Espaço de projetos"
   },

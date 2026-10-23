@@ -14,11 +14,8 @@ function Progress({ project }: { project: ProjectSummary }) {
   const { t } = useTranslation();
   const total = project.stage_count;
   const done = project.completed_stage_count;
-  const caption = !total
-    ? t("projects.noStages")
-    : project.status === "completed"
-      ? t("projects.done")
-      : t("projects.stagesDone", { done, total });
+  // A completed project too: the card sits under "Concluídos" already.
+  const caption = total ? t("projects.stagesDone", { done, total }) : t("projects.noStages");
   return (
     <div className={styles.progress}>
       <div className={styles.progressHead}>

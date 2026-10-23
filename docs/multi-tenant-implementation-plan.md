@@ -1535,7 +1535,7 @@ Representative contract:
 | `POST /api/admin/projects` | Validate + create durable provisioning operation |
 | `PATCH /api/admin/projects/{id}` | Tenant-bound edit with row-version conflict detection: description, details, meeting, access, name/slug (painel only) |
 | `PUT /api/admin/projects/{id}/stages` | Add, rename, reorder, remove stages in one versioned change |
-| `PUT /api/projects/{id}/stages/{n}/completion` | Mark a stage as completed, or reopen it (23 Oct 2026; it was `POST …/progress`, advancing a current stage) |
+| `PUT /api/projects/{id}/stages/{n}/completion` | Mark a stage as completed, or reopen it (23 Oct 2026; it was `POST …/progress`, advancing a current stage, which stays for one release for tabs still running the previous build, A30, with the old `current_position` and `current_stage_title` fields) |
 | `GET /api/admin/projects/{id}/folders/{id}` | Indexed listing and current capabilities |
 | `POST /api/admin/projects/{id}/uploads` | Create scoped resumable upload operation |
 | `POST /api/admin/projects/{id}/sync` | Deduplicated, rate-limited sync request |

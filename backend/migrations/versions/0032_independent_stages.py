@@ -45,11 +45,17 @@ def _grant(statement: str) -> None:
 
 def upgrade() -> None:
     op.add_column("project_stages", sa.Column("completed_at", sa.DateTime(timezone=True)))
+    # Every office's rows: the forced isolation policy would hide them from the
+    # migration login (backend/migrations/snippets.py, "a backfill").
+    op.execute("ALTER TABLE projects NO FORCE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE project_stages NO FORCE ROW LEVEL SECURITY")
     op.execute(
         "UPDATE project_stages s SET completed_at = now() FROM projects p "
         "WHERE p.id = s.project_id AND (p.status = 'completed' "
         "OR (p.current_position IS NOT NULL AND s.position < p.current_position))"
     )
+    op.execute("ALTER TABLE project_stages FORCE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE projects FORCE ROW LEVEL SECURITY")
     op.drop_constraint(op.f("ck_project_events_kind_known"), "project_events")
     op.create_check_constraint(
         op.f("ck_project_events_kind_known"), "project_events", f"kind IN ({KINDS_AFTER})"
@@ -59,7 +65,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     _grant("REVOKE UPDATE (completed_at) ON project_stages FROM %I")
+    op.execute("ALTER TABLE project_events NO FORCE ROW LEVEL SECURITY")  # every office's
     op.execute("DELETE FROM project_events WHERE kind = 'stage_completed'")
+    op.execute("ALTER TABLE project_events FORCE ROW LEVEL SECURITY")
     op.drop_constraint(op.f("ck_project_events_kind_known"), "project_events")
     op.create_check_constraint(
         op.f("ck_project_events_kind_known"), "project_events", f"kind IN ({KINDS_BEFORE})"

@@ -2814,6 +2814,81 @@
         }
       }
     },
+    "/api/projects/{project_id}/progress": {
+      "post": {
+        "summary": "Progress",
+        "description": "The previous release's progress, for a tab still running its code during a\ndeploy (A30); remove in the release after independent stages. \"advance\" and\n\"complete\" complete the first open stage; \"back\" and \"reopen\" reopen the last\ncompleted one.",
+        "operationId": "progress_api_projects__project_id__progress_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/stages/{position}/uploads": {
       "post": {
         "summary": "Start Upload",
@@ -4483,6 +4558,17 @@
             "type": "boolean",
             "title": "Completed"
           },
+          "current_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Position"
+          },
           "last_update": {
             "type": "string",
             "format": "date-time",
@@ -4535,12 +4621,37 @@
           "description",
           "cover_url",
           "completed",
+          "current_position",
           "last_update",
           "details",
           "stages",
           "next_meeting"
         ],
         "title": "PageOut"
+      },
+      "ProgressIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "advance",
+              "back",
+              "complete",
+              "reopen"
+            ],
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "action"
+        ],
+        "title": "ProgressIn"
       },
       "ProjectChange": {
         "properties": {
@@ -4743,6 +4854,28 @@
             "type": "integer",
             "title": "Completed Stage Count"
           },
+          "current_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Position"
+          },
+          "current_stage_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Stage Title"
+          },
           "next_meeting": {
             "anyOf": [
               {
@@ -4807,6 +4940,8 @@
           "project_type_label",
           "stage_count",
           "completed_stage_count",
+          "current_position",
+          "current_stage_title",
           "next_meeting",
           "created_at",
           "last_activity_at",

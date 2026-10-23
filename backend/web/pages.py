@@ -177,6 +177,9 @@ class PageOut(BaseModel):
     description: str
     cover_url: str | None
     completed: bool
+    # The previous release's current stage (A30), for one release: the first stage
+    # still open, else the last; None without stages.
+    current_position: int | None
     last_update: datetime
     details: list[DetailOut]
     stages: list[StageOut]
@@ -274,6 +277,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             else None
         ),
         completed=project.status is ProjectStatus.COMPLETED,
+        current_position=next((s.position for s in stages if not s.completed), len(stages) or None),
         last_update=project.last_activity_at or project.created_at,
         details=details,
         stages=stages,

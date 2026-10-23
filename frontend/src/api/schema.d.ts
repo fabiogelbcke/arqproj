@@ -741,6 +741,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Progress
+         * @deprecated
+         * @description The previous release's progress, for a tab still running its code during a
+         *     deploy (A30); remove in the release after independent stages. "advance" and
+         *     "complete" complete the first open stage; "back" and "reopen" reopen the last
+         *     completed one.
+         */
+        post: operations["progress_api_projects__project_id__progress_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/stages/{position}/uploads": {
         parameters: {
             query?: never;
@@ -1267,6 +1291,8 @@ export interface components {
             cover_url: string | null;
             /** Completed */
             completed: boolean;
+            /** Current Position */
+            current_position: number | null;
             /**
              * Last Update
              * Format: date-time
@@ -1278,6 +1304,16 @@ export interface components {
             stages: components["schemas"]["StageOut"][];
             next_meeting: components["schemas"]["MeetingOut"] | null;
             staff?: components["schemas"]["StaffView"] | null;
+        };
+        /** ProgressIn */
+        ProgressIn: {
+            /** Row Version */
+            row_version: number;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "advance" | "back" | "complete" | "reopen";
         };
         /** ProjectChange */
         ProjectChange: {
@@ -1343,6 +1379,10 @@ export interface components {
             stage_count: number;
             /** Completed Stage Count */
             completed_stage_count: number;
+            /** Current Position */
+            current_position: number | null;
+            /** Current Stage Title */
+            current_stage_title: string | null;
             next_meeting: components["schemas"]["NextMeeting"] | null;
             /**
              * Created At
@@ -4007,6 +4047,66 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CompletionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    progress_api_projects__project_id__progress_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProgressIn"];
             };
         };
         responses: {

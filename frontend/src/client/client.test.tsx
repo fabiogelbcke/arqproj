@@ -32,6 +32,7 @@ const PAGE: Page = {
   description: "Residência no alto.\n- Concreto aparente\n- Brises de madeira",
   cover_url: null,
   completed: false,
+  current_position: null, // the previous release's (A30), unread now
   last_update: "2026-10-15T23:30:00Z", // 20:30 in São Paulo: still the 15th there
   details: [
     { key: "site_area", label: "Área do terreno", type: "area", value: 1240 },

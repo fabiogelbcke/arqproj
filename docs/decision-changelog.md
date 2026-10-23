@@ -40,6 +40,9 @@ active project completes it, and reopening a stage of a completed project (or
 adding one) makes it active again, so there is no separate project button.
 `projects.current_position` stays in the database, unused, until the change is
 confirmed; old `stage_advanced` events are kept but no longer shown or emailed.
+For one release the previous `POST …/progress` route and the `current_position`
+and `current_stage_title` fields keep working (computed from the completions),
+for a tab still running the previous build during a deploy (A30).
 
 **Why:** offices don't always work through stages in order (Fabio); one current
 stage couldn't show two in progress, or a later one finished first.

@@ -333,6 +333,8 @@ async def test_the_list_has_what_the_cards_show(client, owner):
     }
     casa = listed["casa-jardim"]
     assert (casa["stage_count"], casa["completed_stage_count"]) == (7, 2)
+    # The previous release's fields, for one release (A30): the first stage still open.
+    assert (casa["current_position"], casa["current_stage_title"]) == (3, "Estudo Preliminar")
     done = listed["refugio-da-mantiqueira"]  # a completed project: every stage
     assert done["completed_stage_count"] == done["stage_count"] > 0
     assert casa["project_type_label"] == "Projeto Arquitetônico"

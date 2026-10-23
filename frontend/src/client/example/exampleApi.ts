@@ -57,6 +57,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     description: project.description,
     cover_url: project.cover_url,
     completed: project.status === "completed",
+    current_position: null, // the previous release's (A30); this page doesn't read it
     last_update: project.last_update,
     details: project.details,
     stages: project.stages.map(({ title, about, notes, completed }, i) => ({
