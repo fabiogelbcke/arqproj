@@ -323,6 +323,16 @@ describe("a forgotten password", () => {
   });
 });
 
+describe("the office's mark in the top bar", () => {
+  it("leads back to the projects from anywhere, settings included", async () => {
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    const router = renderAt("/configuracoes/escritorio");
+    const brand = await screen.findByRole("link", { name: "Alinea" }); // no logo: the office's name
+    await userEvent.click(brand);
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+  });
+});
+
 describe("each screen's title and the skip link", () => {
   it("names the screen and the office in the browser tab", async () => {
     fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });

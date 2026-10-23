@@ -660,6 +660,38 @@ describe("edit mode", () => {
     expect(document.querySelector(".stage-empty")).toBeNull();
   });
 
+  it("adds a stage from one list: a built-in one at once, or a custom one by its name", async () => {
+    const { sent } = asStaff({
+      "GET /api/project-types": () => ({
+        body: { types: [], stages: [{ key: "survey", title: "Levantamento" }, { key: "legal", title: "Projeto Legal" }] },
+      }),
+      "POST /api/projects/p-1/stages": () => ({ status: 204 }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "+ Adicionar etapa" }));
+    const list = (await screen.findByLabelText("Etapa")) as HTMLSelectElement;
+    // Only the stages the project doesn't have, then the custom one; no name field yet.
+    await waitFor(() => expect([...list.options].map((o) => o.text)).toEqual(["Escolher…", "Projeto Legal", "Etapa personalizada…"]));
+    expect(screen.queryByLabelText("Nome da etapa")).toBeNull();
+    await userEvent.selectOptions(list, "Etapa personalizada…");
+    await userEvent.type(screen.getByLabelText("Nome da etapa"), "Visita técnica");
+    await userEvent.click(screen.getByRole("button", { name: "Adicionar" }));
+    await waitFor(() =>
+      expect(sent.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([{ row_version: 4, title: "Visita técnica" }]),
+    );
+  });
+
+  it("opens a closed stage on a click anywhere on it, but closes an open one only from its head", async () => {
+    asStaff();
+    const fourth = () => document.getElementById("stage-2")!;
+    await screen.findByRole("heading", { level: 2, name: "Estudo Preliminar" });
+    expect(fourth().className).not.toContain("is-expanded");
+    await userEvent.click(fourth()); // its panel, not its head
+    expect(fourth().className).toContain("is-expanded");
+    await userEvent.click(fourth()); // open: a click in its body leaves it open
+    expect(fourth().className).toContain("is-expanded");
+  });
+
   it("reopens a finished project from its last stage, without asking", async () => {
     const { sent } = asStaff({
       "GET /api/pages/casa-jardim": () => ({
@@ -1324,6 +1356,33 @@ describe("edit mode", () => {
       start: "16:00",
       end: "17:00",
     });
+  });
+
+  it("asks whether the meeting is in person or online, and saves only that one's place", async () => {
+    const { sent } = asStaff({ "PUT /api/projects/p-1/meeting": () => ({ status: 204 }) });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar reunião" }));
+    // It has a video link: online, with the link's field and not the place's.
+    expect(await screen.findByRole("radio", { name: "On-line" })).toBeChecked();
+    expect(screen.getByLabelText("Link da videochamada")).toHaveValue("https://meet.example/abc");
+    expect(screen.queryByLabelText("Local")).toBeNull();
+    await userEvent.click(screen.getByRole("radio", { name: "Presencial" }));
+    expect(screen.queryByLabelText("Link da videochamada")).toBeNull();
+    await userEvent.clear(screen.getByLabelText("Local"));
+    await userEvent.type(screen.getByLabelText("Local"), "Escritório");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PUT")?.body).toMatchObject({ location: "Escritório", link: null });
+  });
+
+  it("doesn't save an online meeting without its link, so it never reopens as in person", async () => {
+    const { sent } = asStaff({ "PUT /api/projects/p-1/meeting": () => ({ status: 204 }) });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar reunião" }));
+    await userEvent.clear(await screen.findByLabelText("Link da videochamada"));
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(screen.getByLabelText("Link da videochamada")).toBeInvalid();
+    expect(sent.filter((r) => r.method === "PUT")).toEqual([]);
   });
 
   it("picks the meeting's day from a month and types its times, sending the same strings", async () => {

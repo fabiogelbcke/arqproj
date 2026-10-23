@@ -19,6 +19,25 @@ a new entry too.
 
 ---
 
+## 2026-10-23 — A27, section 10: project page follow-ups
+
+**Was:** a meeting had both a place and a video link field; "Adicionar etapa"
+offered a list and, separately, a field for the office's own stage; only a
+stage's number or head opened it; the painel's logo wasn't a link; the built-in
+details had no total area.
+
+**Now:** the meeting is "Presencial" or "On-line", and only that one's field
+shows and is saved; "Adicionar etapa" is one list ending in "Etapa
+personalizada…", which asks for the name; a closed stage opens on a click
+anywhere on it (a shade darker under the mouse), an open one closes from its
+head; the office's mark leads back to the projects from every painel screen
+(ui/OfficeBrand, shared with the project pages); "Área total" is a built-in
+detail (migration 0031, data only), listed after "Área construída".
+
+**Why:** Fabio's review of the redesign (23 Oct 2026).
+
+---
+
 ## 2026-10-23 — A24, A27, section 10: the project page on the painel's patterns
 
 **Was:** the project page kept the prototype's look: a light grey page, the name
