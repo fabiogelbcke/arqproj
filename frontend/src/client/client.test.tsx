@@ -1375,6 +1375,16 @@ describe("edit mode", () => {
     expect(sent.find((r) => r.method === "PUT")?.body).toMatchObject({ location: "Escritório", link: null });
   });
 
+  it("doesn't save an online meeting without its link, so it never reopens as in person", async () => {
+    const { sent } = asStaff({ "PUT /api/projects/p-1/meeting": () => ({ status: 204 }) });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar reunião" }));
+    await userEvent.clear(await screen.findByLabelText("Link da videochamada"));
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(screen.getByLabelText("Link da videochamada")).toBeInvalid();
+    expect(sent.filter((r) => r.method === "PUT")).toEqual([]);
+  });
+
   it("picks the meeting's day from a month and types its times, sending the same strings", async () => {
     const { sent } = asStaff({ "PUT /api/projects/p-1/meeting": () => ({ status: 204 }) });
     await startEditing();

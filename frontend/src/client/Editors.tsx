@@ -355,7 +355,8 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
       ) : (
         <div className="field">
           <label htmlFor="m-link">{t("edit.link")}</label>
-          <input className="input" type="url" id="m-link" value={form.link} onChange={set("link")} placeholder="https://meet.google.com/…" />
+          {/* Required: an online meeting is known by its link, so the format can't be lost. */}
+          <input className="input" type="url" id="m-link" value={form.link} onChange={set("link")} placeholder="https://meet.google.com/…" required />
         </div>
       )}
       <p className="hint">{t("edit.timeZoneHint")}</p>
