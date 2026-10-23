@@ -173,22 +173,28 @@ async def test_a_due_batch_goes_as_it_was_and_later_changes_wait_their_turn(
     assert await batches(db_session) == [("sent",), ("open",)]
 
 
+# Stages 3 to 6 of Casa Jardim's 7 completed, as if earlier: the last one is open.
+ALL_BUT_THE_LAST = (
+    f"UPDATE project_stages SET completed_at = now() WHERE project_id = {CASA} AND position < 7"
+)
+
+
 @pytest.mark.parametrize(
-    ("setup", "forward", "back"),
+    ("setup", "position"),
     [
-        (None, "advance", "back"),  # moved on, then taken back
-        ("UPDATE projects SET current_position = 7", "complete", "reopen"),  # completed, reopened
+        (None, 3),  # a stage completed, then reopened
+        (ALL_BUT_THE_LAST, 7),  # the project completed, then reopened
     ],
 )
 async def test_progress_taken_back_within_the_quiet_period_is_not_news(
-    app, client, db_session, owner, outbox, ready, setup, forward, back
+    app, client, db_session, owner, outbox, ready, setup, position
 ):
     from backend.tests.test_maintenance_scan import call
 
     if setup:
-        await db_session.execute(text(f"{setup} WHERE id = {CASA}"))
-    await call(client, owner, "POST", "/progress", action=forward)
-    await call(client, owner, "POST", "/progress", action=back)
+        await db_session.execute(text(setup))
+    await call(client, owner, "PUT", f"/stages/{position}/completion", completed=True)
+    await call(client, owner, "PUT", f"/stages/{position}/completion", completed=False)
     await run(app, outbox)
     await make_due(db_session)
     await run(app, outbox)
@@ -223,37 +229,39 @@ async def test_a_file_renamed_or_moved_meanwhile_shows_as_it_is_now(app, db_sess
     assert "Croqui v1.pdf" not in text_
 
 
-async def test_the_latest_advance_that_still_holds_is_news(
+async def test_each_stage_still_completed_is_news_named_where_it_is_now(
     app, client, db_session, owner, outbox, ready
 ):
-    """1 → 2 → 3, then back to 2: still news, of stage 2."""
+    """Completed in any order; one reopened since, one moved within the quiet period."""
     from backend.tests.test_maintenance_scan import call
 
-    await db_session.execute(text(f"UPDATE projects SET current_position = 1 WHERE id = {CASA}"))
-    await call(client, owner, "POST", "/progress", action="advance")
-    await call(client, owner, "POST", "/progress", action="advance")
-    await call(client, owner, "POST", "/progress", action="back")
+    for position in (5, 3, 4):
+        await call(client, owner, "PUT", f"/stages/{position}/completion", completed=True)
+    await call(client, owner, "PUT", "/stages/4/completion", completed=False)
+    await call(client, owner, "POST", "/stages/5/move", direction=-1)  # Projeto Legal: now 04
     await run(app, outbox)
     await make_due(db_session)
     await run(app, outbox)
-    lines = [line for line in outbox.sent[0].text.splitlines() if "etapa" in line]
-    assert len(lines) == 1 and "avançou para a etapa 02 " in lines[0]
+    lines = [line for line in outbox.sent[0].text.splitlines() if "concluída" in line]
+    assert lines == [
+        "- A etapa 03 Estudo Preliminar foi concluída.",
+        "- A etapa 04 Projeto Legal foi concluída.",
+    ]
 
 
-async def test_an_advance_is_named_by_where_its_stage_is_now(
+async def test_the_last_stage_completed_is_news_with_the_project(
     app, client, db_session, owner, outbox, ready
 ):
-    """Reordered within the quiet period, the reached stage keeps its news."""
     from backend.tests.test_maintenance_scan import call
 
-    await db_session.execute(text(f"UPDATE projects SET current_position = 1 WHERE id = {CASA}"))
-    await call(client, owner, "POST", "/progress", action="advance")  # to stage 2
-    await call(client, owner, "POST", "/stages/2/move", direction=-1)  # it becomes stage 1
+    await db_session.execute(text(ALL_BUT_THE_LAST))
+    await call(client, owner, "PUT", "/stages/7/completion", completed=True)
     await run(app, outbox)
     await make_due(db_session)
     await run(app, outbox)
-    lines = [line for line in outbox.sent[0].text.splitlines() if "etapa" in line]
-    assert len(lines) == 1 and "avançou para a etapa 01 " in lines[0]
+    text_ = outbox.sent[0].text
+    assert "A etapa 07 Compatibilização foi concluída." in text_
+    assert "O projeto foi concluído." in text_
 
 
 # -- who gets it ----------------------------------------------------------------------

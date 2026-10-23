@@ -2731,11 +2731,11 @@
         }
       }
     },
-    "/api/projects/{project_id}/progress": {
-      "post": {
-        "summary": "Progress",
-        "description": "Advance to the next stage, go back one, complete the project (all stages\ndone) or reopen it. The client sees it at once; \"Atualizado\" moves. Advancing\nand completing are recorded for the client's email (A32).",
-        "operationId": "progress_api_projects__project_id__progress_post",
+    "/api/projects/{project_id}/stages/{position}/completion": {
+      "put": {
+        "summary": "Set Completion",
+        "description": "Mark a stage as completed, or reopen it, whatever the other stages are. The\nclient sees it at once; \"Atualizado\" moves. A completed stage is recorded for\nthe client's email (A32). The last stage completed completes the project (an\nactive one), and reopening one makes a completed project active again.",
+        "operationId": "set_completion_api_projects__project_id__stages__position__completion_put",
         "parameters": [
           {
             "name": "project_id",
@@ -2746,6 +2746,15 @@
               "format": "uuid",
               "title": "Project Id"
             }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position"
+            }
           }
         ],
         "requestBody": {
@@ -2753,7 +2762,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProgressIn"
+                "$ref": "#/components/schemas/CompletionIn"
               }
             }
           }
@@ -3377,6 +3386,24 @@
         ],
         "title": "ChoosePasswordIn"
       },
+      "CompletionIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "completed"
+        ],
+        "title": "CompletionIn"
+      },
       "ConnectIn": {
         "properties": {
           "fresh": {
@@ -3713,6 +3740,7 @@
         "enum": [
           "file_published",
           "stage_advanced",
+          "stage_completed",
           "project_completed",
           "meeting_scheduled",
           "meeting_changed",
@@ -4455,17 +4483,6 @@
             "type": "boolean",
             "title": "Completed"
           },
-          "current_position": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Position"
-          },
           "last_update": {
             "type": "string",
             "format": "date-time",
@@ -4518,37 +4535,12 @@
           "description",
           "cover_url",
           "completed",
-          "current_position",
           "last_update",
           "details",
           "stages",
           "next_meeting"
         ],
         "title": "PageOut"
-      },
-      "ProgressIn": {
-        "properties": {
-          "row_version": {
-            "type": "integer",
-            "title": "Row Version"
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "advance",
-              "back",
-              "complete",
-              "reopen"
-            ],
-            "title": "Action"
-          }
-        },
-        "type": "object",
-        "required": [
-          "row_version",
-          "action"
-        ],
-        "title": "ProgressIn"
       },
       "ProjectChange": {
         "properties": {
@@ -4747,27 +4739,9 @@
             "type": "integer",
             "title": "Stage Count"
           },
-          "current_position": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Position"
-          },
-          "current_stage_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Stage Title"
+          "completed_stage_count": {
+            "type": "integer",
+            "title": "Completed Stage Count"
           },
           "next_meeting": {
             "anyOf": [
@@ -4832,8 +4806,7 @@
           "project_type",
           "project_type_label",
           "stage_count",
-          "current_position",
-          "current_stage_title",
+          "completed_stage_count",
           "next_meeting",
           "created_at",
           "last_activity_at",
@@ -5063,6 +5036,10 @@
           "notes": {
             "type": "string",
             "title": "Notes"
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed"
           }
         },
         "type": "object",
@@ -5070,7 +5047,8 @@
           "position",
           "title",
           "about",
-          "notes"
+          "notes",
+          "completed"
         ],
         "title": "StageOut"
       },

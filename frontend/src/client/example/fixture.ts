@@ -25,7 +25,6 @@ export type ExampleProject = {
   description: string;
   cover_url: string | null;
   status: "active" | "completed";
-  current_position: number;
   last_update: string;
   details: Detail[];
   stages: ExampleStage[];
@@ -82,7 +81,6 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       "- Piscina na cota mais baixa do terreno",
     cover_url: house,
     status: "active",
-    current_position: 3,
     last_update: ago(1),
     details: [
       { key: "location", label: "Localização", type: "text", value: "Urubici, SC" },
@@ -94,12 +92,14 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
     stages: [
       {
         title: "Proposta",
+        completed: true,
         about: "Escopo, condições e planejamento do projeto.",
         notes: "Proposta aprovada. Obrigado pela confiança!",
         groups: [{ folder: null, files: [file("Proposta de serviços.pdf", "pdf", pdf, 184_320, 70)] }],
       },
       {
         title: "Briefing e Levantamento",
+        completed: true,
         about: "Entendimento das necessidades e das características do espaço.",
         notes: "Levantamento topográfico recebido. As árvores marcadas no mapa ficam onde estão.",
         groups: [
@@ -115,6 +115,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       },
       {
         title: "Estudos Preliminares / Anteprojeto",
+        completed: false,
         about: "Organização dos ambientes e definição do conceito.",
         notes: "Enviamos duas opções de implantação. Vamos conversar sobre elas na próxima reunião.",
         groups: [
@@ -130,24 +131,28 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       },
       {
         title: "Projeto 3D",
+        completed: false,
         about: "Visualização dos espaços, materiais e volumes.",
         notes: "",
         groups: [],
       },
       {
         title: "Projeto Legal",
+        completed: false,
         about: "Documentos para a aprovação na prefeitura.",
         notes: "",
         groups: [],
       },
       {
         title: "Projeto Executivo",
+        completed: false,
         about: "Detalhamento técnico das soluções aprovadas.",
         notes: "",
         groups: [],
       },
       {
         title: "Entrega Final",
+        completed: false,
         about: "Organização da documentação final do projeto.",
         notes: "",
         groups: [],
@@ -165,7 +170,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       { id: "exemplo-u2", kind: "note_changed", occurred_at: ago(3), stage_position: 3 },
       { id: "exemplo-u3", kind: "file_published", occurred_at: ago(3), stage_position: 3, name: "Implantação - estudo A.pdf" },
       { id: "exemplo-u4", kind: "meeting_scheduled", occurred_at: ago(4), stage_position: null },
-      { id: "exemplo-u5", kind: "stage_advanced", occurred_at: ago(20), stage_position: 3 },
+      { id: "exemplo-u5", kind: "stage_completed", occurred_at: ago(20), stage_position: 2 },
     ],
   };
 }

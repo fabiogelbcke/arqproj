@@ -715,7 +715,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/projects/{project_id}/progress": {
+    "/api/projects/{project_id}/stages/{position}/completion": {
         parameters: {
             query?: never;
             header?: never;
@@ -723,14 +723,15 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
         /**
-         * Progress
-         * @description Advance to the next stage, go back one, complete the project (all stages
-         *     done) or reopen it. The client sees it at once; "Atualizado" moves. Advancing
-         *     and completing are recorded for the client's email (A32).
+         * Set Completion
+         * @description Mark a stage as completed, or reopen it, whatever the other stages are. The
+         *     client sees it at once; "Atualizado" moves. A completed stage is recorded for
+         *     the client's email (A32). The last stage completed completes the project (an
+         *     active one), and reopening one makes a completed project active again.
          */
-        post: operations["progress_api_projects__project_id__progress_post"];
+        put: operations["set_completion_api_projects__project_id__stages__position__completion_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -892,6 +893,13 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** CompletionIn */
+        CompletionIn: {
+            /** Row Version */
+            row_version: number;
+            /** Completed */
+            completed: boolean;
+        };
         /** ConnectIn */
         ConnectIn: {
             /**
@@ -983,7 +991,7 @@ export interface components {
          * @description What a client can notice on the page (A28). All but a note email (A32).
          * @enum {string}
          */
-        EventKind: "file_published" | "stage_advanced" | "project_completed" | "meeting_scheduled" | "meeting_changed" | "meeting_cleared" | "note_changed";
+        EventKind: "file_published" | "stage_advanced" | "stage_completed" | "project_completed" | "meeting_scheduled" | "meeting_changed" | "meeting_cleared" | "note_changed";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -1256,8 +1264,6 @@ export interface components {
             cover_url: string | null;
             /** Completed */
             completed: boolean;
-            /** Current Position */
-            current_position: number | null;
             /**
              * Last Update
              * Format: date-time
@@ -1269,16 +1275,6 @@ export interface components {
             stages: components["schemas"]["StageOut"][];
             next_meeting: components["schemas"]["MeetingOut"] | null;
             staff?: components["schemas"]["StaffView"] | null;
-        };
-        /** ProgressIn */
-        ProgressIn: {
-            /** Row Version */
-            row_version: number;
-            /**
-             * Action
-             * @enum {string}
-             */
-            action: "advance" | "back" | "complete" | "reopen";
         };
         /** ProjectChange */
         ProjectChange: {
@@ -1342,10 +1338,8 @@ export interface components {
             project_type_label: string;
             /** Stage Count */
             stage_count: number;
-            /** Current Position */
-            current_position: number | null;
-            /** Current Stage Title */
-            current_stage_title: string | null;
+            /** Completed Stage Count */
+            completed_stage_count: number;
             next_meeting: components["schemas"]["NextMeeting"] | null;
             /**
              * Created At
@@ -1456,6 +1450,8 @@ export interface components {
             about: string | null;
             /** Notes */
             notes: string;
+            /** Completed */
+            completed: boolean;
         };
         /**
          * StorageKind
@@ -3995,18 +3991,19 @@ export interface operations {
             };
         };
     };
-    progress_api_projects__project_id__progress_post: {
+    set_completion_api_projects__project_id__stages__position__completion_put: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 project_id: string;
+                position: number;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProgressIn"];
+                "application/json": components["schemas"]["CompletionIn"];
             };
         };
         responses: {

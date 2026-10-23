@@ -199,21 +199,26 @@ async def call(client, headers, method, path, **body):
     )
 
 
-async def test_advancing_and_completing_are_recorded_going_back_is_not(
+async def test_completing_a_stage_or_the_project_is_recorded_reopening_is_not(
     client, db_session, owner, folders
 ):
-    current = (await page(client))["current_position"]
-    await call(client, owner, "POST", "/progress", action="advance")
-    await call(client, owner, "POST", "/progress", action="back")
-    title = (await page(client))["stages"][current]["title"]
-    assert await events(db_session) == [("stage_advanced", current + 1, title)]
-    await db_session.execute(text(f"UPDATE projects SET current_position = 7 WHERE id = {CASA}"))
-    completed = await call(client, owner, "POST", "/progress", action="complete")
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    await call(client, owner, "PUT", "/stages/3/completion", completed=False)
+    titles = [s["title"] for s in (await page(client))["stages"]]
+    assert await events(db_session) == [("stage_completed", 3, titles[2])]
+    await db_session.execute(
+        text(
+            f"UPDATE project_stages SET completed_at = now() WHERE project_id = {CASA} "
+            "AND position <> 7"
+        )
+    )
+    completed = await call(client, owner, "PUT", "/stages/7/completion", completed=True)
     assert completed.status_code == 204, completed.text
     # (One test transaction: every event has the same time, so not in order here.)
     assert sorted(await events(db_session)) == [
         ("project_completed", None, None),
-        ("stage_advanced", current + 1, title),
+        ("stage_completed", 3, titles[2]),
+        ("stage_completed", 7, titles[6]),
     ]
 
 
@@ -259,7 +264,7 @@ async def test_saving_a_note_unchanged_records_nothing(client, db_session, owner
 
 async def test_a_drafts_changes_are_not_recorded(client, db_session, owner, folders):
     await db_session.execute(text(f"UPDATE projects SET status = 'draft' WHERE id = {CASA}"))
-    await call(client, owner, "POST", "/progress", action="advance")
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
     await call(client, owner, "PUT", "/stages/2/notes", notes="Rascunho.")
     assert await events(db_session) == []
 

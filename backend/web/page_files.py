@@ -322,13 +322,17 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
     since = datetime.now(UTC) - timedelta(days=UPDATES_DAYS)
     stages = (
         await db.execute(
-            select(ProjectStage.id, ProjectStage.position, ProjectStage.notes).where(
-                ProjectStage.project_id == project.id
-            )
+            select(
+                ProjectStage.id,
+                ProjectStage.position,
+                ProjectStage.notes,
+                ProjectStage.completed_at,
+            ).where(ProjectStage.project_id == project.id)
         )
     ).all()
     positions = {stage.id: stage.position for stage in stages}
     with_notes = {stage.id for stage in stages if stage.notes}
+    completed = {stage.id for stage in stages if stage.completed_at is not None}
     events = await db.stream_scalars(
         select(ProjectEvent)
         .where(ProjectEvent.project_id == project.id, ProjectEvent.occurred_at >= since)
@@ -350,10 +354,12 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
             if event.stage_id is not None and event.stage_id not in with_notes:
                 continue  # removed since: the panel shows a note as it is now
             once = ("note", event.stage_id or position)  # older events: by position
+        elif event.kind is EventKind.STAGE_COMPLETED:
+            if event.stage_id not in completed:
+                continue  # reopened since
+            once = ("completed", event.stage_id)
         elif event.kind is EventKind.STAGE_ADVANCED:
-            if position is None or position > (project.current_position or 0):
-                continue  # taken back since
-            once = "advance"
+            continue  # the old progress (before 0032): no current stage now to hold it
         elif event.kind is EventKind.PROJECT_COMPLETED:
             if project.status is not ProjectStatus.COMPLETED:
                 continue

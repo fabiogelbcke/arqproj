@@ -77,8 +77,7 @@ class ProjectSummary(BaseModel):
     project_type: str
     project_type_label: str
     stage_count: int
-    current_position: int | None
-    current_stage_title: str | None
+    completed_stage_count: int  # stages marked as completed, in any order (0032)
     next_meeting: NextMeeting | None
     created_at: datetime
     # The last change a client can see (A28); None until there is one.
@@ -151,21 +150,15 @@ async def summaries(
             )
         ).all()
     )
-    current = {
-        stage.project_id: stage.title or (_text(titles, locale) if titles else None)
-        for stage, titles in (
+    completed = dict(
+        (
             await db.execute(
-                select(ProjectStage, StageDef.titles)
-                .outerjoin(StageDef, StageDef.key == ProjectStage.builtin_key)
-                .join(
-                    Project,
-                    (Project.id == ProjectStage.project_id)
-                    & (Project.current_position == ProjectStage.position),
-                )
-                .where(ProjectStage.project_id.in_(ids))
+                select(ProjectStage.project_id, func.count())
+                .where(ProjectStage.project_id.in_(ids), ProjectStage.completed_at.is_not(None))
+                .group_by(ProjectStage.project_id)
             )
         ).all()
-    }
+    )
     meetings = {
         meeting.project_id: NextMeeting(title=meeting.title, starts_at=meeting.starts_at)
         for meeting in await db.scalars(
@@ -197,8 +190,7 @@ async def summaries(
             project_type=project.project_type,
             project_type_label=_text(labels, locale),
             stage_count=counts.get(project.id, 0),
-            current_position=project.current_position,
-            current_stage_title=current.get(project.id),
+            completed_stage_count=completed.get(project.id, 0),
             next_meeting=meetings.get(project.id),
             created_at=project.created_at,
             last_activity_at=project.last_activity_at,

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
+import { CompletionBar } from "../ui/CompletionBar";
 import { HeaderMenu } from "../ui/HeaderMenu";
 import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
@@ -355,15 +356,22 @@ function MobileSummary({ page }: { page: Page }) {
   );
 }
 
-function stateOf(page: Page, index: number): "done" | "current" | "upcoming" {
-  const current = page.current_position ?? 0;
-  if (page.completed || index + 1 < current) return "done";
-  return index + 1 === current ? "current" : "upcoming";
+// Stages complete on their own, in any order (Fabio, 23 Oct 2026): each is done or open.
+function stateOf(page: Page, index: number): "done" | "open" {
+  return page.stages[index]!.completed ? "done" : "open";
 }
 
+/** The stage opened first: the first one still open, else the first. */
+export function firstOpenStage(page: Page) {
+  return Math.max(0, page.stages.findIndex((stage) => !stage.completed));
+}
+
+/** The stages as a checklist, with a thin bar of how many are completed. */
 function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => void }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
+  const done = page.stages.filter((stage) => stage.completed).length;
+  const progress = t("page.stagesDone", { done, total: page.stages.length });
   return (
     <>
       <div className="journey-intro">
@@ -375,15 +383,26 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
           )}
         </div>
       </div>
+      <div className="stage-completion">
+        <span aria-hidden="true">{progress}</span>
+        <CompletionBar done={done} total={page.stages.length} label={progress} />
+      </div>
       <ol className="stage-steps" aria-label={t("page.stages")}>
         {page.stages.map((stage, i) => {
           const state = stateOf(page, i);
           return (
             <li key={i} className={`stage-steps__item is-${state}`}>
               <button type="button" onClick={() => onJump(i)}>
+                <span className="stage-check" aria-hidden="true">
+                  {state === "done" && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M6 12.5l4 4 8-9" />
+                    </svg>
+                  )}
+                </span>
                 <span className="n">{pad(i + 1)}</span>
                 <b>{stage.title}</b>
-                <span>{state === "done" ? t("page.stageDone") : state === "current" ? t("page.stageCurrent") : ""}</span>
+                {state === "done" && <span className="sr">{t("page.stageDone")}</span>}
               </button>
             </li>
           );
@@ -493,7 +512,7 @@ function Stage({
   uploads?: ReactNode; // edit mode: the drop area
   fileMenu?: (file: FileItem) => ReactNode;
   view?: FileView;
-  progress?: ReactNode; // edit mode: "Marcar etapa como concluída", "Reabrir etapa"
+  progress?: ReactNode; // edit mode: "Marcar como concluída" or "Reabrir etapa"
   hidden?: boolean; // a search or filter found nothing here
   total?: number; // its files before any search or filter
   onOpenFile: (file: FileItem, folder: string | null) => void;
@@ -585,7 +604,6 @@ function Stage({
         </div>
         <p className="stage__meta">
           {state === "done" && <span className="pill">{t("page.stageDone")}</span>}
-          {state === "current" && <span className="pill pill--current">{t("page.stageCurrent")}</span>}
           {files && !files.unavailable && (
             <span>
               {(total ?? countFiles(files))
@@ -633,7 +651,6 @@ function Stage({
   );
   return (
     <section
-      // "stage--current", not the prototype's "current": its dark band is gone (redesign).
       className={`stage ${open ? "is-expanded " : ""}${editor?.editing ? "is-editing " : ""}stage--${state}`}
       id={`stage-${index}`}
       aria-labelledby={`st-${index}`}
@@ -795,11 +812,11 @@ export function ProjectPage({
     setOpenEditor(null);
     if (saved) onChanged?.();
   };
-  // The stage open (by row): the current one at first, and one at a time
+  // The stage open (by row): the first one still open at first, and one at a time
   // (Fabio, 23 Oct 2026): opening another closes it. A search or filter still
   // opens every stage with a match, and a stage in "Editar etapa" stays open.
   const [openStages, setOpenStages] = useState<ReadonlySet<number>>(
-    () => new Set([Math.max(0, (page.current_position ?? 1) - 1)]),
+    () => new Set([firstOpenStage(page)]),
   );
   const openStage = (index: number) => setOpenStages(new Set([index]));
   // One stage's "Sobre esta etapa" open at a time: two would overlap.

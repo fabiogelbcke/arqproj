@@ -144,6 +144,7 @@ class StageOut(BaseModel):
     title: str
     about: str | None  # what happens in this stage, in the project type's words
     notes: str
+    completed: bool  # marked as completed by staff, in any order (0032)
 
 
 class MeetingOut(BaseModel):
@@ -176,8 +177,6 @@ class PageOut(BaseModel):
     description: str
     cover_url: str | None
     completed: bool
-    # Position of the current stage (1-based); None before the first starts.
-    current_position: int | None
     last_update: datetime
     details: list[DetailOut]
     stages: list[StageOut]
@@ -236,7 +235,11 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         if stage.builtin_key is None:  # written by the office, shown as typed
             stages.append(
                 StageOut(
-                    position=stage.position, title=stage.title, about=stage.about, notes=stage.notes
+                    position=stage.position,
+                    title=stage.title,
+                    about=stage.about,
+                    notes=stage.notes,
+                    completed=stage.completed_at is not None,
                 )
             )
         else:
@@ -247,6 +250,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
                     title=_text(titles, locale),
                     about=_text(about, locale),
                     notes=stage.notes,
+                    completed=stage.completed_at is not None,
                 )
             )
     meeting = await db.scalar(
@@ -270,7 +274,6 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             else None
         ),
         completed=project.status is ProjectStatus.COMPLETED,
-        current_position=project.current_position,
         last_update=project.last_activity_at or project.created_at,
         details=details,
         stages=stages,

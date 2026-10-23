@@ -152,7 +152,7 @@ test("create a project → it is listed as a draft; a used address names its pro
   const live = page.getByRole("region", { name: "Em andamento" });
   const card = live.getByTestId("project-card").filter({ hasText: "Família Teste" });
   await expect(page.getByRole("region", { name: "Rascunhos" })).toHaveCount(0);
-  await expect(card).toContainText("1 / 6");
+  await expect(card).toContainText("0 de 6 etapas concluídas"); // a new project: none yet
   await expect(card).toContainText("Projeto de Interiores");
 
   // Search ignores accents and case.
@@ -248,11 +248,11 @@ test("cards in a row line up, whatever their content", async ({ page }) => {
   // Apartamento Atlântico — Copacabana wraps to two lines; Casa Jardim doesn't.
   const active = page.getByRole("region", { name: "Em andamento" });
   await expect(active.getByText("Apartamento Atlântico — Copacabana")).toBeVisible();
-  // In every row of cards, the "Etapa atual" labels sit at one height.
+  // In every row of cards, the "X de Y etapas concluídas" labels sit at one height.
   const rows = await active.getByTestId("project-card").evaluateAll((cards) => {
     const byRow = new Map<number, number[]>();
     for (const card of cards) {
-      const label = [...card.querySelectorAll("*")].find((el) => el.textContent?.trim() === "Etapa atual");
+      const label = [...card.querySelectorAll("*")].find((el) => /^\d+ de \d+ etapas concluídas$/.test(el.textContent?.trim() ?? ""));
       if (!label) continue; // a project without stages
       const row = Math.round(card.getBoundingClientRect().top);
       byRow.set(row, [...(byRow.get(row) ?? []), Math.round(label.getBoundingClientRect().top)]);
@@ -474,7 +474,7 @@ test("staff edit the page in place and the client sees it", async ({ page, brows
   await client.close();
 });
 
-test("staff rename, add and remove stages, and advance the project", async ({ page, browser }) => {
+test("staff rename, add and remove stages, and complete one out of order", async ({ page, browser }) => {
   const link = invite("etapas@alinea.example");
   await page.goto(link);
   await page.getByLabel("Nova senha").fill("senha-escolhida");
@@ -505,13 +505,14 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
   await page.getByRole("alertdialog").getByRole("button", { name: "Remover", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Visita técnica" })).toHaveCount(0);
 
-  // Finish the current stage: the client sees the next one in progress.
-  await page.getByRole("button", { name: "Marcar etapa como concluída" }).click();
+  // Complete a stage out of order (the last one): the client sees it completed.
+  await page.locator("#stage-6").getByRole("button", { name: "Marcar como concluída" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Concluir etapa" }).click(); // asked first
-  await expect(page.getByText(/Etapa atual: “/)).toBeVisible(); // the toast
+  await expect(page.getByText(/^Etapa “.*” concluída\.$/)).toBeVisible(); // the toast
   const client = await browser.newPage();
   await client.goto("/casa-jardim");
-  await expect(client.locator("#stage-3 .pill--current")).toBeVisible();
+  await expect(client.getByRole("progressbar", { name: "3 de 7 etapas concluídas" })).toBeVisible();
+  await expect(client.locator("#stage-6").getByText("Concluída")).toBeVisible();
   await expect(client.getByText("Medição do apartamento").first()).toBeVisible();
   await client.close();
 });
@@ -645,7 +646,7 @@ test("on a phone nothing on the project page is wider than the screen", async ({
   await bar.getByRole("button", { name: "Ver como cliente" }).click();
   expect(await tooWide()).toEqual([]);
   await bar.getByRole("button", { name: "Editar", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Marcar etapa como concluída" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Marcar como concluída" }).first()).toBeVisible();
   expect(await tooWide()).toEqual([]);
   // The check itself: something too wide is caught.
   await page.evaluate(() => {

@@ -19,6 +19,32 @@ a new entry too.
 
 ---
 
+## 2026-10-23 — Section 10, A28, A32: stages complete independently
+
+**Was:** a project had one current stage. Staff moved it on with "Marcar etapa
+como concluída" (the next stage became the one in progress) and back with
+"Reabrir etapa"; the last stage's button completed the project, and "Reabrir
+projeto" reopened it. The page showed the stages as a timeline with the current
+one highlighted, the painel cards "Etapa atual" and its name, and emails said
+"O projeto avançou para a etapa …".
+
+**Now:** stages are independent and can be completed in any order (Fabio,
+23 Oct 2026). Every stage has its own "Marcar como concluída", or "Reabrir
+etapa" once completed, each after a confirmation. The page lists the stages as a
+checklist under a thin bar of how many are completed and opens the first stage
+still open; the painel cards say "X de Y etapas concluídas" with the same bar.
+Emails and the updates panel name each stage completed (and still completed).
+Proposed with the change, for Fabio's review: completing the last open stage of
+an active project completes the project, and reopening a stage of a completed
+project makes it active again, so there is no separate project button.
+`projects.current_position` stays in the database, unused, until the change is
+confirmed; old `stage_advanced` events are kept but no longer shown or emailed.
+
+**Why:** offices don't always work through stages in order (Fabio); one current
+stage couldn't show two in progress, or a later one finished first.
+
+---
+
 ## 2026-10-23 — A27, section 10: project page follow-ups
 
 **Was:** a meeting had both a place and a video link field; "Adicionar etapa"

@@ -32,16 +32,15 @@ const PAGE: Page = {
   description: "Residência no alto.\n- Concreto aparente\n- Brises de madeira",
   cover_url: null,
   completed: false,
-  current_position: 2,
   last_update: "2026-10-15T23:30:00Z", // 20:30 in São Paulo: still the 15th there
   details: [
     { key: "site_area", label: "Área do terreno", type: "area", value: 1240 },
     { key: "start_date", label: "Início", type: "date", value: "2026-03-02" },
   ],
   stages: [
-    { position: 1, title: "Briefing", about: "Necessidades e orçamento.", notes: "" },
-    { position: 2, title: "Levantamento", about: "Análise do terreno.", notes: "Medidas conferidas." },
-    { position: 3, title: "Estudo Preliminar", about: null, notes: "" },
+    { position: 1, title: "Briefing", about: "Necessidades e orçamento.", notes: "", completed: true },
+    { position: 2, title: "Levantamento", about: "Análise do terreno.", notes: "Medidas conferidas.", completed: false },
+    { position: 3, title: "Estudo Preliminar", about: null, notes: "", completed: false },
   ],
   next_meeting: {
     title: "Apresentação",
@@ -199,6 +198,23 @@ describe("the client page", () => {
     expect(screen.getByText("Necessidades e orçamento.")).not.toBeVisible();
   });
 
+  it("lists the stages as a checklist under a bar of how many are completed", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, stages: PAGE.stages.map((stage, i) => ({ ...stage, completed: i !== 1 })) },
+      }),
+    });
+    const timeline = await screen.findByRole("list", { name: "Etapas" });
+    // Completed in any order: the first and the third, not the second.
+    const items = within(timeline).getAllByRole("listitem");
+    expect(items.map((item) => item.className.includes("is-done"))).toEqual([true, false, true]);
+    expect(within(items[0]!).getByText("Concluída")).toBeInTheDocument();
+    const bar = screen.getByRole("progressbar", { name: "2 de 3 etapas concluídas" });
+    expect(bar).toHaveAttribute("aria-valuenow", "2");
+    // The stage open at first is the first one still open.
+    expect(document.querySelector(".stage.is-expanded h2")?.textContent).toBe("Levantamento");
+  });
+
   it("opens a stage from the timeline", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
     const timeline = await screen.findByRole("list", { name: "Etapas" });
@@ -206,10 +222,8 @@ describe("the client page", () => {
     await userEvent.click(within(timeline).getByRole("button", { name: /Estudo Preliminar/ }));
     const section = document.getElementById("stage-2")!;
     expect(section.className).toContain("is-expanded");
-    // The current stage stays the current one, but closes: one stage open at a time.
-    expect(document.getElementById("stage-1")!.className).toMatch(/\bstage--current\b/);
+    // The stage open at first closes: one stage open at a time.
     expect(document.getElementById("stage-1")!.className).not.toContain("is-expanded");
-    expect(section.className).not.toMatch(/\bstage--current\b/);
   });
 
   it("opens and closes a stage on a click anywhere on its head, one at a time", async () => {
@@ -636,23 +650,21 @@ describe("edit mode", () => {
     expect(await screen.findByRole("group", { name: "Início" })).toBeInTheDocument();
   });
 
-  it("moves the project on from its stages: no separate bar, the current stage finishes", async () => {
-    asStaff(); // stage 2 is current
+  it("lets every stage be completed or reopened on its own, in any order", async () => {
+    asStaff(); // Briefing completed
     await startEditing();
     expect(document.querySelector(".rail")).toBeNull();
     const stage = (index: number) => document.getElementById(`stage-${index}`)!;
-    // Only the current stage offers to finish; the one finished last, to reopen.
-    expect(screen.getAllByRole("button", { name: "Marcar etapa como concluída" })).toHaveLength(1);
-    expect(within(stage(1)).getByRole("button", { name: "Marcar etapa como concluída" })).toBeInTheDocument();
     expect(within(stage(0)).getByRole("button", { name: "Reabrir etapa" })).toBeInTheDocument();
-    expect(within(stage(2)).queryByRole("button", { name: /concluída|Reabrir/ })).toBeNull();
+    expect(within(stage(1)).getByRole("button", { name: "Marcar como concluída" })).toBeInTheDocument();
+    expect(within(stage(2)).getByRole("button", { name: "Marcar como concluída" })).toBeInTheDocument();
     // "Reordenar etapas" waits beside "Adicionar etapa".
     expect(screen.getByRole("button", { name: "Reordenar etapas" }).closest(".stage-list-actions")).not.toBeNull();
   });
 
   it("says a finished stage had no files, and gives edit mode's empty stages to the drop area", async () => {
     const empty = { stages: PAGE.stages.map((stage) => ({ position: stage.position, groups: [] })), updates: [] };
-    asStaff({ "GET /api/pages/casa-jardim/files": () => ({ body: empty }) }); // stage 2 is current
+    asStaff({ "GET /api/pages/casa-jardim/files": () => ({ body: empty }) }); // Briefing completed
     const done = await screen.findByRole("region", { name: "Briefing" });
     await userEvent.click(within(done).getByRole("button", { name: "Abrir etapa Briefing" }));
     expect(await within(done).findByText("Esta etapa foi concluída sem arquivos.")).toBeInTheDocument();
@@ -692,19 +704,29 @@ describe("edit mode", () => {
     expect(fourth().className).toContain("is-expanded");
   });
 
-  it("reopens a finished project from its last stage, without asking", async () => {
+  it("reopens a completed project by reopening any of its stages, once confirmed", async () => {
     const { sent } = asStaff({
       "GET /api/pages/casa-jardim": () => ({
-        body: { ...PAGE, completed: true, staff: { project_id: "p-1", status: "active", row_version: 4 } },
+        body: {
+          ...PAGE,
+          completed: true,
+          stages: PAGE.stages.map((stage) => ({ ...stage, completed: true })),
+          staff: { project_id: "p-1", status: "completed", row_version: 4 },
+        },
       }),
-      "POST /api/projects/p-1/progress": () => ({ status: 204 }),
+      "PUT /api/projects/p-1/stages/2/completion": () => ({ status: 204 }),
     });
     await startEditing();
-    const last = document.getElementById(`stage-${PAGE.stages.length - 1}`)!;
-    expect(screen.getAllByRole("button", { name: "Reabrir projeto" })).toHaveLength(1);
-    await userEvent.click(within(last).getByRole("button", { name: "Reabrir projeto" }));
+    expect(screen.getAllByRole("button", { name: "Reabrir etapa" })).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: "Reabrir projeto" })).toBeNull();
+    await userEvent.click(within(document.getElementById("stage-1")!).getByRole("button", { name: "Reabrir etapa" }));
+    const ask = screen.getByRole("alertdialog", { name: "Reabrir “Levantamento”?" });
+    expect(ask).toHaveTextContent("o projeto deixará de constar como concluído");
+    await userEvent.click(within(ask).getByRole("button", { name: "Reabrir etapa" }));
     await waitFor(() =>
-      expect(sent.filter((r) => r.path.endsWith("/progress")).map((r) => r.body)).toEqual([{ row_version: 4, action: "reopen" }]),
+      expect(sent.filter((r) => r.method === "PUT").map((r) => [r.path, r.body])).toEqual([
+        ["/api/projects/p-1/stages/2/completion", { row_version: 4, completed: false }],
+      ]),
     );
   });
 
@@ -714,7 +736,7 @@ describe("edit mode", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
     const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
     expect(within(list).getByRole("button", { name: "Salvar" })).toBeDisabled(); // nothing changed yet
-    expect(within(list).getByText("Etapa atual").closest("li")).toHaveTextContent(PAGE.stages[1]!.title);
+    expect(within(list).getByText("Concluída").closest("li")).toHaveTextContent(PAGE.stages[0]!.title);
     await dragStage(list, PAGE.stages[0]!.title, 1);
     await userEvent.click(within(list).getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText("Ordem das etapas salva.")).toBeInTheDocument();
@@ -737,7 +759,6 @@ describe("edit mode", () => {
           body: {
             ...PAGE,
             stages: stages.map((stage, i) => ({ ...stage, position: i + 1 })),
-            current_position: reordered ? 1 : 2, // Levantamento, wherever it is
             staff: { project_id: "p-1", status: "active", row_version: reordered ? 5 : 4 },
           },
         };
@@ -774,7 +795,6 @@ describe("edit mode", () => {
           body: {
             ...PAGE,
             stages: stages.map((stage, i) => ({ ...stage, position: i + 1 })),
-            current_position: reordered ? 1 : 2,
             staff: { project_id: "p-1", status: "active", row_version: reordered ? 5 : 4 },
           },
         };
@@ -1009,19 +1029,24 @@ describe("edit mode", () => {
   it.each([
     ["active", true],
     ["draft", false],
-  ])("at the last stage, offers Concluir projeto only to an active project (%s)", async (status, offered) => {
+  ])("says the last open stage completes the project only for an active one (%s)", async (status, completes) => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
-        body: { ...PAGE, current_position: PAGE.stages.length, staff: { project_id: "p-1", status, row_version: 4 } },
+        body: {
+          ...PAGE,
+          stages: PAGE.stages.map((stage, i) => ({ ...stage, completed: i !== 1 })), // only Levantamento open
+          staff: { project_id: "p-1", status, row_version: 4 },
+        },
       }),
     });
     render(<ClientApp />);
     await startEditing();
-    const last = document.getElementById(`stage-${PAGE.stages.length - 1}`)!;
-    expect(within(last).queryByRole("button", { name: "Marcar etapa como concluída" }) !== null).toBe(offered);
+    await userEvent.click(within(document.getElementById("stage-1")!).getByRole("button", { name: "Marcar como concluída" }));
+    const ask = screen.getByRole("alertdialog", { name: "Concluir “Levantamento”?" });
+    expect(ask.textContent!.includes("o projeto também será marcado como concluído")).toBe(completes);
   });
 
   it("changes the project type with the details, only when it changed", async () => {
@@ -1402,65 +1427,60 @@ describe("edit mode", () => {
     expect(sent.find((r) => r.method === "PUT")?.body).toMatchObject({ day: "2026-10-23", start: "09:00", end: "17:00" });
   });
 
-  describe("moving the project on asks first (A32)", () => {
-    const progress = (recipients: { email: string; subscribed: boolean }[], current = 2) =>
+  describe("completing or reopening a stage asks first (A32)", () => {
+    const progress = (recipients: { email: string; subscribed: boolean }[]) =>
       asStaff({
         "GET /api/pages/casa-jardim": () => ({
-          body: {
-            ...PAGE,
-            current_position: current,
-            staff: { project_id: "p-1", status: "active", row_version: 4, recipients },
-          },
+          body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: 4, recipients } },
         }),
-        "POST /api/projects/p-1/progress": () => ({ status: 204 }),
+        ...Object.fromEntries(
+          PAGE.stages.map((stage) => [`PUT /api/projects/p-1/stages/${stage.position}/completion`, () => ({ status: 204 })]),
+        ),
       });
-    const posted = (sent: { method: string; path: string; body?: unknown }[]) =>
-      sent.filter((r) => r.method === "POST" && r.path.endsWith("/progress")).map((r) => r.body);
+    const put = (sent: { method: string; path: string; body?: unknown }[]) =>
+      sent.filter((r) => r.method === "PUT" && r.path.endsWith("/completion")).map((r) => [r.path, r.body]);
+    const stage = (index: number) => document.getElementById(`stage-${index}`)!;
 
-    it("finishes the current stage only once confirmed, saying the next one starts and clients get an email", async () => {
+    it("completes any open stage only once confirmed, saying clients get an email", async () => {
       const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }]);
       await startEditing();
-      await userEvent.click(await screen.findByRole("button", { name: "Marcar etapa como concluída" }));
-      let ask = screen.getByRole("alertdialog", { name: "Concluir “Levantamento”?" });
-      expect(ask).toHaveTextContent("“Levantamento” será marcada como concluída e “Estudo Preliminar” passará a estar em andamento");
-      expect(ask).toHaveTextContent("Você poderá desfazer essa ação.");
+      // Estudo Preliminar, after an open stage: the order doesn't matter.
+      const complete = await within(stage(2)).findByRole("button", { name: "Marcar como concluída" });
+      await userEvent.click(complete);
+      let ask = screen.getByRole("alertdialog", { name: "Concluir “Estudo Preliminar”?" });
+      expect(ask).toHaveTextContent("A etapa será marcada como concluída para o cliente. Você poderá reabri-la depois.");
       expect(ask).toHaveTextContent("serão notificados por e-mail");
       await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
-      expect(posted(sent)).toEqual([]);
-      await userEvent.click(screen.getByRole("button", { name: "Marcar etapa como concluída" }));
+      expect(put(sent)).toEqual([]);
+      await userEvent.click(complete);
       ask = screen.getByRole("alertdialog");
       await userEvent.click(within(ask).getByRole("button", { name: "Concluir etapa" }));
-      await waitFor(() => expect(posted(sent)).toEqual([{ row_version: 4, action: "advance" }]));
+      await waitFor(() =>
+        expect(put(sent)).toEqual([["/api/projects/p-1/stages/3/completion", { row_version: 4, completed: true }]]),
+      );
+      expect(await screen.findByText("Etapa “Estudo Preliminar” concluída.")).toBeInTheDocument();
       await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     });
 
     it("says nothing about emails when nobody gets the updates", async () => {
       progress([{ email: "ana@exemplo.com.br", subscribed: false }]);
       await startEditing();
-      await userEvent.click(await screen.findByRole("button", { name: "Marcar etapa como concluída" }));
+      await userEvent.click(await within(stage(1)).findByRole("button", { name: "Marcar como concluída" }));
       expect(screen.getByRole("alertdialog")).not.toHaveTextContent("e-mail");
     });
 
-    it("completes the last stage only once confirmed, with the same warning", async () => {
-      const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }], 3);
-      await startEditing();
-      // The last stage's "Marcar etapa como concluída" completes the project.
-      await userEvent.click(await screen.findByRole("button", { name: "Marcar etapa como concluída" }));
-      const ask = screen.getByRole("alertdialog", { name: "Concluir o projeto?" });
-      expect(ask).toHaveTextContent("serão notificados por e-mail");
-      await userEvent.click(within(ask).getByRole("button", { name: "Concluir projeto" }));
-      await waitFor(() => expect(posted(sent)).toEqual([{ row_version: 4, action: "complete" }]));
-    });
-
-    it("reopens the stage finished last once confirmed, with no email warning (going back emails nobody)", async () => {
+    it("reopens a completed stage once confirmed, with no email warning (reopening emails nobody)", async () => {
       const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }]);
       await startEditing();
-      await userEvent.click(await screen.findByRole("button", { name: "Reabrir etapa" }));
+      await userEvent.click(await within(stage(0)).findByRole("button", { name: "Reabrir etapa" }));
       const ask = screen.getByRole("alertdialog", { name: "Reabrir “Briefing”?" });
+      expect(ask).toHaveTextContent("A etapa voltará a constar como em aberto para o cliente.");
       expect(ask).not.toHaveTextContent("e-mail");
-      expect(posted(sent)).toEqual([]);
+      expect(put(sent)).toEqual([]);
       await userEvent.click(within(ask).getByRole("button", { name: "Reabrir etapa" }));
-      await waitFor(() => expect(posted(sent)).toEqual([{ row_version: 4, action: "back" }]));
+      await waitFor(() =>
+        expect(put(sent)).toEqual([["/api/projects/p-1/stages/1/completion", { row_version: 4, completed: false }]]),
+      );
     });
   });
 
@@ -1522,10 +1542,12 @@ describe("Atualizações (A28)", () => {
         update("3", "note_changed", 2), // an older note of the same stage: once
         update("4", "meeting_changed", null),
         update("5", "meeting_scheduled", null), // older meeting news: once
-        update("6", "stage_advanced", 3), // stage 3 isn't reached (current is 2): left out
-        update("7", "stage_advanced", 2),
-        update("8", "project_completed", null), // not completed now: left out
-        update("9", "note_changed", 1), // stage 1 has no note now: left out
+        update("6", "stage_completed", 2), // Levantamento was reopened since: left out
+        update("7", "stage_completed", 1),
+        update("8", "stage_completed", 1), // completed before too: once
+        update("9", "stage_advanced", 2), // the old progress, before stages completed on their own: left out
+        update("10", "project_completed", null), // not completed now: left out
+        update("11", "note_changed", 1), // stage 1 has no note now: left out
       ],
       t,
       "pt-BR",
@@ -1534,7 +1556,7 @@ describe("Atualizações (A28)", () => {
       ["Planta.pdf", "02 Levantamento", 1],
       ["updates.note", "Medidas conferidas.", 1],
       ["updates.meetingChanged", expect.stringContaining("Apresentação"), "meeting"],
-      ["updates.advanced", "02 Levantamento", 1],
+      ["updates.stageCompleted", "01 Briefing", 0],
     ]);
   });
 

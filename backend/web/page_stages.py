@@ -5,14 +5,16 @@
     POST   /api/projects/{id}/stages/{n}/move         one place up or down
     PUT    /api/projects/{id}/stages/order            every stage in a new order at once
     DELETE /api/projects/{id}/stages/{n}?row_version= remove it (its folder stays)
-    POST   /api/projects/{id}/progress                advance, back, complete, reopen
+    PUT    /api/projects/{id}/stages/{n}/completion   mark it as completed, or reopen it
 
 Stage folders follow the stages in the office's Drive (Fabio, 16 Oct 2026):
 renaming or reordering renames the "NN - title" folders, adding creates one, and
 removing a stage keeps its folder and files. Drive goes first; if it fails, the
 names already changed are put back and nothing is saved (`drive_connect_failed`).
-Every change carries the page's `row_version` (plan section 7). Progress moves
-"Atualizado"; stage edits don't (the A28 interim rule).
+Every change carries the page's `row_version` (plan section 7). Completing or
+reopening a stage moves "Atualizado"; stage edits don't (the A28 interim rule).
+Stages complete on their own, in any order (0032, for review): a project is
+completed when all its stages are, and active again when one is reopened.
 """
 
 from __future__ import annotations
@@ -186,10 +188,6 @@ async def add_stage(
         if maker is not None:
             folder = await maker.create_folder(_folder_name(position, title), project.folder_id)
         db.add(ProjectStage(project_id=project_id, position=position, folder_id=folder, **values))
-        if project.current_position is None:
-            await db.execute(
-                update(Project).where(Project.id == project_id).values(current_position=1)
-            )
         await db.commit()
     except BaseException as error:
         await db.rollback()
@@ -281,7 +279,7 @@ async def move_stage(
     if position not in stages or other_position not in stages:
         raise ApiError(422, ErrorCode.INVALID_STAGE)
     maker = await _maker(request, db, await _project(db, project_id))
-    project = await _change(db, project_id, body.row_version)
+    await _change(db, project_id, body.row_version)
     moving, other = stages[position], stages[other_position]
     moving_title = await _title(db, moving, tenant.locale)
     other_title = await _title(db, other, tenant.locale)
@@ -305,12 +303,6 @@ async def move_stage(
             .where(ProjectStage.id == other.id)
             .values(position=position, folder_id=other.folder_id)
         )
-        current = project.current_position
-        if current in (position, other_position):
-            new_current = other_position if current == position else position
-            await db.execute(
-                update(Project).where(Project.id == project_id).values(current_position=new_current)
-            )
 
     await _run(db, renames, work, "move stage", tenant, project_id)
     return Response(status_code=204)
@@ -341,7 +333,7 @@ async def reorder_stages(
     if sorted(body.order) != sorted(stages):
         raise ApiError(422, ErrorCode.INVALID_STAGE)  # each stage once, none missing
     maker = await _maker(request, db, await _project(db, project_id))
-    project = await _change(db, project_id, body.row_version)
+    await _change(db, project_id, body.row_version)
     moves = [(stages[old], old, new) for new, old in enumerate(body.order, start=1) if old != new]
     titles = {stage.id: await _title(db, stage, tenant.locale) for stage, _, _ in moves}
     renames = Renames(maker)
@@ -357,15 +349,6 @@ async def reorder_stages(
                 .where(ProjectStage.id == stage.id)
                 .values(position=new, folder_id=stage.folder_id)
             )
-        current = project.current_position
-        if current is not None and current in body.order:
-            new_current = body.order.index(current) + 1
-            if new_current != current:
-                await db.execute(
-                    update(Project)
-                    .where(Project.id == project_id)
-                    .values(current_position=new_current)
-                )
 
     await _run(db, renames, work, "reorder stages", tenant, project_id)
     return Response(status_code=204)
@@ -392,7 +375,7 @@ async def remove_stage(
     if removed is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
     maker = await _maker(request, db, await _project(db, project_id))
-    project = await _change(db, project_id, row_version)
+    await _change(db, project_id, row_version)
     later = [s for s in stages if s.position > position]
     titles = {s.id: await _title(db, s, tenant.locale) for s in later}
     renames = Renames(maker)
@@ -412,67 +395,68 @@ async def remove_stage(
                 .where(ProjectStage.id == stage.id)
                 .values(position=stage.position - 1, folder_id=stage.folder_id)
             )
-        current, count = project.current_position, len(stages) - 1
-        if current is not None:
-            new_current = current - 1 if current > position else current
-            new_current = min(new_current, count) if count else None
-            await db.execute(
-                update(Project).where(Project.id == project_id).values(current_position=new_current)
-            )
 
     await _run(db, renames, work, "remove stage", tenant, project_id)
     return Response(status_code=204)
 
 
-class ProgressIn(BaseModel):
+class CompletionIn(BaseModel):
     row_version: int
-    action: Literal["advance", "back", "complete", "reopen"]
+    completed: bool
 
 
-@router.post(
-    "/projects/{project_id}/progress", status_code=204, responses=documented(401, 404, 409, 422)
+@router.put(
+    "/projects/{project_id}/stages/{position}/completion",
+    status_code=204,
+    responses=documented(401, 404, 409, 422),
 )
-async def progress(
+async def set_completion(
     project_id: uuid.UUID,
-    body: ProgressIn,
+    position: int,
+    body: CompletionIn,
     _staff: CurrentStaff = Depends(require_csrf),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """Advance to the next stage, go back one, complete the project (all stages
-    done) or reopen it. The client sees it at once; "Atualizado" moves. Advancing
-    and completing are recorded for the client's email (A32)."""
+    """Mark a stage as completed, or reopen it, whatever the other stages are. The
+    client sees it at once; "Atualizado" moves. A completed stage is recorded for
+    the client's email (A32). The last stage completed completes the project (an
+    active one), and reopening one makes a completed project active again."""
     project = await db.scalar(
         select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
     )
     if project is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
-    count = len(await _stages(db, project_id))
-    current = project.current_position
-    values: dict = {"last_activity_at": datetime.now(UTC)}
-    if body.action == "advance" and current is not None and current < count:
-        values["current_position"] = current + 1
-    elif body.action == "back" and current is not None and current > 1:
-        values["current_position"] = current - 1
-    elif body.action == "complete" and project.status is ProjectStatus.ACTIVE:
+    stages = await _stages(db, project_id)
+    stage = next((s for s in stages if s.position == position), None)
+    if stage is None:
+        raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)  # as the other stage routes
+    if (stage.completed_at is not None) == body.completed:
+        raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # already so
+    now = datetime.now(UTC)
+    others_done = all(s.completed_at is not None for s in stages if s.id != stage.id)
+    values: dict = {"last_activity_at": now}
+    finishes = body.completed and others_done and project.status is ProjectStatus.ACTIVE
+    if finishes:
         values["status"] = ProjectStatus.COMPLETED
-    elif body.action == "reopen" and project.status is ProjectStatus.COMPLETED:
+    elif not body.completed and project.status is ProjectStatus.COMPLETED:
         values["status"] = ProjectStatus.ACTIVE
-    else:
-        raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
     await _change(db, project_id, body.row_version, values)
-    if body.action == "advance":
-        stages = await _stages(db, project_id)
-        reached = stages[current]  # the stage after the old current one
+    await db.execute(
+        update(ProjectStage)
+        .where(ProjectStage.id == stage.id)
+        .values(completed_at=now if body.completed else None)
+    )
+    if body.completed:
         record(
             db,
             project,
-            EventKind.STAGE_ADVANCED,
-            stage_position=current + 1,
-            stage_id=reached.id,
-            title=await _title(db, reached, tenant.locale),
+            EventKind.STAGE_COMPLETED,
+            stage_position=position,
+            stage_id=stage.id,
+            title=await _title(db, stage, tenant.locale),
         )
-    elif body.action == "complete":
+    if finishes:
         record(db, project, EventKind.PROJECT_COMPLETED)
     await db.commit()
     return Response(status_code=204)

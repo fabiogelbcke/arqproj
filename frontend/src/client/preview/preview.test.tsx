@@ -47,9 +47,9 @@ describe("the preview's data", () => {
     expect(new Set(keys).size).toBe(50);
   });
 
-  it("keeps the current stage and the updates within fewer stages", () => {
+  it("keeps the updates within fewer stages", () => {
     const { project } = data("stages=1");
-    expect(project.current_position).toBe(1);
+    expect(project.stages).toHaveLength(1);
     expect(project.updates.every((update) => (update.stage_position ?? 0) <= 1)).toBe(true);
   });
 

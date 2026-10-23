@@ -153,6 +153,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ),
         ("project_stages", "notes", "UPDATE"),
         ("project_stages", "notes_updated_at", "UPDATE"),
+        ("project_stages", "completed_at", "UPDATE"),
         ("project_slugs", "is_current", "UPDATE"),
         ("project_events", "batch_id", "UPDATE"),
     }

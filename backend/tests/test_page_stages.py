@@ -53,6 +53,10 @@ def titles(shown):
     return [s["title"] for s in shown["stages"]]
 
 
+def completed(shown):
+    return [s["completed"] for s in shown["stages"]]
+
+
 # -- stages ---------------------------------------------------------------------------
 
 
@@ -89,14 +93,12 @@ async def test_renaming_renames_the_folder_and_keeps_the_description(client, own
     assert (folders / "02 - Medição" / "Croqui.pdf").exists()  # files move with it
 
 
-async def test_moving_a_stage_swaps_folders_and_the_current_stage_stays_the_same(
-    client, owner, folders
-):
-    before = await page(client)  # current: 3 (Estudo Preliminar)
+async def test_moving_a_stage_swaps_folders_and_each_keeps_its_completion(client, owner, folders):
+    before = await page(client)  # 01 and 02 completed
     assert (await call(client, owner, "POST", "/stages/3/move", direction=-1)).status_code == 204
     after = await page(client)
     assert titles(after)[1:3] == [titles(before)[2], titles(before)[1]]
-    assert after["current_position"] == 2  # still Estudo Preliminar
+    assert completed(after)[:3] == [True, False, True]  # Estudo Preliminar, still open, moved up
     assert "02 - Estudo Preliminar" in on_disk(folders)
     assert "03 - Levantamento" in on_disk(folders)
 
@@ -106,17 +108,15 @@ async def test_a_stage_cannot_move_past_the_ends(client, owner, folders):
     assert (response.status_code, response.json()["error"]) == (422, "invalid_stage")
 
 
-async def test_reordering_puts_every_stage_in_place_and_the_current_stage_follows(
-    client, owner, folders
-):
-    before = await page(client)  # current: 3 (Estudo Preliminar)
+async def test_reordering_puts_every_stage_in_place_with_its_completion(client, owner, folders):
+    before = await page(client)  # 01 and 02 completed
     count = len(before["stages"])
     order = [3, 1, 2, *range(4, count + 1)]
     response = await call(client, owner, "PUT", "/stages/order", order=order)
     assert response.status_code == 204, response.text
     after = await page(client)
     assert titles(after) == [titles(before)[n - 1] for n in order]
-    assert after["current_position"] == 1  # still Estudo Preliminar, now first
+    assert completed(after) == [completed(before)[n - 1] for n in order]
     names = on_disk(folders)
     assert {"01 - Estudo Preliminar", "02 - Briefing", "03 - Levantamento"} <= set(names)
     assert "04 - Desenvolvimento" in names  # unmoved stages keep their folders
@@ -197,7 +197,7 @@ async def test_removing_a_stage_keeps_its_folder_and_renumbers_the_rest(client, 
     assert (await call(client, owner, "DELETE", "/stages/2")).status_code == 204
     shown = await page(client)
     assert len(shown["stages"]) == 6
-    assert shown["current_position"] == 2  # the current stage moved up with the rest
+    assert completed(shown)[:2] == [True, False]  # the rest moved up, completion and all
     names = on_disk(folders)
     assert "02 - Conceito" in names  # the removed stage's folder and files stay
     assert (folders / "02 - Conceito" / "Croqui.pdf").exists()
@@ -245,33 +245,47 @@ async def test_a_stale_page_cant_change_stages(client, owner, folders):
     assert (response.status_code, response.json()["error"]) == (409, "project_changed")
 
 
-# -- progress -------------------------------------------------------------------------
+# -- completion -----------------------------------------------------------------------
 
 
-async def test_advancing_and_going_back_move_the_current_stage(client, owner, folders):
-    before = await page(client)
-    assert (await call(client, owner, "POST", "/progress", action="advance")).status_code == 204
+async def test_stages_are_completed_and_reopened_in_any_order(client, owner, folders):
+    before = await page(client)  # 01 and 02 completed
+    response = await call(client, owner, "PUT", "/stages/5/completion", completed=True)
+    assert response.status_code == 204, response.text
     after = await page(client)
-    assert after["current_position"] == before["current_position"] + 1
+    assert completed(after) == [True, True, False, False, True, False, False]
     assert after["last_update"] != before["last_update"]  # the client notices this
-    await call(client, owner, "POST", "/progress", action="back")
-    assert (await page(client))["current_position"] == before["current_position"]
+    assert after["completed"] is False
+    await call(client, owner, "PUT", "/stages/1/completion", completed=False)
+    assert completed(await page(client)) == [False, True, False, False, True, False, False]
 
 
-async def test_completing_and_reopening(client, owner, folders):
-    await call(client, owner, "POST", "/progress", action="complete")
+async def test_the_last_open_stage_completes_the_project_and_reopening_one_reactivates_it(
+    client, owner, folders
+):
+    for position in (3, 4, 5, 6):
+        await call(client, owner, "PUT", f"/stages/{position}/completion", completed=True)
+    assert (await page(client))["completed"] is False  # 07 still open
+    await call(client, owner, "PUT", "/stages/7/completion", completed=True)
     assert (await page(client))["completed"] is True
-    again = await call(client, owner, "POST", "/progress", action="complete")
-    assert again.status_code == 422
-    await call(client, owner, "POST", "/progress", action="reopen")
-    assert (await page(client))["completed"] is False
+    await call(client, owner, "PUT", "/stages/2/completion", completed=False)
+    shown = await page(client)
+    assert (shown["completed"], completed(shown)[1]) == (False, False)
 
 
-async def test_no_advancing_past_the_last_stage(client, owner, folders):
-    for _ in range(4):  # 3 -> 7
-        await call(client, owner, "POST", "/progress", action="advance")
-    response = await call(client, owner, "POST", "/progress", action="advance")
-    assert (response.status_code, response.json()["error"]) == (422, "invalid_status_change")
+async def test_completing_a_completed_stage_or_reopening_an_open_one_is_refused(
+    client, owner, folders
+):
+    for position, value in ((1, True), (3, False)):
+        response = await call(
+            client, owner, "PUT", f"/stages/{position}/completion", completed=value
+        )
+        assert (response.status_code, response.json()["error"]) == (422, "invalid_status_change")
+
+
+async def test_completing_a_stage_that_isnt_there_is_not_found(client, owner, folders):
+    response = await call(client, owner, "PUT", "/stages/9/completion", completed=True)
+    assert response.status_code == 404
 
 
 async def test_a_stage_whose_folder_is_gone_can_still_be_renamed(client, owner, folders):
@@ -281,28 +295,6 @@ async def test_a_stage_whose_folder_is_gone_can_still_be_renamed(client, owner, 
     response = await call(client, owner, "PATCH", "/stages/2", title="Medição")
     assert response.status_code == 204, response.text
     assert (await page(client))["stages"][1]["title"] == "Medição"
-
-
-async def test_removing_the_current_stage_makes_the_next_one_current(client, owner, folders):
-    before = await page(client)
-    current = before["current_position"]
-    await call(client, owner, "DELETE", f"/stages/{current}")
-    after = await page(client)
-    assert after["current_position"] == current
-    assert titles(after)[current - 1] == titles(before)[current]  # the stage after it
-
-
-async def test_removing_the_last_stage_while_current_steps_back(client, db_session, owner, folders):
-    count = len((await page(client))["stages"])
-    await db_session.execute(
-        text(
-            "UPDATE projects SET current_position = :n WHERE name = 'Casa Jardim' AND tenant_id = "
-            "(SELECT id FROM tenants WHERE slug = 'alinea')"
-        ),
-        {"n": count},
-    )
-    await call(client, owner, "DELETE", f"/stages/{count}")
-    assert (await page(client))["current_position"] == count - 1
 
 
 async def test_if_saving_a_new_stage_fails_its_new_folder_goes_too(
@@ -341,7 +333,7 @@ async def test_if_saving_a_new_stage_fails_its_new_folder_goes_too(
         ("PATCH", "/stages/1", {"title": "Outro nome"}),
         ("POST", "/stages/1/move", {"direction": 1}),
         ("DELETE", "/stages/1", {}),
-        ("POST", "/progress", {"action": "advance"}),
+        ("PUT", "/stages/3/completion", {"completed": True}),
     ],
 )
 async def test_an_archived_projects_stages_cant_change(
@@ -357,8 +349,5 @@ async def test_an_archived_projects_stages_cant_change(
     response = await call(client, owner, method, path, **body)
     assert (response.status_code, response.json()["error"]) == (409, "project_archived")
     after = await page(client)
-    assert (titles(after), after["current_position"]) == (
-        titles(before),
-        before["current_position"],
-    )
+    assert (titles(after), completed(after)) == (titles(before), completed(before))
     assert on_disk(folders) == sorted(SEEDED)

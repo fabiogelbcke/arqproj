@@ -352,3 +352,7 @@
 
 /* For screen readers only, wherever the component is used (painel or project page). */
 .visuallyHidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* CompletionBar: a thin track, filled from the left by the completed share. */
+.completionBar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.completionBar > i { display: block; height: 100%; border-radius: inherit; background: var(--mark); transition: width 0.3s; }
