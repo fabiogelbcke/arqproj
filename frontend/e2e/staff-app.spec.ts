@@ -512,7 +512,7 @@ test("staff rename, add and remove stages, and complete one out of order", async
   const client = await browser.newPage();
   await client.goto("/casa-jardim");
   await expect(client.getByRole("progressbar", { name: "3 de 7 etapas concluídas" })).toBeVisible();
-  await expect(client.locator("#stage-6").getByText("Concluída")).toBeVisible();
+  await expect(client.locator("#stage-6").getByText("Concluída", { exact: true })).toBeVisible();
   await expect(client.getByText("Medição do apartamento").first()).toBeVisible();
   await client.close();
 });
