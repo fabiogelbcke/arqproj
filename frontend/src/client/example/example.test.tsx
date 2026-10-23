@@ -53,7 +53,7 @@ describe("the example project", () => {
     expect(screen.getByText(/Projeto de exemplo: nada é salvo/)).toBeInTheDocument();
     expect(screen.getByText("Projeto Arquitetônico")).toBeInTheDocument();
     expect(screen.getByText("Apresentação do estudo")).toBeInTheDocument();
-    // The current stage is open, with its files: an image, a PDF and a DWG.
+    // The first stage still open is open, with its files: an image, a PDF and a DWG.
     const current = document.getElementById("stage-2")!;
     expect(await within(current).findByText("Estudo de cobertura.jpg")).toBeVisible();
     expect(within(current).getByText("Implantação - estudo A.pdf")).toBeVisible();
@@ -97,12 +97,11 @@ describe("the example project", () => {
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText("Uma casa só nossa.")).toBeInTheDocument();
 
-    // "Marcar etapa como concluída": the next stage becomes the current one, and the bell tells the client.
-    await userEvent.click(await screen.findByRole("button", { name: "Marcar etapa como concluída" }));
+    // "Marcar como concluída" on a later stage (any order): it shows as completed.
+    const later = document.getElementById("stage-4")!;
+    await userEvent.click(within(later).getByRole("button", { name: "Marcar como concluída" }));
     await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Concluir etapa" })); // asked first
-    await waitFor(() =>
-      expect(document.getElementById("stage-3")?.querySelector(".pill--current")).toHaveTextContent("Em andamento"),
-    );
+    await waitFor(() => expect(within(later).getByRole("button", { name: "Reabrir etapa" })).toBeInTheDocument());
 
     // An upload to the open stage (03): it shows there, from this browser.
     const input = document.getElementById("up-3") as HTMLInputElement;

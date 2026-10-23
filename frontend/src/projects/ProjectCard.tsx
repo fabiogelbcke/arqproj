@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CompletionBar } from "../ui/CompletionBar";
 import { relativeDay } from "../ui/dates";
 import { Cover } from "./Cover";
 import { ClientEmailsDialog } from "./ClientEmailsDialog";
@@ -8,35 +9,19 @@ import { ProjectMenu } from "./ProjectMenu";
 import { type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
+/** How many of its stages are completed, in any order: in words, and a thin bar. */
 function Progress({ project }: { project: ProjectSummary }) {
   const { t } = useTranslation();
   const total = project.stage_count;
-  const done = project.status === "completed";
-  const current = done ? total : Math.min(project.current_position ?? 0, total);
-  const caption = done ? t("projects.done") : total ? t("projects.stageCaption") : t("projects.stagesCaption");
-  const title = done
-    ? null
-    : !total
-      ? t("projects.noStages")
-      : (project.current_stage_title ?? t("projects.notStarted"));
+  const done = project.completed_stage_count;
+  // A completed project too: the card sits under "Concluídos" already.
+  const caption = total ? t("projects.stagesDone", { done, total }) : t("projects.noStages");
   return (
     <div className={styles.progress}>
       <div className={styles.progressHead}>
         <span>{caption}</span>
-        {total > 0 && (
-          <span className={styles.count} aria-label={t("projects.stage", { current, total })}>
-            {current} / {total}
-          </span>
-        )}
       </div>
-      {title && <p className={styles.stageTitle}>{title}</p>}
-      {total > 0 && (
-        <div className={styles.bar} style={{ "--n": total } as React.CSSProperties} aria-hidden="true">
-          {Array.from({ length: total }, (_, i) => (
-            <i key={i} data-state={done || i + 1 < current ? "done" : i + 1 === current ? "current" : undefined} />
-          ))}
-        </div>
-      )}
+      {total > 0 && <CompletionBar done={done} total={total} label={t("projects.stagesDone", { done, total })} />}
     </div>
   );
 }

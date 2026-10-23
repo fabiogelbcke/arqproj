@@ -67,7 +67,6 @@ export function previewData(settings: Settings, now: Date, timeZone: string): Ex
   const base = exampleProject(now, timeZone);
   // The fixture's files, as patterns for as many as asked for (images, PDFs, a drawing).
   const patterns = base.stages.flatMap((stage) => stage.groups.flatMap((group) => group.files));
-  const current = Math.min(base.current_position, settings.stages);
   let key = 0;
   // In every stage: the page takes files in any of them.
   const files = (position: number): ExampleFile[] =>
@@ -78,7 +77,7 @@ export function previewData(settings: Settings, now: Date, timeZone: string): Ex
       return { ...pattern, key: `previa-${(key += 1)}`, name };
     });
   const stages: ExampleStage[] = Array.from({ length: settings.stages }, (_, i) => {
-    const stage = base.stages[i] ?? { title: MORE_STAGES[i - base.stages.length] ?? `Etapa ${i + 1}`, about: null, notes: "", groups: [] };
+    const stage = base.stages[i] ?? { title: MORE_STAGES[i - base.stages.length] ?? `Etapa ${i + 1}`, about: null, notes: "", completed: false, groups: [] };
     const title = settings.longNames && i % 2 === 0 ? fit(LONG_STAGE, LIMITS.stageTitle) : stage.title;
     const shown = files(i + 1);
     return { ...stage, title, groups: shown.length ? [{ folder: null, files: shown }] : [] };
@@ -94,10 +93,11 @@ export function previewData(settings: Settings, now: Date, timeZone: string): Ex
       ),
       cover_url: settings.cover ? base.cover_url : null,
       stages,
-      current_position: current,
       next_meeting: meeting,
       // Only what the stages shown have: a stage's update needs its stage.
-      updates: base.updates.filter((update) => (update.stage_position ?? 0) <= current && (meeting || !update.kind.startsWith("meeting"))),
+      updates: base.updates.filter(
+        (update) => (update.stage_position ?? 0) <= settings.stages && (meeting || !update.kind.startsWith("meeting")),
+      ),
     },
     office: PREVIEW_OFFICE,
     staff: settings.view === "staff",

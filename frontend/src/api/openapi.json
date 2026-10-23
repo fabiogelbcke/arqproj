@@ -2290,7 +2290,7 @@
     "/api/projects/{project_id}/stages": {
       "post": {
         "summary": "Add Stage",
-        "description": "At the end: a built-in stage (not already in the project) or the office's own.",
+        "description": "At the end: a built-in stage (not already in the project) or the office's own.\nA new stage is open, so a completed project is active again (stages complete\nindependently).",
         "operationId": "add_stage_api_projects__project_id__stages_post",
         "parameters": [
           {
@@ -2731,11 +2731,169 @@
         }
       }
     },
+    "/api/projects/{project_id}/stages/{position}/completion": {
+      "put": {
+        "summary": "Set Completion",
+        "description": "Mark a stage as completed, or reopen it, whatever the other stages are. The\nclient sees it at once; \"Atualizado\" moves. A completed stage is recorded for\nthe client's email (A32). The last stage completed completes the project (an\nactive one), and reopening one makes a completed project active again.",
+        "operationId": "set_completion_api_projects__project_id__stages__position__completion_put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompletionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/completion": {
+      "put": {
+        "summary": "Complete Project",
+        "description": "\"Concluir projeto\": an active project whose stages are all completed. Staff\nare asked when they complete the last stage, and can do it later; the client\nsees it at once and is told by email (A32).",
+        "operationId": "complete_project_api_projects__project_id__completion_put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCompletionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/progress": {
       "post": {
         "summary": "Progress",
-        "description": "Advance to the next stage, go back one, complete the project (all stages\ndone) or reopen it. The client sees it at once; \"Atualizado\" moves. Advancing\nand completing are recorded for the client's email (A32).",
+        "description": "The previous release's progress, for a tab still running its code during a\ndeploy (A30); remove in the release after independent stages. \"advance\" and\n\"complete\" complete the first open stage; \"back\" and \"reopen\" reopen the last\ncompleted one.",
         "operationId": "progress_api_projects__project_id__progress_post",
+        "deprecated": true,
         "parameters": [
           {
             "name": "project_id",
@@ -3377,6 +3535,24 @@
         ],
         "title": "ChoosePasswordIn"
       },
+      "CompletionIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "completed"
+        ],
+        "title": "CompletionIn"
+      },
       "ConnectIn": {
         "properties": {
           "fresh": {
@@ -3713,6 +3889,7 @@
         "enum": [
           "file_published",
           "stage_advanced",
+          "stage_completed",
           "project_completed",
           "meeting_scheduled",
           "meeting_changed",
@@ -4646,6 +4823,19 @@
         ],
         "title": "ProjectChange"
       },
+      "ProjectCompletionIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version"
+        ],
+        "title": "ProjectCompletionIn"
+      },
       "ProjectIn": {
         "properties": {
           "name": {
@@ -4747,6 +4937,10 @@
             "type": "integer",
             "title": "Stage Count"
           },
+          "completed_stage_count": {
+            "type": "integer",
+            "title": "Completed Stage Count"
+          },
           "current_position": {
             "anyOf": [
               {
@@ -4832,6 +5026,7 @@
           "project_type",
           "project_type_label",
           "stage_count",
+          "completed_stage_count",
           "current_position",
           "current_stage_title",
           "next_meeting",
@@ -5063,6 +5258,10 @@
           "notes": {
             "type": "string",
             "title": "Notes"
+          },
+          "completed": {
+            "type": "boolean",
+            "title": "Completed"
           }
         },
         "type": "object",
@@ -5070,7 +5269,8 @@
           "position",
           "title",
           "about",
-          "notes"
+          "notes",
+          "completed"
         ],
         "title": "StageOut"
       },

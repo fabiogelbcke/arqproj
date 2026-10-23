@@ -61,7 +61,8 @@ class EventKind(StrEnum):
     """What a client can notice on the page (A28). All but a note email (A32)."""
 
     FILE_PUBLISHED = "file_published"  # found by the scan in a stage's folder
-    STAGE_ADVANCED = "stage_advanced"
+    STAGE_ADVANCED = "stage_advanced"  # before stages completed on their own (0032)
+    STAGE_COMPLETED = "stage_completed"
     PROJECT_COMPLETED = "project_completed"
     MEETING_SCHEDULED = "meeting_scheduled"
     MEETING_CHANGED = "meeting_changed"

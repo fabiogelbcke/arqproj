@@ -77,6 +77,9 @@ class ProjectSummary(BaseModel):
     project_type: str
     project_type_label: str
     stage_count: int
+    completed_stage_count: int  # stages marked as completed, in any order (0032)
+    # The previous release's current stage (A30), for one release: the first stage
+    # still open (its title), else the last.
     current_position: int | None
     current_stage_title: str | None
     next_meeting: NextMeeting | None
@@ -151,18 +154,24 @@ async def summaries(
             )
         ).all()
     )
-    current = {
-        stage.project_id: stage.title or (_text(titles, locale) if titles else None)
+    completed = dict(
+        (
+            await db.execute(
+                select(ProjectStage.project_id, func.count())
+                .where(ProjectStage.project_id.in_(ids), ProjectStage.completed_at.is_not(None))
+                .group_by(ProjectStage.project_id)
+            )
+        ).all()
+    )
+    first_open = {
+        stage.project_id: (stage, titles)
         for stage, titles in (
             await db.execute(
                 select(ProjectStage, StageDef.titles)
                 .outerjoin(StageDef, StageDef.key == ProjectStage.builtin_key)
-                .join(
-                    Project,
-                    (Project.id == ProjectStage.project_id)
-                    & (Project.current_position == ProjectStage.position),
-                )
-                .where(ProjectStage.project_id.in_(ids))
+                .where(ProjectStage.project_id.in_(ids), ProjectStage.completed_at.is_(None))
+                .order_by(ProjectStage.project_id, ProjectStage.position)
+                .ext(distinct_on(ProjectStage.project_id))
             )
         ).all()
     }
@@ -197,8 +206,17 @@ async def summaries(
             project_type=project.project_type,
             project_type_label=_text(labels, locale),
             stage_count=counts.get(project.id, 0),
-            current_position=project.current_position,
-            current_stage_title=current.get(project.id),
+            completed_stage_count=completed.get(project.id, 0),
+            current_position=(
+                first_open[project.id][0].position
+                if project.id in first_open
+                else counts.get(project.id) or None
+            ),
+            current_stage_title=(
+                first_open[project.id][0].title or _text(first_open[project.id][1], locale)
+                if project.id in first_open
+                else None
+            ),
             next_meeting=meetings.get(project.id),
             created_at=project.created_at,
             last_activity_at=project.last_activity_at,

@@ -126,17 +126,6 @@
 .progress { min-width: 0; }
 .progressHead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
 .progressHead > span:first-child { font-size: var(--text-2xs); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
-.count {
-  padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--r-lg); font-size: var(--text-2xs); line-height: 1; color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-.stageTitle {
-  margin-bottom: 9px; font: 500 var(--text-sm)/1.25 var(--display-font); text-transform: uppercase; overflow-wrap: anywhere;
-}
-@media (max-width: 620px) { .stageTitle { font-size: var(--text-2xs); } .progressHead > span:first-child, .count { font-size: var(--text-2xs); } }
-.bar { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 4px; height: 3px; }
-.bar i { border-radius: 2px; background: var(--line); }
-.bar i[data-state] { background: var(--mark); }
 .meta { font-size: var(--text-xs); line-height: 1.3; }
 .meta small { display: block; color: var(--muted); font-size: var(--text-2xs); margin-bottom: 1px; }
 .muted { color: var(--muted); }

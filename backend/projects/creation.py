@@ -211,7 +211,6 @@ async def create_project(
             client_name=new.client_name.strip(),
             project_type=new.project_type,
             status=ProjectStatus.ACTIVE,
-            current_position=1 if stages else None,
             folder_id=project_folder,
             creation_key=new.creation_key,
         )
