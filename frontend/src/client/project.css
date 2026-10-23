@@ -16,7 +16,7 @@
 .client { background: var(--bg); color: var(--ink); }
 .client .cwrap { max-width: 1280px; }
 .client .site { border-bottom: 1px solid var(--line); }
-.client .client-header-tools { position: relative; display: flex; align-items: center; gap: 6px; }
+.client .client-header-tools { position: relative; display: flex; align-items: center; gap: 16px; }
 /* The updates panel opens from the header's right edge, not the bell's: the
    menu beside the bell would push it off a phone's screen. */
 .client .client-header-tools .client-notifications { position: static; }
@@ -126,6 +126,10 @@
 }
 .client .client-subscribe input[aria-invalid] { border-color: var(--danger); }
 .client .client-subscribe .client-subscribe__problem { color: var(--danger); }
+.client .client-subscribe form { display: flex; gap: 6px; }
+.client .client-subscribe form .b {
+  flex: none; min-height: var(--control-small); padding-inline: 12px; font-size: var(--text-2xs); white-space: nowrap;
+}
 
 /* --- The files' tools ---------------------------------------------------- */
 .client .client-file-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 40px; }
@@ -175,7 +179,10 @@
   display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--line);
   border-radius: var(--r-pill); background: var(--raise); color: var(--ink); font-size: var(--text-xs); cursor: pointer;
 }
-.client .stage .file { border-radius: var(--r-card); overflow: hidden; background: var(--raise); }
+/* A file's card: rounded, its thumbnail clipped to the top corners; the card itself
+   doesn't clip, so its "⋯" menu opens past it (Fabio, 23 Oct 2026). */
+.client .stage .file { border-radius: var(--r-card); overflow: visible; background: var(--raise); }
+.client .stage .files:not([data-view="list"]) .file__thumb { border-radius: var(--r-card) var(--r-card) 0 0; overflow: hidden; }
 /* An open stage with no files yet (clients): a quiet card, an empty folder and
    what to expect. In edit mode the drop area takes its place. */
 .client .stage-empty {
@@ -207,3 +214,22 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
   .client .client-file-tools { margin-top: 24px; }
   .client .file-tools__controls { margin-left: 0; }
 }
+
+/* --- Edit mode's fields ------------------------------------------------- */
+/* Text fields and dropdowns the same height and shape (Fabio, 23 Oct 2026). */
+.client .input, .client .select {
+  min-height: var(--control-main); border: 1px solid var(--line); border-radius: var(--r-field); background-color: var(--raise);
+  color: var(--ink); font-size: var(--text-sm);
+}
+.client select.select {
+  height: var(--control-main); padding: 0 34px 0 14px; appearance: none; -webkit-appearance: none; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat;
+}
+/* "Informações": each label above its field, so the field takes the column's
+   width; the × beside it. */
+.client .facts-edit li { grid-template-columns: minmax(0, 1fr) 32px; gap: 4px 6px; }
+.client .facts-edit .lbl { grid-column: 1 / -1; font-size: var(--text-xs); font-weight: 500; color: var(--muted); }
+.client .facts-edit .input, .client .facts-edit .select, .client .facts-edit .unit { width: 100%; }
+.client .facts-edit .iconbtn { width: 32px; height: 32px; }
+.client .add-detail .select { width: 100%; }

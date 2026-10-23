@@ -206,27 +206,30 @@ describe("the client page", () => {
     await userEvent.click(within(timeline).getByRole("button", { name: /Estudo Preliminar/ }));
     const section = document.getElementById("stage-2")!;
     expect(section.className).toContain("is-expanded");
-    // The current stage stays the current one (its dark band), and open: several can be.
-    expect(document.getElementById("stage-1")!.className).toMatch(/\bcurrent\b/);
-    expect(document.getElementById("stage-1")!.className).toContain("is-expanded");
-    expect(section.className).not.toMatch(/\bcurrent\b/);
+    // The current stage stays the current one, but closes: one stage open at a time.
+    expect(document.getElementById("stage-1")!.className).toMatch(/\bstage--current\b/);
+    expect(document.getElementById("stage-1")!.className).not.toContain("is-expanded");
+    expect(section.className).not.toMatch(/\bstage--current\b/);
   });
 
-  it("opens and closes a stage on a click anywhere on its head, several at once", async () => {
+  it("opens and closes a stage on a click anywhere on its head, one at a time", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
     const expanded = () => [...document.querySelectorAll(".stage.is-expanded")].map((stage) => stage.id);
     await screen.findByRole("heading", { level: 2, name: "Briefing" });
     expect(expanded()).toEqual(["stage-1"]); // the current one
+    // Opening another closes the one that was open.
     await userEvent.click(screen.getByRole("heading", { level: 2, name: "Briefing" }));
-    await userEvent.click(document.querySelector("#stage-2 .stage__n")!);
-    expect(expanded()).toEqual(["stage-0", "stage-1", "stage-2"]);
+    expect(expanded()).toEqual(["stage-0"]);
     expect(screen.getByRole("button", { name: /Briefing/, expanded: true })).toBeInTheDocument(); // the arrow says so too
-    await userEvent.click(document.querySelector("#stage-1 .stage__meta")!);
-    expect(expanded()).toEqual(["stage-0", "stage-2"]);
+    await userEvent.click(document.querySelector("#stage-2 .stage__n")!);
+    expect(expanded()).toEqual(["stage-2"]);
+    // Its own head again closes it: none open.
+    await userEvent.click(document.querySelector("#stage-2 .stage__meta")!);
+    expect(expanded()).toEqual([]);
     // Its own controls keep their job: "Sobre esta etapa" opens, the stage stays as it was.
     await userEvent.click(screen.getByRole("button", { name: "Sobre esta etapa: Briefing" }));
     expect(screen.getByText("Necessidades e orçamento.")).toBeVisible();
-    expect(expanded()).toEqual(["stage-0", "stage-2"]);
+    expect(expanded()).toEqual([]);
     // A click in an open stage's body (its notes, its files) doesn't close it.
     await userEvent.click(screen.getByRole("heading", { level: 2, name: "Levantamento" }));
     await userEvent.click(screen.getByText("Medidas conferidas."));

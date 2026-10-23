@@ -798,11 +798,13 @@ export function ProjectPage({
     setOpenEditor(null);
     if (saved) onChanged?.();
   };
-  // The stages open (by row): the current one at first; any number can be open.
+  // The stage open (by row): the current one at first, and one at a time
+  // (Fabio, 23 Oct 2026): opening another closes it. A search or filter still
+  // opens every stage with a match, and a stage in "Editar etapa" stays open.
   const [openStages, setOpenStages] = useState<ReadonlySet<number>>(
     () => new Set([Math.max(0, (page.current_position ?? 1) - 1)]),
   );
-  const openStage = (index: number) => setOpenStages((open) => new Set(open).add(index));
+  const openStage = (index: number) => setOpenStages(new Set([index]));
   // One stage's "Sobre esta etapa" open at a time: two would overlap.
   const [openHelp, setOpenHelp] = useState<number | null>(null);
   // The stages in "Editar etapa" (by row); several can be at once.
@@ -1041,7 +1043,11 @@ export function ProjectPage({
             hidden={filtering && shown[i]!.count === 0 && !unreadable(i)}
             help={openHelp === i}
             onHelp={(open) => setOpenHelp(open ? i : null)}
-            onToggle={() => (filtering ? setClosed : setOpenStages)((was) => toggled(was, i))}
+            onToggle={() =>
+              filtering
+                ? setClosed((was) => toggled(was, i))
+                : setOpenStages((was) => (was.has(i) ? new Set() : new Set([i])))
+            }
             {...filesFor(stageFiles, i + 1)}
             files={shown[i]!.files}
             total={countFiles(filesFor(stageFiles, i + 1).files)}
