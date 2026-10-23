@@ -6,7 +6,7 @@ import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
 import { HeaderMenu } from "../ui/HeaderMenu";
-import { OfficeLogo } from "../ui/OfficeLogo";
+import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
 import { Toaster, toast } from "../ui/Toast";
@@ -272,11 +272,7 @@ export function SiteHeader({
   onSignOut?: () => void;
 }) {
   const { t } = useTranslation();
-  const brand = office.logo_url ? (
-    <OfficeLogo light={office.logo_url} dark={office.logo_dark_url} alt={office.name} />
-  ) : (
-    <span>{office.name}</span>
-  );
+  const brand = <OfficeBrand name={office.name} logo={office.logo_url} logoDark={office.logo_dark_url} />;
   return (
     <div className="site">
       <div className="site__in">
@@ -534,13 +530,14 @@ function Stage({
       {helpPanel}
     </div>
   );
-  // A click anywhere on the stage's number or head opens or closes it, as its arrow
-  // does (the arrow stays the control for keyboards and screen readers); its own
-  // buttons, links and forms keep their job. A stage being edited stays open.
+  // A closed stage opens on a click anywhere on it; an open one closes from its
+  // number or head (a click among its files keeps it open). As its arrow does: the
+  // arrow stays the control for keyboards and screen readers. Its own buttons,
+  // links and forms keep their job. A stage being edited stays open.
   const headClick = (event: React.MouseEvent) => {
     const target = event.target as Element;
     if (editor?.editing) return;
-    if (!target.closest(".stage__head, .stage__n")) return;
+    if (open && !target.closest(".stage__head, .stage__n")) return;
     if (target.closest("button, a, input, select, textarea, label, form, [role='group'], .stage-help")) return;
     if (window.getSelection?.()?.toString()) return; // selecting the title's text
     onToggle();

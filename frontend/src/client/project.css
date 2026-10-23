@@ -154,10 +154,14 @@
 .client .cwrap .stage .files, .client .cwrap .stage .drop { margin-left: 0; margin-right: 0; }
 .client .client-file-tools + .stage, .client .stage-timeline-heading + .stage { margin-top: 20px; }
 .client .stage::before, .client .stage::after { display: none; }
+/* The number lines up with the stage's name and its round buttons: one row
+   height for all three (on phones the number had sat above the name). */
 .client .cwrap .stage .stage__n {
-  align-self: start; width: auto; height: auto; padding-top: 4px; border: 0; border-radius: 0; background: none;
+  align-self: start; width: auto; height: var(--control-icon); line-height: var(--control-icon); padding-top: 0;
+  border: 0; border-radius: 0; background: none;
   font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums;
 }
+.client .cwrap .stage .stage__title { align-items: center; min-height: var(--control-icon); margin: 0; }
 .client .cwrap .stage .stage__title h2 {
   margin: 0; font: 500 var(--text-sm)/1.4 var(--font); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--ink);
 }
@@ -212,7 +216,8 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 /* --- Phones: one column, nothing scrolling sideways ---------------------- */
 @media (max-width: 760px) {
   .client .project-opening, .client .project-layout { grid-template-columns: minmax(0, 1fr); }
-  .client .cwrap .stage { grid-template-columns: 32px minmax(0, 1fr); padding: 14px; }
+  .client .cwrap .stage { grid-template-columns: 32px minmax(0, 1fr); padding: 10px 12px; }
+  .client .cwrap .stage .stage__meta { margin-top: 4px; }
   .client .client-file-tools { margin-top: 24px; }
   .client .file-tools__controls { margin-left: 0; }
 }
@@ -235,3 +240,28 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 .client .facts-edit .input, .client .facts-edit .select, .client .facts-edit .unit { width: 100%; }
 .client .facts-edit .iconbtn { width: 32px; height: 32px; }
 .client .add-detail .select { width: 100%; }
+
+/* The meeting's format: two pills, in person or online; the field below follows. */
+.client .meeting-format { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; border: 0; }
+.client .meeting-format legend { width: 100%; margin-bottom: 6px; padding: 0; font-size: var(--text-xs); font-weight: 500; color: var(--muted); }
+.client .meeting-format__option { position: relative; cursor: pointer; }
+.client .meeting-format__option input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.client .meeting-format__option span {
+  display: inline-flex; align-items: center; min-height: var(--control-small); padding: 0 16px; border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill); background: var(--raise); color: var(--ink); font-size: var(--text-sm);
+}
+.client .meeting-format__option input:checked + span { border-color: var(--primary); background: var(--primary); color: var(--on-primary); }
+.client .meeting-format__option input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* A closed stage opens on a click anywhere: under a mouse it says so, a shade
+   darker with the hand cursor (Fabio, 23 Oct 2026). */
+.client .cwrap .stage:not(.is-expanded) { cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
+@media (hover: hover) {
+  .client .cwrap .stage:not(.is-expanded):hover {
+    background: color-mix(in srgb, var(--ink) 5%, var(--surface)); border-color: var(--line-strong);
+  }
+}
+
+/* "Etapa personalizada…": its name takes the row, "Adicionar" beside it. */
+.client .add-stage__row { display: flex; align-items: center; gap: 8px; }
+.client .add-stage__row > :first-child { flex: 1; min-width: 0; }

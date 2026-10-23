@@ -74,6 +74,7 @@ class DetailKey(StrEnum):
     LOCATION = "location"
     SITE_AREA = "site_area"
     BUILT_AREA = "built_area"
+    TOTAL_AREA = "total_area"
     START_DATE = "start_date"
     EXPECTED_DELIVERY = "expected_delivery"
     RESPONSIBLE = "responsible"
