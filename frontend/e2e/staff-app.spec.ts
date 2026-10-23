@@ -496,7 +496,8 @@ test("staff rename, add and remove stages, and advance the project", async ({ pa
 
   // Add the office's own stage, then remove it.
   await page.getByRole("button", { name: "+ Adicionar etapa" }).click();
-  await page.getByLabel("Ou uma etapa do escritório").fill("Visita técnica");
+  await page.getByRole("combobox", { name: "Etapa", exact: true }).selectOption({ label: "Etapa personalizada…" });
+  await page.getByLabel("Nome da etapa").fill("Visita técnica");
   await page.getByRole("button", { name: "Adicionar", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Visita técnica" })).toBeVisible();
   await page.getByRole("button", { name: "Editar etapa Visita técnica" }).click();
@@ -716,7 +717,8 @@ test("the preview page: the client page in a frame, changed live from the panel 
   await page.getByRole("radio", { name: "Equipe" }).check();
   await page.getByRole("radio", { name: "Escuro" }).check();
   await expect(frame.getByRole("navigation", { name: "Ferramentas do escritório" })).toBeVisible();
-  expect(await page.frames()[1]!.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
+  // The frame applies the theme a moment after the panel changes it.
+  await expect.poll(() => page.frames()[1]!.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
 
   // The page's own theme switch (its header menu, as on the painel): the panel and
   // the address follow, and the device's own choice for the real pages is left as it was.
