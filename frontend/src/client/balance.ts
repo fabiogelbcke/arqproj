@@ -28,6 +28,18 @@ export function cardsToMove(main: number, side: number, cards: number[], gap: nu
 
 const height = (element: Element) => element.getBoundingClientRect().height;
 
+/** A card someone is using: focused, or a field in it filled in (an open meeting
+ *  editor, an e-mail being typed). Moving it would rebuild it and lose that, so
+ *  the cards stay put until it's done. */
+export function inUse(card: Element): boolean {
+  return (
+    card.contains(document.activeElement) ||
+    [...card.querySelectorAll("input, textarea, select")].some(
+      (field) => (field as HTMLInputElement).value !== "" && (field as HTMLInputElement).type !== "hidden",
+    )
+  );
+}
+
 /** The columns' children, without the movable cards (marked `data-movable`). */
 const fixed = (column: HTMLElement) => [...column.children].filter((child) => !child.hasAttribute("data-movable"));
 
@@ -48,15 +60,15 @@ export function useBalancedColumns(main: RefObject<HTMLElement | null>, side: Re
     if (!left || !right) return;
     const measure = () => {
       if (Math.abs(left.getBoundingClientRect().top - right.getBoundingClientRect().top) > 1) {
-        setMoved(0);
+        if (![...left.querySelectorAll(":scope > [data-movable]")].some(inUse)) setMoved(0);
         return;
       }
       const gap = parseFloat(getComputedStyle(right).rowGap) || 0;
       // The movable cards in their order on the page, whichever column holds them.
       const cards = [...right.querySelectorAll(":scope > [data-movable]"), ...left.querySelectorAll(":scope > [data-movable]")]
-        .sort((a, b) => Number(a.getAttribute("data-movable")) - Number(b.getAttribute("data-movable")))
-        .map(height);
-      setMoved(cardsToMove(stacked(fixed(left), gap), stacked(fixed(right), gap), cards, gap));
+        .sort((a, b) => Number(a.getAttribute("data-movable")) - Number(b.getAttribute("data-movable")));
+      if (cards.some(inUse)) return;
+      setMoved(cardsToMove(stacked(fixed(left), gap), stacked(fixed(right), gap), cards.map(height), gap));
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
