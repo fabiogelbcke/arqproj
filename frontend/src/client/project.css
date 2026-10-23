@@ -194,7 +194,9 @@
 /* "Concluída": quietly green, like the stage's row in the list above, open or
    closed (prototype.css greys a closed stage's pill). */
 .client .stage .pill.pill--done,
-.client .stage:not(.current):not(.is-expanded) .pill.pill--done { border-color: transparent; background: var(--lime-soft); color: var(--done-ink); }
+.client .stage:not(.current):not(.is-expanded) .pill.pill--done {
+  border-color: color-mix(in srgb, var(--done-ink) 35%, transparent); background: var(--lime-soft); color: var(--done-ink);
+}
 .client .stage__progress { margin-left: auto; }
 /* The body under the title (the number's column stays empty), never wider than the panel. */
 .client .cwrap .stage .stage__body { grid-column: 2; min-width: 0; }
