@@ -722,7 +722,7 @@
     "intro": "Receba um e-mail quando houver arquivos novos, mudança de etapa ou reunião marcada.",
     "email": "Seu e-mail",
     "placeholder": "seu@email.com",
-    "submit": "Receber atualizações",
+    "submit": "Assinar",
     "sent": "{{email}} foi cadastrado para receber atualizações deste projeto.",
     "archived": "Este projeto não envia mais atualizações."
   },

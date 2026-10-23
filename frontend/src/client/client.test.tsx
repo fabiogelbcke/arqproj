@@ -118,12 +118,12 @@ describe("the client page", () => {
     const box = await screen.findByRole("region", { name: "Atualizações por e-mail" });
     const field = within(box).getByLabelText("Seu e-mail");
     await userEvent.type(field, "ana@gmail");
-    await userEvent.click(within(box).getByRole("button", { name: "Receber atualizações" }));
+    await userEvent.click(within(box).getByRole("button", { name: "Assinar" }));
     expect(within(box).getByRole("alert")).toHaveTextContent("Informe um e-mail válido");
     expect(sent.some((r) => r.path.endsWith("/subscribe"))).toBe(false);
     await userEvent.type(field, ".con");
     await userEvent.click(within(box).getByRole("button", { name: "ana@gmail.com" })); // the typo's fix
-    await userEvent.click(within(box).getByRole("button", { name: "Receber atualizações" }));
+    await userEvent.click(within(box).getByRole("button", { name: "Assinar" }));
     expect(await within(box).findByRole("status")).toHaveTextContent("ana@gmail.com foi cadastrado para receber atualizações deste projeto.");
     expect(sent.find((r) => r.path.endsWith("/subscribe"))?.body).toEqual({ email: "ana@gmail.com" });
   });
@@ -146,7 +146,7 @@ describe("the client page", () => {
     const box = await screen.findByRole("region", { name: "Atualizações por e-mail" });
     const field = within(box).getByLabelText("Seu e-mail");
     await userEvent.type(field, "ana@gmail.com");
-    await userEvent.click(within(box).getByRole("button", { name: "Receber atualizações" }));
+    await userEvent.click(within(box).getByRole("button", { name: "Assinar" }));
     await userEvent.type(field, "x"); // while it's on its way
     answer(new Response(null, { status: 204 }));
     expect(await within(box).findByRole("status")).toHaveTextContent("ana@gmail.com foi cadastrado para receber");
@@ -165,7 +165,7 @@ describe("the client page", () => {
     });
     const box = await screen.findByRole("region", { name: "Atualizações por e-mail" });
     await userEvent.type(within(box).getByLabelText("Seu e-mail"), "ana@gmail.com");
-    await userEvent.click(within(box).getByRole("button", { name: "Receber atualizações" }));
+    await userEvent.click(within(box).getByRole("button", { name: "Assinar" }));
     expect(await within(box).findByRole("alert")).toHaveTextContent("Este projeto não envia mais atualizações.");
   });
 
@@ -1540,7 +1540,7 @@ describe("formatting", () => {
 
   it("puts the meeting in the office's time zone", () => {
     const when = meetingWhen(PAGE.next_meeting!, "pt-BR", "America/Sao_Paulo");
-    expect(when).toEqual({ day: "quarta-feira 21/10/2026", time: "16:00 – 17:00" });
+    expect(when).toEqual({ day: "qua. 21/10/2026", time: "16:00 – 17:00" });
   });
 
   it("fills in Google Calendar's new event", () => {

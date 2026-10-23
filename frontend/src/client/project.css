@@ -67,22 +67,31 @@
 .client .desc p, .client .desc ul { margin: 0 0 8px; }
 .client .desc__empty { color: var(--muted); }
 
-/* "Etapas e próximos passos": a checklist (stages complete in any order), under a
-   thin bar of how many are completed; each opens its stage below. */
+/* "Etapas e próximos passos": the stages (complete in any order), each with a bare
+   check or a dot, under a thin bar of how many are completed; each opens its stage below. */
 .client .journey-intro h2 { margin: 0 0 10px; font: 500 16px/1.3 var(--display-font); letter-spacing: -0.01em; }
-.client .stage-completion { display: grid; gap: 6px; margin: 0 0 10px; font-size: var(--text-2xs); color: var(--muted); }
-.client .stage-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.client .stage-completion { display: grid; gap: 6px; margin: 0 0 14px; font-size: var(--text-2xs); color: var(--muted); }
+/* Each stage on a faint fill, no border, so the list has some weight without
+   the lines or boxes of the details beside it. */
+/* Two columns, filled down the first then the second (rows set by the page), so
+   the names fill their rows across the width. */
+.client .stage-steps {
+  list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+}
 .client .stage-steps__item > button {
-  display: grid; grid-template-columns: 18px 22px minmax(0, 1fr); align-items: center; column-gap: 10px; width: 100%;
-  padding: 10px 12px; border: 1px solid transparent; border-radius: var(--r-card); background: none;
-  color: var(--ink); text-align: left; cursor: pointer;
+  display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; column-gap: 14px; width: 100%; height: 100%;
+  padding: 11px 12px; border: 0; border-radius: var(--r-card); background: var(--mark-soft); color: var(--ink); text-align: left; cursor: pointer;
 }
-.client .stage-steps__item > button:hover { background: var(--surface); }
-.client .stage-check {
-  display: grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid var(--line-strong); border-radius: 50%;
-}
-.client .stage-check svg { width: 12px; height: 12px; }
-.client .stage-steps__item.is-done .stage-check,
+.client .stage-steps__item > button:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
+/* A completed stage: a soft lime (the staff bar's "done and good" colour) and a
+   dark check. */
+.client .stage-steps__item.is-done > button { background: var(--lime-soft); }
+.client .stage-mark { display: grid; place-items: center; width: 20px; height: 20px; }
+.client .stage-steps__item.is-done .stage-mark { border-radius: 50%; background: var(--mark); color: var(--raise); }
+.client .stage-mark svg { width: 13px; height: 13px; }
+/* An open stage: a dot, a status rather than a box to tick. */
+.client .stage-steps__item.is-open .stage-mark::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); }
 .client .stage__done-mark { border-color: var(--mark); background: var(--mark); color: var(--raise); }
 /* A completed stage's check beside its name: phones only, on a closed stage (its
    "Concluída" line is hidden there to keep the list compact). */
@@ -91,9 +100,9 @@
 @media (max-width: 760px) {
   .client .stage:not(.is-expanded) .stage__done-mark { display: inline-grid; }
 }
-.client .stage-steps__item .n { font-size: var(--text-2xs); color: var(--muted); font-variant-numeric: tabular-nums; }
-.client .stage-steps__item b { font-size: var(--text-2xs); font-weight: 500; letter-spacing: var(--caps-spacing); text-transform: uppercase; }
-.client .stage-steps__item.is-done b { color: var(--muted); }
+/* A long name wraps (up to 80 characters, STAGE_TITLE_MAX); the rows beside it grow to match. */
+.client .stage-steps__item b { font-size: var(--text-sm); font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
+.client .stage-steps__item.is-open b { font-weight: 400; color: var(--muted); }
 
 /* The details: one rounded row each, the label left and the value right. */
 .client .details-list { position: relative; display: grid; gap: 8px; margin: 0; }
@@ -109,11 +118,13 @@
   text-transform: uppercase; overflow-wrap: anywhere;
 }
 
-/* The next meeting: a grey panel. */
+/* The next meeting: a grey panel, its buttons beside the text at the bottom when
+   they fit, under it only when not (a narrow card, a long title). */
 .client .meeting {
-  position: relative; display: grid; gap: 12px; padding: 16px 18px; border: 1px solid var(--line);
-  border-radius: var(--r-panel); background: var(--surface); color: var(--ink);
+  position: relative; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 16px;
+  padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); color: var(--ink);
 }
+.client .meeting > div:not(.meeting-actions) { flex: 1 1 180px; display: grid; min-width: 0; }
 .client .meeting h2 {
   margin: 0; font: 400 var(--text-2xs)/1.3 var(--font); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--muted);
 }
@@ -121,7 +132,7 @@
 .client .meeting__meta { margin: 4px 0 0; font-size: var(--text-xs); color: var(--muted); }
 .client .meeting__when { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--ink); }
 .client .meeting__schedule { justify-self: start; margin-top: 8px; }
-.client .meeting .meeting-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.client .project-status .meeting .meeting-actions { display: flex; flex: none; flex-wrap: wrap; gap: 8px; margin-top: 0; }
 
 /* "Atualizações por e-mail" (clients sign up, A32): a grey panel like the meeting's. */
 .client .client-subscribe {
@@ -180,6 +191,10 @@
   padding: 3px 8px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: var(--raise);
   font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink);
 }
+/* "Concluída": quietly green, like the stage's row in the list above, open or
+   closed (prototype.css greys a closed stage's pill). */
+.client .stage .pill.pill--done,
+.client .stage:not(.current):not(.is-expanded) .pill.pill--done { border-color: transparent; background: var(--lime-soft); color: var(--done-ink); }
 .client .stage__progress { margin-left: auto; }
 /* The body under the title (the number's column stays empty), never wider than the panel. */
 .client .cwrap .stage .stage__body { grid-column: 2; min-width: 0; }

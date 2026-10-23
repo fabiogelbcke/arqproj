@@ -12,6 +12,7 @@ import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton, openOnClick } from "./EditButton";
+import { useBalancedColumns } from "./balance";
 import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import type { StageEditParts } from "./StageEditing";
@@ -381,7 +382,9 @@ function StageCompletion({ page }: { page: Page }) {
   );
 }
 
-/** The stages as a checklist, under how many are completed. */
+/** The stages under how many are completed: no numbers, and a bare check or a
+ *  dot instead of tick boxes, so it reads as a set rather than a path or a
+ *  checklist (Fabio, 23 Oct 2026). */
 function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => void }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -397,20 +400,24 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
         </div>
       </div>
       <StageCompletion page={page} />
-      <ol className="stage-steps" aria-label={t("page.stages")}>
+      {/* Two columns, read down the first then the second. */}
+      <ol
+        className="stage-steps"
+        aria-label={t("page.stages")}
+        style={{ gridTemplateRows: `repeat(${Math.ceil(page.stages.length / 2)}, auto)` }}
+      >
         {page.stages.map((stage, i) => {
           const state = stateOf(page, i);
           return (
             <li key={i} className={`stage-steps__item is-${state}`}>
               <button type="button" onClick={() => onJump(i)}>
-                <span className="stage-check" aria-hidden="true">
+                <span className="stage-mark" aria-hidden="true">
                   {state === "done" && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
                       <path d="M6 12.5l4 4 8-9" />
                     </svg>
                   )}
                 </span>
-                <span className="n">{pad(i + 1)}</span>
                 <b>{stage.title}</b>
                 {state === "done" && <span className="sr">{t("page.stageDone")}</span>}
               </button>
@@ -621,7 +628,7 @@ function Stage({
           </div>
         </div>
         <p className="stage__meta">
-          {state === "done" && <span className="pill">{t("page.stageDone")}</span>}
+          {state === "done" && <span className="pill pill--done">{t("page.stageDone")}</span>}
           {files && !files.unavailable && (
             <span>
               {(total ?? countFiles(files))
@@ -803,6 +810,9 @@ export function ProjectPage({
   const narrow = useNarrow();
   const cover = useRef<HTMLDivElement>(null);
   useCoverWipe(cover);
+  const mainColumn = useRef<HTMLDivElement>(null);
+  const sideColumn = useRef<HTMLDivElement>(null);
+  const moved = useBalancedColumns(mainColumn, sideColumn);
   const stageFiles = useStageFiles(slug, page);
   const [editing, setEditing] = useState(false);
   // The guided tour (Tour.ts, loaded only for staff): once per account, then from "?".
@@ -911,6 +921,28 @@ export function ProjectPage({
     if (linkedFile(window.location.search))
       window.history.replaceState(window.history.state, "", window.location.pathname + window.location.hash);
   };
+  // The side column's cards under the details, which move under the stages, the
+  // meeting first, when the side column would otherwise run much longer
+  // (balance.ts); `data-movable` is the order they move in.
+  const movable = [
+    <div key="meeting" className="project-status__meeting" data-movable="0">
+      {canEdit && openEditor === "meet" ? (
+        <Suspense fallback={null}>
+          <MeetingEditor page={page} staff={staff!} onDone={done} />
+        </Suspense>
+      ) : (
+        <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
+      )}
+    </div>,
+    // Clients add themselves to the emails (A32); not in edit mode, not when done.
+    ...(!canEdit && !page.completed
+      ? [
+          <div key="subscribe" data-movable="1">
+            <Subscribe slug={slug} />
+          </div>,
+        ]
+      : []),
+  ];
 
   return (
     <div className={`client${canEdit ? " editing" : ""}`}>
@@ -996,7 +1028,7 @@ export function ProjectPage({
             the details then the meeting. A short description lets the timeline rise;
             without a cover, both start under the title. Phones: one column. */}
         <div className="project-status project-layout">
-          <div className="project-layout__main">
+          <div className="project-layout__main" ref={mainColumn}>
             {/* No description: nothing for the client (staff in edit mode can add one). */}
             {(page.description || canEdit) && (
               <div className={`project-layout__desc${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
@@ -1021,8 +1053,9 @@ export function ProjectPage({
                 <Timeline page={page} onJump={jump} />
               </div>
             )}
+            {movable.slice(0, moved)}
           </div>
-          <div className="project-layout__side">
+          <div className="project-layout__side" ref={sideColumn}>
             <div className={narrow && !canEdit ? "mobile-view-hidden" : undefined}>
               {canEdit && openEditor === "facts" ? (
                 <Suspense fallback={null}>
@@ -1035,17 +1068,7 @@ export function ProjectPage({
                 </dl>
               )}
             </div>
-            <div className="project-status__meeting">
-              {canEdit && openEditor === "meet" ? (
-                <Suspense fallback={null}>
-                  <MeetingEditor page={page} staff={staff!} onDone={done} />
-                </Suspense>
-              ) : (
-                <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
-              )}
-            </div>
-            {/* Clients add themselves to the emails (A32); not in edit mode, not when done. */}
-            {!canEdit && !page.completed && <Subscribe slug={slug} />}
+            {movable.slice(moved)}
           </div>
         </div>
         {/* With the stages, even before any files, so the page keeps its spacing. */}

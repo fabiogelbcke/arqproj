@@ -27,10 +27,11 @@ export function detailValue(detail: Detail, locale: string): string {
   return String(detail.value).toLocaleUpperCase(locale);
 }
 
-/** "terça-feira 21/10/2026" and "16:00 – 17:00", in the office's time zone. */
+/** "ter. 21/10/2026" and "16:00 – 17:00", in the office's time zone: the weekday
+ *  short, so the meeting card's line fits beside its button. */
 export function meetingWhen(meeting: Meeting, locale: string, timeZone: string) {
   const start = new Date(meeting.starts_at);
-  const weekday = new Intl.DateTimeFormat(locale, { timeZone, weekday: "long" }).format(start);
+  const weekday = new Intl.DateTimeFormat(locale, { timeZone, weekday: "short" }).format(start);
   const time = new Intl.DateTimeFormat(locale, { timeZone, hour: "2-digit", minute: "2-digit" });
   return {
     day: `${weekday} ${day(meeting.starts_at, locale, timeZone)}`,
