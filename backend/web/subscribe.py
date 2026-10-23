@@ -99,6 +99,9 @@ async def subscribe(
         recipient.status = RecipientStatus.SUBSCRIBED
     office = await office_of(db, request.app.state.settings, tenant.id)
     await db.commit()
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture("project_email_subscribed")
     log.info("emails: an address signed itself up for project %s", project.id)
     stop = unsubscribe_token(request.app.state.settings, project.id, email)
     welcome = welcome_email(

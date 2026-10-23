@@ -21,7 +21,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
@@ -137,6 +137,7 @@ def _detail_value(value_type: DetailType, value: str) -> dict:
     "/projects/{project_id}/content", status_code=204, responses=documented(401, 404, 409, 422)
 )
 async def change_content(
+    request: Request,
     project_id: uuid.UUID,
     body: ContentIn,
     _staff: CurrentStaff = Depends(require_csrf),
@@ -171,6 +172,16 @@ async def change_content(
         for row in rows:
             db.add(ProjectDetail(project_id=project_id, **row))
     await db.commit()
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture(
+            "project_content_updated",
+            properties={
+                "description_updated": body.description is not None,
+                "details_updated": body.details is not None,
+                "project_type_updated": body.project_type is not None,
+            },
+        )
     return Response(status_code=204)
 
 
@@ -198,6 +209,7 @@ async def _next_meeting(db: AsyncSession, project_id: uuid.UUID) -> Meeting | No
     "/projects/{project_id}/meeting", status_code=204, responses=documented(401, 404, 409, 422)
 )
 async def set_meeting(
+    request: Request,
     project_id: uuid.UUID,
     body: MeetingIn,
     _staff: CurrentStaff = Depends(require_csrf),
@@ -242,6 +254,12 @@ async def set_meeting(
     kind = EventKind.MEETING_SCHEDULED if upcoming is None else EventKind.MEETING_CHANGED
     record(db, project, kind, title=title)
     await db.commit()
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture(
+            "project_meeting_updated",
+            properties={"change_type": "created" if upcoming is None else "updated"},
+        )
     return Response(status_code=204)
 
 
@@ -274,6 +292,7 @@ class NotesIn(BaseModel):
     responses=documented(401, 404, 409),
 )
 async def set_notes(
+    request: Request,
     project_id: uuid.UUID,
     position: int,
     body: NotesIn,
@@ -303,4 +322,10 @@ async def set_notes(
     # never emails (A32).
     record(db, project, EventKind.NOTE_CHANGED, stage_position=position, stage_id=stage.id)
     await db.commit()
+    posthog = getattr(request.app.state, "posthog", None)
+    if posthog is not None:
+        posthog.capture(
+            "project_stage_note_updated",
+            properties={"stage_position": position, "has_note": bool(notes)},
+        )
     return Response(status_code=204)

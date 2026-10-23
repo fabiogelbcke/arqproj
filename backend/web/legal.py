@@ -22,8 +22,8 @@ router = APIRouter(include_in_schema=False)
 PRODUCT = "Unio"
 EMAIL = "arqdevproj@gmail.com"  # where privacy requests go
 CITY = "Joinville/SC"  # foro: the city for legal disputes
-UPDATED = "17 de outubro de 2026"
-UPDATED_EN = "October 17, 2026"
+UPDATED = "23 de outubro de 2026"
+UPDATED_EN = "October 23, 2026"
 GOOGLE_POLICY = "https://developers.google.com/terms/api-services-user-data-policy"
 GOOGLE_PERMISSIONS = "https://myaccount.google.com/permissions"
 
@@ -105,8 +105,12 @@ Google seguem a {_LINK_GOOGLE_POLICY}, incluindo os requisitos de Uso Limitado.<
 <h2>Com quem compartilhamos</h2>
 <p>O {PRODUCT} funciona na infraestrutura do Google Cloud (servidores nos Estados Unidos), e os
 arquivos ficam no Google Drive de cada escritório. Os e-mails de atualização são enviados pela
-Resend, que recebe apenas o necessário para a entrega. Esses provedores tratam os dados por
-nossa conta, sob contrato. A transferência internacional segue a Lei Geral de Proteção de Dados
+Resend, que recebe apenas o necessário para a entrega. Para entender como o painel é usado e
+corrigir erros, registramos na PostHog (servidores nos Estados Unidos) as ações da equipe dos
+escritórios no painel, como criar um projeto ou concluir uma etapa, ligadas à conta (nome e
+e-mail), e os erros técnicos. Não acompanhamos a navegação de clientes e visitantes, e isso não
+usa cookies. Esses provedores tratam os dados por nossa conta, sob contrato. A transferência
+internacional segue a Lei Geral de Proteção de Dados
 (LGPD). Os dados de um escritório nunca são mostrados a outro escritório.</p>
 
 <h2>Por quanto tempo</h2>
@@ -184,7 +188,11 @@ adhere to the {_LINK_GOOGLE_POLICY_EN}, including the Limited Use requirements.<
 <h2>Sharing</h2>
 <p>{PRODUCT} runs on Google Cloud (servers in the United States), and files are kept in each
 office's Google Drive. Update emails are sent through Resend, which receives only what delivery
-requires. These providers process data on our behalf under contract. International transfers
+requires. To understand how the staff panel is used and to fix errors, we record in PostHog
+(servers in the United States) what office staff do in the panel, such as creating a project or
+finishing a stage, linked to their account (name and email), and technical errors. We don't
+track clients' or visitors' browsing, and this uses no cookies. These providers process data on
+our behalf under contract. International transfers
 follow Brazil's General Data Protection Law (LGPD). One office's data is never shown to another
 office.</p>
 

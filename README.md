@@ -348,6 +348,22 @@ Production's is `portal-resend-api-key`. Until a domain is verified in Resend,
 emails come from Resend's test sender, which delivers only to the Resend
 account's own address.
 
+### Product analytics (PostHog)
+
+The backend sends PostHog the staff's actions in the painel and errors (decision
+A37). It is off unless both settings are present:
+
+```bash
+POSTHOG_API_KEY=phc_...            # the project's API key, from PostHog
+POSTHOG_HOST=https://us.i.posthog.com
+```
+
+Locally they go in `.env`; without them nothing is sent, and running locally (not
+deployed) logs an error saying so. On Cloud Run they aren't set yet: the key
+belongs in Secret Manager like Resend's, added to `deploy/staging/service.yaml`
+first. Tests use a stand-in (`backend/tests/test_posthog.py`); nothing reaches
+PostHog.
+
 ## Run all automated tests locally
 
 No Google account, `.env`, or manually started website is required. Install the
