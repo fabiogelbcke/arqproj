@@ -7,8 +7,10 @@ review guidelines (what any reviewer checks); this file holds the rest.
 
 Pull requests for the rewrite go into the `staging` branch. Codex reviews them on
 GitHub (comment `@codex review`; marking a draft ready does not reliably trigger
-it). When the review rounds end, the pull request goes to Fabio, who reviews and
-merges.
+it). Ask for each round as soon as its commit is pushed, without waiting for CI:
+the two run side by side (Fabio, 23 Oct 2026). A round that hasn't come back in
+15 minutes is asked for again. When the review rounds end and CI has passed, the
+pull request goes to Fabio, who reviews and merges.
 
 How many rounds:
 
