@@ -215,6 +215,17 @@ describe("the client page", () => {
     expect(document.querySelector(".stage.is-expanded h2")?.textContent).toBe("Levantamento");
   });
 
+  it("on a phone, shows how many stages are completed over the stages (no checklist there)", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("max-width"),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    expect(await screen.findByRole("progressbar", { name: "1 de 3 etapas concluídas" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Etapas" })).toBeNull();
+  });
+
   it("opens a stage from the timeline", async () => {
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
     const timeline = await screen.findByRole("list", { name: "Etapas" });

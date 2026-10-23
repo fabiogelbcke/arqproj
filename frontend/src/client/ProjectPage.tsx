@@ -366,12 +366,24 @@ export function firstOpenStage(page: Page) {
   return Math.max(0, page.stages.findIndex((stage) => !stage.completed));
 }
 
-/** The stages as a checklist, with a thin bar of how many are completed. */
+/** How many stages are completed, in words and as a thin bar: over the
+ *  checklist on a computer, over the stages on a phone. */
+function StageCompletion({ page }: { page: Page }) {
+  const { t } = useTranslation();
+  const done = page.stages.filter((stage) => stage.completed).length;
+  const progress = t("page.stagesDone", { done, total: page.stages.length });
+  return (
+    <div className="stage-completion">
+      <span aria-hidden="true">{progress}</span>
+      <CompletionBar done={done} total={page.stages.length} label={progress} />
+    </div>
+  );
+}
+
+/** The stages as a checklist, under how many are completed. */
 function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => void }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
-  const done = page.stages.filter((stage) => stage.completed).length;
-  const progress = t("page.stagesDone", { done, total: page.stages.length });
   return (
     <>
       <div className="journey-intro">
@@ -383,10 +395,7 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
           )}
         </div>
       </div>
-      <div className="stage-completion">
-        <span aria-hidden="true">{progress}</span>
-        <CompletionBar done={done} total={page.stages.length} label={progress} />
-      </div>
+      <StageCompletion page={page} />
       <ol className="stage-steps" aria-label={t("page.stages")}>
         {page.stages.map((stage, i) => {
           const state = stateOf(page, i);
@@ -1041,7 +1050,12 @@ export function ProjectPage({
             narrow={narrow}
           />
         )}
-        {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
+        {narrow && page.stages.length > 0 && (
+          <>
+            <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>
+            <StageCompletion page={page} />
+          </>
+        )}
         {page.stages.map((_, i) => (
           <Stage
             key={i}

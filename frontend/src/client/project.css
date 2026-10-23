@@ -153,7 +153,8 @@
   background: var(--surface); color: var(--ink);
 }
 .client .cwrap .stage .files, .client .cwrap .stage .drop { margin-left: 0; margin-right: 0; }
-.client .client-file-tools + .stage, .client .stage-timeline-heading + .stage { margin-top: 20px; }
+.client .client-file-tools + .stage, .client .stage-timeline-heading + .stage,
+.client .stage-completion + .stage { margin-top: 20px; }
 .client .stage::before, .client .stage::after { display: none; }
 /* The number lines up with the stage's name and its round buttons: one row
    height for all three (on phones the number had sat above the name). */
