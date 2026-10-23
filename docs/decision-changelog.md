@@ -34,9 +34,10 @@ etapa" once completed, each after a confirmation. The page lists the stages as a
 checklist under a thin bar of how many are completed and opens the first stage
 still open; the painel cards say "X de Y etapas concluídas" with the same bar.
 Emails and the updates panel name each stage completed (and still completed).
-Proposed with the change, for Fabio's review: completing the last open stage of
-an active project completes the project, and reopening a stage of a completed
-project makes it active again, so there is no separate project button.
+Proposed with the change, for Fabio's review: a project is completed exactly
+when all its stages are. Completing (or removing) the last open stage of an
+active project completes it, and reopening a stage of a completed project (or
+adding one) makes it active again, so there is no separate project button.
 `projects.current_position` stays in the database, unused, until the change is
 confirmed; old `stage_advanced` events are kept but no longer shown or emailed.
 

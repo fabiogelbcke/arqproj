@@ -273,6 +273,32 @@ async def test_the_last_open_stage_completes_the_project_and_reopening_one_react
     assert (shown["completed"], completed(shown)[1]) == (False, False)
 
 
+async def test_adding_a_stage_to_a_completed_project_makes_it_active_again(client, owner, folders):
+    for position in range(3, 8):
+        await call(client, owner, "PUT", f"/stages/{position}/completion", completed=True)
+    assert (await page(client))["completed"] is True
+    response = await call(client, owner, "POST", "/stages", title="Visita técnica")
+    assert response.status_code == 204, response.text
+    shown = await page(client)
+    assert (shown["completed"], completed(shown)[-1]) == (False, False)
+
+
+async def test_removing_the_last_open_stage_completes_the_project(
+    client, db_session, owner, folders
+):
+    for position in range(3, 7):  # all but 07
+        await call(client, owner, "PUT", f"/stages/{position}/completion", completed=True)
+    assert (await call(client, owner, "DELETE", "/stages/7")).status_code == 204
+    assert (await page(client))["completed"] is True
+    kinds = (await db_session.execute(text("SELECT kind FROM project_events"))).scalars().all()
+    assert "project_completed" in kinds  # the client hears of it, as from the last stage
+
+
+async def test_removing_a_completed_stage_leaves_the_project_as_it_is(client, owner, folders):
+    assert (await call(client, owner, "DELETE", "/stages/1")).status_code == 204
+    assert (await page(client))["completed"] is False  # stages still open
+
+
 async def test_completing_a_completed_stage_or_reopening_an_open_one_is_refused(
     client, owner, folders
 ):

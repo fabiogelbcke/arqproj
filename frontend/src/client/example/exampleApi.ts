@@ -218,7 +218,13 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       (match) => {
         const position = Number(match[1]);
         if (!stage(match)) return refused("project_not_found", 404);
-        project.stages.splice(position - 1, 1);
+        const [removed] = project.stages.splice(position - 1, 1);
+        // As the server: removing the last open stage completes an active project.
+        const rest = project.stages;
+        if (project.status === "active" && !removed!.completed && rest.length && rest.every((s) => s.completed)) {
+          project.status = "completed";
+          return changed({ kind: "project_completed", stage_position: null });
+        }
         return changed();
       },
     ],
@@ -233,6 +239,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
         }
         if (!title) return refused("invalid_status_change");
         project.stages.push({ title, about: null, notes: "", completed: false, groups: [] });
+        project.status = "active"; // a new stage is open
         return changed();
       },
     ],

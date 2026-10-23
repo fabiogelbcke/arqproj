@@ -167,7 +167,9 @@ async def add_stage(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """At the end: a built-in stage (not already in the project) or the office's own."""
+    """At the end: a built-in stage (not already in the project) or the office's own.
+    A new stage is open, so a completed project is active again (stages complete
+    independently)."""
     stages = await _stages(db, project_id)
     if body.builtin_key is not None:
         titles = await db.scalar(select(StageDef.titles).where(StageDef.key == body.builtin_key))
@@ -180,8 +182,12 @@ async def add_stage(
             raise ApiError(422, ErrorCode.INVALID_STAGE)
         values = {"title": title}
     # The Drive connection first: getting it may itself save (an expired grant).
-    maker = await _maker(request, db, await _project(db, project_id))
-    project = await _change(db, project_id, body.row_version)
+    current = await _project(db, project_id)
+    maker = await _maker(request, db, current)
+    reopens = current.status is ProjectStatus.COMPLETED
+    project = await _change(
+        db, project_id, body.row_version, {"status": ProjectStatus.ACTIVE} if reopens else None
+    )
     position = len(stages) + 1
     folder = None
     try:
@@ -369,13 +375,25 @@ async def remove_stage(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """The stage leaves the page; its folder and files stay in Drive. The stages
-    after it move up, and their folders are renumbered."""
+    after it move up, and their folders are renumbered. Removing the last open
+    stage of an active project completes it, as completing that stage would."""
     stages = await _stages(db, project_id)
     removed = next((s for s in stages if s.position == position), None)
     if removed is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
-    maker = await _maker(request, db, await _project(db, project_id))
-    await _change(db, project_id, row_version)
+    current = await _project(db, project_id)
+    maker = await _maker(request, db, current)
+    rest = [s for s in stages if s.id != removed.id]
+    finishes = (
+        current.status is ProjectStatus.ACTIVE
+        and removed.completed_at is None
+        and bool(rest)
+        and all(s.completed_at is not None for s in rest)
+    )
+    values = {"status": ProjectStatus.COMPLETED, "last_activity_at": datetime.now(UTC)}
+    project = await _change(db, project_id, row_version, values if finishes else None)
+    if finishes:
+        record(db, project, EventKind.PROJECT_COMPLETED)
     later = [s for s in stages if s.position > position]
     titles = {s.id: await _title(db, s, tenant.locale) for s in later}
     renames = Renames(maker)
