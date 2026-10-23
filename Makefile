@@ -31,7 +31,7 @@ define on_database
 	else echo "ENV must be local, staging or production"; exit 2; fi
 endef
 
-.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff reset-link reset-tour tenant tenant-host
+.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff reset-link reset-tour tenant tenant-host alerts
 
 help: ## List the commands
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -116,3 +116,7 @@ tenant: ## New office: make tenant SLUG=alinea NAME="ALINEA ARQUITETOS" HOST=add
 tenant-host: ## Another address for an office: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging|production]
 	@test -n "$(SLUG)" -a -n "$(HOST)" || { echo "Usage: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging|production]"; exit 2; }
 	$(call on_database,uv run python -m backend.commands.tenants add-host --slug "$(SLUG)" --host "$(HOST)" $(if $(PRIMARY),--primary))
+
+alerts: ## The live site's email alerts (deploy/production/monitoring): make alerts EMAIL=you@x.com
+	@test -n "$(EMAIL)" || { echo "Usage: make alerts EMAIL=you@x.com"; exit 2; }
+	uv run python -m backend.commands.monitoring --email "$(EMAIL)"

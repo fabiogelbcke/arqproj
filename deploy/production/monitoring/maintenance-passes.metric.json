@@ -1,0 +1,6 @@
+{
+  "name": "portal_maintenance_passes",
+  "description": "Maintenance passes on the live site that finished, whether or not every project succeeded (failures log ERRORs, which the errors alert sends): each writes one 'maintenance: Report(...)' log line (backend/notifications/scan.py).",
+  "filter": "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"portal\" AND jsonPayload.message:\"maintenance: Report(\"",
+  "metricDescriptor": { "metricKind": "DELTA", "valueType": "INT64", "unit": "1" }
+}

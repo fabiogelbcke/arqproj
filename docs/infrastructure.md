@@ -110,8 +110,10 @@ as `portal-production@`. Addresses: `alineaarquitetos.com` and `www.`, and
 `portal-resend-api-key` (production's, from the old site). Drive uses the production OAuth client
 `496714293251-ov1b5fd8gir885g9p51qsrbn9gbq6l7i`, whose redirect URIs must include
 `https://myunio.app/api/drive/callback` (one shared return address that forwards to
-the office that started); files are read as `portal-production@`. Emails send from `myunio.app` (verified
-in Resend), Alinea's from `alineaarquitetos.com`.
+the office that started); files are read as `portal-production@`. Emails send from `myunio.app`, Alinea's from
+`alineaarquitetos.com`; both must be verified in the Resend account that owns
+`portal-resend-api-key` (`myunio.app` wasn't until 22 Oct 2026, so its emails were
+refused). Email alerts for errors and stopped maintenance passes: README, "Alerts".
 
 **Right after the first production deploy:**
 1. Cloud Scheduler job `portal-production-maintenance`, every 10 minutes as

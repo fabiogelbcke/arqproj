@@ -1762,6 +1762,13 @@ OAuth/session tokens, entire provider responses or unnecessary client names.
 Audit sensitive actions and explicit support access. Start with short documented
 log retention and review it before paid onboarding.
 
+Built (22 Oct 2026, Fabio): email alerts for the live site, applied from
+`deploy/production/monitoring/` with `make alerts` (README, "Alerts"): any ERROR
+in its logs (one email an hour at most), and no maintenance pass finished
+for 30 minutes. Both rely on Cloud Monitoring's free allowances. Not yet: uptime
+checks, a 5xx-rate alert, a billing budget alert, bounce tracking, and showing
+notification failures to the office.
+
 Managed DB backups and point-in-time recovery must be enabled on a suitable plan.
 Initial proposed objectives: recover at most 24 hours of metadata loss for the
 friendly pilot and restore within one working day; tighten to at most one hour

@@ -344,9 +344,31 @@ in `deploy/staging/service.yaml` and `deploy/production/service.yaml`. To run a 
 portal-staging-maintenance --project arq-proj --location us-east1`.
 
 Staging reads its key from the secret `portal-staging-resend-api-key`.
-Production's is `portal-resend-api-key`. Until a domain is verified in Resend,
-emails come from Resend's test sender, which delivers only to the Resend
-account's own address.
+Production's is `portal-resend-api-key`. Each key belongs to a Resend account,
+and every domain emails are sent from (`EMAIL_DOMAIN`, `EMAIL_OFFICE_DOMAINS`)
+must be verified in that same account: otherwise Resend refuses each email
+(403, "domain is not verified"), the pass logs it at ERROR and gives up on that
+address after 5 tries (21 Oct 2026: `myunio.app`, verified in another account).
+
+### Alerts
+
+The live site emails an address when it logs an error, and when no maintenance
+pass has finished for 30 minutes (plan section 21). Both are defined in
+`deploy/production/monitoring/` and applied with:
+
+```bash
+make alerts EMAIL=you@example.com
+```
+
+It needs `gcloud auth application-default login` with rights to edit monitoring
+and logging in `arq-proj`. Re-run it after editing those files: it updates the
+alerts in place. They cost nothing at this size (Cloud Monitoring's free
+allowances; alert policies themselves aren't charged today).
+
+The "passes stopped" alert only fires once it has counted a pass after being
+created or changed, so it can't report an outage already under way: `make
+alerts` checks the logs for a pass in the last 20 minutes and warns if there is
+none.
 
 ## Run all automated tests locally
 
