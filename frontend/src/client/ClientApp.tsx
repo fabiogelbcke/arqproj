@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { type Locale, useOfficeLocale } from "../i18n";
-import { toastError } from "../ui/Toast";
 import type { Page } from "./format";
 import { PasswordGate } from "./PasswordGate";
+import { signOut } from "./signOut";
 import { PageMessage, ProjectPage } from "./ProjectPage";
 
 type State =
@@ -65,7 +65,7 @@ export function ClientApp() {
         tourSeen={tourSeen}
         person={person}
         // Sair: the session ends and the page shows as clients see it.
-        onSignOut={() => void call(api.DELETE("/api/session")).then(() => window.location.reload(), toastError)}
+        onSignOut={signOut}
         onChanged={() => setVersion((v) => v + 1)}
       />
     );

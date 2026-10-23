@@ -13,6 +13,7 @@ import { api, call } from "../../api/client";
 import i18next, { useOfficeLocale } from "../../i18n";
 import type { Page } from "../format";
 import { ProjectPage } from "../ProjectPage";
+import { signOut } from "../signOut";
 import { EXAMPLE_SLUG } from "./address";
 import { installExampleApi } from "./exampleApi";
 import { startExploreTour } from "./ExploreTour";
@@ -23,6 +24,8 @@ export function ExampleApp() {
   useState(() => installExampleApi());
   const [page, setPage] = useState<Page | null>(null);
   const [signedIn, setSignedIn] = useState<boolean | null>(null); // null: not known yet
+  // Who is signed in, for the header menu, as on the office's own project pages.
+  const [person, setPerson] = useState<{ name: string; email: string } | null>(null);
   const [version, setVersion] = useState(0); // bumped to draw the page again after a change
   useOfficeLocale(page?.locale);
 
@@ -30,7 +33,10 @@ export function ExampleApp() {
     // Staff (who see the staff bar), and the office's name and logo for the header.
     void Promise.all([
       call(api.GET("/api/me")).then(
-        () => true,
+        (me) => {
+          setPerson({ name: me.name, email: me.email });
+          return true;
+        },
         () => false,
       ),
       call(api.GET("/api/tenant")).catch(() => undefined),
@@ -60,6 +66,8 @@ export function ExampleApp() {
         page={page}
         slug={EXAMPLE_SLUG}
         ready={signedIn === true}
+        person={person}
+        onSignOut={signOut}
         onChanged={() => setVersion((v) => v + 1)}
         onTour={tour}
       />

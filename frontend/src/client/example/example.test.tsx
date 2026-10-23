@@ -38,6 +38,7 @@ function visit(signedIn: boolean, locale = TENANT.locale) {
       signedIn ? { body: { ...ME, page_tour_seen: false, csrf_token: "csrf-123" } } : notSignedIn,
     "GET /api/detail-types": () => ({ body: [] }),
     "GET /api/project-types": () => ({ body: { types: [], stages: [] } }),
+    "DELETE /api/session": () => ({ status: 204 }),
   });
   const view = render(<ExampleApp />);
   return { sent, view };
@@ -61,6 +62,16 @@ describe("the example project", () => {
     expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
     // Only who is signed in and the office were asked for; nothing about pages.
     expect(sent.map((r) => `${r.method} ${r.path}`).sort()).toEqual(["GET /api/me", "GET /api/tenant"]);
+  });
+
+  it("gives signed-in staff their own header menu, whose Sair really signs them out", async () => {
+    const { sent } = visit(true);
+    await screen.findByRole("heading", { level: 1, name: "Casa das Araucárias" });
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    expect(screen.getByText(ME.email)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Sair" }));
+    // Not the example's in-browser stand-in: the person's real session ends.
+    await waitFor(() => expect(sent.some((r) => r.method === "DELETE" && r.path === "/api/session")).toBe(true));
   });
 
   it("speaks the office's language around the fictional (Portuguese) project", async () => {
