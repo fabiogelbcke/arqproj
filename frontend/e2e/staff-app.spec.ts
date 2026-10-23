@@ -789,7 +789,10 @@ async function coveringPopup(page: Page, selector: string): Promise<string[]> {
     for (let x = 0.05; x < 1; x += 0.15)
       for (let y = 0.05; y < 1; y += 0.15) {
         const top = document.elementFromPoint(box.left + box.width * x, box.top + box.height * y);
-        if (top && !popup.contains(top)) covers.add(`${top.tagName.toLowerCase()}.${[...top.classList].join(".")}`);
+        // The staff bar floats over the whole page on purpose (content scrolls out
+        // from under it), so it doesn't count as covering: only the page's own parts do.
+        if (top && !popup.contains(top) && !top.closest(".dock"))
+          covers.add(`${top.tagName.toLowerCase()}.${[...top.classList].join(".")}`);
       }
     return [...covers];
   }, selector);
