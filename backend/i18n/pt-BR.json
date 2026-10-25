@@ -590,6 +590,7 @@
       "andMore_one": "e mais 1",
       "andMore_other": "e mais {{count}}",
       "stageCompleted": "A etapa {{stage}} foi concluída.",
+      "stageReopened": "A etapa {{stage}} foi reaberta.",
       "completed": "O projeto foi concluído.",
       "meetingScheduled": "Reunião marcada: {{title}}, {{when}}.",
       "meetingChanged": "Reunião alterada: {{title}}, {{when}}.",
@@ -613,6 +614,7 @@
   "updates": {
     "fileVersion": "{{name}}, v{{version}}",
     "stageCompleted": "Etapa concluída",
+    "stageReopened": "Etapa reaberta",
       "label": "Atualizações",
       "title": "Últimas atualizações",
       "unread_one": "Últimas atualizações, {{count}} não lida",

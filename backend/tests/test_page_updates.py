@@ -57,6 +57,21 @@ async def test_notes_meetings_and_progress_are_listed_newest_first(
     assert cleared[2]  # the cancelled meeting's title, for "Reunião cancelada"
 
 
+async def test_a_stage_is_listed_once_as_it_stands_now_completed_or_reopened(
+    app,
+    client,
+    db_session,
+    owner,
+    folders,  # noqa: F811
+):
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    assert await updates(client) == [("stage_completed", 3, None)]
+    await call(client, owner, "PUT", "/stages/3/completion", completed=False)
+    assert await updates(client) == [("stage_reopened", 3, None)]
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    assert await updates(client) == [("stage_completed", 3, None)]
+
+
 async def test_visitors_of_a_protected_page_see_nothing_without_its_password(
     app,
     client,

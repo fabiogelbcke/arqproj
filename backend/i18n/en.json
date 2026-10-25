@@ -590,6 +590,7 @@
       "andMore_one": "and 1 more",
       "andMore_other": "and {{count}} more",
       "stageCompleted": "Stage {{stage}} was completed.",
+      "stageReopened": "Stage {{stage}} was reopened.",
       "completed": "The project is complete.",
       "meetingScheduled": "Meeting scheduled: {{title}}, {{when}}.",
       "meetingChanged": "Meeting changed: {{title}}, {{when}}.",
@@ -613,6 +614,7 @@
   "updates": {
     "fileVersion": "{{name}}, v{{version}}",
     "stageCompleted": "Stage done",
+    "stageReopened": "Stage reopened",
       "label": "Updates",
       "title": "Latest updates",
       "unread_one": "Latest updates, {{count}} unread",

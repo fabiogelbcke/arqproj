@@ -398,10 +398,10 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
             if event.stage_id is not None and event.stage_id not in with_notes:
                 continue  # removed since: the panel shows a note as it is now
             once = ("note", event.stage_id or position)  # older events: by position
-        elif event.kind is EventKind.STAGE_COMPLETED:
-            if event.stage_id not in completed:
-                continue  # reopened since
-            once = ("completed", event.stage_id)
+        elif event.kind in (EventKind.STAGE_COMPLETED, EventKind.STAGE_REOPENED):
+            if (event.stage_id in completed) != (event.kind is EventKind.STAGE_COMPLETED):
+                continue  # reopened, or completed again, since
+            once = ("progress", event.stage_id)
         elif event.kind is EventKind.STAGE_ADVANCED:
             continue  # the old progress (before 0032): no current stage now to hold it
         elif event.kind is EventKind.PROJECT_COMPLETED:
