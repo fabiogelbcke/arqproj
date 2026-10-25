@@ -12,7 +12,11 @@ export function ChipGroup({
   value,
   onChange,
   className,
+  segmented = false,
 }: {
+  // One framed control whose halves are all visibly buttons: for a choice between
+  // a few options (two or three), rather than a filter among many.
+  segmented?: boolean;
   label: string; // the group's name for screen readers
   chips: Chip[];
   value: string;
@@ -22,7 +26,7 @@ export function ChipGroup({
   return (
     <ToggleButtonGroup
       aria-label={label}
-      className={[styles.chips, className].filter(Boolean).join(" ")}
+      className={[styles.chips, segmented && styles.segmented, className].filter(Boolean).join(" ")}
       selectionMode="single"
       disallowEmptySelection
       selectedKeys={[value]}

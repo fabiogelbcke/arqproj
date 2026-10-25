@@ -81,6 +81,12 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
+  // An iPad, upright and sideways: "Novo projeto" stays on the search's row.
+  for (const tablet of [{ name: "ipad", width: 820, height: 1180 }, { name: "ipad-wide", width: 1180, height: 820 }]) {
+    await page.setViewportSize(tablet);
+    await page.screenshot({ path: `${OUT}/03-projetos-${tablet.name}.png` });
+  }
+  await page.setViewportSize(SIZES[0]!);
   // Drive disconnected ("Desconectar"): the projects hidden behind the empty state.
   await page.route("**/api/drive", (route) =>
     route.fulfill({
@@ -269,9 +275,17 @@ test("@screenshots staff app", async ({ page, browser }) => {
   // Back on the project, this device's link is listed.
   await visitor.goto("/casa-jardim");
   await visitor.getByRole("button", { name: "Compartilhar arquivos", exact: true }).click();
+  await visitor.getByRole("tab", { name: /^Links criados/ }).click();
   await visitor.getByRole("region", { name: "Links criados neste dispositivo" }).getByText("Marcenaria Silva").waitFor();
   await shoot(visitor, "09d-links-do-dispositivo");
   await visitor.keyboard.press("Escape");
+  // Staff see every link of the project, the dialog above the staff bar.
+  await page.goto("/casa-jardim");
+  await page.getByRole("button", { name: "Compartilhar arquivos", exact: true }).click();
+  await page.getByRole("tab", { name: /^Links criados/ }).click();
+  await page.getByRole("region", { name: "Links deste projeto" }).getByText("Marcenaria Silva").waitFor();
+  await shoot(page, "09e-links-do-projeto");
+  await page.keyboard.press("Escape");
 
   // The example project (plan section 16): its explore tour, then the page.
   await visitor.goto("/tour-projeto");

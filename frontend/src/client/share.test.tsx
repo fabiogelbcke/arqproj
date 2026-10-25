@@ -89,7 +89,10 @@ describe("sharing files by link", () => {
     const dialog = await screen.findByRole("dialog", { name: "Compartilhar arquivos" });
     expect(within(dialog).getByRole("checkbox", { name: /Planta\.pdf/ })).toBeChecked();
     expect(within(dialog).getByRole("checkbox", { name: /Corte\.pdf/ })).toBeChecked();
-    expect(within(dialog).getByRole("checkbox", { name: /Programa\.pdf/ })).not.toBeChecked();
+    expect(within(dialog).queryByRole("checkbox", { name: /Programa\.pdf/ })).toBeNull(); // only this stage's
+    expect(within(dialog).getByText(/^Escolha os arquivos de 02 Levantamento/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Para quem?")).toHaveAttribute("placeholder", "Ex.: Marcenaria Silva");
+    expect(within(dialog).getByRole("checkbox", { name: "Selecionar todos os arquivos de 02 Levantamento" })).toBeChecked();
     expect(within(dialog).getByRole("status")).toHaveTextContent("2 arquivos · 6 KB");
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /Corte\.pdf/ }));
     await userEvent.type(within(dialog).getByLabelText("Para quem?"), "Marcenaria Silva");
@@ -111,6 +114,31 @@ describe("sharing files by link", () => {
     expect(clipboard.writeText).toHaveBeenCalledWith("http://alinea.localhost/share/tok");
   });
 
+  it("from the toolbar, shares whole stages or files picked one by one", async () => {
+    const sent = at({
+      "POST /api/pages/casa-jardim/shares": () => ({
+        status: 201,
+        body: { link: LINK, url: "http://alinea.localhost/share/tok", owner: "own-1" },
+      }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Compartilhar arquivos" }));
+    const dialog = await screen.findByRole("dialog", { name: "Compartilhar arquivos" });
+    // Whole stages first: each stage a checkbox, no files listed.
+    expect(within(dialog).queryByRole("checkbox", { name: /Planta\.pdf/ })).toBeNull();
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /02 Levantamento/ }));
+    expect(within(dialog).getByRole("status")).toHaveTextContent("2 arquivos · 6 KB");
+    // Picking files: a stage opens to its files, its checkbox in its row.
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Escolher arquivos" }));
+    expect(within(dialog).getByRole("status")).toHaveTextContent("Nenhum arquivo selecionado");
+    await userEvent.click(within(dialog).getByRole("button", { name: /02 Levantamento/ }));
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /Corte\.pdf/ }));
+    const stage = within(dialog).getByRole("checkbox", { name: "Selecionar todos os arquivos de 02 Levantamento" });
+    expect(stage).toBePartiallyChecked();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Gerar link" }));
+    await screen.findByRole("dialog", { name: "Link pronto" });
+    expect(sent.find((r) => r.method === "POST" && r.path.endsWith("/shares"))?.body).toMatchObject({ files: ["k3"] });
+  });
+
   it("opens above the stages with nothing ticked, and refuses more than 300 MB", async () => {
     const big = { ...FILES, stages: [{ position: 1, groups: [{ folder: null, files: [file("k9", "Maquete.zip", 301 * 1024 * 1024)] }] }] };
     at({ "GET /api/pages/casa-jardim/files": () => ({ body: big }) });
@@ -119,8 +147,7 @@ describe("sharing files by link", () => {
     const make = within(dialog).getByRole("button", { name: "Gerar link" });
     expect(make).toBeDisabled();
     expect(within(dialog).getByRole("status")).toHaveTextContent("Nenhum arquivo selecionado");
-    await userEvent.click(within(dialog).getByText("01 Briefing"));
-    await userEvent.click(within(dialog).getByRole("checkbox", { name: /Maquete\.zip/ }));
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /01 Briefing/ }));
     expect(within(dialog).getByText(/O limite é de 300 MB por link/)).toBeInTheDocument();
     expect(make).toBeDisabled();
   });
@@ -133,6 +160,10 @@ describe("sharing files by link", () => {
       "POST /api/pages/casa-jardim/shares/l1/disable": () => ({ body: { ...LINK, newer: 0, disabled: true } }),
     });
     await userEvent.click(await screen.findByRole("button", { name: "Compartilhar arquivos" }));
+    // Making a link first; the links made have their own tab.
+    expect(await screen.findByRole("tab", { name: "Novo link" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("region", { name: "Links criados neste dispositivo" })).toBeNull();
+    await userEvent.click(screen.getByRole("tab", { name: "Links criados (1)" }));
     const links = await screen.findByRole("region", { name: "Links criados neste dispositivo" });
     expect(sent.find((r) => r.path.endsWith("/shares/mine"))?.body).toEqual({ owners: ["own-1"] });
     expect(within(links).getByText("Marcenaria Silva")).toBeInTheDocument();
@@ -156,9 +187,11 @@ describe("sharing files by link", () => {
     });
     await userEvent.click(await screen.findByRole("button", { name: "Compartilhar arquivos" }));
     const dialog = await screen.findByRole("dialog", { name: "Compartilhar arquivos" });
-    expect(within(dialog).getByText("Ainda não há arquivos para compartilhar.")).toBeInTheDocument();
+    // Nothing to pick: it opens on the links, to turn one off.
     const links = await within(dialog).findByRole("region", { name: "Links criados neste dispositivo" });
     expect(within(links).getByRole("button", { name: "Desativar" })).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("tab", { name: "Novo link" }));
+    expect(within(dialog).getByText("Ainda não há arquivos para compartilhar.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Compartilhar arquivos de / })).toBeNull(); // no stage has files
   });
 
@@ -177,6 +210,7 @@ describe("sharing files by link", () => {
     });
     render(<ClientApp />);
     await userEvent.click(await screen.findByRole("button", { name: "Compartilhar arquivos" }));
+    await userEvent.click(await screen.findByRole("tab", { name: "Links criados (2)" }));
     const links = await screen.findByRole("region", { name: "Links deste projeto" });
     expect(within(links).getByText(/^Cliente · 2 de 2/)).toBeInTheDocument();
     expect(within(links).getByText("Link sem destinatário")).toBeInTheDocument();
