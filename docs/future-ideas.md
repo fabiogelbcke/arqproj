@@ -136,4 +136,4 @@ decision in the [decision changelog](decision-changelog.md).
   that shows where things appear (files, description, details…) every time it
   opens, skippable. The first real project page has its own tour, focused on
   setting the project up, once per account (built: Driver.js,
-  `users.tour_seen_at`, "?" in the staff bar replays it).
+  `users.tour_seen_at`, the account menu replays it).

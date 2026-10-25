@@ -1,5 +1,5 @@
-// The painel's tour (Driver.js), from "?" in the top bar only: Primeiros passos,
-// "Novo projeto", a project's card, Configurações; its last step opens the
+// The painel's tour (Driver.js), from the account menu or the phone's drawer
+// only: Primeiros passos, "Novo projeto", a project's card, Configurações; its last step opens the
 // example project, whose own tour then starts (plan section 16). A step whose
 // part isn't on the screen (no projects yet, the menu on a phone) is left out.
 // It stores nothing. Loaded only when it runs.

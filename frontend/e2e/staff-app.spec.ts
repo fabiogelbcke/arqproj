@@ -554,7 +554,7 @@ test("staff drag a stage to a new place, and the new order is saved", async ({ p
   await expect(page.locator("#st-1")).toHaveText(first);
 });
 
-test("a new staff member's first project page shows the tour once; \"?\" replays it", async ({ page }) => {
+test("a new staff member's first project page shows the tour once; the account menu replays it", async ({ page }) => {
   const link = invite("tour@alinea.example");
   await page.goto(link);
   await page.getByLabel("Nova senha").fill("senha-escolhida");
@@ -581,7 +581,8 @@ test("a new staff member's first project page shows the tour once; \"?\" replays
   await bar.waitFor();
   await page.waitForTimeout(800);
   await expect(popover).toHaveCount(0); // not again, for this account
-  await bar.getByRole("button", { name: "Ver o tour da página" }).click();
+  await page.getByRole("button", { name: "Sua conta" }).click();
+  await page.getByRole("menuitem", { name: "Ver o tour da página" }).click();
   await expect(popover).toContainText("Ver como cliente e Editar");
 });
 
@@ -597,7 +598,7 @@ test("on a phone the staff bar holds all its buttons", async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/casa-jardim");
     const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
-    await expect(bar.getByRole("button", { name: "Ver o tour da página" })).toBeVisible();
+    await expect(bar.getByRole("link", { name: "Painel" })).toBeVisible();
     const box = (await bar.boundingBox())!;
     for (const control of await bar.locator(":scope > a, :scope > button, :scope > .seg button").all()) {
       const inner = (await control.boundingBox())!;
@@ -873,9 +874,9 @@ test("a file's \"⋯\" is small to look at and icon-sized to tap", async ({ page
   await expect(page.locator("#stage-2 .filemenu.is-open")).toHaveCount(1);
 });
 
-// Plan section 16: "?" in the painel's top bar runs the painel tour; its last
-// step opens the example project, whose own tour starts there.
-test("the painel tour, from \"?\", ends at the example project and its tour", async ({ page }) => {
+// Plan section 16: the account menu runs the painel tour; its last step opens
+// the example project, whose own tour starts there.
+test("the painel tour, from the account menu, ends at the example project and its tour", async ({ page }) => {
   await page.goto(invite("tour-painel@alinea.example"));
   await page.getByLabel("Nova senha").fill("senha-escolhida");
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
@@ -883,7 +884,8 @@ test("the painel tour, from \"?\", ends at the example project and its tour", as
   await skipTour(page);
   const popover = page.locator(".driver-popover");
   await expect(popover).toHaveCount(0); // never on its own
-  await page.getByRole("button", { name: "Ver o tour do painel" }).click();
+  await page.getByRole("button", { name: "Sua conta" }).click();
+  await page.getByRole("menuitem", { name: "Ver o tour do painel" }).click();
   await expect(popover).toBeVisible();
   for (let i = 0; i < 6 && (await popover.getByRole("button", { name: "Próximo" }).count()); i++)
     await popover.getByRole("button", { name: "Próximo" }).click();
