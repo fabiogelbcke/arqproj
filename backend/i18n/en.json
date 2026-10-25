@@ -193,6 +193,7 @@
     "en": "English"
   },
   "errors": {
+    "version_type_mismatch": "The new version must be the same type of file as the current one.",
     "invalid_staff_name": "Give the name (up to 80 characters).",
     "already_staff": "This person is already on the team.",
     "not_an_invite": "This invite no longer exists, or they're already in. Reload the page.",
@@ -450,6 +451,18 @@
     "downloadFile": "Download {{name}}"
   },
   "edit": {
+    "newVersion": "Upload new version",
+    "newVersionNote": "It becomes the current version",
+    "newVersionSent": "New version of “{{name}}” uploaded.",
+    "versionTitle": "Is this a new version?",
+    "versionExists": "{{name}} is already in this stage.",
+    "versionCurrent": "Current",
+    "versionCurrentNote": "Stays in Drive as it is and stays in the list of versions as v{{version}}.",
+    "versionNew": "New",
+    "versionNewNote": "Saved with this name. It is what the client sees from now on.",
+    "versionYes": "Yes, upload as v{{version}}",
+    "versionNo": "No, it's another file",
+    "versionClash": "Another file in this folder has the same version. Rename one of them in Google Drive.",
     "completeProjectAsk": "Complete the project?",
     "completeProjectMeans": "All stages are done. The project will appear as completed to the client. You will be able to reopen it later by reopening a stage.",
     "completeProject": "Complete project",
@@ -588,6 +601,7 @@
       "resetIgnore": "If you didn't ask for this, ignore this email: your password stays the same."
   },
   "updates": {
+    "fileVersion": "{{name}}, v{{version}}",
     "stageCompleted": "Stage done",
       "label": "Updates",
       "title": "Latest updates",
@@ -607,6 +621,17 @@
       "meetingCancelled": "Meeting cancelled"
     },
   "files": {
+    "versionCount_one": "{{count}} version",
+    "versionCount_other": "{{count}} versions",
+    "current": "Current",
+    "open": "Open",
+    "openVersion": "Open version {{version}} of {{name}}",
+    "version": "v{{version}}",
+    "versionLabel": "Version {{version}}",
+    "updated": "Updated",
+    "olderVersion": "{{version}}, {{date}}",
+    "download": "Download",
+    "downloadVersion": "Download version {{version}} of {{name}}",
       "search": "Search files",
       "searchPlaceholder": "Search files or stages",
       "type": "Type",

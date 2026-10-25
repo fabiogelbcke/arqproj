@@ -163,10 +163,15 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("button", { name: "Visualizar em lista" }).first().click();
   await shoot(page, "06d-arquivos-em-lista");
   await page.getByRole("button", { name: "Visualizar miniaturas" }).first().click();
-  await page.getByRole("button", { name: /^Abrir Plantas v2/ }).click();
+  await page.getByRole("button", { name: "Abrir Plantas.pdf" }).click();
   await page.getByRole("dialog").waitFor();
   await shoot(page, "06e-pre-visualizacao");
   await page.getByRole("button", { name: "Fechar" }).click();
+  // A file's versions (A25): "Plantas.pdf" and "Plantas v2.pdf" in the seed.
+  await page.getByRole("button", { name: "2 versões" }).click();
+  await page.getByRole("dialog", { name: "Plantas.pdf" }).waitFor();
+  await shoot(page, "06n-versoes");
+  await page.getByRole("dialog").getByRole("button", { name: "Fechar" }).click();
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar reunião" }).click();
@@ -180,10 +185,22 @@ test("@screenshots staff app", async ({ page, browser }) => {
   // A file's menu (A34), moving it to another stage.
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
-  await page.getByRole("button", { name: /^Ações para Plantas v2/ }).click();
+  await page.getByRole("button", { name: "Ações para Plantas.pdf" }).click();
+  await page.getByRole("menuitem", { name: /Enviar nova versão/ }).waitFor();
+  await shoot(page, "06l-menu-do-arquivo"); // "Enviar nova versão" first (A25)
   await page.getByRole("menuitem", { name: "Mover para outra etapa" }).click();
   await page.getByRole("menu", { name: /^Mover/ }).waitFor();
   await shoot(page, "06f-mover-arquivo");
+  // A file named like one already in the stage: "É uma nova versão?" (A25). Closed
+  // unanswered, so nothing is sent.
+  await page.keyboard.press("Escape");
+  await page
+    .locator("#stage-2")
+    .getByLabel("escolha no computador")
+    .setInputFiles({ name: "Plantas.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
+  await page.getByRole("alertdialog", { name: "É uma nova versão?" }).waitFor();
+  await shoot(page, "06m-nova-versao");
+  await page.keyboard.press("Escape");
 
   // A note to the client is news for "Atualizações" (A28): seen as a visitor.
   await page.goto("/casa-jardim");

@@ -42,7 +42,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
   let recipients = preview?.recipients ?? ["marina.andrade@exemplo.com.br"];
   let options: Schemas["CreationOptions"] | null = null;
   let detailTypes: Schemas["DetailTypeOut"][] | null = null;
-  const pending = new Map<string, { position: number; name: string }>();
+  const pending = new Map<string, { position: number; name: string; versionOf?: string }>();
   let counter = 0;
   const id = () => `exemplo-n${(counter += 1)}`;
 
@@ -103,6 +103,17 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     const top = stage.groups.find((group) => group.folder === null);
     if (top) top.files.push(file);
     else stage.groups.unshift({ folder: null, files: [file] });
+  };
+  // Versions (A25), simply: a document is a file of the same name in the stage's
+  // top folder; its next version is "Planta v3.pdf".
+  const sameName = (position: number, name: string) =>
+    project.stages[position - 1]?.groups
+      .find((group) => group.folder === null)
+      ?.files.find((file) => file.name.toLowerCase() === name.toLowerCase());
+  const nextName = (file: ExampleFile) => {
+    const dot = file.name.lastIndexOf(".");
+    const [stem, extension] = dot > 0 ? [file.name.slice(0, dot), file.name.slice(dot)] : [file.name, ""];
+    return `${stem} v${(file.version ?? 1) + 1}${extension}`;
   };
 
   /** One more change: a new row version, the page's date, and what the client
@@ -267,11 +278,43 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     ],
     [
       "POST",
+      new RegExp(`^${PROJECT}/stages/(\\d+)/uploads/check$`),
+      (match, body) => {
+        if (!stage(match)) return refused("project_not_found", 404);
+        const matches = (body.names as string[]).flatMap((name) => {
+          const file = sameName(Number(match[1]), name);
+          if (!file) return [];
+          const version = file.version ?? 1;
+          return [
+            {
+              name,
+              document: file.name,
+              current: file.name,
+              current_version: version,
+              saved_as: nextName(file),
+              next_version: version + 1,
+              key: file.key,
+            },
+          ];
+        });
+        return { body: { matches } };
+      },
+    ],
+    [
+      "POST",
       new RegExp(`^${PROJECT}/stages/(\\d+)/uploads$`),
       (match, body) => {
         if (!stage(match)) return refused("project_not_found", 404);
         const upload = id();
-        pending.set(upload, { position: Number(match[1]), name: String(body.name) });
+        const position = Number(match[1]);
+        const versionOf = body.version_of ? String(body.version_of) : undefined;
+        // Kept apart, as the app saves it: "Planta (2).pdf".
+        let name = String(body.name);
+        if (!versionOf && sameName(position, name)) {
+          const dot = name.lastIndexOf(".");
+          name = dot > 0 ? `${name.slice(0, dot)} (2)${name.slice(dot)}` : `${name} (2)`;
+        }
+        pending.set(upload, { position, name, versionOf });
         return { body: { upload_url: `${UPLOADS}${upload}` } };
       },
     ],
@@ -405,15 +448,36 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
               ? "pdf"
               : "other";
           const at = new Date().toISOString();
-          addFile(target.position, {
-            key: id(),
-            name: target.name,
-            kind,
-            size: body.size,
-            modified_at: at,
-            url: URL.createObjectURL(body),
-          });
-          changed({ kind: "file_published", stage_position: target.position, name: target.name });
+          const current = target.versionOf ? find(target.versionOf)?.file : undefined;
+          if (current) {
+            // The new version takes the card; the one before goes to "Versões anteriores".
+            const version = (current.version ?? 1) + 1;
+            const before = { ...current, older: [], version: current.version ?? 1 };
+            Object.assign(current, {
+              key: id(),
+              kind,
+              size: body.size,
+              modified_at: at,
+              url: URL.createObjectURL(body),
+              version,
+              updated: true,
+              older: [before, ...current.older],
+            });
+            changed({ kind: "file_published", stage_position: target.position, name: current.name, version });
+          } else {
+            addFile(target.position, {
+              key: id(),
+              name: target.name,
+              kind,
+              size: body.size,
+              modified_at: at,
+              url: URL.createObjectURL(body),
+              updated: false,
+              clash: false,
+              older: [],
+            });
+            changed({ kind: "file_published", stage_position: target.position, name: target.name });
+          }
           this.status = 200;
           this.onload?.();
         }, 150 * (i + 1)),
@@ -424,7 +488,12 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
 
   // The files are the fixture's (bundled) or uploaded here: their own addresses.
   fileSource.address = (_slug, key, as) => {
-    const file = find(key)?.file;
+    const file =
+      find(key)?.file ??
+      // An older version keeps its upload's address.
+      (project.stages
+        .flatMap((stage) => stage.groups.flatMap((group) => group.files.flatMap((shown) => shown.older)))
+        .find((old) => old.key === key) as ExampleFile | undefined);
     if (!file) return null;
     return as === "thumb" && file.kind !== "image" ? null : file.url; // a PDF: the sheet icon
   };

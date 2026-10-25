@@ -1,19 +1,25 @@
 // Edit mode: the prototype's drop area under each stage's files, and each file's
-// menu ("Ocultar do cliente"). Files go from the browser straight to Drive (A31):
-// the app opens the upload, the browser sends the bytes to the address it gets.
+// menu ("Enviar nova versão", "Ocultar do cliente"). Files go from the browser
+// straight to Drive (A31): the app opens the upload, the browser sends the bytes to
+// the address it gets. Versions come from the names (A25): a new version is saved
+// as the next "vN", which the app names.
 import { useRef, useState } from "react";
+import { Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
+import { Button } from "../ui/Button";
 import { errorMessage } from "../ui/ErrorNotice";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { MoreIcon } from "../ui/MoreIcon";
 import { toast, toastError } from "../ui/Toast";
+import styles from "../ui/ui.module.css";
 import { useDismiss } from "../ui/useDismiss";
 import { fileSource, type Page } from "./format";
 
 type Staff = NonNullable<Page["staff"]>;
 type FileItem = Schemas["FileOut"];
+type Match = Schemas["MatchOut"];
 
 export const UPLOAD_MAX_MB = 100; // the server checks it too
 const UPLOAD_MAX = UPLOAD_MAX_MB * 1024 * 1024;
@@ -113,6 +119,85 @@ export async function sendFile(
 
 const message = (failure: unknown) => errorMessage(failure, { max: UPLOAD_MAX_MB });
 
+/** Opens the upload and sends the file. `versionOf`: a file's key, to save this
+ *  one as the next version of its document, in its folder. */
+async function uploadFile(
+  staff: Staff,
+  position: number,
+  file: File,
+  onProgress: (fraction: number) => void,
+  versionOf?: string,
+): Promise<void> {
+  if (file.size > UPLOAD_MAX) throw new ApiError("file_too_large");
+  const path = { project_id: staff.project_id, position };
+  const opened = await call(
+    api.POST("/api/projects/{project_id}/stages/{position}/uploads", {
+      params: { path },
+      body: {
+        row_version: staff.row_version,
+        name: file.name,
+        size: file.size,
+        mime_type: file.type,
+        ...(versionOf ? { version_of: versionOf } : {}),
+      },
+    }),
+  );
+  await sendFile(opened.upload_url, file, onProgress).catch((broke) =>
+    broke instanceof UploadBroke
+      ? call(
+          api.POST("/api/projects/{project_id}/stages/{position}/uploads/failed", {
+            params: { path },
+            body: { name: file.name, size: file.size, status: broke.status, detail: broke.detail },
+          }),
+        ) // always an error: "upload_failed", with the support code
+      : Promise.reject(broke),
+  );
+}
+
+type Answer = "version" | "separate" | "cancel";
+
+/** The prototype's "É uma nova versão?": the current file stays and becomes an
+ *  older version, the new one is saved as the next. Closing it skips the file. */
+function VersionQuestion({ match, onAnswer }: { match: Match; onAnswer: (answer: Answer) => void }) {
+  const { t } = useTranslation();
+  return (
+    <ModalOverlay className={styles.confirmOverlay} isDismissable isOpen onOpenChange={(open) => !open && onAnswer("cancel")}>
+      <Modal className={styles.confirmModal}>
+        <Dialog role="alertdialog" className={styles.confirmDialog}>
+          <Heading slot="title" className={styles.confirmTitle}>
+            {t("edit.versionTitle")}
+          </Heading>
+          <p className={styles.confirmText}>{t("edit.versionExists", { name: match.document })}</p>
+          <div className="vflow">
+            <div>
+              <span>{t("edit.versionCurrent")}</span>
+              <div>
+                <p>{match.current}</p>
+                <p>{t("edit.versionCurrentNote", { version: match.current_version })}</p>
+              </div>
+            </div>
+            <div className="new">
+              <span>{t("edit.versionNew")}</span>
+              <div>
+                <p>
+                  <b>{match.saved_as}</b>
+                </p>
+                <p>{t("edit.versionNewNote")}</p>
+              </div>
+            </div>
+          </div>
+          <div className={styles.confirmActions}>
+            <Button onPress={() => onAnswer("separate")}>{t("edit.versionNo")}</Button>
+            <Button variant="primary" onPress={() => onAnswer("version")} autoFocus>
+              {t("edit.versionYes", { version: match.next_version })}
+            </Button>
+          </div>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+}
+
 type Sending = { id: number; name: string; progress: number; failed?: string };
 
 /** "Solte arquivos aqui ou escolha no computador", and how each upload goes. */
@@ -135,28 +220,13 @@ export function StageDrop({
   const next = useRef(0);
   const update = (id: number, change: Partial<Sending>) =>
     setSending((all) => all.map((item) => (item.id === id ? { ...item, ...change } : item)));
+  const [asking, setAsking] = useState<{ match: Match; answer: (answer: Answer) => void } | null>(null);
 
-  const sendOne = async (file: File) => {
+  const sendOne = async (file: File, versionOf?: string) => {
     const id = (next.current += 1);
     setSending((all) => [...all, { id, name: file.name, progress: 0 }]);
     try {
-      if (file.size > UPLOAD_MAX) throw new ApiError("file_too_large");
-      const opened = await call(
-        api.POST("/api/projects/{project_id}/stages/{position}/uploads", {
-          params: { path: { project_id: staff.project_id, position } },
-          body: { row_version: staff.row_version, name: file.name, size: file.size, mime_type: file.type },
-        }),
-      );
-      await sendFile(opened.upload_url, file, (progress) => update(id, { progress })).catch((broke) =>
-        broke instanceof UploadBroke
-          ? call(
-              api.POST("/api/projects/{project_id}/stages/{position}/uploads/failed", {
-                params: { path: { project_id: staff.project_id, position } },
-                body: { name: file.name, size: file.size, status: broke.status, detail: broke.detail },
-              }),
-            ) // always an error: "upload_failed", with the support code
-          : Promise.reject(broke),
-      );
+      await uploadFile(staff, position, file, (progress) => update(id, { progress }), versionOf);
       setSending((all) => all.filter((item) => item.id !== id));
       return true;
     } catch (failure) {
@@ -165,9 +235,45 @@ export function StageDrop({
     }
   };
 
+  /** Each file named like a document already in the stage: a new version of it?
+   *  One question at a time; the files then go up together. One too large asks
+   *  nothing: it fails on its own when sent. */
+  const choose = async (files: File[]) => {
+    const names = files.filter((file) => file.size <= UPLOAD_MAX).map((file) => file.name);
+    const found = names.length
+      ? await call(
+          api.POST("/api/projects/{project_id}/stages/{position}/uploads/check", {
+            params: { path: { project_id: staff.project_id, position } },
+            body: { row_version: staff.row_version, names },
+          }),
+        )
+      : { matches: [] };
+    const chosen: { file: File; versionOf?: string }[] = [];
+    for (const file of files) {
+      const match = file.size <= UPLOAD_MAX && found.matches.find((candidate) => candidate.name === file.name);
+      if (!match) {
+        chosen.push({ file });
+        continue;
+      }
+      const answer = await new Promise<Answer>((resolve) => setAsking({ match, answer: resolve }));
+      setAsking(null);
+      if (answer === "version") chosen.push({ file, versionOf: match.key });
+      else if (answer === "separate") chosen.push({ file }); // saved apart: "Planta (2).pdf"
+    }
+    return chosen;
+  };
+
   const upload = async (files: File[]) => {
     if (!files.length) return;
-    const sent = (await Promise.all(files.map(sendOne))).filter(Boolean).length;
+    let chosen;
+    try {
+      chosen = await choose(files);
+    } catch (failure) {
+      toastError(failure, { max: UPLOAD_MAX_MB });
+      return;
+    }
+    const sent = (await Promise.all(chosen.map(({ file, versionOf }) => sendOne(file, versionOf)))).filter(Boolean)
+      .length;
     if (sent) {
       toast(t("edit.uploaded", { count: sent }));
       onChanged(); // the page lists Drive again (A10)
@@ -241,6 +347,7 @@ export function StageDrop({
           ))}
         </ul>
       )}
+      {asking && <VersionQuestion match={asking.match} onAnswer={asking.answer} />}
     </>
   );
 }
@@ -266,6 +373,23 @@ export function FileMenu({
   useDismiss(menu, open !== false, () => setOpen(false));
   const [busy, setBusy] = useState(false);
   const path = { slug, key: file.key };
+  // "Enviar nova versão": the chosen file goes up as the next version (A25).
+  const versionChooser = useRef<HTMLInputElement>(null);
+  const [sendingVersion, setSendingVersion] = useState<number | null>(null); // its progress
+  const sendVersion = async (chosen: File) => {
+    setBusy(true);
+    setSendingVersion(0);
+    try {
+      await uploadFile(page.staff!, position, chosen, setSendingVersion, file.key);
+      toast(t("edit.newVersionSent", { name: file.name }));
+      onChanged(); // the page lists Drive again (A10)
+    } catch (failure) {
+      toastError(failure, { max: UPLOAD_MAX_MB });
+    } finally {
+      setBusy(false);
+      setSendingVersion(null);
+    }
+  };
   const act = async (request: () => Promise<unknown>, done: string) => {
     setBusy(true);
     try {
@@ -330,8 +454,41 @@ export function FileMenu({
       >
         <MoreIcon />
       </button>
+      <input
+        ref={versionChooser}
+        type="file"
+        hidden
+        // The same type as the document, or it wouldn't be a version of it.
+        accept={file.name.includes(".") ? `.${file.name.split(".").pop()}` : undefined}
+        aria-label={t("edit.newVersion")}
+        onChange={(event) => {
+          const chosen = event.target.files?.[0];
+          event.target.value = ""; // the same file can be chosen again
+          if (chosen) void sendVersion(chosen);
+        }}
+      />
+      {sendingVersion !== null && (
+        <progress
+          className="filemenu__progress"
+          max={1}
+          value={sendingVersion}
+          aria-label={t("edit.sending", { name: file.name })}
+        />
+      )}
       {open === "menu" && (
         <div className="menu__list" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            disabled={busy}
+            onClick={() => {
+              setOpen(false);
+              versionChooser.current?.click();
+            }}
+          >
+            {t("edit.newVersion")}
+            <small>{t("edit.newVersionNote")}</small>
+          </button>
           {file.kind === "image" && (
             <button
               type="button"

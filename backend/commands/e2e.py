@@ -42,6 +42,7 @@ async def _seed() -> None:
 SAMPLE_FILES = {
     "Casa Jardim/01 - Briefing/Programa de necessidades.pdf": b"%PDF-1.4\n% fictional\n",
     "Casa Jardim/01 - Briefing/Levantamento/Medidas do terreno.pdf": b"%PDF-1.4\n% fictional\n",
+    "Casa Jardim/03 - Anteprojeto/Plantas.pdf": b"%PDF-1.4\n% fictional v1\n",  # its v1 (A25)
     "Casa Jardim/03 - Anteprojeto/Plantas v2.pdf": b"%PDF-1.4\n% fictional\n",
     "Casa Jardim/03 - Anteprojeto/Implantação.dwg": b"fictional",
 }

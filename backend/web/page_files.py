@@ -13,6 +13,11 @@ A file is named by an encrypted key, never by its Drive id: the key carries the
 project, its `access_version`, the stage, the folder and the item, so it opens
 only what this page listed (rechecked against Drive on every request), and a
 new password or access mode ends every key handed out before.
+A folder's files are grouped into documents by name (A25, plan section 12):
+`Planta.pdf` and `Planta v2.pdf` show as one "Planta.pdf", v2 current, with v1
+under its older versions. Nothing is stored; each listing works it out again.
+An older version is a file like any other, with its own key.
+
 Bytes come through the office's storage view (the reader identity on Drive),
 which refuses anything outside the office's folder; a stage's folder shows only
 while it is still directly in its project's folder.
@@ -39,6 +44,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.documents import versions
+from backend.documents.versions import shown_name
 from backend.notifications.models import EventKind, ProjectEvent
 from backend.projects.enums import AccessMode, ProjectStatus
 from backend.projects.models import Project, ProjectStage
@@ -73,10 +80,16 @@ _TEXTS = {
 
 class FileOut(BaseModel):
     key: str
-    name: str
+    name: str  # a document's clean name: "Planta.pdf" for `Planta v3.pdf`
     kind: str  # "image", "pdf" or "other"
     size: int | None
     modified_at: datetime
+    version: int | None = None  # None: a file whose name carries no version (A25)
+    updated: bool = False  # "Atualizado": a new version from the last few days
+    # Another file of its folder claims the same version: shown on its own, and
+    # staff are asked to rename one.
+    clash: bool = False
+    older: list[FileOut] = []  # "Versões anteriores", newest first, by Drive's names
 
 
 class GroupOut(BaseModel):
@@ -100,6 +113,7 @@ class UpdateOut(BaseModel):
     stage_position: int | None  # a file's: the stage it is in now
     # A file's name as the page shows it now; a cancelled meeting's title.
     name: str | None = None
+    version: int | None = None  # a file's, when its document has versions (A25)
 
 
 class PageFilesOut(BaseModel):
@@ -191,10 +205,34 @@ def _file(
             }
         ),
     )
-    name = f"{item.name}.pdf" if item.is_native else item.name
     return FileOut(
-        key=key, name=name, kind=_kind(item), size=item.size, modified_at=item.modified_at
+        key=key,
+        name=shown_name(item),
+        kind=_kind(item),
+        size=item.size,
+        modified_at=item.modified_at,
     )
+
+
+def _document(
+    request: Request,
+    project: Project,
+    document: versions.Document,
+    stage: int,
+    folder: str,
+    now: datetime,
+) -> FileOut:
+    """A document as one card: its current version, with the older ones."""
+    shown = _file(request, project, document.current, stage, folder)
+    shown.name = document.name
+    shown.version = document.version
+    shown.updated = document.updated(now)
+    shown.clash = document.clash
+    for number, item in document.older:
+        older = _file(request, project, item, stage, folder)
+        older.version = number  # under Drive's own name: "Planta v2.pdf"
+        shown.older.append(older)
+    return shown
 
 
 async def _storage(request: Request, db: AsyncSession):
@@ -243,7 +281,9 @@ async def page_files(
         )
     )
     stages = []
-    visible: dict[str, tuple[int, str]] = {}  # each file shown: its stage and name
+    # Each file shown, older versions too: its stage, name and version.
+    visible: dict[str, tuple[int, str, int | None]] = {}
+    now = datetime.now(UTC)
     in_project: set[str] | None = None
     if storage is not None and any(folders):
         try:
@@ -278,13 +318,17 @@ async def page_files(
             continue
         try:
             for group, parent, files in await stage_groups(storage, folder):
-                for item in files:
-                    name = f"{item.name}.pdf" if item.is_native else item.name
-                    visible.setdefault(item.identity, (position, name))
+                documents = versions.group(files)
+                for document in documents:
+                    for number, item in document.versions:
+                        version = number if document.version is not None else None
+                        visible.setdefault(item.identity, (position, document.name, version))
                 shown.groups.append(
                     GroupOut(
                         folder=group,
-                        files=[_file(request, project, i, position, parent) for i in files],
+                        files=[
+                            _document(request, project, d, position, parent, now) for d in documents
+                        ],
                     )
                 )
         except StorageError as error:
@@ -341,11 +385,11 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
     updates = []
     counted = set()  # the notes, advance and meeting already listed
     async for event in events:  # until 30 survive the filtering, however many it takes
-        position, name = event.stage_position, None
+        position, name, version = event.stage_position, None, None
         if event.kind is EventKind.FILE_PUBLISHED:
             if event.item_id not in visible:
                 continue
-            position, name = visible[event.item_id]
+            position, name, version = visible[event.item_id]
         elif event.stage_id is not None:
             if event.stage_id not in positions:
                 continue  # its stage was removed
@@ -381,6 +425,7 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
                 occurred_at=event.occurred_at,
                 stage_position=position,
                 name=name,
+                version=version,
             )
         )
         if len(updates) == UPDATES_SHOWN:
@@ -392,6 +437,12 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
 async def _item(request: Request, db: AsyncSession, project: Project, key: str):
     """The storage and the item a key names, if it was issued for this project's
     current access."""
+    storage, item, _found = await _item_at(request, db, project, key)
+    return storage, item
+
+
+async def _item_at(request: Request, db: AsyncSession, project: Project, key: str):
+    """As `_item`, with what the key says: its stage ("s") and folder ("f")."""
     try:
         found = json.loads(keys.decrypt(request.app.state.settings.app_secret, KEY_PURPOSE, key))
     except (keys.BadToken, ValueError):
@@ -406,7 +457,7 @@ async def _item(request: Request, db: AsyncSession, project: Project, key: str):
     try:
         if not await _still_listed(db, storage, project, found):
             raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # moved, hidden or removed
-        return storage, await storage.get(found["i"])
+        return storage, await storage.get(found["i"]), found
     except StorageError as error:
         raise _storage_failure(error, project, "open") from None
 
@@ -500,7 +551,7 @@ async def page_file(
         return _failure_page(tenant, slug, ErrorCode.FILE_NOT_FOUND, 404)
     kind = _kind(item)
     shown_inline = inline and kind in ("image", "pdf")
-    name = f"{item.name}.pdf" if item.is_native else item.name
+    name = shown_name(item)  # Drive's, with its version: "Planta v3.pdf"
     headers = {
         **PAGE_HEADERS,
         **NO_STORE,

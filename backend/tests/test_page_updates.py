@@ -134,3 +134,17 @@ async def test_repeated_changes_take_one_place_and_never_crowd_out_older_news(
     # A note emptied since is no news.
     await call(client, owner, "PUT", "/stages/2/notes", notes="")
     assert ("note_changed", 2, None) not in await updates(client)
+
+
+async def test_a_new_version_is_listed_under_the_documents_name_with_its_version(
+    app,
+    client,
+    owner,
+    folders,  # noqa: F811
+):
+    (folders / "02 - Conceito" / "Croqui.pdf").write_bytes(PDF)
+    await run(app)
+    (folders / "02 - Conceito" / "Croqui v2.pdf").write_bytes(PDF)
+    await run(app)
+    response = await client.get("/api/pages/casa-jardim/files", headers=ALINEA)
+    assert [(u["name"], u["version"]) for u in response.json()["updates"]] == [("Croqui.pdf", 2)]

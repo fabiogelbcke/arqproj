@@ -211,6 +211,41 @@
    doesn't clip, so its "⋯" menu opens past it (Fabio, 23 Oct 2026). */
 .client .stage .file { border-radius: var(--r-card); overflow: visible; background: var(--raise); }
 .client .stage .files:not([data-view="list"]) .file__thumb { border-radius: var(--r-card) var(--r-card) 0 0; overflow: hidden; }
+/* Versions (A25): the prototype's badge; "6 versões" opens every version in a
+   modal, so a card stays one size; "Atualizado" for a few days after a new
+   one, in the colour for what is current. */
+.client .older-button {
+  justify-self: start; margin: 0 12px 10px; padding: 0; border: 0; background: none; color: var(--muted);
+  font: inherit; font-size: 10px; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+@media (max-width: 640px) { .client .older-button { font-size: 9px; } }
+.client .older-button:hover { color: var(--ink); }
+.client .stage .files[data-view="list"] .older-button { grid-column: 2 / -1; margin: 0 10px 8px; }
+/* The file dialogs' ×: its icon in the middle of its box. */
+.client .file-preview__close { display: inline-grid; place-items: center; flex: none; padding: 0; }
+.client .file-preview__close svg { width: 20px; height: 20px; }
+/* The preview's frame stays light in either theme (prototype.css): its colours here too. */
+.client .file-versions { --ink: #242629; --muted: #66686b; --line: #dddddd; --line-strong: #a7a9ab; --surface: #f3f3f3; }
+.client .file-versions .file-preview__head p { margin: 2px 0 0; font-size: var(--text-xs); color: var(--muted); }
+.client .file-versions__list { list-style: none; margin: 0; padding: 6px 18px 14px; overflow-y: auto; max-height: min(60dvh, 520px); }
+.client .file-versions__list li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 0; }
+.client .file-versions__list li + li { border-top: 1px solid var(--line); }
+.client .file-versions__number { justify-self: start; padding: 2px 9px; border-radius: var(--r-pill); background: var(--surface); font-size: var(--text-xs); font-weight: 500; }
+.client .file-versions__list .is-current .file-versions__number { background: var(--brand-accent); color: #101111; }
+.client .file-versions__about { font-size: var(--text-sm); color: var(--muted); }
+.client .file-versions__current { margin-right: 8px; color: var(--ink); font-weight: 500; }
+.client .file-versions__actions { display: flex; gap: 6px; }
+.client .file-versions__actions a {
+  display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill); color: var(--ink); font-size: var(--text-xs); text-decoration: none;
+}
+.client .file-versions__actions a:hover { border-color: var(--ink); }
+.client .file__version { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.client .files[data-view="list"] .file__version { position: static; width: auto; height: auto; overflow: visible; clip-path: none; margin-right: 6px; font-weight: 500; color: var(--ink); }
+.client .file__updated { display: inline-block; margin-right: 6px; padding: 0 7px; border-radius: var(--r-pill); background: var(--mark-soft); color: var(--ink); }
+.client .file__clash { display: block; margin-top: 4px; font-size: var(--text-xs); color: var(--danger); }
+/* A new version on its way, beside the file's "⋯". */
+.client .filemenu__progress { position: absolute; top: 12px; right: 36px; width: 56px; height: 6px; }
 /* The card whose menu is open sits above the files after it, so the menu does too. */
 .client .stage .file:has(.filemenu.is-open) { position: relative; z-index: 5; }
 /* An open stage with no files yet (clients): a quiet card, an empty folder and

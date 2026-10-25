@@ -27,6 +27,7 @@ from string import Template
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.documents.versions import shown_name
 from backend.notifications.email import Email, EmailError, EmailSender
 from backend.notifications.events import CLIENT_VISIBLE
 from backend.notifications.models import (
@@ -213,7 +214,7 @@ async def lines_for(
         }
         by_stage: dict[int, list[str]] = {}
         for position, item in shown.values():
-            name = f"{item.name}.pdf" if item.is_native else item.name  # as the page names it
+            name = shown_name(item)  # Drive's, with its version: "Planta v3.pdf"
             by_stage.setdefault(position, []).append(name)
         for position in sorted(by_stage):
             names = by_stage[position]
