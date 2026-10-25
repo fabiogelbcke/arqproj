@@ -332,8 +332,11 @@
 .searchInput {
   width: 100%; height: var(--control-small); padding: 0 16px 0 38px; border: 1px solid var(--line);
   border-radius: var(--r-pill); background: var(--surface); color: var(--ink); font: inherit; font-size: var(--text-sm);
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.2s, background 0.2s; appearance: none; -webkit-appearance: none;
 }
+/* Newer iOS Safari draws its own magnifier in a search field, beside ours. */
+.searchInput::-webkit-search-decoration,
+.searchInput::-webkit-search-results-decoration { display: none; -webkit-appearance: none; }
 .searchInput::placeholder { color: var(--muted); }
 .searchInput[data-focused] { outline: none; border-color: var(--ink); background: var(--raise); }
 .searchInput::-webkit-search-cancel-button { cursor: pointer; }

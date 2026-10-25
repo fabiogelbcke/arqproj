@@ -1,13 +1,21 @@
 // The office's file storage (Google Drive): status, connect, disconnect.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ApiError, api, call } from "../api/client";
+import { ApiError, api, call, type Schemas } from "../api/client";
 
 export const DRIVE = ["drive"] as const;
 export const ONBOARDING = ["onboarding"] as const;
 
 export function useDrive() {
   return useQuery({ queryKey: DRIVE, queryFn: () => call(api.GET("/api/drive")) });
+}
+
+/** Someone chose "Desconectar" (or switched away) and the office's folder is
+ *  still on record: the painel hides its projects until Drive is back (Fabio,
+ *  25 Oct 2026). Never connected is a new office's first step instead; an
+ *  expired grant keeps the projects, with a notice. */
+export function driveDisconnected(status: Schemas["DriveOut"] | undefined): boolean {
+  return status?.kind === "google" && status.writer_status === "none" && status.has_folder;
 }
 
 /** How full the office's Google account is: asked of Google on each visit, only

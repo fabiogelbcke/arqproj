@@ -169,7 +169,7 @@ describe("the explore tour", () => {
     expect(lastTour().steps.some((s: { element?: string }) => s.element === '[data-tour="mode"]')).toBe(false);
   });
 
-  it("can be skipped with “Pular”, and runs again from “?”", async () => {
+  it("can be skipped with “Pular”, and runs again from the account menu", async () => {
     visit(true);
     await screen.findByRole("heading", { level: 1, name: "Casa das Araucárias" });
     await waitFor(() => expect(driven.drive).toHaveBeenCalledTimes(1));
@@ -179,7 +179,8 @@ describe("the explore tour", () => {
     expect(driven.destroy).toHaveBeenCalled();
     lastTour().onDestroyStarted(); // Driver.js's way out
 
-    await userEvent.click(screen.getByRole("button", { name: "Ver o tour da página" }));
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Ver o tour da página" }));
     await waitFor(() => expect(driven.drive).toHaveBeenCalledTimes(2));
     expect(setupTour.startTour).not.toHaveBeenCalled();
   });

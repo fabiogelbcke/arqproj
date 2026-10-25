@@ -802,6 +802,12 @@ designated root. The writer uses the office user's refresh token with
 identity. Track both health states and capabilities separately. An expired writer
 can disable uploads while the reader still keeps an existing portal available.
 An explicit product disconnect disables both immediately in our application.
+While the office is disconnected ("Desconectar"), the painel hides its projects,
+search and "Novo projeto": its empty state says Drive is disconnected and
+offers the owner "Reconectar" (Fabio, 25 Oct 2026); an
+expired grant keeps them listed with its own notice, and a never-connected office
+has its first steps. Reconnecting the same account, or switching accounts, shows
+them again.
 Evaluate write capabilities using the writer identity: capability fields fetched
 as the read-only account describe that reader and cannot authorize a writer action.
 
@@ -1440,17 +1446,20 @@ example project, so keep it easy to remove. The project page (view/edit modes,
 pencils, stages, files) needs help; the painel gets a short tour on demand
 (revised 19 Oct 2026, below) whose last step leads to the example project.
 
-**"?" means "show me around here".** Each area that has a tour offers it from a
-"?" button: the project page's staff bar (the setup tour) and the painel's top
-bar (the painel tour). A tour started from "?" never starts on its own.
+**The menu shows you around.** Each area that has a tour offers it from its
+account menu ("Ver o tour da página", "Ver o tour do painel"; the painel's phone
+drawer too). The "?" buttons that did this in the staff bar and the painel's top
+bar were dropped on 25 Oct 2026 (Fabio): the menus already held the same thing,
+and the bars had little room on phones. The painel tour never starts on its own;
+an archived project page doesn't offer its tour (it works in edit mode).
 
 **Built (PR #73): the setup tour.** A staff member's first real project page
 starts a Driver.js tour in edit mode: the view/edit switch, the pencils, the
 first stage still open ("Marcar como concluída"), the stage's upload area and "⋯" file menu, and the page's link.
 Steps whose part isn't on the page are left out. It runs once per account:
 finishing or closing it sets `users.tour_seen_at` through `POST
-/api/me/tour-seen`, and `GET /api/me` reports `page_tour_seen`. "?" in the staff
-bar replays it, and `make reset-tour TENANT= EMAIL= [ENV=staging]` resets it for
+/api/me/tour-seen`, and `GET /api/me` reports `page_tour_seen`. The account
+menu replays it, and `make reset-tour TENANT= EMAIL= [ENV=staging]` resets it for
 testing. Code: `frontend/src/client/Tour.ts`.
 
 **Built: the static example project, with an "explore" tour.** Code:
@@ -1499,9 +1508,8 @@ the reserved address (a migration).
   projects list was considered and rejected: while there are no projects, the
   steps are on screen too, above it.
 
-**Built: the painel tour.** "?" in the painel's top bar (desktop and phone),
-also in the account menu and the phone's drawer (22 Oct 2026),
-starts a short Driver.js tour: "Novo projeto", a project's card and its "⋯"
+**Built: the painel tour.** "Ver o tour do painel" in the account menu and the
+phone's drawer starts a short Driver.js tour: "Novo projeto", a project's card and its "⋯"
 menu, Configurações and Primeiros passos, each left out when it isn't on the
 screen. Its last step, "Ver o exemplo", opens the example project, whose own
 tour then starts. It stores nothing and never starts on its own. Code:
