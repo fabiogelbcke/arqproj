@@ -714,20 +714,18 @@ function Stage({
 }
 
 /** For the office's signed-in staff only (the prototype's dock): back to the
- *  painel, view or edit, copy its link, and the tour again. Nothing about
+ *  painel, view or edit, and copy its link. Nothing about
  *  publishing: no drafts for now (A35). */
 function StaffBar({
   page,
   ready,
   editing,
   onMode,
-  onTour,
 }: {
   page: Page;
   ready: boolean;
   editing: boolean;
   onMode: (editing: boolean) => void;
-  onTour: () => void; // "?": the guided tour again
 }) {
   const { t } = useTranslation();
   const staff = page.staff!;
@@ -771,11 +769,6 @@ function StaffBar({
       >
         <Icon name="link" />
       </button>
-      {!archived && (
-        <button className="iconbtn dock__help" type="button" aria-label={t("tour.again")} title={t("tour.again")} onClick={onTour}>
-          ?
-        </button>
-      )}
     </nav>
   );
 }
@@ -830,7 +823,7 @@ export function ProjectPage({
   ready?: boolean; // the staff session's CSRF token is in hand
   tourSeen?: boolean; // false: this staff account hasn't had the tour yet
   onChanged?: () => void;
-  onTour?: () => void; // "?" runs this tour instead (the example project's)
+  onTour?: () => void; // the menu's tour runs this instead (the example project's)
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -841,7 +834,8 @@ export function ProjectPage({
   const moved = useBalancedColumns(mainColumn, sideColumn);
   const stageFiles = useStageFiles(slug, page);
   const [editing, setEditing] = useState(false);
-  // The guided tour (Tour.ts, loaded only for staff): once per account, then from "?".
+  // The guided tour (Tour.ts, loaded only for staff): once per account, then from the account menu
+  // (not on an archived page, which can't be edited).
   const tour = (first: boolean) =>
     void import("./Tour").then(({ startTour }) =>
       startTour({ t, enterEdit: () => setEditing(true), markSeen: first }),
@@ -977,7 +971,7 @@ export function ProjectPage({
         office={page.office}
         painel={!!page.staff}
         person={page.staff ? person : null}
-        onTour={page.staff ? (onTour ?? (() => tour(false))) : undefined}
+        onTour={page.staff && page.staff.status !== "archived" ? (onTour ?? (() => tour(false))) : undefined}
         onSignOut={page.staff ? onSignOut : undefined}
         tools={
           stageFiles && (
@@ -1215,7 +1209,6 @@ export function ProjectPage({
             setOpenEditor(null);
             setEditingStages(new Set());
           }}
-          onTour={onTour ?? (() => tour(false))}
         />
       )}
       {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}

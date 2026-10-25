@@ -8,7 +8,6 @@ import { useMe, useSignedOut } from "../session/session";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { HeaderMenu } from "../ui/HeaderMenu";
 import { OfficeBrand } from "../ui/OfficeBrand";
-import { IconButton } from "../ui/IconButton";
 import styles from "../pages/pages.module.css";
 import { MobileMenu } from "./MobileMenu";
 
@@ -28,7 +27,7 @@ export function SignedInLayout() {
     },
   });
 
-  // The painel's tour, on demand only (plan section 16): from "?" and the menus. Loaded when asked for.
+  // The painel's tour, on demand only (plan section 16): from the account menu and the phone's drawer. Loaded when asked for.
   const startTour = () => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }));
 
   if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
@@ -57,9 +56,6 @@ export function SignedInLayout() {
               {t("nav.settings")}
             </NavLink>
           </nav>
-          <IconButton className={styles.help} label={t("painelTour.again")} onPress={startTour}>
-            ?
-          </IconButton>
           <div className={styles.barActions}>
             <HeaderMenu
               person={me.data}

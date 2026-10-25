@@ -6,7 +6,8 @@ import { ErrorNotice } from "../ui/ErrorNotice";
 import { useDrive } from "./drive";
 
 /** Office-wide: the Drive connection expired, or its folder can't be read. (Not
- *  connected yet is the first of the painel's first steps, not a notice.) */
+ *  connected yet is the first of the painel's first steps; disconnected, the
+ *  painel's empty state, not notices.) */
 export function DriveNotice() {
   const { t } = useTranslation();
   const drive = useDrive();

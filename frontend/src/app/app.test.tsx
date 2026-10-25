@@ -6,7 +6,7 @@ import { safeNext } from "../pages/SignInPage";
 import { startPainelTour } from "./PainelTour";
 import { fakeApi, ME, notSignedIn, renderAt, TENANT } from "../test/render";
 
-// The painel tour runs Driver.js on the real screen; here only that "?" starts it.
+// The painel tour runs Driver.js on the real screen; here only that its menu items start it.
 vi.mock("./PainelTour", () => ({ startPainelTour: vi.fn() }));
 
 afterEach(() => {
@@ -153,20 +153,12 @@ describe("signed in", () => {
 });
 
 describe("the painel tour", () => {
-  it("starts from \"?\" in the top bar, and only from there", async () => {
+  it("starts from the account menu and the phone's drawer, never on its own", async () => {
     fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
     renderAt("/");
     await screen.findByRole("heading", { name: "Projetos" });
     await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(startPainelTour).not.toHaveBeenCalled(); // never on its own
-    await userEvent.click(screen.getByRole("button", { name: "Ver o tour do painel" }));
-    await waitFor(() => expect(startPainelTour).toHaveBeenCalledTimes(1));
-  });
-
-  it("starts from the account menu and the phone's drawer too", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
-    renderAt("/");
-    await screen.findByRole("heading", { name: "Projetos" });
+    expect(startPainelTour).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Ver o tour do painel" }));
     await waitFor(() => expect(startPainelTour).toHaveBeenCalledTimes(1));

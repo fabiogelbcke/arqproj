@@ -341,6 +341,48 @@ describe("the project list", () => {
   });
 });
 
+describe("with Google Drive disconnected", () => {
+  const GOOGLE = { kind: "google", reader_status: "ok", account_email: "ana@alinea.example", folder_url: null, can_manage: true, has_folder: true };
+  const DISCONNECTED = { ...GOOGLE, writer_status: "none" };
+
+  it("hides the projects, the search and Novo projeto, and offers to reconnect", async () => {
+    api(DISCONNECTED);
+    renderAt("/");
+    const state = await screen.findByRole("region", { name: "Google Drive desconectado" });
+    expect(within(state).getByText(/Os arquivos continuam na pasta do Drive/)).toBeVisible();
+    await userEvent.click(within(state).getByRole("button", { name: "Reconectar" }));
+    expect(await screen.findByRole("heading", { name: "Google Drive" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("link", { name: "Projetos" }));
+    await screen.findByRole("region", { name: "Google Drive desconectado" });
+    expect(screen.queryAllByTestId("project-card")).toHaveLength(0);
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Novo projeto" })).toBeNull();
+    expect(screen.queryByText("Casa Jardim")).toBeNull();
+  });
+
+  it("tells a member the owner reconnects", async () => {
+    api({ ...DISCONNECTED, can_manage: false });
+    renderAt("/");
+    const state = await screen.findByRole("region", { name: "Google Drive desconectado" });
+    expect(within(state).getByText(/até que o responsável pelo escritório reconecte/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Reconectar" })).toBeNull();
+    expect(screen.queryAllByTestId("project-card")).toHaveLength(0);
+  });
+
+  // Only a deliberate disconnect hides them: an expired grant keeps the client
+  // pages working, and a never-connected office has its first steps.
+  it.each([
+    ["expired", { ...GOOGLE, writer_status: "expired" }],
+    ["connected", { ...GOOGLE, writer_status: "connected" }],
+    ["never connected", { ...NONE, has_folder: false }],
+  ])("shows the projects when Drive is %s", async (_, drive) => {
+    api(drive);
+    renderAt("/");
+    const active = await screen.findByRole("region", { name: "Em andamento" });
+    expect(within(active).getAllByTestId("project-card")).toHaveLength(3);
+  });
+});
+
 describe("Novo projeto", () => {
   it("closes from its × without creating anything", async () => {
     const sent = api();
