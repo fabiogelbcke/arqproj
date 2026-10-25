@@ -58,6 +58,7 @@ from backend.projects.models import (
     StageDef,
 )
 from backend.security import keys
+from backend.storage.models import StorageConnection
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
@@ -323,13 +324,18 @@ async def _readable(
     project, current = await _find(db, slug, staff)
     if project is None or current != slug:
         raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
+    # Drive disconnected: every page of the office is offline, files and all
+    # (plan section 9); staff too, who see why.
+    connection = await db.scalar(select(StorageConnection))
+    if connection is not None and connection.disconnected:
+        raise ApiError(503, ErrorCode.PAGE_UNAVAILABLE)
     locked = project.access_mode is AccessMode.PASSWORD and not _unlocked(request, project)
     if locked and staff is None:
         raise ApiError(403, ErrorCode.PAGE_LOCKED)  # the password step comes in 2.4
     return project
 
 
-@router.get("/api/pages/{slug}", responses=documented(403, 404))
+@router.get("/api/pages/{slug}", responses=documented(403, 404, 503))
 async def page(
     request: Request,
     slug: str,

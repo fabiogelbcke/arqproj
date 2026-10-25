@@ -155,7 +155,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await seen;
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Ver como cliente" }).click();
-  await page.getByRole("heading", { name: "Etapas e próximos passos" }).waitFor();
+  await page.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
   // The file tools: the list view, then a file's preview.

@@ -237,6 +237,7 @@
     "unknown_project_type": "Choose a project type.",
     "unknown_stage": "One of the chosen stages no longer exists. Reload the page and try again.",
     "page_not_found": "We couldn't find this page. Check the link with the office.",
+    "page_unavailable": "This page is temporarily unavailable. Please try again later.",
     "page_locked": "This page is protected by a password.",
     "wrong_page_password": "Wrong password. Check it with the office.",
     "too_many_attempts": "Too many attempts. Try again in 15 minutes.",
@@ -398,7 +399,7 @@
     "back": "Back",
     "done": "Done",
     "progress": "{{current}} of {{total}}",
-    "again": "Page tour"
+    "again": "Help"
   },
   "page": {
     "stageDoneMark": "Stage done",
@@ -407,7 +408,7 @@
     "noFilesBody": "They'll show up here as soon as the office sends them.",
     "noFilesDone": "This stage was finished without files.",
     "loading": "Loading…",
-    "journeyTitle": "Stages and next steps",
+    "journeyTitle": "Project stages",
     "timeline": "Project stages",
     "stages": "Stages",
     "stageDone": "Done",
@@ -434,6 +435,9 @@
     "otherCalendar": "Apple / Outlook",
     "notFoundTitle": "Page not found",
     "notFoundBody": "Check the link with the office. If the project moved, ask for the new link.",
+    "unavailableTitle": "Page unavailable",
+    "unavailableBody": "This page is temporarily unavailable. Please try again later.",
+    "unavailableStaff": "The office's Google Drive is disconnected. Reconnect it in Settings so clients can see their pages again.",
     "lockedTitle": "Protected page",
     "lockedBody": "This page is protected by a password. Enter the password the office sent you; this device stays unlocked for 90 days.",
     "cover": "Cover of the project {{name}}",

@@ -206,7 +206,9 @@
   text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
 }
 .emailList { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
-.emailList legend { padding: 0; margin-bottom: 8px; }
+/* Floated, the legend is a plain full-width line (Bootstrap's reboot): iPhone
+   Safari otherwise squeezed "E-mails do cliente" to one word a line. */
+.emailList legend { float: left; width: 100%; padding: 0; }
 .emailListItems { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .emailListItem {
   display: flex; align-items: center; gap: 10px; min-height: var(--control-small);
@@ -360,3 +362,14 @@
    the one warm colour (it marks progress). */
 .completionBar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
 .completionBar > i { display: block; height: 100%; border-radius: inherit; background: var(--warm); transition: width 0.3s; }
+
+/* UnioMark: the light theme's logo or the dark theme's (light letters). */
+.unioMark { display: inline-flex; }
+.unioMark img { display: block; width: auto; }
+.unioDark { display: none !important; }
+:global(:root[data-theme="dark"]) .unioLight { display: none !important; }
+:global(:root[data-theme="dark"]) .unioDark { display: block !important; }
+/* UnioFooter: small and faded, brighter on hover. */
+.unioFooter { display: inline-flex; opacity: 0.55; transition: opacity 0.2s; }
+.unioFooter:hover, .unioFooter:focus-visible { opacity: 0.9; }
+.unioFooter img { height: 14px; }

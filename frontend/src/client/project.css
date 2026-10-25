@@ -21,6 +21,7 @@
    menu beside the bell would push it off a phone's screen. */
 .client .client-header-tools .client-notifications { position: static; }
 .client .client-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
   margin-top: 56px; font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase;
   color: var(--muted);
 }
@@ -67,7 +68,7 @@
 .client .desc p, .client .desc ul { margin: 0 0 8px; }
 .client .desc__empty { color: var(--muted); }
 
-/* "Etapas e próximos passos": the stages (complete in any order), each with a bare
+/* "Etapas do projeto": the stages (complete in any order), each with a bare
    check or a dot, under a thin bar of how many are completed; each opens its stage below. */
 .client .journey-intro h2 { margin: 0 0 10px; font: 500 16px/1.3 var(--display-font); letter-spacing: -0.01em; }
 .client .stage-completion { display: grid; gap: 6px; margin: 0 0 14px; font-size: var(--text-2xs); color: var(--muted); }
@@ -87,6 +88,9 @@
 /* A completed stage: a soft lime (the staff bar's "done and good" colour) and a
    dark check. */
 .client .stage-steps__item.is-done > button { background: var(--lime-soft); }
+/* Dark theme: a brighter, solid green for the list's completed stages (Fabio, 25 Oct
+   2026); a see-through lime only turned olive grey. */
+:root[data-theme="dark"] .client .stage-steps__item.is-done > button { background: #9aa56a; }
 .client .stage-mark { display: grid; place-items: center; width: 20px; height: 20px; }
 .client .stage-steps__item.is-done .stage-mark { border-radius: 50%; background: var(--mark); color: var(--raise); }
 .client .stage-mark svg { width: 13px; height: 13px; }
@@ -197,12 +201,12 @@
 .client .stage:not(.current):not(.is-expanded) .pill.pill--done {
   border-color: color-mix(in srgb, var(--done-ink) 35%, transparent); background: var(--lime-soft); color: var(--done-ink);
 }
-.client .stage__progress { margin-left: auto; }
 /* The body under the title (the number's column stays empty), never wider than the panel. */
 .client .cwrap .stage .stage__body { grid-column: 2; min-width: 0; }
 .client .cwrap .stage { --stage-content-indent: 0px; } /* the body lines up with the title */
 .client .cwrap .stage + .stage { margin-top: 10px; }
 .client .client-stage-controls .b, .client .client-stage-controls .iconbtn { background: var(--raise); border: 1px solid var(--line); color: var(--ink); }
+.client .client-stage-controls .b.b--primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .client .stage .ghostline {
   display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px; border: 1px solid var(--line);
   border-radius: var(--r-pill); background: var(--raise); color: var(--ink); font-size: var(--text-xs); cursor: pointer;
@@ -277,6 +281,14 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
   .client .project-opening, .client .project-layout { grid-template-columns: minmax(0, 1fr); }
   .client .cwrap .stage { grid-template-columns: 32px minmax(0, 1fr); padding: 10px 12px; }
   .client .cwrap .stage .stage__meta { margin-top: 4px; }
+  /* Edit mode: the name, the pencil and the arrow on the title's row; "Marcar como
+     concluída" under them on the right, only while the stage is open. */
+  .client.editing .cwrap .stage:not(.is-editing) .stage__title {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto auto; column-gap: 8px;
+  }
+  .client.editing .cwrap .stage:not(.is-editing) .client-stage-controls { display: contents; }
+  .client.editing .cwrap .stage:not(.is-editing) .stage-progress { grid-row: 2; grid-column: 1 / -1; justify-self: end; margin-top: 8px; }
+  .client.editing .cwrap .stage:not(.is-expanded) .stage-progress { display: none; }
   .client .client-file-tools { margin-top: 24px; }
   .client .file-tools__controls { margin-left: 0; }
 }

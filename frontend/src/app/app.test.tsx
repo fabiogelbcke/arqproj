@@ -78,16 +78,25 @@ describe("signing in", () => {
     expect(screen.queryByTitle("Caps Lock ativado")).toBeNull();
   });
 
-  it("leaves Caps Lock to Apple's own mark on a Mac", async () => {
+  const SAFARI = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
+  const CHROME = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+  it.each([
+    ["leaves it to Apple's own mark in Safari on a Mac", SAFARI, 0, false],
+    ["shows it in Chrome on a Mac, where the system shows none", CHROME, 0, true],
+    ["leaves it to the system on an iPad, in any browser", CHROME, 5, false],
+  ])("Caps Lock: %s", async (_, userAgent, touchPoints, shown) => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(userAgent);
+    Object.defineProperty(navigator, "maxTouchPoints", { value: touchPoints, configurable: true }); // not in jsdom
     fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
     renderAt("/entrar");
     const password = await screen.findByLabelText(/Senha/);
     const user = userEvent.setup();
     await user.click(password);
     await user.keyboard("{CapsLock}A");
-    expect(screen.queryByTitle("Caps Lock ativado")).toBeNull();
+    expect(screen.queryByTitle("Caps Lock ativado") !== null).toBe(shown);
     vi.restoreAllMocks();
+    Reflect.deleteProperty(navigator, "maxTouchPoints");
   });
 
   it("uses the office's language before anyone signs in", async () => {

@@ -11,6 +11,7 @@ import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
 import { Toaster, toast } from "../ui/Toast";
+import { UnioFooter } from "../ui/UnioMark";
 import { EditButton, openOnClick } from "./EditButton";
 import { useBalancedColumns } from "./balance";
 import { Subscribe } from "./Subscribe";
@@ -639,6 +640,8 @@ function Stage({
                 <span>{t("edit.editStage")}</span>
               </button>
             )}
+            {/* "Marcar como concluída" / "Reabrir etapa" beside "Editar etapa" (Fabio, 25 Oct 2026). */}
+            {progress && !parts && progress}
             {!parts && (
               <button
                 className="iconbtn"
@@ -665,7 +668,6 @@ function Stage({
                 : t("page.noFilesShort")}
             </span>
           )}
-          {progress && !parts && <span className="stage__progress">{progress}</span>}
         </p>
       </div>
       <div className="stage__body" id={`stage-body-${index}`} aria-hidden={!open} inert={!open}>
@@ -1197,7 +1199,10 @@ export function ProjectPage({
             </Suspense>
           </div>
         )}
-        <footer className="client-footer">{page.office.name}</footer>
+        <footer className="client-footer">
+          <span>{page.office.name}</span>
+          <UnioFooter />
+        </footer>
       </div>
       {page.staff && (
         <StaffBar

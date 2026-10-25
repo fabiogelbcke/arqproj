@@ -145,6 +145,43 @@ async def test_the_page_needs_no_sign_in_and_reveals_no_internal_ids(client, own
         assert secret not in shown
 
 
+# -- Drive disconnected -----------------------------------------------------------
+
+
+async def set_drive(db, writer_status):
+    """Alinea's storage as a Google connection in this state (its folder on record)."""
+    await db.execute(
+        text(
+            "UPDATE storage_connections SET kind = 'google', root_id = 'root1',"
+            " reader_identity = 'reader@unio.example', writer_token = NULL,"
+            " writer_status = :w WHERE tenant_id = :t"
+        ),
+        {"w": writer_status, "t": await tenant_id(db, "alinea")},
+    )
+
+
+async def test_a_disconnected_offices_pages_are_offline_for_everyone(client, db_session, owner):
+    """Plan section 9: "Desconectar" takes every page offline, files and all,
+    and staff get the same answer (their page explains it)."""
+    await set_drive(db_session, "none")
+    for slug in ("casa-jardim", "refugio-da-mantiqueira"):  # public and protected alike
+        response = await page(client, slug)  # as staff
+        assert (response.status_code, response.json()) == (503, {"error": "page_unavailable"})
+    files = await client.get("/api/pages/casa-jardim/files", headers=ALINEA)
+    assert files.status_code == 503
+    client.cookies.clear()  # a visitor
+    assert (await page(client, "casa-jardim")).status_code == 503
+    assert (await page(client, "no-such-page")).status_code == 404  # still not told apart
+    # Another office's pages are its own business.
+    assert (await page(client, "casa-jardim", NORTE)).status_code == 200
+
+
+async def test_an_expired_grant_keeps_the_pages_online(client, db_session, owner):
+    await set_drive(db_session, "expired")
+    client.cookies.clear()
+    assert (await page(client, "casa-jardim")).status_code == 200
+
+
 # -- the cover and the calendar file -----------------------------------------------
 
 
