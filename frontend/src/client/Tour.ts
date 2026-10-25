@@ -1,8 +1,8 @@
 // The project page's guided tour for staff (Driver.js), in edit mode: the
 // view/edit switch, the pencils, the current stage, uploading files and the
 // page's link. Once per account (POST /api/me/tour-seen when it ends, however it
-// ends); "?" in the staff bar replays it. A step whose part isn't on this page
-// (no stages yet, say) is left out. Loaded only when it runs.
+// ends); "Ver o tour da página" in the account menu replays it. A step whose
+// part isn't on this page (no stages yet, say) is left out. Loaded only when it runs.
 import { driver, type DriveStep } from "driver.js";
 import "../ui/tour.css";
 import type { TFunction } from "i18next";

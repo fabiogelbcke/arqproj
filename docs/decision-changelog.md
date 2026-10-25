@@ -19,6 +19,20 @@ a new entry too.
 
 ---
 
+## 2026-10-25 — Section 16: tours from the menus, no "?" buttons
+
+**Was:** a "?" button started each area's tour: in the project page's staff bar
+(the setup tour) and the painel's top bar (the painel tour). The account menus
+and the phone's drawer gained the same item on 22 Oct 2026, so each tour had two
+ways in.
+
+**Now:** only the menus ("Ver o tour da página", "Ver o tour do painel"). An
+archived project's menu doesn't offer its tour, as its staff bar didn't.
+
+**Why:** Fabio, 25 Oct 2026: the "?" duplicated the menu item and took room in
+bars that are tight on phones. The setup tour still starts by itself on a staff
+member's first project page, so nobody depends on finding it.
+
 ## 2026-10-23 — Section 10, A28, A32: stages complete independently
 
 **Was:** a project had one current stage. Staff moved it on with "Marcar etapa

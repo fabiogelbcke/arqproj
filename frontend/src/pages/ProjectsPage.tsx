@@ -1,7 +1,8 @@
 import { useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
+import { driveDisconnected, useDrive } from "../drive/drive";
 import { DriveNotice } from "../drive/DriveNotice";
 import { FirstSteps } from "../drive/FirstSteps";
 import { NewProjectDialog } from "../projects/NewProjectDialog";
@@ -108,6 +109,27 @@ function NoProjectsYet() {
   );
 }
 
+/** Drive disconnected: the projects hidden, in the empty state's shape; the
+ *  owner goes to reconnect (the settings page says which account it was). */
+function DriveDisconnected({ canManage }: { canManage: boolean }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  return (
+    <section className={styles.emptyState} aria-labelledby="projects-disconnected">
+      <GhostCards />
+      <div className={styles.emptyText}>
+        <h2 id="projects-disconnected">{t("projects.disconnectedTitle")}</h2>
+        <p>{t(canManage ? "projects.disconnectedBody" : "projects.disconnectedMember")}</p>
+        {canManage && (
+          <Button variant="primary" className={styles.emptyAction} onPress={() => navigate("/configuracoes/drive")}>
+            {t("drive.reconnect")}
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 /** Faded cards in the list's shape: where projects will be, or are loading. */
 function GhostCards() {
   return (
@@ -128,6 +150,9 @@ export function ProjectsPage() {
   const { t, i18n } = useTranslation();
   const projects = useProjects();
   const me = useMe();
+  // Drive disconnected: no projects, no search, no "+"; the empty state says why.
+  const drive = useDrive();
+  const hidden = driveDisconnected(drive.data);
   const timeZone = me.data?.tenant_timezone ?? "America/Sao_Paulo";
   // The search and the type are in the address (?q=…&type=…): back from a
   // project, a reload or a shared link keeps them. Typing replaces the entry
@@ -177,7 +202,7 @@ export function ProjectsPage() {
   // No drafts for now (A35); one left in the database is listed with the live ones.
   const active = shown.filter((p) => p.status === "active" || p.status === "draft");
   const completed = shown.filter((p) => p.status === "completed");
-  const hasAny = (projects.data?.length ?? 0) > 0;
+  const hasAny = !hidden && (projects.data?.length ?? 0) > 0;
   const filtering = query.trim() !== "" || type !== ALL_TYPES;
 
   return (
@@ -231,14 +256,16 @@ export function ProjectsPage() {
         )}
       </div>
       <DriveNotice />
-      <FirstSteps />
+      {!hidden && <FirstSteps />}
       {/* Screen readers hear how many a search or a chip leaves (WCAG 4.1.3). */}
       <p className="sr-only" role="status">
         {projects.data && filtering ? t("projects.resultCount", { count: shown.length }) : ""}
       </p>
-      {projects.error ? (
+      {hidden ? (
+        <DriveDisconnected canManage={drive.data?.can_manage ?? false} />
+      ) : projects.error ? (
         <ErrorNotice error={projects.error} />
-      ) : !projects.data ? (
+      ) : !projects.data || drive.isPending ? (
         <div className={styles.loading} aria-busy="true">
           <p className="sr-only">{t("app.loading")}</p>
           <GhostCards />

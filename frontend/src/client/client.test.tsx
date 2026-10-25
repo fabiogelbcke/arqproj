@@ -609,7 +609,8 @@ describe("edit mode", () => {
     render(<ClientApp />);
     await waitFor(() => expect(tour.startTour).toHaveBeenCalledTimes(1));
     expect(tour.startTour.mock.calls[0]![0]).toMatchObject({ markSeen: true });
-    await userEvent.click(screen.getByRole("button", { name: "Ver o tour da página" }));
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Ver o tour da página" }));
     await waitFor(() => expect(tour.startTour).toHaveBeenCalledTimes(2));
     expect(tour.startTour.mock.calls[1]![0]).toMatchObject({ markSeen: false });
   });
@@ -1108,7 +1109,7 @@ describe("edit mode", () => {
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ project_type: "renovation" });
   });
 
-  it("doesn't offer Editar on an archived project", async () => {
+  it("doesn't offer Editar, nor the tour (it edits), on an archived project", async () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
@@ -1122,6 +1123,9 @@ describe("edit mode", () => {
     const editar = within(bar).getByRole("button", { name: "Editar" });
     expect(editar).toBeDisabled();
     expect(editar).toHaveAttribute("title", expect.stringContaining("desarquive"));
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    await screen.findByRole("menuitem", { name: "Sair" });
+    expect(screen.queryByRole("menuitem", { name: "Ver o tour da página" })).toBeNull();
   });
 
   function stagePage(stages: () => Page["stages"], version: () => number, extra: Parameters<typeof fakeApi>[0] = {}) {

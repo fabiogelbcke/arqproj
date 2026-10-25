@@ -81,6 +81,19 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
+  // Drive disconnected ("Desconectar"): the projects hidden behind the empty state.
+  await page.route("**/api/drive", (route) =>
+    route.fulfill({
+      json: { kind: "google", writer_status: "none", reader_status: "ok", account_email: "ana@alinea.example",
+              folder_url: null, can_manage: true, has_folder: true },
+    }),
+  );
+  await page.reload();
+  await page.getByRole("region", { name: "Google Drive desconectado" }).waitFor();
+  await shoot(page, "03g-drive-desconectado");
+  await page.unroute("**/api/drive");
+  await page.reload();
+  await page.getByRole("region", { name: "Em andamento" }).waitFor();
   // Phones: the ☰ menu, open (a phone-only screen).
   await page.evaluate(() => (document.documentElement.dataset.theme = "light"));
   await page.setViewportSize(SIZES[1]!);
