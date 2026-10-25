@@ -4,6 +4,12 @@
     "loading": "Loading…",
     "close": "Close"
   },
+  "footer": {
+    "tagline": "Projects connect people.",
+    "links": "Legal information",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use"
+  },
   "nav": {
     "skipToContent": "Skip to content",
     "projects": "Projects",

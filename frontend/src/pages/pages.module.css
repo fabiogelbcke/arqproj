@@ -47,8 +47,8 @@
   translate: 0 -200%;
 }
 .skipLink:focus { translate: 0 0; }
-/* Unio's logo at the end of every painel screen, on the right. */
-.footer { justify-self: end; margin-top: 24px; }
+/* Unio's footer at the end of every painel screen. */
+.footer { margin-top: 24px; }
 .main:focus { outline: none; } /* focused by the skip link, not by people */
 .topbarIn {
   max-width: 1600px; margin: 0 auto; padding: 0 clamp(16px, 4.5vw, 88px); min-height: 72px;

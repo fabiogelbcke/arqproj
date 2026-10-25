@@ -11,7 +11,7 @@ import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
 import { Toaster, toast } from "../ui/Toast";
-import { UnioFooter } from "../ui/UnioMark";
+import { SiteFooter } from "../ui/UnioMark";
 import { EditButton, openOnClick } from "./EditButton";
 import { useBalancedColumns } from "./balance";
 import { Subscribe } from "./Subscribe";
@@ -1199,10 +1199,7 @@ export function ProjectPage({
             </Suspense>
           </div>
         )}
-        <footer className="client-footer">
-          <span>{page.office.name}</span>
-          <UnioFooter />
-        </footer>
+        <SiteFooter office={page.office.name} className="client-footer" />
       </div>
       {page.staff && (
         <StaffBar

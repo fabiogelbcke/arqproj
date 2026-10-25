@@ -176,6 +176,17 @@ async def test_a_disconnected_offices_pages_are_offline_for_everyone(client, db_
     assert (await page(client, "casa-jardim", NORTE)).status_code == 200
 
 
+async def test_a_disconnected_offices_link_previews_show_nothing_of_the_project(
+    client, db_session, dist, owner
+):
+    await set_drive(db_session, "none")
+    client.cookies.clear()
+    shell = await client.get("/casa-jardim", headers=ALINEA)
+    assert shell.status_code == 503
+    assert "Casa Jardim" not in shell.text and "Alinea (dev)" in shell.text
+    assert (await client.get("/no-such-page", headers=ALINEA)).status_code == 404
+
+
 async def test_an_expired_grant_keeps_the_pages_online(client, db_session, owner):
     await set_drive(db_session, "expired")
     client.cookies.clear()

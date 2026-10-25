@@ -317,6 +317,13 @@ def _unlocked(request: Request, project: Project) -> bool:
     return found.get("p") == str(project.id) and found.get("v") == project.access_version
 
 
+async def _offline(db: AsyncSession) -> bool:
+    """The office disconnected its Drive: every page is offline, link previews
+    included (plan section 9)."""
+    connection = await db.scalar(select(StorageConnection))
+    return connection is not None and connection.disconnected
+
+
 async def _readable(
     db: AsyncSession, slug: str, staff: CurrentStaff | None, request: Request
 ) -> Project:
@@ -324,10 +331,8 @@ async def _readable(
     project, current = await _find(db, slug, staff)
     if project is None or current != slug:
         raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
-    # Drive disconnected: every page of the office is offline, files and all
-    # (plan section 9); staff too, who see why.
-    connection = await db.scalar(select(StorageConnection))
-    if connection is not None and connection.disconnected:
+    # Files and all; staff too, who see why.
+    if await _offline(db):
         raise ApiError(503, ErrorCode.PAGE_UNAVAILABLE)
     locked = project.access_mode is AccessMode.PASSWORD and not _unlocked(request, project)
     if locked and staff is None:
@@ -563,6 +568,9 @@ async def shell(
         status, title = 200, office
     elif project is None:
         status, title = 404, office
+    elif await _offline(db):
+        # Nothing of the project in its link preview either.
+        status, title = 503, office
     elif project.access_mode is AccessMode.PASSWORD:
         # The name of a protected project stays private, even in link previews.
         status, title = 200, office
