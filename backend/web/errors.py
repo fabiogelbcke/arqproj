@@ -87,6 +87,8 @@ class ErrorCode(StrEnum):
     SHARE_TOO_LARGE = "share_too_large"  # over 300 MB of files
     SHARE_FILES_CHANGED = "share_files_changed"  # a file picked left the page meanwhile: reload
     SHARE_DAILY_LIMIT = "share_daily_limit"  # the link served its day's downloads
+    SHARE_LOCKED = "share_locked"  # the link has a password, not typed on this device
+    WRONG_SHARE_PASSWORD = "wrong_share_password"
 
 
 class ErrorOut(BaseModel):

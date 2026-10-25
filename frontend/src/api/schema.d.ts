@@ -566,7 +566,7 @@ export interface paths {
         };
         /**
          * Project Shares
-         * @description Every link of the project, newest first, for staff.
+         * @description Every link of the project, newest first, for staff, with its address.
          */
         get: operations["project_shares_api_pages__slug__shares_get"];
         put?: never;
@@ -647,6 +647,26 @@ export interface paths {
         get: operations["shared_api_share__token__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/share/{token}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlock Share
+         * @description The supplier types the link's password once per device.
+         */
+        post: operations["unlock_share_api_share__token__unlock_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1245,7 +1265,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit";
+        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -1742,6 +1762,8 @@ export interface components {
             /** Label */
             label?: string | null;
             expiry: components["schemas"]["ShareExpiry"];
+            /** Password */
+            password?: string | null;
         };
         /** ShareMadeOut */
         ShareMadeOut: {
@@ -1783,6 +1805,10 @@ export interface components {
             downloads: number;
             /** Last Download At */
             last_download_at: string | null;
+            /** Protected */
+            protected: boolean;
+            /** Url */
+            url?: string | null;
         };
         /** SharedFileOut */
         SharedFileOut: {
@@ -1819,6 +1845,8 @@ export interface components {
             files: components["schemas"]["SharedFileOut"][];
             /** Unavailable */
             unavailable: number;
+            /** Zip Size */
+            zip_size?: number | null;
         };
         /** SpaceOut */
         SpaceOut: {
@@ -4093,6 +4121,66 @@ export interface operations {
             };
             /** @description Service Unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    unlock_share_api_share__token__unlock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnlockIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

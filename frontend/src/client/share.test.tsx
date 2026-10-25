@@ -75,6 +75,9 @@ function at(handlers: Record<string, (body: unknown) => { status?: number; body?
 }
 
 beforeEach(() => localStorage.clear());
+
+/** The count and size above the files ("2 arquivos · 6 KB"). */
+const summaryOf = (dialog: HTMLElement) => dialog.querySelector<HTMLElement>(".share-summary")!;
 afterEach(() => vi.unstubAllGlobals());
 
 describe("sharing files by link", () => {
@@ -93,7 +96,7 @@ describe("sharing files by link", () => {
     expect(within(dialog).getByText(/^Escolha os arquivos de 02 Levantamento/)).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Para quem?")).toHaveAttribute("placeholder", "Ex.: Marcenaria Silva");
     expect(within(dialog).getByRole("checkbox", { name: "Selecionar todos os arquivos de 02 Levantamento" })).toBeChecked();
-    expect(within(dialog).getByRole("status")).toHaveTextContent("2 arquivos · 6 KB");
+    expect(summaryOf(dialog)).toHaveTextContent("2 arquivos · 6 KB");
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /Corte\.pdf/ }));
     await userEvent.type(within(dialog).getByLabelText("Para quem?"), "Marcenaria Silva");
     await userEvent.click(within(dialog).getByRole("radio", { name: "7 dias" }));
@@ -104,6 +107,7 @@ describe("sharing files by link", () => {
       files: ["k2"],
       label: "Marcenaria Silva",
       expiry: "7d",
+      password: null,
     });
     expect(JSON.parse(localStorage.getItem("shares:casa-jardim")!)).toEqual([
       { id: "l1", owner: "own-1", url: "http://alinea.localhost/share/tok" },
@@ -126,10 +130,10 @@ describe("sharing files by link", () => {
     // Whole stages first: each stage a checkbox, no files listed.
     expect(within(dialog).queryByRole("checkbox", { name: /Planta\.pdf/ })).toBeNull();
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /02 Levantamento/ }));
-    expect(within(dialog).getByRole("status")).toHaveTextContent("2 arquivos · 6 KB");
+    expect(summaryOf(dialog)).toHaveTextContent("2 arquivos · 6 KB");
     // Picking files: a stage opens to its files, its checkbox in its row.
     await userEvent.click(within(dialog).getByRole("radio", { name: "Escolher arquivos" }));
-    expect(within(dialog).getByRole("status")).toHaveTextContent("Nenhum arquivo selecionado");
+    expect(summaryOf(dialog)).toHaveTextContent("Nenhum arquivo selecionado");
     await userEvent.click(within(dialog).getByRole("button", { name: /02 Levantamento/ }));
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /Corte\.pdf/ }));
     const stage = within(dialog).getByRole("checkbox", { name: "Selecionar todos os arquivos de 02 Levantamento" });
@@ -146,7 +150,7 @@ describe("sharing files by link", () => {
     const dialog = await screen.findByRole("dialog", { name: "Compartilhar arquivos" });
     const make = within(dialog).getByRole("button", { name: "Gerar link" });
     expect(make).toBeDisabled();
-    expect(within(dialog).getByRole("status")).toHaveTextContent("Nenhum arquivo selecionado");
+    expect(summaryOf(dialog)).toHaveTextContent("Nenhum arquivo selecionado");
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /01 Briefing/ }));
     expect(within(dialog).getByText(/O limite é de 300 MB por link/)).toBeInTheDocument();
     expect(make).toBeDisabled();
@@ -195,6 +199,25 @@ describe("sharing files by link", () => {
     expect(screen.queryByRole("button", { name: /^Compartilhar arquivos de / })).toBeNull(); // no stage has files
   });
 
+  it("protects a link with a password of at least 6 characters", async () => {
+    const sent = at({
+      "POST /api/pages/casa-jardim/shares": () => ({
+        status: 201,
+        body: { link: { ...LINK, protected: true }, url: "http://alinea.localhost/share/tok", owner: "own-1" },
+      }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Compartilhar arquivos de Levantamento" }));
+    const dialog = await screen.findByRole("dialog", { name: "Compartilhar arquivos" });
+    await userEvent.type(within(dialog).getByLabelText("Senha (opcional)"), "curta");
+    expect(within(dialog).getByText("A senha precisa ter pelo menos 6 caracteres.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Gerar link" })).toBeDisabled();
+    await userEvent.type(within(dialog).getByLabelText("Senha (opcional)"), "s");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Gerar link" }));
+    const ready = await screen.findByRole("dialog", { name: "Link pronto" });
+    expect(within(ready).getByText("Protegido por senha: envie a senha separadamente.")).toBeInTheDocument();
+    expect(sent.find((r) => r.method === "POST" && r.path.endsWith("/shares"))?.body).toMatchObject({ password: "curtas" });
+  });
+
   it("shows staff every link of the project, and who made each", async () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
@@ -205,7 +228,19 @@ describe("sharing files by link", () => {
       }),
       "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
       "GET /api/pages/casa-jardim/shares": () => ({
-        body: [LINK, { ...LINK, id: "l2", label: null, made_by: "Ana", newer: 0, available: 1, downloads: 0 }],
+        body: [
+          { ...LINK, protected: true },
+          {
+            ...LINK,
+            id: "l2",
+            label: null,
+            made_by: "Ana",
+            newer: 0,
+            available: 1,
+            downloads: 0,
+            url: "http://alinea.localhost/share/outro",
+          },
+        ],
       }),
     });
     render(<ClientApp />);
@@ -216,6 +251,13 @@ describe("sharing files by link", () => {
     expect(within(links).getByText("Link sem destinatário")).toBeInTheDocument();
     // Portuguese counts 0 as singular: no download reads as none, not as one.
     expect(within(links).getByText(/^Ana · 1 de 2 arquivos disponíveis · Nenhum download$/)).toBeInTheDocument();
+    expect(within(links).getByText("Com senha")).toBeInTheDocument();
+    // Staff copy a link someone else made: the list has its address.
+    const clipboard = { writeText: vi.fn(async () => undefined) };
+    vi.stubGlobal("navigator", { ...navigator, clipboard });
+    const anas = within(links).getByText("Link sem destinatário").closest("li")!;
+    await userEvent.click(within(anas).getByRole("button", { name: "Copiar link" }));
+    expect(clipboard.writeText).toHaveBeenCalledWith("http://alinea.localhost/share/outro");
     expect(within(links).getByText(/^Ana · 1 de 2/)).toBeInTheDocument();
   });
 });
@@ -249,6 +291,64 @@ describe("the supplier's page", () => {
     expect(screen.getByText("Para: Marcenaria Silva · Disponível até 24/11/2026")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Baixar Planta v2.pdf" })).toHaveAttribute("href", "/api/share/tok/files/s1");
     expect(screen.getByText("2 arquivos compartilhados não estão mais disponíveis.")).toBeInTheDocument();
+  });
+
+  it("asks for the link's password, then shows the files and \"Baixar tudo\"", async () => {
+    let unlocked = false;
+    const shared = {
+      office: PAGE.office,
+      locale: "pt-BR",
+      timezone: "America/Sao_Paulo",
+      project: "Casa Jardim",
+      label: null,
+      expires_at: null,
+      files: [
+        { key: "s1", name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z", stage: "01 Briefing" },
+        { key: "s2", name: "Corte.pdf", kind: "pdf", size: 1024, modified_at: "2026-10-10T12:00:00Z", stage: "01 Briefing" },
+      ],
+      unavailable: 0,
+      zip_size: 3500,
+    };
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/share/tok": () => (unlocked ? { body: shared } : { status: 403, body: { error: "share_locked" } }),
+      "POST /api/share/tok/unlock": (body) => {
+        unlocked = (body as { password: string }).password === "marcenaria";
+        return unlocked ? { status: 204 } : { status: 401, body: { error: "wrong_share_password" } };
+      },
+    });
+    render(<SharePage token="tok" />);
+    expect(await screen.findByRole("heading", { name: "Arquivos protegidos" })).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Senha"), "errada");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Senha incorreta. Confira com quem enviou o link.");
+    await userEvent.clear(screen.getByLabelText("Senha"));
+    await userEvent.type(screen.getByLabelText("Senha"), "marcenaria");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(await screen.findByRole("link", { name: "Baixar tudo (3,4 KB)" })).toHaveAttribute("href", "/api/share/tok/zip");
+    expect(sent.filter((r) => r.path.endsWith("/unlock"))).toHaveLength(2);
+  });
+
+  it("shows the example project's link from this browser", async () => {
+    localStorage.setItem(
+      "example-share",
+      JSON.stringify({
+        project: "Casa Exemplo",
+        label: "Marcenaria Silva",
+        expires_at: null,
+        files: [
+          { name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z", stage: "01 Briefing", url: "/painel/assets/planta.pdf" },
+          { name: "Enviado.pdf", kind: "pdf", size: 10, modified_at: "2026-10-10T12:00:00Z", stage: "01 Briefing", url: "blob:x" },
+        ],
+      }),
+    );
+    fakeApi({ "GET /api/tenant": () => ({ body: { ...TENANT, logo_url: null, logo_dark_url: null } }) });
+    render(<SharePage token="exemplo" />);
+    expect(await screen.findByText("Arquivos do projeto Casa Exemplo, compartilhados por Alinea.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Baixar Planta.pdf" })).toHaveAttribute("href", "/painel/assets/planta.pdf");
+    // A file uploaded into the example lived only on its page.
+    expect(screen.getByText("1 arquivo compartilhado não está mais disponível.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Baixar tudo/ })).toBeNull();
   });
 
   it("says when a link no longer works", async () => {

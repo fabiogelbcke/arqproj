@@ -270,7 +270,9 @@
     "email_code_expired": "Este código não vale mais. Peça um novo código.",
     "email_code_recent": "Enviamos um código há pouco. Aguarde 2 minutos para pedir outro.",
     "email_not_sent": "Não foi possível enviar o e-mail. Tente novamente em alguns minutos.",
-    "already_confirmed": "Este e-mail já foi confirmado. Recarregue a página."
+    "already_confirmed": "Este e-mail já foi confirmado. Recarregue a página.",
+    "share_locked": "Este link é protegido por senha. Volte aos arquivos e digite a senha.",
+    "wrong_share_password": "Senha incorreta. Confira com quem enviou o link."
   },
   "projectStatus": {
     "draft": "Rascunho",
@@ -835,6 +837,14 @@
     }
   },
   "share": {
+    "password": "Senha (opcional)",
+    "passwordHint": "Quem receber o link precisará digitá-la. Envie a senha separadamente do link.",
+    "protectedNote": "Protegido por senha: envie a senha separadamente.",
+    "withPassword": "Com senha",
+    "lockedTitle": "Arquivos protegidos",
+    "lockedBody": "Digite a senha que você recebeu junto com o link.",
+    "downloadAll": "Baixar tudo",
+    "downloadAllSize": "Baixar tudo ({{size}})",
     "newTab": "Novo link",
     "linksTab": "Links criados ({{count}})",
     "pickFilesHint": "Abra uma etapa e marque os arquivos, um a um.",

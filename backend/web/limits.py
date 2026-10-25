@@ -19,7 +19,7 @@ from backend.shares.models import LABEL_MAX as SHARE_LABEL_MAX
 from backend.web.office import NAME_LIMIT as OFFICE_NAME_LIMIT
 from backend.web.page_edit import DESCRIPTION_MAX, DETAIL_TEXT_MAX, NOTES_MAX
 from backend.web.page_stages import STAGE_TITLE_MAX
-from backend.web.project_settings import PAGE_PASSWORD_MAX
+from backend.web.project_settings import PAGE_PASSWORD_MAX, PAGE_PASSWORD_MIN
 from backend.web.shares import SIZE_MAX as SHARE_BYTES_MAX
 from backend.web.team import NAME_MAX as STAFF_NAME_MAX
 
@@ -37,6 +37,7 @@ FIELD_LIMITS: dict[str, int] = {
     "staffName": STAFF_NAME_MAX,
     "email": EMAIL_LIMIT,
     "pagePassword": PAGE_PASSWORD_MAX,
+    "pagePasswordMin": PAGE_PASSWORD_MIN,  # the shortest: a page's, a share link's
     "recipients": RECIPIENTS_MAX,
     "shareLabel": SHARE_LABEL_MAX,
     "shareBytes": SHARE_BYTES_MAX,
