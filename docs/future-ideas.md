@@ -98,13 +98,20 @@ decision in the [decision changelog](decision-changelog.md).
   files, the link can name the file by its id there instead. Fabio, 18 Oct 2026:
   "we can wait for A25".
 
-## Moving projects to another Google Drive account
+## Moving projects to another cloud account
 
 - Switching an office's Drive account starts it fresh in the new account (the
   old account's files stay where they are; see the plan's section 9). A tool
   could later carry projects across: copy each project's files into the new
   account's folders, through the site, so the new grant can reach them. Fabio,
   18 Oct 2026: "We could also plan a migration tool for later".
+- Wider (Fabio, 25 Oct 2026): move between any two storage accounts the portal
+  supports, not only two Google Drive accounts, e.g. Google Drive to Dropbox,
+  carrying the files along. That needs the other providers first (today the
+  storage layer has Google Drive and local folders), and both accounts
+  connected at once while the copy runs. Things to work out: large offices
+  (a background job with progress), hidden files and versions keeping their
+  meaning, and what clients see while it runs.
 
 ## Signup links for new offices
 

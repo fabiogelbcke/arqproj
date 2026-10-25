@@ -802,6 +802,12 @@ designated root. The writer uses the office user's refresh token with
 identity. Track both health states and capabilities separately. An expired writer
 can disable uploads while the reader still keeps an existing portal available.
 An explicit product disconnect disables both immediately in our application.
+While the office is disconnected ("Desconectar"), the painel hides its projects,
+search and "Novo projeto": its empty state says Drive is disconnected and
+offers the owner "Reconectar" (Fabio, 25 Oct 2026); an
+expired grant keeps them listed with its own notice, and a never-connected office
+has its first steps. Reconnecting the same account, or switching accounts, shows
+them again.
 Evaluate write capabilities using the writer identity: capability fields fetched
 as the read-only account describe that reader and cannot authorize a writer action.
 
