@@ -37,7 +37,10 @@ a.site__brand { color: inherit; text-decoration: none; }
 
 /* Edit mode (part 1): small additions to the prototype's editor styles. */
 .editor__problem { margin: 0; color: var(--danger, #9b3d1d); font-size: 14px; }
-.add-detail { display: block; max-width: 280px; }
+.add-detail { display: inline-flex; }
+/* Numbers are typed (a number keyboard on phones): no steppers (Fabio, 25 Oct 2026). */
+.no-spin { appearance: textfield; -moz-appearance: textfield; }
+.no-spin::-webkit-inner-spin-button, .no-spin::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .desc__empty { opacity: .55; }
 .addnote { margin-top: 4px; }
 /* Editors fit their column: date and time inputs otherwise refuse to shrink. */
@@ -366,6 +369,8 @@ a.site__brand { color: inherit; text-decoration: none; }
 /* Counts are round across the site, like the painel's tabs (Fabio, 20 Oct 2026):
    the updates bell's count, which the client page's straight edges had squared. */
 .client-notifications summary .notification-count { border-radius: 999px; }
+/* Unread in the painel's red, as "Sem e-mail do cliente" (Fabio, 25 Oct 2026). */
+.client-notifications .notification-count { background: var(--danger); color: var(--bg); }
 
 /* Edit mode: nobody gets this project's updates by email (A32), said first. */
 .client-email-notice {

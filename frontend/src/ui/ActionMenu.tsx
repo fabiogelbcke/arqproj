@@ -13,19 +13,21 @@ export function ActionMenu({
   children,
   items,
   onAction,
+  placement = "bottom end",
 }: {
   label: string; // the button's name for screen readers
   className?: string; // the button's look, from where it sits
   children: ReactNode; // what the button shows (an icon)
   items: MenuAction[];
   onAction: (id: string) => void;
+  placement?: "bottom end" | "bottom start";
 }) {
   return (
     <MenuTrigger>
       <Button className={className} aria-label={label}>
         {children}
       </Button>
-      <Popover className={styles.menuPopover} placement="bottom end" offset={6}>
+      <Popover className={styles.menuPopover} placement={placement} offset={6}>
         <Menu className={styles.menu} onAction={(key) => onAction(String(key))}>
           {items.map((item) => (
             <MenuItem key={item.id} id={item.id} className={styles.menuItem} data-danger={item.danger || undefined}>

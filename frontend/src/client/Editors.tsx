@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
+import { ActionMenu } from "../ui/ActionMenu";
 import { EmailListField, addEmails } from "../ui/EmailListField";
 import { TextInput } from "../ui/TextInput";
 import { toast } from "../ui/Toast";
@@ -207,7 +208,7 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
               </label>
               {kind === "area" ? (
                 <div className="unit">
-                  <input className="input" id={id} type="number" min="0" step="0.01" inputMode="decimal" value={row.value} onChange={(e) => set(e.target.value)} />
+                  <input className="input no-spin" id={id} type="number" min="0" step="0.01" inputMode="decimal" value={row.value} onChange={(e) => set(e.target.value)} onWheel={(e) => e.currentTarget.blur()} />
                   <span>m²</span>
                 </div>
               ) : (
@@ -226,21 +227,16 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
         })}
       </ul>
       {unused.length > 0 && (
-        <label className="add-detail">
-          <span className="sr">{t("edit.addDetail")}</span>
-          <select
-            className="select"
-            value=""
-            onChange={(e) => e.target.value && setRows([...rows, { key: e.target.value, value: "" }])}
-          >
-            <option value="">+ {t("edit.addDetail")}</option>
-            {unused.map((type) => (
-              <option key={type.key} value={type.key}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        // A menu, not a select: a select marks its placeholder as the chosen option.
+        <ActionMenu
+          className="b b--small add-detail"
+          label={t("edit.addDetail")}
+          placement="bottom start"
+          items={unused.map((type) => ({ id: type.key, label: type.label }))}
+          onAction={(key) => setRows([...rows, { key, value: "" }])}
+        >
+          + {t("edit.addDetail")}
+        </ActionMenu>
       )}
     </Editor>
   );
