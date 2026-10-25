@@ -1,5 +1,8 @@
 """Step 2.5: each stage's files on the client's page (local folder storage)."""
 
+import os
+import time
+
 import pytest
 from sqlalchemy import text
 
@@ -56,8 +59,9 @@ async def test_each_stage_shows_its_files_and_subfolders_as_groups(client, owner
         "Programa de necessidades.pdf": "pdf",
     }
     assert [(g["folder"], [f["name"] for f in g["files"]]) for g in first[1:]] == [
-        ("Plantas antigas", ["Planta v1.dwg"])  # one level: "Mais fundo" isn't shown
+        ("Plantas antigas", ["Planta.dwg"])  # one level: "Mais fundo" isn't shown
     ]
+    assert first[1]["files"][0]["version"] is None  # "v1" in the name: no version shown (A25)
     assert stages[1]["groups"] == []  # an empty folder
     assert stages[5]["groups"] == []  # no folder bound (the seed binds five)
 
@@ -324,3 +328,78 @@ async def test_a_public_pages_files_are_never_kept_by_the_browser(client, owner,
     ):
         assert response.status_code == 200
         assert "no-store" in response.headers["cache-control"]
+
+
+# -- versions from names (A25, plan section 12) ------------------------------------
+
+
+def _aged(path, days):
+    when = time.time() - days * 86400
+    os.utime(path, (when, when))
+
+
+async def first_stage(client):
+    groups = (await listing(client)).json()["stages"][0]["groups"]
+    return {f["name"]: f for g in groups if g["folder"] is None for f in g["files"]}
+
+
+async def test_versions_show_as_one_file_with_the_older_ones_downloadable(client, owner, files):
+    briefing = files / "Casa Jardim" / "01 - Briefing"
+    (briefing / "Planta.pdf").write_bytes(b"%PDF v1")
+    (briefing / "Planta v2.pdf").write_bytes(b"%PDF v2")
+    _aged(briefing / "Planta.pdf", 30)
+    shown = await first_stage(client)
+    assert "Planta v2.pdf" not in shown
+    plan = shown["Planta.pdf"]
+    assert (plan["version"], plan["updated"], plan["clash"]) == (2, True, False)
+    assert [(o["name"], o["version"]) for o in plan["older"]] == [("Planta.pdf", 1)]
+    # Each version opens on its own; the download keeps Drive's name, with its version.
+    current = await client.get(f"/api/pages/casa-jardim/files/{plan['key']}", headers=ALINEA)
+    assert current.content == b"%PDF v2"
+    assert 'filename="Planta v2.pdf"' in current.headers["content-disposition"]
+    older = await client.get(
+        f"/api/pages/casa-jardim/files/{plan['older'][0]['key']}", headers=ALINEA
+    )
+    assert older.content == b"%PDF v1"
+    # Files without versions are as before.
+    assert shown["Programa de necessidades.pdf"]["version"] is None
+    assert shown["Programa de necessidades.pdf"]["older"] == []
+
+
+async def test_atualizado_only_for_a_few_days_after_the_new_version(client, owner, files):
+    briefing = files / "Casa Jardim" / "01 - Briefing"
+    (briefing / "Planta.pdf").write_bytes(PDF)
+    (briefing / "Planta v2.pdf").write_bytes(PDF)
+    _aged(briefing / "Planta v2.pdf", 8)
+    assert (await first_stage(client))["Planta.pdf"]["updated"] is False
+
+
+async def test_the_newest_version_removed_brings_the_one_before_back(client, owner, files):
+    briefing = files / "Casa Jardim" / "01 - Briefing"
+    (briefing / "Planta.pdf").write_bytes(PDF)
+    (briefing / "Planta v2.pdf").write_bytes(PDF)
+    (briefing / "Planta v2.pdf").rename(briefing / "_Planta v2.pdf")  # hidden from the client
+    plan = (await first_stage(client))["Planta.pdf"]
+    assert (plan["version"], plan["older"]) == (None, [])
+
+
+async def test_two_files_claiming_one_version_show_apart_and_flagged(client, owner, files):
+    briefing = files / "Casa Jardim" / "01 - Briefing"
+    (briefing / "Planta v2.pdf").write_bytes(PDF)
+    (briefing / "planta_v2.pdf").write_bytes(PDF)
+    shown = await first_stage(client)
+    assert shown["Planta v2.pdf"]["clash"] and shown["planta_v2.pdf"]["clash"]
+    assert shown["Foto do terreno.png"]["clash"] is False
+
+
+async def test_versions_group_only_within_one_folder(client, owner, files):
+    # "Plantas antigas" holds "Planta v1.dwg"; a v2 beside the stage's own files
+    # is another document.
+    (files / "Casa Jardim" / "01 - Briefing" / "Planta v2.dwg").write_bytes(b"dwg")
+    groups = (await listing(client)).json()["stages"][0]["groups"]
+    by_folder = {g["folder"]: g["files"] for g in groups}
+    assert [(f["name"], f["version"]) for f in by_folder["Plantas antigas"]] == [
+        ("Planta.dwg", None)
+    ]
+    top = {f["name"]: f for f in by_folder[None]}
+    assert (top["Planta.dwg"]["version"], top["Planta.dwg"]["older"]) == (2, [])

@@ -190,6 +190,7 @@
     "en": "English"
   },
   "errors": {
+    "version_type_mismatch": "A nova versão precisa ser do mesmo tipo do arquivo atual.",
     "invalid_staff_name": "Informe o nome (até 80 caracteres).",
     "already_staff": "Esta pessoa já faz parte da equipe.",
     "not_an_invite": "Este convite não existe mais ou a pessoa já entrou. Recarregue a página.",
@@ -447,6 +448,18 @@
     "downloadFile": "Baixar {{name}}"
   },
   "edit": {
+    "newVersion": "Enviar nova versão",
+    "newVersionNote": "Passa a ser a versão atual",
+    "newVersionSent": "Nova versão de “{{name}}” enviada.",
+    "versionTitle": "É uma nova versão?",
+    "versionExists": "Já existe {{name}} nesta etapa.",
+    "versionCurrent": "Atual",
+    "versionCurrentNote": "Continua no Drive como está e fica na lista de versões como v{{version}}.",
+    "versionNew": "Novo",
+    "versionNewNote": "Salvo com este nome. É o que o cliente passa a ver.",
+    "versionYes": "Sim, enviar como v{{version}}",
+    "versionNo": "Não, é outro arquivo",
+    "versionClash": "Outro arquivo desta pasta tem a mesma versão. Renomeie um deles no Google Drive.",
     "completeProjectAsk": "Concluir o projeto?",
     "completeProjectMeans": "Todas as etapas foram concluídas. O projeto passará a constar como concluído para o cliente. Você poderá reabri-lo depois, reabrindo uma etapa.",
     "completeProject": "Concluir projeto",
@@ -585,6 +598,7 @@
       "resetIgnore": "Se não foi você quem pediu, ignore este e-mail: sua senha continua a mesma."
   },
   "updates": {
+    "fileVersion": "{{name}}, v{{version}}",
     "stageCompleted": "Etapa concluída",
       "label": "Atualizações",
       "title": "Últimas atualizações",
@@ -604,6 +618,17 @@
       "meetingCancelled": "Reunião cancelada"
     },
   "files": {
+    "versionCount_one": "{{count}} versão",
+    "versionCount_other": "{{count}} versões",
+    "current": "Atual",
+    "open": "Abrir",
+    "openVersion": "Abrir a versão {{version}} de {{name}}",
+    "version": "v{{version}}",
+    "versionLabel": "Versão {{version}}",
+    "updated": "Atualizado",
+    "olderVersion": "{{version}}, {{date}}",
+    "download": "Baixar",
+    "downloadVersion": "Baixar a versão {{version}} de {{name}}",
       "search": "Buscar arquivos",
       "searchPlaceholder": "Pesquisar arquivos ou etapas",
       "type": "Tipo",

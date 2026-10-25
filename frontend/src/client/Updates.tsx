@@ -23,7 +23,12 @@ function readIds(slug: string): Set<string> {
 
 /** The entries, newest first: a file as it is now, a stage's latest note, the
  *  stages still completed, the meeting as it is now. */
-export function entriesFor(page: Page, updates: Update[], t: (key: string) => string, locale: string) {
+export function entriesFor(
+  page: Page,
+  updates: Update[],
+  t: (key: string, values?: Record<string, unknown>) => string,
+  locale: string,
+) {
   const entries: Entry[] = [];
   const notes = new Set<number>();
   const finished = new Set<number>();
@@ -35,7 +40,14 @@ export function entriesFor(page: Page, updates: Update[], t: (key: string) => st
     const base = { id: update.id, date: day(update.occurred_at, locale, page.timezone) };
     if (update.kind === "file_published") {
       if (stage && update.name)
-        entries.push({ ...base, title: update.name, context: `${pad(index + 1)} ${stage.title}`, target: index });
+        entries.push({
+          ...base,
+          // A version (A25) says which: the card shows the document's clean name.
+          title:
+            update.version != null ? t("updates.fileVersion", { name: update.name, version: update.version }) : update.name,
+          context: `${pad(index + 1)} ${stage.title}`,
+          target: index,
+        });
     } else if (update.kind === "note_changed") {
       if (!stage || notes.has(index)) continue;
       notes.add(index);

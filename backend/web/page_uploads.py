@@ -1,6 +1,7 @@
 """Uploading files from the project page's edit mode, and hiding them (A31).
 
     POST /api/projects/{id}/stages/{n}/uploads   open an upload; says where to send the file
+    POST .../uploads/check                       which names would be a new version (A25)
     POST .../uploads/failed                      the browser's report of one that failed
     PUT  /api/local-uploads/{token}              local folders only (never deployed): take it
     POST /api/pages/{slug}/files/{key}/hide      "Ocultar do cliente": a leading "_"
@@ -13,7 +14,16 @@ so they never pass through Cloud Run (32 MB a request). With local folders the
 app stands in for Google at `/api/local-uploads/{token}`. Nothing is recorded:
 the page lists Drive live (A10), so a finished upload shows on the next load.
 
-A file named like one already there is kept beside it until versions (A25).
+Versions (A25, plan section 12) are worked out from names, so an upload is a
+version by the name it is saved with. "Enviar nova versão" on a file
+(`version_of`, its key) saves the chosen file as the next version in that
+file's folder: `Planta v3.pdf` after `Planta v2.pdf`. Before an upload the page
+asks `uploads/check` which names match a document already in the stage, and
+asks staff "É uma nova versão de Planta.pdf?"; yes sends `version_of`, no a
+plain upload, which is saved apart ("Planta (2).pdf") so it never joins it.
+Nothing reserves a number while the bytes travel to Google: two new versions of
+one document opened at the same moment both get the next number, and the page
+flags the clash for staff to rename one (plan section 12).
 Hiding renames it with a leading "_", which the page never shows (A05); moving
 puts it in another stage's folder, where the page shows it next. The office's
 grant (drive.file) reaches only files the app created, so a file put straight
@@ -35,6 +45,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.documents import versions
+from backend.documents.versions import shown_name
 from backend.projects.creation import LocalFolders
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Project, ProjectStage
@@ -44,7 +56,7 @@ from backend.storage.google_connect import ConnectError
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
-from backend.web.page_files import _in_project, _item, _storage
+from backend.web.page_files import _file, _in_project, _item, _item_at, _list, _showable, _storage
 from backend.web.pages import _origin, _readable
 from backend.web.projects import _folders
 
@@ -63,6 +75,9 @@ class UploadIn(BaseModel):
     name: str = Field(max_length=255)
     size: int = Field(ge=0)
     mime_type: str = Field(default="", max_length=255)
+    # "Enviar nova versão": a file's key from the page; saved as the next version
+    # of its document, in its folder.
+    version_of: str | None = Field(default=None, max_length=2000)
 
 
 class UploadOut(BaseModel):
@@ -93,24 +108,12 @@ async def _changeable(db: AsyncSession, project_id: uuid.UUID) -> Project:
     return project
 
 
-@router.post(
-    "/api/projects/{project_id}/stages/{position}/uploads",
-    responses=documented(401, 404, 409, 422, 503),
-)
-async def start_upload(
-    request: Request,
-    project_id: uuid.UUID,
-    position: int,
-    body: UploadIn,
-    _staff: CurrentStaff = Depends(require_csrf),
-    tenant: CurrentTenant = Depends(current_tenant),
-    db: AsyncSession = Depends(get_tenant_session),
-) -> UploadOut:
-    if body.size > UPLOAD_MAX:
-        raise ApiError(422, ErrorCode.FILE_TOO_LARGE)
-    name = _clean(body.name)
+async def _stage_for_upload(
+    request: Request, db: AsyncSession, tenant: CurrentTenant, project_id, position, row_version
+):
+    """The project, the stage and the office's storage view, if files may go in."""
     project = await _changeable(db, project_id)
-    if project.row_version != body.row_version:
+    if project.row_version != row_version:
         # Someone moved or removed stages meanwhile: this position may now be
         # another stage, and the file would go to its folder.
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)
@@ -130,15 +133,78 @@ async def start_upload(
         if reader is not None and stage.folder_id not in await _in_project(reader, project):
             raise ApiError(409, ErrorCode.STAGE_HAS_NO_FOLDER)
     except StorageError as error:
-        log.error(
-            "uploads: checking the stage folder failed for %s/%s, stage %s: %s %s",
-            tenant.id,
-            project_id,
-            position,
-            error.problem,
-            error.detail,
+        raise _listing_failed(error, tenant, project_id, position) from None
+    return project, stage, reader
+
+
+def _listing_failed(error: StorageError, tenant: CurrentTenant, project_id, position) -> ApiError:
+    log.error(
+        "uploads: checking the stage folder failed for %s/%s, stage %s: %s %s",
+        tenant.id,
+        project_id,
+        position,
+        error.problem,
+        error.detail,
+    )
+    return ApiError(503, ErrorCode.FILES_UNAVAILABLE)
+
+
+async def _documents(reader, folder: str) -> list[versions.Document]:
+    """The folder's documents, as the page shows them."""
+    return versions.group([i for i in await _list(reader, folder) if _showable(i)])
+
+
+async def _as_new_version(
+    request: Request, db: AsyncSession, tenant: CurrentTenant, project: Project, position, key, name
+) -> tuple[str, str]:
+    """The folder and the name a new version of the file the key names goes in
+    with: the next version of its document, in the file's own folder."""
+    reader, item, found = await _item_at(request, db, project, key)  # still listed
+    if found.get("s") != position:
+        raise ApiError(409, ErrorCode.PROJECT_CHANGED)  # the page's stages are out of date
+    try:
+        documents = await _documents(reader, found["f"])
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project.id, position) from None
+    document = next((d for d in documents if any(i.id == item.id for _n, i in d.versions)), None)
+    if document is None:
+        raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # gone since
+    extension = versions.parse(name).extension.casefold()
+    if extension != document.named.extension.casefold():
+        raise ApiError(422, ErrorCode.VERSION_TYPE_MISMATCH)  # it would not group
+    return found["f"], versions.next_name(documents, document)
+
+
+@router.post(
+    "/api/projects/{project_id}/stages/{position}/uploads",
+    responses=documented(401, 404, 409, 422, 503),
+)
+async def start_upload(
+    request: Request,
+    project_id: uuid.UUID,
+    position: int,
+    body: UploadIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> UploadOut:
+    if body.size > UPLOAD_MAX:
+        raise ApiError(422, ErrorCode.FILE_TOO_LARGE)
+    name = _clean(body.name)
+    project, stage, reader = await _stage_for_upload(
+        request, db, tenant, project_id, position, body.row_version
+    )
+    folder = stage.folder_id
+    if body.version_of is not None:
+        folder, name = await _as_new_version(
+            request, db, tenant, project, position, body.version_of, name
         )
-        raise ApiError(503, ErrorCode.FILES_UNAVAILABLE) from None
+    elif reader is not None:
+        try:
+            # Never joins a document by accident: that is what "yes" is for.
+            name = versions.apart(await _documents(reader, folder), name)
+        except StorageError as error:
+            raise _listing_failed(error, tenant, project_id, position) from None
     maker, _root = await _folders(request, db)
     if isinstance(maker, LocalFolders):
         token = keys.encrypt(
@@ -147,7 +213,7 @@ async def start_upload(
             json.dumps(
                 {
                     "t": str(tenant.id),
-                    "f": stage.folder_id,
+                    "f": folder,
                     "n": name,
                     "s": body.size,
                     "exp": int(time.time()) + LOCAL_SECONDS,
@@ -159,7 +225,7 @@ async def start_upload(
     origin = request.headers.get("origin") or _origin(request, tenant)
     try:
         url = await maker.start_upload(
-            name, stage.folder_id, body.size, body.mime_type or "application/octet-stream", origin
+            name, folder, body.size, body.mime_type or "application/octet-stream", origin
         )
     except ConnectError as error:
         log.error(
@@ -174,6 +240,68 @@ async def start_upload(
         "uploads: opened for %s/%s, stage %s, %s bytes", tenant.id, project_id, position, body.size
     )
     return UploadOut(upload_url=url)
+
+
+class CheckIn(BaseModel):
+    row_version: int
+    names: list[str] = Field(max_length=100)
+
+
+class MatchOut(BaseModel):
+    name: str  # as chosen
+    document: str  # the document it matches, as the page names it: "Planta.pdf"
+    current: str  # its current version's name in Drive: "Planta v2.pdf"
+    current_version: int
+    saved_as: str  # its name in Drive as a new version: "Planta v3.pdf"
+    next_version: int
+    key: str  # the document's current version: `version_of` for "yes"
+
+
+class CheckOut(BaseModel):
+    matches: list[MatchOut]
+
+
+@router.post(
+    "/api/projects/{project_id}/stages/{position}/uploads/check",
+    responses=documented(401, 404, 409, 503),
+)
+async def check_upload(
+    request: Request,
+    project_id: uuid.UUID,
+    position: int,
+    body: CheckIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> CheckOut:
+    """Which of these names match a document in the stage's folder, so the page
+    can ask "É uma nova versão de Planta.pdf?" (A25)."""
+    project, stage, reader = await _stage_for_upload(
+        request, db, tenant, project_id, position, body.row_version
+    )
+    if reader is None:
+        return CheckOut(matches=[])
+    try:
+        documents = await _documents(reader, stage.folder_id)
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project_id, position) from None
+    matches = []
+    for name in body.names:
+        document = versions.same_document(documents, name)
+        if document is not None:
+            saved_as = versions.next_name(documents, document)
+            matches.append(
+                MatchOut(
+                    name=name,
+                    document=document.name,
+                    current=shown_name(document.current),
+                    current_version=document.versions[0][0],
+                    saved_as=saved_as,
+                    next_version=versions.parse(saved_as).version,
+                    key=_file(request, project, document.current, position, stage.folder_id).key,
+                )
+            )
+    return CheckOut(matches=matches)
 
 
 class UploadFailedIn(BaseModel):

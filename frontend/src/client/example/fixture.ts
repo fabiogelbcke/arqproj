@@ -66,6 +66,9 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
     size,
     modified_at: ago(days),
     url,
+    updated: false,
+    clash: false,
+    older: [],
   });
   const meetingDay = inDays(6);
   return {

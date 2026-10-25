@@ -362,8 +362,8 @@ describe("the files", () => {
             {
               position: 2,
               groups: [
-                { folder: null, files: [{ key: "k1", name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z" }] },
-                { folder: "Fotos", files: [{ key: "k2", name: "Terreno.jpg", kind: "image", size: 10, modified_at: "2026-10-11T12:00:00Z" }] },
+                { folder: null, files: [{ key: "k1", name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z", older: [] }] },
+                { folder: "Fotos", files: [{ key: "k2", name: "Terreno.jpg", kind: "image", size: 10, modified_at: "2026-10-11T12:00:00Z", older: [] }] },
               ],
             },
             { position: 3, groups: [] },
@@ -382,6 +382,78 @@ describe("the files", () => {
     // Still to come: what to expect, not just "nothing".
     expect(within(third).getByText("Ainda não há arquivos nesta etapa")).toBeInTheDocument();
     expect(within(third).getByText("Assim que o escritório enviar, eles aparecem aqui.")).toBeInTheDocument();
+  });
+});
+
+describe("file versions (A25)", () => {
+  const VERSIONED = {
+    stages: [
+      {
+        position: 2,
+        groups: [
+          {
+            folder: null,
+            files: [
+              {
+                key: "k3",
+                name: "Planta.pdf",
+                kind: "pdf",
+                size: 2048,
+                modified_at: "2026-10-20T12:00:00Z",
+                version: 3,
+                updated: true,
+                clash: true, // for staff only
+                older: [
+                  { key: "k2", name: "Planta v2.pdf", kind: "pdf", size: 10, modified_at: "2026-10-12T12:00:00Z", version: 2, older: [] },
+                  { key: "k1", name: "Planta.pdf", kind: "pdf", size: 10, modified_at: "2026-10-01T12:00:00Z", version: 1, older: [] },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  it("shows a document under its clean name with its version, \"Atualizado\" and the older versions to download", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: VERSIONED }),
+    });
+    const current = await screen.findByRole("region", { name: "Levantamento" });
+    const card = (await within(current).findByRole("button", { name: "Abrir Planta.pdf" })).closest(".file")! as HTMLElement;
+    expect(within(card).getByLabelText("Versão 3")).toHaveTextContent("v3");
+    expect(within(card).getByText("Atualizado")).toBeInTheDocument();
+    // Every version in a modal, the current one first, so the card stays one size.
+    await userEvent.click(within(card).getByRole("button", { name: "3 versões" }));
+    const versions = screen.getByRole("dialog", { name: "Planta.pdf" });
+    expect(within(versions).getByText("3 versões")).toBeInTheDocument();
+    const rows = within(versions).getAllByRole("listitem");
+    expect(rows.map((row) => row.querySelector(".file-versions__number")?.textContent)).toEqual(["v3", "v2", "v1"]);
+    expect(within(rows[0]!).getByText("Atual")).toBeInTheDocument();
+    expect(rows[2]).toHaveTextContent("01/10/2026 · 10 B");
+    expect(within(versions).getByRole("link", { name: "Baixar a versão 2 de Planta.pdf" })).toHaveAttribute(
+      "href",
+      "/api/pages/casa-jardim/files/k2",
+    );
+    expect(within(versions).getByRole("link", { name: "Abrir a versão 1 de Planta.pdf" })).toHaveAttribute(
+      "href",
+      "/api/pages/casa-jardim/files/k1?inline=true",
+    );
+    await userEvent.click(within(versions).getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // A clash is for staff to fix; clients aren't told.
+    expect(within(card).queryByText(/mesma versão/)).toBeNull();
+  });
+
+  it("names a new version in the updates with its number", () => {
+    const entries = entriesFor(
+      PAGE,
+      [{ id: "u1", kind: "file_published", occurred_at: "2026-10-20T12:00:00Z", stage_position: 2, name: "Planta.pdf", version: 3 }],
+      (key, values) => (key === "updates.fileVersion" ? `${values!.name}, v${values!.version}` : key),
+      "pt-BR",
+    );
+    expect(entries.map((entry) => entry.title)).toEqual(["Planta.pdf, v3"]);
   });
 });
 
@@ -1182,7 +1254,7 @@ describe("edit mode", () => {
         { position: 1, groups: [] },
         {
           position: 2,
-          groups: [{ folder: null, files: [{ key: "k1", name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z" }] }],
+          groups: [{ folder: null, files: [{ key: "k1", name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z", older: [] }] }],
         },
         { position: 3, groups: [] },
       ],
@@ -1217,7 +1289,11 @@ describe("edit mode", () => {
       FakeXhr.sent = [];
       FakeXhr.answer = 200;
       vi.stubGlobal("XMLHttpRequest", FakeXhr);
-      return asStaff({ "GET /api/pages/casa-jardim/files": () => ({ body: FILES }), ...extra });
+      return asStaff({
+        "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+        "POST /api/projects/p-1/stages/2/uploads/check": () => ({ body: { matches: [] } }),
+        ...extra,
+      });
     }
 
     it("on a touch screen, says to tap rather than drop files", async () => {
@@ -1252,7 +1328,7 @@ describe("edit mode", () => {
       const file = new File(["%PDF"], "Corte.pdf", { type: "application/pdf" });
       await userEvent.upload(await within(stage).findByLabelText("escolha no computador"), file);
       expect(await screen.findByText("Arquivo enviado.")).toBeInTheDocument();
-      expect(sent.find((r) => r.method === "POST")?.body).toEqual({
+      expect(sent.find((r) => r.method === "POST" && r.path.endsWith("/uploads"))?.body).toEqual({
         row_version: 4,
         name: "Corte.pdf",
         size: 4,
@@ -1301,6 +1377,111 @@ describe("edit mode", () => {
       expect(await within(stage).findByRole("alert")).toHaveTextContent("até 100 MB");
       expect(sent.some((r) => r.method === "POST")).toBe(false);
       expect(FakeXhr.sent).toEqual([]);
+    });
+
+    const MATCH = {
+      name: "Planta.pdf",
+      document: "Planta.pdf",
+      current: "Planta v2.pdf",
+      current_version: 2,
+      saved_as: "Planta v3.pdf",
+      next_version: 3,
+      key: "k1",
+    };
+
+    async function dropPlanta(answer: RegExp | "Escape") {
+      const { sent } = asEditor({
+        "POST /api/projects/p-1/stages/2/uploads/check": () => ({ body: { matches: [MATCH] } }),
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+      });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await userEvent.upload(
+        await within(stage).findByLabelText("escolha no computador"),
+        new File(["%PDF"], "Planta.pdf", { type: "application/pdf" }),
+      );
+      const question = await screen.findByRole("alertdialog", { name: "É uma nova versão?" });
+      expect(within(question).getByText("Já existe Planta.pdf nesta etapa.")).toBeInTheDocument();
+      expect(within(question).getByText("Planta v3.pdf")).toBeInTheDocument();
+      expect(within(question).getByText(/como v2\./)).toBeInTheDocument();
+      if (answer === "Escape") await userEvent.keyboard("{Escape}");
+      else await userEvent.click(within(question).getByRole("button", { name: answer }));
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+      return sent;
+    }
+
+    it("asks whether a file named like one in the stage is a new version, and yes sends it as one", async () => {
+      const sent = await dropPlanta(/Sim, enviar como v3/);
+      expect(await screen.findByText("Arquivo enviado.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/uploads/check"))?.body).toEqual({ row_version: 4, names: ["Planta.pdf"] });
+      expect(sent.find((r) => r.path.endsWith("/uploads"))?.body).toMatchObject({ name: "Planta.pdf", version_of: "k1" });
+    });
+
+    it("sends it as another file when it isn't a new version", async () => {
+      const sent = await dropPlanta(/Não, é outro arquivo/);
+      expect(await screen.findByText("Arquivo enviado.")).toBeInTheDocument();
+      const opened = sent.find((r) => r.path.endsWith("/uploads"))?.body as Record<string, unknown>;
+      expect(opened.name).toBe("Planta.pdf");
+      expect(opened).not.toHaveProperty("version_of");
+    });
+
+    it("sends nothing when the question is closed", async () => {
+      const sent = await dropPlanta("Escape");
+      expect(sent.some((r) => r.path.endsWith("/uploads"))).toBe(false);
+      expect(FakeXhr.sent).toEqual([]);
+    });
+
+    it("asks nothing about a file too large to send", async () => {
+      const { sent } = asEditor();
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      const big = new File(["x"], "Planta.pdf", { type: "application/pdf" });
+      Object.defineProperty(big, "size", { value: 101 * 1024 * 1024 });
+      await userEvent.upload(await within(stage).findByLabelText("escolha no computador"), big);
+      expect(await within(stage).findByRole("alert")).toHaveTextContent("Envie arquivos de até 100 MB.");
+      expect(sent.some((r) => r.path.endsWith("/uploads/check"))).toBe(false);
+    });
+
+    it("uploads a new version of a file from its menu, of the same type", async () => {
+      const { sent } = asEditor({
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      const chooser = screen.getByLabelText("Enviar nova versão") as HTMLInputElement;
+      expect(chooser).toHaveAttribute("accept", ".pdf");
+      const opened = vi.spyOn(chooser, "click");
+      await userEvent.click(screen.getByRole("menuitem", { name: /Enviar nova versão/ }));
+      expect(opened).toHaveBeenCalledTimes(1);
+      await userEvent.upload(chooser, new File(["%PDF"], "planta revisada.pdf", { type: "application/pdf" }));
+      expect(await screen.findByText("Nova versão de “Planta.pdf” enviada.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/uploads"))?.body).toMatchObject({
+        name: "planta revisada.pdf",
+        version_of: "k1",
+      });
+      expect(sent.some((r) => r.path.endsWith("/uploads/check"))).toBe(false); // no question: it is one
+    });
+
+    it("says why a new version of another type can't go", async () => {
+      asEditor({
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ status: 422, body: { error: "version_type_mismatch" } }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      // A browser that ignores "accept" (or a file renamed): the app refuses it.
+      const user = userEvent.setup({ applyAccept: false });
+      await user.upload(screen.getByLabelText("Enviar nova versão"), new File(["x"], "Planta.dwg"));
+      expect(await screen.findByText("A nova versão precisa ser do mesmo tipo do arquivo atual.")).toBeInTheDocument();
+    });
+
+    it("tells staff when two files claim the same version", async () => {
+      const clashing = structuredClone(FILES);
+      clashing.stages[1]!.groups[0]!.files[0] = { ...clashing.stages[1]!.groups[0]!.files[0]!, clash: true } as never;
+      asStaff({ "GET /api/pages/casa-jardim/files": () => ({ body: clashing }) });
+      await startEditing();
+      expect(
+        await screen.findByText("Outro arquivo desta pasta tem a mesma versão. Renomeie um deles no Google Drive."),
+      ).toBeInTheDocument();
     });
 
     it("hides a file from the client from its menu", async () => {
@@ -1361,7 +1542,7 @@ describe("edit mode", () => {
     });
 
     it("makes an image the cover, and offers it only for images", async () => {
-      const image = { key: "k2", name: "Terreno.jpg", kind: "image", size: 10, modified_at: "2026-10-11T12:00:00Z" };
+      const image = { key: "k2", name: "Terreno.jpg", kind: "image", size: 10, modified_at: "2026-10-11T12:00:00Z", older: [] };
       const withImage = {
         ...FILES,
         stages: [FILES.stages[0], { position: 2, groups: [{ folder: null, files: [...FILES.stages[1]!.groups[0]!.files, image] }] }, FILES.stages[2]],
@@ -1634,7 +1815,7 @@ describe("Atualizações (A28)", () => {
 
 describe("the page's file tools", () => {
   const file = (key: string, name: string, kind: string, at: string) =>
-    ({ key, name, kind, size: 10, modified_at: at }) as never;
+    ({ key, name, kind, size: 10, modified_at: at, older: [] }) as never;
   const FILES = {
     stages: [
       { position: 1, groups: [{ folder: null, files: [file("a", "Programa.pdf", "pdf", "2026-10-01T12:00:00Z")] }] },

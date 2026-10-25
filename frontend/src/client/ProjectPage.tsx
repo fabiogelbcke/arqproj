@@ -16,7 +16,17 @@ import { useBalancedColumns } from "./balance";
 import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import type { StageEditParts } from "./StageEditing";
-import { FilePreview, FileToolbar, linkedFile, shownFiles, usePrefs, type FilePlace, type FileView } from "./FileTools";
+import {
+  FilePreview,
+  fileSize,
+  FileToolbar,
+  FileVersions,
+  linkedFile,
+  shownFiles,
+  usePrefs,
+  type FilePlace,
+  type FileView,
+} from "./FileTools";
 
 // Staff editing code loads only once staff press "Editar" (A20): visitors never get it.
 const DescriptionEditor = lazy(() => import("./Editors").then((m) => ({ default: m.DescriptionEditor })));
@@ -75,18 +85,6 @@ function filesFor(state: FilesState | null, position: number) {
   return { files, reference: state.reference };
 }
 
-function fileSize(bytes: number | null | undefined, locale: string): string {
-  if (bytes == null) return "";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toLocaleString(locale, { maximumFractionDigits: unit ? 1 : 0 })} ${units[unit]}`;
-}
-
 function FileCard({
   file,
   slug,
@@ -100,7 +98,10 @@ function FileCard({
   menu?: ReactNode; // edit mode: the file's "⋯"
   onOpen: () => void; // its preview (FilePreview)
 }) {
+  // Versions come from the names in Drive (A25): the clean name, its version
+  // apart, "Atualizado" for a few days after a new one.
   const { t, i18n } = useTranslation();
+  const [versions, setVersions] = useState(false); // every version, in a modal
   // Only images and PDFs have previews (Drive's); other files show their type.
   const preview = fileSource.address(slug, file.key, "thumb");
   const [thumb, setThumb] = useState<"thumb" | "original" | "none">(
@@ -131,12 +132,37 @@ function FileCard({
             {file.name}
           </span>
           <span className="file__meta">
+            {/* Read out, and shown in the list view, where the badge isn't. */}
+            {file.version != null && (
+              <span className="file__version" aria-label={t("files.versionLabel", { version: file.version })}>
+                {t("files.version", { version: file.version })}
+              </span>
+            )}
+            {file.updated && <span className="file__updated">{t("files.updated")}</span>}
             {[fileSize(file.size, i18n.language), day(file.modified_at, i18n.language, timeZone)]
               .filter(Boolean)
               .join(", ")}
           </span>
+          {/* Staff only: two files claim one version; the names decide, so one is renamed. */}
+          {menu && file.clash && <span className="file__clash">{t("edit.versionClash")}</span>}
         </span>
       </button>
+      {file.version != null && (
+        <span className="vbadge" aria-hidden="true">
+          {t("files.version", { version: file.version })}
+        </span>
+      )}
+      {file.older.length > 0 && (
+        <button
+          className="older-button"
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => setVersions(true)}
+        >
+          {t("files.versionCount", { count: file.older.length + 1 })}
+        </button>
+      )}
+      {versions && <FileVersions file={file} slug={slug} timeZone={timeZone} onClose={() => setVersions(false)} />}
       {menu}
     </div>
   );
@@ -901,7 +927,8 @@ export function ProjectPage({
     if (!place || stageFiles === null) return;
     linked.current = null;
     // Drive allows two subfolders, or two files, of the same name: the first in the
-    // page's order (stable ids wait for the document index, A25).
+    // page's order. A document goes by its clean name, so its link opens the
+    // current version (A25).
     const file = filesFor(stageFiles, place.position)
       .files?.groups.filter((g) => (g.folder ?? null) === place.folder)
       .flatMap((g) => g.files)

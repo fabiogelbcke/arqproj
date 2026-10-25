@@ -19,6 +19,52 @@ a new entry too.
 
 ---
 
+## 2026-10-25 — A25, section 12: versions from names, no document index
+
+**Was:** versions needed a document index: `documents` and `document_revisions`
+tables recording each logical document, its revisions (a sequence, an optional
+label, the source, the published time) and a pointer to the current one, kept
+up to date by the sync.
+
+**Now:** versions are worked out from the file names each time a folder is
+listed, which the page already does (A10): `Planta.pdf`, `Planta v2.pdf` and
+`Planta v3.pdf` in one folder are one document, the highest version current,
+with the same grouping rules as before (clear tokens only, within one folder,
+clashes flagged). Nothing about files is stored, not even staff corrections
+(join, split, choose current): a wrong grouping is fixed by renaming the file,
+and the current version is always the highest. A version shows Drive's date
+and no label (Fabio, 25 Oct 2026: "fine if we lose per-version
+labels for now"). A file renamed out of its pattern, or moved to another
+folder, leaves its group.
+
+**Why:** came up while designing share links (future ideas): a link has to name
+"this document, current version", and an index would have been a second copy of
+what Drive's listing already says, with a sync to keep it right. Names give the
+same answer for what offices do now, and a table of corrections wasn't worth
+it either (Fabio): renaming the file fixes a wrong grouping. Given up: a label
+per version, where each version came from, and choosing an older version as
+current; an index can return if those are wanted.
+A file with a new version shows "Atualizado" for 7 days from that version's
+Drive date (Fabio: "only for a few days").
+
+Also changed while building it (same day): section 12 said website uploads take
+the next version number "under a lock". Uploads go from the browser straight to
+Drive (A31), so a file only exists once its bytes arrive, and a lock while the
+upload opens would not stop two uploads both becoming v3; holding the number
+until then would mean storing a reservation, which this decision rules out. Now
+the number is named when the upload opens, and two opened at the same moment
+show as a clash for staff to rename, like any two files claiming one version.
+Rare at a handful of offices, and nothing is lost.
+
+And (Fabio, same day): only `v` numbers mark a version, "just use v1, v2, v3".
+Section 12 also grouped the old app's `rev B` style (and the implementation
+briefly `revisão 2`); a file named that way is now a document of its own,
+renamed with `vN` if it should group. And a file shows its version from v2
+("for v1 we can skip"): before, an unnumbered original displayed as v1; now v1
+appears only in the file's list of versions.
+
+---
+
 ## 2026-10-23 — Section 10, A28, A32: stages complete independently
 
 **Was:** a project had one current stage. Staff moved it on with "Marcar etapa
