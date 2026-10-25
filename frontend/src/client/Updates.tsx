@@ -56,6 +56,10 @@ export function entriesFor(
       if (!stage?.completed || finished.has(index)) continue; // reopened since
       finished.add(index);
       entries.push({ ...base, title: t("updates.stageCompleted"), context: `${pad(index + 1)} ${stage.title}`, target: index });
+    } else if (update.kind === "stage_reopened") {
+      if (!stage || stage.completed || finished.has(index)) continue; // completed again since
+      finished.add(index);
+      entries.push({ ...base, title: t("updates.stageReopened"), context: `${pad(index + 1)} ${stage.title}`, target: index });
     } else if (update.kind === "stage_advanced") {
       continue; // the old progress (before stages completed on their own): nothing holds it now
     } else if (update.kind === "project_completed") {

@@ -429,8 +429,8 @@ async def set_completion(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Mark a stage as completed, or reopen it, whatever the other stages are. The
-    client sees it at once; "Atualizado" moves. A completed stage is recorded for
-    the client's email (A32). The last stage completed completes the project (an
+    client sees it at once; "Atualizado" moves. Either is recorded for the client's
+    email (A32; reopening too since 25 Oct 2026). The last stage completed completes the project (an
     active one), and reopening one makes a completed project active again."""
     stages = await _stages(db, project_id)
     stage = next((s for s in stages if s.position == position), None)
@@ -469,15 +469,14 @@ async def _complete(
         .where(ProjectStage.id == stage.id)
         .values(completed_at=now if completed else None)
     )
-    if completed:
-        record(
-            db,
-            project,
-            EventKind.STAGE_COMPLETED,
-            stage_position=stage.position,
-            stage_id=stage.id,
-            title=await _title(db, stage, tenant.locale),
-        )
+    record(
+        db,
+        project,
+        EventKind.STAGE_COMPLETED if completed else EventKind.STAGE_REOPENED,
+        stage_position=stage.position,
+        stage_id=stage.id,
+        title=await _title(db, stage, tenant.locale),
+    )
     await db.commit()
 
 

@@ -728,8 +728,8 @@ export interface paths {
         /**
          * Set Completion
          * @description Mark a stage as completed, or reopen it, whatever the other stages are. The
-         *     client sees it at once; "Atualizado" moves. A completed stage is recorded for
-         *     the client's email (A32). The last stage completed completes the project (an
+         *     client sees it at once; "Atualizado" moves. Either is recorded for the client's
+         *     email (A32; reopening too since 25 Oct 2026). The last stage completed completes the project (an
          *     active one), and reopening one makes a completed project active again.
          */
         put: operations["set_completion_api_projects__project_id__stages__position__completion_put"];
@@ -1072,7 +1072,7 @@ export interface components {
          * @description What a client can notice on the page (A28). All but a note email (A32).
          * @enum {string}
          */
-        EventKind: "file_published" | "stage_advanced" | "stage_completed" | "project_completed" | "meeting_scheduled" | "meeting_changed" | "meeting_cleared" | "note_changed";
+        EventKind: "file_published" | "stage_advanced" | "stage_completed" | "stage_reopened" | "project_completed" | "meeting_scheduled" | "meeting_changed" | "meeting_cleared" | "note_changed";
         /** FileOut */
         FileOut: {
             /** Key */

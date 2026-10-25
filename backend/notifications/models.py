@@ -63,6 +63,7 @@ class EventKind(StrEnum):
     FILE_PUBLISHED = "file_published"  # found by the scan in a stage's folder
     STAGE_ADVANCED = "stage_advanced"  # before stages completed on their own (0032)
     STAGE_COMPLETED = "stage_completed"
+    STAGE_REOPENED = "stage_reopened"
     PROJECT_COMPLETED = "project_completed"
     MEETING_SCHEDULED = "meeting_scheduled"
     MEETING_CHANGED = "meeting_changed"

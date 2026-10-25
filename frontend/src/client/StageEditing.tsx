@@ -403,9 +403,9 @@ export function StageProgress({
       {confirming && (
         <ConfirmDialog
           {...ask}
-          // A completed stage emails whoever gets the project's updates (A32).
+          // Completing or reopening emails whoever gets the project's updates (A32).
           note={
-            completing && staff.recipients?.some((recipient) => recipient.subscribed)
+            staff.recipients?.some((recipient) => recipient.subscribed)
               ? t("edit.clientsNotified")
               : undefined
           }
