@@ -1,5 +1,6 @@
 """The emails with a link to choose a password: a reset ("Esqueceu a senha?")
-and an invite to the office's painel (A36).
+and an invite to the office's painel (A36); and the one with a code to confirm
+the email of someone who joined through the office's shared link.
 
 Sent from the office's address, in its language, with the link on its own
 address (never one taken from the request: plan section 4). The link works once
@@ -19,6 +20,16 @@ from backend.notifications.office import Office
 from backend.notifications.texts import t
 
 _TEMPLATE = Template((Path(__file__).parent / "templates" / "reset.html").read_text("utf-8"))
+_CONFIRM = Template((Path(__file__).parent / "templates" / "confirm.html").read_text("utf-8"))
+
+
+def _header(office: Office) -> str:
+    return (
+        f'<img src="{escape(office.logo_url)}" alt="{escape(office.name)}" height="40" '
+        'style="height:40px;max-width:200px;display:block">'
+        if office.logo_url
+        else f'<strong style="font-size:18px">{escape(office.name)}</strong>'
+    )
 
 
 def link_email(
@@ -28,12 +39,7 @@ def link_email(
     an invite (`texts`: the prefix of its button, expiry and ignore lines)."""
     locale = office.locale
     link = f"{office.base}{links.PATH}#token={token}"
-    header = (
-        f'<img src="{escape(office.logo_url)}" alt="{escape(office.name)}" height="40" '
-        'style="height:40px;max-width:200px;display:block">'
-        if office.logo_url
-        else f'<strong style="font-size:18px">{escape(office.name)}</strong>'
-    )
+    header = _header(office)
     button, expiry, ignore = (
         t(locale, f"{texts}{part}") for part in ("Button", "Expiry", "Ignore")
     )
@@ -76,15 +82,10 @@ def reset_email(office: Office, name: str, to: str, token: str) -> Email:
     )
 
 
-def invite_email(office: Office, name: str, to: str, token: str, inviter: str | None) -> Email:
-    """An invite to the office's painel (A36): from an owner, or asked for through
-    the office's shared link (no inviter)."""
+def invite_email(office: Office, name: str, to: str, token: str, inviter: str) -> Email:
+    """An owner's invite to the office's painel (A36)."""
     locale = office.locale
-    intro = (
-        t(locale, "inviteIntro", inviter=inviter, office=office.name)
-        if inviter
-        else t(locale, "inviteIntroLink", office=office.name)
-    )
+    intro = t(locale, "inviteIntro", inviter=inviter, office=office.name)
     return link_email(
         office,
         to,
@@ -93,4 +94,47 @@ def invite_email(office: Office, name: str, to: str, token: str, inviter: str | 
         subject=t(locale, "inviteSubject", office=office.name),
         hello=t(locale, "resetHello", name=_first(name)),
         intro=intro,
+    )
+
+
+def confirm_email(office: Office, name: str, to: str, token: str, code: str) -> Email:
+    """The code to type where they signed up, or a link that confirms it here."""
+    locale = office.locale
+    link = f"{office.base}{links.CONFIRM_PATH}#token={token}"
+    texts = {
+        key: t(locale, f"confirm{key[0].upper()}{key[1:]}", office=office.name)
+        for key in ("intro", "orLink", "button", "expiry", "ignore")
+    }
+    hello = t(locale, "resetHello", name=_first(name))
+    html = _CONFIRM.substitute(
+        lang=locale.value,
+        header=_header(office),
+        hello=escape(hello),
+        code=escape(code),
+        link=escape(link),
+        **{key: escape(value) for key, value in texts.items()},
+    )
+    text = "\n".join(
+        [
+            office.name,
+            "",
+            hello,
+            texts["intro"],
+            "",
+            code,
+            "",
+            f"{texts['orLink']} {link}",
+            "",
+            texts["expiry"],
+            texts["ignore"],
+        ]
+    )
+    return Email(
+        sender=office.sender,
+        to=to,
+        subject=t(locale, "confirmSubject", code=code, office=office.name),
+        html=html,
+        text=text,
+        idempotency_key="confirm-" + hashlib.sha256(token.encode()).hexdigest()[:32],
+        reply_to=office.reply_to,
     )

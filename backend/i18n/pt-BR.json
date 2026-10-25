@@ -263,7 +263,14 @@
     "share_not_found": "Este link não está mais disponível. Peça um novo a quem o enviou.",
     "share_too_large": "O limite é de 300 MB por link. Desmarque alguns arquivos ou crie mais de um link.",
     "share_files_changed": "Alguns arquivos mudaram desde que a página abriu. Recarregue a página e tente novamente.",
-    "share_daily_limit": "Este link atingiu o limite de downloads de hoje. Tente novamente amanhã."
+    "share_daily_limit": "Este link atingiu o limite de downloads de hoje. Tente novamente amanhã.",
+    "account_exists": "Já existe uma conta com este e-mail. Entre no painel ou use “Esqueceu a senha?”.",
+    "email_unconfirmed": "Confirme seu e-mail para continuar. Recarregue a página.",
+    "email_code_wrong": "Código incorreto. Confira o e-mail e tente de novo.",
+    "email_code_expired": "Este código não vale mais. Peça um novo código.",
+    "email_code_recent": "Enviamos um código há pouco. Aguarde 2 minutos para pedir outro.",
+    "email_not_sent": "Não foi possível enviar o e-mail. Tente novamente em alguns minutos.",
+    "already_confirmed": "Este e-mail já foi confirmado. Recarregue a página."
   },
   "projectStatus": {
     "draft": "Rascunho",
@@ -578,10 +585,15 @@
   "email": {
     "inviteSubject": "Convite para o painel do {{office}}",
     "inviteIntro": "{{inviter}} convidou você para o painel do {{office}}, onde a equipe cuida das páginas dos projetos. Para entrar, escolha sua senha:",
-    "inviteIntroLink": "Você pediu para entrar no painel do {{office}}. Para confirmar que este e-mail é seu, escolha sua senha:",
     "inviteButton": "Escolher minha senha",
     "inviteExpiry": "Este link é válido por 7 dias e pode ser usado uma única vez.",
     "inviteIgnore": "Se você não esperava este convite, ignore este e-mail. O acesso só será ativado após a definição da senha.",
+    "confirmSubject": "{{code}} é o seu código para entrar no painel do {{office}}",
+    "confirmIntro": "Para confirmar que este e-mail é seu e concluir o cadastro no painel do {{office}}, digite este código na tela de cadastro:",
+    "confirmOrLink": "Ou confirme por este link:",
+    "confirmButton": "Confirmar meu e-mail",
+    "confirmExpiry": "O código e o link são válidos por 24 horas.",
+    "confirmIgnore": "Se você não pediu este cadastro, ignore este e-mail. A conta não será ativada sem a confirmação.",
     "welcomeSubject": "Você vai receber as atualizações de {{project}}",
     "welcomeHello": "Olá!",
     "welcomeIntro": "A partir de agora, este e-mail recebe as atualizações do projeto {{project}}, do {{office}}: arquivos novos, etapas e reuniões.",
@@ -715,6 +727,7 @@
     "title": "Equipe",
     "you": "(você)",
     "pending": "Convite pendente",
+    "unconfirmed": "E-mail não confirmado",
     "role": {
       "member": "Equipe",
       "owner": "Administrador(a)"
@@ -754,13 +767,32 @@
   "join": {
     "pageTitle": "Entrar na equipe",
     "title": "Entrar na equipe do {{office}}",
-    "intro": "Informe seu nome e e-mail. Você vai receber um e-mail com um link para escolher sua senha.",
-    "submit": "Receber o link",
-    "sentTitle": "Confira seu e-mail",
-    "sent": "Se o endereço {{email}} puder receber um convite, enviaremos um link para definir a senha. Se você já tem uma conta, acesse o painel.",
+    "intro": "Informe seu nome, e-mail e uma senha. Depois, confirme o e-mail com o código que vamos enviar.",
+    "submit": "Criar conta",
     "invalidTitle": "Este link não funciona mais",
     "invalidBody": "Ele foi desativado ou trocado por um novo. Peça o link atual a quem administra o escritório.",
     "haveAccount": "Já tenho conta"
+  },
+  "confirmEmail": {
+    "pageTitle": "Confirmar e-mail",
+    "title": "Confirme seu e-mail",
+    "intro": "Enviamos um código de 6 dígitos para {{email}}. Digite-o abaixo para acessar o painel.",
+    "code": "Código",
+    "submit": "Confirmar",
+    "resend": "Reenviar código",
+    "resent": "Enviamos um novo código para {{email}}.",
+    "correct": "Corrigir e-mail",
+    "newEmail": "E-mail",
+    "saveEmail": "Salvar e enviar código",
+    "cancel": "Cancelar",
+    "signOut": "Sair",
+    "linkIntro": "Confirme que este e-mail é seu para concluir o cadastro no painel.",
+    "linkSubmit": "Confirmar meu e-mail",
+    "doneTitle": "E-mail confirmado",
+    "doneBody": "Seu cadastro está completo. Você já pode acessar o painel.",
+    "invalidTitle": "Este link não funciona mais",
+    "invalidBody": "Ele expirou ou já foi usado. Entre no painel para receber um novo código.",
+    "toPainel": "Ir para o painel"
   },
   "subscribe": {
     "title": "Atualizações por e-mail",

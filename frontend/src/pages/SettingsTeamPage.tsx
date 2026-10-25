@@ -76,7 +76,11 @@ function Members({ members, manage }: { members: Member[]; manage: boolean }) {
             <span className={styles.small}>{member.email}</span>
           </div>
           <span className={styles.memberRole}>
-            {member.status === "invited" ? t("team.pending") : t(`team.role.${member.role}`)}
+            {member.status === "invited"
+              ? t("team.pending")
+              : member.status === "unconfirmed"
+                ? t("team.unconfirmed")
+                : t(`team.role.${member.role}`)}
           </span>
           {manage && member.status === "invited" && (
             <div className={styles.actions}>

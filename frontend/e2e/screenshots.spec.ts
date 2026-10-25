@@ -144,6 +144,32 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(page, "05c-convidar-pessoa");
   await page.keyboard.press("Escape");
 
+  // The shared link's page (a new device, not signed in), then the code screen.
+  const joinLink = await page.evaluate(async () => {
+    const me = await (await fetch("/api/me")).json();
+    const made = await fetch("/api/team/join-link", { method: "POST", headers: { "X-CSRF-Token": me.csrf_token } });
+    return (await made.json()).link as string;
+  });
+  const joining = await (await browser.newContext()).newPage();
+  await joining.emulateMedia({ reducedMotion: "reduce" });
+  await joining.goto(joinLink.replace(/:\d+\//, `:${PORT}/`));
+  await joining.getByRole("heading", { name: "Entrar na equipe do Alinea (dev)" }).waitFor();
+  await shoot(joining, "05d-entrar-na-equipe");
+  await joining.setViewportSize(SIZES[0]!);
+  await joining.getByLabel("Nome").fill("Caio Reis");
+  await joining.getByLabel("E-mail").fill("caio.reis@exemplo.com.br");
+  await joining.getByLabel("Nova senha").fill("senha-das-capturas");
+  await joining.getByLabel("Repita a senha").fill("senha-das-capturas");
+  await joining.getByRole("button", { name: "Criar conta" }).click();
+  await joining.getByRole("heading", { name: "Confirme seu e-mail" }).waitFor();
+  await shoot(joining, "05e-confirmar-email");
+  await joining.getByRole("button", { name: "Corrigir e-mail" }).click();
+  await shoot(joining, "05f-corrigir-email");
+  await joining.context().close();
+  await page.reload();
+  await page.getByText("E-mail não confirmado").waitFor();
+  await shoot(page, "05g-equipe-nao-confirmado");
+
   // The client's page (no sign-in needed; the staff session doesn't change it).
   await page.setViewportSize(SIZES[0]!);
   await page.goto("/casa-jardim");

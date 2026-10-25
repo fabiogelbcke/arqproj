@@ -7,7 +7,7 @@ session is scoped to (`scope_to_tenant`); other tenants' accounts are invisible.
 
 from __future__ import annotations
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, null, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.identity.emails import tidy_email
@@ -52,11 +52,16 @@ async def create_user(
     name: str,
     role: Role = Role.MEMBER,
     password: str | None = None,
+    password_hash: str | None = None,
+    email_confirmed: bool = True,
 ) -> User:
-    """Without a password, the person chooses one through an invite link (`links`)."""
+    """Without a password, the person chooses one through an invite link (`links`).
+    `password_hash` is one from `new_password_hash`, made before the transaction.
+    Unconfirmed (the shared link, A36): it signs in only to confirm the email."""
     if role not in set(Role):
         raise AccountError(f"Role must be one of: {', '.join(Role)}")
-    password_hash = None if password is None else await new_password_hash(password)
+    if password is not None:
+        password_hash = await new_password_hash(password)
     if await find_user(session, email) is not None:
         raise AccountError(f"There is already an account for {normalize_email(email)}")
     user = User(
@@ -65,8 +70,13 @@ async def create_user(
         role=Role(role),
         password_hash=password_hash,
     )
+    if not email_confirmed:
+        # SQL's NULL: a plain None would leave the column to its default (now).
+        user.email_confirmed_at = null()
     session.add(user)
     await session.flush()
+    if not email_confirmed:
+        await session.refresh(user, ["email_confirmed_at"])
     return user
 
 
@@ -75,6 +85,15 @@ async def new_password_hash(password: str) -> str:
     a transaction, so no database connection waits on it."""
     _check_password(password)
     return await hash_password(password)
+
+
+async def confirm_email(session: AsyncSession, user: User) -> None:
+    """The address is shown to be theirs (a code, a confirmation, an invite or a
+    reset link): the account works fully."""
+    if user.email_confirmed_at is None:
+        user.email_confirmed_at = func.now()
+        await session.flush()
+        await session.refresh(user, ["email_confirmed_at"])
 
 
 async def set_password(session: AsyncSession, user: User, password_hash: str) -> None:
