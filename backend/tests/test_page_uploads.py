@@ -496,3 +496,18 @@ async def test_only_staff_check_names(client, db_session, owner, folders):
     norte = await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
     response = await client.post(url, json=body, headers=norte)
     assert (response.status_code, response.json()["error"]) == (404, "project_not_found")
+
+
+SCREENSHOT = "Screenshot 2026-10-25 at 9.10.16 PM.png"  # macOS: a narrow no-break space
+
+
+async def test_a_name_with_an_invisible_space_is_still_seen_as_a_new_version(
+    client, owner, folders
+):
+    """macOS names screenshots with a narrow no-break space before "PM". The
+    check reads the name as it will be saved, so the same file dropped again is
+    asked about as a new version, not saved beside it as "(2)"."""
+    first = await start(client, owner, name=SCREENSHOT)
+    await send(client, first)
+    response = await check(client, owner, [SCREENSHOT])
+    assert [m["name"] for m in response.json()["matches"]] == [SCREENSHOT]
