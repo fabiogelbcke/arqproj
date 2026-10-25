@@ -38,6 +38,9 @@ from backend.web.errors import ApiError, ErrorCode, documented
 
 RESEND_EVERY = timedelta(minutes=2)  # at most one code to an account in this time
 CODE_TRIES = "email-code"
+# Corrections to a new address send at once (the typo is usually noticed right
+# away), so they count instead: 5 per account in 15 minutes, as wrong codes.
+CORRECTIONS = "email-correction"
 # One change to an account's confirmation at a time (a double click on "Reenviar
 # código" must not send two).
 _LOCK = text("SELECT pg_advisory_xact_lock(hashtext('email-code'), hashtext(:user))")
@@ -153,7 +156,7 @@ async def resend_code(
         raise ApiError(503, ErrorCode.EMAIL_NOT_SENT)
 
 
-@router.put("/me/email", responses=documented(401, 403, 409, 422, 503))
+@router.put("/me/email", responses=documented(401, 403, 409, 422, 429, 503))
 async def correct_email(
     body: EmailIn,
     request: Request,
@@ -167,8 +170,16 @@ async def correct_email(
     if not is_email(email):
         raise ApiError(422, ErrorCode.INVALID_EMAIL)
     user = await _unconfirmed(db, account)
-    await db.execute(_LOCK_EMAIL, {"email": email})
-    if email != user.email:
+    if email == user.email:
+        # Nothing to correct: a new code, under the resend's own limit.
+        if await links.made_since(db, user, LinkKind.CONFIRM, datetime.now(UTC) - RESEND_EVERY):
+            raise ApiError(429, ErrorCode.EMAIL_CODE_RECENT)
+    else:
+        who = str(user.id)
+        if not attempts.admit(CORRECTIONS, who):
+            raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
+        attempts.failed(CORRECTIONS, who)  # every correction counts toward the limit
+        await db.execute(_LOCK_EMAIL, {"email": email})
         if await accounts.find_user(db, email) is not None:
             raise ApiError(409, ErrorCode.ACCOUNT_EXISTS)
         user.email = email
@@ -188,9 +199,16 @@ async def confirm_by_link(
 ) -> None:
     """The email's link: confirms the address wherever it's opened (often a phone,
     signed in or not); the person then signs in, or carries on where they were."""
+    found = await links.find(db, body.token, (LinkKind.CONFIRM,))
+    if found is None:
+        raise ApiError(404, ErrorCode.LINK_INVALID)
+    # Under the account's lock, as corrections and codes: an address corrected
+    # meanwhile has retired this link, so `use` finds nothing to confirm.
+    await db.execute(_LOCK, {"user": str(found[1].id)})
     user = await links.use(db, body.token, (LinkKind.CONFIRM,))
     if user is None:
         raise ApiError(404, ErrorCode.LINK_INVALID)
+    await db.refresh(user)  # its address as it is now, after the lock
     await accounts.confirm_email(db, user)
     await db.commit()
     log.info("staff %s confirmed their email by link in %s", user.id, tenant.slug)

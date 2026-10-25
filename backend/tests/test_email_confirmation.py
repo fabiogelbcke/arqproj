@@ -10,7 +10,7 @@ from backend.commands.seed import seed
 from backend.identity import links
 from backend.identity.models import Role
 from backend.tests.test_office import ALINEA, sign_in_as
-from backend.tests.test_team import Sent, code_in, csrf, join, token_in, turn_on
+from backend.tests.test_team import Sent, _waits_for, code_in, csrf, join, token_in, turn_on
 from backend.web import attempts, auth, email_confirmation, team
 
 pytestmark = pytest.mark.anyio
@@ -230,3 +230,47 @@ async def test_a_reset_link_confirms_the_email_too(client, joined, sent):
         headers=ALINEA,
     )
     assert chosen.json()["email_confirmed"] is True
+
+
+async def test_the_same_address_again_is_a_resend_and_waits_like_one(
+    client, db_session, joined, sent
+):
+    same = await client.put("/api/me/email", json={"email": "caio@gmail.com"}, headers=joined)
+    assert (same.status_code, same.json()["error"]) == (429, "email_code_recent")
+    await make_resend_due(db_session)
+    again = await client.put("/api/me/email", json={"email": "caio@gmail.com"}, headers=joined)
+    assert again.status_code == 200
+    assert len(sent.emails) == 2
+
+
+async def test_corrections_are_limited_per_account(client, joined, sent):
+    for n in range(attempts.LIMIT):
+        response = await client.put(
+            "/api/me/email", json={"email": f"caio{n}@gmail.com"}, headers=joined
+        )
+        assert response.status_code == 200
+    late = await client.put("/api/me/email", json={"email": "caio9@gmail.com"}, headers=joined)
+    assert (late.status_code, late.json()["error"]) == (429, "too_many_attempts")
+
+
+async def test_a_corrected_address_retires_the_old_addresses_link(client, joined, sent):
+    old_link = token_in(sent.emails[0].text)
+    await client.put("/api/me/email", json={"email": "caio@hotmail.com"}, headers=joined)
+    stale = await client.post("/api/email-confirmation", json={"token": old_link}, headers=ALINEA)
+    assert (stale.status_code, stale.json()["error"]) == (404, "link_invalid")
+    assert (await client.get("/api/me", headers=ALINEA)).json()["email_confirmed"] is False
+
+
+async def test_the_link_waits_for_a_correction_under_way(client, db_session, joined, sent):
+    """A correction holds the account's lock until it commits; the link must wait
+    for it, then find itself retired, rather than confirm the old address."""
+    me = (await client.get("/api/me", headers=ALINEA)).json()
+    user_id = await db_session.scalar(
+        text("SELECT id FROM users WHERE email = :e"), {"e": me["email"]}
+    )
+    token = token_in(sent.emails[0].text)
+    lock = "SELECT pg_advisory_xact_lock(hashtext('email-code'), hashtext(:k))"
+    call = lambda: client.post(  # noqa: E731
+        "/api/email-confirmation", json={"token": token}, headers=ALINEA
+    )
+    assert await _waits_for(lock, str(user_id), call) == 204
