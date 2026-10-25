@@ -279,7 +279,7 @@ test("the client page: content, redirects, not found and protected", async ({ pa
   await page.goto("/casa-jardim");
   await expect(page.getByRole("heading", { level: 1, name: "Casa Jardim" })).toHaveText("Casa Jardim"); // capitals by CSS
   await expect(page).toHaveTitle("Casa Jardim · Alinea (dev)");
-  await expect(page.getByRole("heading", { name: "Etapas e próximos passos" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Etapas do projeto" })).toBeVisible();
   await expect(page.getByText("Apresentação do layout")).toBeVisible();
   // The current stage is open; another opens from the timeline.
   await expect(page.getByText("Levantamento concluído", { exact: false })).toBeHidden();
@@ -589,7 +589,7 @@ test("a new staff member's first project page shows the tour once; the account m
   await page.waitForTimeout(800);
   await expect(popover).toHaveCount(0); // not again, for this account
   await page.getByRole("button", { name: "Sua conta" }).click();
-  await page.getByRole("menuitem", { name: "Ver o tour da página" }).click();
+  await page.getByRole("menuitem", { name: "Ajuda" }).click();
   await expect(popover).toContainText("Ver como cliente e Editar");
 });
 

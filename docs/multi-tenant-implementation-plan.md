@@ -801,10 +801,12 @@ can disable uploads while the reader still keeps an existing portal available.
 An explicit product disconnect disables both immediately in our application.
 While the office is disconnected ("Desconectar"), the painel hides its projects,
 search and "Novo projeto": its empty state says Drive is disconnected and
-offers the owner "Reconectar" (Fabio, 25 Oct 2026); an
-expired grant keeps them listed with its own notice, and a never-connected office
-has its first steps. Reconnecting the same account, or switching accounts, shows
-them again.
+offers the owner "Reconectar" (Fabio, 25 Oct 2026). Every page of the office
+answers `503 page_unavailable` (files, downloads and uploads too): clients see
+"Página indisponível", signed-in staff are told to reconnect. An expired grant
+keeps the projects listed and the pages online, with its own notice; a
+never-connected office has its first steps. Reconnecting the same account, or
+switching accounts, brings everything back.
 Evaluate write capabilities using the writer identity: capability fields fetched
 as the read-only account describe that reader and cannot authorize a writer action.
 
@@ -1458,8 +1460,8 @@ pencils, stages, files) needs help; the painel gets a short tour on demand
 (revised 19 Oct 2026, below) whose last step leads to the example project.
 
 **The menu shows you around.** Each area that has a tour offers it from its
-account menu ("Ver o tour da página", "Ver o tour do painel"; the painel's phone
-drawer too). The "?" buttons that did this in the staff bar and the painel's top
+account menu ("Ajuda" on the project page since 25 Oct 2026, "Ver o tour do
+painel"; the painel's phone drawer too). The "?" buttons that did this in the staff bar and the painel's top
 bar were dropped on 25 Oct 2026 (Fabio): the menus already held the same thing,
 and the bars had little room on phones. The painel tour never starts on its own;
 an archived project page doesn't offer its tour (it works in edit mode).

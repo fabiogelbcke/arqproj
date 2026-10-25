@@ -83,3 +83,15 @@ class StorageConnection(IdMixin, TimestampsMixin, TenantOwned, Base):
     )
     connected_by: Mapped[uuid.UUID | None] = mapped_column()
     checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    @property
+    def disconnected(self) -> bool:
+        """The office chose "Desconectar" and its folder is still on record: its
+        clients' pages are offline and the painel hides its projects until Drive
+        is back (Fabio, 25 Oct 2026). An expired grant is not this: its pages
+        keep reading through the reader identity."""
+        return (
+            self.kind is StorageKind.GOOGLE
+            and self.writer_status is WriterStatus.NONE
+            and bool(self.root_id)
+        )

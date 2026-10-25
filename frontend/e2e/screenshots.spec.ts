@@ -155,9 +155,19 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await seen;
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Ver como cliente" }).click();
-  await page.getByRole("heading", { name: "Etapas e próximos passos" }).waitFor();
+  await page.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
+  // Drive disconnected: the page is offline (staff are told to reconnect).
+  await page.route("**/api/pages/casa-jardim", (route) =>
+    route.fulfill({ status: 503, json: { error: "page_unavailable" } }),
+  );
+  await page.reload();
+  await page.getByRole("heading", { name: "Página indisponível" }).waitFor();
+  await shoot(page, "06k-pagina-indisponivel");
+  await page.unroute("**/api/pages/casa-jardim");
+  await page.reload();
+  await page.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
   // The file tools: the list view, then a file's preview.
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("button", { name: "Visualizar em lista" }).first().click();

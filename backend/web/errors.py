@@ -53,6 +53,7 @@ class ErrorCode(StrEnum):
     COVER_TOO_LARGE = "cover_too_large"
     PAGE_NOT_FOUND = "page_not_found"  # unknown address, draft or deleted: never told apart
     PAGE_LOCKED = "page_locked"  # protected by a password
+    PAGE_UNAVAILABLE = "page_unavailable"  # Drive disconnected: back once reconnected
     WRONG_PAGE_PASSWORD = "wrong_page_password"
     TOO_MANY_ATTEMPTS = "too_many_attempts"  # wait 15 minutes
     RECIPIENTS_FULL = "recipients_full"  # the project has as many addresses as it may (20)

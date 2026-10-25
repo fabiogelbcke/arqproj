@@ -180,7 +180,7 @@ describe("the explore tour", () => {
     lastTour().onDestroyStarted(); // Driver.js's way out
 
     await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Ver o tour da página" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Ajuda" }));
     await waitFor(() => expect(driven.drive).toHaveBeenCalledTimes(2));
     expect(setupTour.startTour).not.toHaveBeenCalled();
   });

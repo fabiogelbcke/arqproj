@@ -13,7 +13,7 @@
 }
 .authBrand > * { flex: none; }
 .authBrand > :last-child { flex: 0 1 auto; min-width: 0; }
-.unio img { display: block; height: 32px; width: auto; }
+.unio img { height: 32px; }
 .authJoin { font-size: 22px; }
 @media (max-width: 480px) {
   .authBrand { gap: 12px; --logo-ref: 30px; --logo-min: 22px; --logo-max: 44px; --logo-max-width: 100%; }
@@ -22,9 +22,6 @@
 }
 /* The narrowest phones: Unio gives way too, so the office's logo isn't squeezed. */
 @media (max-width: 360px) { .unio img { height: 20px; } .authBrand { gap: 10px; } }
-.unioDark { display: none !important; }
-:global(:root[data-theme="dark"]) .unioLight { display: none !important; }
-:global(:root[data-theme="dark"]) .unioDark { display: block !important; }
 .authJoin { font-weight: 300; color: var(--muted); }
 /* The office's name when it has no logo: in capitals, about as tall as the Unio
    wordmark, smaller the longer it is, wrapping to two lines at most. */
@@ -50,6 +47,8 @@
   translate: 0 -200%;
 }
 .skipLink:focus { translate: 0 0; }
+/* Unio's footer at the end of every painel screen. */
+.footer { margin-top: 24px; }
 .main:focus { outline: none; } /* focused by the skip link, not by people */
 .topbarIn {
   max-width: 1600px; margin: 0 auto; padding: 0 clamp(16px, 4.5vw, 88px); min-height: 72px;

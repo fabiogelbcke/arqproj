@@ -3452,6 +3452,16 @@
             },
             "description": "Not Found"
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -3976,6 +3986,7 @@
           "cover_too_large",
           "page_not_found",
           "page_locked",
+          "page_unavailable",
           "wrong_page_password",
           "too_many_attempts",
           "recipients_full",

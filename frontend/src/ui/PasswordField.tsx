@@ -7,13 +7,19 @@ import styles from "./ui.module.css";
 type Props = Omit<TextFieldProps, "type"> & { label: string };
 
 /** Apple's systems show their own Caps Lock mark beside the cursor (macOS since
- *  Sonoma, and iPadOS, which also says "Mac"), so ours would be a second one. */
+ *  Sonoma, iPadOS), so ours would be a second one; but on a Mac only Safari's
+ *  fields get it: Chrome and Firefox draw their own and show none. iPhones and
+ *  iPads (which say "Mac" too, with a touch screen) use Safari's engine in every
+ *  browser. */
 function systemShowsCapsLock() {
-  return /Mac|iPhone|iPad/.test(navigator.platform);
+  if (/iPhone|iPad/.test(navigator.platform) || (/Mac/.test(navigator.platform) && navigator.maxTouchPoints > 1))
+    return true;
+  const ua = navigator.userAgent;
+  return /Mac/.test(navigator.platform) && /Safari\//.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(ua);
 }
 
 /** A labelled password input with an eye button that shows the password as typed,
- *  and, except on Apple systems, a mark in its right edge while Caps Lock is on
+ *  and, unless the system shows its own, a mark in its right edge while Caps Lock is on
  *  (said to screen readers too). */
 export function PasswordField({ label, ...props }: Props) {
   const { t } = useTranslation();
