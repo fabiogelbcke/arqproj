@@ -28,15 +28,17 @@
   .search {
     position: fixed; z-index: 40; left: 16px; right: 84px; bottom: calc(20px + env(safe-area-inset-bottom));
     height: 56px; border-radius: 28px;
-    /* Glass, like iOS: the page shows through, blurred; solid while you type. */
-    background: color-mix(in srgb, var(--raise) 10%, transparent);
-    backdrop-filter: blur(8px) saturate(1.6); -webkit-backdrop-filter: blur(8px) saturate(1.6);
-    box-shadow: 0 6px 20px rgb(0 0 0 / 14%); transition: background-color 0.2s ease;
+    /* Glass, like Safari's address bar (tokens.css): the page shows through,
+       blurred, so it stands out from the cards; solid while you type. */
+    border: 1px solid var(--glass-edge); background: var(--glass-fill);
+    backdrop-filter: blur(16px) saturate(1.6); -webkit-backdrop-filter: blur(16px) saturate(1.6);
+    box-shadow: var(--glass-shadow);
+    transition: background-color 0.2s ease;
   }
   .search:focus-within { background: color-mix(in srgb, var(--raise) 96%, transparent); }
   @media (prefers-reduced-motion: reduce) { .search { transition: none; } }
-  .search svg { left: 20px; }
-  .search input { height: 100%; padding: 0 20px 0 46px; border: 0; background: transparent; font-size: 17px; }
+  .search svg { left: 20px; width: 21px; height: 21px; } /* Safari's address-bar size */
+  .search input { height: 100%; padding: 0 20px 0 52px; border: 0; background: transparent; font-size: 17px; }
   .search input[data-focused] { background: transparent; }
   /* "Novo projeto" is the round + beside it (its name stays for screen readers). */
   .tools .newButton { /* over the Button's own size */
@@ -44,7 +46,7 @@
     display: grid; place-items: center; width: var(--control-floating); height: var(--control-floating); min-height: 0; padding: 0; gap: 0;
     border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
   }
-  .newButton > span:first-child { display: block; font-size: 30px; font-weight: 300; line-height: 1; translate: 0 -2px; }
+  .newButton > span:first-child { display: block; font-size: 36px; font-weight: 300; line-height: 1; translate: 0 -2px; }
   .newLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 
