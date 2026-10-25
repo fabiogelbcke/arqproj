@@ -4,6 +4,7 @@ import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react
 
 import { api, call } from "../api/client";
 import { LogoPng, useOffice } from "../office/office";
+import { ConfirmEmailPage } from "../pages/ConfirmEmailPage";
 import { useMe, useSignedOut } from "../session/session";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { HeaderMenu } from "../ui/HeaderMenu";
@@ -12,8 +13,15 @@ import { SiteFooter } from "../ui/UnioMark";
 import styles from "../pages/pages.module.css";
 import { MobileMenu } from "./MobileMenu";
 
-/** Every screen behind sign-in: the top bar, or a redirect to sign-in. */
+/** Every screen behind sign-in: the top bar, or a redirect to sign-in; until
+ *  someone who joined by the shared link confirms their email, only that. */
 export function SignedInLayout() {
+  const me = useMe();
+  if (me.data?.email_confirmed === false) return <ConfirmEmailPage me={me.data} />;
+  return <Painel />;
+}
+
+function Painel() {
   const { t } = useTranslation();
   const me = useMe();
   const office = useOffice(); // the logo, once uploaded (Configurações → Escritório)

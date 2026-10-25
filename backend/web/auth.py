@@ -11,6 +11,10 @@
 The cookie holds only a random token (see `backend.identity.sessions`). Every
 state-changing staff request must also send the session's CSRF token in the
 `X-CSRF-Token` header (`require_csrf`).
+
+Someone who joined through the office's shared link and hasn't confirmed their
+email yet (A36) signs in like anyone, but `current_staff` refuses them: only
+`current_account` routes (who they are, signing out, confirming the email) work.
 """
 
 from __future__ import annotations
@@ -64,6 +68,7 @@ class CurrentStaff:
     role: Role
     session_id: uuid.UUID
     csrf_token: str
+    email_confirmed: bool = True
 
 
 class LoginIn(BaseModel):
@@ -103,6 +108,9 @@ class MeOut(BaseModel):
     csrf_token: str
     # The project page's guided tour, once per account (Fabio, 18 Oct 2026).
     page_tour_seen: bool
+    # False: joined through the shared link, and must confirm the email before
+    # anything else (A36).
+    email_confirmed: bool
 
 
 def _not_signed_in() -> ApiError:
@@ -121,10 +129,11 @@ def _set_cookie(request: Request, response: Response, token: str, expires_at: da
     )
 
 
-async def current_staff(
+async def current_account(
     request: Request, response: Response, db: AsyncSession = Depends(get_tenant_session)
 ) -> CurrentStaff:
-    """The signed-in staff member of this tenant, or 401."""
+    """Whoever is signed in to this tenant, confirmed or not, or 401. Only for the
+    routes an unconfirmed account needs; everything else uses `current_staff`."""
     token = request.cookies.get(COOKIE)
     found = await sessions.find_active(db, token) if token else None
     if found is None:
@@ -134,7 +143,26 @@ async def current_staff(
     # The browser keeps the cookie as long as the session lives, so an active
     # person is not signed out 30 days after signing in.
     _set_cookie(request, response, token, row.expires_at)
-    return CurrentStaff(user.id, user.email, user.name, user.role, row.id, row.csrf_token)
+    return CurrentStaff(
+        user.id,
+        user.email,
+        user.name,
+        user.role,
+        row.id,
+        row.csrf_token,
+        user.email_confirmed_at is not None,
+    )
+
+
+async def current_staff(
+    request: Request, response: Response, db: AsyncSession = Depends(get_tenant_session)
+) -> CurrentStaff:
+    """The signed-in staff member of this tenant, or 401; 403 until their email
+    is confirmed."""
+    account = await current_account(request, response, db)
+    if not account.email_confirmed:
+        raise ApiError(403, ErrorCode.EMAIL_UNCONFIRMED)
+    return account
 
 
 async def optional_staff(
@@ -149,17 +177,28 @@ async def optional_staff(
         return None
 
 
-async def require_csrf(
-    request: Request, staff: CurrentStaff = Depends(current_staff)
-) -> CurrentStaff:
-    """For state-changing requests: the session's CSRF token must come back."""
+def _check_csrf(request: Request, staff: CurrentStaff) -> CurrentStaff:
     sent = request.headers.get(CSRF_HEADER, "")
     if not hmac.compare_digest(sent, staff.csrf_token):
         raise ApiError(403, ErrorCode.CSRF_TOKEN_MISSING_OR_WRONG)
     return staff
 
 
-def _me(
+async def require_csrf(
+    request: Request, staff: CurrentStaff = Depends(current_staff)
+) -> CurrentStaff:
+    """For state-changing requests: the session's CSRF token must come back."""
+    return _check_csrf(request, staff)
+
+
+async def require_csrf_account(
+    request: Request, account: CurrentStaff = Depends(current_account)
+) -> CurrentStaff:
+    """`require_csrf` for the routes an unconfirmed account may use."""
+    return _check_csrf(request, account)
+
+
+def me_out(
     staff_email: str,
     name: str,
     role: Role,
@@ -167,6 +206,7 @@ def _me(
     office: str,
     csrf: str,
     tour_seen: bool,
+    email_confirmed: bool = True,
 ) -> MeOut:
     return MeOut(
         email=staff_email,
@@ -178,6 +218,7 @@ def _me(
         tenant_timezone=tenant.timezone,
         csrf_token=csrf,
         page_tour_seen=tour_seen,
+        email_confirmed=email_confirmed,
     )
 
 
@@ -197,10 +238,17 @@ async def sign_in(
     if not await verify_password(user.password_hash if user else None, body.password):
         await anyio.sleep(FAILED_LOGIN_DELAY)
         raise ApiError(401, ErrorCode.INVALID_CREDENTIALS)
+    return await signed_in(request, response, tenant, db, user)
+
+
+async def signed_in(
+    request: Request, response: Response, tenant: CurrentTenant, db: AsyncSession, user: User
+) -> MeOut:
+    """Start a session for `user` (its cookie on `response`), and say who they are."""
     token, row = await sessions.start(db, user)
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
-    return _me(
+    return me_out(
         user.email,
         user.name,
         user.role,
@@ -208,13 +256,14 @@ async def sign_in(
         await display_name(db, tenant),
         row.csrf_token,
         user.tour_seen_at is not None,
+        user.email_confirmed_at is not None,
     )
 
 
 @router.delete("/session", status_code=204, responses=documented(401, 403))
 async def sign_out(
     response: Response,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_csrf_account),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
     row = await db.get(LoginSession, staff.session_id)
@@ -252,34 +301,39 @@ async def choose_password(
         password_hash = await accounts.new_password_hash(body.password)
     except accounts.PasswordTooShort:
         raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT) from None
+    found = await links.find(db, body.token)
+    if found is None:
+        raise ApiError(404, ErrorCode.LINK_INVALID)
+    # It confirms the address too: not while an unconfirmed address is being
+    # corrected (that retires this link; `use` then finds nothing).
+    await accounts.lock_confirmation(db, found[1].id)
     user = await links.use(db, body.token)
     if user is None:
         raise ApiError(404, ErrorCode.LINK_INVALID)
+    await db.refresh(user)  # its address as it is now, after the lock
     await accounts.set_password(db, user, password_hash)
-    token, row = await sessions.start(db, user)
-    await db.commit()
-    _set_cookie(request, response, token, row.expires_at)
-    return _me(
-        user.email,
-        user.name,
-        user.role,
-        tenant,
-        await display_name(db, tenant),
-        row.csrf_token,
-        user.tour_seen_at is not None,
-    )
+    # The link came to their inbox: that proves the address too.
+    await accounts.confirm_email(db, user)
+    return await signed_in(request, response, tenant, db, user)
 
 
 @router.get("/me", responses=documented(401))
 async def me(
-    staff: CurrentStaff = Depends(current_staff),
+    staff: CurrentStaff = Depends(current_account),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
     office = await display_name(db, tenant)
     seen = await db.scalar(select(User.tour_seen_at).where(User.id == staff.user_id))
-    return _me(
-        staff.email, staff.name, staff.role, tenant, office, staff.csrf_token, seen is not None
+    return me_out(
+        staff.email,
+        staff.name,
+        staff.role,
+        tenant,
+        office,
+        staff.csrf_token,
+        seen is not None,
+        staff.email_confirmed,
     )
 
 

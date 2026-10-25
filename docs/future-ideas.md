@@ -101,75 +101,9 @@ decision in the [decision changelog](decision-changelog.md).
 
 ## Sharing files with a supplier by link
 
-A client (or staff) picks files from the project and gets a link to send, for
-example to a supplier for a quote. The supplier opens it and downloads the
-files one by one or all at once as a zip, without an account. Discussed with
-Fabio, 25 Oct 2026; what a link points to followed from A25's revision the same
-day (versions from names, no document index).
-
-Leaning towards (Fabio's answers, 25 Oct 2026):
-
-- Both clients and staff can share. Staff see every link on the project (label,
-  number of files, who made it, dates, downloads), but don't control them.
-- A link can hold files from several stages. One panel, two ways in:
-  "Compartilhar arquivos" above the stage list (every stage, collapsed, nothing
-  ticked) and a button on each stage (that stage open with its files ticked,
-  the others collapsed below so they can be added). Files hidden from the
-  client never appear.
-- The link stays up to date with the files rather than freezing what was sent.
-- The sender chooses the expiry (7 days, 30 days, no expiry) and can add a
-  password.
-- At most 300 MB per link, counting every file in it, checked when the link is
-  made; "Gerar link" is disabled above it ("O limite é de 300 MB por link.
-  Desmarque alguns arquivos ou crie mais de um link."). We can raise it if
-  people complain. At about $0.19/GB to Brazil, a full download costs about
-  6 cents.
-- Wording: "Compartilhar arquivos", an optional "Para quem?" label, "Cancelar"
-  and "Gerar link"; then "Copiar link" and, on phones, the phone's own share
-  sheet. Avoid "Exportar" (sounds like a format) and "Enviar" (reads as
-  uploading, and is meant for the file link above).
-
-A sketch of how it could work:
-
-- A link is a stored random token (only its hash kept) with the office, project,
-  label, creator, optional password (with a version that ends unlocks when it
-  changes, as project pages do), expiry, deactivation and download count; and
-  the files it holds. Creating one takes the file keys the page already handed
-  out, so only what the sender can see can be shared.
-- The supplier's page sits on the office's address (`/share/{token}`), branded,
-  not indexed, sending no referrer. Downloads stream through the server as the
-  page's do (plan section 15). The zip is built while it downloads, without
-  compression (PDFs, images and CAD files barely shrink), so its size is known
-  up front and the browser shows real progress; a folder per stage inside.
-- Limits so a link can't run up the bill: a few new links a minute per device,
-  about 20 active links a project, about 20 full downloads a day a link, and the
-  office's monthly download bytes counted with an alert above a threshold.
-- Possible slices: links with single-file downloads, the panel and the staff
-  list; then the zip; then the password.
-
-What a link points to:
-
-- A link stores the Drive IDs of the files picked and checks them live on every
-  visit, as file downloads already do. Renamed, moved to another stage or
-  replaced in place (Drive's own versions): still in the link, with the current
-  content. Hidden from the client or trashed: drops out, and comes back if
-  undone. Deleted or moved out of the project, or the office reconnects another
-  Drive: drops out.
-- Versions (A25) are worked out from names on each listing, so a link serves
-  the current version of the group holding one of its files: a new
-  `Planta v3.pdf` replaces v2 in the link; if v3 is trashed, v2 again; older
-  versions are never offered. So that the link keeps its group when the file
-  first picked is trashed, it adds each version's ID it serves, and falls back
-  to the clean name in the same folder.
-- The supplier's page doesn't list files that are no longer available but says
-  so ("2 arquivos compartilhados não estão mais disponíveis"; with none left,
-  "Os arquivos deste link não estão mais disponíveis"); the staff list shows
-  "3 de 5 disponíveis". With versions, each file shows its version and date, so
-  a supplier who quoted on v2 can see the drawing changed.
-- Files added to a stage after the link was made are not included; "include
-  this stage's future files" could come later.
-- Open: is there a case for a link that keeps the exact version that was sent
-  (a quote's record) instead of the current one?
+Agreed 25 Oct 2026 and moved to the plan: A37 and section 15. Still open there:
+"Baixar tudo" as a zip, a password per link, and a link that takes in a stage's
+future files.
 
 ## Moving projects to another cloud account
 

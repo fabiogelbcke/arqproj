@@ -441,16 +441,28 @@ async def _item(request: Request, db: AsyncSession, project: Project, key: str):
     return storage, item
 
 
-async def _item_at(request: Request, db: AsyncSession, project: Project, key: str):
-    """As `_item`, with what the key says: its stage ("s") and folder ("f")."""
+def read_key(request: Request, project: Project, key: str) -> dict:
+    """What a file key says, if this page issued it for the project's current
+    access and it hasn't expired; else "not found"."""
+    found = open_key(request, KEY_PURPOSE, key)
+    if found.get("p") != str(project.id) or found.get("v") != project.access_version:
+        raise ApiError(404, ErrorCode.FILE_NOT_FOUND)
+    return found
+
+
+def open_key(request: Request, purpose: str, key: str) -> dict:
     try:
-        found = json.loads(keys.decrypt(request.app.state.settings.app_secret, KEY_PURPOSE, key))
+        found = json.loads(keys.decrypt(request.app.state.settings.app_secret, purpose, key))
     except (keys.BadToken, ValueError):
         raise ApiError(404, ErrorCode.FILE_NOT_FOUND) from None
     if not isinstance(found, dict) or found.get("exp", 0) < time.time():
         raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # the page lists again on every visit
-    if found.get("p") != str(project.id) or found.get("v") != project.access_version:
-        raise ApiError(404, ErrorCode.FILE_NOT_FOUND)
+    return found
+
+
+async def _item_at(request: Request, db: AsyncSession, project: Project, key: str):
+    """As `_item`, with what the key says: its stage ("s") and folder ("f")."""
+    found = read_key(request, project, key)
     storage = await _storage(request, db)
     if storage is None:
         raise ApiError(404, ErrorCode.FILE_NOT_FOUND)
@@ -504,22 +516,26 @@ def _disposition(name: str, inline: bool) -> str:
     return f"{how}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
 
 
-def _failure_page(tenant: CurrentTenant, slug: str, code: ErrorCode, status: int) -> Response:
+def _failure_page(
+    tenant: CurrentTenant, slug: str, code: ErrorCode, status: int, back: str | None = None
+) -> Response:
     """What the browser shows when a file link fails: the reason in the office's
-    language, the support code for a failure, and the way back; never the API's
-    answer. (The page's links open this address directly.)"""
+    language, the support code for a failure, and the way back (the project's
+    page, or `back`); never the API's answer. (The page's links open this address
+    directly.)"""
     texts = _TEXTS[tenant.locale]
     lines = [texts["errors"][code.value]]
     if status >= 500:
         lines.append(texts["errors"]["reference"].replace("{{id}}", current_request_id()))
     body = "".join(f"<p>{html.escape(line)}</p>" for line in lines)
-    back = html.escape(texts["page"]["backToProject"])
+    label = html.escape(texts["page"]["backToShare" if back else "backToProject"])
+    href = html.escape(back or f"/{quote(slug)}", quote=True)
     return HTMLResponse(
         f'<!doctype html><html lang="{tenant.locale.value}"><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         f"<title>{html.escape(lines[0])}</title>"
         '<body style="font: 16px/1.5 system-ui, sans-serif; max-width: 32rem; margin: 15vh auto;'
-        f' padding: 0 16px">{body}<p><a href="/{quote(slug)}">{back}</a></p>',
+        f' padding: 0 16px">{body}<p><a href="{href}">{label}</a></p>',
         status_code=status,
         headers={
             **PAGE_HEADERS,
@@ -549,6 +565,15 @@ async def page_file(
         if error.code is ErrorCode.FILES_UNAVAILABLE:
             return _failure_page(tenant, slug, error.code, 503)  # "try again", with the code
         return _failure_page(tenant, slug, ErrorCode.FILE_NOT_FOUND, 404)
+    # Everything is checked: let the database connection go before the bytes
+    # flow, so slow downloads never hold the small pool (plan section 15).
+    await db.close()
+    return streamed(project, item, download, inline)
+
+
+def streamed(project: Project, item: StorageItem, download, inline: bool) -> StreamingResponse:
+    """A checked file's bytes, as they come from Drive; never run on the office's
+    address."""
     kind = _kind(item)
     shown_inline = inline and kind in ("image", "pdf")
     name = shown_name(item)  # Drive's, with its version: "Planta v3.pdf"
@@ -583,9 +608,6 @@ async def page_file(
         finally:
             await download.aclose()
 
-    # Everything is checked: let the database connection go before the bytes
-    # flow, so slow downloads never hold the small pool (plan section 15).
-    await db.close()
     return StreamingResponse(body(), media_type=media_type, headers=headers)
 
 

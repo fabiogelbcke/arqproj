@@ -282,6 +282,287 @@
         }
       }
     },
+    "/api/me/email-code": {
+      "post": {
+        "summary": "Enter Code",
+        "description": "The code from the email: right, and the account works fully.",
+        "operationId": "enter_code_api_me_email_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/email-code/resend": {
+      "post": {
+        "summary": "Resend Code",
+        "operationId": "resend_code_api_me_email_code_resend_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/email": {
+      "put": {
+        "summary": "Correct Email",
+        "description": "A mistyped address, corrected before it's confirmed (only then: changing a\nconfirmed address comes with account settings). A new code goes to it.",
+        "operationId": "correct_email_api_me_email_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/email-confirmation": {
+      "post": {
+        "summary": "Confirm By Link",
+        "description": "The email's link: confirms the address wherever it's opened (often a phone,\nsigned in or not); the person then signs in, or carries on where they were.",
+        "operationId": "confirm_by_link_api_email_confirmation_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tenant": {
       "get": {
         "summary": "Tenant",
@@ -1295,7 +1576,7 @@
     "/api/join": {
       "post": {
         "summary": "Join",
-        "description": "Emails an invite link to the address given, as a new member. The same answer\nwhatever the address, and no sooner than JOIN_ANSWER_AT: someone with an account\nalready gets nothing (they can sign in, or use \"Esqueceu a senha?\").",
+        "description": "A new member, signed in at once but unconfirmed: a code goes to the address,\nand the account works once it's typed in. If the email can't go, they ask for\nanother on the next screen.",
         "operationId": "join_api_join_post",
         "requestBody": {
           "content": {
@@ -1308,16 +1589,28 @@
           "required": true
         },
         "responses": {
-          "202": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
               }
             }
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
@@ -1553,6 +1846,469 @@
               }
             },
             "description": "Too Many Requests"
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/shares": {
+      "post": {
+        "summary": "Make Share",
+        "operationId": "make_share_api_pages__slug__shares_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareMadeOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      },
+      "get": {
+        "summary": "Project Shares",
+        "description": "Every link of the project, newest first, for staff.",
+        "operationId": "project_shares_api_pages__slug__shares_get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShareOut"
+                  },
+                  "title": "Response Project Shares Api Pages  Slug  Shares Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/shares/mine": {
+      "post": {
+        "summary": "My Shares",
+        "description": "The links this device made on this project, by the owner keys it kept.",
+        "operationId": "my_shares_api_pages__slug__shares_mine_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnedIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShareOut"
+                  },
+                  "title": "Response My Shares Api Pages  Slug  Shares Mine Post"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/shares/{link_id}/disable": {
+      "post": {
+        "summary": "Disable Share",
+        "operationId": "disable_share_api_pages__slug__shares__link_id__disable_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "link_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Link Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/shares/{link_id}/refresh": {
+      "post": {
+        "summary": "Refresh Share",
+        "description": "\"Atualizar link\": each file with a newer version on the page now serves\nthat version, at the same address.",
+        "operationId": "refresh_share_api_pages__slug__shares__link_id__refresh_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "link_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Link Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/share/{token}": {
+      "get": {
+        "summary": "Shared",
+        "operationId": "shared_api_share__token__get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -3683,6 +4439,20 @@
         ],
         "title": "ChoosePasswordIn"
       },
+      "CodeIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "CodeIn"
+      },
       "CompletionIn": {
         "properties": {
           "row_version": {
@@ -3947,6 +4717,20 @@
         ],
         "title": "DriveOut"
       },
+      "EmailIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "EmailIn"
+      },
       "ErrorCode": {
         "type": "string",
         "enum": [
@@ -4007,7 +4791,18 @@
           "invalid_staff_name",
           "already_staff",
           "not_an_invite",
-          "join_link_invalid"
+          "join_link_invalid",
+          "account_exists",
+          "email_unconfirmed",
+          "email_code_wrong",
+          "email_code_expired",
+          "email_code_recent",
+          "email_not_sent",
+          "already_confirmed",
+          "share_not_found",
+          "share_too_large",
+          "share_files_changed",
+          "share_daily_limit"
         ],
         "title": "ErrorCode"
       },
@@ -4250,13 +5045,19 @@
             "type": "string",
             "maxLength": 500,
             "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Password"
           }
         },
         "type": "object",
         "required": [
           "token",
           "name",
-          "email"
+          "email",
+          "password"
         ],
         "title": "JoinIn"
       },
@@ -4302,7 +5103,8 @@
         "type": "string",
         "enum": [
           "invite",
-          "reset"
+          "reset",
+          "confirm"
         ],
         "title": "LinkKind"
       },
@@ -4451,6 +5253,10 @@
           "page_tour_seen": {
             "type": "boolean",
             "title": "Page Tour Seen"
+          },
+          "email_confirmed": {
+            "type": "boolean",
+            "title": "Email Confirmed"
           }
         },
         "type": "object",
@@ -4463,7 +5269,8 @@
           "tenant_locale",
           "tenant_timezone",
           "csrf_token",
-          "page_tour_seen"
+          "page_tour_seen",
+          "email_confirmed"
         ],
         "title": "MeOut"
       },
@@ -4605,7 +5412,8 @@
             "type": "string",
             "enum": [
               "active",
-              "invited"
+              "invited",
+              "unconfirmed"
             ],
             "title": "Status"
           },
@@ -4772,6 +5580,41 @@
           "order"
         ],
         "title": "OrderIn"
+      },
+      "OwnedIn": {
+        "properties": {
+          "owners": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Owners"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owners"
+        ],
+        "title": "OwnedIn"
+      },
+      "OwnerIn": {
+        "properties": {
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          }
+        },
+        "type": "object",
+        "title": "OwnerIn"
       },
       "PageFilesOut": {
         "properties": {
@@ -5356,6 +6199,296 @@
         ],
         "title": "Role"
       },
+      "ShareExpiry": {
+        "type": "string",
+        "enum": [
+          "7d",
+          "30d",
+          "never"
+        ],
+        "title": "ShareExpiry"
+      },
+      "ShareIn": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Files"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "expiry": {
+            "$ref": "#/components/schemas/ShareExpiry"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files",
+          "expiry"
+        ],
+        "title": "ShareIn"
+      },
+      "ShareMadeOut": {
+        "properties": {
+          "link": {
+            "$ref": "#/components/schemas/ShareOut"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner"
+          }
+        },
+        "type": "object",
+        "required": [
+          "link",
+          "url",
+          "owner"
+        ],
+        "title": "ShareMadeOut"
+      },
+      "ShareOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "made_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Made By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "disabled": {
+            "type": "boolean",
+            "title": "Disabled"
+          },
+          "expired": {
+            "type": "boolean",
+            "title": "Expired"
+          },
+          "files": {
+            "type": "integer",
+            "title": "Files"
+          },
+          "available": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available"
+          },
+          "newer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Newer"
+          },
+          "downloads": {
+            "type": "integer",
+            "title": "Downloads"
+          },
+          "last_download_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Download At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "made_by",
+          "created_at",
+          "expires_at",
+          "disabled",
+          "expired",
+          "files",
+          "available",
+          "newer",
+          "downloads",
+          "last_download_at"
+        ],
+        "title": "ShareOut"
+      },
+      "SharedFileOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Modified At"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "size",
+          "modified_at",
+          "stage"
+        ],
+        "title": "SharedFileOut"
+      },
+      "SharedOut": {
+        "properties": {
+          "office": {
+            "$ref": "#/components/schemas/backend__web__pages__OfficeOut"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "project": {
+            "type": "string",
+            "title": "Project"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/SharedFileOut"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "unavailable": {
+            "type": "integer",
+            "title": "Unavailable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "office",
+          "locale",
+          "timezone",
+          "project",
+          "label",
+          "expires_at",
+          "files",
+          "unavailable"
+        ],
+        "title": "SharedOut"
+      },
       "SpaceOut": {
         "properties": {
           "used": {
@@ -5584,6 +6717,20 @@
           "logo_dark_url"
         ],
         "title": "TenantOut"
+      },
+      "TokenIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "TokenIn"
       },
       "UnlockIn": {
         "properties": {

@@ -11,7 +11,9 @@ const OWNER = "postgresql+psycopg://localhost:5432/arqproj_e2e";
 const APP = "postgresql+psycopg://arqproj_app@localhost:5432/arqproj_e2e";
 // Folders of projects created in the tests: never the local dataset.
 const FILES = join(tmpdir(), "arqproj-e2e-files");
-export const E2E_ENV = { MIGRATION_DATABASE_URL: OWNER, DATABASE_URL: APP, LOCAL_STORAGE_ROOT: FILES };
+// The emails the tests' server "sends" (.html and .txt files), to read codes from.
+export const OUTBOX = join(tmpdir(), "arqproj-e2e-outbox");
+export const E2E_ENV = { MIGRATION_DATABASE_URL: OWNER, DATABASE_URL: APP, LOCAL_STORAGE_ROOT: FILES, EMAIL_OUTBOX: OUTBOX };
 
 export default defineConfig({
   testDir: "e2e",

@@ -124,6 +124,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/email-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enter Code
+         * @description The code from the email: right, and the account works fully.
+         */
+        post: operations["enter_code_api_me_email_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/email-code/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resend Code */
+        post: operations["resend_code_api_me_email_code_resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Correct Email
+         * @description A mistyped address, corrected before it's confirmed (only then: changing a
+         *     confirmed address comes with account settings). A new code goes to it.
+         */
+        put: operations["correct_email_api_me_email_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/email-confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm By Link
+         * @description The email's link: confirms the address wherever it's opened (often a phone,
+         *     signed in or not); the person then signs in, or carries on where they were.
+         */
+        post: operations["confirm_by_link_api_email_confirmation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tenant": {
         parameters: {
             query?: never;
@@ -415,9 +494,9 @@ export interface paths {
         put?: never;
         /**
          * Join
-         * @description Emails an invite link to the address given, as a new member. The same answer
-         *     whatever the address, and no sooner than JOIN_ANSWER_AT: someone with an account
-         *     already gets nothing (they can sign in, or use "Esqueceu a senha?").
+         * @description A new member, signed in at once but unconfirmed: a code goes to the address,
+         *     and the account works once it's typed in. If the email can't go, they ask for
+         *     another on the next screen.
          */
         post: operations["join_api_join_post"];
         delete?: never;
@@ -472,6 +551,102 @@ export interface paths {
         put?: never;
         /** Subscribe */
         post: operations["subscribe_api_pages__slug__subscribe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Shares
+         * @description Every link of the project, newest first, for staff.
+         */
+        get: operations["project_shares_api_pages__slug__shares_get"];
+        put?: never;
+        /** Make Share */
+        post: operations["make_share_api_pages__slug__shares_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/shares/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * My Shares
+         * @description The links this device made on this project, by the owner keys it kept.
+         */
+        post: operations["my_shares_api_pages__slug__shares_mine_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/shares/{link_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable Share */
+        post: operations["disable_share_api_pages__slug__shares__link_id__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/shares/{link_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Share
+         * @description "Atualizar link": each file with a newer version on the page now serves
+         *     that version, at the same address.
+         */
+        post: operations["refresh_share_api_pages__slug__shares__link_id__refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/share/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shared */
+        get: operations["shared_api_share__token__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -974,6 +1149,11 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** CodeIn */
+        CodeIn: {
+            /** Code */
+            code: string;
+        };
         /** CompletionIn */
         CompletionIn: {
             /** Row Version */
@@ -1056,11 +1236,16 @@ export interface components {
             /** Has Folder */
             has_folder: boolean;
         };
+        /** EmailIn */
+        EmailIn: {
+            /** Email */
+            email: string;
+        };
         /**
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid";
+        ErrorCode: "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -1153,6 +1338,8 @@ export interface components {
             name: string;
             /** Email */
             email: string;
+            /** Password */
+            password: string;
         };
         /** JoinLinkOut */
         JoinLinkOut: {
@@ -1170,7 +1357,7 @@ export interface components {
          * LinkKind
          * @enum {string}
          */
-        LinkKind: "invite" | "reset";
+        LinkKind: "invite" | "reset" | "confirm";
         /** LinkOnOut */
         LinkOnOut: {
             /** Link */
@@ -1235,6 +1422,8 @@ export interface components {
             csrf_token: string;
             /** Page Tour Seen */
             page_tour_seen: boolean;
+            /** Email Confirmed */
+            email_confirmed: boolean;
         };
         /** MeetingIn */
         MeetingIn: {
@@ -1294,7 +1483,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "active" | "invited";
+            status: "active" | "invited" | "unconfirmed";
             /** Me */
             me: boolean;
         };
@@ -1346,6 +1535,16 @@ export interface components {
             row_version: number;
             /** Order */
             order: number[];
+        };
+        /** OwnedIn */
+        OwnedIn: {
+            /** Owners */
+            owners: string[];
+        };
+        /** OwnerIn */
+        OwnerIn: {
+            /** Owner */
+            owner?: string | null;
         };
         /** PageFilesOut */
         PageFilesOut: {
@@ -1531,6 +1730,96 @@ export interface components {
          * @enum {string}
          */
         Role: "owner" | "member";
+        /**
+         * ShareExpiry
+         * @enum {string}
+         */
+        ShareExpiry: "7d" | "30d" | "never";
+        /** ShareIn */
+        ShareIn: {
+            /** Files */
+            files: string[];
+            /** Label */
+            label?: string | null;
+            expiry: components["schemas"]["ShareExpiry"];
+        };
+        /** ShareMadeOut */
+        ShareMadeOut: {
+            link: components["schemas"]["ShareOut"];
+            /** Url */
+            url: string;
+            /** Owner */
+            owner: string;
+        };
+        /** ShareOut */
+        ShareOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string | null;
+            /** Made By */
+            made_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at: string | null;
+            /** Disabled */
+            disabled: boolean;
+            /** Expired */
+            expired: boolean;
+            /** Files */
+            files: number;
+            /** Available */
+            available: number | null;
+            /** Newer */
+            newer: number | null;
+            /** Downloads */
+            downloads: number;
+            /** Last Download At */
+            last_download_at: string | null;
+        };
+        /** SharedFileOut */
+        SharedFileOut: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Size */
+            size: number | null;
+            /**
+             * Modified At
+             * Format: date-time
+             */
+            modified_at: string;
+            /** Stage */
+            stage: string;
+        };
+        /** SharedOut */
+        SharedOut: {
+            office: components["schemas"]["backend__web__pages__OfficeOut"];
+            /** Locale */
+            locale: string;
+            /** Timezone */
+            timezone: string;
+            /** Project */
+            project: string;
+            /** Label */
+            label: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** Files */
+            files: components["schemas"]["SharedFileOut"][];
+            /** Unavailable */
+            unavailable: number;
+        };
         /** SpaceOut */
         SpaceOut: {
             /** Used */
@@ -1616,6 +1905,11 @@ export interface components {
             logo_url: string | null;
             /** Logo Dark Url */
             logo_dark_url: string | null;
+        };
+        /** TokenIn */
+        TokenIn: {
+            /** Token */
+            token: string;
         };
         /** UnlockIn */
         UnlockIn: {
@@ -2008,6 +2302,265 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    enter_code_api_me_email_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    resend_code_api_me_email_code_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    correct_email_api_me_email_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    confirm_by_link_api_email_confirmation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2968,16 +3521,25 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            202: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["MeOut"];
                 };
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3183,6 +3745,354 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    project_shares_api_pages__slug__shares_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareOut"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    make_share_api_pages__slug__shares_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareMadeOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    my_shares_api_pages__slug__shares_mine_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnedIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareOut"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_share_api_pages__slug__shares__link_id__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_share_api_pages__slug__shares__link_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    shared_api_share__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

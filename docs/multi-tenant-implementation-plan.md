@@ -121,7 +121,8 @@ its affected tests before coding proceeds.
 | A33 | Product name and domain: **Unio**, `myunio.app` | Agreed 17 Oct 2026 (Fabio). `myunio.app` is the `{product-domain}` throughout this plan, registered at GoDaddy. Alinea keeps `alineaarquitetos.com` (A23); later offices are served at `{office}.myunio.app` (A21). `.app` domains are HSTS-preloaded, so every address on it works over HTTPS only (Cloud Run's managed certificates already do that). Hosting region is still open (section 24). See the [changelog](decision-changelog.md) |
 | A34 | Staff change files on the website, not in Drive | Agreed 17 Oct 2026 (Fabio). The project page does not send staff to Drive: no "Abrir no Google Drive" action on a file or stage. (The Drive settings page keeps its link to the office's connected folder: that is about the connection itself, not a way to change a project's files.) Drive keeps working for whoever prefers it, but every everyday change is offered on the project page. Each file's "⋯" menu offers "Definir como capa" (images), "Mover para outra etapa" (a list of the other stages) and "Ocultar do cliente"; dragging a file onto another stage is a later addition doing the same move. A file put straight into Drive can be shown but not changed through the office's grant (drive.file): the site says, in plain words, to make that change in the stage's folder; authorizing such files through the Picker stays a later option (section 9). See section 11 and the [changelog](decision-changelog.md) |
 | A35 | No drafts for now: a new project is published at once | Agreed 17 Oct 2026 (Fabio). Creation makes the project `active`, so its client page answers as soon as it exists; there is no "Publicar" step or "Rascunhos" group. The `draft` status stays allowed in the database, unused, so drafts can return without a schema change; existing drafts were published (migration 0024). Revised 19 Oct 2026 (Fabio): the staff bar says nothing about publishing, neither "Publicado" nor a "Publicar" button on a draft; the publish endpoint stays, unused, for when drafts return. Replaces the draft step of 15 Oct (section 10). See the [changelog](decision-changelog.md) |
-| A36 | Owners invite staff from the painel: a personal invite, or a shared office link | Agreed 20 Oct 2026 (Fabio), bringing forward the invitation screen section 5 had deferred. In Configurações → Equipe ("Convidar pessoa", a dialog under the team list) an owner invites a person by name, email and role: the app creates the account without a password and emails a one-time link to choose one (the existing invite link, 7 days), with "Copiar link" to send it another way; a pending invite can be sent again or cancelled. An owner can also turn on one shared office link, to post in a group: whoever opens it gives a name and an email and is emailed the same one-time link, so the account works only once that email is shown to be theirs (section 5: invitations bind a verified email). A shared link ("Convidar através de um link") always makes a member, never an owner; it works for 24 hours (Fabio: a link passed around goes stale); only its hash is stored, so it can be copied when made, and making a new one turns the old one off. Requests from the shared link get one answer whatever the email (no account discovery) and are rate-limited. Removing active staff and changing roles come later. See section 5 and the [changelog](decision-changelog.md) |
+| A36 | Owners invite staff from the painel: a personal invite, or a shared office link | Agreed 20 Oct 2026 (Fabio), bringing forward the invitation screen section 5 had deferred. In Configurações → Equipe ("Convidar pessoa", a dialog under the team list) an owner invites a person by name, email and role: the app creates the account without a password and emails a one-time link to choose one (the existing invite link, 7 days), with "Copiar link" to send it another way; a pending invite can be sent again or cancelled. An owner can also turn on one shared office link, to post in a group: whoever opens it gives a name, an email and a password on one page and is signed in, but the account does nothing except confirm the email until a 6-digit code emailed to it is typed in, or the email's link is pressed (revised 25 Oct 2026; section 5: invitations bind a verified email). The screen offers "Reenviar código" (once every 2 minutes) and "Corrigir e-mail" (only while unconfirmed), and signing in again brings it back; the code works only in that account's own session, 5 wrong codes use it up, and 5 wrong in 15 minutes per account make it wait; code and link last 24 hours. Equipe shows "E-mail não confirmado" until it's done. An invite or reset link used counts as confirmation too. A shared link ("Convidar através de um link") always makes a member, never an owner; it works for 24 hours (Fabio: a link passed around goes stale); only its hash is stored, so it can be copied when made, and making a new one turns the old one off. An address that already has an account is refused ("Já existe uma conta com este e-mail"): only someone holding the office's link learns it, at the rate limit (Fabio, 25 Oct 2026); requests are rate-limited per device. Removing active staff and changing roles come later. See section 5 and the [changelog](decision-changelog.md) |
+| A37 | Clients and staff share files by link ("Compartilhar arquivos") | Agreed 25 Oct 2026 (Fabio), from the idea in future ideas. From the project page, anyone who can see it (the client, or staff) picks files from any stages and gets a link to send, say to a supplier for a quote; the supplier needs no account. One panel, opened above the stage list or from a stage (its files ticked). Files hidden from the client never appear. **A link serves the exact versions it was made with**, so a quote matches what was sent: renamed or moved to another stage, a file stays in it; hidden, trashed or taken out of the project, it drops out, and the supplier's page says how many are no longer available. When a file in a link has a newer version, the links list says so, and "Atualizar link" moves the same address to the newer versions. The sender picks the expiry (7 days, 30 days, none) and an optional "Para quem?" label. Staff see every link of the project (label, who made it: the staff member's name, or "Cliente"; files available; dates; downloads) and can turn any off ("Desativar"); a client sees, and turns off, the links made on their own device. Limits: 300 MB per link, checked when it is made; a few new links per device every 15 minutes; 5 GB of downloads per link per day ("Este link atingiu o limite de downloads de hoje"), no cap on links per project. Links work without the project's password, which the sender already had; staff turn a link off to stop it. "Baixar tudo" (a zip) and a password per link come later. See section 15 and the [changelog](decision-changelog.md) |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -558,8 +559,9 @@ offices has an account in each (decided 14 Oct 2026, see the changelog); a share
 identity across offices (users plus memberships) is a later migration if a real
 need appears. Each person has their own login; there
 is no shared office password. Owners invite more staff from the painel (A36, 20
-Oct 2026): by a personal invite, or a shared office link whose joiners still
-prove their email. Deliberately deferred as an add-on
+Oct 2026): by a personal invite, or a shared office link whose joiners choose a
+password at once and confirm their email with an emailed code before the account
+works (revised 25 Oct 2026). Deliberately deferred as an add-on
 for larger offices: role-management screens, finer roles (for
 example editing projects without access to office settings or the Drive
 connection, or read-only staff), and per-project permissions. Do not build these
@@ -675,6 +677,8 @@ The following is a logical schema specification, not a migration:
 | `storage_items` | tenant, connection, provider file ID, parent, MIME, name, size, checksum/revision metadata, observed capabilities, present/trashed state, last seen |
 | `project_recipients` | tenant, project, email, locale, subscription state, unsubscribe-token hash |
 | `project_events` | tenant, project, kind (file published, new version, file withdrawn, note changed, stage completed, stage reopened, stage advanced (before 23 Oct 2026), project completed, meeting scheduled/changed/cleared), document/revision or stage reference, source fingerprint, detected/published times. Client-visible activity (A28): feeds the updates panel, the project's last-activity time and email batching; every kind but "note changed" can start an email (A32) |
+| `share_links` | tenant, project, token hash (unique), "Para quem?" label (≤ 60), who made it (a staff member, or none: the client), expiry, turned off, when its files were last updated, download count and last download, bytes served today (A37) |
+| `share_link_files` | tenant, link, the file's storage identity, order: the exact versions it serves (A37) |
 | `notification_batches` | tenant, project, start/due time, state; events captured in batch-item rows |
 | `notification_deliveries` | tenant, batch, recipient, idempotency key, provider ID, attempt/result timestamps |
 | `operations` / `operation_steps` | tenant, type, request key/hash, state, result IDs, provisioning progress |
@@ -1396,6 +1400,32 @@ network. Do not price the product from storage alone or advertise unlimited
 bandwidth while learning these workloads. Public links need abuse monitoring
 and rate controls without forcing legitimate clients to create accounts.
 
+### Sharing files by link (A37)
+
+A link is a random token; only its hash is stored, so the link can be copied
+when it is made, and later only from the device that made it (which keeps it).
+It is made from the file keys the page handed out, so nobody shares a file the
+page didn't show them; it stores each file's storage identity, the exact
+version picked. The supplier's page (`/share/{token}`, on the office's address,
+`noindex`, no referrer) lists the project's files each visit, as the page does
+(A10), and shows those of the link still on it, with keys that open them as the
+page's keys do: checked against Drive again on every download, and streamed
+through the server (this section). A link from a stage whose files can't be read
+just now answers "try again", not "gone".
+
+The creating device keeps an owner key for each link it made (signed, never
+stored): with it, a client lists and turns off their own links, and updates them
+to newer versions. Staff do all of that for every link of the project.
+
+Each download counts its file's size against the link's day (UTC) before any
+byte flows; past 5 GB the download is refused. That bounds a leaked link to
+about a dollar a day of transfer and keeps Google from throttling the office's
+files. The per-office monthly byte count and its alert come with usage metrics.
+
+Later slices: "Baixar tudo", built while it downloads, without compression, so
+its size is known and the browser shows progress, a folder per stage; and an
+optional password per link, unlocked per device as project pages are (section 6).
+
 ## 16. Branding, accessibility and language
 
 Office details (P1b, 15 Oct 2026): name, contact email and logo live in a
@@ -1451,6 +1481,12 @@ immediate or successful email delivery when updates may be grouped or delivery
 may fail. Access, publication and storage explanations must match the actual
 behavior. Preserve office-written content and keep equivalent meanings in both
 translation catalogs when changing product copy.
+
+**An example goes in the field, as its placeholder** (Fabio, 25 Oct 2026):
+"Ex.: Marcenaria Silva", "Ex.: contato@escritorio.com.br". The hint under a
+field says what the field is for or what happens with it ("Opcional. Ajuda a
+lembrar para quem foi o link."), never only an example. A placeholder is never
+the field's only label: it disappears as soon as someone types.
 
 ### Onboarding help: the project page tour and the example project
 

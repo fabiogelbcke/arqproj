@@ -81,6 +81,12 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
+  // An iPad, upright and sideways: "Novo projeto" stays on the search's row.
+  for (const tablet of [{ name: "ipad", width: 820, height: 1180 }, { name: "ipad-wide", width: 1180, height: 820 }]) {
+    await page.setViewportSize(tablet);
+    await page.screenshot({ path: `${OUT}/03-projetos-${tablet.name}.png` });
+  }
+  await page.setViewportSize(SIZES[0]!);
   // Drive disconnected ("Desconectar"): the projects hidden behind the empty state.
   await page.route("**/api/drive", (route) =>
     route.fulfill({
@@ -137,6 +143,32 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("dialog").waitFor();
   await shoot(page, "05c-convidar-pessoa");
   await page.keyboard.press("Escape");
+
+  // The shared link's page (a new device, not signed in), then the code screen.
+  const joinLink = await page.evaluate(async () => {
+    const me = await (await fetch("/api/me")).json();
+    const made = await fetch("/api/team/join-link", { method: "POST", headers: { "X-CSRF-Token": me.csrf_token } });
+    return (await made.json()).link as string;
+  });
+  const joining = await (await browser.newContext()).newPage();
+  await joining.emulateMedia({ reducedMotion: "reduce" });
+  await joining.goto(joinLink.replace(/:\d+\//, `:${PORT}/`));
+  await joining.getByRole("heading", { name: "Entrar na equipe do Alinea (dev)" }).waitFor();
+  await shoot(joining, "05d-entrar-na-equipe");
+  await joining.setViewportSize(SIZES[0]!);
+  await joining.getByLabel("Nome").fill("Caio Reis");
+  await joining.getByLabel("E-mail").fill("caio.reis@exemplo.com.br");
+  await joining.getByLabel("Nova senha").fill("senha-das-capturas");
+  await joining.getByLabel("Repita a senha").fill("senha-das-capturas");
+  await joining.getByRole("button", { name: "Criar conta" }).click();
+  await joining.getByRole("heading", { name: "Confirme seu e-mail" }).waitFor();
+  await shoot(joining, "05e-confirmar-email");
+  await joining.getByRole("button", { name: "Corrigir e-mail" }).click();
+  await shoot(joining, "05f-corrigir-email");
+  await joining.context().close();
+  await page.reload();
+  await page.getByText("E-mail não confirmado").waitFor();
+  await shoot(page, "05g-equipe-nao-confirmado");
 
   // The client's page (no sign-in needed; the staff session doesn't change it).
   await page.setViewportSize(SIZES[0]!);
@@ -248,6 +280,38 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await visitor.getByLabel(/Últimas atualizações, 2 não lidas/).click();
   await visitor.getByRole("region", { name: "Últimas atualizações" }).waitFor();
   await shoot(visitor, "06c-atualizacoes");
+  await visitor.keyboard.press("Escape");
+
+  // Sharing files by link (A37): from a stage, its files ticked; then the link;
+  // then the supplier's page it opens.
+  await visitor.getByRole("button", { name: /^Compartilhar arquivos de / }).first().click();
+  const share = visitor.getByRole("dialog", { name: "Compartilhar arquivos" });
+  await share.waitFor();
+  await share.getByLabel("Para quem?").fill("Marcenaria Silva");
+  await shoot(visitor, "09-compartilhar-arquivos");
+  await share.getByRole("button", { name: "Gerar link" }).click();
+  const ready = visitor.getByRole("dialog", { name: "Link pronto" });
+  await ready.waitFor();
+  await shoot(visitor, "09b-link-pronto");
+  const url = await ready.getByLabel("Link para compartilhar").inputValue();
+  await visitor.goto(new URL(url).pathname);
+  await visitor.getByRole("heading", { name: "Arquivos compartilhados" }).waitFor();
+  await shoot(visitor, "09c-pagina-do-fornecedor");
+  await shoot(visitor, "09c-pagina-do-fornecedor", "dark");
+  // Back on the project, this device's link is listed.
+  await visitor.goto("/casa-jardim");
+  await visitor.getByRole("button", { name: "Compartilhar arquivos", exact: true }).click();
+  await visitor.getByRole("tab", { name: /^Links criados/ }).click();
+  await visitor.getByRole("region", { name: "Links criados neste dispositivo" }).getByText("Marcenaria Silva").waitFor();
+  await shoot(visitor, "09d-links-do-dispositivo");
+  await visitor.keyboard.press("Escape");
+  // Staff see every link of the project, the dialog above the staff bar.
+  await page.goto("/casa-jardim");
+  await page.getByRole("button", { name: "Compartilhar arquivos", exact: true }).click();
+  await page.getByRole("tab", { name: /^Links criados/ }).click();
+  await page.getByRole("region", { name: "Links deste projeto" }).getByText("Marcenaria Silva").waitFor();
+  await shoot(page, "09e-links-do-projeto");
+  await page.keyboard.press("Escape");
 
   // The example project (plan section 16): its explore tour, then the page.
   await visitor.goto("/tour-projeto");

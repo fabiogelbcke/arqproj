@@ -87,8 +87,10 @@ class UploadOut(BaseModel):
 
 
 def _clean(name: str) -> str:
-    """A file name, never a path."""
-    cleaned = "".join(ch for ch in name if ch.isprintable()).replace("/", "-").replace("\\", "-")
+    """A file name, never a path. Invisible spaces (macOS puts a narrow one before
+    "PM" in screenshot names) become plain ones; other invisible characters go."""
+    shown = (ch if ch.isprintable() else " " if ch.isspace() else "" for ch in name)
+    cleaned = "".join(shown).replace("/", "-").replace("\\", "-")
     cleaned = cleaned.strip()
     if cleaned in ("", ".", ".."):
         raise ApiError(422, ErrorCode.INVALID_FILE_NAME)
@@ -287,7 +289,11 @@ async def check_upload(
         raise _listing_failed(error, tenant, project_id, position) from None
     matches = []
     for name in body.names:
-        document = versions.same_document(documents, name)
+        try:
+            saved = _clean(name)  # as the upload will save it
+        except ApiError:
+            continue  # refused when sent, with its reason
+        document = versions.same_document(documents, saved)
         if document is not None:
             saved_as = versions.next_name(documents, document)
             matches.append(

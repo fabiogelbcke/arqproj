@@ -151,22 +151,65 @@ describe("Configurações → Equipe", () => {
 });
 
 describe("the shared link's page", () => {
-  it("asks for a name and email, and says to check the email", async () => {
+  it("asks for a name, an email and a password, then for the code sent to the email", async () => {
     window.history.replaceState(null, "", "/entrar-na-equipe#token=xyz");
-    const sent = fakeApi({
-      "GET /api/tenant": () => ({ body: TENANT }),
-      "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
-      "POST /api/join/check": () => ({ body: { office: "Alinea" } }),
-      "POST /api/join": () => ({ status: 202 }),
-    });
+    const caio = { ...ME, name: "Caio Reis", email: "caio@gmail.com", role: "member", email_confirmed: false };
+    const sent = api(
+      {},
+      {
+        "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
+        "POST /api/join/check": () => ({ body: { office: "Alinea" } }),
+        "POST /api/join": () => ({ status: 201, body: caio }),
+        "POST /api/me/email-code": (body: unknown) =>
+          (body as { code: string }).code === "123456"
+            ? { body: { ...caio, email_confirmed: true } }
+            : { status: 422, body: { error: "email_code_wrong" } },
+        "GET /api/projects": () => ({ body: [] }),
+      },
+    );
     renderAt("/entrar-na-equipe#token=xyz");
     expect(await screen.findByRole("heading", { name: "Entrar na equipe do Alinea" })).toBeInTheDocument();
     expect(window.location.hash).toBe(""); // the token leaves the address bar
     await userEvent.type(screen.getByLabelText("Nome"), "Caio Reis");
     await userEvent.type(screen.getByLabelText("E-mail"), "caio@gmail.com");
-    await userEvent.click(screen.getByRole("button", { name: "Receber o link" }));
-    expect(await screen.findByRole("heading", { name: "Confira seu e-mail" })).toBeInTheDocument();
-    expect(sent.find((r) => r.path === "/api/join")?.body).toEqual({ token: "xyz", name: "Caio Reis", email: "caio@gmail.com" });
+    await userEvent.type(screen.getByLabelText(/^Nova senha/), "uma boa senha");
+    await userEvent.type(screen.getByLabelText(/^Repita a senha/), "uma boa senha");
+    await userEvent.click(screen.getByRole("button", { name: "Criar conta" }));
+    expect(await screen.findByRole("heading", { name: "Confirme seu e-mail" })).toBeInTheDocument();
+    expect(screen.getByText(/código de 6 dígitos para caio@gmail.com/)).toBeInTheDocument();
+    expect(sent.find((r) => r.path === "/api/join")?.body).toEqual({
+      token: "xyz",
+      name: "Caio Reis",
+      email: "caio@gmail.com",
+      password: "uma boa senha",
+    });
+    // Only letters typed are dropped; a wrong code says so.
+    await userEvent.type(screen.getByLabelText(/^Código/), "12a3450");
+    expect(screen.getByLabelText(/^Código/)).toHaveValue("123450");
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    expect(await screen.findByText("Código incorreto. Confira o e-mail e tente de novo.")).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText(/^Código/));
+    await userEvent.type(screen.getByLabelText(/^Código/), "123456");
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Confirme seu e-mail" })).not.toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Projetos" })).toBeInTheDocument(); // the painel
+  });
+
+  it("refuses an address that already has an account", async () => {
+    window.history.replaceState(null, "", "/entrar-na-equipe#token=xyz");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
+      "POST /api/join/check": () => ({ body: { office: "Alinea" } }),
+      "POST /api/join": () => ({ status: 409, body: { error: "account_exists" } }),
+    });
+    renderAt("/entrar-na-equipe#token=xyz");
+    await userEvent.type(await screen.findByLabelText("Nome"), "Ana");
+    await userEvent.type(screen.getByLabelText("E-mail"), "dona@alinea.example");
+    await userEvent.type(screen.getByLabelText(/^Nova senha/), "uma boa senha");
+    await userEvent.type(screen.getByLabelText(/^Repita a senha/), "uma boa senha");
+    await userEvent.click(screen.getByRole("button", { name: "Criar conta" }));
+    expect(await screen.findByText(/Já existe uma conta com este e-mail/)).toBeInTheDocument();
   });
 
   it("says when the link no longer works", async () => {
@@ -178,5 +221,86 @@ describe("the shared link's page", () => {
     });
     renderAt("/entrar-na-equipe#token=old");
     expect(await screen.findByRole("heading", { name: "Este link não funciona mais" })).toBeInTheDocument();
+  });
+});
+
+describe("confirming the email", () => {
+  const caio = { ...ME, name: "Caio Reis", email: "caio@gmail.com", role: "member", email_confirmed: false };
+
+  it("shows only the confirmation until it's done, whatever the address", async () => {
+    api({}, { "GET /api/me": () => ({ body: caio }) });
+    renderAt("/configuracoes/equipe");
+    expect(await screen.findByRole("heading", { name: "Confirme seu e-mail" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Projetos" })).not.toBeInTheDocument();
+  });
+
+  it("sends a new code, and says when it can't", async () => {
+    let failing = false;
+    api(
+      {},
+      {
+        "GET /api/me": () => ({ body: caio }),
+        "POST /api/me/email-code/resend": () => (failing ? { status: 503, body: { error: "email_not_sent" } } : { status: 204 }),
+      },
+    );
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Reenviar código" }));
+    expect(await screen.findByText("Enviamos um novo código para caio@gmail.com.")).toBeInTheDocument();
+    failing = true;
+    await userEvent.click(screen.getByRole("button", { name: "Reenviar código" }));
+    expect(await screen.findByText(/Não foi possível enviar o e-mail/)).toBeInTheDocument();
+    expect(screen.queryByText("Enviamos um novo código para caio@gmail.com.")).not.toBeInTheDocument();
+  });
+
+  it("corrects a mistyped address, and the code goes there", async () => {
+    const sent = api(
+      {},
+      {
+        "GET /api/me": () => ({ body: caio }),
+        "PUT /api/me/email": (body: unknown) => ({ body: { ...caio, email: (body as { email: string }).email } }),
+      },
+    );
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Corrigir e-mail" }));
+    const field = screen.getByLabelText("E-mail");
+    await userEvent.clear(field);
+    await userEvent.type(field, "caio@hotmail.com");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar e enviar código" }));
+    expect(await screen.findByText(/código de 6 dígitos para caio@hotmail.com/)).toBeInTheDocument();
+    expect(screen.getByText("Enviamos um novo código para caio@hotmail.com.")).toBeInTheDocument();
+    expect(sent.find((r) => r.path === "/api/me/email")?.body).toEqual({ email: "caio@hotmail.com" });
+  });
+
+  it("the email's link confirms with a press, not on opening", async () => {
+    window.history.replaceState(null, "", "/confirmar-email#token=tok");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
+      "POST /api/email-confirmation": () => ({ status: 204 }),
+    });
+    renderAt("/confirmar-email#token=tok");
+    await userEvent.click(await screen.findByRole("button", { name: "Confirmar meu e-mail" }));
+    expect(await screen.findByRole("heading", { name: "E-mail confirmado" })).toBeInTheDocument();
+    expect(sent.filter((r) => r.path === "/api/email-confirmation").map((r) => r.body)).toEqual([{ token: "tok" }]);
+  });
+
+  it("says when the email's link no longer works", async () => {
+    window.history.replaceState(null, "", "/confirmar-email#token=old");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
+      "POST /api/email-confirmation": () => ({ status: 404, body: { error: "link_invalid" } }),
+    });
+    renderAt("/confirmar-email#token=old");
+    await userEvent.click(await screen.findByRole("button", { name: "Confirmar meu e-mail" }));
+    expect(await screen.findByRole("heading", { name: "Este link não funciona mais" })).toBeInTheDocument();
+  });
+
+  it("the team shows who hasn't confirmed yet", async () => {
+    const caioMember = { id: "u-3", name: "Caio Reis", email: "caio@gmail.com", role: "member", status: "unconfirmed", me: false };
+    api({ members: [DONA, caioMember] });
+    renderAt("/configuracoes/equipe");
+    const row = (await screen.findByText("caio@gmail.com")).closest("li")!;
+    expect(within(row).getByText("E-mail não confirmado")).toBeInTheDocument();
   });
 });
