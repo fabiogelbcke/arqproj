@@ -167,6 +167,11 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("dialog").waitFor();
   await shoot(page, "06e-pre-visualizacao");
   await page.getByRole("button", { name: "Fechar" }).click();
+  // A file's versions (A25): "Plantas.pdf" and "Plantas v2.pdf" in the seed.
+  await page.getByRole("button", { name: "2 versões" }).click();
+  await page.getByRole("dialog", { name: "Plantas.pdf" }).waitFor();
+  await shoot(page, "06n-versoes");
+  await page.getByRole("dialog").getByRole("button", { name: "Fechar" }).click();
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar reunião" }).click();
