@@ -90,7 +90,7 @@
 .client .stage-steps__item.is-done > button { background: var(--lime-soft); }
 /* Dark theme: a brighter, solid green for the list's completed stages (Fabio, 25 Oct
    2026); a see-through lime only turned olive grey. */
-:root[data-theme="dark"] .client .stage-steps__item.is-done > button { background: #9aa56a; }
+:root[data-theme="dark"] .client .stage-steps__item.is-done > button { background: #7c8257; }
 .client .stage-mark { display: grid; place-items: center; width: 20px; height: 20px; }
 .client .stage-steps__item.is-done .stage-mark { border-radius: 50%; background: var(--mark); color: var(--raise); }
 .client .stage-mark svg { width: 13px; height: 13px; }
