@@ -442,3 +442,92 @@ def test_drafts_are_published_in_every_office(migrated_url):
             connection.execute(text(f'DROP OWNED BY "{owner}"'))
             connection.execute(text(f'DROP ROLE "{owner}"'))
         engine.dispose()
+
+
+def test_stage_completion_is_filled_in_every_office(migrated_url):
+    """0032 marks as completed the stages before each project's current one, and
+    every stage of a completed project (archived since, too), in every office, even as an owner that
+    tenant isolation binds (Cloud SQL's migration login)."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0032"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0031")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        for slug in ("alinea", "norte"):
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES (:s, 'X') RETURNING id"), {"s": slug}
+            )
+            for name, status, archived_from, current in (
+                ("Ativo", "active", None, 3),
+                ("Arquivado", "archived", "completed", 2),
+                ("Concluido", "completed", None, 2),
+            ):
+                project = connection.scalar(
+                    text(
+                        "INSERT INTO projects (tenant_id, name, client_name, project_type, "
+                        "status, archived_from, current_position) "
+                        "VALUES (:t, :n, 'C', 'architecture', :s, :a, :c) RETURNING id"
+                    ),
+                    {"t": tenant, "n": name, "s": status, "a": archived_from, "c": current},
+                )
+                for position in (1, 2, 3, 4):
+                    connection.execute(
+                        text(
+                            "INSERT INTO project_stages (tenant_id, project_id, position, title) "
+                            "VALUES (:t, :p, :n, 'Etapa')"
+                        ),
+                        {"t": tenant, "p": project, "n": position},
+                    )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    try:
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0032",
+        )
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    "SELECT p.name, count(*) FILTER (WHERE s.completed_at IS NOT NULL) "
+                    "FROM projects p JOIN project_stages s ON s.project_id = p.id "
+                    "GROUP BY p.id, p.name ORDER BY p.name"
+                )
+            ).all()
+            # Ativo: stages 1 and 2 (before its current 3); Concluido, and Arquivado
+            # (archived when completed, restored completed): all four.
+            assert rows == [
+                ("Arquivado", 4),
+                ("Arquivado", 4),
+                ("Ativo", 2),
+                ("Ativo", 2),
+                ("Concluido", 4),
+                ("Concluido", 4),
+            ]
+            forced = connection.execute(
+                text(
+                    "SELECT relname, relforcerowsecurity FROM pg_class "
+                    "WHERE relname IN ('projects', 'project_stages') ORDER BY relname"
+                )
+            ).all()
+            assert forced == [("project_stages", True), ("projects", True)]  # forced again
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()

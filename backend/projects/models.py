@@ -252,6 +252,8 @@ class ProjectStage(IdMixin, TimestampsMixin, TenantOwned, Base):
     about: Mapped[str | None] = mapped_column(Text)  # what happens in this stage
     notes: Mapped[str] = mapped_column(Text, server_default=text("''"))
     notes_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Marked as completed by staff, in any order (0032); None while still open.
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # The stage's folder, inside the project's.
     folder_id: Mapped[str | None] = mapped_column(Text)
 

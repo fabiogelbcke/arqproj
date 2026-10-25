@@ -50,7 +50,8 @@ async def test_a_published_project_shows_its_content_in_the_offices_language(cli
         "Projeto Arquitetônico",
         "Alinea (dev)",
     )
-    assert (shown["current_position"], shown["completed"]) == (3, False)
+    assert shown["completed"] is False
+    assert [s["completed"] for s in shown["stages"]][:3] == [True, True, False]
     assert [s["title"] for s in shown["stages"]][:3] == [
         "Briefing",
         "Levantamento",

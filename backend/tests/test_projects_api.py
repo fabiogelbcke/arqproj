@@ -68,7 +68,7 @@ async def test_a_new_project_is_published_with_its_type_ticked_stages_and_folder
         7,
     )
     assert created["project_type"] == "architecture"
-    assert created["current_stage_title"] == "Briefing"
+    assert created["completed_stage_count"] == 0
 
     folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
     assert len(folders) == 7 and folders[0] == "01 - Briefing"
@@ -106,7 +106,7 @@ async def test_ticked_stages_come_in_the_shared_order_whatever_the_type(client, 
 
 async def test_with_every_stage_unticked_only_the_project_folder_is_made(client, owner, tmp_path):
     response = await create(client, owner, stages=[])
-    assert (response.json()["stage_count"], response.json()["current_position"]) == (0, None)
+    assert (response.json()["stage_count"], response.json()["completed_stage_count"]) == (0, 0)
     assert list((tmp_path / "Casa do Lago").iterdir()) == []
 
 
@@ -332,23 +332,15 @@ async def test_the_list_has_what_the_cards_show(client, owner):
         "refugio-da-mantiqueira",
     }
     casa = listed["casa-jardim"]
-    assert (casa["stage_count"], casa["current_position"]) == (7, 3)
-    assert casa["current_stage_title"] == "Estudo Preliminar"  # translated built-in
+    assert (casa["stage_count"], casa["completed_stage_count"]) == (7, 2)
+    # The previous release's fields, for one release (A30): the first stage still open.
+    assert (casa["current_position"], casa["current_stage_title"]) == (3, "Estudo Preliminar")
+    done = listed["refugio-da-mantiqueira"]  # a completed project: every stage
+    assert done["completed_stage_count"] == done["stage_count"] > 0
     assert casa["project_type_label"] == "Projeto Arquitetônico"
     assert casa["next_meeting"]["title"] == "Apresentação do layout"  # the past one is skipped
     apartment = listed["apartamento-atlantico"]
     assert apartment["stage_count"] == 8  # interiors' seven + the office's own
-
-
-async def test_an_office_written_current_stage_shows_as_typed(client, db_session, owner):
-    await db_session.execute(
-        text(
-            "UPDATE projects SET current_position = 8 WHERE id = "
-            "(SELECT project_id FROM project_slugs WHERE slug = 'apartamento-atlantico')"
-        )
-    )
-    listed = {p["slug"]: p for p in (await client.get("/api/projects", headers=ALINEA)).json()}
-    assert listed["apartamento-atlantico"]["current_stage_title"] == "Aprovação no condomínio"
 
 
 async def test_the_next_meeting_is_the_soonest_upcoming_one(client, db_session, owner):

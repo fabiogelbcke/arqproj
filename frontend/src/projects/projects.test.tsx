@@ -39,8 +39,9 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
     project_type_label: "Projeto Arquitetônico",
     stage_count: 7,
     recipients: [],
-    current_position: 3,
-    current_stage_title: "Estudos Preliminares",
+    completed_stage_count: 2,
+    current_position: null, // the previous release's (A30), unread now
+    current_stage_title: null,
     next_meeting: null,
     created_at: "2026-09-01T12:00:00Z",
     last_activity_at: null,
@@ -54,7 +55,7 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
 const LIST = [
   project({}),
   project({ id: "2", name: "Conceição", client_name: "Ana", slug: "conceicao", status: "active", created_at: "2026-10-01T12:00:00Z" }),
-  project({ id: "3", name: "Refúgio", client_name: "Helena", slug: "refugio", status: "completed" }),
+  project({ id: "3", name: "Refúgio", client_name: "Helena", slug: "refugio", status: "completed", completed_stage_count: 7 }),
   project({
     id: "4",
     name: "Apartamento",
@@ -90,7 +91,20 @@ describe("the project list", () => {
 
     const completed = screen.getByRole("region", { name: "Concluídos" });
     expect(within(completed).getByText("Refúgio")).toBeVisible();
-    expect(within(completed).getByText("Projeto concluído")).toBeInTheDocument();
+    expect(within(completed).getByText("7 de 7 etapas concluídas")).toBeInTheDocument();
+  });
+
+  it("shows on each card how many stages are completed, in words and as a bar", async () => {
+    api(LOCAL, {
+      "GET /api/projects": () => ({
+        body: [project({}), project({ id: "5", name: "Sem etapas", slug: "vazio", stage_count: 0, completed_stage_count: 0 })],
+      }),
+    });
+    renderAt("/");
+    const [casa, empty] = await screen.findAllByTestId("project-card");
+    expect(within(casa!).getByText("2 de 7 etapas concluídas")).toBeInTheDocument();
+    expect(within(casa!).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "2");
+    expect(within(empty!).queryByRole("progressbar")).toBeNull(); // nothing to fill
   });
 
   it("filters by project type with a chip for each type in use", async () => {

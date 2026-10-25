@@ -13,6 +13,7 @@ export const CONTROLS = {
   description: { kind: "choice", options: ["none", "short", "long"], initial: "long" },
   length: { kind: "range", min: 200, max: LIMITS.description, step: 100, initial: 600 }, // a long description's
   meeting: { kind: "choice", options: ["none", "short", "long"], initial: "short" },
+  details: { kind: "range", min: 0, max: 12, step: 1, initial: 5 }, // besides the client and the last update
   stages: { kind: "range", min: 1, max: 12, step: 1, initial: 7 },
   files: { kind: "range", min: 0, max: 20, step: 1, initial: 3 }, // in every stage
   longNames: { kind: "toggle", initial: false }, // of stages and files

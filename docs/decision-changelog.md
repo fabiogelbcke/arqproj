@@ -19,6 +19,37 @@ a new entry too.
 
 ---
 
+## 2026-10-23 — Section 10, A28, A32: stages complete independently
+
+**Was:** a project had one current stage. Staff moved it on with "Marcar etapa
+como concluída" (the next stage became the one in progress) and back with
+"Reabrir etapa"; the last stage's button completed the project, and "Reabrir
+projeto" reopened it. The page showed the stages as a timeline with the current
+one highlighted, the painel cards "Etapa atual" and its name, and emails said
+"O projeto avançou para a etapa …".
+
+**Now:** stages are independent and can be completed in any order (Fabio,
+23 Oct 2026). Every stage has its own "Marcar como concluída", or "Reabrir
+etapa" once completed, each after a confirmation. The page lists the stages as a
+checklist under a thin bar of how many are completed and opens the first stage
+still open; the painel cards say "X de Y etapas concluídas" with the same bar.
+Emails and the updates panel name each stage completed (and still completed).
+The project is completed by staff, not by its last stage (Fabio, 23 Oct 2026:
+"just so we're sure before sending any emails or displaying as complete"):
+completing the last open stage asks "Concluir o projeto?", and "Concluir
+projeto" stays available while every stage is completed. Reopening a stage of a
+completed project, or adding one, makes it active again.
+`projects.current_position` stays in the database, unused, until the change is
+confirmed; old `stage_advanced` events are kept but no longer shown or emailed.
+For one release the previous `POST …/progress` route and the `current_position`
+and `current_stage_title` fields keep working (computed from the completions),
+for a tab still running the previous build during a deploy (A30).
+
+**Why:** offices don't always work through stages in order (Fabio); one current
+stage couldn't show two in progress, or a later one finished first.
+
+---
+
 ## 2026-10-23 — A27, section 10: project page follow-ups
 
 **Was:** a meeting had both a place and a video link field; "Adicionar etapa"

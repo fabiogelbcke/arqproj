@@ -57,10 +57,16 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     description: project.description,
     cover_url: project.cover_url,
     completed: project.status === "completed",
-    current_position: project.stages.length ? project.current_position : null,
+    current_position: null, // the previous release's (A30); this page doesn't read it
     last_update: project.last_update,
     details: project.details,
-    stages: project.stages.map(({ title, about, notes }, i) => ({ position: i + 1, title, about, notes })),
+    stages: project.stages.map(({ title, about, notes, completed }, i) => ({
+      position: i + 1,
+      title,
+      about,
+      notes,
+      completed,
+    })),
     next_meeting: project.next_meeting,
     // Staff see the staff bar and can try edit mode.
     staff: signedIn
@@ -203,11 +209,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
         const to = from + Number(body.direction);
         const stages = project.stages;
         if (!stages[from] || !stages[to]) return refused("invalid_status_change");
-        [stages[from], stages[to]] = [stages[to]!, stages[from]!];
-        // The current stage stays the same stage, wherever it moves.
-        const current = project.current_position - 1;
-        if (current === from) project.current_position = to + 1;
-        else if (current === to) project.current_position = from + 1;
+        [stages[from], stages[to]] = [stages[to]!, stages[from]!]; // each keeps its completion
         return changed();
       },
     ],
@@ -218,8 +220,6 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
         const position = Number(match[1]);
         if (!stage(match)) return refused("project_not_found", 404);
         project.stages.splice(position - 1, 1);
-        if (project.current_position > position) project.current_position -= 1;
-        project.current_position = Math.max(1, Math.min(project.current_position, project.stages.length));
         return changed();
       },
     ],
@@ -233,33 +233,36 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
           title = options?.stages.find((option) => option.key === body.builtin_key)?.title ?? title;
         }
         if (!title) return refused("invalid_status_change");
-        project.stages.push({ title, about: null, notes: "", groups: [] });
+        project.stages.push({ title, about: null, notes: "", completed: false, groups: [] });
+        project.status = "active"; // a new stage is open
         return changed();
       },
     ],
     [
-      "POST",
-      new RegExp(`^${PROJECT}/progress$`),
-      (_, body) => {
-        const current = project.current_position;
-        const action = body.action;
-        if (action === "advance" && project.status === "active" && current < project.stages.length) {
-          project.current_position = current + 1;
-          return changed({ kind: "stage_advanced", stage_position: current + 1 });
-        }
-        if (action === "back" && project.status === "active" && current > 1) {
-          project.current_position = current - 1;
-          return changed();
-        }
-        if (action === "complete" && project.status === "active") {
-          project.status = "completed";
-          return changed({ kind: "project_completed", stage_position: null });
-        }
-        if (action === "reopen" && project.status === "completed") {
+      "PUT",
+      new RegExp(`^${PROJECT}/stages/(\\d+)/completion$`),
+      (match, body) => {
+        // As the server: any stage, any order; the project is staff's to complete.
+        const position = Number(match[1]);
+        const target = stage(match);
+        if (!target) return refused("project_not_found", 404);
+        const completed = Boolean(body.completed);
+        if (target.completed === completed) return refused("invalid_status_change");
+        target.completed = completed;
+        if (!completed) {
           project.status = "active";
           return changed();
         }
-        return refused("invalid_status_change");
+        return changed({ kind: "stage_completed", stage_position: position });
+      },
+    ],
+    [
+      "PUT",
+      new RegExp(`^${PROJECT}/completion$`),
+      () => {
+        if (project.status !== "active" || project.stages.some((s) => !s.completed)) return refused("invalid_status_change");
+        project.status = "completed";
+        return changed({ kind: "project_completed", stage_position: null });
       },
     ],
     [

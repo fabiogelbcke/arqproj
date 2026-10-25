@@ -22,11 +22,11 @@ function readIds(slug: string): Set<string> {
 }
 
 /** The entries, newest first: a file as it is now, a stage's latest note, the
- *  latest advance that still holds, the meeting as it is now. */
+ *  stages still completed, the meeting as it is now. */
 export function entriesFor(page: Page, updates: Update[], t: (key: string) => string, locale: string) {
   const entries: Entry[] = [];
   const notes = new Set<number>();
-  let advanced = false;
+  const finished = new Set<number>();
   let completed = false;
   let meeting = false;
   for (const update of updates) {
@@ -40,10 +40,12 @@ export function entriesFor(page: Page, updates: Update[], t: (key: string) => st
       if (!stage || notes.has(index)) continue;
       notes.add(index);
       if (stage.notes) entries.push({ ...base, title: t("updates.note"), context: stage.notes, target: index });
+    } else if (update.kind === "stage_completed") {
+      if (!stage?.completed || finished.has(index)) continue; // reopened since
+      finished.add(index);
+      entries.push({ ...base, title: t("updates.stageCompleted"), context: `${pad(index + 1)} ${stage.title}`, target: index });
     } else if (update.kind === "stage_advanced") {
-      if (advanced || !stage || index + 1 > (page.current_position ?? 0)) continue;
-      advanced = true;
-      entries.push({ ...base, title: t("updates.advanced"), context: `${pad(index + 1)} ${stage.title}`, target: index });
+      continue; // the old progress (before stages completed on their own): nothing holds it now
     } else if (update.kind === "project_completed") {
       if (completed || !page.completed) continue;
       completed = true;

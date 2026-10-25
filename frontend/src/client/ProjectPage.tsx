@@ -5,12 +5,14 @@ import { useTranslation } from "react-i18next";
 import { flushSync } from "react-dom";
 
 import { api, call, type Schemas } from "../api/client";
+import { CompletionBar } from "../ui/CompletionBar";
 import { HeaderMenu } from "../ui/HeaderMenu";
 import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
 import { Toaster, toast } from "../ui/Toast";
 import { EditButton, openOnClick } from "./EditButton";
+import { useBalancedColumns } from "./balance";
 import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import type { StageEditParts } from "./StageEditing";
@@ -24,6 +26,7 @@ const MeetingEditor = lazy(() => import("./Editors").then((m) => ({ default: m.M
 const RecipientsEditor = lazy(() => import("./Editors").then((m) => ({ default: m.RecipientsEditor })));
 const AddStage = lazy(() => import("./StageEditing").then((m) => ({ default: m.AddStage })));
 const StageProgress = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageProgress })));
+const CompleteProject = lazy(() => import("./StageEditing").then((m) => ({ default: m.CompleteProject })));
 const ReorderStages = lazy(() => import("./StageEditing").then((m) => ({ default: m.ReorderStages })));
 const StageEditForm = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageEditForm })));
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
@@ -355,12 +358,33 @@ function MobileSummary({ page }: { page: Page }) {
   );
 }
 
-function stateOf(page: Page, index: number): "done" | "current" | "upcoming" {
-  const current = page.current_position ?? 0;
-  if (page.completed || index + 1 < current) return "done";
-  return index + 1 === current ? "current" : "upcoming";
+// Stages complete on their own, in any order (Fabio, 23 Oct 2026): each is done or open.
+function stateOf(page: Page, index: number): "done" | "open" {
+  return page.stages[index]!.completed ? "done" : "open";
 }
 
+/** The stage opened first: the first one still open, else the first. */
+export function firstOpenStage(page: Page) {
+  return Math.max(0, page.stages.findIndex((stage) => !stage.completed));
+}
+
+/** How many stages are completed, in words and as a thin bar: over the
+ *  checklist on a computer, over the stages on a phone. */
+function StageCompletion({ page }: { page: Page }) {
+  const { t } = useTranslation();
+  const done = page.stages.filter((stage) => stage.completed).length;
+  const progress = t("page.stagesDone", { done, total: page.stages.length });
+  return (
+    <div className="stage-completion">
+      <span aria-hidden="true">{progress}</span>
+      <CompletionBar done={done} total={page.stages.length} label={progress} />
+    </div>
+  );
+}
+
+/** The stages under how many are completed: no numbers, and a bare check or a
+ *  dot instead of tick boxes, so it reads as a set rather than a path or a
+ *  checklist (Fabio, 23 Oct 2026). */
 function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => void }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
@@ -375,15 +399,27 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
           )}
         </div>
       </div>
-      <ol className="stage-steps" aria-label={t("page.stages")}>
+      <StageCompletion page={page} />
+      {/* Two columns, read down the first then the second. */}
+      <ol
+        className="stage-steps"
+        aria-label={t("page.stages")}
+        style={{ gridTemplateRows: `repeat(${Math.ceil(page.stages.length / 2)}, auto)` }}
+      >
         {page.stages.map((stage, i) => {
           const state = stateOf(page, i);
           return (
             <li key={i} className={`stage-steps__item is-${state}`}>
               <button type="button" onClick={() => onJump(i)}>
-                <span className="n">{pad(i + 1)}</span>
+                <span className="stage-mark" aria-hidden="true">
+                  {state === "done" && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                      <path d="M6 12.5l4 4 8-9" />
+                    </svg>
+                  )}
+                </span>
                 <b>{stage.title}</b>
-                <span>{state === "done" ? t("page.stageDone") : state === "current" ? t("page.stageCurrent") : ""}</span>
+                {state === "done" && <span className="sr">{t("page.stageDone")}</span>}
               </button>
             </li>
           );
@@ -493,7 +529,7 @@ function Stage({
   uploads?: ReactNode; // edit mode: the drop area
   fileMenu?: (file: FileItem) => ReactNode;
   view?: FileView;
-  progress?: ReactNode; // edit mode: "Marcar etapa como concluída", "Reabrir etapa"
+  progress?: ReactNode; // edit mode: "Marcar como concluída" or "Reabrir etapa"
   hidden?: boolean; // a search or filter found nothing here
   total?: number; // its files before any search or filter
   onOpenFile: (file: FileItem, folder: string | null) => void;
@@ -552,6 +588,14 @@ function Stage({
             <h2 id={`st-${index}`} tabIndex={-1} className={parts ? "sr" : undefined}>
               {stage.title}
             </h2>
+            {/* On a phone, a closed stage hides its "Concluída": a check says it instead. */}
+            {state === "done" && !parts && (
+              <span className="stage__done-mark" role="img" aria-label={t("page.stageDoneMark")}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                  <path d="M6 12.5l4 4 8-9" />
+                </svg>
+              </span>
+            )}
             {parts ? parts.name : helpControl}
           </div>
           <div className="client-stage-controls">
@@ -584,8 +628,7 @@ function Stage({
           </div>
         </div>
         <p className="stage__meta">
-          {state === "done" && <span className="pill">{t("page.stageDone")}</span>}
-          {state === "current" && <span className="pill pill--current">{t("page.stageCurrent")}</span>}
+          {state === "done" && <span className="pill pill--done">{t("page.stageDone")}</span>}
           {files && !files.unavailable && (
             <span>
               {(total ?? countFiles(files))
@@ -633,7 +676,6 @@ function Stage({
   );
   return (
     <section
-      // "stage--current", not the prototype's "current": its dark band is gone (redesign).
       className={`stage ${open ? "is-expanded " : ""}${editor?.editing ? "is-editing " : ""}stage--${state}`}
       id={`stage-${index}`}
       aria-labelledby={`st-${index}`}
@@ -768,6 +810,9 @@ export function ProjectPage({
   const narrow = useNarrow();
   const cover = useRef<HTMLDivElement>(null);
   useCoverWipe(cover);
+  const mainColumn = useRef<HTMLDivElement>(null);
+  const sideColumn = useRef<HTMLDivElement>(null);
+  const moved = useBalancedColumns(mainColumn, sideColumn);
   const stageFiles = useStageFiles(slug, page);
   const [editing, setEditing] = useState(false);
   // The guided tour (Tour.ts, loaded only for staff): once per account, then from "?".
@@ -795,11 +840,11 @@ export function ProjectPage({
     setOpenEditor(null);
     if (saved) onChanged?.();
   };
-  // The stage open (by row): the current one at first, and one at a time
+  // The stage open (by row): the first one still open at first, and one at a time
   // (Fabio, 23 Oct 2026): opening another closes it. A search or filter still
   // opens every stage with a match, and a stage in "Editar etapa" stays open.
   const [openStages, setOpenStages] = useState<ReadonlySet<number>>(
-    () => new Set([Math.max(0, (page.current_position ?? 1) - 1)]),
+    () => new Set([firstOpenStage(page)]),
   );
   const openStage = (index: number) => setOpenStages(new Set([index]));
   // One stage's "Sobre esta etapa" open at a time: two would overlap.
@@ -876,6 +921,28 @@ export function ProjectPage({
     if (linkedFile(window.location.search))
       window.history.replaceState(window.history.state, "", window.location.pathname + window.location.hash);
   };
+  // The side column's cards under the details, which move under the stages, the
+  // meeting first, when the side column would otherwise run much longer
+  // (balance.ts); `data-movable` is the order they move in.
+  const movable = [
+    <div key="meeting" className="project-status__meeting" data-movable="0">
+      {canEdit && openEditor === "meet" ? (
+        <Suspense fallback={null}>
+          <MeetingEditor page={page} staff={staff!} onDone={done} />
+        </Suspense>
+      ) : (
+        <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
+      )}
+    </div>,
+    // Clients add themselves to the emails (A32); not in edit mode, not when done.
+    ...(!canEdit && !page.completed
+      ? [
+          <div key="subscribe" data-movable="1">
+            <Subscribe slug={slug} />
+          </div>,
+        ]
+      : []),
+  ];
 
   return (
     <div className={`client${canEdit ? " editing" : ""}`}>
@@ -961,7 +1028,7 @@ export function ProjectPage({
             the details then the meeting. A short description lets the timeline rise;
             without a cover, both start under the title. Phones: one column. */}
         <div className="project-status project-layout">
-          <div className="project-layout__main">
+          <div className="project-layout__main" ref={mainColumn}>
             {/* No description: nothing for the client (staff in edit mode can add one). */}
             {(page.description || canEdit) && (
               <div className={`project-layout__desc${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
@@ -986,8 +1053,9 @@ export function ProjectPage({
                 <Timeline page={page} onJump={jump} />
               </div>
             )}
+            {movable.slice(0, moved)}
           </div>
-          <div className="project-layout__side">
+          <div className="project-layout__side" ref={sideColumn}>
             <div className={narrow && !canEdit ? "mobile-view-hidden" : undefined}>
               {canEdit && openEditor === "facts" ? (
                 <Suspense fallback={null}>
@@ -1000,17 +1068,7 @@ export function ProjectPage({
                 </dl>
               )}
             </div>
-            <div className="project-status__meeting">
-              {canEdit && openEditor === "meet" ? (
-                <Suspense fallback={null}>
-                  <MeetingEditor page={page} staff={staff!} onDone={done} />
-                </Suspense>
-              ) : (
-                <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
-              )}
-            </div>
-            {/* Clients add themselves to the emails (A32); not in edit mode, not when done. */}
-            {!canEdit && !page.completed && <Subscribe slug={slug} />}
+            {movable.slice(moved)}
           </div>
         </div>
         {/* With the stages, even before any files, so the page keeps its spacing. */}
@@ -1024,7 +1082,12 @@ export function ProjectPage({
             narrow={narrow}
           />
         )}
-        {narrow && page.stages.length > 0 && <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>}
+        {narrow && page.stages.length > 0 && (
+          <>
+            <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>
+            <StageCompletion page={page} />
+          </>
+        )}
         {page.stages.map((_, i) => (
           <Stage
             key={i}
@@ -1109,6 +1172,7 @@ export function ProjectPage({
             <Suspense fallback={null}>
               <AddStage page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
               <ReorderStages page={page} staff={staff!} onChanged={stagesChanged} onReordered={reordered} locked={stagesLocked} />
+              <CompleteProject page={page} staff={staff!} onChanged={stagesChanged} />
             </Suspense>
           </div>
         )}

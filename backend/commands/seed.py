@@ -47,7 +47,7 @@ PROJECTS = {
             "client": "Família Oliveira",
             "type": ProjectType.ARCHITECTURE,
             "status": ProjectStatus.ACTIVE,
-            "current": 3,
+            "done": 2,  # its first two stages
             "description": (
                 "Residência em um terreno inclinado com vista para a Lagoa da Conceição.\n"
                 "- Estrutura de concreto aparente com brises de madeira\n"
@@ -78,7 +78,7 @@ PROJECTS = {
             "client": "Clara e Rafael Nogueira",
             "type": ProjectType.INTERIORS,
             "status": ProjectStatus.ACTIVE,
-            "current": 3,
+            "done": 2,  # its first two stages
             "description": "Reforma completa de um apartamento de frente para o mar.",
             "details": {
                 DetailKey.LOCATION: "Rio de Janeiro — RJ",
@@ -103,7 +103,6 @@ PROJECTS = {
             "client": "Helena e André",
             "type": ProjectType.LANDSCAPING,
             "status": ProjectStatus.COMPLETED,
-            "current": 7,
             "password": "demo-senha",
             "folder": "Projeto Padrão",
             # Folders kept from an earlier way of working: stage and folder names
@@ -127,7 +126,6 @@ PROJECTS = {
             "client": "Família Rocha",
             "type": ProjectType.ARCHITECTURE,
             "status": ProjectStatus.ACTIVE,
-            "current": 1,
             "folder": "Casa Nova",
             "stage_folders": ["01 - Estudo"],
         },
@@ -210,7 +208,6 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
         project_type=spec["type"],
         status=spec["status"],
         description=spec.get("description", ""),
-        current_position=spec.get("current"),
         access_mode=AccessMode.PASSWORD if password else AccessMode.PUBLIC,
         password_hash=await hash_password(password) if password else None,
         folder_id=spec.get("folder"),
@@ -223,6 +220,9 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
     session.add(ProjectSlug(**owned, slug=spec["slug"]))
     notes = spec.get("notes", {})
     stage_folders = spec.get("stage_folders", [])
+    # The first `done` stages are completed; all of a completed project's.
+    finished = spec["status"] is ProjectStatus.COMPLETED
+    done = len(stages) + 1 if finished else spec.get("done", 0)
     for position, key in enumerate(stages, start=1):
         note = notes.get(position, "")
         folder = (
@@ -238,11 +238,20 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
                 notes=note,
                 notes_updated_at=datetime.now(SAO_PAULO) if note else None,
                 folder_id=folder,
+                completed_at=datetime.now(SAO_PAULO) if position <= done else None,
             )
         )
     if custom := spec.get("custom_stage"):
         title, about = custom
-        session.add(ProjectStage(**owned, position=len(stages) + 1, title=title, about=about))
+        session.add(
+            ProjectStage(
+                **owned,
+                position=len(stages) + 1,
+                title=title,
+                about=about,
+                completed_at=datetime.now(SAO_PAULO) if finished else None,
+            )
+        )
     columns = {"text": "value_text", "area": "value_number", "date": "value_date"}
     for position, (key, value) in enumerate(spec.get("details", {}).items(), start=1):
         value_type = value_types[key]

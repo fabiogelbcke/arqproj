@@ -1,6 +1,6 @@
 // Edit mode: "Reordenar etapas", every stage on one short list (no files) to drag
 // into a new order by its handle (with a keyboard: space, the arrows, space). Saved at once on
-// "Salvar": one change, its folders renumbered; the current stage stays the same.
+// "Salvar": one change, its folders renumbered; each stage keeps its completion.
 // Loaded only when staff open it.
 import {
   DndContext,
@@ -28,12 +28,12 @@ function Row({
   position,
   index,
   title,
-  current,
+  done,
 }: {
   position: number; // the stage's place now, its id here
   index: number; // its place in the new order
   title: string;
-  current: boolean;
+  done: boolean;
 }) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
@@ -62,7 +62,7 @@ function Row({
       <span className="stage-order__n">{pad(index + 1)}</span>
       <span className="stage-order__title">
         {title}
-        {current && <small>{t("edit.currentStage")}</small>}
+        {done && <small>{t("page.stageDone")}</small>}
       </span>
     </li>
   );
@@ -129,7 +129,7 @@ export default function StageOrder({
                     position={position}
                     index={index}
                     title={byPosition.get(position)!.title}
-                    current={!page.completed && position === page.current_position}
+                    done={byPosition.get(position)!.completed}
                   />
                 ))}
               </ol>

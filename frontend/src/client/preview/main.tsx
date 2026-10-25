@@ -3,6 +3,9 @@
 import "../../ui/sizes.css";
 import "../prototype.css";
 import "../page.css";
+// The same shared values and redesigned page as the client page (client/main.tsx).
+import "../../styles/tokens.css";
+import "../project.css";
 import "./preview.css";
 import "../../i18n";
 

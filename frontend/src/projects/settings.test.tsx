@@ -33,8 +33,9 @@ const CASA: ProjectSummary = {
   project_type: "architecture",
   project_type_label: "Projeto Arquitetônico",
   stage_count: 7,
-  current_position: 3,
-  current_stage_title: "Estudos Preliminares",
+  completed_stage_count: 2,
+  current_position: null, // the previous release's (A30), unread now
+  current_stage_title: null,
   next_meeting: null,
   created_at: "2026-09-01T12:00:00Z",
   last_activity_at: null,

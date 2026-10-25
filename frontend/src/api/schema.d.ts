@@ -641,6 +641,8 @@ export interface paths {
         /**
          * Add Stage
          * @description At the end: a built-in stage (not already in the project) or the office's own.
+         *     A new stage is open, so a completed project is active again (stages complete
+         *     independently).
          */
         post: operations["add_stage_api_projects__project_id__stages_post"];
         delete?: never;
@@ -715,6 +717,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/stages/{position}/completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Completion
+         * @description Mark a stage as completed, or reopen it, whatever the other stages are. The
+         *     client sees it at once; "Atualizado" moves. A completed stage is recorded for
+         *     the client's email (A32). The last stage completed completes the project (an
+         *     active one), and reopening one makes a completed project active again.
+         */
+        put: operations["set_completion_api_projects__project_id__stages__position__completion_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/completion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Complete Project
+         * @description "Concluir projeto": an active project whose stages are all completed. Staff
+         *     are asked when they complete the last stage, and can do it later; the client
+         *     sees it at once and is told by email (A32).
+         */
+        put: operations["complete_project_api_projects__project_id__completion_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/progress": {
         parameters: {
             query?: never;
@@ -726,9 +773,11 @@ export interface paths {
         put?: never;
         /**
          * Progress
-         * @description Advance to the next stage, go back one, complete the project (all stages
-         *     done) or reopen it. The client sees it at once; "Atualizado" moves. Advancing
-         *     and completing are recorded for the client's email (A32).
+         * @deprecated
+         * @description The previous release's progress, for a tab still running its code during a
+         *     deploy (A30); remove in the release after independent stages. "advance" and
+         *     "complete" complete the first open stage; "back" and "reopen" reopen the last
+         *     completed one.
          */
         post: operations["progress_api_projects__project_id__progress_post"];
         delete?: never;
@@ -892,6 +941,13 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** CompletionIn */
+        CompletionIn: {
+            /** Row Version */
+            row_version: number;
+            /** Completed */
+            completed: boolean;
+        };
         /** ConnectIn */
         ConnectIn: {
             /**
@@ -983,7 +1039,7 @@ export interface components {
          * @description What a client can notice on the page (A28). All but a note email (A32).
          * @enum {string}
          */
-        EventKind: "file_published" | "stage_advanced" | "project_completed" | "meeting_scheduled" | "meeting_changed" | "meeting_cleared" | "note_changed";
+        EventKind: "file_published" | "stage_advanced" | "stage_completed" | "project_completed" | "meeting_scheduled" | "meeting_changed" | "meeting_cleared" | "note_changed";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -1297,6 +1353,11 @@ export interface components {
             /** Recipients */
             recipients?: string[] | null;
         };
+        /** ProjectCompletionIn */
+        ProjectCompletionIn: {
+            /** Row Version */
+            row_version: number;
+        };
         /** ProjectIn */
         ProjectIn: {
             /** Name */
@@ -1342,6 +1403,8 @@ export interface components {
             project_type_label: string;
             /** Stage Count */
             stage_count: number;
+            /** Completed Stage Count */
+            completed_stage_count: number;
             /** Current Position */
             current_position: number | null;
             /** Current Stage Title */
@@ -1456,6 +1519,8 @@ export interface components {
             about: string | null;
             /** Notes */
             notes: string;
+            /** Completed */
+            completed: boolean;
         };
         /**
          * StorageKind
@@ -3986,6 +4051,127 @@ export interface operations {
             };
             /** @description Service Unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    set_completion_api_projects__project_id__stages__position__completion_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompletionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    complete_project_api_projects__project_id__completion_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCompletionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
