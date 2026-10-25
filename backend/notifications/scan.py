@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.db.isolation import scope_to_tenant
+from backend.documents.versions import shown_name
 from backend.notifications import digest
 from backend.notifications.email import EmailSender
 from backend.notifications.events import CLIENT_VISIBLE, record
@@ -105,7 +106,7 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
     for position, item in new:
         db.add(ProjectFileSeen(project_id=project.id, item_id=item.identity))
         if not first:
-            name = f"{item.name}.pdf" if item.is_native else item.name  # as the page names it
+            name = shown_name(item)  # Drive's, with its version: "Planta v3.pdf"
             record(
                 db,
                 project,

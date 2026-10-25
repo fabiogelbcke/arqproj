@@ -406,3 +406,93 @@ async def test_the_writer_moves_out_of_the_old_folder_and_skips_a_file_already_t
     calls.clear()
     await writer.move("file1", "stage1")  # already there
     assert [method for method, _ in calls] == ["GET"]
+
+
+# -- Versions (A25, plan section 12) ----------------------------------------------------
+
+
+async def test_a_new_version_is_saved_as_the_next_and_becomes_current(client, owner, folders):
+    key = await file_key(client)
+    new = b"%PDF nova"
+    opened = await start(client, owner, name="programa revisado.pdf", size=len(new), version_of=key)
+    assert opened.status_code == 200, opened.text
+    await send(client, opened, new)
+    assert (folders / "01 - Briefing" / "Programa v2.pdf").read_bytes() == new
+    assert (folders / "01 - Briefing" / "Programa.pdf").read_bytes() == PDF  # never renamed
+    stages = (await client.get("/api/pages/casa-jardim/files", headers=ALINEA)).json()["stages"]
+    (shown,) = stages[0]["groups"][0]["files"]
+    assert (shown["name"], shown["version"], len(shown["older"])) == ("Programa.pdf", 2, 1)
+    # And the next one after that, from the current version or an older one alike.
+    await send(client, await start(client, owner, version_of=shown["older"][0]["key"]))
+    assert (folders / "01 - Briefing" / "Programa v3.pdf").exists()
+
+
+async def test_a_new_version_goes_into_its_files_own_subfolder(client, owner, folders):
+    (folders / "01 - Briefing" / "Plantas").mkdir()
+    (folders / "01 - Briefing" / "Plantas" / "Planta v4.pdf").write_bytes(PDF)
+    stages = (await client.get("/api/pages/casa-jardim/files", headers=ALINEA)).json()["stages"]
+    plantas = next(g for g in stages[0]["groups"] if g["folder"] == "Plantas")
+    key = plantas["files"][0]["key"]
+    await send(client, await start(client, owner, version_of=key))
+    assert (folders / "01 - Briefing" / "Plantas" / "Planta v5.pdf").exists()
+
+
+async def test_a_new_version_of_another_type_is_refused(client, owner, folders):
+    key = await file_key(client)
+    response = await start(client, owner, name="Programa.dwg", version_of=key)
+    assert (response.status_code, response.json()["error"]) == (422, "version_type_mismatch")
+
+
+async def test_a_new_version_for_a_file_in_another_stage_is_refused(client, owner, folders):
+    key = await file_key(client)  # in stage 1
+    response = await start(client, owner, stage=2, version_of=key)
+    assert (response.status_code, response.json()["error"]) == (409, "project_changed")
+
+
+async def test_a_new_version_of_a_file_gone_meanwhile_is_not_found(client, owner, folders):
+    key = await file_key(client)
+    (folders / "01 - Briefing" / "Programa.pdf").unlink()
+    response = await start(client, owner, version_of=key)
+    assert (response.status_code, response.json()["error"]) == (404, "file_not_found")
+
+
+async def test_an_upload_named_like_a_document_never_joins_it_without_yes(client, owner, folders):
+    # Its name alone would make it v2 of "Programa.pdf"; that is what "yes" is for.
+    await send(client, await start(client, owner, name="Programa v2.pdf"))
+    assert sorted(await stage_files(client)) == ["Programa v2 (2).pdf", "Programa.pdf"]
+
+
+async def check(client, headers, names, stage=1):
+    staff = await staff_of(client)
+    return await client.post(
+        f"/api/projects/{staff['project_id']}/stages/{stage}/uploads/check",
+        json={"row_version": staff["row_version"], "names": names},
+        headers=headers,
+    )
+
+
+async def test_the_check_names_the_document_a_file_would_be_a_new_version_of(
+    client, owner, folders
+):
+    (folders / "01 - Briefing" / "Programa v2.pdf").write_bytes(PDF)
+    response = await check(client, owner, ["programa.pdf", "Fachada.jpg", "Programa v7.pdf"])
+    assert response.status_code == 200, response.text
+    matches = response.json()["matches"]
+    assert [(m["name"], m["document"], m["current"], m["saved_as"]) for m in matches] == [
+        ("programa.pdf", "Programa.pdf", "Programa v2.pdf", "Programa v3.pdf"),
+        ("Programa v7.pdf", "Programa.pdf", "Programa v2.pdf", "Programa v3.pdf"),
+    ]
+    assert (matches[0]["current_version"], matches[0]["next_version"]) == (2, 3)
+    # "Yes" sends the key it gives: the upload becomes that next version.
+    await send(client, await start(client, owner, version_of=matches[0]["key"]))
+    assert (folders / "01 - Briefing" / "Programa v3.pdf").exists()
+
+
+async def test_only_staff_check_names(client, db_session, owner, folders):
+    staff = await staff_of(client)
+    url = f"/api/projects/{staff['project_id']}/stages/1/uploads/check"
+    body = {"row_version": staff["row_version"], "names": ["Programa.pdf"]}
+    assert (await client.post(url, json=body, headers=ALINEA)).status_code in (401, 403)
+    norte = await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
+    response = await client.post(url, json=body, headers=norte)
+    assert (response.status_code, response.json()["error"]) == (404, "project_not_found")

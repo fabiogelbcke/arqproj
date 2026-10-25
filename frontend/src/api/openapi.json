@@ -3062,6 +3062,106 @@
         }
       }
     },
+    "/api/projects/{project_id}/stages/{position}/uploads/check": {
+      "post": {
+        "summary": "Check Upload",
+        "description": "Which of these names match a document in the stage's folder, so the page\ncan ask \"É uma nova versão de Planta.pdf?\" (A25).",
+        "operationId": "check_upload_api_projects__project_id__stages__position__uploads_check_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/stages/{position}/uploads/failed": {
       "post": {
         "summary": "Upload Failed",
@@ -3517,6 +3617,44 @@
         ],
         "title": "Body_upload_logo_api_office_logo_put"
       },
+      "CheckIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Names"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "names"
+        ],
+        "title": "CheckIn"
+      },
+      "CheckOut": {
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/MatchOut"
+            },
+            "type": "array",
+            "title": "Matches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matches"
+        ],
+        "title": "CheckOut"
+      },
       "ChoosePasswordIn": {
         "properties": {
           "token": {
@@ -3848,6 +3986,7 @@
           "files_unavailable",
           "file_not_found",
           "file_too_large",
+          "version_type_mismatch",
           "invalid_file_name",
           "hidden_file_name",
           "stage_has_no_folder",
@@ -3928,6 +4067,35 @@
             "type": "string",
             "format": "date-time",
             "title": "Modified At"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "updated": {
+            "type": "boolean",
+            "title": "Updated",
+            "default": false
+          },
+          "clash": {
+            "type": "boolean",
+            "title": "Clash",
+            "default": false
+          },
+          "older": {
+            "items": {
+              "$ref": "#/components/schemas/FileOut"
+            },
+            "type": "array",
+            "title": "Older",
+            "default": []
           }
         },
         "type": "object",
@@ -4192,6 +4360,49 @@
           "password"
         ],
         "title": "LoginIn"
+      },
+      "MatchOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "document": {
+            "type": "string",
+            "title": "Document"
+          },
+          "current": {
+            "type": "string",
+            "title": "Current"
+          },
+          "current_version": {
+            "type": "integer",
+            "title": "Current Version"
+          },
+          "saved_as": {
+            "type": "string",
+            "title": "Saved As"
+          },
+          "next_version": {
+            "type": "integer",
+            "title": "Next Version"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "document",
+          "current",
+          "current_version",
+          "saved_as",
+          "next_version",
+          "key"
+        ],
+        "title": "MatchOut"
       },
       "MeOut": {
         "properties": {
@@ -5412,6 +5623,17 @@
               }
             ],
             "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
           }
         },
         "type": "object",
@@ -5476,6 +5698,18 @@
             "maxLength": 255,
             "title": "Mime Type",
             "default": ""
+          },
+          "version_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Of"
           }
         },
         "type": "object",

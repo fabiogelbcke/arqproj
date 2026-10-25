@@ -63,6 +63,7 @@ class ErrorCode(StrEnum):
     FILES_UNAVAILABLE = "files_unavailable"  # Drive down or throttled: try again
     FILE_NOT_FOUND = "file_not_found"  # moved, deleted, or its link expired: reload
     FILE_TOO_LARGE = "file_too_large"  # over the upload limit (A31)
+    VERSION_TYPE_MISMATCH = "version_type_mismatch"  # a new version of another type (A25)
     INVALID_FILE_NAME = "invalid_file_name"  # blank after cleaning
     HIDDEN_FILE_NAME = "hidden_file_name"  # starts with "_": the page never shows it
     STAGE_HAS_NO_FOLDER = "stage_has_no_folder"  # nowhere in Drive to put the file

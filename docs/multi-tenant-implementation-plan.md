@@ -95,7 +95,7 @@ its affected tests before coding proceeds.
 | A07 | All-or-nothing project creation | Pilot (15 Oct 2026): within the request, folders first, then every row in one transaction; on any failure nothing is saved and the new project folder (with its stage folders) is trashed, best effort; a one-time creation key makes retries safe. The durable provisioning operation in section 10 replaces it when there is a worker. See section 10 |
 | A08 | Stable document/revision records, not filename-only versioning | Recommended replacement for the prototype's grouping rules. Revised by A25: clear `vN` names still group automatically |
 | A09 | Recoverable background work; deployment and dispatch technology open | Revised POC proposal: an authenticated maintenance endpoint in the web service, called every 10 minutes (15 Oct 2026, was hourly), with durable application state. Managed queue/separate worker deferred unless needed. See section 4. |
-| A10 | The client page reads Drive live; the sync job only notices changes | Revised 16 Oct 2026 (Fabio): a project page lists its stage folders from Drive on each visit, so a file added in Drive shows at once (staff) or within two minutes (a public page's browser cache). The incremental, polled sync no longer feeds the display; it records what changed, for emails (A12), "Atualizado" and the updates feed (A28), and, once versions arrive, the document index (A25). Reconciliation stays the repair path; webhooks can wake it later without becoming a correctness dependency. For the pilot it finds new files by scanning each published project's stage folders every pass rather than reading Drive's changes feed (Fabio, 16 Oct 2026). See sections 8 and 13 |
+| A10 | The client page reads Drive live; the sync job only notices changes | Revised 16 Oct 2026 (Fabio): a project page lists its stage folders from Drive on each visit, so a file added in Drive shows at once (staff) or within two minutes (a public page's browser cache). The incremental, polled sync no longer feeds the display; it records what changed, for emails (A12), "Atualizado" and the updates feed (A28); versions are worked out from the listing itself (A25). Reconciliation stays the repair path; webhooks can wake it later without becoming a correctness dependency. For the pilot it finds new files by scanning each published project's stage folders every pass rather than reading Drive's changes feed (Fabio, 16 Oct 2026). See sections 8 and 13 |
 | A11 | Streaming proxy for private Drive content; optional Drive links | Recommended; clients need not have Google accounts or Drive sharing permissions |
 | A12 | Email first, trailing "settle" window: send once uploads stop | Revised 14 Oct 2026 from a fixed 60-minute window. 45-minute quiet period, 2-hour maximum hold from the first publication, configurable per office. Clarified 15 Oct 2026: a batch becomes *due* by these rules and is *sent* by the next maintenance run (every 10 minutes); the delay prevents an email about withdrawn files, it does not hide them. See section 14 and the [changelog](decision-changelog.md) |
 | A13 | Protected main, staging and approved promotion of one build | Recommended; environments are separate without requiring permanent divergent code branches |
@@ -110,13 +110,13 @@ its affected tests before coding proceeds.
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
 | A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Revised 20 Oct 2026 (Fabio): it also asks, optionally, for the client's email addresses (A32), so the updates start with the project. Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits the project's settings in the prototype's "Projeto" dialog: name, client, client link and access (with the client page, slice 2) and the client's email addresses (A32). Revised 19 Oct 2026 (Fabio): the card's pencil (a "⋯" since the painel redesign of 22 Oct 2026) opens a short menu instead of the dialog at once: "Trocar foto" (straight to the photo picker and cropper, saved on its own), "Remover foto" (when there is one), "Configurações do projeto" (the dialog, without the cover) and "Arquivar projeto", which asks for confirmation first. No delete for now. Uploads happen per stage on the project page. Revised 18 Oct 2026 (Fabio): the name can also be changed from the title in the project page's edit mode (the same change as the dialog's; the address stays). See section 10 and the [changelog](decision-changelog.md) |
-| A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original is shown as v1. Refined 15 Oct 2026: the client page shows the clean name with a separate version badge, while the copy in Drive carries the version (`Planta v3.pdf`); grouping only within one folder; clashes are flagged, never merged; current = highest version. See section 12 and the [changelog](decision-changelog.md) |
+| A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original counts as v1. Refined 15 Oct 2026: the client page shows the clean name with a separate version badge, while the copy in Drive carries the version (`Planta v3.pdf`); grouping only within one folder; clashes are flagged, never merged; current = highest version. Revised 25 Oct 2026 (Fabio): no document index. Versions are worked out from the file names each time a folder is listed, as the page already lists Drive live (A10); nothing about files is stored, not even staff corrections: the names decide, and a wrong grouping is fixed by renaming the file. The current version is always the highest. No label per version for now. Only `v` numbers mark a version, and a file shows its version from v2: v1 appears only in the file's list of versions. See section 12 and the [changelog](decision-changelog.md) |
 | A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Refined the same day: values the code **acts on** (status, access mode, roles, a detail's value type, languages, error codes) are enums stored with a CHECK; **content the app only displays** (project types, detail types, built-in stages with their descriptions, each type's usual stages) lives in reference tables with its texts per language, referenced by foreign key, and the code keeps enums naming the built-in rows (a test keeps them in step). Interface text lives in one translation catalog per language shared by the server and the staff app. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
 | A27 | Typed project details; project type chosen at creation, with its usual stages | Agreed 15 Oct 2026 (prototype review). Details are text, choice, area (m²) or date, formatted per language. Project type is a column with four built-in types: Projeto Arquitetônico, Projeto de Interiores, Projeto de Reforma, Projeto de Paisagismo. Revised 16 Oct 2026 (Alinea's partners): creation asks for the type; all 12 built-in stages are listed in one fixed order, the type's usual ones ticked, and staff tick or untick any. Each type gives its stages its own description; a stage outside its type's list uses a general one. Built-in stages have a description only (no separate deliverables). Stage templates are gone. The pilot offers only built-in details, types and stages; office-defined ones are a later addition. See sections 7 and 10 |
 | A28 | One feed of client-visible project events | Agreed 15 Oct 2026 (prototype review). New files and versions, stage notes, stage progress (a stage completed, the project completed; before 23 Oct 2026 a stage advanced) and meeting changes are recorded once as `project_events`; the client page's "latest updates" panel, the project's "last updated" date and email batching (A12) all read it. Which of them email: A32 (not notes). See sections 7 and 14 |
 | A29 | A project address (slug), once used, stays reserved for that project | Agreed 15 Oct 2026. Old slugs keep redirecting and can never be given to another project in the office, so an old client link cannot land on someone else's project. See section 6 |
 | A30 | Staff app and API stay compatible across a deploy | Agreed 15 Oct 2026, correcting "one revision means the staff app can never run against another API version": an open tab keeps the old code. Fingerprinted assets, a build ID on API responses, a reload prompt that keeps unsaved edits, and API changes compatible with the previous release. See section 4 |
-| A31 | Uploads go from the browser straight to Drive | Agreed 16 Oct 2026 (Fabio), first part of slice 3b. Any staff member uploads into a stage from edit mode. The app checks the request (staff, project not archived, the stage's folder, at most 100 MB a file) and opens a Google resumable upload in that folder through the office's grant; the browser sends the bytes to Google, never through Cloud Run. A file with a name already there is kept beside it until versions (A25) arrive. The 100 MB cap settles the upload cap that section 24 listed as open; usage metrics (future ideas) may move it. "Ocultar do cliente" renames a file with a leading `_` (A05's hidden names); the office's grant (`drive.file`) reaches only files the app uploaded, so a file put straight into Drive is hidden by renaming it there. Versions, covers in Drive and usage metrics are later. See section 11 |
+| A31 | Uploads go from the browser straight to Drive | Agreed 16 Oct 2026 (Fabio), first part of slice 3b. Any staff member uploads into a stage from edit mode. The app checks the request (staff, project not archived, the stage's folder, at most 100 MB a file) and opens a Google resumable upload in that folder through the office's grant; the browser sends the bytes to Google, never through Cloud Run. A file named like a document already in the stage is saved as its next version or kept beside it under a distinct name ("Planta (2).pdf"), as staff choose (A25). The 100 MB cap settles the upload cap that section 24 listed as open; usage metrics (future ideas) may move it. "Ocultar do cliente" renames a file with a leading `_` (A05's hidden names); the office's grant (`drive.file`) reaches only files the app uploaded, so a file put straight into Drive is hidden by renaming it there. Versions, covers in Drive and usage metrics are later. See section 11 |
 | A32 | Client email updates: what, to whom, from where, and how often | Agreed 16 Oct 2026 (Fabio). Staff list the client's addresses in the Projeto dialog, several per project (`project_recipients`). Revised 20 Oct 2026 (Fabio): they are an important part of the process, not an afterthought, so creation asks for them too (A24), and a project nobody receives updates for says so: "Sem e-mail do cliente" on its painel card, and a notice in the project page's edit mode, each leading to where the addresses are added. Also 20 Oct 2026: clients sign themselves up from the project page ("Novidades por e-mail"). The address is listed at once and gets a welcome email saying so, with a small "Não foi você?" link to stop them (the updates' own unsubscribe link); no confirmation step (Fabio: simpler for clients). Requests are rate-limited per device. A client who had unsubscribed may sign up again this way (their own choice; staff still can't). Not for archived projects, and not past the 20 addresses. An email goes out for new files on the page, a stage completed (one line per stage still completed when it is sent; revised 23 Oct 2026, it was a stage advanced) or the project completed, and a meeting scheduled, changed or removed; a stage's note does not email (it still counts for the updates panel). Batching as A12, 45 minutes quiet and 2 hours at most, confirmed for the pilot. Each office sends from its own domain once that domain is verified with the provider (Alinea: `alineaarquitetos.com`); until then, and for every other office, from the product's general domain with the office's name. Replies go to the office's contact email (office settings), else its owner. Locally and in tests a collecting fake records emails; staging sends only to allowlisted addresses. One Cloud Scheduler job calls the maintenance endpoint every 10 minutes (A09, A19), staging first. See section 14 |
 | A33 | Product name and domain: **Unio**, `myunio.app` | Agreed 17 Oct 2026 (Fabio). `myunio.app` is the `{product-domain}` throughout this plan, registered at GoDaddy. Alinea keeps `alineaarquitetos.com` (A23); later offices are served at `{office}.myunio.app` (A21). `.app` domains are HSTS-preloaded, so every address on it works over HTTPS only (Cloud Run's managed certificates already do that). Hosting region is still open (section 24). See the [changelog](decision-changelog.md) |
 | A34 | Staff change files on the website, not in Drive | Agreed 17 Oct 2026 (Fabio). The project page does not send staff to Drive: no "Abrir no Google Drive" action on a file or stage. (The Drive settings page keeps its link to the office's connected folder: that is about the connection itself, not a way to change a project's files.) Drive keeps working for whoever prefers it, but every everyday change is offered on the project page. Each file's "⋯" menu offers "Definir como capa" (images), "Mover para outra etapa" (a list of the other stages) and "Ocultar do cliente"; dragging a file onto another stage is a later addition doing the same move. A file put straight into Drive can be shown but not changed through the office's grant (drive.file): the site says, in plain words, to make that change in the stage's folder; authorizing such files through the Picker stays a later option (section 9). See section 11 and the [changelog](decision-changelog.md) |
@@ -174,7 +174,7 @@ backend/
   tenancy/               hostname resolution and tenant context
   identity/              staff accounts, sessions, password links
   projects/              project metadata, stages, access policies
-  documents/             documents, revisions, publication and previews
+  documents/             versions from names, previews
   storage/               provider contract, Google adapter, fake adapter
   connections/           OAuth lifecycle, read identities, capabilities
   sync/                  cursors, reconciliation and change normalization
@@ -673,8 +673,6 @@ The following is a logical schema specification, not a migration:
 | `meetings` | tenant, project, title (≤ 40), start/end (end after start), timezone, location (≤ 60), link (`http`/`https` only); several per project: the client page shows the next one by date, so a past meeting stops showing on its own (agreed 15 Oct 2026) |
 | `folder_bindings` | tenant, project, connection, provider folder ID, parent ID, path display, classification |
 | `storage_items` | tenant, connection, provider file ID, parent, MIME, name, size, checksum/revision metadata, observed capabilities, present/trashed state, last seen |
-| `documents` | tenant, project, logical title, stage, current revision ID, publication state |
-| `document_revisions` | tenant, document, storage item, application sequence, label, observed content marker, source, published time, availability state |
 | `project_recipients` | tenant, project, email, locale, subscription state, unsubscribe-token hash |
 | `project_events` | tenant, project, kind (file published, new version, file withdrawn, note changed, stage completed, stage advanced (before 23 Oct 2026), project completed, meeting scheduled/changed/cleared), document/revision or stage reference, source fingerprint, detected/published times. Client-visible activity (A28): feeds the updates panel, the project's last-activity time and email batching; every kind but "note changed" can start an email (A32) |
 | `notification_batches` | tenant, project, start/due time, state; events captured in batch-item rows |
@@ -728,8 +726,7 @@ not depend on a single worker instance.
 | Data | Authority | Behavior when edited elsewhere |
 | --- | --- | --- |
 | Project title/client/status/meeting/stages/custom fields | PostgreSQL | Drive `_project` files are imported once, then ignored for product metadata |
-| File bytes, physical filename/folder placement, trash | Google Drive | The client page reads it live (A10); the sync records changes as events, and later into the document index |
-| Document grouping, revision labels, selected current revision | PostgreSQL | External files may create new documents/revision observations; do not silently overwrite manual grouping |
+| File bytes, physical filename/folder placement, trash | Google Drive | The client page reads it live (A10) and works out versions from the names (A25); the sync records changes as events |
 | Client visibility | Deliverables boundary plus DB project/access state | Moving out of the boundary removes portal availability |
 | Recipients, email preferences, delivery results | PostgreSQL | Drive has no authority over them |
 | Office appearance and users | PostgreSQL | Never read another office's environment/global cache |
@@ -1096,7 +1093,7 @@ rename/move/trash.
 No “Open in Google Drive” link on the project page (A34): changes are offered on the site. No attempt at copying every Drive
 feature or matching its branding. Do not offer hard delete. Cross-project moves
 are explicit operations with publication consequences, not casual drag/drop in
-v1. Within-project moves preserve the logical document unless staff split it.
+v1. A file moved to another stage leaves its version group (grouping is within one folder, A25).
 
 Build on existing components where they fit rather than from scratch. Candidates
 to evaluate in the staff app: SVAR React File Manager (MIT) for the browser view,
@@ -1112,16 +1109,20 @@ prevent an otherwise authorized original download.
 
 ## 12. Document versions and previews
 
-Treat these as three different concepts:
+Versions are worked out from the file names each time a folder is listed
+(A25, revised 25 Oct 2026): the page already lists Drive live (A10), and it
+groups `Planta.pdf`, `Planta v2.pdf` and `Planta v3.pdf` in one folder as one
+document, the highest version current. Nothing about files is stored: no
+document index and no table of staff corrections (Fabio, 25 Oct 2026). A
+version's date is Drive's; there is no label per version for now (Fabio, 25 Oct 2026: "fine if we lose per-version
+labels for now"). A document index can come later if labels or a version
+history need one.
 
-1. **Logical document:** “Planta baixa”, with a stable application ID.
-2. **Published revision:** a labeled delivery associated with that document.
-3. **Provider content observation:** an observed state of a Drive file, which may
-   change without creating another physical file.
-
-A filename such as `Planta_final_v2_final.pdf` is not a reliable identity scheme.
-For website uploads, offer “New document” or “New revision of…”; the latter
-explicitly binds to the selected document.
+A filename such as `Planta_final_v2_final.pdf` is not a reliable identity
+scheme, so only clear version tokens group (below). A wrong grouping is fixed
+by renaming the file, in Drive where the app may not rename it (A34).
+For website uploads, "Enviar nova versão" on a file names the next version
+explicitly, so it always groups.
 
 Version naming and upload flow (A25):
 
@@ -1136,36 +1137,46 @@ Version naming and upload flow (A25):
   (`Planta v3.pdf`), so staff working directly in Drive can tell versions apart
   and synced computers do not produce "Planta (1).pdf". **Existing files are
   never renamed**: the `drive.file` grant cannot rename files the office added
-  through Drive. An unnumbered original counts and displays as v1.
-- Website uploads take the next version number under a lock, so two uploads
-  cannot both become v3.
+  through Drive. An unnumbered original counts as v1. A card shows its version
+  from v2, so v1 appears only in the file's list of versions (Fabio, 25 Oct 2026:
+  "for v1 we can skip").
+- Website uploads are named with the next version when the upload opens. Nothing
+  reserves the number while the bytes go from the browser to Drive (A31): a
+  reservation would be stored state about files, which A25 rules out. So two new
+  versions of one document opened at the same moment both become v3; the listing
+  flags the clash, as for any two files claiming one version, and staff rename
+  one. The file's menu sends one version at a time.
 - Files added directly through Drive group automatically when their name carries
-  a clear version token (`v2`, `_v02`, and the legacy `rev B` style) or exactly
-  matches an existing document's name; ambiguous names stay separate and can be
-  grouped by staff.
+  a clear version token (`v2`, `_v02`; only `v` numbers, not `rev B`: Fabio,
+  25 Oct 2026, "just use v1, v2, v3") at the end of the name, before the
+  extension, or exactly
+  matches an existing document's name; ambiguous names stay separate.
 - Grouping rules (A25): only within the same folder; two files claiming the same
-  version (two "v2") are never merged, they are flagged for staff; the current
-  version is the highest number, not the latest upload; staff corrections are
-  stored and always win over automatic grouping on later syncs.
-- Older versions stay downloadable under "Versões anteriores" on the client page. Store a monotonic sequence, optional
-human label, date and source. “Current” is a database pointer, not whichever
-filename sorts last: by default the highest version, and staff can select another
-available revision, with an audit entry.
+  version (two "v2") are never merged, they are flagged for staff, who rename
+  one; the current version is the highest number, not the latest upload.
+- A file whose current version is v2 or later shows "Atualizado" for 7 days
+  from that version's Drive date (Fabio, 25 Oct 2026: only for a few days),
+  worked out from the listing like the rest, so nothing is stored.
+- Older versions stay downloadable on the client page: "6 versões" on a file's
+  card opens every version in a modal, the current one marked, each with its
+  version, Drive's date and size, to open or download (Fabio, 25 Oct 2026: a list
+  on the card got messy with many versions). Staff can't choose another
+  version as current; to go back, remove the newer one or upload the old one
+  again as the next version.
 
 For external Drive uploads:
 
-- A new file ID creates a new document unless an explicit existing association
-  applies or its name carries a clear version token of an existing document in
-  the same stage (A25). Other filename similarity can only suggest grouping to
-  staff; ambiguous matches never merge documents silently.
-- An update to an existing file ID creates a new content observation. Use binary
-  checksums and provider revision metadata where available, not just modified
-  time. Metadata-only rename/move should not create a content-update email.
-- Where Google-native content markers cannot distinguish content from metadata
-  precisely, normalize known metadata changes and record the limitation. Validate
-  with real Docs/Slides before promising exact content-change notifications.
-- Staff can group separate files as revisions or split an incorrect group. That
-  changes presentation; it does not rename, delete or rewrite Drive files.
+- A new file is a new document unless its name carries a clear version token
+  of a document in the same folder (A25).
+  Other filename similarity never groups; ambiguous matches never merge
+  documents silently.
+- A file replaced in place in Drive keeps its ID and its place in the group,
+  with the new content. Telling a content change from a rename for emails uses
+  checksums and Drive's revision metadata where available, not just the
+  modified time; validate with real Docs/Slides before promising exact
+  content-change notifications.
+- A file renamed so its name no longer matches leaves its group, and one moved
+  to another folder leaves it too (grouping is within one folder).
 
 **History metadata is not a backup of historical bytes.** Website revision
 uploads should default to a new physical Drive file, preserving earlier files in
@@ -1200,9 +1211,9 @@ the project has shown before; a file shown for the first time is recorded as
 "file published" (A28). A project's first scan only records what is there, so
 existing files never email. It costs about one Drive call per stage folder per
 project per pass, cannot miss a change, and needs no cursor or repair pass. The
-changes feed below replaces it when versions (A25) need a file followed across
-renames, or when the number of projects makes scanning costly; the events and
-emails built on the scan stay as they are.
+changes feed below replaces it when the number of projects makes scanning
+costly (versions need no file followed across renames: they come from the names,
+A25); the events and emails built on the scan stay as they are.
 
 Use the read identity's changes feed when coverage is validated. Scope a cursor
 to connection generation, identity and Drive corpus; Shared Drives have explicit
@@ -1538,8 +1549,8 @@ Representative contract:
 | --- | --- |
 | `GET /{slug}` | Resolve tenant from host and project from slug (or alias → redirect); render or password challenge. Staff sessions also get the edit bar (A24) |
 | `POST /{slug}/unlock` | Verify project password; issue project-scoped grant |
-| `GET /{slug}/documents/{id}/revisions/{revision}/download` | Check membership in project, access, availability and stream |
-| `GET /{slug}/documents/{id}/preview` | Same boundary checks; safe thumbnail/fallback |
+| `GET /api/pages/{slug}/files/{key}` | Check the project, access and that the file is still listed, then stream; an older version is a file like any other |
+| `GET /api/pages/{slug}/files/{key}/thumb` | Same checks; safe thumbnail/fallback |
 | `POST /api/admin/projects` | Validate + create durable provisioning operation |
 | `PATCH /api/admin/projects/{id}` | Tenant-bound edit with row-version conflict detection: description, details, meeting, access, name/slug (painel only) |
 | `PUT /api/admin/projects/{id}/stages` | Add, rename, reorder, remove stages in one versioned change |
@@ -1547,7 +1558,6 @@ Representative contract:
 | `GET /api/admin/projects/{id}/folders/{id}` | Indexed listing and current capabilities |
 | `POST /api/admin/projects/{id}/uploads` | Create scoped resumable upload operation |
 | `POST /api/admin/projects/{id}/sync` | Deduplicated, rate-limited sync request |
-| `POST /api/admin/documents/{id}/revisions` | Explicit version association / upload ("Enviar nova versão", A25) |
 | `POST /api/admin/projects/{id}/stages/{stage}/uploads/check` | Before an upload: report name matches so the UI can ask "nova versão de…?" |
 | `PUT /api/admin/projects/{id}/cover` | Upload or replace the cover (JPG, PNG, WebP, ≤ 10 MB; specific error codes); stored in Drive as `_capa` |
 | `GET /{slug}/updates` | Client-visible events (A28) for the "latest updates" panel; same access checks as the page |
@@ -1862,7 +1872,7 @@ and external failures do not shrink simply because code generation is fast.
 | 2. First useful vertical slice | Public/password project page at `/{slug}`, DB metadata, reused UI, read adapter and legacy import; staff bar on the page | Two branded offices; password protects every content endpoint; migration dry run; `alineaarquitetos.com` resolves to its office | 2–3 days |
 | 3. Project creation + editing | Minimal creation (pilot: within the request, A07); painel project list/settings and page edit mode for details, stages, progress, meeting (A24) | Crash/retry matrix; no duplicate creation; edits visible on the client page; row-version conflicts handled | 2–3 days |
 | 3b. Uploads + versions | Per-stage upload on the project page, resumable upload, version prompt and "send new version" (A25), capability-aware listing | Same-name upload becomes next `vN`; originals untouched; progress and failure UI | 1–2 days |
-| 4. Sync + revisions | Incremental index, repair, explicit versioning, preview fallback | External upload/overwrite/move scenarios; old-content honesty | 2–3 days |
+| 4. Sync + versions | Versions from names, "Enviar nova versão", preview fallback | External upload/overwrite/move scenarios; old-content honesty | 2–3 days |
 | 5. Notifications + operations | Outbox, batching, recipients, email sink, health panel, restore runbook | Virtual-clock/retry tests; restore exercise; no historical spam | 1–2 days |
 | 6. Live Google + staging | Real OIDC/OAuth, read/write matrix, sandbox files, build promotion | Documented pass per supported account type; correct degraded modes | 1–3 days plus account wait |
 | 7. First office then five | Migration, monitored first office, sequential friendly onboarding | Owner approval, stable behavior, feedback addressed before broadening | Observation-dependent |

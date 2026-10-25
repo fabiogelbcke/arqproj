@@ -10,7 +10,7 @@ import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
 import { sortFromValue, sortLabelKey, sortOptions, sortValue, type Sort } from "../ui/sort";
 import { useDismiss } from "../ui/useDismiss";
-import { fileSource, type Page } from "./format";
+import { day, fileSource, type Page } from "./format";
 
 type FileItem = Schemas["FileOut"];
 type StageFiles = Schemas["StageFilesOut"];
@@ -57,6 +57,18 @@ export function usePrefs(): [Prefs, (change: Partial<Prefs>) => void] {
       return merged;
     });
   return [prefs, change];
+}
+
+export function fileSize(bytes: number | null | undefined, locale: string): string {
+  if (bytes == null) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toLocaleString(locale, { maximumFractionDigits: unit ? 1 : 0 })} ${units[unit]}`;
 }
 
 export const extension = (name: string) => (name.includes(".") ? name.split(".").pop()!.toLowerCase() : "");
@@ -234,6 +246,13 @@ export function FileToolbar({
   );
 }
 
+/** The dialogs' ×, drawn: a "×" character sits low in its box. */
+const CloseIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+
 /** Where a file is on the page: its stage (from 1) and subfolder, if any. */
 export type FilePlace = { position: number; folder: string | null };
 
@@ -335,7 +354,7 @@ export function FilePreview({
       <div className="file-preview__head">
         <h2 id="file-preview-title">{file.name}</h2>
         <button className="file-preview__close" type="button" aria-label={t("files.close")} onClick={onClose}>
-          ×
+          <CloseIcon />
         </button>
       </div>
       <div className="file-preview__content">
@@ -370,6 +389,87 @@ export function FilePreview({
           WhatsApp
         </a>
       </div>
+    </dialog>
+  );
+}
+
+/** A document's versions (A25), newest first: the current one marked, each with
+ *  its date and size, to open or download. Opened from "6 versões" on its
+ *  card, so a card stays one size however many versions there are. */
+export function FileVersions({
+  file,
+  slug,
+  timeZone,
+  onClose,
+}: {
+  file: FileItem;
+  slug: string;
+  timeZone: string;
+  onClose: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current;
+    if (element && !element.open) {
+      if (typeof element.showModal === "function") element.showModal();
+      else element.setAttribute("open", "");
+    }
+    return () => (typeof element?.close === "function" ? element.close() : element?.removeAttribute("open"));
+  }, []);
+  const all = [file, ...file.older];
+  return (
+    <dialog
+      ref={dialog}
+      className="file-preview file-versions"
+      aria-labelledby="file-versions-title"
+      onClose={() => !dialog.current?.open && onClose()}
+      onClick={(event) => event.target === dialog.current && onClose()}
+    >
+      <div className="file-preview__head">
+        <div>
+          <h2 id="file-versions-title">{file.name}</h2>
+          <p>{t("files.versionCount", { count: all.length })}</p>
+        </div>
+        <button className="file-preview__close" type="button" aria-label={t("files.close")} onClick={onClose}>
+          <CloseIcon />
+        </button>
+      </div>
+      <ol className="file-versions__list">
+        {all.map((version, i) => {
+          const inline = version.kind === "image" || version.kind === "pdf";
+          return (
+            <li key={version.key} className={i === 0 ? "is-current" : undefined}>
+              <span className="file-versions__number">{t("files.version", { version: version.version ?? 1 })}</span>
+              <span className="file-versions__about">
+                {i === 0 && <span className="file-versions__current">{t("files.current")}</span>}
+                {[day(version.modified_at, i18n.language, timeZone), fileSize(version.size, i18n.language)]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+              <span className="file-versions__actions">
+                {inline && (
+                  <a
+                    href={fileSource.address(slug, version.key, "inline")!}
+                    target="_blank"
+                    rel="noopener"
+                    aria-label={t("files.openVersion", { version: version.version ?? 1, name: file.name })}
+                  >
+                    {t("files.open")}
+                  </a>
+                )}
+                <a
+                  href={fileSource.address(slug, version.key, "file")!}
+                  download={fileSource.bundled ? version.name : undefined}
+                  aria-label={t("files.downloadVersion", { version: version.version ?? 1, name: file.name })}
+                >
+                  {t("files.download")}
+                </a>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
     </dialog>
   );
 }

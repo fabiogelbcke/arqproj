@@ -361,7 +361,14 @@ test("the client page lists each stage's files, with subfolders as groups", asyn
   await page.goto("/casa-jardim");
   // The current stage (03) is open.
   const current = page.locator("#stage-2");
-  await expect(current.getByText("Plantas v2.pdf")).toBeVisible();
+  // "Plantas.pdf" and "Plantas v2.pdf" in Drive: one document, v2 current (A25).
+  await expect(current.getByText("Plantas.pdf", { exact: true })).toBeVisible();
+  await expect(current.getByLabel("Versão 2")).toHaveText("v2");
+  await expect(current.locator(".vbadge")).toHaveText("v2"); // over the thumbnail
+  await current.getByRole("button", { name: "2 versões" }).click();
+  const versions = page.getByRole("dialog", { name: "Plantas.pdf" });
+  await expect(versions.getByRole("link", { name: "Baixar a versão 1 de Plantas.pdf" })).toBeVisible();
+  await versions.getByRole("button", { name: "Fechar" }).click();
   await expect(current.getByText("02 arquivos")).toBeVisible();
   // A file opens its preview; "Salvar" downloads it.
   await current.getByRole("button", { name: "Abrir Implantação.dwg" }).click();
