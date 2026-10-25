@@ -1,7 +1,7 @@
 // The client page's file tools, after the prototype: search, filter by type, sort,
 // list or thumbnails, and a file's preview with "Salvar", "Abrir original" and
 // "Enviar". The view and the order are remembered in this browser.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Schemas } from "../api/client";
@@ -136,7 +136,9 @@ export function FileToolbar({
   onPrefs,
   found,
   narrow,
+  share,
 }: {
+  share?: ReactNode; // "Compartilhar arquivos", at the toolbar's end
   query: string;
   onQuery: (query: string) => void;
   prefs: Prefs;
@@ -231,6 +233,7 @@ export function FileToolbar({
           <div className="client-tool-popover file-tools__controls">{selects}</div>
         </PopoverDetails>
         {views}
+        {share}
         {status}
       </div>
     );
@@ -240,6 +243,7 @@ export function FileToolbar({
       <div className="file-tools__controls">
         {selects}
         {views}
+        {share}
       </div>
       {status}
     </div>

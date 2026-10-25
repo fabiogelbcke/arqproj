@@ -119,12 +119,29 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("detail_types", "SELECT"),
         ("stage_definitions", "SELECT"),
         ("project_type_stages", "SELECT"),
+        ("share_links", "SELECT"),
+        ("share_links", "INSERT"),
+        ("share_link_files", "SELECT"),
+        ("share_link_files", "INSERT"),
+        ("share_link_files", "DELETE"),  # "Atualizar link" replaces its files
     }
     assert _column_grants(migrated_url, group) == {
         ("users", "password_hash", "UPDATE"),
         ("users", "tour_seen_at", "UPDATE"),  # the project page's tour, once per account
         ("password_links", "used_at", "UPDATE"),
         ("join_links", "revoked_at", "UPDATE"),  # turned off, or replaced by a new one
+        # A share link: turned off, moved to newer versions, and its downloads counted.
+        *(
+            ("share_links", column, "UPDATE")
+            for column in (
+                "disabled_at",
+                "files_updated_at",
+                "downloads",
+                "last_download_at",
+                "day",
+                "day_bytes",
+            )
+        ),
         *(
             ("projects", column, "UPDATE")
             for column in (

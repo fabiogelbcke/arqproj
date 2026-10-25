@@ -248,6 +248,30 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await visitor.getByLabel(/Últimas atualizações, 2 não lidas/).click();
   await visitor.getByRole("region", { name: "Últimas atualizações" }).waitFor();
   await shoot(visitor, "06c-atualizacoes");
+  await visitor.keyboard.press("Escape");
+
+  // Sharing files by link (A37): from a stage, its files ticked; then the link;
+  // then the supplier's page it opens.
+  await visitor.getByRole("button", { name: /^Compartilhar arquivos de / }).first().click();
+  const share = visitor.getByRole("dialog", { name: "Compartilhar arquivos" });
+  await share.waitFor();
+  await share.getByLabel("Para quem?").fill("Marcenaria Silva");
+  await shoot(visitor, "09-compartilhar-arquivos");
+  await share.getByRole("button", { name: "Gerar link" }).click();
+  const ready = visitor.getByRole("dialog", { name: "Link pronto" });
+  await ready.waitFor();
+  await shoot(visitor, "09b-link-pronto");
+  const url = await ready.getByLabel("Link para compartilhar").inputValue();
+  await visitor.goto(new URL(url).pathname);
+  await visitor.getByRole("heading", { name: "Arquivos compartilhados" }).waitFor();
+  await shoot(visitor, "09c-pagina-do-fornecedor");
+  await shoot(visitor, "09c-pagina-do-fornecedor", "dark");
+  // Back on the project, this device's link is listed.
+  await visitor.goto("/casa-jardim");
+  await visitor.getByRole("button", { name: "Compartilhar arquivos", exact: true }).click();
+  await visitor.getByRole("region", { name: "Links criados neste dispositivo" }).getByText("Marcenaria Silva").waitFor();
+  await shoot(visitor, "09d-links-do-dispositivo");
+  await visitor.keyboard.press("Escape");
 
   // The example project (plan section 16): its explore tour, then the page.
   await visitor.goto("/tour-projeto");
