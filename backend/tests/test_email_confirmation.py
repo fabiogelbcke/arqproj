@@ -274,3 +274,15 @@ async def test_the_link_waits_for_a_correction_under_way(client, db_session, joi
         "/api/email-confirmation", json={"token": token}, headers=ALINEA
     )
     assert await _waits_for(lock, str(user_id), call) == 204
+
+
+async def test_a_reset_link_waits_for_a_correction_under_way(client, db_session, joined, sent):
+    """A reset link confirms the address too, so it waits on the same lock."""
+    await client.post("/api/password-reset", json={"email": "caio@gmail.com"}, headers=ALINEA)
+    token = token_in(sent.emails[-1].text)
+    user_id = await db_session.scalar(text("SELECT id FROM users WHERE email = 'caio@gmail.com'"))
+    lock = "SELECT pg_advisory_xact_lock(hashtext('email-code'), hashtext(:k))"
+    call = lambda: client.post(  # noqa: E731
+        "/api/password", json={"token": token, "password": "a new password"}, headers=ALINEA
+    )
+    assert await _waits_for(lock, str(user_id), call) == 200

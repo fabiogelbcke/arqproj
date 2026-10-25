@@ -41,9 +41,6 @@ CODE_TRIES = "email-code"
 # Corrections to a new address send at once (the typo is usually noticed right
 # away), so they count instead: 5 per account in 15 minutes, as wrong codes.
 CORRECTIONS = "email-correction"
-# One change to an account's confirmation at a time (a double click on "Reenviar
-# código" must not send two).
-_LOCK = text("SELECT pg_advisory_xact_lock(hashtext('email-code'), hashtext(:user))")
 _LOCK_EMAIL = text("SELECT pg_advisory_xact_lock(hashtext('staff-email'), hashtext(:email))")
 
 log = logging.getLogger(__name__)
@@ -86,7 +83,8 @@ async def send(request: Request, tenant: CurrentTenant, email: Email, route: str
 
 async def _unconfirmed(db: AsyncSession, account: CurrentStaff) -> User:
     """The signed-in account, still unconfirmed, read again under its lock."""
-    await db.execute(_LOCK, {"user": str(account.user_id)})
+    # Also one at a time: a double click on "Reenviar código" must not send two.
+    await accounts.lock_confirmation(db, account.user_id)
     user = await db.get(User, account.user_id, populate_existing=True)
     if user is None or user.email_confirmed_at is not None:
         raise ApiError(409, ErrorCode.ALREADY_CONFIRMED)
@@ -204,7 +202,7 @@ async def confirm_by_link(
         raise ApiError(404, ErrorCode.LINK_INVALID)
     # Under the account's lock, as corrections and codes: an address corrected
     # meanwhile has retired this link, so `use` finds nothing to confirm.
-    await db.execute(_LOCK, {"user": str(found[1].id)})
+    await accounts.lock_confirmation(db, found[1].id)
     user = await links.use(db, body.token, (LinkKind.CONFIRM,))
     if user is None:
         raise ApiError(404, ErrorCode.LINK_INVALID)

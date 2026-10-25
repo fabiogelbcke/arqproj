@@ -7,7 +7,7 @@ session is scoped to (`scope_to_tenant`); other tenants' accounts are invisible.
 
 from __future__ import annotations
 
-from sqlalchemy import func, null, select, update
+from sqlalchemy import func, null, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.identity.emails import tidy_email
@@ -15,6 +15,10 @@ from backend.identity.models import LoginSession, Role, User
 from backend.identity.passwords import hash_password
 
 MIN_PASSWORD_LENGTH = 8
+# One change to an account's email confirmation at a time: a code, a link, or a
+# correction of the address must not interleave (a link confirming the old address
+# while a correction writes the new one).
+_LOCK_CONFIRMATION = text("SELECT pg_advisory_xact_lock(hashtext('email-code'), hashtext(:user))")
 
 
 class AccountError(ValueError):
@@ -85,6 +89,11 @@ async def new_password_hash(password: str) -> str:
     a transaction, so no database connection waits on it."""
     _check_password(password)
     return await hash_password(password)
+
+
+async def lock_confirmation(session: AsyncSession, user_id) -> None:
+    """Hold the account's confirmation lock until the transaction ends."""
+    await session.execute(_LOCK_CONFIRMATION, {"user": str(user_id)})
 
 
 async def confirm_email(session: AsyncSession, user: User) -> None:

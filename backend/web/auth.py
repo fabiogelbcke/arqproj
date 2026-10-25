@@ -301,9 +301,16 @@ async def choose_password(
         password_hash = await accounts.new_password_hash(body.password)
     except accounts.PasswordTooShort:
         raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT) from None
+    found = await links.find(db, body.token)
+    if found is None:
+        raise ApiError(404, ErrorCode.LINK_INVALID)
+    # It confirms the address too: not while an unconfirmed address is being
+    # corrected (that retires this link; `use` then finds nothing).
+    await accounts.lock_confirmation(db, found[1].id)
     user = await links.use(db, body.token)
     if user is None:
         raise ApiError(404, ErrorCode.LINK_INVALID)
+    await db.refresh(user)  # its address as it is now, after the lock
     await accounts.set_password(db, user, password_hash)
     # The link came to their inbox: that proves the address too.
     await accounts.confirm_email(db, user)
