@@ -925,8 +925,9 @@ export function ProjectPage({
   // The share panel: undefined while closed; null opened above the stages, or
   // the row of the stage it was opened from.
   const [shareFrom, setShareFrom] = useState<number | null | undefined>(undefined);
-  const anyFiles = !!stageFiles && page.stages.some((_, i) => countFiles(filesFor(stageFiles, i + 1).files) > 0);
-  const canShare = sharing && anyFiles;
+  // The toolbar's entry stays even with no files to pick: the panel also holds
+  // the links already made, to turn off. A stage's own entry needs its files.
+  const canShare = sharing && stageFiles !== null;
 
   useEffect(() => {
     document.title = `${page.name} · ${page.office.name}`;

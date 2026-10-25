@@ -148,6 +148,20 @@ describe("sharing files by link", () => {
     expect(sent.find((r) => r.path.endsWith("/disable"))?.body).toEqual({ owner: "own-1" });
   });
 
+  it("keeps the links reachable when no file can be picked, to turn them off", async () => {
+    localStorage.setItem("shares:casa-jardim", JSON.stringify([{ id: "l1", owner: "own-1", url: "http://x/share/tok" }]));
+    at({
+      "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
+      "POST /api/pages/casa-jardim/shares/mine": () => ({ body: [{ ...LINK, available: 0 }] }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Compartilhar arquivos" }));
+    const dialog = await screen.findByRole("dialog", { name: "Compartilhar arquivos" });
+    expect(within(dialog).getByText("Ainda não há arquivos para compartilhar.")).toBeInTheDocument();
+    const links = await within(dialog).findByRole("region", { name: "Links criados neste dispositivo" });
+    expect(within(links).getByRole("button", { name: "Desativar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Compartilhar arquivos de / })).toBeNull(); // no stage has files
+  });
+
   it("shows staff every link of the project, and who made each", async () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({

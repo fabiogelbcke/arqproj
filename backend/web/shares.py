@@ -37,7 +37,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
@@ -615,18 +615,26 @@ async def shared_file(
 
 async def _count(db: AsyncSession, link: ShareLink, item: StorageItem) -> None:
     """The file's size against the link's day, before any byte flows: past the
-    daily cap, refused. Counted when it starts, so a cut download still counts."""
+    daily cap, refused. Counted when it starts, so a cut download still counts.
+    One conditional update, so downloads at the same moment can't both slip under
+    the cap."""
     size = item.size if item.size is not None else EXPORT_GUESS
-    row = await db.scalar(select(ShareLink).where(ShareLink.id == link.id).with_for_update())
     today = datetime.now(UTC).date()
-    spent = row.day_bytes if row.day == today else 0
-    if spent + size > DAY_BYTES_MAX:
+    spent = case((ShareLink.day == today, ShareLink.day_bytes), else_=0)
+    counted = await db.execute(
+        update(ShareLink)
+        .where(ShareLink.id == link.id, spent + size <= DAY_BYTES_MAX)
+        .values(
+            day=today,
+            day_bytes=spent + size,
+            downloads=ShareLink.downloads + 1,
+            last_download_at=func.now(),
+        )
+        .returning(ShareLink.id)
+    )
+    if counted.first() is None:
         log.warning("shares: link %s reached its daily download limit", link.id)
         raise ApiError(429, ErrorCode.SHARE_DAILY_LIMIT)
-    row.day = today
-    row.day_bytes = spent + size
-    row.downloads += 1
-    row.last_download_at = datetime.now(UTC)
     await db.commit()
 
 
