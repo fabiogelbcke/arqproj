@@ -225,11 +225,11 @@ dialog.d::backdrop { background: rgb(8 9 9 / 62%); backdrop-filter: blur(6px); -
 .linkprev { font-size: 13px; color: var(--muted); margin: 0; } .linkprev b { color: var(--ink); font-weight: 500; }
 .err { margin: 0; font-size: 13px; color: var(--mark); }
 .vflow { display: grid; gap: 0; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); }
-.vflow > div { display: grid; grid-template-columns: 92px 1fr; gap: 14px; padding: 14px 16px; }
+.vflow > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; padding: 14px 16px; }
 .vflow > div + div { border-top: 1px solid var(--line); }
 .vflow span { color: var(--muted); font-size: 13px; padding-top: 1px; }
 .vflow .new { background: var(--mark-soft); }
-.vflow p { margin: 0; } .vflow p + p { margin-top: 2px; color: var(--muted); font-size: 13px; }
+.vflow p { margin: 0; overflow-wrap: anywhere; } /* file names without spaces */ .vflow p + p { margin-top: 2px; color: var(--muted); font-size: 13px; }
 
 /* ---- toast ----------------------------------------------------------------- */
 .toast { position: fixed; left: 50%; bottom: 28px; translate: -50% 0; z-index: 60; max-width: calc(100vw - 32px); padding: 12px 18px; border-radius: 999px; background: var(--ink); color: var(--bg); font-weight: 500; font-size: 14px; box-shadow: var(--shadow); display: flex; gap: 14px; align-items: center; animation: toast .35s var(--ease); }
