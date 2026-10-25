@@ -212,6 +212,15 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(page, "06m-nova-versao");
   await page.keyboard.press("Escape");
 
+  // Details are added from a menu (no select marking its placeholder as chosen).
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: "Editar informações" }).click();
+  await page.getByRole("button", { name: "Adicionar informação" }).click();
+  await page.getByRole("menu").waitFor();
+  await shoot(page, "06o-adicionar-informacao");
+  await page.keyboard.press("Escape");
+
   // A note to the client is news for "Atualizações" (A28): seen as a visitor.
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
@@ -222,10 +231,21 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(page, "06i-etapa-editando");
   await page.locator("#stage-2").getByRole("button", { name: "Salvar" }).click();
   await page.locator("#stage-2").getByText("As plantas da sala estão prontas para a sua revisão.").waitFor();
+  // Reopening a stage says the client will be emailed (A32), as completing does.
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: "Abrir etapa Levantamento" }).click(); // completed in the seed
+  await page.getByRole("button", { name: "Reabrir etapa" }).click();
+  const reopen = page.getByRole("alertdialog", { name: "Reabrir “Levantamento”?" });
+  await reopen.waitFor();
+  await shoot(page, "06p-reabrir-etapa");
+  await reopen.getByRole("button", { name: "Reabrir etapa" }).click();
+  await reopen.waitFor({ state: "detached" });
   const visitor = await browser.newPage();
   await visitor.emulateMedia({ reducedMotion: "reduce" });
   await visitor.goto("/casa-jardim");
-  await visitor.getByLabel(/Últimas atualizações, 1 não lida/).click();
+  // The note, and the stage reopened above ("Etapa reaberta").
+  await visitor.getByLabel(/Últimas atualizações, 2 não lidas/).click();
   await visitor.getByRole("region", { name: "Últimas atualizações" }).waitFor();
   await shoot(visitor, "06c-atualizacoes");
 

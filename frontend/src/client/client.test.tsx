@@ -1197,6 +1197,35 @@ describe("edit mode", () => {
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ project_type: "renovation" });
   });
 
+  it("adds a detail from a menu, and areas are typed with no steppers", async () => {
+    const { sent } = asStaff({
+      "GET /api/detail-types": () => ({
+        body: [
+          { key: "built_area", label: "Área construída", type: "area" },
+          { key: "city", label: "Cidade", type: "text" },
+        ],
+      }),
+      "GET /api/project-types": () => ({ body: { types: [] } }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    // A menu, not a select: nothing in it is marked as chosen.
+    await userEvent.click(await screen.findByRole("button", { name: "Adicionar informação" }));
+    const added = await screen.findByRole("menuitem", { name: "Área construída" });
+    expect(screen.queryByRole("option")).toBeNull();
+    await userEvent.click(added);
+    const area = await screen.findByLabelText("Área construída");
+    expect(area).toHaveAttribute("inputmode", "decimal");
+    expect(area).toHaveClass("no-spin");
+    await userEvent.type(area, "148.5");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({
+      details: expect.arrayContaining([{ key: "built_area", value: "148.5" }]),
+    });
+  });
+
   it("doesn't offer Editar, nor the tour (it edits), on an archived project", async () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
@@ -1704,15 +1733,18 @@ describe("edit mode", () => {
       await startEditing();
       await userEvent.click(await within(stage(1)).findByRole("button", { name: "Marcar como concluída" }));
       expect(screen.getByRole("alertdialog")).not.toHaveTextContent("e-mail");
+      await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Cancelar" }));
+      await userEvent.click(await within(stage(0)).findByRole("button", { name: "Reabrir etapa" }));
+      expect(screen.getByRole("alertdialog")).not.toHaveTextContent("e-mail");
     });
 
-    it("reopens a completed stage once confirmed, with no email warning (reopening emails nobody)", async () => {
+    it("reopens a completed stage once confirmed, saying clients get an email", async () => {
       const { sent } = progress([{ email: "ana@exemplo.com.br", subscribed: true }]);
       await startEditing();
       await userEvent.click(await within(stage(0)).findByRole("button", { name: "Reabrir etapa" }));
       const ask = screen.getByRole("alertdialog", { name: "Reabrir “Briefing”?" });
       expect(ask).toHaveTextContent("A etapa voltará a constar como em aberto para o cliente.");
-      expect(ask).not.toHaveTextContent("e-mail");
+      expect(ask).toHaveTextContent("serão notificados por e-mail");
       expect(put(sent)).toEqual([]);
       await userEvent.click(within(ask).getByRole("button", { name: "Reabrir etapa" }));
       await waitFor(() =>
@@ -1779,6 +1811,8 @@ describe("Atualizações (A28)", () => {
         update("3", "note_changed", 2), // an older note of the same stage: once
         update("4", "meeting_changed", null),
         update("5", "meeting_scheduled", null), // older meeting news: once
+        update("12", "stage_reopened", 2), // Levantamento, open now
+        update("13", "stage_reopened", 1), // Briefing was completed again since: left out
         update("6", "stage_completed", 2), // Levantamento was reopened since: left out
         update("7", "stage_completed", 1),
         update("8", "stage_completed", 1), // completed before too: once
@@ -1793,6 +1827,7 @@ describe("Atualizações (A28)", () => {
       ["Planta.pdf", "02 Levantamento", 1],
       ["updates.note", "Medidas conferidas.", 1],
       ["updates.meetingChanged", expect.stringContaining("Apresentação"), "meeting"],
+      ["updates.stageReopened", "02 Levantamento", 1],
       ["updates.stageCompleted", "01 Briefing", 0],
     ]);
   });

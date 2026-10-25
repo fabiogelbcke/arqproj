@@ -251,6 +251,45 @@ async def test_each_stage_still_completed_is_news_named_where_it_is_now(
     ]
 
 
+async def test_a_stage_reopened_is_news_unless_completed_again_meanwhile(
+    app, client, db_session, owner, outbox, ready
+):
+    """Stages completed in an earlier email: one reopened, one reopened and completed
+    again within the quiet period (Fabio, 25 Oct 2026)."""
+    from backend.tests.test_maintenance_scan import call
+
+    await db_session.execute(text(ALL_BUT_THE_LAST))
+    await call(client, owner, "PUT", "/stages/4/completion", completed=False)
+    await call(client, owner, "PUT", "/stages/5/completion", completed=False)
+    await call(client, owner, "PUT", "/stages/5/completion", completed=True)
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    lines = [line for line in outbox.sent[0].text.splitlines() if "A etapa" in line]
+    assert lines == ["- A etapa 04 Anteprojeto foi reaberta."]
+
+
+async def test_reopening_a_stage_of_a_completed_project_is_news(
+    app, client, db_session, owner, outbox, ready
+):
+    from backend.tests.test_maintenance_scan import call
+
+    await db_session.execute(text(ALL_BUT_THE_LAST))
+    await call(client, owner, "PUT", "/stages/7/completion", completed=True)
+    await call(client, owner, "PUT", "/completion")  # "Concluir projeto"
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)  # the project completed: sent
+    await call(client, owner, "PUT", "/stages/3/completion", completed=False)
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    assert len(outbox.sent) == 2
+    text_ = outbox.sent[1].text
+    assert "A etapa 03 Estudo Preliminar foi reaberta." in text_
+    assert "concluído" not in text_  # active again: no longer said to be completed
+
+
 async def test_the_last_stage_completed_says_nothing_of_the_project_until_staff_complete_it(
     app, client, db_session, owner, outbox, ready
 ):

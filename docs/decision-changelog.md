@@ -19,6 +19,25 @@ a new entry too.
 
 ---
 
+## 2026-10-25 — A28, A32, section 10: reopening a stage emails the client
+
+**Was:** only a stage completed (and the project completed) emailed the client;
+reopening a stage emailed nobody and left the updates panel. The reopen
+confirmation said nothing about email.
+
+**Now:** reopening a stage is recorded (`stage_reopened`), emails the subscribed
+clients ("A etapa 04 Anteprojeto foi reaberta.") and shows in the updates panel
+as "Etapa reaberta" (Fabio, 25 Oct 2026). Its confirmation carries the same
+"Clientes inscritos neste projeto serão notificados por e-mail." as completing's,
+when someone is subscribed. An email names each stage whose state differs from
+before the email's changes: completed then reopened (or reopened then completed
+again) within the quiet period is still no news.
+
+**Why:** a client who was told a stage was finished should hear that it is open
+again; staff should know before confirming that the client will be told.
+
+---
+
 ## 2026-10-25 — A25, section 12: versions from names, no document index
 
 **Was:** versions needed a document index: `documents` and `document_revisions`

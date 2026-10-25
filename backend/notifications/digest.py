@@ -56,6 +56,7 @@ HOLD = timedelta(hours=2)
 SETTLE = timedelta(minutes=1)  # section 11: a file still changing waits
 EMAILED = [kind for kind in EventKind if kind is not EventKind.NOTE_CHANGED]  # A32
 MEETINGS = {EventKind.MEETING_SCHEDULED, EventKind.MEETING_CHANGED, EventKind.MEETING_CLEARED}
+PROGRESS = {EventKind.STAGE_COMPLETED: 1, EventKind.STAGE_REOPENED: -1}
 FILES_LISTED = 3  # names shown per stage; the rest are "and N more"
 MAX_ATTEMPTS = 5  # then that address is given up on for this email (logged)
 UNSUBSCRIBE_PURPOSE = "unsubscribe"
@@ -230,17 +231,19 @@ async def lines_for(
         s.id: s
         for s in await db.scalars(select(ProjectStage).where(ProjectStage.project_id == project.id))
     }
-    # Stages completed on their own (0032): each that is still completed, once.
-    finished: dict[int, ProjectEvent] = {}
+    # Each stage completed or reopened (0032, 0033), once, if it differs from how
+    # it stood before this email's changes: they alternate, so whichever happened
+    # more often says which way it went (not their order: they may share a time).
+    turns: dict[uuid.UUID, int] = {}
     for e in events:
-        if e.kind is EventKind.STAGE_COMPLETED and e.stage_id in stages:
-            stage = stages[e.stage_id]
-            if stage.completed_at is not None:
-                finished[stage.position] = e
-    for position in sorted(finished):
-        stage = stages[finished[position].stage_id]
-        title = await _title(db, stage, locale)
-        lines.append(t(locale, "stageCompleted", stage=f"{position:02d} {title}"))
+        if e.kind in PROGRESS and e.stage_id in stages:
+            turns[e.stage_id] = turns.get(e.stage_id, 0) + PROGRESS[e.kind]
+    for stage in sorted((stages[i] for i in turns), key=lambda s: s.position):
+        completed = stage.completed_at is not None
+        if turns[stage.id] == (1 if completed else -1):
+            title = await _title(db, stage, locale)
+            key = "stageCompleted" if completed else "stageReopened"
+            lines.append(t(locale, key, stage=f"{stage.position:02d} {title}"))
     if project.status is ProjectStatus.COMPLETED and any(
         e.kind is EventKind.PROJECT_COMPLETED for e in events
     ):

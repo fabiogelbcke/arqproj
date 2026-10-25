@@ -200,13 +200,16 @@ async def call(client, headers, method, path, **body):
     )
 
 
-async def test_completing_a_stage_or_the_project_is_recorded_reopening_is_not(
+async def test_completing_or_reopening_a_stage_and_completing_the_project_are_recorded(
     client, db_session, owner, folders
 ):
     await call(client, owner, "PUT", "/stages/3/completion", completed=True)
     await call(client, owner, "PUT", "/stages/3/completion", completed=False)
     titles = [s["title"] for s in (await page(client))["stages"]]
-    assert await events(db_session) == [("stage_completed", 3, titles[2])]
+    assert sorted(await events(db_session)) == [
+        ("stage_completed", 3, titles[2]),
+        ("stage_reopened", 3, titles[2]),
+    ]
     await db_session.execute(
         text(
             f"UPDATE project_stages SET completed_at = now() WHERE project_id = {CASA} "
@@ -221,6 +224,7 @@ async def test_completing_a_stage_or_the_project_is_recorded_reopening_is_not(
         ("project_completed", None, None),
         ("stage_completed", 3, titles[2]),
         ("stage_completed", 7, titles[6]),
+        ("stage_reopened", 3, titles[2]),
     ]
 
 
