@@ -19,6 +19,29 @@ a new entry too.
 
 ---
 
+## 2026-10-25 — A37 (new), sections 7 and 15: sharing files by link
+
+**Was:** an idea in future ideas (25 Oct 2026). Leaning: a link follows each
+file's current version; staff see every link but don't control them; about 20
+active links per project and about 20 full downloads per link per day.
+
+**Now:** a link serves the exact versions it was made with (Fabio: "we should
+serve the version that was sent"); the links list says when a file has a newer
+version, and "Atualizar link" moves the link to it. Staff can turn any link off;
+a client manages the links made on their device. One limit on downloads, 5 GB
+per link per day, and none on the number of links per project (Fabio agreed);
+new links are rate-limited per device.
+
+**Why:** a supplier's quote should match the drawings they were sent, and the
+office should know when a newer one exists rather than have the link change
+under the supplier. Staff need a way to stop a link sent by mistake, since
+clients have no account to do it from elsewhere. A link is a database row, so
+counting them protects nothing; downloads cost transfer and can get the office's
+Drive files throttled, so a single generous daily cap per link covers the real
+risk, a leaked link.
+
+---
+
 ## 2026-10-25 — A28, A32, section 10: reopening a stage emails the client
 
 **Was:** only a stage completed (and the project completed) emailed the client;
