@@ -252,7 +252,7 @@ class ShareOut(BaseModel):
     last_download_at: datetime | None
     protected: bool  # has a password
     # Staff: the link, to copy again. None elsewhere, and for links made before
-    # it was kept (0035).
+    # it was kept (0036).
     url: str | None = None
 
 

@@ -54,7 +54,7 @@ class ShareLink(IdMixin, TimestampsMixin, TenantOwned, Base):
     project_id: Mapped[uuid.UUID] = mapped_column(index=True)
     token_hash: Mapped[str] = mapped_column(Text, unique=True)
     # The token, encrypted (keys.encrypt): staff copy the link from the list.
-    # None for links made before 0035.
+    # None for links made before 0036.
     token_encrypted: Mapped[str | None] = mapped_column(Text)
     # The sender's optional password (an adaptive hash, as project pages'):
     # the supplier types it once per device.
