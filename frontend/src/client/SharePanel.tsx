@@ -73,25 +73,38 @@ export function SharePanel({
   const [picked, setPicked] = useState<ReadonlySet<string>>(
     () => new Set(from === null ? [] : files(from).map((file) => file.key)),
   );
-  const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set(from === null ? [] : [from]));
+  // From the toolbar: whole stages, or files picked one by one; from a stage, only its files.
+  const [how, setHow] = useState<"stages" | "files">(from === null ? "stages" : "files");
+  const [open, setOpen] = useState<ReadonlySet<number>>(new Set());
   const [label, setLabel] = useState("");
   const [expiry, setExpiry] = useState<Expiry>("30d");
   const [state, setState] = useState<"picking" | "making">("picking");
   const [made, setMade] = useState<Schemas["ShareMadeOut"] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [links, setLinks] = useState<Share[] | null>(null);
+  // Two tabs: making a link, and the links made already. With nothing to pick,
+  // it opens on the links (to turn one off, say).
+  const [tab, setTab] = useState<"new" | "links" | null>(null);
   const [owned, setOwned] = useState(() => readOwned(slug));
 
   useEffect(() => {
     const request = staff
       ? call(api.GET("/api/pages/{slug}/shares", { params: { path: { slug } } }))
       : owned.length
-        ? call(api.POST("/api/pages/{slug}/shares/mine", { params: { path: { slug } }, body: { owners: owned.map((o) => o.owner) } }))
+        ? call(
+            api.POST("/api/pages/{slug}/shares/mine", {
+              params: { path: { slug } },
+              body: { owners: owned.map((o) => o.owner) },
+            }),
+          )
         : Promise.resolve([]);
     request.then(setLinks, () => setLinks([]));
   }, [slug, staff, owned]);
 
   const all = page.stages.flatMap((_, i) => files(i));
+  const showTabs = staff || !!links?.length;
+  const shown = !showTabs ? "new" : (tab ?? (stages !== null && all.length === 0 ? "links" : "new"));
+  const shownStages = (from === null ? page.stages.map((_, i) => i) : [from]).filter((i) => files(i).length > 0);
   const chosen = all.filter((file) => picked.has(file.key));
   const bytes = chosen.reduce((sum, file) => sum + (file.size ?? 0), 0);
   const tooLarge = bytes > LIMITS.shareBytes;
@@ -112,10 +125,18 @@ export function SharePanel({
       const result = await call(
         api.POST("/api/pages/{slug}/shares", {
           params: { path: { slug } },
-          body: { files: chosen.map((file) => file.key), label: label.trim() || null, expiry },
+          body: {
+            files: chosen.map((file) => file.key),
+            label: label.trim() || null,
+            expiry,
+          },
         }),
       );
-      keepOwned(slug, { id: result.link.id, owner: result.owner, url: result.url });
+      keepOwned(slug, {
+        id: result.link.id,
+        owner: result.owner,
+        url: result.url,
+      });
       setMade(result);
       setOwned(readOwned(slug));
     } catch (failure) {
@@ -142,7 +163,9 @@ export function SharePanel({
           />
           <p className="share-meta">
             {made.link.expires_at
-              ? t("share.validUntil", { date: day(made.link.expires_at, i18n.language, page.timezone) })
+              ? t("share.validUntil", {
+                  date: day(made.link.expires_at, i18n.language, page.timezone),
+                })
               : t("share.noExpiry")}
           </p>
           <div className="share-actions">
@@ -163,112 +186,199 @@ export function SharePanel({
   return (
     <DialogFrame title={t("share.open")} onClose={onClose}>
       <div className="share-panel">
-        <p>{t("share.intro")}</p>
-        {stages === null ? (
-          <p role="alert">{t("share.filesUnavailable")}</p>
-        ) : all.length === 0 ? (
-          <p>{t("share.noFiles")}</p>
-        ) : (
-          <div className="share-stages">
-            {page.stages.map((stage, index) => {
-              const own = files(index);
-              if (!own.length) return null;
-              const count = own.filter((file) => picked.has(file.key)).length;
-              const title = `${pad(index + 1)} ${stage.title}`;
-              return (
-                <details
-                  key={index}
-                  className="share-stage"
-                  open={open.has(index)}
-                  onToggle={(event) => {
-                    const isOpen = event.currentTarget.open;
-                    setOpen((was) => {
-                      const next = new Set(was);
-                      if (isOpen) next.add(index);
-                      else next.delete(index);
-                      return next;
-                    });
-                  }}
-                >
-                  <summary>
-                    <span>{title}</span>
-                    <span className="share-count">{t("share.stageCount", { picked: count, count: own.length })}</span>
-                  </summary>
-                  <label className="share-file share-file--all">
-                    <input
-                      type="checkbox"
-                      checked={count === own.length}
-                      ref={(box) => {
-                        if (box) box.indeterminate = count > 0 && count < own.length;
-                      }}
-                      onChange={(event) => toggle(own.map((file) => file.key), event.currentTarget.checked)}
-                    />
-                    <span>{t("share.pickStage", { title })}</span>
-                  </label>
-                  {own.map((file) => (
-                    <label key={file.key} className="share-file">
-                      <input
-                        type="checkbox"
-                        checked={picked.has(file.key)}
-                        onChange={(event) => toggle([file.key], event.currentTarget.checked)}
-                      />
-                      <span className="share-file__name">{file.name}</span>
-                      {file.version != null && (
-                        <span className="file__version">{t("files.version", { version: file.version })}</span>
-                      )}
-                      <span className="share-file__size">{fileSize(file.size, i18n.language)}</span>
-                    </label>
-                  ))}
-                </details>
-              );
-            })}
+        {showTabs && (
+          <div className="share-tabs" role="tablist" aria-label={t("share.open")}>
+            <button type="button" role="tab" aria-selected={shown === "new"} onClick={() => setTab("new")}>
+              {t("share.newTab")}
+            </button>
+            <button type="button" role="tab" aria-selected={shown === "links"} onClick={() => setTab("links")}>
+              {t("share.linksTab", { count: links?.length ?? 0 })}
+            </button>
           </div>
         )}
-        <TextField
-          label={t("share.label")}
-          description={t("share.labelHint")}
-          value={label}
-          onChange={setLabel}
-          maxLength={LIMITS.shareLabel}
-        />
-        <div className="share-expiry">
-          <span id={`${id}-expiry`}>{t("share.expiry")}</span>
-          <ChipGroup
-            label={t("share.expiry")}
-            value={expiry}
-            onChange={(value) => setExpiry(value as Expiry)}
-            chips={[
-              { id: "7d", label: t("share.expiry7d") },
-              { id: "30d", label: t("share.expiry30d") },
-              { id: "never", label: t("share.expiryNever") },
-            ]}
+        {shown === "links" ? (
+          <ShareLinks
+            page={page}
+            slug={slug}
+            staff={staff}
+            links={links}
+            owned={owned}
+            onChanged={(changed) =>
+              setLinks((was) => was?.map((link) => (link.id === changed.id ? changed : link)) ?? null)
+            }
           />
-        </div>
-        <p className={`share-summary${tooLarge ? " is-over" : ""}`} role="status">
-          {chosen.length
-            ? t("share.summary", { count: chosen.length, size: fileSize(bytes, i18n.language) })
-            : t("share.none")}
-        </p>
-        {tooLarge && <p className="share-over">{t("errors.share_too_large")}</p>}
-        <ErrorNotice error={error} />
-        <div className="share-actions">
-          <Button onPress={onClose}>{t("confirm.cancel")}</Button>
-          <Button
-            variant="primary"
-            isDisabled={!chosen.length || tooLarge || state === "making"}
-            onPress={() => void make()}
-          >
-            {state === "making" ? t("share.making") : t("share.make")}
-          </Button>
-        </div>
-        <ShareLinks
-          page={page}
-          slug={slug}
-          staff={staff}
-          links={links}
-          owned={owned}
-          onChanged={(changed) => setLinks((was) => was?.map((link) => (link.id === changed.id ? changed : link)) ?? null)}
-        />
+        ) : (
+          <>
+            <p>
+              {from === null
+                ? t("share.intro")
+                : t("share.introStage", { stage: `${pad(from + 1)} ${page.stages[from]!.title}` })}
+            </p>
+            {from === null && all.length > 0 && (
+              <div className="share-expiry">
+                <span>{t("share.what")}</span>
+                <ChipGroup
+                  label={t("share.what")}
+                  segmented
+                  value={how}
+                  onChange={(value) => {
+                    setHow(value as "stages" | "files");
+                    setPicked(new Set()); // a fresh choice in the new way
+                  }}
+                  chips={[
+                    { id: "stages", label: t("share.wholeStages") },
+                    { id: "files", label: t("share.pickFiles") },
+                  ]}
+                />
+                <p className="share-meta">{t(how === "stages" ? "share.wholeStagesHint" : "share.pickFilesHint")}</p>
+              </div>
+            )}
+            {stages === null ? (
+              <p role="alert">{t("share.filesUnavailable")}</p>
+            ) : shownStages.length === 0 ? (
+              <p>{t("share.noFiles")}</p>
+            ) : (
+              <div className="share-picking">
+                <p className={`share-summary${tooLarge ? " is-over" : ""}`} role="status">
+                  {chosen.length
+                    ? t("share.summary", {
+                        count: chosen.length,
+                        size: fileSize(bytes, i18n.language),
+                      })
+                    : t("share.none")}
+                </p>
+                {tooLarge && <p className="share-over">{t("errors.share_too_large")}</p>}
+                <div className="share-stages">
+                  {shownStages.map((index) => {
+                    const stage = page.stages[index]!;
+                    const own = files(index);
+                    const count = own.filter((file) => picked.has(file.key)).length;
+                    const title = `${pad(index + 1)} ${stage.title}`;
+                    // The stage's own checkbox, in its row: all its files, or none.
+                    const whole = (
+                      <input
+                        type="checkbox"
+                        checked={count === own.length}
+                        ref={(box) => {
+                          if (box) box.indeterminate = count > 0 && count < own.length;
+                        }}
+                        onChange={(event) =>
+                          toggle(
+                            own.map((file) => file.key),
+                            event.currentTarget.checked,
+                          )
+                        }
+                        aria-label={how === "stages" && from === null ? undefined : t("share.pickStage", { title })}
+                      />
+                    );
+                    const size = fileSize(
+                      own.reduce((sum, file) => sum + (file.size ?? 0), 0),
+                      i18n.language,
+                    );
+                    const expanded = from !== null || (how === "files" && open.has(index));
+                    return (
+                      <div key={index} className="share-stage">
+                        {how === "stages" && from === null ? (
+                          <label className="share-stage__head">
+                            {whole}
+                            <span className="share-stage__title">{title}</span>
+                            <span className="share-count">{t("share.summary", { count: own.length, size })}</span>
+                          </label>
+                        ) : (
+                          <div className="share-stage__head">
+                            {whole}
+                            {from !== null ? (
+                              <span className="share-stage__title">{title}</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="share-stage__toggle"
+                                aria-expanded={expanded}
+                                onClick={() =>
+                                  setOpen((was) => {
+                                    const next = new Set(was);
+                                    if (next.has(index)) next.delete(index);
+                                    else next.add(index);
+                                    return next;
+                                  })
+                                }
+                              >
+                                <span className="share-stage__title">{title}</span>
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.6"
+                                  aria-hidden="true"
+                                >
+                                  <path d={expanded ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} />
+                                </svg>
+                              </button>
+                            )}
+                            <span className="share-count">
+                              {t("share.stageCount", {
+                                picked: count,
+                                count: own.length,
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        {expanded &&
+                          own.map((file) => (
+                            <label key={file.key} className="share-file">
+                              <input
+                                type="checkbox"
+                                checked={picked.has(file.key)}
+                                onChange={(event) => toggle([file.key], event.currentTarget.checked)}
+                              />
+                              <span className="share-file__name">{file.name}</span>
+                              {file.version != null && (
+                                <span className="file__version">{t("files.version", { version: file.version })}</span>
+                              )}
+                              <span className="share-file__size">{fileSize(file.size, i18n.language)}</span>
+                            </label>
+                          ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <TextField
+              label={t("share.label")}
+              description={t("share.labelHint")}
+              placeholder={t("share.labelExample")}
+              value={label}
+              onChange={setLabel}
+              maxLength={LIMITS.shareLabel}
+            />
+            <div className="share-expiry">
+              <span id={`${id}-expiry`}>{t("share.expiry")}</span>
+              <ChipGroup
+                label={t("share.expiry")}
+                segmented
+                value={expiry}
+                onChange={(value) => setExpiry(value as Expiry)}
+                chips={[
+                  { id: "7d", label: t("share.expiry7d") },
+                  { id: "30d", label: t("share.expiry30d") },
+                  { id: "never", label: t("share.expiryNever") },
+                ]}
+              />
+            </div>
+            <ErrorNotice error={error} />
+            <div className="share-actions">
+              <Button onPress={onClose}>{t("confirm.cancel")}</Button>
+              <Button
+                variant="primary"
+                isDisabled={!chosen.length || tooLarge || state === "making"}
+                onPress={() => void make()}
+              >
+                {state === "making" ? t("share.making") : t("share.make")}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </DialogFrame>
   );
@@ -304,8 +414,14 @@ function ShareLinks({
       const body = { owner: ownerOf(link)?.owner ?? null };
       const changed = await call(
         action === "disable"
-          ? api.POST("/api/pages/{slug}/shares/{link_id}/disable", { params: { path }, body })
-          : api.POST("/api/pages/{slug}/shares/{link_id}/refresh", { params: { path }, body }),
+          ? api.POST("/api/pages/{slug}/shares/{link_id}/disable", {
+              params: { path },
+              body,
+            })
+          : api.POST("/api/pages/{slug}/shares/{link_id}/refresh", {
+              params: { path },
+              body,
+            }),
       );
       onChanged(changed);
       toast(t(action === "disable" ? "share.disabledDone" : "share.refreshed"));
@@ -318,7 +434,6 @@ function ShareLinks({
   };
   return (
     <section className="share-links" aria-label={t(staff ? "share.linksStaff" : "share.linksMine")}>
-      <h3>{t(staff ? "share.linksStaff" : "share.linksMine")}</h3>
       {!links.length && <p>{t("share.noLinks")}</p>}
       <ul>
         {links.map((link) => {
@@ -339,7 +454,10 @@ function ShareLinks({
                   staff ? (link.made_by ?? t("share.madeByClient")) : null,
                   link.available === null
                     ? t("share.checkFailed")
-                    : t("share.available", { available: link.available, count: link.files }),
+                    : t("share.available", {
+                        available: link.available,
+                        count: link.files,
+                      }),
                   t("share.downloads", { count: link.downloads }),
                 ]
                   .filter(Boolean)

@@ -181,9 +181,10 @@
 .menuItem[data-focused] { background: var(--surface); }
 .menuItem[data-danger] { color: var(--danger); }
 
-/* ConfirmDialog: small, centred, the action's word on its button. */
+/* ConfirmDialog: small, centred, the action's word on its button. Above a
+   dialog it confirms something from. */
 .confirmOverlay {
-  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
+  position: fixed; inset: 0; z-index: 52; display: grid; place-items: center; padding: 16px;
   background: rgb(8 9 9 / 55%); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
 .confirmModal {
@@ -231,6 +232,18 @@
 .chip[data-hovered] { color: var(--ink); border-color: var(--line); }
 .chip[data-selected] { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .chip[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* ChipGroup `segmented`: the options side by side in one frame, each a button
+   (sentence case, the unchosen ones in ink and shaded on hover). */
+.segmented {
+  display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; padding: 3px;
+  border: 1px solid var(--line-strong); border-radius: var(--r-pill); justify-self: start; max-width: 100%;
+}
+.segmented .chip {
+  justify-content: center; min-height: 34px; color: var(--ink); text-transform: none; letter-spacing: 0;
+  font-size: var(--text-sm);
+}
+.segmented .chip[data-hovered]:not([data-selected]) { background: var(--surface); border-color: transparent; }
+.segmented .chip[data-selected] { color: var(--on-primary); }
 
 /* InfoTip: a round ⓘ, and its sentence in a small dark bubble. */
 .infoTip {
@@ -288,9 +301,10 @@
 .menuSeparator { height: 1px; margin: 6px 0; background: var(--line); }
 
 /* DialogFrame: the dimmed page, the box, its title. Above the phone's floating
-   search and + (z-index 40). */
+   search and + (z-index 40) and the project page's staff bar (50); toasts (60)
+   stay above it. */
 .dialogOverlay {
-  position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 16px;
+  position: fixed; inset: 0; z-index: 51; display: grid; place-items: center; padding: 16px;
   background: rgb(8 9 9 / 55%); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
 .dialogOverlay[data-entering] { animation: fade 0.2s; }

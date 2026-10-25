@@ -1481,6 +1481,12 @@ may fail. Access, publication and storage explanations must match the actual
 behavior. Preserve office-written content and keep equivalent meanings in both
 translation catalogs when changing product copy.
 
+**An example goes in the field, as its placeholder** (Fabio, 25 Oct 2026):
+"Ex.: Marcenaria Silva", "Ex.: contato@escritorio.com.br". The hint under a
+field says what the field is for or what happens with it ("Opcional. Ajuda a
+lembrar para quem foi o link."), never only an example. A placeholder is never
+the field's only label: it disappears as soon as someone types.
+
 ### Onboarding help: the project page tour and the example project
 
 Agreed with Fabio on 18 Oct 2026 to try. His partners may still change the

@@ -443,13 +443,28 @@ a.site__brand { color: inherit; text-decoration: none; }
 .share-panel > p { margin: 0; color: var(--muted); line-height: 1.45; }
 .share-stages { display: grid; gap: 6px; max-height: min(46vh, 420px); overflow-y: auto; }
 .share-stage { border: 1px solid var(--line); border-radius: var(--r-field); }
-.share-stage summary {
-  display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; font-weight: 500;
+/* A stage's row is shaded and bold; its files sit indented under it, lighter. */
+.share-stage__head {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-weight: 500; background: var(--surface);
 }
+.share-stage { overflow: hidden; }
+.share-picking { display: grid; gap: 8px; }
+.share-picking .share-summary { font-weight: 500; color: var(--ink); }
+label.share-stage__head { cursor: pointer; }
+.share-stage__head input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
+.share-stage__title { flex: 1; min-width: 0; }
+.share-stage__toggle {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.share-stage__toggle svg { flex: none; width: 16px; height: 16px; color: var(--muted); }
 .share-stage .share-count { color: var(--muted); font-weight: 400; white-space: nowrap; }
-.share-file { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line); cursor: pointer; }
-.share-file input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
-.share-file--all { color: var(--muted); }
+.share-file {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 40px; border-top: 1px solid var(--line);
+  font-size: var(--text-xs); cursor: pointer;
+}
+.share-file input { width: 16px; height: 16px; }
+.share-file input { flex: none; margin: 0; accent-color: var(--primary); }
 .share-file__name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .share-file__size { flex: none; color: var(--muted); font-size: var(--text-xs); }
 .share-expiry { display: grid; gap: 6px; }
@@ -464,8 +479,14 @@ a.site__brand { color: inherit; text-decoration: none; }
   border-radius: var(--r-field); background: var(--surface); color: var(--ink); font: inherit;
 }
 .share-meta { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
-.share-links { border-top: 1px solid var(--line); padding-top: 14px; }
-.share-links h3 { margin: 0 0 8px; font-size: var(--text-sm); }
+/* "Novo link" and "Links criados": tabs under the title, underlined when chosen. */
+.share-tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--line); }
+.share-tabs button {
+  margin-bottom: -1px; padding: 0 0 10px; border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--muted); font: 500 var(--text-sm) var(--font); cursor: pointer;
+}
+.share-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.share-tabs button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .share-links > p { margin: 0; color: var(--muted); }
 .share-links ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .share-links li { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-field); }
@@ -489,3 +510,8 @@ a.site__brand { color: inherit; text-decoration: none; }
 .share-page .share-page__name strong { font-weight: 500; overflow-wrap: anywhere; }
 .share-page .share-page__name small { color: var(--brand-muted); }
 .share-page .share-page__gone { margin: 16px 0 0; color: var(--brand-muted); }
+/* Phones: the panel's buttons share its width, and so do its framed choices. */
+@media (max-width: 480px) {
+  .share-actions:not(.share-actions--row) { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  .share-panel [role="radiogroup"] { display: grid; width: 100%; box-sizing: border-box; }
+}

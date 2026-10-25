@@ -9,8 +9,11 @@
 /* Search, the sort select, its direction and "Novo projeto": toolbar controls,
    the small size (ui/sizes.css). */
 .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
-/* The search (ui/SearchBox) takes the room left; the sort is a ui/SelectField. */
-.search { flex: 1 1 360px; min-width: 200px; }
+/* The search (ui/SearchBox) takes the room left, and gives way first: on a
+   tablet the sort and "Novo projeto" stay on its row instead of one wrapping
+   alone. The sort is a ui/SelectField. */
+.search { flex: 1 1 240px; min-width: 160px; }
+.tools > :not(.search) { flex: none; }
 /* "Novo projeto": a dark pill in small capitals. */
 .newButton {
   gap: 10px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
