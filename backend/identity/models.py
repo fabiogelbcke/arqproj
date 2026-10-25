@@ -17,8 +17,10 @@ from sqlalchemy import (
     DateTime,
     ForeignKeyConstraint,
     Index,
+    Integer,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -54,6 +56,13 @@ class User(IdMixin, TimestampsMixin, TenantOwned, Base):
     # When they finished or closed the project page's guided tour; None: not yet,
     # so it starts on their first project page (Fabio, 18 Oct 2026: per account).
     tour_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # None while someone who joined through the office's shared link hasn't shown
+    # the address is theirs (a code or link emailed to it); until then they can
+    # sign in only to confirm it (A36). Every other account starts confirmed: an
+    # invite or reset link proves the address when it's used.
+    email_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class LoginSession(IdMixin, CreatedAtMixin, TenantOwned, Base):
@@ -82,10 +91,12 @@ class LoginSession(IdMixin, CreatedAtMixin, TenantOwned, Base):
 class LinkKind(StrEnum):
     INVITE = "invite"  # a new account chooses its first password
     RESET = "reset"  # an existing account chooses a new one
+    CONFIRM = "confirm"  # someone who joined through the shared link confirms their email
 
 
 class PasswordLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
-    """A one-time link for choosing a password. Only a hash of its token is here."""
+    """A one-time link for choosing a password, or for confirming an email. Only a
+    hash of its token is here; a confirmation also has a short code to type."""
 
     __tablename__ = "password_links"
     __table_args__ = (
@@ -103,12 +114,16 @@ class PasswordLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
     token_hash: Mapped[str] = mapped_column(Text, unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # A confirmation's 6-digit code, hashed with the link's token hash; wrong
+    # codes typed count in `tries`, and enough of them use the link up.
+    code_hash: Mapped[str | None] = mapped_column(Text)
+    tries: Mapped[int] = mapped_column(Integer, server_default=text("0"))
 
 
 class JoinLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
     """An office's shared link for joining its staff (A36). Whoever opens it gives
-    a name and an email and is emailed an invite link, so the email is proven
-    theirs; they join as members. Only a hash of its token is here. At most one
+    a name, an email and a password, and confirms the email with a code sent to
+    it before the account works; they join as members. Only a hash of its token is here. At most one
     is on at a time: turning it off, or making a new one, sets `revoked_at`."""
 
     __tablename__ = "join_links"

@@ -19,6 +19,36 @@ a new entry too.
 
 ---
 
+## 2026-10-25 — A36, section 5: the shared link takes a password; a code confirms the email
+
+**Was:** whoever opened the office's shared link gave a name and an email and was
+emailed an invite link, on whose page they chose a password: two steps, and the
+second only by email. One answer whatever the address, so the page never said
+whether an account existed.
+
+**Now:** one page asks for the name, the email and the password, and signs the
+person in; the account does nothing else until a 6-digit code emailed to the
+address is typed in (or the email's link pressed). "Reenviar código" and
+"Corrigir e-mail" on that screen, and signing in again, cover an email that
+doesn't arrive or a mistyped address. An address that already has an account is
+refused with that reason.
+
+**Why:** Fabio wanted the password on the sign-up page, without a separate step
+reached only through the email, to get people onboarded. Considered and rejected:
+confirming the email later as an onboarding step, with the account working
+meanwhile (anyone with the shared link could use someone else's address until an
+owner noticed); and a password on the first page with only a link to click (a
+link opened on the phone lands outside the screen they signed up on, and whoever
+receives an unrequested one could confirm an account set up in their name; the
+code only works in the account's own session). The email still carries a link
+too ("we can add code or link", Fabio): pressing it confirms the address but
+signs nobody in, and the email tells anyone who didn't sign up to ignore it. The
+remaining risk (someone presses an unrequested link) gives no more than the
+shared link already does: a member's access, under another's address. Saying an address has an account tells only someone holding
+the office's link, at its rate limit.
+
+---
+
 ## 2026-10-25 — A37 (new), sections 7 and 15: sharing files by link
 
 **Was:** an idea in future ideas (25 Oct 2026). Leaning: a link follows each

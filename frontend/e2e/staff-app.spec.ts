@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
@@ -14,7 +16,7 @@ test.beforeEach(({ page, browserName }) => {
   });
 });
 
-import { E2E_ENV, PORT } from "../playwright.config";
+import { E2E_ENV, OUTBOX, PORT } from "../playwright.config";
 
 /** An account made the real way, with the staff command; returns its invite link. */
 /** The project page's tour is for new accounts; tests about other things mark it
@@ -236,6 +238,46 @@ test("an owner invites a person, who chooses a password from the link and is in"
   const caio = page.getByRole("list", { name: "Equipe" }).getByRole("listitem").filter({ hasText: "Caio Reis" });
   await expect(caio).toContainText("Equipe");
   await expect(caio).not.toContainText("Convite pendente");
+});
+
+/** The code in the newest email written to the tests' outbox for `address`. */
+function codeSentTo(address: string): string | undefined {
+  const emails = existsSync(OUTBOX) ? readdirSync(OUTBOX).filter((name) => name.includes(address) && name.endsWith(".txt")) : [];
+  const newest = emails.sort().at(-1);
+  return newest && readFileSync(join(OUTBOX, newest), "utf-8").match(/^(\d{6})$/m)?.[1];
+}
+
+// A36 (revised 25 Oct 2026): whoever opens the shared link chooses a password at
+// once, and gets in once the code emailed to them is typed.
+test("whoever opens the shared link signs up and gets in with the emailed code", async ({ page, browser }) => {
+  await page.goto(invite("dona-link@alinea.example", "owner"));
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.goto("/painel/configuracoes/equipe");
+  await page.getByRole("button", { name: "Criar link da equipe" }).click();
+  const link = await page.getByRole("textbox", { name: "Convidar através de um link" }).inputValue();
+
+  const other = await browser.newPage();
+  await other.goto(link.replace(/:\d+\//, `:${PORT}/`));
+  await other.getByLabel("Nome").fill("Rita Campos");
+  await other.getByLabel("E-mail").fill("rita-link@alinea.example");
+  await other.getByLabel("Nova senha").fill("senha-da-rita");
+  await other.getByLabel("Repita a senha").fill("senha-da-rita");
+  await other.getByRole("button", { name: "Criar conta" }).click();
+  await expect(other.getByRole("heading", { name: "Confirme seu e-mail" })).toBeVisible();
+  await expect.poll(() => codeSentTo("rita-link@alinea.example")).toBeTruthy();
+  const code = codeSentTo("rita-link@alinea.example")!;
+  await other.getByLabel("Código").fill(code);
+  await other.getByRole("button", { name: "Confirmar" }).click();
+  await expect(other.getByRole("heading", { name: "Projetos" })).toBeVisible();
+  await other.close();
+
+  await page.reload();
+  const rita = page.getByRole("list", { name: "Equipe" }).getByRole("listitem").filter({ hasText: "Rita Campos" });
+  await expect(rita).toContainText("Equipe");
+  await expect(rita).not.toContainText("E-mail não confirmado");
 });
 
 test("cards in a row line up, whatever their content", async ({ page }) => {

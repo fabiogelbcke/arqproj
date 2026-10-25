@@ -330,3 +330,7 @@ a.brand:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
   flex: 1; min-width: 0; min-height: var(--control-small); padding: 0 10px; border: 1px solid var(--line);
   border-radius: var(--r); background: var(--bg); color: var(--ink); font: 13px/1 ui-monospace, monospace;
 }
+
+/* Confirmar e-mail: "Reenviar código" and "Corrigir e-mail" side by side. */
+.confirmActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.card > .signOutLink { justify-self: start; }

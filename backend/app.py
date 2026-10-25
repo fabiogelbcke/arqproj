@@ -24,6 +24,7 @@ from backend.tenancy.middleware import TenantMiddleware
 from backend.web import (
     auth,
     drive,
+    email_confirmation,
     health,
     home,
     legal,
@@ -160,6 +161,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(legal.router)
     app.include_router(maintenance.router)
     app.include_router(auth.router)
+    app.include_router(email_confirmation.router)
     app.include_router(tenant.router)
     app.include_router(drive.router)
     app.include_router(onboarding.router)

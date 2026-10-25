@@ -4,6 +4,7 @@ import { Navigate, Outlet, type RouteObject } from "react-router";
 
 import { type Locale, useOfficeLocale } from "../i18n";
 import { ChoosePasswordPage } from "../pages/ChoosePasswordPage";
+import { ConfirmLinkPage } from "../pages/ConfirmEmailPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
 import { JoinPage } from "../pages/JoinPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
@@ -45,6 +46,7 @@ export const routes: RouteObject[] = [
       { path: "definir-senha", element: <ChoosePasswordPage />, handle: title("choosePassword.pageTitle") }, // invite, reset or spent link alike
       { path: "esqueci-a-senha", element: <ForgotPasswordPage />, handle: title("forgot.title") },
       { path: "entrar-na-equipe", element: <JoinPage />, handle: title("join.pageTitle") },
+      { path: "confirmar-email", element: <ConfirmLinkPage />, handle: title("confirmEmail.pageTitle") },
       {
         element: <SignedInLayout />,
         children: [

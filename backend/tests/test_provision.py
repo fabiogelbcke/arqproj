@@ -128,7 +128,11 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
     assert _column_grants(migrated_url, group) == {
         ("users", "password_hash", "UPDATE"),
         ("users", "tour_seen_at", "UPDATE"),  # the project page's tour, once per account
+        # Joining by the shared link: the email confirmed, or a mistyped one corrected.
+        ("users", "email_confirmed_at", "UPDATE"),
+        ("users", "email", "UPDATE"),
         ("password_links", "used_at", "UPDATE"),
+        ("password_links", "tries", "UPDATE"),  # wrong confirmation codes
         ("join_links", "revoked_at", "UPDATE"),  # turned off, or replaced by a new one
         # A share link: turned off, moved to newer versions, and its downloads counted.
         *(

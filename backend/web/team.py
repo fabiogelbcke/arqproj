@@ -8,12 +8,14 @@
     POST   /api/team/join-link        owner: turn the shared link on (a new one; any old one stops)
     DELETE /api/team/join-link        owner: turn it off
     POST   /api/join/check            anyone with the shared link: is it on, and whose
-    POST   /api/join                  anyone with it: a name and an email, to be emailed a link
+    POST   /api/join                  anyone with it: a name, an email and a password; then
+                                      signed in, to confirm the email with a code sent to it
 
 An invite is the existing one-time link (`backend.identity.links`), so the person
 always chooses their own password. The shared link never makes an account usable
-by itself: it emails that link to the address given, so the address is proven
-theirs (plan section 5), and it always makes a member.
+by itself: until the code emailed to the address is typed in (or its link opened),
+the account can only confirm it (`backend.web.email_confirmation`), so the address
+is proven theirs (plan section 5). It always makes a member.
 """
 
 from __future__ import annotations
@@ -22,11 +24,10 @@ import hashlib
 import logging
 import secrets
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Literal
 
-import anyio
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,18 +41,17 @@ from backend.notifications.office import office_of
 from backend.notifications.password_reset import invite_email
 from backend.office.profile import display_name
 from backend.tenancy.resolve import CurrentTenant, current_tenant
-from backend.web import attempts
-from backend.web.auth import CurrentStaff, current_staff, require_csrf
+from backend.web import attempts, email_confirmation
+from backend.web.auth import CurrentStaff, MeOut, current_staff, require_csrf, signed_in
 from backend.web.errors import ApiError, ErrorCode, documented
 
 NAME_MAX = 80
 JOIN_PATH = "/painel/entrar-na-equipe"
 # Requests from the shared link: a few per device in 15 minutes (as "Esqueceu a
-# senha?"), and every answer as late as the slowest, so none tells who has an account.
+# senha?"). Saying an address already has an account tells only someone holding
+# the office's link, at that pace (Fabio, 25 Oct 2026).
 JOIN_TRIES = "join"
-JOIN_ANSWER_AT = 0.5
 JOIN_LINK_LIFETIME = timedelta(hours=24)  # Fabio, 20 Oct 2026: a link passed around goes stale
-RESEND_AFTER = timedelta(minutes=2)  # at most one emailed link per address in this time
 # One request per address at a time, until its transaction ends: two at once must not
 # both find no account and both make one (the second would fail, and say it exists).
 _LOCK_EMAIL = text("SELECT pg_advisory_xact_lock(hashtext('staff-email'), hashtext(:email))")
@@ -68,8 +68,9 @@ class MemberOut(BaseModel):
     name: str
     email: str
     role: Role
-    # "invited": hasn't chosen a password through the invite yet.
-    status: Literal["active", "invited"]
+    # "invited": hasn't chosen a password through the invite yet; "unconfirmed":
+    # joined through the shared link, and hasn't confirmed the email yet.
+    status: Literal["active", "invited", "unconfirmed"]
     me: bool
 
 
@@ -113,6 +114,7 @@ class JoinIn(BaseModel):
     token: str = Field(max_length=200)
     name: str = Field(max_length=500)
     email: str = Field(max_length=500)
+    password: str = Field(max_length=500)
 
 
 def _owner(staff: CurrentStaff) -> None:
@@ -130,7 +132,13 @@ def _member(user: User, staff: CurrentStaff) -> MemberOut:
         name=user.name,
         email=user.email,
         role=user.role,
-        status="active" if user.password_hash else "invited",
+        status=(
+            "invited"
+            if user.password_hash is None
+            else "unconfirmed"
+            if user.email_confirmed_at is None
+            else "active"
+        ),
         me=user.id == staff.user_id,
     )
 
@@ -162,7 +170,7 @@ async def _send(request: Request, tenant: CurrentTenant, email: Email, route: st
 
 
 async def _invite(
-    db: AsyncSession, request: Request, tenant: CurrentTenant, user: User, inviter: str | None
+    db: AsyncSession, request: Request, tenant: CurrentTenant, user: User, inviter: str
 ) -> tuple[str, Email]:
     """A new invite link for `user` (any earlier one stops working), and its email.
     On the office's stored address, never one taken from the request (section 4)."""
@@ -336,45 +344,44 @@ async def check_join_link(
     return JoinCheckOut(office=await display_name(db, tenant))
 
 
-@router.post("/join", status_code=202, responses=documented(404, 422, 429))
+@router.post("/join", status_code=201, responses=documented(404, 409, 422, 429))
 async def join(
     body: JoinIn,
     request: Request,
-    background: BackgroundTasks,
+    response: Response,
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
-) -> None:
-    """Emails an invite link to the address given, as a new member. The same answer
-    whatever the address, and no sooner than JOIN_ANSWER_AT: someone with an account
-    already gets nothing (they can sign in, or use "Esqueceu a senha?")."""
+) -> MeOut:
+    """A new member, signed in at once but unconfirmed: a code goes to the address,
+    and the account works once it's typed in. If the email can't go, they ask for
+    another on the next screen."""
     who = attempts.device(request)
     if not attempts.admit(JOIN_TRIES, who):
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
     attempts.failed(JOIN_TRIES, who)  # every request counts toward the limit
-    started = anyio.current_time()
     await _join_link(db, body.token)
     name, email = _name(body.name), _address(body.email)
+    await db.commit()  # the connection goes back while the password is hashed
+    try:
+        password_hash = await accounts.new_password_hash(body.password)
+    except accounts.PasswordTooShort:
+        raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT) from None
+    await _join_link(db, body.token)  # still on
     await db.execute(_LOCK_EMAIL, {"email": email})
-    found = await accounts.find_user(db, email)
-    message: Email | None = None
-    if found is None:
-        user = await accounts.create_user(db, email=email, name=name, role=Role.MEMBER)
-        message = (await _invite(db, request, tenant, user, None))[1]
-    # A pending invite gets a new link only if it's a member's: the shared link
-    # never lets anyone in as an owner (A36), even through an owner's invite.
-    elif (
-        found.password_hash is None
-        and found.role is Role.MEMBER
-        and not await _recent_invite(db, found)
-    ):
-        message = (await _invite(db, request, tenant, found, None))[1]
-    await db.commit()  # the connection goes back before the wait
-    await anyio.sleep(max(0.0, JOIN_ANSWER_AT - (anyio.current_time() - started)))
-    if message is not None:
-        background.add_task(_send, request, tenant, message, "/api/join")
-
-
-async def _recent_invite(db: AsyncSession, user: User) -> bool:
-    """An invite link went to them in the last few minutes: don't send another
-    (someone else may be typing their address in again and again)."""
-    return await links.made_since(db, user, LinkKind.INVITE, datetime.now(UTC) - RESEND_AFTER)
+    # Any account, a pending invite too: its invite email works, and "Esqueceu a
+    # senha?" sends a new link.
+    if await accounts.find_user(db, email) is not None:
+        raise ApiError(409, ErrorCode.ACCOUNT_EXISTS)
+    user = await accounts.create_user(
+        db,
+        email=email,
+        name=name,
+        role=Role.MEMBER,
+        password_hash=password_hash,
+        email_confirmed=False,
+    )
+    message = await email_confirmation.new_code(db, request, tenant, user)
+    me = await signed_in(request, response, tenant, db, user)  # commits
+    log.info("staff %s joined %s through the shared link", user.id, tenant.slug)
+    await email_confirmation.send(request, tenant, message, "/api/join")
+    return me

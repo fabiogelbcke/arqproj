@@ -531,3 +531,60 @@ def test_stage_completion_is_filled_in_every_office(migrated_url):
             connection.execute(text(f'DROP OWNED BY "{owner}"'))
             connection.execute(text(f'DROP ROLE "{owner}"'))
         engine.dispose()
+
+
+def test_every_existing_account_starts_confirmed(migrated_url):
+    """0035 adds `users.email_confirmed_at`: every account made before it, in every
+    office, counts as confirmed (only the shared link makes unconfirmed ones), even
+    run as an owner that tenant isolation binds (Cloud SQL's migration login)."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0035"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0034")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        for slug in ("alinea", "norte"):
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES (:s, 'X') RETURNING id"), {"s": slug}
+            )
+            for email, password_hash in (("in@x.example", "hash"), ("invited@x.example", None)):
+                connection.execute(
+                    text(
+                        "INSERT INTO users (tenant_id, email, name, password_hash) "
+                        "VALUES (:t, :e, 'Pessoa', :p)"
+                    ),
+                    {"t": tenant, "e": email, "p": password_hash},
+                )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    try:
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0035",
+        )
+        with engine.connect() as connection:
+            unconfirmed = connection.scalar(
+                text("SELECT count(*) FROM users WHERE email_confirmed_at IS NULL")
+            )
+            assert connection.scalar(text("SELECT count(*) FROM users")) == 4
+            assert unconfirmed == 0
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()

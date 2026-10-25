@@ -75,6 +75,13 @@ class ErrorCode(StrEnum):
     ALREADY_STAFF = "already_staff"  # `conflict_name`: the account with that email
     NOT_AN_INVITE = "not_an_invite"  # unknown, or already in (only pending invites)
     JOIN_LINK_INVALID = "join_link_invalid"  # turned off, replaced, or another office's
+    ACCOUNT_EXISTS = "account_exists"  # joining or correcting to an address with an account
+    EMAIL_UNCONFIRMED = "email_unconfirmed"  # joined by the shared link: confirm the email first
+    EMAIL_CODE_WRONG = "email_code_wrong"  # another try is left
+    EMAIL_CODE_EXPIRED = "email_code_expired"  # expired, or too many wrong: ask for a new one
+    EMAIL_CODE_RECENT = "email_code_recent"  # one went in the last 2 minutes: wait
+    EMAIL_NOT_SENT = "email_not_sent"  # the email couldn't go: logged; try again
+    ALREADY_CONFIRMED = "already_confirmed"  # nothing to confirm or correct: reload
     # A share link (A37): unknown, turned off, expired, or its project gone: never told apart.
     SHARE_NOT_FOUND = "share_not_found"
     SHARE_TOO_LARGE = "share_too_large"  # over 300 MB of files

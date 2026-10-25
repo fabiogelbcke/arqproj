@@ -8,11 +8,9 @@ import { ApiError, api, call } from "../api/client";
 import { useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
-import { TextField } from "../ui/TextField";
+import { MIN_PASSWORD_LENGTH, NewPasswordFields } from "../ui/NewPasswordFields";
 import { AuthBrand } from "./AuthBrand";
 import styles from "./pages.module.css";
-
-export const MIN_PASSWORD_LENGTH = 8; // backend.identity.accounts; the server checks it too
 
 /** The link's token is in the fragment (#token=…), which browsers never send to
  * servers. Read it once, then take it out of the address bar and history. */
@@ -86,25 +84,7 @@ export function ChoosePasswordPage() {
             choose.mutate(password);
           }}
         >
-          <TextField
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            isRequired
-            minLength={MIN_PASSWORD_LENGTH}
-            value={password}
-            onChange={setPassword}
-            label={t("choosePassword.password")}
-            description={t("choosePassword.passwordHint", { min: MIN_PASSWORD_LENGTH })}
-          />
-          <TextField
-            name="confirm"
-            type="password"
-            autoComplete="new-password"
-            isRequired
-            validate={(value) => (value && value !== password ? t("choosePassword.mismatch") : null)}
-            label={t("choosePassword.confirm")}
-          />
+          <NewPasswordFields password={password} onChange={setPassword} />
           <ErrorNotice error={choose.error} values={{ min: MIN_PASSWORD_LENGTH }} />
           <Button type="submit" variant="primary" isDisabled={choose.isPending}>
             {t("choosePassword.submit")}

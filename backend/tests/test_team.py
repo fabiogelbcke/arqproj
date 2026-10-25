@@ -1,5 +1,5 @@
 """Configurações → Equipe (A36): owners invite staff, personally or with a shared
-link whose joiners still prove their email."""
+link whose joiners choose a password at once and still prove their email."""
 
 import logging
 import re
@@ -15,7 +15,7 @@ from backend.identity.models import Role
 from backend.notifications.email import EmailError
 from backend.tests.conftest import TEST_DATABASE_URL
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as, tenant_id
-from backend.web import attempts, team
+from backend.web import attempts, email_confirmation, team
 from backend.web.errors import ApiError
 
 pytestmark = pytest.mark.anyio
@@ -38,7 +38,7 @@ async def sent(monkeypatch):
     attempts.reset()
     box = Sent()
     monkeypatch.setattr(team, "sender_for", lambda settings, http: box)
-    monkeypatch.setattr(team, "JOIN_ANSWER_AT", 0)  # fast tests
+    monkeypatch.setattr(email_confirmation, "sender_for", lambda settings, http: box)
     yield box
     attempts.reset()
 
@@ -51,6 +51,10 @@ async def owner(client, db_session):
 
 def token_in(text: str) -> str:
     return re.search(r"#token=([\w-]+)", text).group(1)
+
+
+def code_in(text: str) -> str:
+    return re.search(r"^(\d{6})$", text, re.MULTILINE).group(1)
 
 
 async def invite(client, headers, **body):
@@ -222,11 +226,20 @@ async def turn_on(client, owner) -> str:
 
 
 async def join(client, token, host=ALINEA, **body):
-    body = {"token": token, "name": "Caio Reis", "email": "caio@gmail.com"} | body
+    body = {
+        "token": token,
+        "name": "Caio Reis",
+        "email": "caio@gmail.com",
+        "password": "a good password",
+    } | body
     return await client.post("/api/join", json=body, headers=host)
 
 
-async def test_whoever_opens_the_shared_link_is_emailed_a_link_and_joins_as_a_member(
+def csrf(response) -> dict:
+    return ALINEA | {"X-CSRF-Token": response.json()["csrf_token"]}
+
+
+async def test_whoever_opens_the_shared_link_chooses_a_password_and_confirms_with_a_code(
     client, owner, sent
 ):
     link = await turn_on(client, owner)
@@ -237,36 +250,52 @@ async def test_whoever_opens_the_shared_link_is_emailed_a_link_and_joins_as_a_me
     token = token_in(link)
     checked = await client.post("/api/join/check", json={"token": token}, headers=ALINEA)
     assert checked.json() == {"office": "Alinea (dev)"}
-    assert (await join(client, token, email=" Caio@Gmail.com ")).status_code == 202
+    joined = await join(client, token, email=" Caio@Gmail.com ")
+    assert joined.status_code == 201
+    me = joined.json()
+    assert (me["email"], me["role"], me["email_confirmed"]) == ("caio@gmail.com", "member", False)
     [email] = sent.emails
     assert email.to == "caio@gmail.com"
-    # Not in until they use the emailed link: the email is proven theirs.
-    assert "http://alinea.localhost:5173/painel/definir-senha#token=" in email.text
-    signed_in = await choose_password(client, token_in(email.text))
-    assert (signed_in.status_code, signed_in.json()["role"]) == (200, "member")
+    code = code_in(email.text)
+    assert code in email.subject
+    assert "http://alinea.localhost:5173/painel/confirmar-email#token=" in email.text
+    # Signed in, but nothing works until the email is confirmed.
+    assert (await client.get("/api/me", headers=ALINEA)).json()["email_confirmed"] is False
+    refused = await client.get("/api/team", headers=ALINEA)
+    assert (refused.status_code, refused.json()["error"]) == (403, "email_unconfirmed")
+    confirmed = await client.post("/api/me/email-code", json={"code": code}, headers=csrf(joined))
+    assert (confirmed.status_code, confirmed.json()["email_confirmed"]) == (200, True)
+    assert (await client.get("/api/team", headers=ALINEA)).status_code == 200
 
 
-async def test_the_answer_is_the_same_for_an_address_already_in_and_nothing_is_sent(
-    client, owner, sent
-):
+async def test_the_owner_sees_who_has_not_confirmed_yet(client, owner, sent):
     token = token_in(await turn_on(client, owner))
-    response = await join(client, token, email="dona@alinea.example")
-    assert response.status_code == 202
+    owner_cookies = dict(client.cookies)
+    client.cookies.clear()
+    await join(client, token)
+    client.cookies.clear()
+    client.cookies.update(owner_cookies)
+    team_now = (await client.get("/api/team", headers=owner)).json()
+    assert [(m["email"], m["status"]) for m in team_now["members"]] == [
+        ("dona@alinea.example", "active"),  # Ana
+        ("caio@gmail.com", "unconfirmed"),
+    ]
+
+
+async def test_an_address_with_an_account_is_refused_and_nothing_is_sent(client, owner, sent):
+    token = token_in(await turn_on(client, owner))
+    await invite(client, owner, email="bia@alinea.example")  # a pending invite counts too
+    sent.emails.clear()
+    for address in ("dona@alinea.example", "bia@alinea.example"):
+        response = await join(client, token, email=address)
+        assert (response.status_code, response.json()) == (409, {"error": "account_exists"})
     assert sent.emails == []
-
-
-async def test_asking_again_soon_sends_no_second_email(client, owner, sent):
-    token = token_in(await turn_on(client, owner))
-    assert (await join(client, token)).status_code == 202
-    assert (await join(client, token)).status_code == 202
-    assert len(sent.emails) == 1
 
 
 async def test_a_new_shared_link_turns_the_old_one_off_and_off_means_off(client, owner, sent):
     old = token_in(await turn_on(client, owner))
     new = token_in(await turn_on(client, owner))
     assert (await join(client, old)).status_code == 404
-    assert (await join(client, new)).status_code == 202
     assert (await client.delete("/api/team/join-link", headers=owner)).status_code == 204
     response = await client.post("/api/join/check", json={"token": new}, headers=ALINEA)
     assert (response.status_code, response.json()["error"]) == (404, "join_link_invalid")
@@ -280,12 +309,32 @@ async def test_a_shared_link_works_only_on_its_own_offices_address(client, owner
     assert sent.emails == []
 
 
-async def test_a_bad_join_is_refused(client, owner, sent):
+@pytest.mark.parametrize(
+    ("body", "error"),
+    [
+        ({"email": "caio@"}, "invalid_email"),
+        ({"name": " "}, "invalid_staff_name"),
+        ({"password": "short"}, "password_too_short"),
+    ],
+)
+async def test_a_bad_join_is_refused_and_nothing_is_made(client, owner, sent, body, error):
     token = token_in(await turn_on(client, owner))
-    response = await join(client, token, email="caio@")
-    assert (response.status_code, response.json()["error"]) == (422, "invalid_email")
-    response = await join(client, token, name=" ")
-    assert (response.status_code, response.json()["error"]) == (422, "invalid_staff_name")
+    response = await join(client, token, **body)
+    assert (response.status_code, response.json()["error"]) == (422, error)
+    assert sent.emails == []
+    assert len((await client.get("/api/team", headers=owner)).json()["members"]) == 1
+
+
+async def test_when_the_email_cannot_go_the_account_is_made_and_a_code_can_be_asked_again(
+    client, owner, sent, caplog
+):
+    token = token_in(await turn_on(client, owner))
+    client.cookies.clear()
+    sent.failing = True
+    with caplog.at_level(logging.ERROR):
+        joined = await join(client, token)
+    assert joined.status_code == 201
+    assert "resend 500" in caplog.text and "/api/join" in caplog.text
     assert sent.emails == []
 
 
@@ -299,8 +348,7 @@ async def test_a_device_asking_again_and_again_must_wait(client, owner, sent):
 
 async def test_requests_for_one_address_wait_for_each_other(client, owner, sent):
     """Two at once for a new address must not both find no account and both make
-    one (the second would fail, and say the account exists): the second waits for
-    the first's lock, which holds across connections."""
+    one: the second waits for the first's lock, which holds across connections."""
     token = token_in(await turn_on(client, owner))
     other = create_async_engine(TEST_DATABASE_URL)
     done = anyio.Event()
@@ -325,8 +373,8 @@ async def test_requests_for_one_address_wait_for_each_other(client, owner, sent)
             await done.wait()
     finally:
         await other.dispose()
-    assert answers == [202]
-    assert (await join(client, token)).status_code == 202  # and again: the same answer
+    assert answers == [201]
+    assert (await join(client, token)).status_code == 409  # and again: it exists now
 
 
 async def _waits_for(lock_sql: str, key: str, call) -> int:
@@ -392,18 +440,6 @@ async def test_a_shared_link_stops_working_after_24_hours(client, db_session, ow
     assert (response.status_code, response.json()["error"]) == (404, "join_link_invalid")
     assert (await join(client, token)).status_code == 404
     assert (await client.get("/api/team", headers=owner)).json()["join_link"]["on"] is False
-
-
-async def test_a_pending_owner_invite_gets_no_link_through_the_shared_link(
-    client, db_session, owner, sent
-):
-    await invite(client, owner, email="caio@gmail.com", role="owner")
-    await db_session.execute(
-        text("UPDATE password_links SET created_at = now() - interval '1 hour'")
-    )
-    token = token_in(await turn_on(client, owner))
-    assert (await join(client, token)).status_code == 202  # the same answer
-    assert len(sent.emails) == 1  # only the owner's own invite
 
 
 async def test_an_account_that_came_in_meanwhile_is_never_deleted(client, db_session, owner, sent):
