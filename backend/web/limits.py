@@ -1,5 +1,5 @@
-"""The longest text staff can enter in each field, and how many client addresses a
-project keeps: the limits the server enforces.
+"""The longest text staff can enter in each field, how many client addresses a
+project keeps, and how much a share link holds: the limits the server enforces.
 
 `make api-types` writes them to `frontend/src/api/limits.json`, which the screens'
 inputs (maxLength) and the preview page read. So a limit changes here, in the
@@ -15,10 +15,12 @@ from backend.notifications.models import RECIPIENTS_MAX
 from backend.projects.creation import CLIENT_NAME_LIMIT, SLUG_MAX
 from backend.projects.creation import NAME_MAX as PROJECT_NAME_MAX
 from backend.projects.models import MEETING_LOCATION_MAX, MEETING_TITLE_MAX
+from backend.shares.models import LABEL_MAX as SHARE_LABEL_MAX
 from backend.web.office import NAME_LIMIT as OFFICE_NAME_LIMIT
 from backend.web.page_edit import DESCRIPTION_MAX, DETAIL_TEXT_MAX, NOTES_MAX
 from backend.web.page_stages import STAGE_TITLE_MAX
 from backend.web.project_settings import PAGE_PASSWORD_MAX
+from backend.web.shares import SIZE_MAX as SHARE_BYTES_MAX
 from backend.web.team import NAME_MAX as STAFF_NAME_MAX
 
 FIELD_LIMITS: dict[str, int] = {
@@ -36,4 +38,6 @@ FIELD_LIMITS: dict[str, int] = {
     "email": EMAIL_LIMIT,
     "pagePassword": PAGE_PASSWORD_MAX,
     "recipients": RECIPIENTS_MAX,
+    "shareLabel": SHARE_LABEL_MAX,
+    "shareBytes": SHARE_BYTES_MAX,
 }

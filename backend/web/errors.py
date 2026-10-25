@@ -75,6 +75,11 @@ class ErrorCode(StrEnum):
     ALREADY_STAFF = "already_staff"  # `conflict_name`: the account with that email
     NOT_AN_INVITE = "not_an_invite"  # unknown, or already in (only pending invites)
     JOIN_LINK_INVALID = "join_link_invalid"  # turned off, replaced, or another office's
+    # A share link (A37): unknown, turned off, expired, or its project gone: never told apart.
+    SHARE_NOT_FOUND = "share_not_found"
+    SHARE_TOO_LARGE = "share_too_large"  # over 300 MB of files
+    SHARE_FILES_CHANGED = "share_files_changed"  # a file picked left the page meanwhile: reload
+    SHARE_DAILY_LIMIT = "share_daily_limit"  # the link served its day's downloads
 
 
 class ErrorOut(BaseModel):

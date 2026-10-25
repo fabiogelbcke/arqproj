@@ -43,6 +43,8 @@ const StageEditForm = lazy(() => import("./StageEditing").then((m) => ({ default
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
 const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
+// "Compartilhar arquivos" (A37), loaded when it opens.
+const SharePanel = lazy(() => import("./SharePanel").then((m) => ({ default: m.SharePanel })));
 import { day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -264,6 +266,18 @@ function useNarrow(): boolean {
     return () => list.removeEventListener("change", change);
   }, []);
   return narrow;
+}
+
+/** Three joined dots: sharing. */
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4" />
+    </svg>
+  );
 }
 
 export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left" }) {
@@ -541,9 +555,11 @@ function Stage({
   onOpenFile,
   help,
   onHelp,
+  onShare,
 }: {
   page: Page;
   index: number;
+  onShare?: () => void; // "Compartilhar arquivos" with this stage's files ticked
   open: boolean;
   onToggle: () => void;
   help: boolean; // its "Sobre esta etapa" is open (one stage's at a time)
@@ -642,6 +658,17 @@ function Stage({
             )}
             {/* "Marcar como concluída" / "Reabrir etapa" beside "Editar etapa" (Fabio, 25 Oct 2026). */}
             {progress && !parts && progress}
+            {onShare && !parts && !!(total ?? countFiles(files)) && (
+              <button
+                className="iconbtn stage-share"
+                type="button"
+                aria-label={t("share.openStage", { title: stage.title })}
+                title={t("share.open")}
+                onClick={onShare}
+              >
+                <ShareIcon />
+              </button>
+            )}
             {!parts && (
               <button
                 className="iconbtn"
@@ -817,9 +844,11 @@ export function ProjectPage({
   onTour,
   person,
   onSignOut,
+  sharing = true,
 }: {
   page: Page;
   slug: string;
+  sharing?: boolean; // "Compartilhar arquivos" (A37); not on the example project
   person?: { name: string; email: string } | null; // staff signed in
   onSignOut?: () => void;
   ready?: boolean; // the staff session's CSRF token is in hand
@@ -893,6 +922,11 @@ export function ProjectPage({
     return files ? shownFiles(files, stage.title, query, prefs) : { files: undefined, count: 0 };
   });
   const unreadable = (i: number) => Boolean(filesFor(stageFiles, i + 1).files?.unavailable);
+  // The share panel: undefined while closed; null opened above the stages, or
+  // the row of the stage it was opened from.
+  const [shareFrom, setShareFrom] = useState<number | null | undefined>(undefined);
+  const anyFiles = !!stageFiles && page.stages.some((_, i) => countFiles(filesFor(stageFiles, i + 1).files) > 0);
+  const canShare = sharing && anyFiles;
 
   useEffect(() => {
     document.title = `${page.name} · ${page.office.name}`;
@@ -1103,6 +1137,14 @@ export function ProjectPage({
             onPrefs={setPrefs}
             found={filtering ? shown.reduce((sum, stage) => sum + stage.count, 0) : null}
             narrow={narrow}
+            share={
+              canShare && (
+                <button type="button" className="b b--small client-share" onClick={() => setShareFrom(null)}>
+                  <ShareIcon />
+                  <span>{t("share.open")}</span>
+                </button>
+              )
+            }
           />
         )}
         {narrow && page.stages.length > 0 && (
@@ -1126,6 +1168,7 @@ export function ProjectPage({
             hidden={filtering && shown[i]!.count === 0 && !unreadable(i)}
             help={openHelp === i}
             onHelp={(open) => setOpenHelp(open ? i : null)}
+            onShare={canShare && !canEdit ? () => setShareFrom(i) : undefined}
             onToggle={() =>
               filtering
                 ? setClosed((was) => toggled(was, i))
@@ -1214,6 +1257,18 @@ export function ProjectPage({
         />
       )}
       {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}
+      {shareFrom !== undefined && (
+        <Suspense fallback={null}>
+          <SharePanel
+            page={page}
+            slug={slug}
+            stages={stageFiles && !stageFiles.failed ? stageFiles.stages : null}
+            from={shareFrom}
+            staff={!!page.staff && ready}
+            onClose={() => setShareFrom(undefined)}
+          />
+        </Suspense>
+      )}
       <Toaster />
     </div>
   );

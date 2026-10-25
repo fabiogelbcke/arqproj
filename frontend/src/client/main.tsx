@@ -12,16 +12,24 @@ import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 
 import { ClientApp, slugFromPath } from "./ClientApp";
+import { shareToken } from "./shareToken";
 import { EXAMPLE_SLUG } from "./example/address";
 import { applyStoredTheme } from "../ui/theme";
 
 // The example project (plan section 16), loaded only at its address.
 const ExampleApp = lazy(() => import("./example/ExampleApp").then((m) => ({ default: m.ExampleApp })));
+// The files someone shared by link (A37), at `/share/{token}`.
+const SharePage = lazy(() => import("./SharePage").then((m) => ({ default: m.SharePage })));
+const token = shareToken(window.location.pathname);
 
 applyStoredTheme();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {slugFromPath(window.location.pathname) === EXAMPLE_SLUG ? (
+    {token ? (
+      <Suspense fallback={null}>
+        <SharePage token={token} />
+      </Suspense>
+    ) : slugFromPath(window.location.pathname) === EXAMPLE_SLUG ? (
       <Suspense fallback={null}>
         <ExampleApp />
       </Suspense>

@@ -148,6 +148,7 @@ export function PreviewFrame() {
       key={drawn}
       page={page}
       slug={EXAMPLE_SLUG}
+      sharing={false}
       ready={page.staff != null}
       onChanged={() =>
         // An edit tried in the staff view: the page again, from the edited data.

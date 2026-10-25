@@ -65,6 +65,7 @@ export function ExampleApp() {
       <ProjectPage
         page={page}
         slug={EXAMPLE_SLUG}
+        sharing={false} // no links from the example: it never reaches the server
         ready={signedIn === true}
         person={person}
         onSignOut={signOut}

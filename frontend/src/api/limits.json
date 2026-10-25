@@ -12,5 +12,7 @@
   "staffName": 80,
   "email": 100,
   "pagePassword": 25,
-  "recipients": 20
+  "recipients": 20,
+  "shareLabel": 60,
+  "shareBytes": 314572800
 }
