@@ -300,6 +300,22 @@ describe("the client page", () => {
     expect(await screen.findByRole("heading", { name: "Página não encontrada" })).toBeInTheDocument();
   });
 
+  it("says a disconnected office's page is unavailable, and tells staff how to bring it back", async () => {
+    const unavailable = () => ({ status: 503, body: { error: "page_unavailable" } });
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": unavailable });
+    expect(await screen.findByRole("heading", { name: "Página indisponível" })).toBeInTheDocument();
+    expect(screen.getByText(/temporariamente indisponível/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Reconectar" })).toBeNull();
+    cleanup();
+
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": unavailable,
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
+    });
+    expect(await screen.findByRole("link", { name: "Reconectar" })).toHaveAttribute("href", "/painel/configuracoes/drive");
+    expect(screen.getByText(/Google Drive do escritório está desconectado/)).toBeInTheDocument();
+  });
+
   it("asks for the password on a protected page, then shows it", async () => {
     let unlocked = false;
     let tries = 0;
@@ -682,7 +698,7 @@ describe("edit mode", () => {
     await waitFor(() => expect(tour.startTour).toHaveBeenCalledTimes(1));
     expect(tour.startTour.mock.calls[0]![0]).toMatchObject({ markSeen: true });
     await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Ver o tour da página" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Ajuda" }));
     await waitFor(() => expect(tour.startTour).toHaveBeenCalledTimes(2));
     expect(tour.startTour.mock.calls[1]![0]).toMatchObject({ markSeen: false });
   });
@@ -1197,7 +1213,7 @@ describe("edit mode", () => {
     expect(editar).toHaveAttribute("title", expect.stringContaining("desarquive"));
     await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
     await screen.findByRole("menuitem", { name: "Sair" });
-    expect(screen.queryByRole("menuitem", { name: "Ver o tour da página" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Ajuda" })).toBeNull();
   });
 
   function stagePage(stages: () => Page["stages"], version: () => number, extra: Parameters<typeof fakeApi>[0] = {}) {

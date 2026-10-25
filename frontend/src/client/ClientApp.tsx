@@ -11,7 +11,7 @@ import { PageMessage, ProjectPage } from "./ProjectPage";
 type State =
   | { kind: "loading" }
   | { kind: "page"; page: Page }
-  | { kind: "missing" | "locked" | "failed"; error?: unknown };
+  | { kind: "missing" | "locked" | "unavailable" | "failed"; error?: unknown };
 
 /** The address is the page: `/casa-jardim`. */
 export function slugFromPath(path: string): string {
@@ -49,7 +49,15 @@ export function ClientApp() {
       (page) => setState({ kind: "page", page }),
       (error) => {
         const code = error instanceof ApiError ? error.code : null;
-        setState({ kind: code === "page_not_found" ? "missing" : code === "page_locked" ? "locked" : "failed", error });
+        const kind =
+          code === "page_not_found"
+            ? "missing"
+            : code === "page_locked"
+              ? "locked"
+              : code === "page_unavailable"
+                ? "unavailable"
+                : "failed";
+        setState({ kind, error });
       },
     );
   }, [slug, version]);
@@ -73,6 +81,23 @@ export function ClientApp() {
     return <PasswordGate office={office} slug={slug} onUnlocked={() => setVersion((v) => v + 1)} />;
   if (state.kind === "missing")
     return <PageMessage office={office} title={t("page.notFoundTitle")} body={t("page.notFoundBody")} />;
+  // The office disconnected its Drive: staff are told how to bring the pages back.
+  if (state.kind === "unavailable")
+    return (
+      <PageMessage
+        office={office}
+        title={t("page.unavailableTitle")}
+        body={
+          person ? (
+            <>
+              {t("page.unavailableStaff")} <a href="/painel/configuracoes/drive">{t("drive.reconnect")}</a>
+            </>
+          ) : (
+            t("page.unavailableBody")
+          )
+        }
+      />
+    );
   // Anything else: the shared wording, with the support code (AGENTS.md).
   const failure = state.error instanceof ApiError ? state.error : new ApiError("unexpected");
   return (

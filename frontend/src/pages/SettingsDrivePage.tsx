@@ -133,7 +133,8 @@ export function DriveDetails({
                   </Button>
                 </>
               ) : (
-                <Button variant="ghost" onPress={() => setConfirming(true)}>
+                // A button, but a quiet one: not something to encourage (Fabio, 25 Oct 2026).
+                <Button size="small" onPress={() => setConfirming(true)}>
                   {t("drive.disconnect")}
                 </Button>
               ))}

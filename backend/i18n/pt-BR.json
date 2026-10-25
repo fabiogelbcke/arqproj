@@ -4,6 +4,12 @@
     "loading": "Carregando…",
     "close": "Fechar"
   },
+  "footer": {
+    "tagline": "Projetos conectam pessoas.",
+    "links": "Informações legais",
+    "privacy": "Política de Privacidade",
+    "terms": "Termos de Uso"
+  },
   "nav": {
     "skipToContent": "Pular para o conteúdo",
     "projects": "Projetos",
@@ -237,6 +243,7 @@
     "unknown_project_type": "Escolha um tipo de projeto.",
     "unknown_stage": "Uma das etapas escolhidas não existe mais. Recarregue a página e tente novamente.",
     "page_not_found": "Não encontramos esta página. Confira o link com o escritório.",
+    "page_unavailable": "Esta página está temporariamente indisponível. Tente novamente mais tarde.",
     "page_locked": "Esta página é protegida por senha.",
     "wrong_page_password": "Senha incorreta. Confira com o escritório.",
     "too_many_attempts": "Muitas tentativas. Tente novamente em 15 minutos.",
@@ -398,7 +405,7 @@
     "back": "Voltar",
     "done": "Concluir",
     "progress": "{{current}} de {{total}}",
-    "again": "Ver o tour da página"
+    "again": "Ajuda"
   },
   "page": {
     "stageDoneMark": "Etapa concluída",
@@ -407,7 +414,7 @@
     "noFilesBody": "Assim que o escritório enviar, eles aparecem aqui.",
     "noFilesDone": "Esta etapa foi concluída sem arquivos.",
     "loading": "Carregando…",
-    "journeyTitle": "Etapas e próximos passos",
+    "journeyTitle": "Etapas do projeto",
     "timeline": "Etapas do projeto",
     "stages": "Etapas",
     "stageDone": "Concluída",
@@ -434,6 +441,9 @@
     "otherCalendar": "Apple / Outlook",
     "notFoundTitle": "Página não encontrada",
     "notFoundBody": "Confira o link com o escritório. Se o projeto mudou de endereço, peça o link novo.",
+    "unavailableTitle": "Página indisponível",
+    "unavailableBody": "Esta página está temporariamente indisponível. Tente novamente mais tarde.",
+    "unavailableStaff": "O Google Drive do escritório está desconectado. Reconecte-o em Configurações para que os clientes voltem a ver as páginas.",
     "lockedTitle": "Página protegida",
     "lockedBody": "Esta página é protegida por senha. Digite a senha que o escritório enviou; este aparelho fica liberado por 90 dias.",
     "cover": "Capa do projeto {{name}}",

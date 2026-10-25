@@ -192,7 +192,7 @@
 }
 .confirmDialog { padding: 24px; display: grid; gap: 14px; outline: none; }
 .confirmTitle { margin: 0; font-size: 21px; font-weight: 400; letter-spacing: -0.02em; }
-.confirmText { margin: 0; color: var(--muted); font-size: var(--text-md); line-height: 1.5; }
+.confirmText { margin: 0; color: var(--muted); font-size: var(--text-md); line-height: 1.5; overflow-wrap: anywhere; } /* long file names */
 .confirmNote { margin: 0; padding: 10px 12px; border-left: 2px solid var(--line-strong, var(--line)); background: var(--mark-soft); font-size: var(--text-sm); line-height: 1.45; }
 .confirmActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 6px; }
 .dangerAction { background: var(--danger, #c4673f); border-color: var(--danger, #c4673f); color: #fff; }
@@ -206,7 +206,9 @@
   text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
 }
 .emailList { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
-.emailList legend { padding: 0; margin-bottom: 8px; }
+/* Floated, the legend is a plain full-width line (Bootstrap's reboot): iPhone
+   Safari otherwise squeezed "E-mails do cliente" to one word a line. */
+.emailList legend { float: left; width: 100%; padding: 0; }
 .emailListItems { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .emailListItem {
   display: flex; align-items: center; gap: 10px; min-height: var(--control-small);
@@ -360,3 +362,24 @@
    the one warm colour (it marks progress). */
 .completionBar { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
 .completionBar > i { display: block; height: 100%; border-radius: inherit; background: var(--warm); transition: width 0.3s; }
+
+/* UnioMark: the light theme's logo or the dark theme's (light letters). */
+.unioMark { display: inline-flex; }
+.unioMark img { display: block; width: auto; }
+.unioDark { display: none !important; }
+:global(:root[data-theme="dark"]) .unioLight { display: none !important; }
+:global(:root[data-theme="dark"]) .unioDark { display: block !important; }
+/* SiteFooter: Unio's landing page footer, quieter: a hairline above, the logo
+   and its line on the left, the office and the legal pages on the right. */
+.siteFooter {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 20px 36px;
+  padding-top: 28px; border-top: 1px solid var(--line); color: var(--muted); font-size: var(--text-2xs);
+}
+.siteFooterBrand { display: grid; gap: 10px; justify-items: start; }
+.siteFooterBrand img { height: 18px; }
+.siteFooterBrand p { margin: 0; }
+.siteFooter nav { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 24px; }
+.siteFooter a { color: inherit; text-decoration: none; }
+.siteFooter nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.siteFooterOffice { color: var(--ink); letter-spacing: var(--caps-spacing); text-transform: uppercase; }
+@media (max-width: 640px) { .siteFooter { flex-direction: column; align-items: flex-start; } }

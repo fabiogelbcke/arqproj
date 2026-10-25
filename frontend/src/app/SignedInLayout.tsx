@@ -8,6 +8,7 @@ import { useMe, useSignedOut } from "../session/session";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { HeaderMenu } from "../ui/HeaderMenu";
 import { OfficeBrand } from "../ui/OfficeBrand";
+import { SiteFooter } from "../ui/UnioMark";
 import styles from "../pages/pages.module.css";
 import { MobileMenu } from "./MobileMenu";
 
@@ -76,6 +77,7 @@ export function SignedInLayout() {
       <main id="content" tabIndex={-1} className={styles.main}>
         <ErrorNotice error={signOut.error} />
         <Outlet />
+        <SiteFooter office={me.data.tenant_name} className={styles.footer} />
       </main>
       <LogoPng />
     </>

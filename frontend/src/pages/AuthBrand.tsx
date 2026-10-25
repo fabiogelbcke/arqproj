@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next";
 
-import unio from "../assets/unio.png";
-import unioDark from "../assets/unio-dark.png";
 import { useTenant } from "../session/session";
 import { OfficeLogo } from "../ui/OfficeLogo";
+import { UnioMark } from "../ui/UnioMark";
 import styles from "./pages.module.css";
 
 /** Above the sign-in and password screens: Unio × the office being entered, so
@@ -14,10 +13,7 @@ export function AuthBrand() {
   const office = tenant.data;
   return (
     <div className={styles.authBrand}>
-      <span className={styles.unio}>
-        <img className={styles.unioLight} src={unio} alt="Unio" />
-        <img className={styles.unioDark} src={unioDark} alt="Unio" />
-      </span>
+      <UnioMark className={styles.unio} />
       {office && (
         <>
           <span className={styles.authJoin} aria-label={t("signIn.with")}>
