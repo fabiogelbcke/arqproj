@@ -36,7 +36,7 @@ from backend.operators.google_signin import GoogleSignIn, SignInError, new_verif
 from backend.security import keys
 from backend.tenancy.middleware import OPERATOR_PAGE
 from backend.tenancy.resolve import current_tenant, normalize_host
-from backend.web import google_signin, pages
+from backend.web import attempts, google_signin, pages
 from backend.web.auth import optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.request_id import current_request_id
@@ -247,6 +247,9 @@ async def callback(request: Request) -> Response:
         return _back("expirado")
     if request.query_params.get("error") or not request.query_params.get("code"):
         return _back("cancelado")
+    who = attempts.device(request)  # as office sign-in (google_signin.TRIES)
+    if not attempts.admit(google_signin.TRIES, who):
+        return _back("tentativas")
     try:
         identity = await _google(request).identify(
             getattr(request.app.state, "http", None),  # set up at app start
@@ -255,8 +258,10 @@ async def callback(request: Request) -> Response:
             flow["nonce"],
         )
     except SignInError as error:
+        attempts.failed(google_signin.TRIES, who)
         log.error("operator sign-in failed: route=%s %s", CALLBACK, error.detail)
         return _back("falhou")
+    attempts.succeeded(google_signin.TRIES, who)
     if identity.email not in settings.operator_allowlist:
         # Who tried is worth knowing; the page only says "not allowed".
         log.warning("operator sign-in refused for %s", identity.email)

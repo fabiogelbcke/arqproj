@@ -27,6 +27,7 @@
     "google": "Sign in with Google",
     "or": "or",
     "googleProblem": {
+      "tentativas": "Too many attempts to sign in with Google. Try again in 15 minutes.",
       "convite": "Your invitation to this office hasn't been accepted yet. Open the invite link in your email to choose your password; after that you can sign in with Google.",
       "expirado": "Signing in with Google expired. Try again.",
       "cancelado": "Sign-in was cancelled at Google.",
@@ -941,6 +942,7 @@
     "devSignIn": "Authorized email (local only)",
     "devSignInSubmit": "Sign in",
     "signInProblem": {
+      "tentativas": "Too many attempts to sign in with Google. Try again in 15 minutes.",
       "expirado": "The sign-in attempt expired. Try again.",
       "cancelado": "Sign-in was cancelled at Google.",
       "negado": "This Google account has no access here.",

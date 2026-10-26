@@ -599,8 +599,12 @@ is single use and short lived, and redeemable only with the PKCE verifier kept,
 with the state and nonce, in a signed cookie for the office's address alone, so
 replay, another office's address and another browser are refused as this
 section asks, with nothing of ours to store. Google signs in an existing
-account of that office by its verified email (and confirms it), never creates
-one; passwords keep working. Sign-up and owner links don't offer Google yet.
+account of that office by its verified email (and confirms it, under the same
+per-account lock as codes and links), never creates one, and doesn't accept a
+pending invite (its link does, first); passwords keep working. Code exchanges
+are rate-limited per device (5 failures in 15 minutes, as passwords), for
+offices and operators alike; a failure's support code comes back with the
+redirect. Sign-up and owner links don't offer Google yet.
 
 Staff roles for the pilot:
 

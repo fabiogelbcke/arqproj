@@ -27,6 +27,7 @@
     "google": "Entrar com Google",
     "or": "ou",
     "googleProblem": {
+      "tentativas": "Muitas tentativas de entrar com o Google. Tente novamente em 15 minutos.",
       "convite": "Seu convite para este escritório ainda não foi aceito. Abra o link do convite no seu e-mail para escolher sua senha; depois disso, você poderá entrar com o Google.",
       "expirado": "A entrada com Google expirou. Tente de novo.",
       "cancelado": "A entrada foi cancelada no Google.",
@@ -941,6 +942,7 @@
     "devSignIn": "E-mail autorizado (só no ambiente local)",
     "devSignInSubmit": "Entrar",
     "signInProblem": {
+      "tentativas": "Muitas tentativas de entrar com o Google. Tente novamente em 15 minutos.",
       "expirado": "A tentativa de entrada expirou. Tente de novo.",
       "cancelado": "A entrada foi cancelada no Google.",
       "negado": "Esta conta Google não tem acesso a esta área.",

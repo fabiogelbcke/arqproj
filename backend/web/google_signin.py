@@ -38,6 +38,7 @@ from backend.identity import accounts
 from backend.operators.google_signin import GoogleSignIn, SignInError, new_verifier
 from backend.security import keys
 from backend.tenancy.resolve import CurrentTenant, current_tenant, resolve
+from backend.web import attempts
 from backend.web.auth import signed_in
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.request_id import current_request_id
@@ -50,6 +51,7 @@ STATE_PURPOSE = "office-signin-state"
 FLOW_PURPOSE = "office-signin-flow"
 FLOW_COOKIE = "google_signin"
 TTL = 600  # long enough to sign in at Google
+TRIES = "google-signin"
 SIGN_IN_PAGE = "/painel/entrar"
 AFTER = "/painel/"
 
@@ -151,6 +153,11 @@ async def finish(
         return _back("expirado")
     if request.query_params.get("error") or not request.query_params.get("code"):
         return _back("cancelado")
+    # A few failed exchanges per device, as passwords are (section 5: hand-offs
+    # are rate-limited): a replayed return can't make the server call Google at will.
+    who = attempts.device(request)
+    if not attempts.admit(TRIES, who):
+        return _back("tentativas")
     try:
         identity = await google(request).identify(
             getattr(request.app.state, "http", None),  # set up at app start
@@ -159,9 +166,11 @@ async def finish(
             flow["nonce"],
         )
     except (SignInError, ApiError) as error:
+        attempts.failed(TRIES, who)
         detail = error.detail if isinstance(error, SignInError) else error.code
         log.error("google sign-in failed: route=%s tenant=%s %s", FINISH, tenant.slug, detail)
         return _back("falhou")
+    attempts.succeeded(TRIES, who)
     user = await accounts.find_user(db, identity.email)
     if user is not None:
         # As codes and links do: one confirmation at a time per account, its address

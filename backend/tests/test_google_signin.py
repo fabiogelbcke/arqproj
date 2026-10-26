@@ -13,7 +13,7 @@ from backend.identity.models import Role
 from backend.operators.google_signin import GoogleSignIn, Identity, SignInError, challenge
 from backend.security import keys
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as, tenant_id
-from backend.web import google_signin
+from backend.web import attempts, google_signin
 
 pytestmark = pytest.mark.anyio
 
@@ -29,10 +29,12 @@ async def google(app, client, db_session, monkeypatch):
     app.state.settings = app.state.settings.model_copy(
         update={"google_oauth_client_id": "client-1", "google_oauth_client_secret": "secret-1"}
     )
-    answers = {"identity": Identity(ANA, "Ana")}
+    answers = {"identity": Identity(ANA, "Ana"), "calls": 0}
+    attempts.reset()
 
     async def identify(self, http, code, verifier, nonce):
         answers["got"] = (code, verifier, nonce)
+        answers["calls"] += 1
         if isinstance(answers["identity"], Exception):
             raise answers["identity"]
         return answers["identity"]
@@ -210,3 +212,18 @@ async def test_a_pending_invite_is_accepted_only_through_its_link(client, google
     done = await returned(client, query)
     assert done.headers["location"].startswith("/painel/entrar?google=convite&ref=")
     assert (await client.get("/api/me", headers=ALINEA)).status_code == 401
+
+
+async def test_a_device_failing_again_and_again_must_wait(client, google):
+    """Section 5: hand-offs are rate-limited, so a replayed return can't make the
+    server call Google at will (5 failures in 15 minutes, as passwords)."""
+    google["identity"] = SignInError("invalid_grant")
+    for _ in range(attempts.LIMIT):
+        query = await start(client)
+        done = await returned(client, query)
+        assert done.headers["location"].startswith("/painel/entrar?google=falhou")
+    calls = google["calls"]
+    query = await start(client)
+    done = await returned(client, query)
+    assert done.headers["location"].startswith("/painel/entrar?google=tentativas&ref=")
+    assert google["calls"] == calls  # Google not asked again
