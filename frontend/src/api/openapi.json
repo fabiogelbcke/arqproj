@@ -205,82 +205,6 @@
             }
           }
         }
-      },
-      "post": {
-        "summary": "Create Tenant",
-        "operationId": "create_tenant_api_admin_offices_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateTenantIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantActionOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Content",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/api/admin/offices/{slug}": {
@@ -328,194 +252,6 @@
               }
             },
             "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/offices/{slug}/file-statistics": {
-      "post": {
-        "summary": "File Statistics",
-        "operationId": "file_statistics_api_admin_offices__slug__file_statistics_post",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Slug"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileStats"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/offices/{slug}/actions": {
-      "post": {
-        "summary": "Tenant Action",
-        "operationId": "tenant_action_api_admin_offices__slug__actions_post",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Slug"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TenantActionIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantActionOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Service Unavailable"
           },
           "422": {
             "description": "Validation Error",
@@ -5061,27 +4797,6 @@
             "type": "integer",
             "title": "Downloads"
           },
-          "usage": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "Usage"
-          },
-          "link_statuses": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "Link Statuses"
-          },
-          "project_types": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "Project Types"
-          },
           "team": {
             "items": {
               "$ref": "#/components/schemas/AdminStaffOut"
@@ -5110,9 +4825,6 @@
           "emails_sent",
           "share_links",
           "downloads",
-          "usage",
-          "link_statuses",
-          "project_types",
           "team"
         ],
         "title": "AdminOfficeOut"
@@ -5420,35 +5132,6 @@
         ],
         "title": "ContentIn"
       },
-      "CreateTenantIn": {
-        "properties": {
-          "slug": {
-            "type": "string",
-            "maxLength": 63,
-            "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-            "title": "Slug"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name"
-          },
-          "hostname": {
-            "type": "string",
-            "maxLength": 253,
-            "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$",
-            "title": "Hostname"
-          }
-        },
-        "type": "object",
-        "required": [
-          "slug",
-          "name",
-          "hostname"
-        ],
-        "title": "CreateTenantIn"
-      },
       "CreationOptions": {
         "properties": {
           "types": {
@@ -5649,9 +5332,6 @@
       "ErrorCode": {
         "type": "string",
         "enum": [
-          "operator_action_conflict",
-          "operator_action_failed",
-          "operator_actions_unavailable",
           "not_signed_in",
           "csrf_token_missing_or_wrong",
           "invalid_credentials",
@@ -5835,103 +5515,6 @@
           "modified_at"
         ],
         "title": "FileOut"
-      },
-      "FileStats": {
-        "properties": {
-          "loaded_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Loaded At"
-          },
-          "projects": {
-            "type": "integer",
-            "title": "Projects"
-          },
-          "projects_with_files": {
-            "type": "integer",
-            "title": "Projects With Files"
-          },
-          "files": {
-            "type": "integer",
-            "title": "Files"
-          },
-          "known_bytes": {
-            "type": "integer",
-            "title": "Known Bytes"
-          },
-          "unknown_sizes": {
-            "type": "integer",
-            "title": "Unknown Sizes"
-          },
-          "types": {
-            "items": {
-              "$ref": "#/components/schemas/FileTypeStats"
-            },
-            "type": "array",
-            "title": "Types"
-          },
-          "account_used": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Account Used"
-          },
-          "account_limit": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Account Limit"
-          }
-        },
-        "type": "object",
-        "required": [
-          "loaded_at",
-          "projects",
-          "projects_with_files",
-          "files",
-          "known_bytes",
-          "unknown_sizes",
-          "types"
-        ],
-        "title": "FileStats"
-      },
-      "FileTypeStats": {
-        "properties": {
-          "kind": {
-            "type": "string",
-            "title": "Kind"
-          },
-          "files": {
-            "type": "integer",
-            "title": "Files",
-            "default": 0
-          },
-          "known_bytes": {
-            "type": "integer",
-            "title": "Known Bytes",
-            "default": 0
-          },
-          "unknown_sizes": {
-            "type": "integer",
-            "title": "Unknown Sizes",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": [
-          "kind"
-        ],
-        "title": "FileTypeStats"
       },
       "GroupOut": {
         "properties": {
@@ -6601,10 +6184,6 @@
             "type": "string",
             "title": "Csrf Token"
           },
-          "actions_enabled": {
-            "type": "boolean",
-            "title": "Actions Enabled"
-          },
           "logs_project": {
             "anyOf": [
               {
@@ -6632,7 +6211,6 @@
         "required": [
           "email",
           "csrf_token",
-          "actions_enabled",
           "logs_project",
           "logs_service"
         ],
@@ -7820,47 +7398,6 @@
           "can_manage"
         ],
         "title": "TeamOut"
-      },
-      "TenantActionIn": {
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": [
-              "owner_link",
-              "suspend",
-              "restore",
-              "delete"
-            ],
-            "title": "Action"
-          },
-          "confirmation": {
-            "type": "string",
-            "title": "Confirmation",
-            "default": ""
-          }
-        },
-        "type": "object",
-        "required": [
-          "action"
-        ],
-        "title": "TenantActionIn"
-      },
-      "TenantActionOut": {
-        "properties": {
-          "owner_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Owner Url"
-          }
-        },
-        "type": "object",
-        "title": "TenantActionOut"
       },
       "TenantOut": {
         "properties": {

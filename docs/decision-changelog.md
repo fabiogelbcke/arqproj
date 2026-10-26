@@ -19,22 +19,6 @@ a new entry too.
 
 ---
 
-## 2026-10-26 — A38/A39: on-demand file statistics and audited management
-
-**Was:** a read-only dashboard, followed by lifecycle actions and PostHog links.
-
-**Now:** extend the read-only view with project completeness and link status/usage;
-load file sizes, types and quota only on request, without saved summaries. Use
-PostHog for transfer trends. Lifecycle actions record a durable audit event;
-audit browsing may follow later. Correct A38's stale read-login wording to match
-section 21 and the earlier decision below (tenant-scoped app login for reads).
-
-**Why:** Fabio wants to learn which measures are useful before adding reporting
-tables. File statistics will not be needed on every visit. He approved the audit
-events and implementation, with no actual share links or client content exposed.
-
----
-
 ## 2026-10-26 — A39 (new): product analytics with PostHog, server and browser
 
 **Was:** no product analytics; the privacy policy listed Google Cloud and Resend

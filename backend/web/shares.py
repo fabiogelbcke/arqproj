@@ -57,7 +57,6 @@ from backend.shares import zipped
 from backend.shares.models import LABEL_MAX, ShareLink, ShareLinkFile
 from backend.storage.base import StorageError, StorageItem
 from backend.tenancy.resolve import CurrentTenant, current_tenant
-from backend.transfers import measured
 from backend.web import attempts
 from backend.web.auth import CSRF_HEADER, CurrentStaff, current_staff, optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
@@ -816,11 +815,7 @@ async def shared_zip(
     if size is not None:
         headers["Content-Length"] = str(size)
     log.info("shares: zip of link %s, %s files", link.id, len(entries))
-    return StreamingResponse(
-        measured(request, project, body(), "share_zip"),
-        media_type="application/zip",
-        headers=headers,
-    )
+    return StreamingResponse(body(), media_type="application/zip", headers=headers)
 
 
 @router.get("/api/share/{token}/files/{key}", include_in_schema=False)
@@ -858,9 +853,7 @@ async def shared_file(
     except ApiError as error:
         return _download_failure(tenant, error, back)
     await db.close()  # before the bytes flow (plan section 15)
-    answer = streamed(
-        project, item, download, inline=False, request=request, source="share_download"
-    )
+    answer = streamed(project, item, download, inline=False)
     answer.headers["Referrer-Policy"] = "no-referrer"
     return answer
 

@@ -106,23 +106,3 @@ def test_startup_refuses_a_login_that_could_get_around_isolation(test_database_u
     )
     with pytest.raises(RuntimeError, match="could get around tenant isolation"), TestClient(app):
         pass
-
-
-def test_app_login_cannot_also_have_operator_membership(test_database_url):
-    """Self-test of the startup guard, including non-inherited SET ROLE access."""
-    from sqlalchemy import create_engine
-
-    owner_engine = create_engine(TEST_DATABASE_URL)
-    group = make_url(TEST_DATABASE_URL).database + "_operator"
-    with owner_engine.begin() as connection:
-        connection.exec_driver_sql(f'GRANT "{group}" TO "{RUNTIME_ROLE}" WITH INHERIT FALSE')
-    try:
-        with (
-            pytest.raises(RuntimeError, match="operator lifecycle"),
-            TestClient(create_app(runtime_settings())),
-        ):
-            pass
-    finally:
-        with owner_engine.begin() as connection:
-            connection.exec_driver_sql(f'REVOKE "{group}" FROM "{RUNTIME_ROLE}"')
-        owner_engine.dispose()
