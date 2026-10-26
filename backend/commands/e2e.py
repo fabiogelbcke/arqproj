@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from backend.commands import local_db
 from backend.commands.provision import provision_url
+from backend.commands.provision_operator import provision_url as provision_operator_url
 from backend.commands.seed import seed
 from backend.settings import LOCAL_MIGRATION_DATABASE_URL, LOCAL_RUNTIME_ROLE
 
@@ -67,6 +68,8 @@ def main() -> int:
     config.attributes["database_url"] = OWNER_URL
     command.upgrade(config, "head")
     provision_url(OWNER_URL, LOCAL_RUNTIME_ROLE)
+    local_db.create_runtime_role("arqproj_operator")
+    provision_operator_url(OWNER_URL, "arqproj_operator")
     asyncio.run(_seed())
     _sample_files()
     print(f"Ready: {DATABASE}")

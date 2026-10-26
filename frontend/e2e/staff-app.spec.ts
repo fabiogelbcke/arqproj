@@ -990,4 +990,42 @@ test("an operator sees every office and one office's team on the dashboard", asy
   await expect(page.getByRole("heading", { name: "Alinea (dev)", level: 1 })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Equipe" })).toBeVisible();
   await expect(page).toHaveURL(`${unio}/admin/escritorios/alinea`);
+  await expect(page.getByRole("heading", { name: "Uso do escritório" })).toBeVisible();
+  await page.getByRole("button", { name: "Carregar estatísticas de arquivos" }).click();
+  await expect(page.getByText("PDF", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ver este escritório no PostHog" })).toHaveAttribute("href", /tenant/);
+  await page.screenshot({ path: "test-results/admin-usage-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: "test-results/admin-usage-phone.png", fullPage: true });
+
+});
+
+
+test("an operator manages a fictional office with confirmation", async ({ page }) => {
+  const unio = `http://localhost:${PORT}`;
+  await page.goto(`${unio}/admin`);
+  await page.getByLabel(/E-mail autorizado/).fill(OPERATOR);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.getByRole("button", { name: "Criar escritório", exact: true }).click();
+  await page.getByLabel("Nome do escritório", { exact: true }).fill("Ateliê Horizonte");
+  await page.getByLabel(/Identificador/).fill("horizonte-teste");
+  await page.getByLabel(/Endereço \(sem/).fill("horizonte-teste.localhost");
+  await page.getByRole("button", { name: "Criar e gerar convite do responsável" }).click();
+  await expect(page.getByLabel("Link de cadastro do responsável")).toHaveValue(/#token=/);
+  await page.getByRole("link", { name: "Ateliê Horizonte" }).click();
+  await page.getByRole("button", { name: "Suspender", exact: true }).click();
+  await page.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Reativar", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Reativar", exact: true }).click();
+  await page.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Suspender", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Suspender", exact: true }).click();
+  await page.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await page.getByRole("button", { name: "Excluir escritório", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Confirmar", exact: true })).toBeDisabled();
+  await page.getByLabel("Digite o nome exato do escritório").fill("Ateliê Horizonte");
+  await page.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Escritórios", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ateliê Horizonte" })).toHaveCount(0);
 });

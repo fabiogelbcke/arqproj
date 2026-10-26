@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from posthog import Posthog
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from backend.db import runtime_role
 from backend.db.engine import create_engine, create_sessionmaker
@@ -148,6 +149,14 @@ async def verify_runtime_login(engine, settings: Settings) -> None:
                 f"DATABASE_URL logs in as {login!r}, but DATABASE_RUNTIME_ROLE is "
                 f"{settings.database_runtime_role!r}"
             )
+        lifecycle_access = await connection.scalar(
+            text(
+                "SELECT has_table_privilege(current_user, 'tenants', 'INSERT,DELETE') "
+                "OR has_column_privilege(current_user, 'tenants', 'status', 'UPDATE') "
+                "OR EXISTS (SELECT 1 FROM pg_roles WHERE rolname = current_database() || "
+                "'_operator' AND pg_has_role(current_user, oid, 'MEMBER'))"
+            )
+        )
         problems = (
             await connection.execute(text(runtime_role.PROBLEMS_SQL_SQLALCHEMY), {"login": login})
         ).all()
@@ -156,6 +165,8 @@ async def verify_runtime_login(engine, settings: Settings) -> None:
             f"refusing to serve as {login!r}, which could get around tenant isolation: "
             f"{runtime_role.describe(problems)}"
         )
+    if lifecycle_access:
+        raise RuntimeError("app login must not have operator lifecycle privileges")
 
 
 @asynccontextmanager
@@ -174,10 +185,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     app.state.posthog = posthog_client
 
+    operator_engine = None
     engine = create_engine(settings)
     try:
         await verify_runtime_login(engine, settings)
         app.state.sessionmaker = create_sessionmaker(engine)
+        if settings.operator_database_url:
+            operator_engine = create_async_engine(
+                settings.operator_database_url, pool_size=1, max_overflow=1, pool_pre_ping=True
+            )
+            async with operator_engine.connect() as connection:
+                login = await connection.scalar(text("SELECT session_user"))
+                problems = (
+                    await connection.execute(
+                        text(runtime_role.PROBLEMS_SQL_SQLALCHEMY), {"login": login}
+                    )
+                ).all()
+                permitted = await connection.scalar(
+                    text(
+                        "SELECT pg_has_role(current_user, "
+                        "current_database() || '_operator', 'USAGE')"
+                    )
+                )
+                if problems or not permitted or login == settings.database_runtime_role:
+                    raise RuntimeError("operator database login must be separate and restricted")
+            app.state.operator_sessionmaker = create_sessionmaker(operator_engine)
         # One HTTP client for Google, and the server's own Drive identity.
         app.state.http = httpx2.AsyncClient(timeout=30)
         app.state.google = GoogleDriveStorage(ServerIdentity(), app.state.http)
@@ -187,6 +219,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await app.state.http.aclose()
         if posthog_client is not None:
             posthog_client.shutdown()  # sends what is still queued
+        if operator_engine is not None:
+            await operator_engine.dispose()
         await engine.dispose()
 
 
