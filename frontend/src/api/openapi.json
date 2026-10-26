@@ -543,6 +543,34 @@
         }
       }
     },
+    "/api/auth/google/start": {
+      "post": {
+        "summary": "Start",
+        "operationId": "start_api_auth_google_start_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/me/email-code": {
       "post": {
         "summary": "Enter Code",
@@ -7269,6 +7297,19 @@
           "completed"
         ],
         "title": "StageOut"
+      },
+      "StartOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "StartOut"
       },
       "StorageKind": {
         "type": "string",

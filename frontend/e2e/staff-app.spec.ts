@@ -64,12 +64,12 @@ test("invite → choose password → projects → deep link → sign out → sig
 
   await page.getByLabel("E-mail").fill("teste@alinea.example");
   await page.getByLabel("Senha", { exact: true }).fill("senha errada");
-  await page.getByRole("button", { name: "Entrar" }).click();
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("E-mail ou senha incorretos.");
   await expect(page.getByRole("alert")).toContainText("Código de suporte:");
 
   await page.getByLabel("Senha", { exact: true }).fill("senha-escolhida");
-  await page.getByRole("button", { name: "Entrar" }).click();
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Projetos" })).toBeVisible();
 
   // The invite link was spent.

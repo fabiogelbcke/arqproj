@@ -48,7 +48,9 @@ const date = (value: string, locale: string) => new Date(value).toLocaleDateStri
 function SignIn() {
   const { t } = useTranslation();
   const client = useQueryClient();
-  const problem = new URLSearchParams(window.location.search).get("entrar");
+  const query = new URLSearchParams(window.location.search);
+  const problem = query.get("entrar");
+  const reference = query.get("ref");
   const [email, setEmail] = useState("");
   const google = useMutation({
     mutationFn: () => call(api.POST("/api/admin/signin")),
@@ -67,6 +69,7 @@ function SignIn() {
         {problem && (
           <p role="alert" className={styles.problem}>
             {t(`admin.signInProblem.${problem}`, { defaultValue: t("admin.signInProblem.falhou") })}
+            {reference && <span className={styles.muted}>{t("errors.reference", { id: reference })}</span>}
           </p>
         )}
         <Button variant="primary" onPress={() => google.mutate()} isDisabled={google.isPending}>

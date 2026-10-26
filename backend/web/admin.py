@@ -36,9 +36,10 @@ from backend.operators.google_signin import GoogleSignIn, SignInError, new_verif
 from backend.security import keys
 from backend.tenancy.middleware import OPERATOR_PAGE
 from backend.tenancy.resolve import current_tenant, normalize_host
-from backend.web import pages
+from backend.web import attempts, google_signin, pages
 from backend.web.auth import optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
+from backend.web.request_id import current_request_id
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -223,7 +224,8 @@ async def signin(request: Request, response: Response) -> SigninOut:
 
 
 def _back(problem: str | None = None) -> RedirectResponse:
-    target = PAGE + (f"?entrar={problem}" if problem else "")
+    # With the request ID its log line carries, so the page shows the support code.
+    target = PAGE + (f"?entrar={problem}&ref={current_request_id()}" if problem else "")
     response = RedirectResponse(target, status_code=302)
     response.delete_cookie(FLOW_COOKIE, path=CALLBACK)
     return response
@@ -231,7 +233,11 @@ def _back(problem: str | None = None) -> RedirectResponse:
 
 @router.get(CALLBACK, include_in_schema=False)
 async def callback(request: Request) -> Response:
+    """Google's one return address, for operators and for every office: an
+    office's sign-in goes on to that office's own address (google_signin)."""
     _on_operator_host(request)
+    if (office := google_signin.office_state(request)) is not None:
+        return await google_signin.forward(request, office)
     settings = _settings(request)
     try:
         flow = keys.verify(settings.app_secret, FLOW_PURPOSE, request.cookies.get(FLOW_COOKIE, ""))
@@ -241,6 +247,9 @@ async def callback(request: Request) -> Response:
         return _back("expirado")
     if request.query_params.get("error") or not request.query_params.get("code"):
         return _back("cancelado")
+    who = attempts.device(request)  # as office sign-in (google_signin.TRIES)
+    if not attempts.admit(google_signin.TRIES, who):
+        return _back("tentativas")
     try:
         identity = await _google(request).identify(
             getattr(request.app.state, "http", None),  # set up at app start
@@ -249,8 +258,10 @@ async def callback(request: Request) -> Response:
             flow["nonce"],
         )
     except SignInError as error:
+        attempts.failed(google_signin.TRIES, who)
         log.error("operator sign-in failed: route=%s %s", CALLBACK, error.detail)
         return _back("falhou")
+    attempts.succeeded(google_signin.TRIES, who)
     if identity.email not in settings.operator_allowlist:
         # Who tried is worth knowing; the page only says "not allowed".
         log.warning("operator sign-in refused for %s", identity.email)

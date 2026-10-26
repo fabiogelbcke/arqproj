@@ -588,6 +588,24 @@ replay, wrong-host and mismatched-browser redemption. Preserve the initiating
 browser proof in a host-only cookie. Exact protocol handling gets its own tests
 and security review; do not improvise a cross-subdomain token in localStorage.
 
+**Built (26 Oct 2026): "Entrar com Google" on the painel's sign-in page**
+(`backend/web/google_signin.py`, sharing `backend/operators/google_signin.py`
+with the operator dashboard). The callback is on Unio's own address (the one
+`GOOGLE_SIGNIN_REDIRECT_URI`, `…/api/auth/google/callback`, the same as the
+operator dashboard's); it forwards the return to the office address named in
+the signed `state`, only if that address is registered to that office. The
+hand-off is Google's own authorization code rather than one the app mints: it
+is single use and short lived, and redeemable only with the PKCE verifier kept,
+with the state and nonce, in a signed cookie for the office's address alone, so
+replay, another office's address and another browser are refused as this
+section asks, with nothing of ours to store. Google signs in an existing
+account of that office by its verified email (and confirms it, under the same
+per-account lock as codes and links), never creates one, and doesn't accept a
+pending invite (its link does, first); passwords keep working. Code exchanges
+are rate-limited per device (5 failures in 15 minutes, as passwords), for
+offices and operators alike; a failure's support code comes back with the
+redirect. Sign-up and owner links don't offer Google yet.
+
 Staff roles for the pilot:
 
 | Actor | Read public project | Administer project/files | Invite staff / Drive connection / office settings |

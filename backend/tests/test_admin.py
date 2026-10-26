@@ -12,7 +12,7 @@ from backend.commands.seed import seed
 from backend.operators.google_signin import GoogleSignIn, Identity, SignInError, challenge
 from backend.settings import Environment
 from backend.tests.test_office import ALINEA
-from backend.web import admin
+from backend.web import admin, attempts
 
 pytestmark = pytest.mark.anyio
 
@@ -192,6 +192,7 @@ def google(app, monkeypatch):
         update={"google_oauth_client_id": "client-1", "google_oauth_client_secret": "secret-1"}
     )
     answers = {}
+    attempts.reset()
 
     async def identify(self, http, code, verifier, nonce):
         answers["got"] = (code, verifier, nonce)
@@ -233,7 +234,7 @@ async def test_a_return_that_doesnt_match_signs_nobody_in(client, operators, goo
     query, _cookie = await start(client)
     params = {"state": query["state"], "code": "c-1"} | change
     back = await client.get("/api/auth/google/callback", params=params, headers=UNIO)
-    assert back.headers["location"] == f"/admin?entrar={said}"
+    assert back.headers["location"].startswith(f"/admin?entrar={said}&ref=")
     assert (await client.get("/api/admin/me", headers=UNIO)).status_code == 401
 
 
@@ -243,7 +244,7 @@ async def test_a_return_in_another_browser_finds_nothing_to_match(client, operat
     back = await client.get(
         "/api/auth/google/callback", params={"state": query["state"], "code": "c-1"}, headers=UNIO
     )
-    assert back.headers["location"] == "/admin?entrar=expirado"
+    assert back.headers["location"].startswith("/admin?entrar=expirado&ref=")
 
 
 async def test_a_google_account_off_the_list_is_refused(client, operators, google, caplog):
@@ -252,7 +253,7 @@ async def test_a_google_account_off_the_list_is_refused(client, operators, googl
     back = await client.get(
         "/api/auth/google/callback", params={"state": query["state"], "code": "c-1"}, headers=UNIO
     )
-    assert back.headers["location"] == "/admin?entrar=negado"
+    assert back.headers["location"].startswith("/admin?entrar=negado&ref=")
     assert (await client.get("/api/admin/me", headers=UNIO)).status_code == 401
     assert "intruso@gmail.com" in caplog.text
 
@@ -265,7 +266,7 @@ async def test_googles_failure_is_logged_and_the_page_says_only_that_it_failed(
     back = await client.get(
         "/api/auth/google/callback", params={"state": query["state"], "code": "c-1"}, headers=UNIO
     )
-    assert back.headers["location"] == "/admin?entrar=falhou"
+    assert back.headers["location"].startswith("/admin?entrar=falhou&ref=")
     assert "secret detail" in caplog.text
 
 
@@ -307,3 +308,17 @@ def test_a_good_id_token_gives_the_verified_email():
 def test_an_id_token_that_isnt_for_us_now_is_refused(claims):
     with pytest.raises(SignInError):
         SIGNIN.read(id_token(**claims), "n-1")
+
+
+async def test_operator_sign_in_failing_again_and_again_must_wait(client, operators, google):
+    google["identity"] = SignInError("invalid_grant")
+    for _ in range(attempts.LIMIT):
+        query, _cookie = await start(client)
+        await client.get(
+            "/api/auth/google/callback", params={"state": query["state"], "code": "c"}, headers=UNIO
+        )
+    query, _cookie = await start(client)
+    back = await client.get(
+        "/api/auth/google/callback", params={"state": query["state"], "code": "c"}, headers=UNIO
+    )
+    assert back.headers["location"].startswith("/admin?entrar=tentativas&ref=")
