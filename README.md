@@ -314,10 +314,9 @@ time and support ID in `operator_audit_events`, in the same transaction. Audit
 history survives office deletion; the audit browsing screen is deferred.
 
 Without `OPERATOR_DATABASE_URL`, statistics work and action controls are hidden.
-The operator login must not be the migration owner or ordinary app login. On a
-deployment, create a separate IAM login and run `provision_operator --login …`
-with the migration owner's connection, then set `OPERATOR_DATABASE_URL` only
-after approval. No deployment or cloud identity is created by these changes.
+The operator login must not be the migration owner or ordinary app login. Staging and
+production each have their own operator login (docs/infrastructure.md,
+"Operator dashboard"); `make operator-login ENV=…` gives it its access.
 
 PostHog receives `file_transfer` with `bytes`, `complete` and `source`
 (`project_download`, `preview`, `share_download`, `share_zip`). Bytes are those

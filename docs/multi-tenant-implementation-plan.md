@@ -1907,7 +1907,8 @@ section 5's role table gets its tools at `myunio.app/admin`:
   distinguished, and no file names. No usage tables. Lifecycle actions require
   an audit event in the same transaction; the audit browsing UI can follow later.
   The audit table and limited lifecycle permissions are approved for implementation;
-  deployment remains a separate approval.
+  deploying them was approved on 26 Oct 2026 (Fabio): one operator login per
+  environment, reached through a second proxy (docs/infrastructure.md).
 - **Slice 3, PostHog.** Offices as PostHog groups for usage trends (building on
   PR #106); the office page links to its PostHog view.
 - **Built, slice 1 (26 Oct 2026):** `backend/web/admin.py`,
