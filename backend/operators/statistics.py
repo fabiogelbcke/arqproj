@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from backend.projects.models import Project, ProjectStage
-from backend.storage.base import StorageItem
+from backend.storage.base import StorageError, StorageItem, StorageProblem
 from backend.web.page_files import _in_project, stage_groups
 
 
@@ -73,7 +73,14 @@ async def load_files(db, storage) -> FileStats:
     seen: set[str] = set()
     populated = 0
     for project in projects:
-        inside = await _in_project(storage, project)
+        try:
+            inside = await _in_project(storage, project)
+        except StorageError as error:
+            # A project folder deleted from Drive holds no client-visible files (its
+            # page shows them as unavailable); any other failure makes the scan partial.
+            if error.problem is not StorageProblem.NOT_FOUND:
+                raise
+            inside = set()
         has_files = False
         for folder in folders[project.id]:
             if folder not in inside:

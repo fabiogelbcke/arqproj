@@ -5,7 +5,7 @@
 SHELL := /bin/bash
 FRONTEND := frontend
 
-# Admin commands (staff, owner-link, reset-link, reset-tour, tenant) take ENV=local (default),
+# Admin commands (staff, owner-link, reset-link, reset-tour, tenant, operator-login) take ENV=local (default),
 # ENV=staging or ENV=production. Both are reached through the Cloud SQL Auth Proxy, signed in as
 # your Google account (gcloud auth application-default login, once) acting as
 # that environment's deploy identity, the schema's
@@ -31,7 +31,7 @@ define on_database
 	else echo "ENV must be local, staging or production"; exit 2; fi
 endef
 
-.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff owner-link reset-link reset-tour tenant tenant-host alerts
+.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff owner-link reset-link reset-tour tenant tenant-host operator-login alerts
 
 help: ## List the commands
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -120,6 +120,10 @@ tenant: ## New office: make tenant SLUG=alinea NAME="ALINEA ARQUITETOS" HOST=add
 tenant-host: ## Another address for an office: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging|production]
 	@test -n "$(SLUG)" -a -n "$(HOST)" || { echo "Usage: make tenant-host SLUG=alinea HOST=address [PRIMARY=1] [ENV=staging|production]"; exit 2; }
 	$(call on_database,uv run python -m backend.commands.tenants add-host --slug "$(SLUG)" --host "$(HOST)" $(if $(PRIMARY),--primary))
+
+operator-login: ## Give the admin actions' login its access (A38): make operator-login ENV=staging|production
+	@test "$(ENV)" != "local" || { echo "Locally: see README, Operator dashboard locally"; exit 2; }
+	$(call on_database,uv run python -m backend.commands.provision_operator --login "portal-$(ENV)-operator@arq-proj.iam")
 
 alerts: ## The live site's email alerts (deploy/production/monitoring): make alerts EMAIL=you@x.com
 	@test -n "$(EMAIL)" || { echo "Usage: make alerts EMAIL=you@x.com"; exit 2; }

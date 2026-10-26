@@ -15,7 +15,7 @@ spec:
         autoscaling.knative.dev/maxScale: "2"
         run.googleapis.com/startup-cpu-boost: "true"
         # The app starts only once the database proxy is ready.
-        run.googleapis.com/container-dependencies: '{"app":["cloudsql"]}'
+        run.googleapis.com/container-dependencies: '{"app":["cloudsql","cloudsql-operator"]}'
     spec:
       serviceAccountName: portal-staging@arq-proj.iam.gserviceaccount.com
       containerConcurrency: 80
@@ -39,6 +39,11 @@ spec:
               value: postgresql+psycopg://portal-staging%40arq-proj.iam@127.0.0.1:5432/arqproj_staging
             - name: DATABASE_RUNTIME_ROLE
               value: portal-staging@arq-proj.iam
+            # The operator dashboard's lifecycle actions (A38): a separate, limited login
+            # (member of arqproj_staging_operator, by `make operator-login`), through
+            # the second proxy below, which signs in as that login's own identity.
+            - name: OPERATOR_DATABASE_URL
+              value: postgresql+psycopg://portal-staging-operator%40arq-proj.iam@127.0.0.1:5433/arqproj_staging
             # Google Drive connection (docs/infrastructure.md, "Google Drive on staging").
             - name: GOOGLE_OAUTH_CLIENT_ID
               value: 496714293251-do3f1dtjsv5ae4l7559h3ghhg2ng34u5.apps.googleusercontent.com
@@ -108,5 +113,27 @@ spec:
             httpGet:
               path: /startup
               port: 9801
+            periodSeconds: 1
+            failureThreshold: 30
+        # The same proxy for the operator login: it acts as portal-staging-operator@
+        # (this service's identity may, docs/infrastructure.md), on port 5433.
+        - name: cloudsql-operator
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.26.2
+          args:
+            - --auto-iam-authn
+            - --impersonate-service-account=portal-staging-operator@arq-proj.iam.gserviceaccount.com
+            - --port=5433
+            - --health-check
+            - --http-address=0.0.0.0
+            - --http-port=9802
+            - arq-proj:us-east1:arqproj-db
+          resources:
+            limits:
+              cpu: "0.25"
+              memory: 128Mi
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 9802
             periodSeconds: 1
             failureThreshold: 30
