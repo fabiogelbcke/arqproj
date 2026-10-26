@@ -36,7 +36,7 @@ spec:
             # last X-Forwarded-For entry (backend/web/attempts.py).
             - name: FORWARDED_HOPS
               value: "2"
-            # Product analytics (A38). A PostHog project token is public by design
+            # Product analytics (A39). A PostHog project token is public by design
             # (it reaches staff browsers through /api/me), so it is set here, not in
             # Secret Manager. Staging has none: its clicks stay out of the numbers.
             - name: POSTHOG_PROJECT_TOKEN

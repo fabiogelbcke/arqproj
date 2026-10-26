@@ -19,6 +19,30 @@ a new entry too.
 
 ---
 
+## 2026-10-26 — A39 (new): product analytics with PostHog, server and browser
+
+**Was:** no product analytics; the privacy policy listed Google Cloud and Resend
+as the only providers.
+
+**Now:** the backend sends staff actions and server errors to PostHog, tied to
+the account's id, its role and its office, never the email or name. It runs only
+where the token is set (production). The privacy policy names PostHog.
+
+**Why:** Fabio wants to see how offices use the product. The PostHog wizard's
+setup sent the staff member's email and name as person properties: Fabio chose
+the id and role only (26 Oct 2026), which is enough to count and follow usage
+without personal data at a US provider. He added the office as a group, so usage
+can be seen per office. The wizard's Logs exporter (three packages for three log
+lines, one per health check) was dropped: Cloud Logging and the email alerts
+already cover it. It also failed every local run without a token, and read the
+old app's `.env`, which would have sent tests' events to the real project; both
+removed. The browser side (the wizard's too) read its key at build time; but
+production deploys staging's image, so the key now comes from `/api/me` at run
+time, to staff only. Its events that the server already sends (projects, stages,
+share links) were dropped so nothing counts twice.
+
+---
+
 ## 2026-10-26 — Section 5: Google sign-in's hand-off is Google's PKCE-bound code
 
 **Was:** the shared return address completes login on the office through "a
@@ -107,30 +131,6 @@ creates members only and neither lists nor revokes owner links.
 flow already built, while keeping office and address creation in operator
 commands. A combined office-creation command and a guided setup checklist remain
 future work.
-
----
-
-## 2026-10-26 — A39 (new): product analytics with PostHog, server side
-
-**Was:** no product analytics; the privacy policy listed Google Cloud and Resend
-as the only providers.
-
-**Now:** the backend sends staff actions and server errors to PostHog, tied to
-the account's id, its role and its office, never the email or name. It runs only
-where the token is set (production). The privacy policy names PostHog.
-
-**Why:** Fabio wants to see how offices use the product. The PostHog wizard's
-setup sent the staff member's email and name as person properties: Fabio chose
-the id and role only (26 Oct 2026), which is enough to count and follow usage
-without personal data at a US provider. He added the office as a group, so usage
-can be seen per office. The wizard's Logs exporter (three packages for three log
-lines, one per health check) was dropped: Cloud Logging and the email alerts
-already cover it. It also failed every local run without a token, and read the
-old app's `.env`, which would have sent tests' events to the real project; both
-removed. The browser side (the wizard's too) read its key at build time; but
-production deploys staging's image, so the key now comes from `/api/me` at run
-time, to staff only. Its events that the server already sends (projects, stages,
-share links) were dropped so nothing counts twice.
 
 ---
 

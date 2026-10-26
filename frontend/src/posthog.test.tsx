@@ -20,7 +20,7 @@ beforeEach(() => {
   vi.resetModules(); // each test starts with PostHog not yet started
 });
 
-describe("product analytics in the browser (A38)", () => {
+describe("product analytics in the browser (A39)", () => {
   it("starts for signed-in staff with the server's key: their id, role and office, never email or name", async () => {
     const { capture, startAnalytics } = await import("./posthog");
     capture("too_early"); // before it starts: nothing

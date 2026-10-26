@@ -1,4 +1,4 @@
-// Product analytics (A38), in the browser: only for signed-in staff, with the key
+// Product analytics (A39), in the browser: only for signed-in staff, with the key
 // the server gives them for this environment (/api/me's `analytics`). So one build
 // serves staging and production, each with its own key or none, and clients' and
 // suppliers' browsers never load it: the SDK is fetched only once it starts.

@@ -96,7 +96,7 @@ class ChoosePasswordIn(BaseModel):
 
 
 class AnalyticsOut(BaseModel):
-    """Product analytics for the browser (A38), given only to signed-in staff and
+    """Product analytics for the browser (A39), given only to signed-in staff and
     only where the server has PostHog set, so one image serves staging and
     production with each one's own key, and visitors' browsers never load it."""
 

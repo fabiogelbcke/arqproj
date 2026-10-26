@@ -106,7 +106,7 @@ export function DriveDetails({
               <Button
                 variant="primary"
                 onPress={() => {
-                  // Only the start shows here: the rest happens at Google (A38).
+                  // Only the start shows here: the rest happens at Google (A39).
                   capture("drive_connection_started", {
                     connection_type: status.has_folder ? "reconnect" : "initial",
                   });
