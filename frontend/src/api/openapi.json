@@ -1950,7 +1950,7 @@
       },
       "get": {
         "summary": "Project Shares",
-        "description": "Every link of the project, newest first, for staff.",
+        "description": "Every link of the project, newest first, for staff, with its address.",
         "operationId": "project_shares_api_pages__slug__shares_get",
         "parameters": [
           {
@@ -2280,6 +2280,16 @@
               }
             }
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -2299,6 +2309,79 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/share/{token}/unlock": {
+      "post": {
+        "summary": "Unlock Share",
+        "description": "The supplier types the link's password once per device.",
+        "operationId": "unlock_share_api_share__token__unlock_post",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlockIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too Many Requests"
           },
           "422": {
             "description": "Validation Error",
@@ -4802,7 +4885,9 @@
           "share_not_found",
           "share_too_large",
           "share_files_changed",
-          "share_daily_limit"
+          "share_daily_limit",
+          "share_locked",
+          "wrong_share_password"
         ],
         "title": "ErrorCode"
       },
@@ -6233,6 +6318,18 @@
           },
           "expiry": {
             "$ref": "#/components/schemas/ShareExpiry"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 25
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
           }
         },
         "type": "object",
@@ -6359,6 +6456,21 @@
               }
             ],
             "title": "Last Download At"
+          },
+          "protected": {
+            "type": "boolean",
+            "title": "Protected"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
           }
         },
         "type": "object",
@@ -6374,7 +6486,8 @@
           "available",
           "newer",
           "downloads",
-          "last_download_at"
+          "last_download_at",
+          "protected"
         ],
         "title": "ShareOut"
       },
@@ -6474,6 +6587,17 @@
           "unavailable": {
             "type": "integer",
             "title": "Unavailable"
+          },
+          "zip_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zip Size"
           }
         },
         "type": "object",

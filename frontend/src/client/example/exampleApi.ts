@@ -5,7 +5,7 @@
 // types and details the editors offer. Every other /api request stays here.
 import type { Schemas } from "../../api/client";
 import { fileSource, type Page } from "../format";
-import { EXAMPLE_SLUG } from "./address";
+import { EXAMPLE_SHARE, EXAMPLE_SHARE_KEY, EXAMPLE_SLUG } from "./address";
 import { atOfficeTime, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
 
 const READS = ["/api/me", "/api/tenant", "/api/project-types", "/api/detail-types"];
@@ -126,6 +126,56 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     return done;
   };
   const stage = (match: string[]) => project.stages[Number(match[1]) - 1];
+  // "Compartilhar arquivos" (A37), in this browser: the links made, and the page
+  // the example's link opens (SharePage at /share/exemplo reads it).
+  let links: { link: Schemas["ShareOut"]; keys: string[] }[] = [];
+  const shareLink = (body: Body): Schemas["ShareMadeOut"] => {
+    const keys = body.files as string[];
+    const days = body.expiry === "7d" ? 7 : body.expiry === "30d" ? 30 : null;
+    const expires = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
+    const link: Schemas["ShareOut"] = {
+      id: id(),
+      label: (body.label as string | null) || null,
+      made_by: signedIn ? "Você" : null,
+      created_at: new Date().toISOString(),
+      expires_at: expires,
+      disabled: false,
+      expired: false,
+      files: keys.length,
+      available: keys.length,
+      newer: 0,
+      downloads: 0,
+      last_download_at: null,
+      protected: false, // the example's page opens without one
+    };
+    links = [{ link, keys }, ...links];
+    const picked = keys.flatMap((key) =>
+      project.stages.flatMap((s, i) =>
+        s.groups.flatMap((g) => g.files.filter((f) => f.key === key).map((f) => ({ ...f, position: i + 1, stage: s.title }))),
+      ),
+    );
+    try {
+      localStorage.setItem(
+        EXAMPLE_SHARE_KEY,
+        JSON.stringify({
+          project: project.name,
+          label: link.label,
+          expires_at: expires,
+          files: picked.map((f) => ({
+            name: f.name,
+            kind: f.kind,
+            size: f.size,
+            modified_at: f.modified_at,
+            stage: `${String(f.position).padStart(2, "0")} ${f.stage}`,
+            url: f.url,
+          })),
+        }),
+      );
+    } catch {
+      // Storage off: the example's link opens on an empty page.
+    }
+    return { link, url: `${window.location.origin}/share/${EXAMPLE_SHARE}`, owner: link.id };
+  };
 
   const routes: Route[] = [
     ["GET", new RegExp(`^${PAGE}$`), () => ({ body: page() })],
@@ -133,6 +183,23 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     ["POST", /^\/api\/me\/tour-seen$/, () => done], // the example's tour stores nothing
     // "Novidades por e-mail": as if signed up; nothing leaves the browser.
     ["POST", new RegExp(`^${PAGE}/subscribe$`), () => done],
+    ["POST", new RegExp(`^${PAGE}/shares$`), (_, body) => ({ status: 201, body: shareLink(body) })],
+    ["GET", new RegExp(`^${PAGE}/shares$`), () => ({ body: links.map((l) => l.link) })],
+    [
+      "POST",
+      new RegExp(`^${PAGE}/shares/mine$`),
+      (_, body) => ({ body: links.filter((l) => (body.owners as string[]).includes(l.link.id)).map((l) => l.link) }),
+    ],
+    [
+      "POST",
+      new RegExp(`^${PAGE}/shares/([^/]+)/(disable|refresh)$`),
+      (match) => {
+        const found = links.find((l) => l.link.id === match[1]);
+        if (!found) return refused("share_not_found", 404);
+        if (match[2] === "disable") found.link = { ...found.link, disabled: true };
+        return { body: found.link };
+      },
+    ],
     [
       "PATCH",
       new RegExp(`^${PROJECT}$`),

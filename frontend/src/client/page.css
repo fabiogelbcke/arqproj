@@ -515,3 +515,4 @@ label.share-stage__head { cursor: pointer; }
   .share-actions:not(.share-actions--row) { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
   .share-panel [role="radiogroup"] { display: grid; width: 100%; box-sizing: border-box; }
 }
+.share-page .share-page__all { display: inline-flex; margin: 0 0 18px; }

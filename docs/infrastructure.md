@@ -5,7 +5,7 @@ and why. This is a record, not a script: deploys happen by merging on GitHub
 (`staging` → staging; `main` → production). Change infrastructure
 deliberately, with approval, and update this file in the same pull request.
 
-Production is the Cloud Run service `portal` (`alineaarquitetos.com`), which ran the
+Production is the Cloud Run service `portal` (Alinea at `alinea.myunio.app`), which ran the
 old Flask site (`app.py`) until the new app replaced it in place. Every project
 on it was test data (Fabio, 17 Oct 2026), so nothing was migrated.
 
@@ -103,8 +103,10 @@ by `portal-staging@` and named in `deploy/staging/service.yaml`.
 ## Cloud Run `portal` (production)
 
 Same shape as staging (`deploy/production/service.yaml`), 0–4 instances, running
-as `portal-production@`. Addresses: `alineaarquitetos.com` and `www.`, and
-`myunio.app` (Cloud Run domain mappings until they move to the load balancer below, A21), and
+as `portal-production@`. Addresses: `alinea.myunio.app`, office `alinea`'s primary
+address since 25 Oct 2026 (Fabio; `alineaarquitetos.com` and `www.` redirect to it,
+except the `/` home page, which every address shows), and `myunio.app`, all through
+the load balancer below (A21), and
 `https://portal-496714293251.us-east1.run.app`. Secrets:
 `portal-production-app-secret` (its own), `portal-oauth-client-secret` and
 `portal-resend-api-key` (production's, from the old site). Drive uses the production OAuth client

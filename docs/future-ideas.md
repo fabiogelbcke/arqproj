@@ -101,9 +101,8 @@ decision in the [decision changelog](decision-changelog.md).
 
 ## Sharing files with a supplier by link
 
-Agreed 25 Oct 2026 and moved to the plan: A37 and section 15. Still open there:
-"Baixar tudo" as a zip, a password per link, and a link that takes in a stage's
-future files.
+Agreed 25 Oct 2026 and moved to the plan: A37 and section 15. Still open: a
+link that takes in a stage's future files.
 
 ## Moving projects to another cloud account
 

@@ -19,6 +19,26 @@ a new entry too.
 
 ---
 
+## 2026-10-25 — A37, sections 7 and 15: "Baixar tudo", a password per link, staff copy any link
+
+**Was:** a supplier downloaded files one at a time; a link had no password of
+its own; only a hash of a link's token was stored, so only the device that made
+a link could copy it again.
+
+**Now:** "Baixar tudo" downloads every file of the link as one zip, a folder per
+stage. The sender can protect a link with a password. The token is also kept
+encrypted, so staff can copy any link from the project's list. A client still
+sees and manages only the links made on their device (Fabio chose to keep it).
+
+**Why:** Fabio asked for the zip and the password (25 Oct 2026), the slices left
+for later. Keeping only a hash protected less than it seemed: a link opens only
+files the client can already see, and staff need to resend links they didn't
+make. Clients stay per device because anyone with the page's address counts as
+the client, so letting every visitor see or manage every link would let anyone
+with that address turn off the office's links to its suppliers.
+
+---
+
 ## 2026-10-25 — A36, section 5: the shared link takes a password; a code confirms the email
 
 **Was:** whoever opened the office's shared link gave a name and an email and was

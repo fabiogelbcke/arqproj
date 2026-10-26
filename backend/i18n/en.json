@@ -270,7 +270,9 @@
     "email_code_expired": "This code no longer works. Ask for a new one.",
     "email_code_recent": "We sent a code a moment ago. Wait 2 minutes to ask for another.",
     "email_not_sent": "We couldn't send the email. Try again in a few minutes.",
-    "already_confirmed": "This email is already confirmed. Reload the page."
+    "already_confirmed": "This email is already confirmed. Reload the page.",
+    "share_locked": "This link is protected by a password. Go back to the files and type it.",
+    "wrong_share_password": "Wrong password. Check with whoever sent the link."
   },
   "projectStatus": {
     "draft": "Draft",
@@ -835,6 +837,14 @@
     }
   },
   "share": {
+    "password": "Password (optional)",
+    "passwordHint": "Whoever gets the link will need to type it. Send the password separately from the link.",
+    "protectedNote": "Protected by a password: send it separately.",
+    "withPassword": "Password",
+    "lockedTitle": "Protected files",
+    "lockedBody": "Type the password you were given with the link.",
+    "downloadAll": "Download all",
+    "downloadAllSize": "Download all ({{size}})",
     "newTab": "New link",
     "linksTab": "Links made ({{count}})",
     "pickFilesHint": "Open a stage and tick its files one by one.",
