@@ -22,6 +22,7 @@ from backend.settings import Settings
 from backend.storage.google import GoogleDriveStorage, ServerIdentity
 from backend.tenancy.middleware import TenantMiddleware
 from backend.web import (
+    admin,
     auth,
     drive,
     email_confirmation,
@@ -160,6 +161,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(home.router)
     app.include_router(legal.router)
     app.include_router(maintenance.router)
+    app.include_router(admin.router)  # before the pages: /admin is no project's
     app.include_router(auth.router)
     app.include_router(email_confirmation.router)
     app.include_router(tenant.router)

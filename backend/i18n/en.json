@@ -197,6 +197,7 @@
     "en": "English"
   },
   "errors": {
+    "signin_not_configured": "Signing in with Google isn't set up in this environment.",
     "version_type_mismatch": "The new version must be the same type of file as the current one.",
     "invalid_staff_name": "Give the name (up to 80 characters).",
     "already_staff": "This person is already on the team.",
@@ -923,5 +924,68 @@
     "unavailableTitle": "Link unavailable",
     "failedTitle": "The files couldn't be loaded",
     "loading": "Loading…"
+  },
+  "admin": {
+    "title": "Unio operations",
+    "signInIntro": "Sign in with an authorized Google account to see the platform's offices.",
+    "signInGoogle": "Sign in with Google",
+    "devSignIn": "Authorized email (local only)",
+    "devSignInSubmit": "Sign in",
+    "signInProblem": {
+      "expirado": "The sign-in attempt expired. Try again.",
+      "cancelado": "Sign-in was cancelled at Google.",
+      "negado": "This Google account has no access here.",
+      "falhou": "Signing in with Google didn't finish. Try again in a moment."
+    },
+    "offices": "Offices",
+    "office": "Office",
+    "team": "Team",
+    "projects": "Projects",
+    "storageTitle": "Storage",
+    "lastActivity": "Last activity",
+    "emails": "Emails (30 days)",
+    "links": "Links",
+    "created": "Created",
+    "teamCount_one": "{{count}} person",
+    "teamCount_other": "{{count}} people",
+    "owners_one": "{{count}} owner",
+    "owners_other": "{{count}} owners",
+    "pending_one": "{{count}} pending",
+    "pending_other": "{{count}} pending",
+    "activeCount_one": "{{count}} in progress",
+    "activeCount_other": "{{count}} in progress",
+    "otherProjects": "{{completed}} completed · {{archived}} archived",
+    "downloads_one": "{{count}} download",
+    "downloads_other": "{{count}} downloads",
+    "storage": {
+      "connected": "Google Drive connected",
+      "expired": "Google Drive expired",
+      "disconnected": "Google Drive disconnected",
+      "unreadable": "Folder unreadable",
+      "folder": "Local folder",
+      "none": "Not connected"
+    },
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended"
+    },
+    "support": "Support code",
+    "supportIntro": "Paste the code shown on the client's error screen to open that request's logs.",
+    "supportCode": "Code",
+    "supportInvalid": "The code has 32 letters and digits.",
+    "supportOpen": "Open logs",
+    "logsOnlyDeployed": "Logs are only available on the published site.",
+    "errors": "Recent errors",
+    "errorsOpen": "Open this office's errors in the logs (7 days)",
+    "who": "Person",
+    "role": "Role",
+    "state": "Status",
+    "lastSeen": "Last seen",
+    "noTeam": "Nobody on the team yet.",
+    "personStatus": {
+      "active": "Active",
+      "invited": "Invite pending",
+      "unconfirmed": "Email not confirmed"
+    }
   }
 }

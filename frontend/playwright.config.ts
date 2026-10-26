@@ -13,7 +13,15 @@ const APP = "postgresql+psycopg://arqproj_app@localhost:5432/arqproj_e2e";
 const FILES = join(tmpdir(), "arqproj-e2e-files");
 // The emails the tests' server "sends" (.html and .txt files), to read codes from.
 export const OUTBOX = join(tmpdir(), "arqproj-e2e-outbox");
-export const E2E_ENV = { MIGRATION_DATABASE_URL: OWNER, DATABASE_URL: APP, LOCAL_STORAGE_ROOT: FILES, EMAIL_OUTBOX: OUTBOX };
+// The operator dashboard's allowlist (A38): at http://localhost:<port>/admin.
+export const OPERATOR = "operadora@unio.example";
+export const E2E_ENV = {
+  MIGRATION_DATABASE_URL: OWNER,
+  DATABASE_URL: APP,
+  LOCAL_STORAGE_ROOT: FILES,
+  EMAIL_OUTBOX: OUTBOX,
+  OPERATOR_EMAILS: OPERATOR,
+};
 
 export default defineConfig({
   testDir: "e2e",

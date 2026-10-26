@@ -6,7 +6,7 @@ import { mkdirSync } from "node:fs";
 
 import { type Page, test } from "@playwright/test";
 
-import { E2E_ENV, PORT } from "../playwright.config";
+import { E2E_ENV, OPERATOR, PORT } from "../playwright.config";
 
 const OUT = process.env.SCREENSHOTS_DIR ?? "screenshots";
 // A fictional mark (a slanted square), like the prototype's logo.
@@ -376,4 +376,19 @@ test("@screenshots preview page", async ({ page }) => {
     await page.getByRole("heading", { level: 1 }).waitFor();
     await shoot(page, name);
   }
+});
+
+test("@screenshots operator dashboard", async ({ page }) => {
+  mkdirSync(OUT, { recursive: true });
+  const unio = `http://localhost:${PORT}`;
+  await page.goto(`${unio}/admin`);
+  await page.getByRole("button", { name: "Entrar com Google" }).waitFor();
+  await shoot(page, "10-operacao-entrar");
+  await page.getByLabel(/E-mail autorizado/).fill(OPERATOR);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.getByRole("table").waitFor();
+  await shoot(page, "10b-operacao-escritorios");
+  await page.getByRole("link", { name: "Alinea (dev)" }).click();
+  await page.getByRole("heading", { name: "Equipe" }).waitFor();
+  await shoot(page, "10c-operacao-escritorio");
 });

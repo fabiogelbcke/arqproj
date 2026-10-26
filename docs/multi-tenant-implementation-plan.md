@@ -1875,6 +1875,23 @@ section 5's role table gets its tools at `myunio.app/admin`:
   action is written to an operator audit log (who, what, which office, when).
 - **Slice 3, PostHog.** Offices as PostHog groups for usage trends (building on
   PR #106); the office page links to its PostHog view.
+- **Built, slice 1 (26 Oct 2026):** `backend/web/admin.py`,
+  `backend/operators/` and `frontend/src/admin/` (its own bundle, `admin.html`).
+  `OPERATOR_HOST` is `myunio.app` in production and `staging.myunio.app` on
+  staging, where that address also serves Alinea (only `/admin`,
+  `/api/admin/*` and the sign-in return skip the office there). Sign-in is Google
+  OpenID Connect with state, nonce and PKCE kept in a signed cookie of the
+  browser that started, through the Drive OAuth client for now (its return
+  address `…/api/auth/google/callback` registered on both clients). The operator
+  session is a signed cookie for that host (8 hours, its own CSRF token),
+  checked against `OPERATOR_EMAILS` on every request; there is no session
+  table, so signing out ends it in that browser and removing an email ends it
+  everywhere. Counts are read office by office with the app's login, scoped like
+  a request: no login that sees every office. Logs open in Cloud Logging's
+  console with the search filled in (a support code, or an office's errors),
+  read with the operator's own Google access; the app gets no log permissions.
+  Locally (and in the browser tests), `localhost/admin` offers an allowlisted
+  email without Google; the server refuses that anywhere deployed.
 - **Then, Google sign-in for offices** (Fabio, 26 Oct 2026: right after the
   dashboard's, reusing its Google client): the shared return address on Unio's
   host and the single-use hand-off to the office's own address described in

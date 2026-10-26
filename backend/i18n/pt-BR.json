@@ -197,6 +197,7 @@
     "en": "English"
   },
   "errors": {
+    "signin_not_configured": "O acesso com Google não está configurado neste ambiente.",
     "version_type_mismatch": "A nova versão precisa ser do mesmo tipo do arquivo atual.",
     "invalid_staff_name": "Informe o nome (até 80 caracteres).",
     "already_staff": "Esta pessoa já faz parte da equipe.",
@@ -923,5 +924,68 @@
     "unavailableTitle": "Link indisponível",
     "failedTitle": "Não foi possível carregar os arquivos",
     "loading": "Carregando…"
+  },
+  "admin": {
+    "title": "Operação Unio",
+    "signInIntro": "Entre com uma conta Google autorizada para ver os escritórios da plataforma.",
+    "signInGoogle": "Entrar com Google",
+    "devSignIn": "E-mail autorizado (só no ambiente local)",
+    "devSignInSubmit": "Entrar",
+    "signInProblem": {
+      "expirado": "A tentativa de entrada expirou. Tente de novo.",
+      "cancelado": "A entrada foi cancelada no Google.",
+      "negado": "Esta conta Google não tem acesso a esta área.",
+      "falhou": "Não foi possível concluir a entrada com o Google. Tente de novo em instantes."
+    },
+    "offices": "Escritórios",
+    "office": "Escritório",
+    "team": "Equipe",
+    "projects": "Projetos",
+    "storageTitle": "Armazenamento",
+    "lastActivity": "Última atividade",
+    "emails": "E-mails (30 dias)",
+    "links": "Links",
+    "created": "Criado em",
+    "teamCount_one": "{{count}} pessoa",
+    "teamCount_other": "{{count}} pessoas",
+    "owners_one": "{{count}} proprietário",
+    "owners_other": "{{count}} proprietários",
+    "pending_one": "{{count}} pendente",
+    "pending_other": "{{count}} pendentes",
+    "activeCount_one": "{{count}} em andamento",
+    "activeCount_other": "{{count}} em andamento",
+    "otherProjects": "{{completed}} concluídos · {{archived}} arquivados",
+    "downloads_one": "{{count}} download",
+    "downloads_other": "{{count}} downloads",
+    "storage": {
+      "connected": "Google Drive conectado",
+      "expired": "Google Drive expirado",
+      "disconnected": "Google Drive desconectado",
+      "unreadable": "Pasta sem leitura",
+      "folder": "Pasta local",
+      "none": "Não conectado"
+    },
+    "status": {
+      "active": "Ativo",
+      "suspended": "Suspenso"
+    },
+    "support": "Código de suporte",
+    "supportIntro": "Cole o código que aparece na tela de erro do cliente para abrir os registros daquela solicitação.",
+    "supportCode": "Código",
+    "supportInvalid": "O código tem 32 letras e números.",
+    "supportOpen": "Abrir registros",
+    "logsOnlyDeployed": "Os registros só estão disponíveis no site publicado.",
+    "errors": "Erros recentes",
+    "errorsOpen": "Abrir os erros deste escritório nos registros (7 dias)",
+    "who": "Pessoa",
+    "role": "Papel",
+    "state": "Situação",
+    "lastSeen": "Último acesso",
+    "noTeam": "Ninguém na equipe ainda.",
+    "personStatus": {
+      "active": "Ativo",
+      "invited": "Convite pendente",
+      "unconfirmed": "E-mail não confirmado"
+    }
   }
 }
