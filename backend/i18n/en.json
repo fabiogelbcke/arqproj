@@ -281,7 +281,10 @@
     "email_not_sent": "We couldn't send the email. Try again in a few minutes.",
     "already_confirmed": "This email is already confirmed. Reload the page.",
     "share_locked": "This link is protected by a password. Go back to the files and type it.",
-    "wrong_share_password": "Wrong password. Check with whoever sent the link."
+    "wrong_share_password": "Wrong password. Check with whoever sent the link.",
+    "operator_action_conflict": "Could not complete this action. Check the address, office status and confirmation.",
+    "operator_action_failed": "Could not complete this action. Try again and contact support with the code if it continues.",
+    "operator_actions_unavailable": "Administration actions are not available yet."
   },
   "projectStatus": {
     "draft": "Draft",
@@ -997,6 +1000,68 @@
       "active": "Active",
       "invited": "Invite pending",
       "unconfirmed": "Email not confirmed"
+    },
+    "usageTitle": "Office usage",
+    "analytics": "Open usage dashboard in PostHog",
+    "analyticsTenant": "View this office in PostHog",
+    "yes": "Yes",
+    "no": "No",
+    "linkStates": "Links: {{active}} active · {{expired}} expired · {{disabled}} disabled",
+    "downloadMeaning": "Shared-link downloads started, including interrupted transfers.",
+    "fileStats": "File statistics",
+    "fileStatsScope": "Loaded only on request. Visible stage files, including older versions and archived projects. Excludes hidden files, covers and logos.",
+    "loadFiles": "Load file statistics",
+    "reloadFiles": "Refresh statistics",
+    "loadedAt": "Checked at {{time}}",
+    "fileTotals": "{{files}} files · {{size}} known · {{unknown}} without a reported size. {{populated}} of {{projects}} projects with files.",
+    "fileType": "Type",
+    "fileCount": "Files",
+    "fileBytes": "Known size",
+    "unknownSizes": "Unknown size",
+    "accountSpace": "Google account storage",
+    "unavailable": "Unavailable",
+    "accountSpaceMeaning": "Usage across account services; may include pooled organization storage. This is not just Unio storage. A missing limit does not mean unlimited space.",
+    "fileKinds": {
+      "image": "Images",
+      "video": "Videos",
+      "google": "Google documents",
+      "other": "Other"
+    },
+    "usage": {
+      "projects": "Projects",
+      "descriptions": "With description",
+      "covers": "With cover",
+      "projects_with_details": "With details",
+      "details": "Filled fields",
+      "stages": "Stages",
+      "completed_stages": "Completed stages",
+      "stage_notes": "Stages with notes",
+      "meetings": "Meetings",
+      "logo": "Logo configured"
+    },
+    "actions": {
+      "title": "Manage office",
+      "create": "Create office",
+      "name": "Office name",
+      "slug": "Identifier (lowercase letters and hyphens)",
+      "hostname": "Address (without https://)",
+      "createConfirm": "Create and generate owner invitation",
+      "ownerLink": "Owner signup link",
+      "ownerHelp": "Copy this link and send it to the owner. It works once and expires in 7 days. Save it before leaving this page.",
+      "owner_link": "New owner invitation",
+      "suspend": "Suspend",
+      "restore": "Restore",
+      "delete": "Delete office",
+      "confirmName": "Type the exact office name",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "done": "Action completed.",
+      "explain": {
+        "owner_link": "Generate a new owner signup link for {{name}}?",
+        "suspend": "Suspend {{name}}? Its panel and pages will be unavailable until restored.",
+        "restore": "Restore {{name}} and make its panel and pages available again?",
+        "delete": "Permanently delete {{name}} data in Unio? Drive files will be preserved. This cannot be undone."
+      }
     }
   }
 }

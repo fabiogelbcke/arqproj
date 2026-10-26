@@ -48,3 +48,11 @@
 .fact { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-card); }
 .fact dt { font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--muted); }
 .fact dd { margin: 6px 0 0; }
+
+/* Grid children must shrink so wide statistics tables scroll inside the panel. */
+.main > *, .panel { min-width: 0; }
+@media (max-width: 520px) {
+  .bar { height: auto; min-height: 60px; gap: 8px; flex-wrap: wrap; padding-block: 10px; }
+  .bar .muted { overflow-wrap: anywhere; font-size: 11px; }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+}

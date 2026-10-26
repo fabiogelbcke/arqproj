@@ -12,6 +12,8 @@ import { TextField } from "../ui/TextField";
 import { UnioMark } from "../ui/UnioMark";
 import { officeErrorsUrl, SUPPORT_CODE, supportCodeUrl, type LogsTarget } from "./logs";
 import styles from "./admin.module.css";
+import { CreateTenant, TenantActions } from "./Actions";
+import { AnalyticsLink, Usage } from "./Usage";
 
 type Operator = Schemas["OperatorOut"];
 type Office = Schemas["AdminOfficeOut"];
@@ -185,6 +187,8 @@ function Offices() {
         <h1>{t("admin.offices")}</h1>
         {offices.data && <span className={styles.count}>{offices.data.length}</span>}
       </div>
+      {me?.actions_enabled && <CreateTenant />}
+      <AnalyticsLink />
       {me && <SupportLookup me={me} />}
       <ErrorNotice error={offices.error} />
       {offices.data && (
@@ -301,6 +305,8 @@ function OfficePage() {
           {o.share_links} · {t("admin.downloads", { count: o.downloads })}
         </Fact>
       </dl>
+      <Usage key={o.slug} office={o} />
+      {me?.actions_enabled && <TenantActions key={o.id} office={o} />}
       <section className={styles.panel} aria-labelledby="errors">
         <h2 id="errors">{t("admin.errors")}</h2>
         {logs ? (

@@ -19,8 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from backend.db.isolation import scope_to_tenant
 from backend.identity.models import LoginSession, Role, User
 from backend.notifications.models import DeliveryStatus, NotificationDelivery
+from backend.office.models import OfficeProfile
 from backend.projects.enums import ProjectStatus
-from backend.projects.models import Project
+from backend.projects.models import Meeting, Project, ProjectDetail, ProjectStage
 from backend.shares.models import ShareLink
 from backend.storage.models import StorageConnection
 from backend.tenancy.models import Tenant, TenantDomain
@@ -57,6 +58,9 @@ class OfficeSummary:
     emails_sent: int = 0  # client update emails, in the last RECENT
     share_links: int = 0
     downloads: int = 0
+    usage: dict[str, int] = field(default_factory=dict)
+    link_statuses: dict[str, int] = field(default_factory=dict)
+    project_types: dict[str, int] = field(default_factory=dict)
     team: list[StaffMember] = field(default_factory=list)  # only for one office's page
 
 
@@ -136,6 +140,52 @@ async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, tea
         await session.execute(select(func.count(), func.coalesce(func.sum(ShareLink.downloads), 0)))
     ).one()
     office.share_links, office.downloads = links, downloads
+
+    if team:
+        projects = list(await session.scalars(select(Project).where(Project.deleted_at.is_(None))))
+        ids = [p.id for p in projects]
+        details = list(
+            await session.scalars(select(ProjectDetail).where(ProjectDetail.project_id.in_(ids)))
+        )
+        filled = [
+            d
+            for d in details
+            if (d.value_text and d.value_text.strip())
+            or d.value_number is not None
+            or d.value_date is not None
+        ]
+        stages = list(
+            await session.scalars(select(ProjectStage).where(ProjectStage.project_id.in_(ids)))
+        )
+        settings = await session.scalar(select(OfficeProfile))
+        office.usage = {
+            "projects": len(projects),
+            "descriptions": sum(bool(p.description.strip()) for p in projects),
+            "covers": sum(p.cover_file_id is not None for p in projects),
+            "projects_with_details": len({d.project_id for d in filled}),
+            "details": len(filled),
+            "stages": len(stages),
+            "completed_stages": sum(s.completed_at is not None for s in stages),
+            "stage_notes": sum(bool(s.notes.strip()) for s in stages),
+            "meetings": await session.scalar(
+                select(func.count()).select_from(Meeting).where(Meeting.project_id.in_(ids))
+            ),
+            "logo": int(settings is not None and settings.logo_file_id is not None),
+        }
+        for project in projects:
+            office.project_types[project.project_type] = (
+                office.project_types.get(project.project_type, 0) + 1
+            )
+        office.link_statuses = {"active": 0, "expired": 0, "disabled": 0}
+        for link in await session.scalars(select(ShareLink)):
+            state = (
+                "disabled"
+                if link.disabled_at
+                else "expired"
+                if link.expires_at and link.expires_at <= now
+                else "active"
+            )
+            office.link_statuses[state] += 1
 
 
 async def summaries(

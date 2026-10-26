@@ -8,6 +8,7 @@ from backend.db.base import Base
 from backend.identity import models as identity_models  # noqa: F401
 from backend.notifications import models as notification_models  # noqa: F401
 from backend.office import models as office_models  # noqa: F401
+from backend.operators import models as operator_models  # noqa: F401
 from backend.projects import models as project_models  # noqa: F401
 from backend.shares import models as share_models  # noqa: F401
 from backend.storage import models as storage_models  # noqa: F401

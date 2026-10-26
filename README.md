@@ -289,6 +289,42 @@ production. Tests only ever use local databases. New migration:
 review it by hand; `backend/tests/test_migrations.py` fails if models and
 migrations disagree.
 
+### Operator dashboard locally
+
+`http://localhost:8000/admin` (with `make serve`) shows office usage and links to
+PostHog. File statistics are loaded only by the button; they are never stored.
+They count client-visible stage files, including older versions and archived
+projects, not every file in the Google account. Unknown sizes are shown separately.
+
+For the lifecycle actions, provision the separate restricted login after migration:
+
+```bash
+make migrate
+uv run python -m backend.commands.provision_operator --login arqproj_operator --local
+OPERATOR_EMAILS=operadora@unio.example \
+OPERATOR_DATABASE_URL=postgresql+psycopg://arqproj_operator@localhost:5432/arqproj_dev \
+make serve
+```
+
+Enter `operadora@unio.example` in the local-only sign-in form. The actions create
+an office and owner invitation, issue another owner invitation, suspend/restore,
+and delete only a suspended office with its exact name typed. They never call
+Drive to delete files. Each successful action records its operator, tenant,
+time and support ID in `operator_audit_events`, in the same transaction. Audit
+history survives office deletion; the audit browsing screen is deferred.
+
+Without `OPERATOR_DATABASE_URL`, statistics work and action controls are hidden.
+The operator login must not be the migration owner or ordinary app login. On a
+deployment, create a separate IAM login and run `provision_operator --login …`
+with the migration owner's connection, then set `OPERATOR_DATABASE_URL` only
+after approval. No deployment or cloud identity is created by these changes.
+
+PostHog receives `file_transfer` with `bytes`, `complete` and `source`
+(`project_download`, `preview`, `share_download`, `share_zip`). Bytes are those
+emitted by the application, not proof of receipt or a cloud billing figure.
+Events carry the tenant, no file names or visitor identities, and no database
+usage history is written. Transfers before this instrumentation cannot be recovered.
+
 ### Client emails locally
 
 Client emails (decision A32) go out from the maintenance pass, which notices new
