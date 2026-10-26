@@ -248,6 +248,14 @@ async def signed_in(
     token, row = await sessions.start(db, user)
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        # This request began anonymously; identify the active request context once
+        # its authenticated account and server session exist.
+        posthog_client.identify_context(str(user.id))
+        posthog_client.set_context_session(str(row.id))
+        posthog_client.set(properties={"email": user.email, "name": user.name, "role": user.role})
+        posthog_client.capture("user_signed_in")
     return me_out(
         user.email,
         user.name,
@@ -262,6 +270,7 @@ async def signed_in(
 
 @router.delete("/session", status_code=204, responses=documented(401, 403))
 async def sign_out(
+    request: Request,
     response: Response,
     staff: CurrentStaff = Depends(require_csrf_account),
     db: AsyncSession = Depends(get_tenant_session),
@@ -269,6 +278,9 @@ async def sign_out(
     row = await db.get(LoginSession, staff.session_id)
     await sessions.revoke(db, row)
     await db.commit()
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture("user_signed_out")
     del response.headers["set-cookie"]  # current_staff's refresh of the same cookie
     response.delete_cookie(COOKIE, path="/")
 
@@ -314,7 +326,11 @@ async def choose_password(
     await accounts.set_password(db, user, password_hash)
     # The link came to their inbox: that proves the address too.
     await accounts.confirm_email(db, user)
-    return await signed_in(request, response, tenant, db, user)
+    result = await signed_in(request, response, tenant, db, user)
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture("password_set")
+    return result
 
 
 @router.get("/me", responses=documented(401))

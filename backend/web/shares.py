@@ -394,6 +394,16 @@ async def make_share(
     )
     await db.commit()
     await db.refresh(link)
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture(
+            "share_link_created",
+            properties={
+                "file_count": len(items),
+                "has_password": body.password is not None,
+                "expiry_days": days,
+            },
+        )
     log.info("shares: link %s made for project %s, %s files", link.id, project.id, len(items))
     [shown] = await _described(db, storage, project, [link])
     return ShareMadeOut(
@@ -483,6 +493,9 @@ async def disable_share(
     if link.disabled_at is None:
         link.disabled_at = datetime.now(UTC)
         await db.commit()
+        posthog_client = getattr(request.app.state, "posthog", None)
+        if posthog_client is not None:
+            posthog_client.capture("share_link_disabled")
         log.info("shares: link %s turned off", link.id)
     [shown] = await _described(db, await _storage(request, db), project, [link])
     return shown

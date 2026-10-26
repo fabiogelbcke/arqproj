@@ -31,7 +31,7 @@ class Environment(StrEnum):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, env_file=".env", extra="ignore")
 
     environment: Environment = Environment.LOCAL
     log_level: str = "INFO"
@@ -96,6 +96,9 @@ class Settings(BaseSettings):
     # (locally), that address doesn't exist; run backend.commands.maintenance.
     maintenance_audience: str | None = None
     maintenance_caller: str | None = None
+    # Product analytics. Both are optional so production can run without PostHog.
+    posthog_project_token: str | None = None
+    posthog_host: str | None = None
 
     @field_validator("log_level")
     @classmethod

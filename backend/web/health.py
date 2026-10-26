@@ -6,9 +6,12 @@ The path is `/health`, not `/healthz`: Cloud Run's front end answers `/healthz`
 
 from fastapi import APIRouter
 
+from backend.posthog_logs import log as posthog_log
+
 router = APIRouter()
 
 
 @router.get("/health", include_in_schema=False)
 def health() -> dict[str, str]:
+    posthog_log.info("health check served")
     return {"status": "ok"}

@@ -5,19 +5,31 @@ Run locally:  uv run uvicorn backend.app:create_app --factory --reload
 
 from __future__ import annotations
 
+import atexit
 import json
 import logging
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from http.cookies import SimpleCookie
 
 import httpx2
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from posthog import Posthog
 from sqlalchemy import text
 
 from backend.db import runtime_role
 from backend.db.engine import create_engine, create_sessionmaker
+from backend.db.isolation import scope_to_tenant
+from backend.identity import sessions
+from backend.posthog_logs import (
+    configure_posthog_log_export,
+    shutdown_posthog_log_export,
+)
+from backend.posthog_logs import (
+    log as posthog_log,
+)
 from backend.settings import Settings
 from backend.storage.google import GoogleDriveStorage, ServerIdentity
 from backend.tenancy.middleware import TenantMiddleware
@@ -103,6 +115,51 @@ def configure_logging(settings: Settings) -> None:
     root.setLevel(settings.log_level)
 
 
+async def capture_unhandled_exception(request: Request, error: Exception) -> None:
+    """Send unhandled request exceptions to PostHog without changing their response."""
+    posthog_client: Posthog | None = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture_exception(error)
+    raise error
+
+
+class PostHogIdentityMiddleware:
+    """Bind an authenticated account to one PostHog context per HTTP request."""
+
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        posthog_client: Posthog | None = getattr(scope["app"].state, "posthog", None)
+        if posthog_client is None:
+            await self.app(scope, receive, send)
+            return
+
+        with posthog_client.new_context(fresh=True):
+            tenant = scope.get("state", {}).get("tenant")
+            token = self._session_token(scope)
+            if tenant is not None and token:
+                async with scope["app"].state.sessionmaker() as db:
+                    scope_to_tenant(db.sync_session, tenant.id)
+                    found = await sessions.find_active(db, token)
+                    if found is not None:
+                        session, user = found
+                        posthog_client.identify_context(str(user.id))
+                        posthog_client.set_context_session(str(session.id))
+            await self.app(scope, receive, send)
+
+    @staticmethod
+    def _session_token(scope) -> str | None:
+        cookies = SimpleCookie()
+        cookies.load(dict(scope.get("headers", [])).get(b"cookie", b"").decode("latin-1"))
+        session = cookies.get(auth.COOKIE)
+        return session.value if session is not None else None
+
+
 async def verify_runtime_login(engine, settings: Settings) -> None:
     """Refuse to serve unless connected as the restricted login provisioning checked.
 
@@ -131,9 +188,32 @@ async def verify_runtime_login(engine, settings: Settings) -> None:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # One connection pool per process, closed on shutdown. Startup checks the login
     # once (a single query), so a misconfigured deployment fails before serving.
-    engine = create_engine(app.state.settings)
+    settings = app.state.settings
+    posthog_client: Posthog | None = None
+    posthog_log_provider = None
+    if settings.posthog_project_token and settings.posthog_host:
+        posthog_client = Posthog(
+            settings.posthog_project_token,
+            host=settings.posthog_host,
+            enable_exception_autocapture=True,
+        )
+        atexit.register(posthog_client.shutdown)
+        posthog_log_provider = configure_posthog_log_export(
+            settings.posthog_project_token, settings.posthog_host
+        )
+        posthog_log.info("posthog log export initialized")
+    elif not settings.deployed:
+        missing = "POSTHOG_PROJECT_TOKEN" if not settings.posthog_project_token else "POSTHOG_HOST"
+        raise ValueError(
+            f"{missing} variable required by PostHog is missing or un-configured, "
+            "this causes events to be silently missed. This error stops appearing once "
+            f"{missing} is configured"
+        )
+    app.state.posthog = posthog_client
+
+    engine = create_engine(settings)
     try:
-        await verify_runtime_login(engine, app.state.settings)
+        await verify_runtime_login(engine, settings)
         app.state.sessionmaker = create_sessionmaker(engine)
         # One HTTP client for Google, and the server's own Drive identity.
         app.state.http = httpx2.AsyncClient(timeout=30)
@@ -142,6 +222,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         if getattr(app.state, "http", None) is not None:
             await app.state.http.aclose()
+        if posthog_client is not None:
+            posthog_client.flush()
+        if posthog_log_provider is not None:
+            posthog_log.info("posthog log export shutting down")
+            shutdown_posthog_log_export(posthog_log_provider)
         await engine.dispose()
 
 
@@ -185,8 +270,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(pages.router)
     app.add_exception_handler(ApiError, handle_api_error)
     app.add_exception_handler(RequestValidationError, handle_invalid_request)
+    app.add_exception_handler(Exception, capture_unhandled_exception)
     # Added innermost first: request IDs wrap everything, so even a 404 for an
-    # unknown host or a redirect carries an ID and logs with it.
+    # unknown host or a redirect carries an ID and logs with it. Tenant resolution
+    # must run before the PostHog context reads a tenant-scoped login session.
+    app.add_middleware(PostHogIdentityMiddleware)
     app.add_middleware(TenantMiddleware)
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(BuildIdMiddleware, build_id=settings.build_id)
