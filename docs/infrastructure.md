@@ -156,12 +156,18 @@ From a laptop with `brew install cloud-sql-proxy` and, once per machine,
 ```bash
 make tenant ENV=staging SLUG=alinea NAME="ALINEA ARQUITETOS" HOST=portal-staging-496714293251.us-east1.run.app
 make tenant-host ENV=staging SLUG=alinea HOST=staging.myunio.app PRIMARY=1   # done 17 Oct 2026
-make staff ENV=staging TENANT=alinea EMAIL=you@example.com NAME=You ROLE=owner   # prints an invite link
+make owner-link ENV=staging TENANT=alinea   # one-time owner signup link, valid for 7 days
+make staff ENV=staging TENANT=alinea EMAIL=you@example.com NAME=You ROLE=owner   # invite a known person
 make reset-link ENV=staging TENANT=alinea EMAIL=you@example.com
 ```
 
 The Makefile starts the proxy as you, acting as `portal-staging-deploy@`, runs the
 command and stops the proxy. Links print only in your terminal (never in logs).
+`make owner-link` also works locally and with `ENV=production`; `DAYS=…` changes
+its lifetime (default 7). The office and primary address must already exist.
+The recipient supplies their own name, email and password, then confirms the
+email with the code. Creating this link does not change the painel's shared
+member link.
 
 ## Costs (approximate, monthly)
 

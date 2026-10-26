@@ -588,3 +588,93 @@ def test_every_existing_account_starts_confirmed(migrated_url):
             connection.execute(text(f'DROP OWNED BY "{owner}"'))
             connection.execute(text(f'DROP ROLE "{owner}"'))
         engine.dispose()
+
+
+def test_existing_join_links_stay_shared_member_links(migrated_url):
+    """0037 keeps each office's existing shared link reusable for 24 hours, and
+    lets command-created owner links coexist. Migration runs as Cloud SQL's
+    non-superuser owner, with forced tenant isolation still in effect."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0037"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0036")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        for slug in ("alinea", "norte"):
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES (:s, 'Escritório') RETURNING id"),
+                {"s": slug},
+            )
+            user = connection.scalar(
+                text(
+                    "INSERT INTO users (tenant_id, email, name, role) "
+                    "VALUES (:t, 'ana@x.example', 'Ana', 'owner') RETURNING id"
+                ),
+                {"t": tenant},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO join_links (tenant_id, created_by, token_hash) VALUES (:t, :u, :h)"
+                ),
+                {"t": tenant, "u": user, "h": slug},
+            )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    try:
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "head",
+        )
+        with engine.begin() as connection:
+            rows = connection.execute(
+                text(
+                    "SELECT token_hash FROM join_links WHERE role = 'member' "
+                    "AND NOT single_use AND used_at IS NULL AND expires_at IS NULL "
+                    "AND revoked_at IS NULL AND created_at > now() - interval '24 hours' "
+                    "ORDER BY token_hash"
+                )
+            ).all()
+            assert rows == [("alinea",), ("norte",)]
+            # No user is needed for command-created links, and they do not take
+            # the shared member link's unique slot.
+            connection.execute(
+                text(
+                    "INSERT INTO join_links (tenant_id, token_hash, role, single_use, expires_at) "
+                    "SELECT id, slug || '-owner', 'owner', true, now() + interval '7 days' "
+                    "FROM tenants"
+                )
+            )
+            assert connection.scalar(text("SELECT count(*) FROM join_links")) == 4
+            assert connection.scalar(
+                text("SELECT relforcerowsecurity FROM pg_class WHERE relname = 'join_links'")
+            )
+        # Downgrading removes owner links before restoring the member-only
+        # schema, so both tenants keep their original shared link.
+        command.downgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0036",
+        )
+        with engine.connect() as connection:
+            assert connection.execute(
+                text("SELECT token_hash FROM join_links ORDER BY token_hash")
+            ).all() == [("alinea",), ("norte",)]
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()
