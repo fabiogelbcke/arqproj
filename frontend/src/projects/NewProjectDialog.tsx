@@ -6,6 +6,8 @@ import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { useConnectDrive, useDrive } from "../drive/drive";
 import { useMe } from "../session/session";
+import posthog from "../posthog";
+import { posthogLog } from "../posthogLogs";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { addEmails } from "../ui/EmailListField";
@@ -68,6 +70,16 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
           },
           {
             onSuccess: (project) => {
+              posthog.capture("project_created", {
+                project_type: type?.key ?? "unknown",
+                stage_count: stages.length,
+                has_recipients: list.length > 0,
+              });
+              posthogLog.info("project created", {
+                project_type: type?.key ?? "unknown",
+                stage_count: stages.length,
+                has_recipients: list.length > 0,
+              });
               onCreated(project);
               close();
             },

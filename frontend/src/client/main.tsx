@@ -7,6 +7,7 @@ import "./page.css";
 import "../styles/tokens.css";
 import "./project.css";
 import "../i18n";
+import "../posthog";
 
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";

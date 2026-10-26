@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
+import posthog from "../posthog";
 import { Button } from "../ui/Button";
 import { ChipGroup } from "../ui/ChipGroup";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
@@ -141,6 +142,14 @@ export function SharePanel({
         owner: result.owner,
         url: result.url,
       });
+      if (staff) {
+        posthog.capture("project_share_created", {
+          file_count: chosen.length,
+          selection_mode: how,
+          expiry,
+          password_protected: password.length > 0,
+        });
+      }
       setMade(result);
       setOwned(readOwned(slug));
     } catch (failure) {

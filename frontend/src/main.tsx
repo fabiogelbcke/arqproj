@@ -1,6 +1,7 @@
 import "./styles/global.css";
 import "./ui/sizes.css";
 import "./i18n";
+import "./posthog";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

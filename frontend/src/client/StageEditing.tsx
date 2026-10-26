@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
+import posthog from "../posthog";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { TextInput } from "../ui/TextInput";
 import { toast, toastError } from "../ui/Toast";
@@ -232,6 +233,7 @@ export function AddStage({
       )
       .then((ok) => {
         if (ok) {
+          posthog.capture("project_stage_added", { stage_source: body.builtin_key ? "built_in" : "custom" });
           setOpen(false);
           setNaming(false);
           setCustom("");
@@ -414,6 +416,13 @@ export function StageProgress({
           onConfirm={() =>
             void change.run(send, ask.done).then((saved) => {
               setConfirming(false);
+              if (saved) {
+                posthog.capture("project_stage_completion_changed", {
+                  completed: completing,
+                  stage_position: stage.position,
+                  is_final_open_stage: last,
+                });
+              }
               if (saved && last) setAskProject(true);
             })
           }
@@ -443,7 +452,12 @@ function CompleteProjectDialog({ staff, onChanged, onClose }: { staff: Staff; on
       cancel={t("edit.notNow")}
       busy={change.busy}
       onCancel={onClose}
-      onConfirm={() => void change.run(send, t("edit.completed")).then(onClose)}
+      onConfirm={() =>
+        void change.run(send, t("edit.completed")).then((saved) => {
+          if (saved) posthog.capture("project_completed");
+          onClose();
+        })
+      }
     />
   );
 }

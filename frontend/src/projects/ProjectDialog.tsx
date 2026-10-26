@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
+import posthog from "../posthog";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { addEmails } from "../ui/EmailListField";
@@ -71,6 +72,15 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
             ...(recipientsChanged ? { recipients: wanted } : {}),
           }),
         );
+        posthog.capture("project_settings_saved", {
+          name_changed: name !== saved.name,
+          client_changed: client !== saved.client_name,
+          link_changed: linkChanged,
+          access_changed: accessChanged,
+          recipients_changed: recipientsChanged,
+          access_mode: access,
+          recipient_count: wanted.length,
+        });
         setPassword("");
         // Saved now: keep it listed, so a retry doesn't remove it.
         setRecipients(wanted);
