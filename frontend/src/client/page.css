@@ -318,11 +318,11 @@ a.site__brand { color: inherit; text-decoration: none; }
   position: relative; display: grid; grid-template-columns: 40px 28px minmax(0, 1fr); align-items: center; gap: 6px;
   padding: 6px 6px 6px 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--raise);
   cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
-  transition: background-color .15s, border-color .15s, box-shadow .15s;
+  /* Its fades are set inline, beside dnd-kit's slide (StageOrder). */
 }
 /* Hover only where there is one: a phone would keep a tapped row shaded. */
-@media (hover: hover) { .stage-order__row:hover { background: var(--surface); border-color: var(--line-strong); } }
 .stage-order__row:active { background: var(--surface); border-color: var(--line-strong); }
+@media (hover: hover) { .stage-order__row:hover { background: var(--surface); border-color: var(--line-strong); } }
 .stage-order__row.is-dragging {
   z-index: 2; cursor: grabbing; background: var(--raise); border-color: var(--ink); box-shadow: var(--shadow-lift);
 }

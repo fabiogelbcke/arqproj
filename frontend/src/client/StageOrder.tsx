@@ -33,19 +33,21 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /** A press-and-hold on a phone before the row lifts: long enough that a swipe
  *  to scroll or a tap never moves a stage. */
 const HOLD_MS = 300;
+const ROW_FADES = "background-color .15s, border-color .15s, box-shadow .15s";
 const onHandle = (event: Event) => (event.target as Element | null)?.closest?.("[data-drag-handle]") != null;
 
-/** A mouse or pen anywhere on the row, and a finger on the handle (the handle
- *  starts at once: `bypassActivationConstraint` below). A finger elsewhere on the
- *  row is the touch sensor's. One sensor per event: dnd-kit keeps only the last
- *  one listening to an event, so the handle can't have a pointer sensor of its own. */
+/** A mouse anywhere on the row, and a finger or pen on the handle (which starts
+ *  at once: `bypassActivationConstraint` below). A finger or pen elsewhere on the
+ *  row is the touch sensor's (a tablet's stylus sends touch events too): the row
+ *  scrolls under them, so they hold first. One sensor per event: dnd-kit keeps
+ *  only the last one listening to an event, so the handle can't have its own. */
 class RowPointerSensor extends PointerSensor {
   static activators: typeof PointerSensor.activators = [
     {
       eventName: "onPointerDown",
       handler: ({ nativeEvent: event }, { onActivation }) => {
         if (!event.isPrimary || event.button !== 0) return false;
-        if (event.pointerType === "touch" && !onHandle(event)) return false;
+        if (event.pointerType !== "mouse" && !onHandle(event)) return false;
         onActivation?.({ event });
         return true;
       },
@@ -81,12 +83,15 @@ function Row({
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: position,
+    // Its role, read out with its name: dnd-kit's own is English ("sortable").
+    attributes: { roleDescription: t("edit.reorderRole") },
   });
   return (
     <li
       ref={setNodeRef}
       className={`stage-order__row${isDragging ? " is-dragging" : ""}`}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      // dnd-kit's slide, with the row's own fades (an inline transition replaces the stylesheet's).
+      style={{ transform: CSS.Transform.toString(transform), transition: [transition, ROW_FADES].filter(Boolean).join(", ") }}
       // The whole row drags; the keyboard goes through the handle, focused.
       {...listeners}
     >
@@ -133,11 +138,13 @@ export default function StageOrder({
   const byPosition = new Map(page.stages.map((stage) => [stage.position, stage]));
   const changed = order.some((position, i) => position !== page.stages[i]!.position);
   const sensors = useSensors(
-    // A small move before a drag starts, so a click on the row stays a click; on
-    // the handle, at once (a finger too: no hold there, Fabio).
+    // A small move before a drag starts, so a click stays a click (on the
+    // handle too, to focus it); a finger or pen on the handle, at once (Fabio: no
+    // hold there).
     useSensor(RowPointerSensor, {
       activationConstraint: { distance: 4 },
-      bypassActivationConstraint: ({ event }) => onHandle(event),
+      bypassActivationConstraint: ({ event }) =>
+        event instanceof PointerEvent && event.pointerType !== "mouse" && onHandle(event),
     }),
     // Still for a moment (a little wobble allowed): a swipe scrolls instead.
     useSensor(RowTouchSensor, { activationConstraint: { delay: HOLD_MS, tolerance: 6 } }),
@@ -156,10 +163,14 @@ export default function StageOrder({
     onDragCancel: ({ active }) => t("edit.reorderCancelled", { title: titleOf(active.id) }),
   };
   // The hold has worked: a short buzz on phones that can, as the row lifts.
+  // While a stage moves, Esc cancels the move (dnd-kit), not the whole dialog.
+  const [moving, setMoving] = useState(false);
   const started = ({ activatorEvent }: DragStartEvent) => {
+    setMoving(true);
     if (typeof TouchEvent !== "undefined" && activatorEvent instanceof TouchEvent) navigator.vibrate?.(10);
   };
   const dragged = ({ active, over }: DragEndEvent) => {
+    setMoving(false);
     if (!over || active.id === over.id) return;
     setOrder((now) => arrayMove(now, now.indexOf(Number(active.id)), now.indexOf(Number(over.id))));
   };
@@ -180,7 +191,13 @@ export default function StageOrder({
     }
   };
   return (
-    <ModalOverlay className="stage-order__overlay" isDismissable isOpen onOpenChange={(open) => !open && onClose()}>
+    <ModalOverlay
+      className="stage-order__overlay"
+      isDismissable={!moving}
+      isKeyboardDismissDisabled={moving}
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+    >
       <Modal className="stage-order__modal">
         <Dialog className="stage-order">
           <Heading slot="title" className="stage-order__heading">
@@ -192,6 +209,7 @@ export default function StageOrder({
             collisionDetection={closestCenter}
             onDragStart={started}
             onDragEnd={dragged}
+            onDragCancel={() => setMoving(false)}
             // Read out in the office's language, naming the stage and its place.
             accessibility={{ screenReaderInstructions: { draggable: t("edit.reorderKeys") }, announcements }}
           >

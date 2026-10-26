@@ -549,13 +549,17 @@ describe("edit mode", () => {
 
   /** Moves a stage in the reorder list by keyboard, as dnd-kit offers it: space on
    *  its handle, the arrows, space. jsdom lays nothing out, so each row gets a box. */
-  async function dragStage(list: HTMLElement, title: string, steps: number) {
+  /** The reorder list's rows, 50 px apart (jsdom lays nothing out). */
+  function rowsLaidOut() {
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
       const row = this.closest(".stage-order__row");
       const index = row ? [...row.parentElement!.children].indexOf(row) : 0;
       return DOMRect.fromRect({ x: 0, y: index * 50, width: 400, height: 44 });
     });
     onTestFinished(() => void vi.restoreAllMocks());
+  }
+  async function dragStage(list: HTMLElement, title: string, steps: number) {
+    rowsLaidOut();
     const handle = within(list).getByRole("button", { name: `Arrastar ${title}` });
     handle.focus();
     await userEvent.keyboard(" ");
@@ -853,15 +857,6 @@ describe("edit mode", () => {
   const shownOrder = (list: HTMLElement) =>
     [...list.querySelectorAll(".stage-order__title")].map((title) => title.firstChild?.textContent);
 
-  /** Rows 50 px apart, as dragStage lays them out. */
-  function rowsLaidOut() {
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
-      const row = this.closest(".stage-order__row");
-      const index = row ? [...row.parentElement!.children].indexOf(row) : 0;
-      return DOMRect.fromRect({ x: 0, y: index * 50, width: 400, height: 44 });
-    });
-    onTestFinished(() => void vi.restoreAllMocks());
-  }
   const atRow = (row: number) => ({ clientX: 100, clientY: row * 50 + 20 });
 
   /** A finger on `target` at row `from`, held still `hold` ms (on the test's own
@@ -910,6 +905,18 @@ describe("edit mode", () => {
     await touchDrag(first, 0, 1, 350); // held still first: the row lifts and moves
     expect(shownOrder(list)).toEqual(swapped(before));
     expect(within(list).getByRole("button", { name: "Salvar" })).toBeEnabled();
+  });
+
+  it("Esc while moving a stage cancels the move, not the dialog", async () => {
+    const list = await openReorder();
+    const before = shownOrder(list);
+    rowsLaidOut();
+    within(list).getByRole("button", { name: `Arrastar ${PAGE.stages[0]!.title}` }).focus();
+    await userEvent.keyboard(" ");
+    await userEvent.keyboard("{ArrowDown}");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("dialog", { name: "Reordenar etapas" })).toBeInTheDocument();
+    expect(shownOrder(list)).toEqual(before);
   });
 
   it("with a mouse, a stage drags from anywhere on its row", async () => {
