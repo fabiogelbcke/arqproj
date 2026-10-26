@@ -94,11 +94,11 @@ describe("sharing files by link", () => {
     expect(within(dialog).getByRole("checkbox", { name: /Corte\.pdf/ })).toBeChecked();
     expect(within(dialog).queryByRole("checkbox", { name: /Programa\.pdf/ })).toBeNull(); // only this stage's
     expect(within(dialog).getByText(/^Escolha os arquivos de 02 Levantamento/)).toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Para quem?")).toHaveAttribute("placeholder", "Ex.: Marcenaria Silva");
+    expect(within(dialog).getByLabelText("Para quem? (Opcional)")).toHaveAttribute("placeholder", "Ex.: Marcenaria Silva");
     expect(within(dialog).getByRole("checkbox", { name: "Selecionar todos os arquivos de 02 Levantamento" })).toBeChecked();
     expect(summaryOf(dialog)).toHaveTextContent("2 arquivos · 6 KB");
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /Corte\.pdf/ }));
-    await userEvent.type(within(dialog).getByLabelText("Para quem?"), "Marcenaria Silva");
+    await userEvent.type(within(dialog).getByLabelText("Para quem? (Opcional)"), "Marcenaria Silva");
     await userEvent.click(within(dialog).getByRole("radio", { name: "7 dias" }));
     await userEvent.click(within(dialog).getByRole("button", { name: "Gerar link" }));
     const ready = await screen.findByRole("dialog", { name: "Link pronto" });
@@ -216,6 +216,27 @@ describe("sharing files by link", () => {
     const ready = await screen.findByRole("dialog", { name: "Link pronto" });
     expect(within(ready).getByText("Protegido por senha: envie a senha separadamente.")).toBeInTheDocument();
     expect(sent.find((r) => r.method === "POST" && r.path.endsWith("/shares"))?.body).toMatchObject({ password: "curtas" });
+  });
+
+  it("says what the links list is for while it's empty, and leads to making one", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { ...ME, page_tour_seen: true } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, staff: { project_id: "p1", status: "active", row_version: 1, recipients: [] } },
+      }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
+      "GET /api/pages/casa-jardim/shares": () => ({ body: [] }),
+    });
+    render(<ClientApp />);
+    await userEvent.click(await screen.findByRole("button", { name: "Compartilhar arquivos" }));
+    await userEvent.click(await screen.findByRole("tab", { name: "Links criados (0)" }));
+    const links = await screen.findByRole("region", { name: "Links deste projeto" });
+    expect(within(links).getByText("Nenhum link criado ainda.")).toBeInTheDocument();
+    expect(within(links).getByText(/pela equipe ou pelo cliente/)).toBeInTheDocument();
+    await userEvent.click(within(links).getByRole("button", { name: "Novo link" }));
+    expect(screen.getByRole("tab", { name: "Novo link" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("shows staff every link of the project, and who made each", async () => {

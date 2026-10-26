@@ -169,7 +169,7 @@ async def test_a_due_batch_goes_as_it_was_and_later_changes_wait_their_turn(
     age(path)
     await run(app, outbox)
     assert len(outbox.sent) == 1
-    assert "Croqui.pdf" in outbox.sent[0].text and "Fachada.pdf" not in outbox.sent[0].text
+    assert "foi atualizada: 1 arquivo enviado." in outbox.sent[0].text  # not Fachada.pdf too
     assert await batches(db_session) == [("sent",), ("open",)]
 
 
@@ -227,8 +227,8 @@ async def test_a_file_renamed_or_moved_meanwhile_shows_as_it_is_now(app, db_sess
     await make_due(db_session)
     await run(app, outbox)
     text_ = outbox.sent[0].text
-    assert "1 arquivo novo em 01 " in text_ and "Croqui final.pdf" in text_
-    assert "Croqui v1.pdf" not in text_
+    assert "A etapa 01 Briefing foi atualizada: 1 arquivo enviado." in text_
+    assert "Croqui" not in text_  # files are counted, never named (Fabio, 26 Oct 2026)
 
 
 async def test_each_stage_still_completed_is_news_named_where_it_is_now(
@@ -244,10 +244,12 @@ async def test_each_stage_still_completed_is_news_named_where_it_is_now(
     await run(app, outbox)
     await make_due(db_session)
     await run(app, outbox)
-    lines = [line for line in outbox.sent[0].text.splitlines() if "concluída" in line]
+    text_ = outbox.sent[0].text
+    assert "As seguintes etapas foram atualizadas:" in text_
+    lines = [line for line in text_.splitlines() if "concluída" in line]
     assert lines == [
-        "- A etapa 03 Estudo Preliminar foi concluída.",
-        "- A etapa 04 Projeto Legal foi concluída.",
+        "- 03 Estudo Preliminar: marcada como concluída",
+        "- 04 Projeto Legal: marcada como concluída",
     ]
 
 
@@ -265,8 +267,8 @@ async def test_a_stage_reopened_is_news_unless_completed_again_meanwhile(
     await run(app, outbox)
     await make_due(db_session)
     await run(app, outbox)
-    lines = [line for line in outbox.sent[0].text.splitlines() if "A etapa" in line]
-    assert lines == ["- A etapa 04 Anteprojeto foi reaberta."]
+    lines = [line for line in outbox.sent[0].text.splitlines() if "etapa" in line]
+    assert lines == ["A etapa 04 Anteprojeto foi atualizada: reaberta."]
 
 
 async def test_reopening_a_stage_of_a_completed_project_is_news(
@@ -286,7 +288,7 @@ async def test_reopening_a_stage_of_a_completed_project_is_news(
     await run(app, outbox)
     assert len(outbox.sent) == 2
     text_ = outbox.sent[1].text
-    assert "A etapa 03 Estudo Preliminar foi reaberta." in text_
+    assert "A etapa 03 Estudo Preliminar foi atualizada: reaberta." in text_
     assert "concluído" not in text_  # active again: no longer said to be completed
 
 
@@ -301,7 +303,7 @@ async def test_the_last_stage_completed_says_nothing_of_the_project_until_staff_
     await make_due(db_session)
     await run(app, outbox)
     text_ = outbox.sent[0].text
-    assert "A etapa 07 Compatibilização foi concluída." in text_
+    assert "A etapa 07 Compatibilização foi atualizada: marcada como concluída." in text_
     assert "O projeto foi concluído." not in text_
 
 
@@ -317,7 +319,7 @@ async def test_the_last_stage_completed_is_news_with_the_project(
     await make_due(db_session)
     await run(app, outbox)
     text_ = outbox.sent[0].text
-    assert "A etapa 07 Compatibilização foi concluída." in text_
+    assert "A etapa 07 Compatibilização foi atualizada: marcada como concluída." in text_
     assert "O projeto foi concluído." in text_
 
 
@@ -372,24 +374,44 @@ async def test_the_email_says_what_changed_and_links_the_page(app, db_session, o
     await run(app, outbox)
     email = outbox.sent[0]
     assert "Casa Jardim" in email.subject  # the project it's about (the wording is the catalog's)
-    assert "2 arquivos novos em 02 " in email.text
-    assert "Croqui.pdf" in email.text and "Fachada.pdf" in email.text
+    assert "Há atualizações no projeto Casa Jardim." in email.text
+    # One stage changed: a sentence, not a list; files counted, never named.
+    assert "A etapa 02 Levantamento foi atualizada: 2 arquivos enviados." in email.text
+    assert "Croqui" not in email.text and "Fachada" not in email.text
+    assert "Croqui" not in email.html and "<ul" not in email.html
     assert "/casa-jardim" in email.text
     assert email.headers["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
     assert email.headers["List-Unsubscribe"].startswith("<http")
 
 
-@pytest.mark.parametrize(("count", "more"), [(4, "e mais 1"), (5, "e mais 2")])
-async def test_more_files_than_listed_end_with_how_many_more(
-    app, db_session, outbox, ready, count, more
+async def test_several_stages_read_as_a_list_each_with_its_changes(
+    app, client, db_session, owner, outbox, ready
 ):
+    from backend.tests.test_maintenance_scan import call
+
+    await new_file(app, outbox, ready, "Croqui.pdf")  # into 02 Levantamento
+    await call(client, owner, "PUT", "/stages/2/completion", completed=False)  # done in the seed
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    email = outbox.sent[0]
+    lead = email.text.index("As seguintes etapas foram atualizadas:")
+    assert email.text[lead:].splitlines()[1:3] == [
+        "- 02 Levantamento: 1 arquivo enviado e reaberta",
+        "- 03 Estudo Preliminar: marcada como concluída",
+    ]
+    assert email.html.count("<li") == 2
+
+
+@pytest.mark.parametrize(("count", "said"), [(1, "1 arquivo enviado"), (4, "4 arquivos enviados")])
+async def test_files_are_counted_in_the_right_form(app, db_session, outbox, ready, count, said):
     """Once a missing text here stopped every email (21 Oct 2026)."""
     for i in range(count):
         await new_file(app, outbox, ready, f"Prancha {i + 1}.pdf")
     await make_due(db_session)
     await run(app, outbox)
-    assert f"{count} arquivos novos em 02 " in outbox.sent[0].text
-    assert more in outbox.sent[0].text
+    assert f"A etapa 02 Levantamento foi atualizada: {said}." in outbox.sent[0].text
 
 
 async def test_a_file_taken_down_before_sending_is_left_out(app, db_session, outbox, ready):
@@ -443,8 +465,18 @@ async def test_the_email_shows_a_logo_email_programs_can_show(
         assert shown in html
 
 
-async def test_names_from_files_cant_inject_html(app, db_session, outbox, ready):
-    await new_file(app, outbox, ready, '<img src=x onerror="alert(1)">.pdf')
+async def test_names_the_office_typed_cant_inject_html(
+    app, client, db_session, owner, outbox, ready
+):
+    from datetime import date, timedelta
+
+    from backend.tests.test_maintenance_scan import call
+
+    day = (date.today() + timedelta(days=5)).isoformat()
+    await call(
+        client, owner, "PUT", "/meeting", title="<img src=x onerror=1>", day=day, start="10:00"
+    )
+    await run(app, outbox)
     await make_due(db_session)
     await run(app, outbox)
     html = outbox.sent[0].html
@@ -466,7 +498,7 @@ async def test_several_meeting_changes_read_as_the_latest(
     await run(app, outbox)
     lines = [line for line in outbox.sent[0].text.splitlines() if "Reunião" in line]
     assert lines == [
-        f"- Reunião alterada: Visita à obra, {date.fromisoformat(day):%d/%m/%Y} às 15:30."
+        f"Reunião alterada: Visita à obra, {date.fromisoformat(day):%d/%m/%Y} às 15:30."
     ]
 
 
@@ -549,11 +581,12 @@ async def test_a_half_sent_email_is_retried_as_it_was_and_new_changes_wait(
     age(path)
     await run(app, outbox)  # the retry, and Fachada found
     retry = [e for e in outbox.sent if e.to == STAFF]
-    assert len(retry) == 1 and "Fachada.pdf" not in retry[0].text  # as it was
+    assert len(retry) == 1 and "foi atualizada: 1 arquivo enviado." in retry[0].text  # as it was
     assert await batches(db_session) == [("sent",), ("open",)]  # Fachada waits its turn
+    before = len(outbox.sent)
     await make_due(db_session)
     await run(app, outbox)
-    later = [e for e in outbox.sent if "Fachada.pdf" in e.text]
+    later = outbox.sent[before:]
     assert sorted(e.to for e in later) == sorted([CLIENT, STAFF])  # both hear of it
 
 
@@ -756,7 +789,7 @@ def test_every_text_asked_for_by_a_count_has_both_forms_in_every_language():
         p.read_text("utf-8") for p in (ROOT / "backend").rglob("*.py") if "tests" not in p.parts
     )
     keys = counted_keys(code)
-    assert {"files", "andMore"} <= keys
+    assert "filesSent" in keys
     for locale in Locale:
         texts = json.loads((ROOT / "backend" / "i18n" / f"{locale.value}.json").read_text("utf-8"))[
             "email"

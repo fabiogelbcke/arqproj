@@ -151,3 +151,19 @@ link that takes in a stage's future files.
   opens, skippable. The first real project page has its own tour, focused on
   setting the project up, once per account (built: Driver.js,
   `users.tour_seen_at`, the account menu replays it).
+
+## Sign in with Apple
+
+- Raised by Fabio, 26 Oct 2026, after Google sign-in was planned (A38, section
+  21). Not now: Google works on Apple devices, and Apple requires its sign-in
+  only in App Store apps that offer other social logins.
+- About 1-2 days on top of Google's hand-off between domains, plus:
+  - a paid Apple Developer account, a Services ID, domain verification and a
+    signing key whose client secret must be renewed at least every 6 months;
+  - "Hide My Email": Apple may give a relay address that matches no invited
+    account, so an account would have to be linked to its Apple ID on first use
+    (a schema change and screens), and our sending domains registered with
+    Apple for mail to reach relay addresses;
+  - Apple returns by form POST (cookies behave differently on that hop) and
+    gives the name only the first time.
+

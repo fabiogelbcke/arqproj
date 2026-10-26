@@ -39,8 +39,15 @@ export function ConfirmEmailPage({ me }: { me: Me }) {
       confirm.reset();
     },
   });
+  const queryClient = useQueryClient();
   const correct = useMutation({
     mutationFn: () => call(api.PUT("/api/me/email", { body: { email: newEmail } })),
+    // The new address is saved even when its email couldn't go: show it, so a
+    // resend doesn't say the code went to the old one.
+    onError: (failure) => {
+      if (failure instanceof ApiError && failure.code === "email_not_sent")
+        void queryClient.invalidateQueries({ queryKey: ME });
+    },
     onSuccess: (corrected) => {
       signedIn(corrected);
       setCorrecting(false);

@@ -27,6 +27,12 @@ const devRedirects: Plugin = {
         response.end();
         return;
       }
+      // The operator dashboard (backend/web/admin.py): its own entry, at /admin.
+      if (path === "/admin" || path?.startsWith("/admin/")) {
+        request.url = "/painel/admin.html" + (query ? `?${query}` : "");
+        next();
+        return;
+      }
       // The preview page (backend/web/painel.py): its own entry.
       if (path === "/painel/previa") {
         request.url = "/painel/preview.html" + (query ? `?${query}` : "");
@@ -70,9 +76,12 @@ export default defineConfig({
     outDir: "dist",
     assetsDir: "assets",
     assetsInlineLimit: 0,
-    // Three apps: the painel (index.html), the client page (client.html) and the
-    // preview page (preview.html), each with only its own code.
-    rollupOptions: { input: { painel: "index.html", client: "client.html", preview: "preview.html" } },
+    // Four apps: the painel (index.html), the client page (client.html), the
+    // preview page (preview.html) and the operator dashboard (admin.html), each
+    // with only its own code.
+    rollupOptions: {
+      input: { painel: "index.html", client: "client.html", preview: "preview.html", admin: "admin.html" },
+    },
   },
   test: {
     environment: "jsdom",

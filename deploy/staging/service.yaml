@@ -44,6 +44,15 @@ spec:
               value: 496714293251-do3f1dtjsv5ae4l7559h3ghhg2ng34u5.apps.googleusercontent.com
             - name: GOOGLE_OAUTH_REDIRECT_URI
               value: https://staging.myunio.app/api/drive/callback
+            # The operator dashboard (A38): Unio's own address, where /admin answers,
+            # the Google accounts allowed in (Fabio, 26 Oct 2026), and Google sign-in's
+            # return address there (the Drive client's, for now).
+            - name: OPERATOR_HOST
+              value: staging.myunio.app
+            - name: OPERATOR_EMAILS
+              value: fabio.gelbcke@gmail.com
+            - name: GOOGLE_SIGNIN_REDIRECT_URI
+              value: https://staging.myunio.app/api/auth/google/callback
             - name: DRIVE_READER_IDENTITY
               value: portal-staging@arq-proj.iam.gserviceaccount.com
             # Cloud Scheduler's call to /internal/maintenance (A09, A19): the token must

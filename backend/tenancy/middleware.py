@@ -15,7 +15,7 @@ from starlette.datastructures import Headers
 from starlette.responses import PlainTextResponse, RedirectResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from backend.tenancy.resolve import resolve
+from backend.tenancy.resolve import normalize_host, resolve
 
 # The maintenance pass is every office's: called by the scheduler, never a page.
 # Unio's public home, its assets and legal pages belong to no office (A33).
@@ -37,6 +37,18 @@ EXEMPT_PREFIXES = ("/painel/assets/",)
 # Google's shared return address is no office's: let it through without a tenant
 # (backend/web/drive.py forwards it to the office that started).
 UNOWNED_PATHS = frozenset({"/api/drive/callback"})
+# The operator dashboard (A38) belongs to no office: on Unio's own address
+# (OPERATOR_HOST) these pass without one, even where that address also serves an
+# office (staging's). Anywhere else they go on as usual, and answer 404.
+OPERATOR_PAGE = "/admin"
+OPERATOR_PATHS = frozenset({OPERATOR_PAGE, "/api/auth/google/callback"})
+OPERATOR_PREFIXES = (OPERATOR_PAGE + "/", "/api/admin/")
+
+
+def operator_path(path: str) -> bool:
+    return path in OPERATOR_PATHS or path.startswith(OPERATOR_PREFIXES)
+
+
 REDIRECT_MAX_AGE = 86400  # one day
 
 
@@ -52,6 +64,9 @@ class TenantMiddleware:
 
         state = scope["app"].state
         host = Headers(scope=scope).get("host")
+        if operator_path(path) and normalize_host(host) == state.settings.operator_host:
+            await self.app(scope, receive, send)
+            return
         async with state.sessionmaker() as session:
             resolution = await resolve(session, host)
 

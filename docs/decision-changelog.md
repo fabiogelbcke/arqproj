@@ -19,6 +19,85 @@ a new entry too.
 
 ---
 
+## 2026-10-26 — A39 (new): product analytics with PostHog, server and browser
+
+**Was:** no product analytics; the privacy policy listed Google Cloud and Resend
+as the only providers.
+
+**Now:** the backend sends staff actions and server errors to PostHog, tied to
+the account's id, its role and its office, never the email or name. It runs only
+where the token is set (production). The privacy policy names PostHog.
+
+**Why:** Fabio wants to see how offices use the product. The PostHog wizard's
+setup sent the staff member's email and name as person properties: Fabio chose
+the id and role only (26 Oct 2026), which is enough to count and follow usage
+without personal data at a US provider. He added the office as a group, so usage
+can be seen per office. The wizard's Logs exporter (three packages for three log
+lines, one per health check) was dropped: Cloud Logging and the email alerts
+already cover it. It also failed every local run without a token, and read the
+old app's `.env`, which would have sent tests' events to the real project; both
+removed. The browser side (the wizard's too) read its key at build time; but
+production deploys staging's image, so the key now comes from `/api/me` at run
+time, to staff only. Its events that the server already sends (projects, stages,
+share links) were dropped so nothing counts twice.
+
+---
+
+## 2026-10-26 — Section 5: Google sign-in's hand-off is Google's PKCE-bound code
+
+**Was:** the shared return address completes login on the office through "a
+short-lived, single-use handoff code" bound to the office and the browser, of
+which only a hash is stored.
+
+**Now:** the return is forwarded, unchanged, to the office's own address, and
+Google's authorization code is that hand-off: Google makes it single use and
+short lived, and it can only be redeemed with the PKCE verifier held in a
+signed cookie for the office's address alone (with the flow's state and nonce),
+so the same replay, wrong-office and wrong-browser refusals hold.
+
+**Why:** the properties section 5 asks for come from the code's binding, not
+from who mints it; minting a second code would add a table and a step for the
+same guarantees. The Drive connection already forwards its return the same way.
+
+---
+
+## 2026-10-26 — A38: the dashboard reads with the app's own login, office by office
+
+**Was:** (A38, earlier the same day) cross-office reads and the lifecycle
+actions would both go through a separate database login.
+
+**Now:** reads use the app's own login, scoped to each office in turn exactly as
+a request is, so the isolation policy applies to every read and no login sees
+every office at once. The separate login stays for the lifecycle actions
+(creating, suspending, deleting offices), which need privileges the app lacks.
+
+**Why:** found while building slice 1: with a handful of offices, a few queries
+each is cheap, and it needed no new database login or privileges (so no schema
+or infrastructure change for a read-only first slice). Codex's review of PR #138
+pointed out the register still said otherwise.
+
+---
+
+## 2026-10-26 — A38 (new), section 21: an operator dashboard
+
+**Was:** section 5 named a "Platform operator" with "operational tools with
+audit", and section 21 said operators "can inspect redacted operational state",
+but nothing was built: offices, owners and links were made with `make` commands
+against the database, and debugging meant reading Cloud Logging by hand.
+
+**Now:** a dashboard at `myunio.app/admin`: Google sign-in for allowlisted
+operator emails, offices with counts and health, a support-ID lookup, creating
+offices with their owner link, suspending, and deleting only a suspended office.
+Audited; no client content; a separate database login for cross-office work.
+
+**Why:** Fabio, 26 Oct 2026: to see who is on the platform, help clients with
+issues and manage offices without terminal commands. Chosen over a password
+account for operators (more to build and protect), over deleting in one step
+(no way back), and over a separate service (more infrastructure for a small
+team; the pages refuse every office's address instead).
+
+---
+
 ## 2026-10-26 — A27: one survey stage, "Levantamento"
 
 **Was:** 12 built-in stages, among them both "Levantamento" (site survey) and

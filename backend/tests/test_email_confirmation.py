@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from backend.commands.seed import seed
 from backend.identity import links
-from backend.identity.models import Role
+from backend.identity.models import LinkKind, Role, User
 from backend.tests.test_office import ALINEA, sign_in_as
 from backend.tests.test_team import Sent, _waits_for, code_in, csrf, join, token_in, turn_on
 from backend.web import attempts, auth, email_confirmation, team
@@ -278,9 +278,19 @@ async def test_the_link_waits_for_a_correction_under_way(client, db_session, joi
 
 async def test_a_reset_link_waits_for_a_correction_under_way(client, db_session, joined, sent):
     """A reset link confirms the address too, so it waits on the same lock."""
-    await client.post("/api/password-reset", json={"email": "caio@gmail.com"}, headers=ALINEA)
-    token = token_in(sent.emails[-1].text)
-    user_id = await db_session.scalar(text("SELECT id FROM users WHERE email = 'caio@gmail.com'"))
+    # The link made directly: asking for it takes the same lock (a reset waits for
+    # a correction too), and here every request shares the test's one transaction,
+    # which would keep holding it.
+    tenant, user_id = (
+        await db_session.execute(
+            text("SELECT tenant_id, id FROM users WHERE email = 'caio@gmail.com'")
+        )
+    ).one()
+    await db_session.execute(
+        text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant)}
+    )
+    user = await db_session.get(User, user_id)
+    token = await links.create(db_session, user, LinkKind.RESET)
     lock = "SELECT pg_advisory_xact_lock(hashtext('email-code'), hashtext(:k))"
     call = lambda: client.post(  # noqa: E731
         "/api/password", json={"token": token, "password": "a new password"}, headers=ALINEA

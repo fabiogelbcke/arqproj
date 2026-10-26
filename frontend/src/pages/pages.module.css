@@ -176,8 +176,6 @@ a.brand:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 }
 .exampleInvite:hover strong { text-decoration: underline; text-underline-offset: 3px; }
 .exampleInvite:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
-.exampleAfter { margin: 0; font-size: var(--text-md); }
-.exampleLink { color: var(--ink); text-underline-offset: 3px; }
 @media (max-width: 560px) {
   /* The button goes under the title, beside the box's column; the ⓘ stays by the title. */
   .step { grid-template-columns: 18px minmax(0, 1fr) auto; padding: 10px 12px; }
@@ -334,3 +332,9 @@ a.brand:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 /* Confirmar e-mail: "Reenviar código" and "Corrigir e-mail" side by side. */
 .confirmActions { display: flex; flex-wrap: wrap; gap: 8px; }
 .card > .signOutLink { justify-self: start; }
+
+/* "ou" between "Entrar com Google" and the email form, on a hairline. */
+.orLine {
+  display: flex; align-items: center; gap: 12px; margin: 0; color: var(--muted); font-size: var(--text-sm);
+}
+.orLine::before, .orLine::after { content: ""; flex: 1; height: 1px; background: var(--line); }

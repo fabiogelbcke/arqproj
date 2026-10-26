@@ -316,4 +316,14 @@ async def new_project(
         log.error("creating project folders failed for %s: %s", tenant.slug, error.detail)
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
     log.info("project %s created in %s", project.id, tenant.slug)
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture(
+            "project_created",
+            properties={
+                "project_type": project.project_type,
+                "stage_count": len(body.stages),
+                "recipient_count": len(body.recipients),
+            },
+        )
     return (await summaries(db, tenant.locale, only=project.id))[0]

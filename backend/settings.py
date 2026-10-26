@@ -64,6 +64,14 @@ class Settings(BaseSettings):
     google_oauth_redirect_uri: str = "http://127.0.0.1:5173/api/drive/callback"
     # The Google identity office folders are shared with for reading.
     drive_reader_identity: str | None = None
+
+    # The operator dashboard (A38): Unio's own address, where /admin answers (never
+    # an office's address, except staging's, which serves both), and the Google
+    # accounts allowed in, comma separated, set in the deployment, not the database.
+    operator_host: str = "localhost"
+    operator_emails: str = ""
+    # Google sign-in's one return address, on that host (the Drive client's).
+    google_signin_redirect_uri: str = "http://localhost:5173/api/auth/google/callback"
     # Local development: offices whose storage kind is "folder" read files under
     # this folder (the fictional dataset; README "Local-folder test data").
     local_storage_root: str = str(
@@ -88,6 +96,10 @@ class Settings(BaseSettings):
     # (locally), that address doesn't exist; run backend.commands.maintenance.
     maintenance_audience: str | None = None
     maintenance_caller: str | None = None
+    # Product analytics (PostHog), off unless both are set: the old app's `.env`
+    # is not read, so a local run or a test never sends events by accident.
+    posthog_project_token: str | None = None
+    posthog_host: str | None = None
 
     @field_validator("log_level")
     @classmethod
@@ -142,6 +154,10 @@ class Settings(BaseSettings):
             and self.google_oauth_client_secret
             and self.drive_reader_identity
         )
+
+    @property
+    def operator_allowlist(self) -> frozenset[str]:
+        return frozenset(e.strip().lower() for e in self.operator_emails.split(",") if e.strip())
 
     @property
     def deployed(self) -> bool:

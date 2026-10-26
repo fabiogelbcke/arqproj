@@ -16,6 +16,7 @@ dependencies = [
     "httpx2~=2.13.1",
     "cryptography~=50.0.2",
     "python-multipart~=0.0.32",
+    "posthog>=7.75.11",
 ]
 
 [dependency-groups]

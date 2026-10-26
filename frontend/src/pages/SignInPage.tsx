@@ -32,6 +32,14 @@ export function SignInPage() {
     },
   });
 
+  // "Entrar com Google" (section 5): Google's address, then back to /painel/, or
+  // here with why it didn't sign in (?google=…).
+  const google = useMutation({
+    mutationFn: () => call(api.POST("/api/auth/google/start")),
+    onSuccess: ({ url }) => window.location.assign(url),
+  });
+  const googleProblem = params.get("google");
+
   if (me.data) return <Navigate to={next} replace />;
   return (
     <main className={styles.centered}>
@@ -39,6 +47,17 @@ export function SignInPage() {
         <AuthBrand />
         {/* The logos above say whose panel this is; the heading is for screen readers. */}
         <h1 className="sr-only">{t("signIn.title")}</h1>
+        {googleProblem && (
+          <div role="alert" className={styles.lead}>
+            <p>{t(`signIn.googleProblem.${googleProblem}`, { defaultValue: t("signIn.googleProblem.falhou") })}</p>
+            {params.get("ref") && <p className={styles.small}>{t("errors.reference", { id: params.get("ref") })}</p>}
+          </div>
+        )}
+        <Button onPress={() => google.mutate()} isDisabled={google.isPending}>
+          {t("signIn.google")}
+        </Button>
+        <ErrorNotice error={google.error} />
+        <p className={styles.orLine}>{t("signIn.or")}</p>
         <Form
           onSubmit={(event) => {
             event.preventDefault();

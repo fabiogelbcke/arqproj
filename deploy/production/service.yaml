@@ -36,6 +36,13 @@ spec:
             # last X-Forwarded-For entry (backend/web/attempts.py).
             - name: FORWARDED_HOPS
               value: "2"
+            # Product analytics (A39). A PostHog project token is public by design
+            # (it reaches staff browsers through /api/me), so it is set here, not in
+            # Secret Manager. Staging has none: its clicks stay out of the numbers.
+            - name: POSTHOG_PROJECT_TOKEN
+              value: phc_DpvdFR45x4EKCdqDsh9XNkb6jTFUNs42sDDagbr98a48
+            - name: POSTHOG_HOST
+              value: https://us.i.posthog.com
             - name: BUILD_ID
               # Quoted: a commit ID like 14e4836 would otherwise read as a number.
               value: "BUILD_ID_PLACEHOLDER"
@@ -54,6 +61,15 @@ spec:
               value: 496714293251-ov1b5fd8gir885g9p51qsrbn9gbq6l7i.apps.googleusercontent.com
             - name: GOOGLE_OAUTH_REDIRECT_URI
               value: https://myunio.app/api/drive/callback
+            # The operator dashboard (A38): Unio's own address, where /admin answers,
+            # the Google accounts allowed in (Fabio, 26 Oct 2026), and Google sign-in's
+            # return address there (the Drive client's, for now).
+            - name: OPERATOR_HOST
+              value: myunio.app
+            - name: OPERATOR_EMAILS
+              value: fabio.gelbcke@gmail.com
+            - name: GOOGLE_SIGNIN_REDIRECT_URI
+              value: https://myunio.app/api/auth/google/callback
             - name: DRIVE_READER_IDENTITY
               value: portal-production@arq-proj.iam.gserviceaccount.com
             # Cloud Scheduler's call to /internal/maintenance (A09, A19): the token must

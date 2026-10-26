@@ -123,6 +123,8 @@ its affected tests before coding proceeds.
 | A35 | No drafts for now: a new project is published at once | Agreed 17 Oct 2026 (Fabio). Creation makes the project `active`, so its client page answers as soon as it exists; there is no "Publicar" step or "Rascunhos" group. The `draft` status stays allowed in the database, unused, so drafts can return without a schema change; existing drafts were published (migration 0024). Revised 19 Oct 2026 (Fabio): the staff bar says nothing about publishing, neither "Publicado" nor a "Publicar" button on a draft; the publish endpoint stays, unused, for when drafts return. Replaces the draft step of 15 Oct (section 10). See the [changelog](decision-changelog.md) |
 | A36 | Owners invite staff from the painel: a personal invite, or a shared office link | Agreed 20 Oct 2026 (Fabio), bringing forward the invitation screen section 5 had deferred. In Configurações → Equipe ("Convidar pessoa", a dialog under the team list) an owner invites a person by name, email and role: the app creates the account without a password and emails a one-time link to choose one (the existing invite link, 7 days), with "Copiar link" to send it another way; a pending invite can be sent again or cancelled. An owner can also turn on one shared office link, to post in a group: whoever opens it gives a name, an email and a password on one page and is signed in, but the account does nothing except confirm the email until a 6-digit code emailed to it is typed in, or the email's link is pressed (revised 25 Oct 2026; section 5: invitations bind a verified email). The screen offers "Reenviar código" (once every 2 minutes) and "Corrigir e-mail" (only while unconfirmed), and signing in again brings it back; the code works only in that account's own session, 5 wrong codes use it up, and 5 wrong in 15 minutes per account make it wait; code and link last 24 hours. Equipe shows "E-mail não confirmado" until it's done. An invite or reset link used counts as confirmation too. A shared link ("Convidar através de um link") always makes a member, never an owner; it works for 24 hours (Fabio: a link passed around goes stale); only its hash is stored, so it can be copied when made, and making a new one turns the old one off. An address that already has an account is refused ("Já existe uma conta com este e-mail"): only someone holding the office's link learns it, at the rate limit (Fabio, 25 Oct 2026); requests are rate-limited per device. A deployment operator can create a one-time owner signup link with `make owner-link TENANT=…`, without knowing the person's name or email (approved 25 Oct 2026). It lasts 7 days by default, is consumed atomically when the account is created, and requires the same email confirmation before the owner can act. Owner links are separate from the painel's member links: turning the shared link on or off never changes them. Removing active staff and changing roles come later. See section 5 and the [changelog](decision-changelog.md) |
 | A37 | Clients and staff share files by link ("Compartilhar arquivos") | Agreed 25 Oct 2026 (Fabio), from the idea in future ideas. From the project page, anyone who can see it (the client, or staff) picks files from any stages and gets a link to send, say to a supplier for a quote; the supplier needs no account. One panel, opened above the stage list or from a stage (its files ticked). Files hidden from the client never appear. **A link serves the exact versions it was made with**, so a quote matches what was sent: renamed or moved to another stage, a file stays in it; hidden, trashed or taken out of the project, it drops out, and the supplier's page says how many are no longer available. When a file in a link has a newer version, the links list says so, and "Atualizar link" moves the same address to the newer versions. The sender picks the expiry (7 days, 30 days, none) and an optional "Para quem?" label. Staff see every link of the project (label, who made it: the staff member's name, or "Cliente"; files available; dates; downloads), copy any of them again, and can turn any off ("Desativar"); a client sees, copies and turns off only the links made on their own device (Fabio, 25 Oct 2026: kept per device, since anyone with the page's address counts as the client). Limits: 300 MB per link, checked when it is made; a few new links per device every 15 minutes; 5 GB of downloads per link per day ("Este link atingiu o limite de downloads de hoje"), no cap on links per project. Links work without the project's password, which the sender already had; staff turn a link off to stop it. The sender can add a password to a link, typed once per device as a page's. "Baixar tudo" downloads every file as one zip, a folder per stage, counted against the day as its whole size (built 25 Oct 2026). See section 15 and the [changelog](decision-changelog.md) |
+| A38 | An operator dashboard for Unio: offices, health, support and office lifecycle | Agreed 26 Oct 2026 (Fabio). At `myunio.app/admin` only (never on an office's address: 404 there), in the same app and deploy. Operators sign in with Google; only emails on an allowlist set in the deployment (not the database) get in, with their own session apart from office staff logins. It shows every office with operational counts and health, and finds a support ID's log line; no client content (file names, project texts). Actions: create an office with its owner link, a new owner link, suspend (offline, reversible) and, only for a suspended office with its name typed, delete (our data only; the office's Drive files are never touched). Every operator action is audited. Cross-office reads go through a separate database login, not the app's. Built in slices: read-only, actions, then PostHog groups (PR #106). See section 21 and the [changelog](decision-changelog.md) |
+| A39 | Product analytics with PostHog: staff actions by account id, role and office | Agreed 26 Oct 2026 (Fabio), from the PostHog wizard's setup. The backend sends staff actions (sign-in and out, a password set, a project created or its content saved, a meeting set or cleared, a stage added or completed, a project completed, a share link made or turned off) to PostHog, each tied to the account's id (never its email or name) with its role, and to the office as a `tenant` property and PostHog group. Clients and suppliers stay personless. Unhandled server errors are captured too. It runs only where `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` are set: production, not staging, local runs or tests (the old app's `.env` is not read). No PostHog Logs export. In the browser, PostHog starts only for signed-in staff, from the key `/api/me` gives them (one image serves staging and production, each with its own key or none); it is loaded only then, from PostHog's self-contained build (no scripts from PostHog's servers; the Content Security Policy only lets events out), with the same id, role and office, clicks without their text, no session recording, and unhandled errors. Clients' and suppliers' browsers never load it. Events the server already sends are not sent again from the browser. The privacy policy names PostHog. See the [changelog](decision-changelog.md) |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -586,6 +588,24 @@ code to the initiating tenant and browser flow, store only its hash, and reject
 replay, wrong-host and mismatched-browser redemption. Preserve the initiating
 browser proof in a host-only cookie. Exact protocol handling gets its own tests
 and security review; do not improvise a cross-subdomain token in localStorage.
+
+**Built (26 Oct 2026): "Entrar com Google" on the painel's sign-in page**
+(`backend/web/google_signin.py`, sharing `backend/operators/google_signin.py`
+with the operator dashboard). The callback is on Unio's own address (the one
+`GOOGLE_SIGNIN_REDIRECT_URI`, `…/api/auth/google/callback`, the same as the
+operator dashboard's); it forwards the return to the office address named in
+the signed `state`, only if that address is registered to that office. The
+hand-off is Google's own authorization code rather than one the app mints: it
+is single use and short lived, and redeemable only with the PKCE verifier kept,
+with the state and nonce, in a signed cookie for the office's address alone, so
+replay, another office's address and another browser are refused as this
+section asks, with nothing of ours to store. Google signs in an existing
+account of that office by its verified email (and confirms it, under the same
+per-account lock as codes and links), never creates one, and doesn't accept a
+pending invite (its link does, first); passwords keep working. Code exchanges
+are rate-limited per device (5 failures in 15 minutes, as passwords), for
+offices and operators alike; a failure's support code comes back with the
+redirect. Sign-up and owner links don't offer Google yet.
 
 Staff roles for the pilot:
 
@@ -1339,7 +1359,11 @@ Pipeline:
    provider permits; do not promise mathematical exactly-once email delivery.
 6. Signed provider callbacks update delivery/bounce state idempotently.
 
-Email contains a short summary and portal links, not attachments or passwords.
+Email contains a short summary and portal links, not attachments or passwords. The summary
+names each stage that changed and says what changed in general terms ("3 arquivos
+enviados", "marcada como concluída", "reaberta"), never file names (Fabio, 26 Oct
+2026); one stage reads as a sentence, several as a list; the project and the
+meeting follow as sentences.
 Send recipients separately to avoid exposing the client list. Offer an
 unguessable unsubscribe link scoped to that recipient/project and an office
 preference control. Disabled recipients remain suppressed on retries. Initial
@@ -1570,8 +1594,9 @@ the reserved address (a migration).
   above the steps, with the example's cover: "Antes de começar, veja como fica a
   página de um projeto pronto" and "Ver o exemplo". It is not one of the steps
   the progress counts; at the top, a phone shows it on the first screen (the
-  steps fill it). Once the steps are done, a line "Ver um projeto de exemplo"
-  stays on the painel. The painel tour's last step also leads there. An empty
+  steps fill it). Once the steps are done, "Ver um projeto de exemplo" stays
+  in the account menu and the phone's drawer (moved from the projects page,
+  Fabio, 26 Oct 2026). The painel tour's last step also leads there. An empty
   projects list was considered and rejected: while there are no projects, the
   steps are on screen too, above it.
 
@@ -1842,6 +1867,61 @@ in its logs (one email an hour at most), and no maintenance pass finished
 for 30 minutes. Both rely on Cloud Monitoring's free allowances. Not yet: uptime
 checks, a 5xx-rate alert, a billing budget alert, bounce tracking, and showing
 notification failures to the office.
+
+**Operator dashboard (A38, agreed 26 Oct 2026).** The "Platform operator" of
+section 5's role table gets its tools at `myunio.app/admin`:
+
+- **Access.** Google sign-in; an email outside the deployment's allowlist
+  (`OPERATOR_EMAILS`) is refused. Operator sessions are separate from office
+  staff sessions (another cookie, never valid on an office's address), short
+  lived, and every request is checked against the allowlist again. The pages
+  answer only on Unio's own host.
+- **Data access.** The app's database login stays bound to one office by the
+  isolation policy, and the dashboard reads with it office by office, each read
+  scoped to that office as a request is (revised 26 Oct 2026: stricter than a
+  login that sees every office, and needs no new privileges). The lifecycle
+  actions (creating, suspending, deleting offices) use a separate database
+  login with only the privileges they need (a schema and infrastructure change,
+  approved separately before it is built). Counts and
+  health only: no file names, project texts, client names or email addresses
+  of clients.
+- **Slice 1, read-only.** Offices: name, addresses, created, owners and staff
+  (confirmed or not), projects (active, archived), Drive connection state, last
+  staff activity, client emails sent, share links and downloads. An office's
+  page adds Drive health, pending invites and its recent errors from the logs.
+  A support-ID lookup finds the log line behind the code a client sees.
+- **Slice 2, actions.** Create an office (name, address) and print its owner
+  link; a new owner link; suspend an office (its painel and pages answer as
+  unavailable; reversible); delete a suspended office, typing its name to
+  confirm, which removes its data on our side and never its Drive files. Every
+  action is written to an operator audit log (who, what, which office, when).
+- **Slice 3, PostHog.** Offices as PostHog groups for usage trends (building on
+  PR #106); the office page links to its PostHog view.
+- **Built, slice 1 (26 Oct 2026):** `backend/web/admin.py`,
+  `backend/operators/` and `frontend/src/admin/` (its own bundle, `admin.html`).
+  `OPERATOR_HOST` is `myunio.app` in production and `staging.myunio.app` on
+  staging, where that address also serves Alinea (only `/admin`,
+  `/api/admin/*` and the sign-in return skip the office there). Sign-in is Google
+  OpenID Connect with state, nonce and PKCE kept in a signed cookie of the
+  browser that started, through the Drive OAuth client for now (its return
+  address `…/api/auth/google/callback` registered on both clients). The operator
+  session is a signed cookie for that host (8 hours, its own CSRF token),
+  checked against `OPERATOR_EMAILS` on every request; there is no session
+  table, so signing out ends it in that browser and removing an email ends it
+  everywhere. Counts are read office by office with the app's login, scoped like
+  a request: no login that sees every office. Logs open in Cloud Logging's
+  console with the search filled in (a support code, or an office's errors by its slug or ID),
+  read with the operator's own Google access; the app gets no log permissions.
+  Locally (and in the browser tests), `localhost/admin` offers an allowlisted
+  email without Google; the server refuses that anywhere deployed.
+- **Then, Google sign-in for offices** (Fabio, 26 Oct 2026: right after the
+  dashboard's, reusing its Google client): the shared return address on Unio's
+  host and the single-use hand-off to the office's own address described in
+  section 5, so one registered address serves every office and domain. Accounts
+  stay per office; Google signs in an existing account by its verified email
+  and never creates one by itself. Sign-up and owner links may offer "Continuar
+  com Google" instead of a password and the code. Passwords keep working. It
+  asks Google only for name and email; connecting Drive stays separate.
 
 Managed DB backups and point-in-time recovery must be enabled on a suitable plan.
 Initial proposed objectives: recover at most 24 hours of metadata loss for the
