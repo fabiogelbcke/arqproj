@@ -148,6 +148,15 @@ ingress `internal-and-cloud-load-balancing` (`deploy/production/service.yaml`).
 `us-east1-docker.pkg.dev/arq-proj/portal/app:<commit>`. Cleanup policy keeps the
 10 most recent images.
 
+## Operator dashboard (A38)
+
+`https://myunio.app/admin` (production) and `https://staging.myunio.app/admin`
+(staging): Google sign-in for the emails in `OPERATOR_EMAILS`
+(`deploy/*/service.yaml`). It signs in through each environment's Drive OAuth
+client, whose redirect URIs include `https://<host>/api/auth/google/callback`
+(added by Fabio, 26 Oct 2026). Adding an operator: add the email to
+`OPERATOR_EMAILS` in that environment's `service.yaml` and deploy.
+
 ## Admin commands against staging
 
 From a laptop with `brew install cloud-sql-proxy` and, once per machine,

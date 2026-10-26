@@ -16,7 +16,7 @@ test.beforeEach(({ page, browserName }) => {
   });
 });
 
-import { E2E_ENV, OUTBOX, PORT } from "../playwright.config";
+import { E2E_ENV, OPERATOR, OUTBOX, PORT } from "../playwright.config";
 
 /** An account made the real way, with the staff command; returns its invite link. */
 /** The project page's tour is for new accounts; tests about other things mark it
@@ -971,4 +971,23 @@ test("the painel tour, from the account menu, ends at the example project and it
   await popover.getByRole("button", { name: "Ver o exemplo" }).click();
   await expect(page).toHaveURL(/\/tour-projeto$/);
   await expect(page.locator(".driver-popover")).toContainText("O nome e o tipo do projeto");
+});
+
+// A38: Unio's operators see every office at /admin on Unio's own address (locally
+// "localhost"), never on an office's.
+test("an operator sees every office and one office's team on the dashboard", async ({ page }) => {
+  const unio = `http://localhost:${PORT}`;
+  expect((await page.request.get(`/admin`)).status()).toBe(404); // an office's address
+  await page.goto(`${unio}/admin`);
+  await page.getByRole("button", { name: "Entrar com Google" }).waitFor();
+  await page.getByLabel(/E-mail autorizado/).fill(OPERATOR);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  const alinea = page.getByRole("row").filter({ has: page.getByRole("link", { name: "Alinea (dev)" }) });
+  await expect(alinea).toContainText("alinea.localhost");
+  await expect(alinea).toContainText("Pasta local");
+  await expect(page.getByText("Casa Jardim")).toHaveCount(0); // no client content
+  await alinea.getByRole("link", { name: "Alinea (dev)" }).click();
+  await expect(page.getByRole("heading", { name: "Alinea (dev)", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Equipe" })).toBeVisible();
+  await expect(page).toHaveURL(`${unio}/admin/escritorios/alinea`);
 });

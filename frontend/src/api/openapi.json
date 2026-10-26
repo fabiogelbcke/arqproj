@@ -5,6 +5,267 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/admin/me": {
+      "get": {
+        "summary": "Me",
+        "operationId": "me_api_admin_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatorOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/signin": {
+      "post": {
+        "summary": "Signin",
+        "description": "Google's sign-in address. The state, nonce and PKCE verifier stay in this\nbrowser, in a signed cookie for the callback: a return in another browser, or\na replayed one, finds nothing to match.",
+        "operationId": "signin_api_admin_signin_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SigninOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/signout": {
+      "post": {
+        "summary": "Signout",
+        "operationId": "signout_api_admin_signout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/dev-session": {
+      "post": {
+        "summary": "Dev Session",
+        "description": "Local development and the browser tests, where Google can't be reached:\nsign in as an allowlisted email. Never anywhere deployed.",
+        "operationId": "dev_session_api_admin_dev_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevSessionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/offices": {
+      "get": {
+        "summary": "Office List",
+        "operationId": "office_list_api_admin_offices_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminOfficeOut"
+                  },
+                  "type": "array",
+                  "title": "Response Office List Api Admin Offices Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/offices/{slug}": {
+      "get": {
+        "summary": "Office Detail",
+        "operationId": "office_detail_api_admin_offices__slug__get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOfficeOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/session": {
       "post": {
         "summary": "Sign In",
@@ -4398,6 +4659,188 @@
         ],
         "title": "AccessMode"
       },
+      "AdminOfficeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "hosts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hosts"
+          },
+          "owners": {
+            "type": "integer",
+            "title": "Owners"
+          },
+          "staff": {
+            "type": "integer",
+            "title": "Staff"
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "projects": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Projects"
+          },
+          "storage": {
+            "type": "string",
+            "title": "Storage"
+          },
+          "writer_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Writer Status"
+          },
+          "reader_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reader Status"
+          },
+          "drive_account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drive Account"
+          },
+          "last_activity_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Activity At"
+          },
+          "emails_sent": {
+            "type": "integer",
+            "title": "Emails Sent"
+          },
+          "share_links": {
+            "type": "integer",
+            "title": "Share Links"
+          },
+          "downloads": {
+            "type": "integer",
+            "title": "Downloads"
+          },
+          "team": {
+            "items": {
+              "$ref": "#/components/schemas/AdminStaffOut"
+            },
+            "type": "array",
+            "title": "Team"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "status",
+          "created_at",
+          "hosts",
+          "owners",
+          "staff",
+          "pending",
+          "projects",
+          "storage",
+          "writer_status",
+          "reader_status",
+          "drive_account",
+          "last_activity_at",
+          "emails_sent",
+          "share_links",
+          "downloads",
+          "team"
+        ],
+        "title": "AdminOfficeOut"
+      },
+      "AdminStaffOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "role",
+          "status",
+          "last_seen_at"
+        ],
+        "title": "AdminStaffOut"
+      },
       "Body_add_logo_png_api_office_logo_png_put": {
         "properties": {
           "file": {
@@ -4739,6 +5182,19 @@
         ],
         "title": "DetailTypeOut"
       },
+      "DevSessionIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "DevSessionIn"
+      },
       "DriveOut": {
         "properties": {
           "kind": {
@@ -4825,6 +5281,7 @@
           "password_too_short",
           "owner_only",
           "drive_not_configured",
+          "signin_not_configured",
           "drive_denied",
           "drive_link_invalid",
           "drive_connect_failed",
@@ -5647,6 +6104,48 @@
           "has_project"
         ],
         "title": "OnboardingOut"
+      },
+      "OperatorOut": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "csrf_token": {
+            "type": "string",
+            "title": "Csrf Token"
+          },
+          "logs_project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logs Project"
+          },
+          "logs_service": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logs Service"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "csrf_token",
+          "logs_project",
+          "logs_service"
+        ],
+        "title": "OperatorOut"
       },
       "OrderIn": {
         "properties": {
@@ -6616,6 +7115,19 @@
           "unavailable"
         ],
         "title": "SharedOut"
+      },
+      "SigninOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "SigninOut"
       },
       "SpaceOut": {
         "properties": {
