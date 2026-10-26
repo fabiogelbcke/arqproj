@@ -75,6 +75,10 @@ publica sobre o projeto (por exemplo, o nome do cliente, descrições, datas de 
 arquivos) e os endereços de e-mail que o escritório cadastra para receber atualizações.</li>
 <li><strong>Equipe dos escritórios:</strong> nome, e-mail, senha (guardada apenas de forma
 cifrada) e, se uma conta Google for conectada, o acesso descrito abaixo.</li>
+<li><strong>Uso do painel:</strong> as ações da equipe (por exemplo, criar um projeto ou
+compartilhar arquivos), ligadas ao identificador interno da conta, à sua função e ao escritório,
+sem nome nem e-mail, para entendermos como o {PRODUCT} é usado. Erros do servidor também são
+registrados, para corrigi-los.</li>
 <li><strong>Registros técnicos:</strong> endereço IP, navegador, data e hora das solicitações,
 usados para segurança e para corrigir problemas, guardados por até 30 dias.</li>
 <li><strong>Cookies:</strong> apenas os estritamente necessários (manter a equipe conectada e
@@ -105,7 +109,8 @@ Google seguem a {_LINK_GOOGLE_POLICY}, incluindo os requisitos de Uso Limitado.<
 <h2>Com quem compartilhamos</h2>
 <p>O {PRODUCT} funciona na infraestrutura do Google Cloud (servidores nos Estados Unidos), e os
 arquivos ficam no Google Drive de cada escritório. Os e-mails de atualização são enviados pela
-Resend, que recebe apenas o necessário para a entrega. Esses provedores tratam os dados por
+Resend, que recebe apenas o necessário para a entrega. As estatísticas de uso e os erros do
+servidor vão para a PostHog (servidores nos Estados Unidos). Esses provedores tratam os dados por
 nossa conta, sob contrato. A transferência internacional segue a Lei Geral de Proteção de Dados
 (LGPD). Os dados de um escritório nunca são mostrados a outro escritório.</p>
 
@@ -154,6 +159,9 @@ project (such as the client's name, descriptions, meeting dates and files) and t
 addresses the office adds to receive updates.</li>
 <li><strong>Office staff:</strong> name, email, password (stored only in hashed form) and, if a
 Google account is connected, the access described below.</li>
+<li><strong>Use of the dashboard:</strong> staff actions (such as creating a project or sharing
+files), tied to the account's internal identifier, its role and its office, without name or
+email, so we understand how {PRODUCT} is used. Server errors are recorded too, to fix them.</li>
 <li><strong>Technical logs:</strong> IP address, browser, and time of requests, for security and
 troubleshooting, kept for up to 30 days.</li>
 <li><strong>Cookies:</strong> only strictly necessary ones (keeping staff signed in and
@@ -184,7 +192,8 @@ adhere to the {_LINK_GOOGLE_POLICY_EN}, including the Limited Use requirements.<
 <h2>Sharing</h2>
 <p>{PRODUCT} runs on Google Cloud (servers in the United States), and files are kept in each
 office's Google Drive. Update emails are sent through Resend, which receives only what delivery
-requires. These providers process data on our behalf under contract. International transfers
+requires. Usage statistics and server errors go to PostHog (servers in the United States). These
+providers process data on our behalf under contract. International transfers
 follow Brazil's General Data Protection Law (LGPD). One office's data is never shown to another
 office.</p>
 

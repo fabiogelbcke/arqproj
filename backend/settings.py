@@ -31,7 +31,7 @@ class Environment(StrEnum):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(case_sensitive=False, env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
     environment: Environment = Environment.LOCAL
     log_level: str = "INFO"
@@ -96,7 +96,8 @@ class Settings(BaseSettings):
     # (locally), that address doesn't exist; run backend.commands.maintenance.
     maintenance_audience: str | None = None
     maintenance_caller: str | None = None
-    # Product analytics. Both are optional so production can run without PostHog.
+    # Product analytics (PostHog), off unless both are set: the old app's `.env`
+    # is not read, so a local run or a test never sends events by accident.
     posthog_project_token: str | None = None
     posthog_host: str | None = None
 

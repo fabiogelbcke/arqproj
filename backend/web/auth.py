@@ -140,6 +140,10 @@ async def current_account(
         raise _not_signed_in()
     row, user = found
     await db.commit()  # keeps an extended expiry, if find_active extended it
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:  # this request's events are this person's
+        posthog_client.identify_context(str(user.id))
+        posthog_client.set_context_session(str(row.id))
     # The browser keeps the cookie as long as the session lives, so an active
     # person is not signed out 30 days after signing in.
     _set_cookie(request, response, token, row.expires_at)
@@ -254,7 +258,11 @@ async def signed_in(
         # its authenticated account and server session exist.
         posthog_client.identify_context(str(user.id))
         posthog_client.set_context_session(str(row.id))
-        posthog_client.set(properties={"email": user.email, "name": user.name, "role": user.role})
+        # Only the id and role (Fabio, 26 Oct 2026): no email or name in PostHog.
+        posthog_client.set(properties={"role": str(user.role)})
+        posthog_client.group_identify(
+            "tenant", str(tenant.id), properties={"slug": tenant.slug, "name": tenant.name}
+        )
         posthog_client.capture("user_signed_in")
     return me_out(
         user.email,

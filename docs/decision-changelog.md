@@ -110,6 +110,27 @@ future work.
 
 ---
 
+## 2026-10-26 — A39 (new): product analytics with PostHog, server side
+
+**Was:** no product analytics; the privacy policy listed Google Cloud and Resend
+as the only providers.
+
+**Now:** the backend sends staff actions and server errors to PostHog, tied to
+the account's id, its role and its office, never the email or name. It runs only
+where the token is set (production). The privacy policy names PostHog.
+
+**Why:** Fabio wants to see how offices use the product. The PostHog wizard's
+setup sent the staff member's email and name as person properties: Fabio chose
+the id and role only (26 Oct 2026), which is enough to count and follow usage
+without personal data at a US provider. He added the office as a group, so usage
+can be seen per office. The wizard's Logs exporter (three packages for three log
+lines, one per health check) was dropped: Cloud Logging and the email alerts
+already cover it. It also failed every local run without a token, and read the
+old app's `.env`, which would have sent tests' events to the real project; both
+removed.
+
+---
+
 ## 2026-10-25 — A37, sections 7 and 15: "Baixar tudo", a password per link, staff copy any link
 
 **Was:** a supplier downloaded files one at a time; a link had no password of
