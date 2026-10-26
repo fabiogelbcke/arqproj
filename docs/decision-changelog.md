@@ -19,6 +19,26 @@ a new entry too.
 
 ---
 
+## 2026-10-26 — A38 (new), section 21: an operator dashboard
+
+**Was:** section 5 named a "Platform operator" with "operational tools with
+audit", and section 21 said operators "can inspect redacted operational state",
+but nothing was built: offices, owners and links were made with `make` commands
+against the database, and debugging meant reading Cloud Logging by hand.
+
+**Now:** a dashboard at `myunio.app/admin`: Google sign-in for allowlisted
+operator emails, offices with counts and health, a support-ID lookup, creating
+offices with their owner link, suspending, and deleting only a suspended office.
+Audited; no client content; a separate database login for cross-office work.
+
+**Why:** Fabio, 26 Oct 2026: to see who is on the platform, help clients with
+issues and manage offices without terminal commands. Chosen over a password
+account for operators (more to build and protect), over deleting in one step
+(no way back), and over a separate service (more infrastructure for a small
+team; the pages refuse every office's address instead).
+
+---
+
 ## 2026-10-26 — A27: one survey stage, "Levantamento"
 
 **Was:** 12 built-in stages, among them both "Levantamento" (site survey) and
