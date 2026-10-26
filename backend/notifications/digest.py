@@ -197,7 +197,7 @@ class Summary:
 
 
 def _joined(locale, phrases: list[str]) -> str:
-    """"a", "a e b", "a, b e c"."""
+    """ "a", "a e b", "a, b e c"."""
     if len(phrases) == 1:
         return phrases[0]
     return ", ".join(phrases[:-1]) + t(locale, "and") + phrases[-1]
