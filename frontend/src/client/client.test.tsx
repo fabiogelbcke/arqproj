@@ -859,7 +859,7 @@ describe("edit mode", () => {
     await startEditing();
     await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
     let list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
-    expect(within(list).getByText(/No teclado: espaço na alça/)).toBeInTheDocument();
+    expect(within(list).getByText(/^Arraste uma etapa para mudar a ordem\./)).toBeInTheDocument();
     expect(within(list).queryByText(/Toque e segure/)).toBeNull();
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Reordenar etapas" })).toBeNull());
@@ -868,7 +868,7 @@ describe("edit mode", () => {
     await userEvent.click(screen.getByRole("button", { name: "Reordenar etapas" }));
     list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
     expect(within(list).getByText(/Toque e segure uma etapa/)).toBeInTheDocument();
-    expect(within(list).queryByText(/No teclado/)).toBeNull();
+    expect(within(list).queryByText(/^Arraste uma etapa/)).toBeNull();
     delete (window as { matchMedia?: unknown }).matchMedia;
   });
 
