@@ -386,3 +386,30 @@ describe("each screen's title and the skip link", () => {
     expect(document.getElementById("content")?.tagName).toBe("MAIN");
   });
 });
+
+describe("signing in with Google", () => {
+  it("goes to Google's address from the sign-in page", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+      "POST /api/auth/google/start": () => ({ body: { url: "https://accounts.google.com/o/oauth2/v2/auth?x=1" } }),
+    });
+    renderAt("/entrar");
+    await userEvent.click(await screen.findByRole("button", { name: "Entrar com Google" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?x=1"));
+    expect(sent.some((r) => r.path === "/api/auth/google/start")).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["sem-conta", /Não há uma conta neste escritório com esse e-mail do Google/],
+    ["cancelado", /A entrada foi cancelada no Google/],
+    ["outra-coisa", /Não foi possível entrar com o Google agora/],
+  ])("says why it didn't sign in (%s)", async (problem, said) => {
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    renderAt(`/entrar?google=${problem}`);
+    expect(await screen.findByRole("alert")).toHaveTextContent(said);
+  });
+});

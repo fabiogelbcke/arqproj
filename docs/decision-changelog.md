@@ -19,6 +19,24 @@ a new entry too.
 
 ---
 
+## 2026-10-26 — Section 5: Google sign-in's hand-off is Google's PKCE-bound code
+
+**Was:** the shared return address completes login on the office through "a
+short-lived, single-use handoff code" bound to the office and the browser, of
+which only a hash is stored.
+
+**Now:** the return is forwarded, unchanged, to the office's own address, and
+Google's authorization code is that hand-off: Google makes it single use and
+short lived, and it can only be redeemed with the PKCE verifier held in a
+signed cookie for the office's address alone (with the flow's state and nonce),
+so the same replay, wrong-office and wrong-browser refusals hold.
+
+**Why:** the properties section 5 asks for come from the code's binding, not
+from who mints it; minting a second code would add a table and a step for the
+same guarantees. The Drive connection already forwards its return the same way.
+
+---
+
 ## 2026-10-26 — A38: the dashboard reads with the app's own login, office by office
 
 **Was:** (A38, earlier the same day) cross-office reads and the lifecycle

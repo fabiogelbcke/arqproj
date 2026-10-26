@@ -36,7 +36,7 @@ from backend.operators.google_signin import GoogleSignIn, SignInError, new_verif
 from backend.security import keys
 from backend.tenancy.middleware import OPERATOR_PAGE
 from backend.tenancy.resolve import current_tenant, normalize_host
-from backend.web import pages
+from backend.web import google_signin, pages
 from backend.web.auth import optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 
@@ -231,7 +231,11 @@ def _back(problem: str | None = None) -> RedirectResponse:
 
 @router.get(CALLBACK, include_in_schema=False)
 async def callback(request: Request) -> Response:
+    """Google's one return address, for operators and for every office: an
+    office's sign-in goes on to that office's own address (google_signin)."""
     _on_operator_host(request)
+    if (office := google_signin.office_state(request)) is not None:
+        return await google_signin.forward(request, office)
     settings = _settings(request)
     try:
         flow = keys.verify(settings.app_secret, FLOW_PURPOSE, request.cookies.get(FLOW_COOKIE, ""))

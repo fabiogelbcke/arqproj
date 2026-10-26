@@ -24,6 +24,9 @@
     "dark": "Dark mode"
   },
   "signIn": {
+    "google": "Sign in with Google",
+    "or": "or",
+    "googleProblem": {"expirado": "Signing in with Google expired. Try again.", "cancelado": "Sign-in was cancelled at Google.", "sem-conta": "This office has no account with that Google email. Ask whoever manages the office for an invite, or sign in with email and password.", "falhou": "Signing in with Google didn't work just now. Try again in a moment."},
     "title": "Sign in",
     "intro": "{{office}} project dashboard.",
     "email": "Email",
