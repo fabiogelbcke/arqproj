@@ -2,6 +2,7 @@
 
 import hashlib
 import re
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from alembic import command
@@ -146,3 +147,61 @@ async def test_mistakes_are_refused_and_change_nothing(database, argv, error):
         await run(database, *argv)
     assert accounts_in(database) == []
     assert unused_links(database) == []
+
+
+@pytest.mark.parametrize(("options", "days"), [((), 7), (("--days", "2"), 2)])
+async def test_owner_link_needs_no_account_and_stores_only_the_hash(database, options, days):
+    before = datetime.now(UTC)
+    output = await run(database, "owner-link", "--tenant", "alinea", *options)
+    after = datetime.now(UTC)
+    assert "http://alinea.localhost:5173/painel/entrar-na-equipe#token=" in output
+    assert f"works once, for {days} day(s)" in output
+    assert accounts_in(database) == []
+    [(slug, role, single_use, expires_at, created_by, stored, used_at)] = rows(
+        database,
+        "SELECT t.slug, l.role, l.single_use, l.expires_at, l.created_by, "
+        "l.token_hash, l.used_at FROM join_links l JOIN tenants t ON t.id = l.tenant_id",
+    )
+    assert (slug, role, single_use, created_by, used_at) == ("alinea", "owner", True, None, None)
+    assert before + timedelta(days=days) <= expires_at <= after + timedelta(days=days)
+    assert stored == hashlib.sha256(token_in(output).encode()).hexdigest()
+
+
+async def test_owner_links_use_the_primary_host_and_can_be_created_independently(database):
+    engine = create_engine(database)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE tenant_domains SET hostname = 'alinea.example' WHERE is_primary "
+                "AND tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
+            )
+        )
+    engine.dispose()
+    first = await run(database, "owner-link", "--tenant", "alinea")
+    second = await run(database, "owner-link", "--tenant", "alinea")
+    other = await run(database, "owner-link", "--tenant", "norte")
+    assert "https://alinea.example/painel/entrar-na-equipe#token=" in first
+    assert "http://norte.localhost:5173/painel/entrar-na-equipe#token=" in other
+    assert token_in(first) != token_in(second)
+    assert len(rows(database, "SELECT id FROM join_links WHERE revoked_at IS NULL")) == 3
+    assert accounts_in(database) == []
+
+
+@pytest.mark.parametrize("days", ["0", "-1", "one"])
+async def test_owner_link_refuses_invalid_lifetimes(database, days, capsys):
+    with pytest.raises(SystemExit, match="2"):
+        await run(database, "owner-link", "--tenant", "alinea", "--days", days)
+    assert "--days" in capsys.readouterr().err
+    assert rows(database, "SELECT id FROM join_links") == []
+
+
+async def test_owner_link_requires_an_existing_tenant_and_primary_address(database):
+    with pytest.raises(SystemExit, match="No tenant"):
+        await run(database, "owner-link", "--tenant", "nowhere")
+    engine = create_engine(database)
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE tenant_domains SET is_primary = false"))
+    engine.dispose()
+    with pytest.raises(SystemExit, match="no primary address"):
+        await run(database, "owner-link", "--tenant", "alinea")
+    assert rows(database, "SELECT id FROM join_links") == []

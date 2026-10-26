@@ -56,7 +56,7 @@ class User(IdMixin, TimestampsMixin, TenantOwned, Base):
     # When they finished or closed the project page's guided tour; None: not yet,
     # so it starts on their first project page (Fabio, 18 Oct 2026: per account).
     tour_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # None while someone who joined through the office's shared link hasn't shown
+    # None while someone who joined through an office signup link hasn't shown
     # the address is theirs (a code or link emailed to it); until then they can
     # sign in only to confirm it (A36). Every other account starts confirmed: an
     # invite or reset link proves the address when it's used.
@@ -91,7 +91,7 @@ class LoginSession(IdMixin, CreatedAtMixin, TenantOwned, Base):
 class LinkKind(StrEnum):
     INVITE = "invite"  # a new account chooses its first password
     RESET = "reset"  # an existing account chooses a new one
-    CONFIRM = "confirm"  # someone who joined through the shared link confirms their email
+    CONFIRM = "confirm"  # someone who joined through a signup link confirms their email
 
 
 class PasswordLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
@@ -121,10 +121,10 @@ class PasswordLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
 
 
 class JoinLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
-    """An office's shared link for joining its staff (A36). Whoever opens it gives
-    a name, an email and a password, and confirms the email with a code sent to
-    it before the account works; they join as members. Only a hash of its token is here. At most one
-    is on at a time: turning it off, or making a new one, sets `revoked_at`."""
+    """Signup links (A36): the painel's shared member link, or a command's
+    one-time owner link. Both require email confirmation before the account
+    works. Only a hash of the token is stored. At most one member link is on;
+    turning it off or making another sets `revoked_at`, without touching owners."""
 
     __tablename__ = "join_links"
     __table_args__ = (
@@ -138,10 +138,17 @@ class JoinLink(IdMixin, CreatedAtMixin, TenantOwned, Base):
             "uq_join_links_one_on",
             "tenant_id",
             unique=True,
-            postgresql_where=text("revoked_at IS NULL"),
+            postgresql_where=text("revoked_at IS NULL AND role = 'member'"),
         ),
+        enum_check("role", Role),
     )
 
-    created_by: Mapped[uuid.UUID]
+    # A command can create the first owner's link before the tenant has users.
+    created_by: Mapped[uuid.UUID | None]
     token_hash: Mapped[str] = mapped_column(Text, unique=True)
+    role: Mapped[Role] = mapped_column(TextEnum(Role), server_default=text("'member'"))
+    single_use: Mapped[bool] = mapped_column(server_default=text("false"))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # None keeps the shared member link's 24-hour lifetime.
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -16,7 +16,7 @@ import { AuthBrand } from "./AuthBrand";
 import { takeToken } from "./ChoosePasswordPage";
 import styles from "./pages.module.css";
 
-/** The office's shared link for joining its staff (A36): a name, an email and a
+/** A shared member link or one-time owner link (A36): a name, an email and a
  *  password, then signed in to confirm the email with the code sent to it
  *  (`ConfirmEmailPage`, which the painel shows until it's done). */
 export function JoinPage() {
@@ -56,7 +56,9 @@ export function JoinPage() {
         ) : (
           <>
             <div>
-              <h1 className={styles.title}>{t("join.title", { office: link.data?.office ?? "" })}</h1>
+              <h1 className={styles.title}>
+                {t(link.data?.role === "owner" ? "join.ownerTitle" : "join.title", { office: link.data?.office ?? "" })}
+              </h1>
               <p className={styles.lead}>{t("join.intro")}</p>
             </div>
             <Form

@@ -494,7 +494,7 @@ export interface paths {
         put?: never;
         /**
          * Join
-         * @description A new member, signed in at once but unconfirmed: a code goes to the address,
+         * @description A new staff account, signed in but unconfirmed: a code goes to the address,
          *     and the account works once it's typed in. If the email can't go, they ask for
          *     another on the next screen.
          */
@@ -1349,6 +1349,7 @@ export interface components {
         JoinCheckOut: {
             /** Office */
             office: string;
+            role: components["schemas"]["Role"];
         };
         /** JoinIn */
         JoinIn: {

@@ -150,15 +150,18 @@ describe("Configurações → Equipe", () => {
   });
 });
 
-describe("the shared link's page", () => {
-  it("asks for a name, an email and a password, then for the code sent to the email", async () => {
+describe("the signup link's page", () => {
+  it.each([
+    { role: "member", title: "Entrar na equipe do Alinea" },
+    { role: "owner", title: "Criar a conta de proprietário do Alinea" },
+  ])("the $role link asks for a name, an email and a password, then for the emailed code", async ({ role, title }) => {
     window.history.replaceState(null, "", "/entrar-na-equipe#token=xyz");
-    const caio = { ...ME, name: "Caio Reis", email: "caio@gmail.com", role: "member", email_confirmed: false };
+    const caio = { ...ME, name: "Caio Reis", email: "caio@gmail.com", role, email_confirmed: false };
     const sent = api(
       {},
       {
         "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
-        "POST /api/join/check": () => ({ body: { office: "Alinea" } }),
+        "POST /api/join/check": () => ({ body: { office: "Alinea", role } }),
         "POST /api/join": () => ({ status: 201, body: caio }),
         "POST /api/me/email-code": (body: unknown) =>
           (body as { code: string }).code === "123456"
@@ -168,7 +171,7 @@ describe("the shared link's page", () => {
       },
     );
     renderAt("/entrar-na-equipe#token=xyz");
-    expect(await screen.findByRole("heading", { name: "Entrar na equipe do Alinea" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: title })).toBeInTheDocument();
     expect(window.location.hash).toBe(""); // the token leaves the address bar
     await userEvent.type(screen.getByLabelText("Nome"), "Caio Reis");
     await userEvent.type(screen.getByLabelText("E-mail"), "caio@gmail.com");
@@ -200,7 +203,7 @@ describe("the shared link's page", () => {
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
-      "POST /api/join/check": () => ({ body: { office: "Alinea" } }),
+      "POST /api/join/check": () => ({ body: { office: "Alinea", role: "member" } }),
       "POST /api/join": () => ({ status: 409, body: { error: "account_exists" } }),
     });
     renderAt("/entrar-na-equipe#token=xyz");

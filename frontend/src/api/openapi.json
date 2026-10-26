@@ -1576,7 +1576,7 @@
     "/api/join": {
       "post": {
         "summary": "Join",
-        "description": "A new member, signed in at once but unconfirmed: a code goes to the address,\nand the account works once it's typed in. If the email can't go, they ask for\nanother on the next screen.",
+        "description": "A new staff account, signed in but unconfirmed: a code goes to the address,\nand the account works once it's typed in. If the email can't go, they ask for\nanother on the next screen.",
         "operationId": "join_api_join_post",
         "requestBody": {
           "content": {
@@ -5106,11 +5106,15 @@
           "office": {
             "type": "string",
             "title": "Office"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
           }
         },
         "type": "object",
         "required": [
-          "office"
+          "office",
+          "role"
         ],
         "title": "JoinCheckOut"
       },

@@ -3,17 +3,25 @@ link whose joiners choose a password at once and still prove their email."""
 
 import logging
 import re
+import secrets
+from datetime import UTC, datetime, timedelta
 
 import anyio
+import httpx2
 import pytest
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import delete, select, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from backend.app import create_app
 from backend.commands.seed import seed
+from backend.db.isolation import scope_to_tenant
 from backend.identity import accounts
-from backend.identity.models import Role
+from backend.identity.models import JoinLink, Role, User
 from backend.notifications.email import EmailError
-from backend.tests.conftest import TEST_DATABASE_URL
+from backend.settings import Settings
+from backend.tenancy.models import Tenant, TenantDomain
+from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as, tenant_id
 from backend.web import attempts, email_confirmation, team
 from backend.web.errors import ApiError
@@ -249,7 +257,7 @@ async def test_whoever_opens_the_shared_link_chooses_a_password_and_confirms_wit
     client.cookies.clear()
     token = token_in(link)
     checked = await client.post("/api/join/check", json={"token": token}, headers=ALINEA)
-    assert checked.json() == {"office": "Alinea (dev)"}
+    assert checked.json() == {"office": "Alinea (dev)", "role": "member"}
     joined = await join(client, token, email=" Caio@Gmail.com ")
     assert joined.status_code == 201
     me = joined.json()
@@ -467,3 +475,193 @@ async def test_a_pending_check_reads_the_database_not_the_sessions_copy(db_sessi
     with pytest.raises(ApiError) as refused:
         await team._pending(db_session, pending.id)
     assert refused.value.code == "not_an_invite"
+
+
+# -- one-time owner links ---------------------------------------------------------
+
+
+async def owner_token(db, **values):
+    token = secrets.token_urlsafe(24)
+    db.add(
+        JoinLink(
+            **(
+                {
+                    "token_hash": team._hash(token),
+                    "role": Role.OWNER,
+                    "single_use": True,
+                    "expires_at": datetime.now(UTC) + timedelta(days=7),
+                }
+                | values
+            )
+        )
+    )
+    await db.flush()
+    return token
+
+
+async def test_owner_link_creates_an_owner_who_must_confirm_the_email(
+    client, db_session, owner, sent
+):
+    token = await owner_token(db_session)
+    client.cookies.clear()
+    checked = await client.post("/api/join/check", json={"token": token}, headers=ALINEA)
+    assert checked.json() == {"office": "Alinea (dev)", "role": "owner"}
+    joined = await join(client, token)
+    assert joined.status_code == 201
+    assert (joined.json()["role"], joined.json()["email_confirmed"]) == ("owner", False)
+    refused = await client.get("/api/team", headers=ALINEA)
+    assert (refused.status_code, refused.json()["error"]) == (403, "email_unconfirmed")
+    code = code_in(sent.emails[0].text)
+    confirmed = await client.post("/api/me/email-code", json={"code": code}, headers=csrf(joined))
+    assert confirmed.status_code == 200 and confirmed.json()["email_confirmed"] is True
+    assert (await client.get("/api/team", headers=ALINEA)).json()["can_manage"] is True
+
+
+async def test_owner_link_can_be_used_only_once(client, db_session, owner, sent):
+    token = await owner_token(db_session)
+    assert (await join(client, token)).status_code == 201
+    again = await join(client, token, email="outra@example.com")
+    assert (again.status_code, again.json()) == (404, {"error": "join_link_invalid"})
+    checked = await client.post("/api/join/check", json={"token": token}, headers=ALINEA)
+    assert checked.status_code == 404
+    assert len(sent.emails) == 1
+
+
+async def test_owner_link_uses_its_own_expiry_instead_of_24_hours(client, db_session, owner, sent):
+    token = await owner_token(db_session, created_at=datetime.now(UTC) - timedelta(days=2))
+    assert (
+        await client.post("/api/join/check", json={"token": token}, headers=ALINEA)
+    ).status_code == 200
+    assert (await join(client, token)).status_code == 201
+
+
+async def test_owner_link_is_invalid_after_its_expiry(client, db_session, owner, sent):
+    token = await owner_token(db_session, expires_at=datetime.now(UTC) - timedelta(seconds=1))
+    checked = await client.post("/api/join/check", json={"token": token}, headers=ALINEA)
+    assert (checked.status_code, checked.json()) == (404, {"error": "join_link_invalid"})
+    assert (await join(client, token)).status_code == 404
+    assert sent.emails == []
+
+
+async def test_owner_links_are_separate_from_the_shared_link(client, db_session, owner, sent):
+    token = await owner_token(db_session)
+    assert (await client.get("/api/team", headers=owner)).json()["join_link"] == {
+        "on": False,
+        "expires_at": None,
+    }
+    await turn_on(client, owner)
+    member = token_in(await turn_on(client, owner))
+    assert (await client.get("/api/team", headers=owner)).json()["join_link"]["on"] is True
+    assert (await client.delete("/api/team/join-link", headers=owner)).status_code == 204
+    assert (await client.get("/api/team", headers=owner)).json()["join_link"]["on"] is False
+    assert (await join(client, member)).status_code == 404
+    assert (await join(client, token)).status_code == 201
+
+
+async def test_owner_link_rejects_another_tenant_and_revocation(client, db_session, owner, sent):
+    token = await owner_token(db_session)
+    assert (await join(client, token, host=NORTE)).status_code == 404
+    await db_session.execute(text("UPDATE join_links SET revoked_at = now()"))
+    assert (await join(client, token)).status_code == 404
+    assert sent.emails == []
+
+
+async def test_invalid_signup_does_not_spend_the_owner_link(client, db_session, owner, sent):
+    token = await owner_token(db_session)
+    assert (await join(client, token, password="short")).status_code == 422
+    exists = await join(client, token, email="dona@alinea.example")
+    assert (exists.status_code, exists.json()) == (409, {"error": "account_exists"})
+    assert (await join(client, token)).status_code == 201
+
+
+async def test_failed_account_transaction_does_not_spend_the_owner_link(
+    client,
+    db_session,
+    owner,
+    sent,
+    monkeypatch,
+):
+    token = await owner_token(db_session)
+
+    async def fail(*args):
+        raise RuntimeError("confirmation creation failed")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(email_confirmation, "new_code", fail)
+        assert (await join(client, token)).status_code == 500
+    assert (await join(client, token)).status_code == 201
+    assert len(sent.emails) == 1
+
+
+async def test_concurrent_owner_joins_create_only_one_account(test_database_url, sent):
+    """Like _waits_for, hold a real database lock before starting the requests.
+    Separate committed connections exercise PostgreSQL's conditional update, not
+    the per-test savepoint shared by the ordinary API fixtures.
+    """
+    owner_engine = create_async_engine(test_database_url)
+    app_engine = create_async_engine(make_url(test_database_url).set(username=RUNTIME_ROLE))
+    application = create_app(Settings(environment="test", database_url=test_database_url))
+    application.state.sessionmaker = async_sessionmaker(app_engine, expire_on_commit=False)
+    host = {"host": "owner-race.localhost"}
+    tenant = Tenant(slug="owner-race", name="Escritório Horizonte")
+    answers = []
+
+    async def request(email):
+        async with httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=application), base_url="http://testserver"
+        ) as visitor:
+            answers.append(await join(visitor, token, host=host, email=email))
+
+    try:
+        async with AsyncSession(owner_engine, expire_on_commit=False) as setup:
+            setup.add(tenant)
+            await setup.flush()
+            setup.add(TenantDomain(tenant_id=tenant.id, hostname=host["host"], is_primary=True))
+            await setup.commit()
+            scope_to_tenant(setup.sync_session, tenant.id)
+            token = await owner_token(setup)
+            await setup.commit()
+        async with owner_engine.connect() as holder:
+            async with holder.begin():
+                await holder.execute(
+                    text("SELECT id FROM join_links WHERE token_hash = :hash FOR UPDATE"),
+                    {"hash": team._hash(token)},
+                )
+                async with anyio.create_task_group() as tasks:
+                    tasks.start_soon(request, "ana@example.com")
+                    tasks.start_soon(request, "bia@example.com")
+                    async with owner_engine.connect() as observer:
+                        with anyio.fail_after(10):
+                            while True:
+                                waiting = await observer.scalar(
+                                    text(
+                                        "SELECT count(*) FROM pg_stat_activity "
+                                        "WHERE datname = current_database() "
+                                        "AND wait_event_type = 'Lock' "
+                                        "AND query LIKE 'UPDATE join_links%'"
+                                    )
+                                )
+                                await observer.commit()  # fresh activity snapshot
+                                if waiting == 2 or answers:
+                                    break
+                                await anyio.sleep(0.02)
+                    assert waiting == 2 and answers == []
+                    await holder.commit()
+        assert sorted(answer.status_code for answer in answers) == [201, 404]
+        rejected = next(answer for answer in answers if answer.status_code == 404)
+        assert rejected.json() == {"error": "join_link_invalid"}
+        assert len(sent.emails) == 1
+        async with AsyncSession(owner_engine) as check:
+            users = list(await check.scalars(select(User).where(User.tenant_id == tenant.id)))
+            assert len(users) == 1 and users[0].role is Role.OWNER
+            assert await check.scalar(
+                select(JoinLink.used_at).where(JoinLink.tenant_id == tenant.id)
+            )
+    finally:
+        async with owner_engine.begin() as cleanup:
+            # Tenant-owned foreign keys deliberately don't cascade from the registry.
+            await cleanup.execute(delete(User).where(User.tenant_id == tenant.id))
+            await cleanup.execute(delete(JoinLink).where(JoinLink.tenant_id == tenant.id))
+            await cleanup.execute(delete(Tenant).where(Tenant.id == tenant.id))
+        await app_engine.dispose()
+        await owner_engine.dispose()

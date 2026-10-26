@@ -134,6 +134,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("password_links", "used_at", "UPDATE"),
         ("password_links", "tries", "UPDATE"),  # wrong confirmation codes
         ("join_links", "revoked_at", "UPDATE"),  # turned off, or replaced by a new one
+        ("join_links", "used_at", "UPDATE"),  # claiming a one-time owner link
         # A share link: turned off, moved to newer versions, and its downloads counted.
         *(
             ("share_links", column, "UPDATE")

@@ -769,6 +769,7 @@
   "join": {
     "pageTitle": "Join the team",
     "title": "Join {{office}}'s team",
+    "ownerTitle": "Create the owner account for {{office}}",
     "intro": "Enter your name, email and a password. Then confirm the email with the code we'll send.",
     "submit": "Create account",
     "invalidTitle": "This link no longer works",

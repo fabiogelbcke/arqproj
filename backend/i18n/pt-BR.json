@@ -769,6 +769,7 @@
   "join": {
     "pageTitle": "Entrar na equipe",
     "title": "Entrar na equipe do {{office}}",
+    "ownerTitle": "Criar a conta de proprietário do {{office}}",
     "intro": "Informe seu nome, e-mail e uma senha. Depois, confirme o e-mail com o código que vamos enviar.",
     "submit": "Criar conta",
     "invalidTitle": "Este link não funciona mais",

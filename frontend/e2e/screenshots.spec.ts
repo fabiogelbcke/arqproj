@@ -41,6 +41,20 @@ async function shoot(page: Page, name: string, theme: "light" | "dark" = "light"
   }
 }
 
+test("@screenshots owner signup", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  mkdirSync(OUT, { recursive: true });
+  const output = execFileSync(
+    "uv",
+    ["run", "python", "-m", "backend.commands.staff", "owner-link", "--tenant", "alinea"],
+    { cwd: "..", env: { ...process.env, ...E2E_ENV }, encoding: "utf-8" },
+  );
+  await page.goto(output.match(/http\S+#token=\S+/)![0].replace(/:\d+\//, `:${PORT}/`));
+  await page.getByRole("heading", { name: "Criar a conta de proprietário do Alinea (dev)" }).waitFor();
+  await shoot(page, "02b-criar-proprietario");
+  await shoot(page, "02b-criar-proprietario", "dark");
+});
+
 test("@screenshots staff app", async ({ page, browser }) => {
   await page.emulateMedia({ reducedMotion: "reduce" }); // no half-faded dialogs
   mkdirSync(OUT, { recursive: true });
