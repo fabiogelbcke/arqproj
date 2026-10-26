@@ -233,7 +233,7 @@ async def test_a_return_that_doesnt_match_signs_nobody_in(client, operators, goo
     query, _cookie = await start(client)
     params = {"state": query["state"], "code": "c-1"} | change
     back = await client.get("/api/auth/google/callback", params=params, headers=UNIO)
-    assert back.headers["location"] == f"/admin?entrar={said}"
+    assert back.headers["location"].startswith(f"/admin?entrar={said}&ref=")
     assert (await client.get("/api/admin/me", headers=UNIO)).status_code == 401
 
 
@@ -243,7 +243,7 @@ async def test_a_return_in_another_browser_finds_nothing_to_match(client, operat
     back = await client.get(
         "/api/auth/google/callback", params={"state": query["state"], "code": "c-1"}, headers=UNIO
     )
-    assert back.headers["location"] == "/admin?entrar=expirado"
+    assert back.headers["location"].startswith("/admin?entrar=expirado&ref=")
 
 
 async def test_a_google_account_off_the_list_is_refused(client, operators, google, caplog):
@@ -252,7 +252,7 @@ async def test_a_google_account_off_the_list_is_refused(client, operators, googl
     back = await client.get(
         "/api/auth/google/callback", params={"state": query["state"], "code": "c-1"}, headers=UNIO
     )
-    assert back.headers["location"] == "/admin?entrar=negado"
+    assert back.headers["location"].startswith("/admin?entrar=negado&ref=")
     assert (await client.get("/api/admin/me", headers=UNIO)).status_code == 401
     assert "intruso@gmail.com" in caplog.text
 
@@ -265,7 +265,7 @@ async def test_googles_failure_is_logged_and_the_page_says_only_that_it_failed(
     back = await client.get(
         "/api/auth/google/callback", params={"state": query["state"], "code": "c-1"}, headers=UNIO
     )
-    assert back.headers["location"] == "/admin?entrar=falhou"
+    assert back.headers["location"].startswith("/admin?entrar=falhou&ref=")
     assert "secret detail" in caplog.text
 
 

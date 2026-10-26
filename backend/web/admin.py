@@ -39,6 +39,7 @@ from backend.tenancy.resolve import current_tenant, normalize_host
 from backend.web import google_signin, pages
 from backend.web.auth import optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
+from backend.web.request_id import current_request_id
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -223,7 +224,8 @@ async def signin(request: Request, response: Response) -> SigninOut:
 
 
 def _back(problem: str | None = None) -> RedirectResponse:
-    target = PAGE + (f"?entrar={problem}" if problem else "")
+    # With the request ID its log line carries, so the page shows the support code.
+    target = PAGE + (f"?entrar={problem}&ref={current_request_id()}" if problem else "")
     response = RedirectResponse(target, status_code=302)
     response.delete_cookie(FLOW_COOKIE, path=CALLBACK)
     return response

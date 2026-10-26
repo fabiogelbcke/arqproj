@@ -82,7 +82,7 @@ async def test_a_return_in_another_browser_signs_nobody_in(client, google):
     query = await start(client)
     client.cookies.clear()
     done = await returned(client, query)
-    assert done.headers["location"] == "/painel/entrar?google=expirado"
+    assert done.headers["location"].startswith("/painel/entrar?google=expirado&ref=")
     assert (await client.get("/api/me", headers=ALINEA)).status_code == 401
 
 
@@ -93,7 +93,7 @@ async def test_started_at_one_office_it_never_finishes_at_another(client, google
         params={"state": query["state"], "code": "c-1"},
         headers=ALINEA,
     )
-    assert forged.headers["location"] == "/painel/entrar?google=expirado"
+    assert forged.headers["location"].startswith("/painel/entrar?google=expirado&ref=")
     assert (await client.get("/api/me", headers=ALINEA)).status_code == 401
 
 
@@ -113,14 +113,14 @@ async def test_unios_address_forwards_only_to_an_address_of_that_office(app, cli
 async def test_cancelled_at_google_says_so(client, google):
     query = await start(client)
     done = await returned(client, query, error="access_denied", code="")
-    assert done.headers["location"] == "/painel/entrar?google=cancelado"
+    assert done.headers["location"].startswith("/painel/entrar?google=cancelado&ref=")
 
 
 async def test_an_email_without_an_account_here_gets_none_made(client, google, db_session):
     google["identity"] = Identity("alguem@gmail.com", None)
     query = await start(client)
     done = await returned(client, query)
-    assert done.headers["location"] == "/painel/entrar?google=sem-conta"
+    assert done.headers["location"].startswith("/painel/entrar?google=sem-conta&ref=")
     made = await db_session.scalar(
         text("SELECT count(*) FROM users WHERE email = 'alguem@gmail.com'")
     )
@@ -131,7 +131,7 @@ async def test_googles_failure_is_logged_and_said_only_to_have_failed(client, go
     google["identity"] = SignInError("token endpoint 500: detail")
     query = await start(client)
     done = await returned(client, query)
-    assert done.headers["location"] == "/painel/entrar?google=falhou"
+    assert done.headers["location"].startswith("/painel/entrar?google=falhou&ref=")
     assert "token endpoint 500: detail" in caplog.text
 
 
@@ -156,3 +156,44 @@ async def test_not_configured_says_so_without_detail(app, client, google):
     app.state.settings = app.state.settings.model_copy(update={"google_oauth_client_id": None})
     response = await client.post("/api/auth/google/start", headers=ALINEA)
     assert (response.status_code, response.json()) == (503, {"error": "signin_not_configured"})
+
+
+async def test_the_page_gets_the_failures_support_code(client, google):
+    google["identity"] = SignInError("token endpoint 500: detail")
+    query = await start(client)
+    done = await returned(client, query)
+    ref = parse_qs(urlsplit(done.headers["location"]).query)["ref"][0]
+    assert ref and ref == done.headers["x-request-id"]  # the log line's ID
+
+
+async def test_it_waits_for_a_confirmation_under_way_on_the_account(client, google, db_session):
+    """As codes and links do (accounts.lock_confirmation): an address corrected
+    meanwhile must not be confirmed by Google's answer for the old one."""
+    from backend.tests.test_team import _waits_for
+
+    query = await start(client)
+    user_id = await db_session.scalar(text("SELECT id FROM users WHERE email = :e"), {"e": ANA})
+    lock = "SELECT pg_advisory_xact_lock(hashtext('email-code'), hashtext(:k))"
+    params = {"state": query["state"], "code": "c-1"}
+    back = await client.get("/api/auth/google/callback", params=params, headers=UNIO)
+    on = urlsplit(back.headers["location"])
+    call = lambda: client.get(f"{on.path}?{on.query}", headers={"host": on.netloc})  # noqa: E731
+    assert await _waits_for(lock, str(user_id), call) == 302
+
+
+async def test_an_address_corrected_meanwhile_is_not_signed_in(
+    client, google, db_session, monkeypatch
+):
+    """The account's address changed while the lock was awaited: Google vouched
+    for the old one, so nobody is signed in and nothing is confirmed."""
+
+    async def corrected_meanwhile(session, user_id):
+        await session.execute(
+            text("UPDATE users SET email = 'outro@gmail.com' WHERE id = :u"), {"u": str(user_id)}
+        )
+
+    monkeypatch.setattr(accounts, "lock_confirmation", corrected_meanwhile)
+    query = await start(client)
+    done = await returned(client, query)
+    assert done.headers["location"].startswith("/painel/entrar?google=sem-conta&ref=")
+    assert (await client.get("/api/me", headers=ALINEA)).status_code == 401

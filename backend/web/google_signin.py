@@ -39,6 +39,7 @@ from backend.security import keys
 from backend.tenancy.resolve import CurrentTenant, current_tenant, resolve
 from backend.web.auth import signed_in
 from backend.web.errors import ApiError, ErrorCode, documented
+from backend.web.request_id import current_request_id
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth/google")
@@ -122,7 +123,8 @@ async def forward(request: Request, state: dict) -> Response:
 
 
 def _back(problem: str | None = None) -> RedirectResponse:
-    target = f"{SIGN_IN_PAGE}?google={problem}" if problem else AFTER
+    # With the request ID its log line carries, so the page shows the support code.
+    target = f"{SIGN_IN_PAGE}?google={problem}&ref={current_request_id()}" if problem else AFTER
     response = RedirectResponse(target, status_code=302)
     response.delete_cookie(FLOW_COOKIE, path=FINISH)
     return response
@@ -160,7 +162,12 @@ async def finish(
         log.error("google sign-in failed: route=%s tenant=%s %s", FINISH, tenant.slug, detail)
         return _back("falhou")
     user = await accounts.find_user(db, identity.email)
-    if user is None:
+    if user is not None:
+        # As codes and links do: one confirmation at a time per account, its address
+        # read again under the lock (a correction meanwhile must not be confirmed).
+        await accounts.lock_confirmation(db, user.id)
+        await db.refresh(user)
+    if user is None or user.email != identity.email:
         log.info("google sign-in: no account for that email in %s", tenant.slug)
         return _back("sem-conta")
     # Google has shown the address is theirs: a pending sign-up or invite counts.

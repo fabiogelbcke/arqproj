@@ -48,9 +48,10 @@ export function SignInPage() {
         {/* The logos above say whose panel this is; the heading is for screen readers. */}
         <h1 className="sr-only">{t("signIn.title")}</h1>
         {googleProblem && (
-          <p role="alert" className={styles.lead}>
-            {t(`signIn.googleProblem.${googleProblem}`, { defaultValue: t("signIn.googleProblem.falhou") })}
-          </p>
+          <div role="alert" className={styles.lead}>
+            <p>{t(`signIn.googleProblem.${googleProblem}`, { defaultValue: t("signIn.googleProblem.falhou") })}</p>
+            {params.get("ref") && <p className={styles.small}>{t("errors.reference", { id: params.get("ref") })}</p>}
+          </div>
         )}
         <Button onPress={() => google.mutate()} isDisabled={google.isPending}>
           {t("signIn.google")}

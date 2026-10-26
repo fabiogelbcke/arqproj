@@ -412,4 +412,10 @@ describe("signing in with Google", () => {
     renderAt(`/entrar?google=${problem}`);
     expect(await screen.findByRole("alert")).toHaveTextContent(said);
   });
+
+  it("shows the support code of a sign-in that failed", async () => {
+    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    renderAt("/entrar?google=falhou&ref=abc123");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Código de suporte: abc123");
+  });
 });
