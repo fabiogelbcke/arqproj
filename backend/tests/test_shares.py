@@ -2,6 +2,7 @@
 picked, managed by staff or the device that made them (local folder storage)."""
 
 import io
+import os
 import zipfile
 from datetime import UTC, datetime, timedelta
 
@@ -490,3 +491,44 @@ async def test_the_zip_counts_its_whole_size_against_the_day(client, owner, file
     assert (await client.get(url, headers=ALINEA)).status_code == 200
     refused = await client.get(url, headers=ALINEA)
     assert refused.status_code == 429 and "limite de downloads de hoje" in refused.text
+
+
+async def test_a_slash_in_a_stage_title_never_makes_a_folder_in_the_zip(
+    client, db_session, owner, files
+):
+    await db_session.execute(
+        text(
+            "UPDATE project_stages SET builtin_key = NULL, title = 'Briefing/Prefeitura', "
+            f"about = NULL WHERE project_id = {CASA} AND position = 1"
+        )
+    )
+    link = await made(client, ["Planta.pdf"])
+    archive = zipfile.ZipFile(
+        io.BytesIO((await client.get(f"/api/share/{token_of(link)}/zip", headers=ALINEA)).content)
+    )
+    assert archive.namelist() == ["01 Briefing-Prefeitura/Planta.pdf"]
+
+
+async def test_zip_times_are_the_offices(client, owner, files):
+    planta = files / "Casa Jardim" / "01 - Briefing" / "Planta.pdf"
+    moment = datetime(2026, 10, 20, 13, 0, tzinfo=UTC)  # 10:00 in São Paulo
+    os.utime(planta, (moment.timestamp(), moment.timestamp()))
+    link = await made(client, ["Planta.pdf"])
+    archive = zipfile.ZipFile(
+        io.BytesIO((await client.get(f"/api/share/{token_of(link)}/zip", headers=ALINEA)).content)
+    )
+    assert archive.getinfo("01 Briefing/Planta.pdf").date_time == (2026, 10, 20, 10, 0, 0)
+
+
+async def test_an_unreadable_stored_address_never_breaks_the_staff_list(
+    client, db_session, owner, files
+):
+    link = await made(client, ["Planta.pdf"])
+    await db_session.execute(
+        text(
+            "UPDATE share_links SET token_encrypted = 'v1:not-ours' "
+            f"WHERE id = '{link['link']['id']}'"
+        )
+    )
+    [listed_link] = await listed(client, owner)
+    assert listed_link["url"] is None

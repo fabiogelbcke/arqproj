@@ -33,10 +33,12 @@ import logging
 import secrets
 import time
 import uuid
+from contextlib import aclosing
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, Response, StreamingResponse
@@ -328,8 +330,14 @@ async def _described(
 def _stored_url(link: ShareLink, request: Request, tenant: CurrentTenant) -> str | None:
     if link.token_encrypted is None:
         return None
-    secret = request.app.state.settings.app_secret
-    return _url(request, tenant, keys.decrypt(secret, TOKEN_PURPOSE, link.token_encrypted))
+    try:
+        token = keys.decrypt(
+            request.app.state.settings.app_secret, TOKEN_PURPOSE, link.token_encrypted
+        )
+    except keys.BadToken:  # a changed app secret: the list still shows, without it
+        log.error("shares: the stored address of link %s can't be read", link.id)
+        return None
+    return _url(request, tenant, token)
 
 
 @router.post(
@@ -572,7 +580,7 @@ class SharedOut(BaseModel):
     zip_size: int | None = None
 
 
-@router.get("/api/share/{token}", responses=documented(404, 503))
+@router.get("/api/share/{token}", responses=documented(403, 404, 503))
 async def shared(
     request: Request,
     token: str,
@@ -584,7 +592,7 @@ async def shared(
     response.headers.update({**SHARE_HEADERS, **NO_STORE})
     if _locked(request, link):
         raise ApiError(403, ErrorCode.SHARE_LOCKED, headers={**SHARE_HEADERS, **NO_STORE})
-    held, shown, titles = await _shown(request, db, tenant, link, project)
+    held, shown, titles, _storage_view, office = await _shown(request, db, tenant, link, project)
     secret = request.app.state.settings.app_secret
     files = []
     for where in shown:
@@ -612,7 +620,7 @@ async def shared(
             )
         )
     return SharedOut(
-        office=await _office(db, tenant),
+        office=office,
         locale=tenant.locale.value,
         timezone=tenant.timezone,
         project=project.name,
@@ -620,15 +628,16 @@ async def shared(
         expires_at=link.expires_at,
         files=files,
         unavailable=len(held) - len(files),
-        zip_size=zipped.length(_entries(shown, titles)) if shown else None,
+        zip_size=zipped.length(_entries(shown, titles, tenant)) if shown else None,
     )
 
 
 async def _shown(
     request: Request, db: AsyncSession, tenant: CurrentTenant, link: ShareLink, project: Project
-) -> tuple[list[str], list[Placed], dict[int, str]]:
-    """The link's files, those the page shows now (in the order picked), and each
-    stage's "02 Estudo preliminar" by its place."""
+) -> tuple[list[str], list[Placed], dict[int, str], object, OfficeOut]:
+    """The link's files, those the page shows now (in the order picked), each
+    stage's "02 Estudo preliminar" by its place, the storage view that listed
+    them (its checks kept, for the downloads) and the office."""
     storage = await _storage(request, db)
     try:
         placed = await _placed(db, storage, project) if storage is not None else {}
@@ -639,16 +648,23 @@ async def _shown(
     page = await _page(db, tenant, project, "")
     titles = {stage.position: f"{stage.position:02d} {stage.title}" for stage in page.stages}
     held = (await _files(db, [link]))[link.id]
-    return held, [placed[i] for i in held if i in placed], titles
+    return held, [placed[i] for i in held if i in placed], titles, storage, page.office
 
 
-def _entries(shown: list[Placed], titles: dict[int, str]) -> list[zipped.Entry]:
-    """The zip's contents: a folder per stage, the files under Drive's names."""
+def _entries(
+    shown: list[Placed], titles: dict[int, str], tenant: CurrentTenant
+) -> list[zipped.Entry]:
+    """The zip's contents: a folder per stage, the files under Drive's names
+    (a "/" in either kept from making folders), dated in the office's time."""
+    zone = ZoneInfo(tenant.timezone)
     names = zipped.unique_names(
-        [f"{titles[where.position]}/{shown_name(where.item)}" for where in shown]
+        [
+            f"{zipped.part(titles[where.position])}/{zipped.part(shown_name(where.item))}"
+            for where in shown
+        ]
     )
     return [
-        zipped.Entry(name, where.item.size, where.item.modified_at)
+        zipped.Entry(name, where.item.size, where.item.modified_at.astimezone(zone))
         for name, where in zip(names, shown, strict=True)
     ]
 
@@ -727,34 +743,42 @@ async def shared_zip(
         link, project = await _open_link(db, token)
         if _locked(request, link):
             raise ApiError(403, ErrorCode.SHARE_LOCKED)
-        _held, shown, titles = await _shown(request, db, tenant, link, project)
+        _held, shown, titles, storage, _office_shown = await _shown(
+            request, db, tenant, link, project
+        )
         if not shown:
             raise ApiError(404, ErrorCode.FILE_NOT_FOUND)
-        entries = _entries(shown, titles)
+        entries = _entries(shown, titles, tenant)
         size = zipped.length(entries)
-        await _count(db, link, size if size is not None else EXPORT_GUESS * len(entries))
-        storage = await _storage(request, db)
+        # Its exact length; with a Google format (no size beforehand), that one is
+        # a guess and the rest count as they are.
+        guessed = sum(EXPORT_GUESS if e.size is None else e.size for e in entries)
+        await _count(db, link, size if size is not None else guessed)
     except ApiError as error:
         return _download_failure(tenant, error, back)
     await db.close()  # before the bytes flow (plan section 15)
 
+    # The one upstream download open now, closed however the zip ends (the
+    # supplier cancelling included: storage.Download's rule).
+    current: list = []
+
     async def open_file(index: int):
-        item = shown[index].item
-        download = await storage.download(item)
+        download = await storage.download(shown[index].item)
+        current.append(download)
 
         async def chunks():
-            try:
-                async for chunk in download.chunks:
-                    yield chunk
-            finally:
-                await download.aclose()
+            async for chunk in download.chunks:
+                yield chunk
+            current.remove(download)
+            await download.aclose()
 
         return chunks()
 
     async def body():
         try:
-            async for chunk in zipped.stream(entries, open_file):
-                yield chunk
+            async with aclosing(zipped.stream(entries, open_file)) as parts:
+                async for chunk in parts:
+                    yield chunk
         except (StorageError, zipped.SizeChanged) as error:  # the browser sees a cut download
             log.error(
                 "shares: zip of link %s broke off for %s/%s: %s",
@@ -764,6 +788,9 @@ async def shared_zip(
                 getattr(error, "detail", "") or error,
             )
             raise
+        finally:
+            for download in current:
+                await download.aclose()
 
     headers = {
         **SHARE_HEADERS,

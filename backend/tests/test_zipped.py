@@ -67,3 +67,17 @@ def test_the_same_path_twice_gets_a_number():
         "A/Planta (3).pdf",
         "A/LEIAME",
     ]
+
+
+def test_a_repeated_name_is_numbered_in_its_own_folder_even_with_dots_there():
+    assert zipped.unique_names(["03 Projeto v2.1/Memorial", "03 Projeto v2.1/Memorial"]) == [
+        "03 Projeto v2.1/Memorial",
+        "03 Projeto v2.1/Memorial (2)",
+    ]
+
+
+def test_a_name_never_makes_folders_or_leaves_the_zips_folder():
+    assert zipped.part("Planta 1/50.pdf") == "Planta 1-50.pdf"
+    assert zipped.part("a\\b") == "a-b"
+    assert zipped.part("..") == "_"
+    assert zipped.part(" ") == "_"

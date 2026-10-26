@@ -28,7 +28,7 @@ END = 22
 class Entry:
     name: str  # its path inside the zip: "01 Briefing/Planta.pdf"
     size: int | None  # None: not known before it downloads (a Google format)
-    modified_at: datetime
+    modified_at: datetime  # in the office's time: a zip's times have no zone
 
 
 def length(entries: list[Entry]) -> int | None:
@@ -40,16 +40,25 @@ def length(entries: list[Entry]) -> int | None:
     return len(entries) * (LOCAL + DESCRIPTOR + CENTRAL) + 2 * names + data + END
 
 
+def part(text: str) -> str:
+    """One folder or file name inside the zip: Drive allows "/" ("Planta 1/50.pdf"),
+    which would make folders, and ".." would point outside the zip's own folder."""
+    cleaned = text.replace("/", "-").replace("\\", "-").strip()
+    return cleaned if cleaned not in ("", ".", "..") else "_"
+
+
 def unique_names(names: list[str]) -> list[str]:
     """The same path twice (two stages' "Planta.pdf" land in their own folders;
     a subfolder's file can still meet one): "Planta (2).pdf" for the second."""
     seen: set[str] = set()
     out = []
     for name in names:
+        folder, slash, base = name.rpartition("/")
         candidate, n = name, 2
         while candidate.casefold() in seen:
-            stem, dot, extension = name.rpartition(".")
-            candidate = f"{stem} ({n}).{extension}" if dot and stem else f"{name} ({n})"
+            stem, dot, extension = base.rpartition(".")
+            numbered = f"{stem} ({n}).{extension}" if dot and stem else f"{base} ({n})"
+            candidate = f"{folder}{slash}{numbered}"
             n += 1
         seen.add(candidate.casefold())
         out.append(candidate)
