@@ -5,7 +5,19 @@ import type { Me } from "./api/client";
 import { fakeApi, ME, notSignedIn, TENANT } from "./test/render";
 
 // The real SDK would reach PostHog's servers: here, what it is asked to do.
-const sdk = vi.hoisted(() => ({ init: vi.fn(), identify: vi.fn(), group: vi.fn(), capture: vi.fn(), reset: vi.fn() }));
+const sdk = vi.hoisted(() => {
+  let optedOut = false;
+  return {
+    init: vi.fn(),
+    identify: vi.fn(),
+    group: vi.fn(),
+    capture: vi.fn(),
+    reset: vi.fn(),
+    opt_out_capturing: vi.fn(() => void (optedOut = true)),
+    opt_in_capturing: vi.fn(() => void (optedOut = false)),
+    has_opted_out_capturing: () => optedOut,
+  };
+});
 vi.mock("posthog-js/full/no-external", () => ({ default: sdk }));
 
 const ANALYTICS = {
@@ -42,14 +54,18 @@ describe("product analytics in the browser (A39)", () => {
     expect(sdk.capture.mock.calls).toEqual([["files_uploaded", { file_count: 2 }]]);
   });
 
-  it("identifies the next person after a sign-out, without reloading the page", async () => {
-    const { resetAnalytics, startAnalytics } = await import("./posthog");
+  it("collects nothing between a sign-out and the next sign-in, who is identified anew", async () => {
+    const { capture, resetAnalytics, startAnalytics } = await import("./posthog");
     await startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
     resetAnalytics();
+    expect(sdk.opt_out_capturing).toHaveBeenCalled(); // no clicks, pages or errors from the sign-in screen
+    capture("files_uploaded");
+    expect(sdk.capture).not.toHaveBeenCalled();
     const other = { ...ANALYTICS, user_id: "6f1c1d1e-0000-4000-8000-000000000002" };
     await startAnalytics({ ...ME, role: "member", analytics: other } as unknown as Me);
     expect(sdk.init).toHaveBeenCalledTimes(1);
     expect(sdk.reset).toHaveBeenCalledTimes(1);
+    expect(sdk.opt_in_capturing).toHaveBeenCalledTimes(1);
     expect(sdk.identify).toHaveBeenLastCalledWith(other.user_id, { role: "member" });
   });
 

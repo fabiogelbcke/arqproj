@@ -12,7 +12,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import httpx2
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from posthog import Posthog
 from sqlalchemy import text
@@ -104,14 +104,6 @@ def configure_logging(settings: Settings) -> None:
     root.setLevel(settings.log_level)
 
 
-async def capture_unhandled_exception(request: Request, error: Exception) -> None:
-    """Send unhandled request exceptions to PostHog without changing their response."""
-    posthog_client: Posthog | None = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture_exception(error)
-    raise error
-
-
 class PostHogContextMiddleware:
     """One PostHog context per HTTP request, tagged with its office (tenant), so
     every event of the request counts for that office: as a `tenant` property and
@@ -132,7 +124,14 @@ class PostHogContextMiddleware:
             if tenant is not None:
                 posthog_client.tag("tenant", tenant.slug)
                 posthog_client.tag("$groups", {"tenant": str(tenant.id)})
-            await self.app(scope, receive, send)
+            try:
+                await self.app(scope, receive, send)
+            except Exception as error:
+                # Here, inside the request's context (its person and office), before
+                # RequestIdMiddleware answers it with the support code; it carries on
+                # up unchanged.
+                posthog_client.capture_exception(error)
+                raise
 
 
 async def verify_runtime_login(engine, settings: Settings) -> None:
@@ -231,7 +230,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(pages.router)
     app.add_exception_handler(ApiError, handle_api_error)
     app.add_exception_handler(RequestValidationError, handle_invalid_request)
-    app.add_exception_handler(Exception, capture_unhandled_exception)
     # Added innermost first: request IDs wrap everything, so even a 404 for an
     # unknown host or a redirect carries an ID and logs with it. The PostHog
     # context sits inside tenant resolution, to tag the request's office.

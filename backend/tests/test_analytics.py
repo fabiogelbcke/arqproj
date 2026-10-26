@@ -106,3 +106,20 @@ async def test_staff_get_the_browsers_key_only_where_the_server_has_one(app, cli
     analytics = (await client.get("/api/me", headers=ALINEA)).json()["analytics"]
     assert (analytics["token"], analytics["host"]) == ("phc_test", "https://us.i.posthog.com")
     assert set(analytics) == {"token", "host", "user_id", "tenant_id"}  # no email or name
+
+
+async def test_a_server_error_reaches_posthog_with_its_person_and_office(
+    app, client, db_session, owner, sent, monkeypatch
+):
+    """Before the request-ID layer turns it into the page's "Erro interno" answer."""
+
+    async def broken(*args, **kwargs):
+        raise RuntimeError("something broke")
+
+    monkeypatch.setattr("backend.web.pages._page", broken)
+    response = await client.get("/api/pages/casa-jardim", headers=ALINEA)
+    assert response.status_code == 500  # the support code's answer, as before
+    [error] = events(sent, "$exception")
+    assert error["distinct_id"] == await staff_id(db_session, "dona@alinea.example")
+    assert error["properties"]["tenant"] == "alinea"
+    assert "something broke" in repr(error["properties"]["$exception_list"])

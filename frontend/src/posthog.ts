@@ -40,6 +40,7 @@ export async function startAnalytics(me: Me): Promise<void> {
     return posthog;
   });
   const posthog = await loading;
+  if (posthog.has_opted_out_capturing()) posthog.opt_in_capturing(); // signed in again
   posthog.identify(analytics.user_id, { role: me.role });
   posthog.group("tenant", analytics.tenant_id, { slug: me.tenant_slug });
   client = posthog;
@@ -50,7 +51,10 @@ export function capture(event: string, properties?: Record<string, unknown>): vo
   client?.capture(event, properties);
 }
 
-/** Signing out: the next person on this browser starts afresh. */
+/** Signing out: nothing more is collected (no clicks, pages or errors from the
+ *  sign-in screen) until someone signs in again, who starts afresh. */
 export function resetAnalytics(): void {
+  client?.opt_out_capturing();
   client?.reset();
+  client = null;
 }
