@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -549,13 +549,17 @@ describe("edit mode", () => {
 
   /** Moves a stage in the reorder list by keyboard, as dnd-kit offers it: space on
    *  its handle, the arrows, space. jsdom lays nothing out, so each row gets a box. */
-  async function dragStage(list: HTMLElement, title: string, steps: number) {
+  /** The reorder list's rows, 50 px apart (jsdom lays nothing out). */
+  function rowsLaidOut() {
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
       const row = this.closest(".stage-order__row");
       const index = row ? [...row.parentElement!.children].indexOf(row) : 0;
       return DOMRect.fromRect({ x: 0, y: index * 50, width: 400, height: 44 });
     });
     onTestFinished(() => void vi.restoreAllMocks());
+  }
+  async function dragStage(list: HTMLElement, title: string, steps: number) {
+    rowsLaidOut();
     const handle = within(list).getByRole("button", { name: `Arrastar ${title}` });
     handle.focus();
     await userEvent.keyboard(" ");
@@ -847,6 +851,87 @@ describe("edit mode", () => {
     [order[0], order[1]] = [order[1]!, order[0]!];
     expect(sent.find((r) => r.method === "PUT")?.body).toEqual({ row_version: 4, order });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Reordenar etapas" })).toBeNull());
+  });
+
+  /** The order of the titles on the reorder list, as shown. */
+  const shownOrder = (list: HTMLElement) =>
+    [...list.querySelectorAll(".stage-order__title")].map((title) => title.firstChild?.textContent);
+
+  const atRow = (row: number) => ({ clientX: 100, clientY: row * 50 + 20 });
+
+  /** A finger on `target` at row `from`, held still `hold` ms (on the test's own
+   *  clock), then moved to row `to` and lifted. */
+  async function touchDrag(target: Element, from: number, to: number, hold: number) {
+    rowsLaidOut();
+    vi.useFakeTimers();
+    try {
+      fireEvent.touchStart(target, { touches: [atRow(from)] });
+      act(() => void vi.advanceTimersByTime(hold));
+      for (let row = from; row <= to; row++) fireEvent.touchMove(target, { touches: [atRow(row + 0.5)] });
+      fireEvent.touchEnd(target, { changedTouches: [atRow(to)] });
+      act(() => void vi.runOnlyPendingTimers());
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  /** A mouse or a finger (`pointerType`) pressed on `target` at row `from`, moved
+   *  at once to row `to` and let go: no hold. */
+  async function pointerDrag(target: Element, from: number, to: number, pointerType: "mouse" | "touch") {
+    rowsLaidOut();
+    const at = (row: number) => ({ ...atRow(row), pointerType, isPrimary: true, button: 0, buttons: 1 });
+    fireEvent.pointerDown(target, at(from));
+    for (let row = from; row <= to; row++) fireEvent.pointerMove(document, at(row + 0.5));
+    fireEvent.pointerUp(document, at(to));
+    // dnd-kit swallows clicks for 50 ms after a drop: past it, so the next test's clicks land.
+    await act(() => new Promise((done) => setTimeout(done, 60)));
+  }
+
+  async function openReorder() {
+    asStaff({});
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
+    return screen.findByRole("dialog", { name: "Reordenar etapas" });
+  }
+  const swapped = (before: (string | null | undefined)[]) => [before[1], before[0], ...before.slice(2)];
+
+  it("on a phone, a stage moves only after a press-and-hold; a swipe never moves one", async () => {
+    const list = await openReorder();
+    const before = shownOrder(list);
+    const first = within(list).getByText(PAGE.stages[0]!.title);
+    await touchDrag(first, 0, 1, 50); // a swipe, as when scrolling the list
+    expect(shownOrder(list)).toEqual(before);
+    expect(within(list).getByRole("button", { name: "Salvar" })).toBeDisabled();
+    await touchDrag(first, 0, 1, 350); // held still first: the row lifts and moves
+    expect(shownOrder(list)).toEqual(swapped(before));
+    expect(within(list).getByRole("button", { name: "Salvar" })).toBeEnabled();
+  });
+
+  it("Esc while moving a stage cancels the move, not the dialog", async () => {
+    const list = await openReorder();
+    const before = shownOrder(list);
+    rowsLaidOut();
+    within(list).getByRole("button", { name: `Arrastar ${PAGE.stages[0]!.title}` }).focus();
+    await userEvent.keyboard(" ");
+    await userEvent.keyboard("{ArrowDown}");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("dialog", { name: "Reordenar etapas" })).toBeInTheDocument();
+    expect(shownOrder(list)).toEqual(before);
+  });
+
+  it("with a mouse, a stage drags from anywhere on its row", async () => {
+    const list = await openReorder();
+    const before = shownOrder(list);
+    await pointerDrag(within(list).getByText(PAGE.stages[0]!.title), 0, 1, "mouse");
+    expect(shownOrder(list)).toEqual(swapped(before));
+  });
+
+  it.each(["mouse", "touch"] as const)("by its handle a stage drags at once, with no hold (%s)", async (pointer) => {
+    const list = await openReorder();
+    const before = shownOrder(list);
+    const handle = within(list).getByRole("button", { name: `Arrastar ${PAGE.stages[0]!.title}` });
+    await pointerDrag(handle, 0, 1, pointer);
+    expect(shownOrder(list)).toEqual(swapped(before));
   });
 
   it("keeps the same stage open after reordering moves it", async () => {
