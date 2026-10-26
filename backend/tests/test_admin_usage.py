@@ -55,11 +55,19 @@ async def test_file_scan_is_explicit_scoped_and_never_returns_names(
         text("UPDATE project_stages SET folder_id='stage' WHERE project_id=:p AND position=1"),
         {"p": project},
     )
+    # Another project's folder was deleted from Drive: it has no files, and the
+    # scan still completes.
+    await db_session.execute(
+        text("UPDATE projects SET folder_id='gone' WHERE tenant_id=:t AND id<>:p"),
+        {"t": tenant, "p": project},
+    )
     # Seeded files of another tenant must never be listed.
     calls = []
 
     async def list_folder(folder):
         calls.append(folder)
+        if folder == "gone":
+            raise StorageError(StorageProblem.NOT_FOUND)
         if folder == "project":
             return [StorageItem("stage", "Etapa privada", FOLDER_TYPE, None, now)]
         if folder == "stage":

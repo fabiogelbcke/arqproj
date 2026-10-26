@@ -44,6 +44,7 @@ database passwords in the app or in builds:
 | `portal-staging@arq-proj.iam` | the staging app (Cloud Run) | Restricted runtime login; member of `arqproj_staging_app` only (granted by `backend.commands.provision`); tenant isolation applies |
 | `portal-production-deploy@arq-proj.iam` | the production deploy and admin commands | Owner of `arqproj_production`'s tables |
 | `portal-production@arq-proj.iam` | the production app | Restricted runtime login; member of `arqproj_production_app` only |
+| `portal-staging-operator@arq-proj.iam`, `portal-production-operator@arq-proj.iam` | the operator dashboard's lifecycle actions (A38), from the app | Member of `arqproj_<env>_operator` only (migration 0039's limited grants; added by `make operator-login`); never of `_app` |
 | `postgres` | emergencies only | Built-in; password in Secret Manager `arqproj-db-postgres-password` |
 
 One-time setup per database, run as `postgres` (Cloud SQL logins are not true
@@ -61,6 +62,7 @@ GRANT USAGE, CREATE ON SCHEMA public TO "portal-staging-deploy@arq-proj.iam" WIT
 | Account | Used by | Permissions |
 | --- | --- | --- |
 | `portal-staging-deploy@` | staging trigger; admin commands (impersonated) | Artifact Registry writer on `portal`; Cloud Run developer; Cloud SQL client + instance user; log writer; may act as `portal-staging@` |
+| `portal-staging-operator@` | the operator login, through the service's second proxy | Cloud SQL client + instance user; `portal-staging@` may act as it (Token Creator on this account only) |
 | `portal-staging@` | `portal-staging` service | Cloud SQL client + instance user (plus the current site's staging grants from earlier, unused by the new app) |
 
 `portal-production-deploy@` and `portal-production@` have the same permissions
@@ -159,6 +161,25 @@ ingress `internal-and-cloud-load-balancing` (`deploy/production/service.yaml`).
 client, whose redirect URIs include `https://<host>/api/auth/google/callback`
 (added by Fabio, 26 Oct 2026). Adding an operator: add the email to
 `OPERATOR_EMAILS` in that environment's `service.yaml` and deploy.
+
+The lifecycle actions (create, owner link, suspend, delete) connect as the
+environment's operator login, `portal-<env>-operator@arq-proj.iam`, through a
+second Cloud SQL proxy in the service (`cloudsql-operator`, port 5433) that acts
+as that account; `OPERATOR_DATABASE_URL` points at it. Without it the dashboard
+hides the actions. The app refuses to start if that login is missing its group or
+is the app's own. Set up 26 Oct 2026 (Fabio approved), per environment:
+
+```bash
+gcloud iam service-accounts create portal-staging-operator
+gcloud projects add-iam-policy-binding arq-proj --condition=None \
+  --member=serviceAccount:portal-staging-operator@arq-proj.iam.gserviceaccount.com --role=roles/cloudsql.client
+gcloud projects add-iam-policy-binding arq-proj --condition=None \
+  --member=serviceAccount:portal-staging-operator@arq-proj.iam.gserviceaccount.com --role=roles/cloudsql.instanceUser
+gcloud iam service-accounts add-iam-policy-binding portal-staging-operator@arq-proj.iam.gserviceaccount.com \
+  --member=serviceAccount:portal-staging@arq-proj.iam.gserviceaccount.com --role=roles/iam.serviceAccountTokenCreator
+gcloud sql users create portal-staging-operator@arq-proj.iam --instance=arqproj-db --type=cloud_iam_service_account
+make operator-login ENV=staging   # after migration 0039; safe to re-run
+```
 
 ## Admin commands against staging
 
