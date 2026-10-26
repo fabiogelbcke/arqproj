@@ -93,3 +93,16 @@ async def test_a_staff_members_actions_are_theirs_and_a_clients_are_nobodys(
 async def test_without_posthog_configured_nothing_is_sent_and_pages_work(app, client, owner):
     assert getattr(app.state, "posthog", None) is None
     assert (await client.get("/api/pages/casa-jardim", headers=ALINEA)).status_code == 200
+
+
+async def test_staff_get_the_browsers_key_only_where_the_server_has_one(app, client, owner):
+    """One image serves staging and production: the browser's PostHog key comes
+    from the server at run time, and only for signed-in staff."""
+    me = await client.get("/api/me", headers=ALINEA)
+    assert me.json()["analytics"] is None  # no key here: the browser stays off
+    app.state.settings = app.state.settings.model_copy(
+        update={"posthog_project_token": "phc_test", "posthog_host": "https://us.i.posthog.com"}
+    )
+    analytics = (await client.get("/api/me", headers=ALINEA)).json()["analytics"]
+    assert (analytics["token"], analytics["host"]) == ("phc_test", "https://us.i.posthog.com")
+    assert set(analytics) == {"token", "host", "user_id", "tenant_id"}  # no email or name

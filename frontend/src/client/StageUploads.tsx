@@ -8,7 +8,7 @@ import { Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
-import posthog from "../posthog";
+import { capture } from "../posthog";
 import { Button } from "../ui/Button";
 import { errorMessage } from "../ui/ErrorNotice";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
@@ -276,7 +276,7 @@ export function StageDrop({
     const sent = (await Promise.all(chosen.map(({ file, versionOf }) => sendOne(file, versionOf)))).filter(Boolean)
       .length;
     if (sent) {
-      posthog.capture("files_uploaded", { file_count: sent, stage_position: position });
+      capture("files_uploaded", { file_count: sent, stage_position: position });
       toast(t("edit.uploaded", { count: sent }));
       onChanged(); // the page lists Drive again (A10)
     }

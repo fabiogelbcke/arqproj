@@ -4869,6 +4869,37 @@
         ],
         "title": "AdminStaffOut"
       },
+      "AnalyticsOut": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "host": {
+            "type": "string",
+            "title": "Host"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "tenant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "host",
+          "user_id",
+          "tenant_id"
+        ],
+        "title": "AnalyticsOut",
+        "description": "Product analytics for the browser (A38), given only to signed-in staff and\nonly where the server has PostHog set, so one image serves staging and\nproduction with each one's own key, and visitors' browsers never load it."
+      },
       "Body_add_logo_png_api_office_logo_png_put": {
         "properties": {
           "file": {
@@ -5831,6 +5862,16 @@
           "email_confirmed": {
             "type": "boolean",
             "title": "Email Confirmed"
+          },
+          "analytics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalyticsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

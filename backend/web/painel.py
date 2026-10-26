@@ -37,7 +37,10 @@ CONTENT_SECURITY_POLICY = "; ".join(
         "img-src 'self' data: blob:",
         "font-src 'self'",
         # Uploads go from the browser straight to Google's upload session (A31).
-        "connect-src 'self' https://www.googleapis.com",
+        # Product analytics (A38): events to PostHog (US), and its settings from
+        # its assets host. Only sending: its scripts come bundled in ours.
+        "connect-src 'self' https://www.googleapis.com https://us.i.posthog.com"
+        " https://us-assets.i.posthog.com",
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",

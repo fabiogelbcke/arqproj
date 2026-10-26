@@ -127,7 +127,10 @@ can be seen per office. The wizard's Logs exporter (three packages for three log
 lines, one per health check) was dropped: Cloud Logging and the email alerts
 already cover it. It also failed every local run without a token, and read the
 old app's `.env`, which would have sent tests' events to the real project; both
-removed.
+removed. The browser side (the wizard's too) read its key at build time; but
+production deploys staging's image, so the key now comes from `/api/me` at run
+time, to staff only. Its events that the server already sends (projects, stages,
+share links) were dropped so nothing counts twice.
 
 ---
 

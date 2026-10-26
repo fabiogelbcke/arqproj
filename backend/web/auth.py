@@ -95,6 +95,17 @@ class ChoosePasswordIn(BaseModel):
     password: str
 
 
+class AnalyticsOut(BaseModel):
+    """Product analytics for the browser (A38), given only to signed-in staff and
+    only where the server has PostHog set, so one image serves staging and
+    production with each one's own key, and visitors' browsers never load it."""
+
+    token: str  # PostHog's project token: public by design, not a secret
+    host: str
+    user_id: uuid.UUID  # the person, as the server identifies them
+    tenant_id: uuid.UUID  # the office: PostHog's `tenant` group
+
+
 class MeOut(BaseModel):
     email: str
     name: str
@@ -111,6 +122,7 @@ class MeOut(BaseModel):
     # False: joined through the shared link, and must confirm the email before
     # anything else (A36).
     email_confirmed: bool
+    analytics: AnalyticsOut | None = None
 
 
 def _not_signed_in() -> ApiError:
@@ -202,6 +214,20 @@ async def require_csrf_account(
     return _check_csrf(request, account)
 
 
+def analytics_for(
+    request: Request, user_id: uuid.UUID, tenant: CurrentTenant
+) -> AnalyticsOut | None:
+    settings = request.app.state.settings
+    if not (settings.posthog_project_token and settings.posthog_host):
+        return None
+    return AnalyticsOut(
+        token=settings.posthog_project_token,
+        host=settings.posthog_host,
+        user_id=user_id,
+        tenant_id=tenant.id,
+    )
+
+
 def me_out(
     staff_email: str,
     name: str,
@@ -264,7 +290,7 @@ async def signed_in(
             "tenant", str(tenant.id), properties={"slug": tenant.slug, "name": tenant.name}
         )
         posthog_client.capture("user_signed_in")
-    return me_out(
+    out = me_out(
         user.email,
         user.name,
         user.role,
@@ -274,6 +300,8 @@ async def signed_in(
         user.tour_seen_at is not None,
         user.email_confirmed_at is not None,
     )
+    out.analytics = analytics_for(request, user.id, tenant)
+    return out
 
 
 @router.delete("/session", status_code=204, responses=documented(401, 403))
@@ -343,13 +371,14 @@ async def choose_password(
 
 @router.get("/me", responses=documented(401))
 async def me(
+    request: Request,
     staff: CurrentStaff = Depends(current_account),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
     office = await display_name(db, tenant)
     seen = await db.scalar(select(User.tour_seen_at).where(User.id == staff.user_id))
-    return me_out(
+    out = me_out(
         staff.email,
         staff.name,
         staff.role,
@@ -359,6 +388,8 @@ async def me(
         seen is not None,
         staff.email_confirmed,
     )
+    out.analytics = analytics_for(request, staff.user_id, tenant)
+    return out
 
 
 @router.post("/me/tour-seen", status_code=204, responses=documented(401, 403))

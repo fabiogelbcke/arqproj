@@ -5,8 +5,7 @@ import { useSearchParams } from "react-router";
 
 import { ApiError, type ErrorCode } from "../api/client";
 import { SPACE_LOW, bytes, useConnectDrive, useDisconnectDrive, useDrive, useDriveSpace } from "../drive/drive";
-import posthog from "../posthog";
-import { posthogLog } from "../posthogLogs";
+import { capture } from "../posthog";
 import dialogs from "../projects/projects.module.css";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
@@ -107,12 +106,9 @@ export function DriveDetails({
               <Button
                 variant="primary"
                 onPress={() => {
-                  const connectionType = status.has_folder ? "reconnect" : "initial";
-                  posthog.capture("drive_connection_started", {
-                    connection_type: connectionType,
-                  });
-                  posthogLog.info("drive connection started", {
-                    connection_type: connectionType,
+                  // Only the start shows here: the rest happens at Google (A38).
+                  capture("drive_connection_started", {
+                    connection_type: status.has_folder ? "reconnect" : "initial",
                   });
                   connect.mutate(false);
                 }}

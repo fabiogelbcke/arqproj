@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { useMe } from "../session/session";
-import posthog from "../posthog";
+import { capture } from "../posthog";
 import { useCancelInvite, useInvite, useInviteAgain, useJoinLinkOff, useJoinLinkOn, useTeam, type Member } from "../team/team";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
@@ -173,7 +173,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
               { name, email, role },
               {
                 onSuccess: (out) => {
-                  posthog.capture("team_member_invited", { role });
+                  capture("team_member_invited", { role });
                   setSent({ email: out.member.email, link: out.link, emailed: out.emailed });
                   setName("");
                   setEmail("");
@@ -224,7 +224,7 @@ function SharedLink({ on, until }: { on: boolean; until: string | null | undefin
   const make = () =>
     turnOn.mutate(undefined, {
       onSuccess: (out) => {
-        posthog.capture("team_join_link_enabled", { renewed: on });
+        capture("team_join_link_enabled", { renewed: on });
         setLink(out.link);
       },
       onError: (failure) => toastError(failure),

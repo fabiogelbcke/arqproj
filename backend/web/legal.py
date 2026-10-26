@@ -75,14 +75,17 @@ publica sobre o projeto (por exemplo, o nome do cliente, descrições, datas de 
 arquivos) e os endereços de e-mail que o escritório cadastra para receber atualizações.</li>
 <li><strong>Equipe dos escritórios:</strong> nome, e-mail, senha (guardada apenas de forma
 cifrada) e, se uma conta Google for conectada, o acesso descrito abaixo.</li>
-<li><strong>Uso do painel:</strong> as ações da equipe (por exemplo, criar um projeto ou
-compartilhar arquivos), ligadas ao identificador interno da conta, à sua função e ao escritório,
-sem nome nem e-mail, para entendermos como o {PRODUCT} é usado. Erros do servidor também são
-registrados, para corrigi-los.</li>
+<li><strong>Uso do painel:</strong> as ações da equipe e as páginas que ela visita no painel
+(por exemplo, criar um projeto ou compartilhar arquivos), ligadas ao identificador interno da
+conta, à sua função e ao escritório, sem nome, e-mail nem o texto mostrado na tela, para
+entendermos como o {PRODUCT} é usado. Erros do servidor e do navegador também são registrados,
+para corrigi-los.</li>
 <li><strong>Registros técnicos:</strong> endereço IP, navegador, data e hora das solicitações,
 usados para segurança e para corrigir problemas, guardados por até 30 dias.</li>
 <li><strong>Cookies:</strong> apenas os estritamente necessários (manter a equipe conectada e
-lembrar uma senha de projeto já digitada). Não usamos cookies de publicidade nem de análise.
+lembrar uma senha de projeto já digitada) e, só para a equipe conectada ao painel, um
+identificador da PostHog para as estatísticas de uso acima. Não usamos cookies de publicidade,
+e clientes e visitantes das páginas de projeto não são acompanhados.
 A preferência de tema claro ou escuro e as atualizações já lidas ficam só no seu navegador.</li>
 </ul>
 
@@ -159,13 +162,16 @@ project (such as the client's name, descriptions, meeting dates and files) and t
 addresses the office adds to receive updates.</li>
 <li><strong>Office staff:</strong> name, email, password (stored only in hashed form) and, if a
 Google account is connected, the access described below.</li>
-<li><strong>Use of the dashboard:</strong> staff actions (such as creating a project or sharing
-files), tied to the account's internal identifier, its role and its office, without name or
-email, so we understand how {PRODUCT} is used. Server errors are recorded too, to fix them.</li>
+<li><strong>Use of the dashboard:</strong> staff actions and the dashboard pages they visit (such
+as creating a project or sharing files), tied to the account's internal identifier, its role and
+its office, without name, email or the text shown on screen, so we understand how {PRODUCT} is
+used. Server and browser errors are recorded too, to fix them.</li>
 <li><strong>Technical logs:</strong> IP address, browser, and time of requests, for security and
 troubleshooting, kept for up to 30 days.</li>
 <li><strong>Cookies:</strong> only strictly necessary ones (keeping staff signed in and
-remembering a project password already entered). No advertising or analytics cookies. The light
+remembering a project password already entered) and, only for staff signed in to the dashboard, a
+PostHog identifier for the usage statistics above. No advertising cookies, and clients and
+visitors of project pages are not tracked. The light
 or dark theme choice and which updates were read stay in your browser.</li>
 </ul>
 
