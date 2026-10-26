@@ -14,9 +14,10 @@
 
 /* --- The page ----------------------------------------------------------- */
 .client { background: var(--bg); color: var(--ink); }
-.client .cwrap { max-width: 1280px; }
+/* The header's logo and tools line up with the page's content edges below. */
+.client .cwrap, .client .site__in { max-width: 1280px; }
 .client .site { border-bottom: 1px solid var(--line); }
-.client .client-header-tools { position: relative; display: flex; align-items: center; gap: 16px; }
+.client .client-header-tools { position: relative; display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
 /* The updates panel opens from the header's right edge, not the bell's: the
    menu beside the bell would push it off a phone's screen. */
 .client .client-header-tools .client-notifications { position: static; }
@@ -37,13 +38,15 @@
   margin-top: 24px; padding: 14px 16px 14px 18px; border: 1px solid var(--line); border-left: 3px solid var(--warm);
   border-radius: var(--r-card); background: var(--raise); color: var(--ink); font-size: var(--text-sm);
 }
-.client .client-email-notice p { margin: 0; max-width: 72ch; }
+.client .client-email-notice p { margin: 0; flex: 1 1 24ch; } /* the whole row, beside the button */
 
 /* --- The opening: the name, its type, the cover ------------------------- */
 .client .project-opening { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); gap: 24px 40px; align-items: start; margin-top: 28px; }
 .client .project-opening:not(:has(.banner)) { grid-template-columns: minmax(0, 1fr); }
+/* The letters' own side space at this size (about 0.07em for H, M, R) would
+   leave the title indented from the line below it: pulled back to line up. */
 .client .project-title {
-  margin: 0; font: 500 clamp(32px, 4.4vw, 56px)/1.02 var(--display-font); letter-spacing: -0.025em;
+  margin: 0 0 0 -0.06em; font: 500 clamp(32px, 4.4vw, 56px)/1.02 var(--display-font); letter-spacing: -0.025em;
   text-transform: uppercase; overflow-wrap: anywhere; color: var(--ink);
 }
 .client .project-kind {

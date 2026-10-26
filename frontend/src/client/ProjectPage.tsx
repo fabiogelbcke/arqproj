@@ -7,6 +7,7 @@ import { flushSync } from "react-dom";
 import { api, call, type Schemas } from "../api/client";
 import { CompletionBar } from "../ui/CompletionBar";
 import { HeaderMenu } from "../ui/HeaderMenu";
+import { ThemeToggle } from "../ui/ThemeToggle";
 import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
@@ -298,8 +299,9 @@ export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "l
 }
 
 /** The office's logo (it carries the name) or, without one, its name; on the
- *  right the page's tools and the site's header menu (ui/HeaderMenu): "Modo
- *  escuro" for anyone, and for staff who they are, the tour and Sair. */
+ *  right the page's tools and, for staff, the site's header menu (ui/HeaderMenu:
+ *  who they are, "Modo escuro", the tour and Sair); a visitor gets the "Modo
+ *  escuro" switch on its own (ui/ThemeToggle). */
 export function SiteHeader({
   office,
   tools,
@@ -329,7 +331,12 @@ export function SiteHeader({
         )}
         <div className="client-header-tools">
           {tools}
-          <HeaderMenu person={person} onTour={onTour} tourLabel={t("tour.again")} onSignOut={onSignOut} />
+          {/* Signed in: the account menu. A visitor has one choice only, shown as is. */}
+          {person || onTour || onSignOut ? (
+            <HeaderMenu person={person} onTour={onTour} tourLabel={t("tour.again")} onSignOut={onSignOut} />
+          ) : (
+            <ThemeToggle />
+          )}
         </div>
       </div>
     </div>

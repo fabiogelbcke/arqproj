@@ -210,9 +210,8 @@ describe("the preview page", () => {
     fakeApi({});
     const told = vi.spyOn(window.parent, "postMessage");
     render(<PreviewFrame />);
-    // The header's menu, as on the painel: "Modo escuro".
-    await userEvent.click((await screen.findAllByRole("button", { name: "Menu" }))[0]!);
-    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" }));
+    // A visitor's "Modo escuro" switch, in the header.
+    await userEvent.click((await screen.findAllByRole("switch", { name: "Modo escuro" }))[0]!);
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(told).toHaveBeenCalledWith({ type: "preview-theme", theme: "dark" }, window.location.origin);
     expect(localStorage.getItem("theme")).toBe("light");

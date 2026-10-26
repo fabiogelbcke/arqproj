@@ -285,7 +285,7 @@ test("whoever opens the shared link signs up and gets in with the emailed code",
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
   await skipTour(page);
   await page.goto("/painel/configuracoes/equipe");
-  await page.getByRole("button", { name: "Criar link da equipe" }).click();
+  await page.getByRole("button", { name: "Criar link de convite" }).click();
   const link = await page.getByRole("textbox", { name: "Convidar através de um link" }).inputValue();
 
   const other = await browser.newPage();

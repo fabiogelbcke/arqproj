@@ -198,7 +198,7 @@ describe("Configurações → Escritório", () => {
     api(OFFICE, { ...LOCAL, kind: "google", writer_status: "connected", reader_status: "no_access" });
     renderAt("/configuracoes/escritorio");
     const warning = await screen.findByText(/O portal não consegue ler a pasta do escritório/);
-    expect(within(warning.parentElement!).getByRole("link", { name: "Google Drive" })).toHaveAttribute(
+    expect(within(warning.parentElement!).getByRole("link", { name: "Armazenamento" })).toHaveAttribute(
       "href",
       "/configuracoes/drive",
     );

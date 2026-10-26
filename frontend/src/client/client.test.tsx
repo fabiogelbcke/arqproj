@@ -92,18 +92,19 @@ describe("the client page", () => {
     await waitFor(() => expect(document.title).toBe("Casa Jardim · Alinea")); // set after drawing
   });
 
-  it("saves the theme where the painel reads it, from the header's menu as on the painel", async () => {
+  it("saves the theme where the painel reads it, from the header's own switch", async () => {
     localStorage.clear();
     document.documentElement.dataset.theme = "light";
     at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
-    // A client: the same menu as the painel's, behind a ☰, with only "Modo escuro".
-    await userEvent.click(await screen.findByRole("button", { name: "Menu" }));
-    expect(screen.queryAllByRole("menuitem")).toEqual([]); // no tour, no Sair: not signed in
-    expect(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" }));
+    // A client, not signed in: "Modo escuro" on its own, no ☰ menu for one choice.
+    const dark = await screen.findByRole("switch", { name: "Modo escuro" });
+    expect(screen.queryByRole("button", { name: "Menu" })).toBeNull();
+    expect(dark).not.toBeChecked();
+    await userEvent.click(dark);
+    expect(dark).toBeChecked();
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem("theme")).toBe("dark"); // the painel's key too (app.test)
-    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" }));
+    await userEvent.click(dark);
     expect(localStorage.getItem("theme")).toBe("light");
   });
 
@@ -610,10 +611,10 @@ describe("edit mode", () => {
   it("in edit mode, says first when nobody gets the project's updates, and adds the client's emails there", async () => {
     const { sent } = withRecipients([{ email: "ana@x.com", subscribed: false }]);
     expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
-    expect(screen.queryByText(/Este projeto ainda não tem contatos/)).toBeNull(); // only in edit mode
+    expect(screen.queryByText(/Este projeto ainda não tem nenhum cliente/)).toBeNull(); // only in edit mode
     await startEditing();
     const notice = screen.getByRole("note");
-    expect(notice).toHaveTextContent("Este projeto ainda não tem contatos para receber atualizações por e-mail.");
+    expect(notice).toHaveTextContent("Este projeto ainda não tem nenhum cliente cadastrado para receber atualizações.");
     await userEvent.click(within(notice).getByRole("button", { name: "Adicionar e-mails do cliente" }));
     // The unsubscribed address stays, and can't be removed (A32).
     expect(await screen.findByText("Cancelou os e-mails")).toBeInTheDocument();
@@ -627,7 +628,7 @@ describe("edit mode", () => {
   it("in edit mode, says nothing about emails when the client gets the updates", async () => {
     withRecipients([{ email: "ana@x.com", subscribed: true }]);
     await startEditing();
-    expect(screen.queryByText(/Este projeto ainda não tem contatos/)).toBeNull();
+    expect(screen.queryByText(/Este projeto ainda não tem nenhum cliente/)).toBeNull();
   });
 
   it("in edit mode, the client's own \"Atualizações por e-mail\" box gives way", async () => {
@@ -851,6 +852,24 @@ describe("edit mode", () => {
     [order[0], order[1]] = [order[1]!, order[0]!];
     expect(sent.find((r) => r.method === "PUT")?.body).toEqual({ row_version: 4, order });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Reordenar etapas" })).toBeNull());
+  });
+
+  it("explains reordering the way this device works: touch, or mouse and keyboard", async () => {
+    asStaff();
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
+    let list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
+    expect(within(list).getByText(/No teclado: espaço na alça/)).toBeInTheDocument();
+    expect(within(list).queryByText(/Toque e segure/)).toBeNull();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Reordenar etapas" })).toBeNull());
+    // A touch screen (the test browser has no matchMedia of its own).
+    window.matchMedia = ((query: string) => ({ matches: query === "(pointer: coarse)", media: query })) as typeof window.matchMedia;
+    await userEvent.click(screen.getByRole("button", { name: "Reordenar etapas" }));
+    list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
+    expect(within(list).getByText(/Toque e segure uma etapa/)).toBeInTheDocument();
+    expect(within(list).queryByText(/No teclado/)).toBeNull();
+    delete (window as { matchMedia?: unknown }).matchMedia;
   });
 
   /** The order of the titles on the reorder list, as shown. */

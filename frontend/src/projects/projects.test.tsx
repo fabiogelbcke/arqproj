@@ -86,7 +86,7 @@ describe("the project list", () => {
     renderAt("/");
     const active = await screen.findByRole("region", { name: "Em andamento" });
     expect(within(active).getAllByTestId("project-card")).toHaveLength(3);
-    expect(within(active).getByLabelText("3 projetos em andamento de 4 exibidos")).toBeInTheDocument();
+    expect(within(active).getByText("3")).toBeInTheDocument(); // how many, beside the heading
     expect(screen.queryByRole("region", { name: "Rascunhos" })).toBeNull(); // no drafts (A35)
 
     const completed = screen.getByRole("region", { name: "Concluídos" });
@@ -351,7 +351,7 @@ describe("with Google Drive disconnected", () => {
     const state = await screen.findByRole("region", { name: "Google Drive desconectado" });
     expect(within(state).getByText(/Os arquivos continuam na pasta do Drive/)).toBeVisible();
     await userEvent.click(within(state).getByRole("button", { name: "Reconectar" }));
-    expect(await screen.findByRole("heading", { name: "Google Drive" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Armazenamento" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("link", { name: "Projetos" }));
     await screen.findByRole("region", { name: "Google Drive desconectado" });
     expect(screen.queryAllByTestId("project-card")).toHaveLength(0);

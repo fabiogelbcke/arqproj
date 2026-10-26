@@ -19,6 +19,7 @@ import hashlib
 import json
 import logging
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
@@ -27,7 +28,6 @@ from string import Template
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.documents.versions import shown_name
 from backend.notifications.email import Email, EmailError, EmailSender
 from backend.notifications.events import CLIENT_VISIBLE
 from backend.notifications.models import (
@@ -57,7 +57,6 @@ SETTLE = timedelta(minutes=1)  # section 11: a file still changing waits
 EMAILED = [kind for kind in EventKind if kind is not EventKind.NOTE_CHANGED]  # A32
 MEETINGS = {EventKind.MEETING_SCHEDULED, EventKind.MEETING_CHANGED, EventKind.MEETING_CLEARED}
 PROGRESS = {EventKind.STAGE_COMPLETED: 1, EventKind.STAGE_REOPENED: -1}
-FILES_LISTED = 3  # names shown per stage; the rest are "and N more"
 MAX_ATTEMPTS = 5  # then that address is given up on for this email (logged)
 UNSUBSCRIBE_PURPOSE = "unsubscribe"
 # Inline styles only: email programs ignore stylesheets.
@@ -185,18 +184,40 @@ async def _visible_files(db: AsyncSession, storage, project: Project) -> dict:
     return visible
 
 
-async def lines_for(
+@dataclass
+class Summary:
+    """An email's news: each stage's changes (its title, then phrases such as
+    "3 arquivos enviados"), and the rest (the project, the meeting) as sentences."""
+
+    stages: list[tuple[str, list[str]]] = field(default_factory=list)
+    others: list[str] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        return bool(self.stages or self.others)
+
+
+def _joined(locale, phrases: list[str]) -> str:
+    """"a", "a e b", "a, b e c"."""
+    if len(phrases) == 1:
+        return phrases[0]
+    return ", ".join(phrases[:-1]) + t(locale, "and") + phrases[-1]
+
+
+async def summarize(
     db: AsyncSession,
     storage,
     project: Project,
     events: list[ProjectEvent],
     office: Office,
     now: datetime,
-) -> list[str]:
-    """The email's sentences, as things are now (section 14: a file taken down
-    meanwhile is left out; several meeting changes read as the latest)."""
+) -> Summary:
+    """What the email says, as things are now (section 14: a file taken down
+    meanwhile is left out; several meeting changes read as the latest): each
+    stage's changes, in general terms ("3 arquivos enviados", no file names:
+    Fabio, 26 Oct 2026), then the project and the meeting."""
     locale = office.locale
-    lines: list[str] = []
+    summary = Summary()
+    changes: dict[int, list[str]] = {}  # by stage position
     files = [e for e in events if e.kind is EventKind.FILE_PUBLISHED]
     if files:
         if storage is None:
@@ -207,23 +228,11 @@ async def lines_for(
         shown = {e.item_id: visible[e.item_id] for e in files if e.item_id in visible}
         if any(item.modified_at > now - SETTLE for _position, item in shown.values()):
             raise Wait
-        titles = {
-            s.position: f"{s.position:02d} {await _title(db, s, locale)}"
-            for s in await db.scalars(
-                select(ProjectStage).where(ProjectStage.project_id == project.id)
-            )
-        }
-        by_stage: dict[int, list[str]] = {}
-        for position, item in shown.values():
-            name = shown_name(item)  # Drive's, with its version: "Planta v3.pdf"
-            by_stage.setdefault(position, []).append(name)
-        for position in sorted(by_stage):
-            names = by_stage[position]
-            listed = ", ".join(names[:FILES_LISTED])
-            if len(names) > FILES_LISTED:
-                listed += " " + t(locale, "andMore", count=len(names) - FILES_LISTED)
-            stage = titles.get(position, f"{position:02d}")
-            lines.append(t(locale, "files", count=len(names), stage=stage, names=listed))
+        counts: dict[int, int] = {}
+        for position, _item in shown.values():
+            counts[position] = counts.get(position, 0) + 1
+        for position, count in counts.items():
+            changes.setdefault(position, []).append(t(locale, "filesSent", count=count))
     # Progress as it is now: a stage reopened, or a project reopened, within the
     # quiet period is no news (section 14). Reordered meanwhile, a stage keeps its
     # identity; a removed one takes its news with it.
@@ -238,16 +247,22 @@ async def lines_for(
     for e in events:
         if e.kind in PROGRESS and e.stage_id in stages:
             turns[e.stage_id] = turns.get(e.stage_id, 0) + PROGRESS[e.kind]
-    for stage in sorted((stages[i] for i in turns), key=lambda s: s.position):
+    for stage in (stages[i] for i in turns):
         completed = stage.completed_at is not None
         if turns[stage.id] == (1 if completed else -1):
-            title = await _title(db, stage, locale)
-            key = "stageCompleted" if completed else "stageReopened"
-            lines.append(t(locale, key, stage=f"{stage.position:02d} {title}"))
+            key = "markedCompleted" if completed else "markedReopened"
+            changes.setdefault(stage.position, []).append(t(locale, key))
+    # By position, under each stage's current title; files in a stage removed
+    # meanwhile are on the page under no stage, and say so by number.
+    by_position = {s.position: s for s in stages.values()}
+    for position in sorted(changes):
+        stage = by_position.get(position)
+        title = f"{position:02d} {await _title(db, stage, locale)}" if stage else f"{position:02d}"
+        summary.stages.append((title, changes[position]))
     if project.status is ProjectStatus.COMPLETED and any(
         e.kind is EventKind.PROJECT_COMPLETED for e in events
     ):
-        lines.append(t(locale, "completed"))
+        summary.others.append(t(locale, "completed"))
     meetings = [e for e in events if e.kind in MEETINGS]
     if meetings:
         upcoming = await db.scalar(
@@ -259,7 +274,7 @@ async def lines_for(
         if upcoming is not None:
             when = upcoming.starts_at.astimezone(office.zone)
             new = any(e.kind is EventKind.MEETING_SCHEDULED for e in meetings)
-            lines.append(
+            summary.others.append(
                 t(
                     locale,
                     "meetingScheduled" if new else "meetingChanged",
@@ -274,15 +289,15 @@ async def lines_for(
         ):
             # Only a meeting the client heard of: one scheduled and cancelled within
             # this quiet period was never news (section 14).
-            lines.append(t(locale, "meetingCleared", title=cleared[-1].title))
-    return lines
+            summary.others.append(t(locale, "meetingCleared", title=cleared[-1].title))
+    return summary
 
 
 def render(
-    office: Office, project: Project, link: str, lines: list[str], unsubscribe: str
+    office: Office, project: Project, link: str, summary: Summary, unsubscribe: str
 ) -> tuple[str, str]:
     """The email as HTML (inline styles: email programs ignore stylesheets) and as
-    plain text."""
+    plain text. One stage changed reads as a sentence; several, as a list."""
     locale = office.locale
     intro = t(locale, "intro", project=project.name)
     why = t(locale, "why", office=office.name, project=project.name)
@@ -292,12 +307,29 @@ def render(
         if office.logo_url
         else f'<strong style="font-size:18px">{escape(office.name)}</strong>'
     )
-    items = "".join(f'<li style="margin:0 0 8px">{escape(line)}</li>' for line in lines)
+    p = '<p style="margin:0 0 12px">{}</p>'
+    html_parts: list[str] = []
+    text_parts: list[str] = []
+    if len(summary.stages) == 1:
+        [(stage, phrases)] = summary.stages
+        sentence = t(locale, "stageUpdated", stage=stage, changes=_joined(locale, phrases))
+        html_parts.append(p.format(escape(sentence)))
+        text_parts.append(sentence)
+    elif summary.stages:
+        lead = t(locale, "stagesUpdated")
+        rows = [f"{stage}: {_joined(locale, phrases)}" for stage, phrases in summary.stages]
+        items = "".join(f'<li style="margin:0 0 6px">{escape(row)}</li>' for row in rows)
+        html_parts.append(p.format(escape(lead)))
+        html_parts.append(f'<ul style="margin:0 0 12px;padding-left:20px">{items}</ul>')
+        text_parts.extend([lead, *(f"- {row}" for row in rows)])
+    for other in summary.others:
+        html_parts.append(p.format(escape(other)))
+        text_parts.append(other)
     html = _TEMPLATE.substitute(
         lang=locale.value,
         header=header,
         intro=escape(intro),
-        items=items,
+        body="".join(html_parts),
         link=escape(link),
         open=escape(t(locale, "open")),
         why=escape(why),
@@ -309,7 +341,8 @@ def render(
             office.name,
             "",
             intro,
-            *(f"- {line}" for line in lines),
+            "",
+            *text_parts,
             "",
             f"{t(locale, 'open')}: {link}",
             "",
@@ -345,7 +378,7 @@ async def deliver(
             .order_by(ProjectEvent.occurred_at)
         )
     )
-    lines = await lines_for(db, storage, project, events, office, now)  # may raise Wait
+    summary = await summarize(db, storage, project, events, office, now)  # may raise Wait
     # Who may get it now: subscribed, and outside production staff only (section 14).
     allowed = {
         r.email
@@ -358,7 +391,7 @@ async def deliver(
         if not settings.email_staff_only or r.email in office.staff
     }
     if batch.state is BatchState.OPEN:
-        if not lines or not allowed:
+        if not summary or not allowed:
             batch.state, batch.closed_at = BatchState.DROPPED, now
             return 0
         # Going out: frozen from now on. Later changes start a new batch, and its
@@ -369,7 +402,7 @@ async def deliver(
                 NotificationDelivery(batch_id=batch.id, email=email, status=DeliveryStatus.PENDING)
             )
         await db.flush()
-    elif not lines:
+    elif not summary:
         batch.state, batch.closed_at = BatchState.DROPPED, now
         return 0
     slug = await db.scalar(
@@ -391,7 +424,7 @@ async def deliver(
             continue  # unsubscribed (or removed) since it started: not sent
         token = unsubscribe_token(settings, project.id, delivery.email)
         unsubscribe = f"{office.base}/api/emails/unsubscribe/{token}"
-        html, text = render(office, project, link, lines, unsubscribe)
+        html, text = render(office, project, link, summary, unsubscribe)
         delivery.attempts += 1
         try:
             delivery.provider_id = await sender.send(

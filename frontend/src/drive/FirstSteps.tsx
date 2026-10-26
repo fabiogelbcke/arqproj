@@ -27,15 +27,8 @@ export function FirstSteps() {
   const me = useMe();
   const steps = onboarding.data;
   if (!steps) return null;
-  // Once the steps are done, the example project stays at hand as a line.
-  if (steps.storage_connected && steps.office_details && steps.has_project)
-    return (
-      <p className={styles.exampleAfter}>
-        <a className={styles.exampleLink} href={`/${EXAMPLE_SLUG}`}>
-          {t("firstSteps.example")}
-        </a>
-      </p>
-    );
+  // Once the steps are done, the example project is in the account menu.
+  if (steps.storage_connected && steps.office_details && steps.has_project) return null;
   const owner = me.data?.role === "owner";
   const done = [steps.storage_connected, steps.office_details, steps.has_project].filter(Boolean).length;
   const total = 3;

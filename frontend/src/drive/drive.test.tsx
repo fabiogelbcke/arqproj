@@ -184,7 +184,7 @@ describe("the Drive's space", () => {
     api(CONNECTED, { "GET /api/drive/space": () => ({ body: { used: 12 * 2 ** 30, total: 15 * 2 ** 30 } }) });
     renderAt("/configuracoes/drive");
     expect(await screen.findByText("12 GB de 15 GB usados (80%)")).toBeInTheDocument();
-    expect(screen.getByRole("meter", { name: "Espaço no Google Drive" })).toHaveAttribute("aria-valuenow", "80");
+    expect(screen.getByRole("meter", { name: "Armazenamento disponível" })).toHaveAttribute("aria-valuenow", "80");
     expect(screen.getByText(/Há pouco espaço disponível/)).toBeInTheDocument();
   });
 
@@ -263,13 +263,20 @@ describe("the painel's first steps", () => {
     expect(within(steps).getByLabelText("0 de 3 passos concluídos")).toBeInTheDocument(); // not counted
   });
 
-  it("keeps the example project at hand once the steps are done", async () => {
+  it("leaves the page once the steps are done; the example project is in the account menu", async () => {
     api(NOT_CONNECTED, {
       "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: true, has_project: true } }),
     });
     renderAt("/");
-    expect(await screen.findByRole("link", { name: "Ver um projeto de exemplo" })).toHaveAttribute("href", "/tour-projeto");
+    await screen.findByRole("heading", { name: "Projetos" });
     expect(screen.queryByRole("region", { name: "Primeiros passos" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Ver um projeto de exemplo" })).toBeNull(); // not on the page
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    expect(screen.getByRole("menuitem", { name: "Ver um projeto de exemplo" })).toHaveAttribute("href", "/tour-projeto");
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const drawer = await screen.findByRole("dialog", { name: "Menu" });
+    expect(within(drawer).getByRole("link", { name: "Ver um projeto de exemplo" })).toHaveAttribute("href", "/tour-projeto");
   });
 
   it("connects Google Drive from a dialog on the page", async () => {
