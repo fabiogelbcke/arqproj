@@ -5,7 +5,7 @@
 SHELL := /bin/bash
 FRONTEND := frontend
 
-# Admin commands (staff, reset-link, reset-tour, tenant) take ENV=local (default),
+# Admin commands (staff, owner-link, reset-link, reset-tour, tenant) take ENV=local (default),
 # ENV=staging or ENV=production. Both are reached through the Cloud SQL Auth Proxy, signed in as
 # your Google account (gcloud auth application-default login, once) acting as
 # that environment's deploy identity, the schema's
@@ -31,7 +31,7 @@ define on_database
 	else echo "ENV must be local, staging or production"; exit 2; fi
 endef
 
-.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff reset-link reset-tour tenant tenant-host alerts
+.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff owner-link reset-link reset-tour tenant tenant-host alerts
 
 help: ## List the commands
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -100,6 +100,10 @@ migrate: ## Apply new migrations to the local dev database
 staff: ## Staff account + invite link: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner] [ENV=staging|production]
 	@test -n "$(TENANT)" -a -n "$(EMAIL)" -a -n "$(NAME)" || { echo "Usage: make staff TENANT=alinea EMAIL=you@x.com NAME=You [ROLE=owner] [ENV=staging|production]"; exit 2; }
 	$(call on_database,uv run python -m backend.commands.staff add --tenant "$(TENANT)" --email "$(EMAIL)" --name "$(NAME)" --role "$(or $(ROLE),member)")
+
+owner-link: ## One-time owner signup: make owner-link TENANT=alinea [DAYS=7] [ENV=staging|production]
+	@test -n "$(TENANT)" || { echo "Usage: make owner-link TENANT=alinea [DAYS=7] [ENV=staging|production]"; exit 2; }
+	$(call on_database,uv run python -m backend.commands.staff owner-link --tenant "$(TENANT)" --days "$(or $(DAYS),7)")
 
 reset-tour: ## Show the project page's tour again: make reset-tour TENANT=alinea EMAIL=you@x.com [ENV=staging]
 	@test -n "$(TENANT)" -a -n "$(EMAIL)" || { echo "Usage: make reset-tour TENANT=alinea EMAIL=you@x.com [ENV=staging]"; exit 2; }

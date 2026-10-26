@@ -247,6 +247,35 @@ function codeSentTo(address: string): string | undefined {
   return newest && readFileSync(join(OUTBOX, newest), "utf-8").match(/^(\d{6})$/m)?.[1];
 }
 
+test("a one-time owner link creates an owner after email confirmation", async ({ page, browser }) => {
+  const output = execFileSync(
+    "uv",
+    ["run", "python", "-m", "backend.commands.staff", "owner-link", "--tenant", "alinea"],
+    { cwd: "..", env: { ...process.env, ...E2E_ENV }, encoding: "utf-8" },
+  );
+  const link = output.match(/http\S+#token=\S+/)![0].replace(/:\d+\//, `:${PORT}/`);
+  await page.goto(link);
+  await expect(page.getByRole("heading", { name: "Criar a conta de proprietário do Alinea (dev)" })).toBeVisible();
+  await expect(page).not.toHaveURL(/token=/);
+  await page.getByLabel("Nome").fill("Lia Campos");
+  await page.getByLabel("E-mail").fill("lia-proprietaria@alinea.example");
+  await page.getByLabel("Nova senha").fill("senha-da-lia");
+  await page.getByLabel("Repita a senha").fill("senha-da-lia");
+  await page.getByRole("button", { name: "Criar conta" }).click();
+  await expect(page.getByRole("heading", { name: "Confirme seu e-mail" })).toBeVisible();
+  await page.goto("/painel/configuracoes/equipe");
+  await expect(page.getByRole("heading", { name: "Confirme seu e-mail" })).toBeVisible();
+  await expect.poll(() => codeSentTo("lia-proprietaria@alinea.example")).toBeTruthy();
+  await page.getByLabel("Código").fill(codeSentTo("lia-proprietaria@alinea.example")!);
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(page.getByRole("button", { name: "Convidar pessoa" })).toBeVisible();
+
+  const other = await browser.newPage();
+  await other.goto(link);
+  await expect(other.getByRole("heading", { name: "Este link não funciona mais" })).toBeVisible();
+  await other.close();
+});
+
 // A36 (revised 25 Oct 2026): whoever opens the shared link chooses a password at
 // once, and gets in once the code emailed to them is typed.
 test("whoever opens the shared link signs up and gets in with the emailed code", async ({ page, browser }) => {

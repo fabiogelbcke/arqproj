@@ -1,12 +1,14 @@
 """Create staff accounts and password links. Run by an owner of the deployment.
 
     uv run python -m backend.commands.staff add --tenant alinea --email ana@x.com --name Ana
+    uv run python -m backend.commands.staff owner-link --tenant alinea
     uv run python -m backend.commands.staff reset-link --tenant alinea --email ana@x.com
     uv run python -m backend.commands.staff reset-tour --tenant alinea --email ana@x.com
 
 Nobody types someone else's password: `add` creates the account without one and
-prints an invite link, `reset-link` prints a link to choose a new one. Send the
-link to the person (until the product sends emails). Connects as the owner
+prints an invite link, `reset-link` prints a link to choose a new one, and
+`owner-link` lets the recipient supply their own name, email and password.
+Send the printed link to the person. Connects as the owner
 (MIGRATION_DATABASE_URL) and scopes everything to the given tenant, so it works
 under row-level security like the app. Account rules live in the runtime code
 (`backend.identity.accounts`, `backend.identity.links`), shared with the painel.
@@ -16,14 +18,17 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
+import secrets
 import sys
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from backend.db.isolation import scope_to_tenant
 from backend.identity import accounts, links
-from backend.identity.models import LinkKind, Role
+from backend.identity.models import JoinLink, LinkKind, Role
 from backend.settings import Settings
 from backend.tenancy.models import Tenant, TenantDomain
 
@@ -36,6 +41,9 @@ async def run(argv: list[str], database_url: str) -> str:
     add.add_argument("--email", required=True)
     add.add_argument("--name", required=True)
     add.add_argument("--role", default=Role.MEMBER, choices=list(Role), type=Role)
+    owner = commands.add_parser("owner-link", help="print a one-time owner signup link")
+    owner.add_argument("--tenant", required=True)
+    owner.add_argument("--days", type=int, default=7)
     reset = commands.add_parser("reset-link", help="print a link to choose a new password")
     reset.add_argument("--tenant", required=True)
     reset.add_argument("--email", required=True)
@@ -43,6 +51,8 @@ async def run(argv: list[str], database_url: str) -> str:
     tour.add_argument("--tenant", required=True)
     tour.add_argument("--email", required=True)
     args = parser.parse_args(argv)
+    if args.command == "owner-link" and args.days < 1:
+        parser.error("--days must be at least 1")
 
     engine = create_async_engine(database_url)
     try:
@@ -63,6 +73,22 @@ async def run(argv: list[str], database_url: str) -> str:
                 raise SystemExit(f"Tenant {args.tenant!r} has no primary address for the link")
             await session.commit()  # the next transaction starts scoped to the tenant
             scope_to_tenant(session.sync_session, tenant_id)
+            if args.command == "owner-link":
+                token = secrets.token_urlsafe(32)
+                session.add(
+                    JoinLink(
+                        role=Role.OWNER,
+                        single_use=True,
+                        expires_at=datetime.now(UTC) + timedelta(days=args.days),
+                        token_hash=hashlib.sha256(token.encode()).hexdigest(),
+                    )
+                )
+                await session.commit()
+                link = links.url(host, token, path="/painel/entrar-na-equipe")
+                return (
+                    f"Owner signup for {args.tenant}. Send them this link "
+                    f"(works once, for {args.days} day(s)):\n{link}"
+                )
             try:
                 if args.command == "add":
                     user = await accounts.create_user(

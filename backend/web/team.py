@@ -29,7 +29,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import and_, delete, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
@@ -108,6 +108,7 @@ class JoinCheckIn(BaseModel):
 
 class JoinCheckOut(BaseModel):
     office: str
+    role: Role
 
 
 class JoinIn(BaseModel):
@@ -188,12 +189,14 @@ async def team(
     users = list(await db.scalars(select(User)))
     # People who can sign in first, by name; then pending invites.
     users.sort(key=lambda user: (user.password_hash is None, user.name.lower()))
-    on = await db.scalar(select(JoinLink).where(*_working()))
+    on = await db.scalar(select(JoinLink).where(JoinLink.role == Role.MEMBER, *_working()))
     return TeamOut(
         members=[_member(user, staff) for user in users],
         join_link=JoinLinkOut(
             on=on is not None,
-            expires_at=(on.created_at + JOIN_LINK_LIFETIME).isoformat() if on else None,
+            expires_at=(on.expires_at or on.created_at + JOIN_LINK_LIFETIME).isoformat()
+            if on
+            else None,
         ),
         can_manage=staff.role is Role.OWNER,
     )
@@ -292,7 +295,9 @@ async def join_link_on(
     _owner(staff)
     await db.execute(_LOCK_JOIN_LINK, {"tenant": str(tenant.id)})
     await db.execute(
-        update(JoinLink).where(JoinLink.revoked_at.is_(None)).values(revoked_at=func.now())
+        update(JoinLink)
+        .where(JoinLink.role == Role.MEMBER, JoinLink.revoked_at.is_(None))
+        .values(revoked_at=func.now())
     )
     token = secrets.token_urlsafe(24)
     made = JoinLink(created_by=staff.user_id, token_hash=_hash(token))
@@ -315,14 +320,26 @@ async def join_link_off(
     _owner(staff)
     await db.execute(_LOCK_JOIN_LINK, {"tenant": str(tenant.id)})
     await db.execute(
-        update(JoinLink).where(JoinLink.revoked_at.is_(None)).values(revoked_at=func.now())
+        update(JoinLink)
+        .where(JoinLink.role == Role.MEMBER, JoinLink.revoked_at.is_(None))
+        .values(revoked_at=func.now())
     )
     await db.commit()
 
 
 def _working():
-    """A shared link that's on: not turned off or replaced, and under 24 hours old."""
-    return (JoinLink.revoked_at.is_(None), JoinLink.created_at > func.now() - JOIN_LINK_LIFETIME)
+    """An unused, unrevoked link within its expiry (24 hours for shared links)."""
+    return (
+        JoinLink.revoked_at.is_(None),
+        JoinLink.used_at.is_(None),
+        or_(
+            JoinLink.expires_at > func.now(),
+            and_(
+                JoinLink.expires_at.is_(None),
+                JoinLink.created_at > func.now() - JOIN_LINK_LIFETIME,
+            ),
+        ),
+    )
 
 
 async def _join_link(db: AsyncSession, token: str) -> JoinLink:
@@ -340,8 +357,8 @@ async def check_join_link(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> JoinCheckOut:
-    await _join_link(db, body.token)
-    return JoinCheckOut(office=await display_name(db, tenant))
+    link = await _join_link(db, body.token)
+    return JoinCheckOut(office=await display_name(db, tenant), role=link.role)
 
 
 @router.post("/join", status_code=201, responses=documented(404, 409, 422, 429))
@@ -352,7 +369,7 @@ async def join(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
-    """A new member, signed in at once but unconfirmed: a code goes to the address,
+    """A new staff account, signed in but unconfirmed: a code goes to the address,
     and the account works once it's typed in. If the email can't go, they ask for
     another on the next screen."""
     who = attempts.device(request)
@@ -366,22 +383,35 @@ async def join(
         password_hash = await accounts.new_password_hash(body.password)
     except accounts.PasswordTooShort:
         raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT) from None
-    await _join_link(db, body.token)  # still on
+    link = await _join_link(db, body.token)  # still on
     await db.execute(_LOCK_EMAIL, {"email": email})
     # Any account, a pending invite too: its invite email works, and "Esqueceu a
     # senha?" sends a new link.
     if await accounts.find_user(db, email) is not None:
         raise ApiError(409, ErrorCode.ACCOUNT_EXISTS)
+    if link.single_use:
+        # PostgreSQL rechecks the condition after any competing claim commits.
+        # Claim and account creation share this transaction, so failures leave
+        # the link available, and at most one request can create its owner.
+        claimed = await db.scalar(
+            update(JoinLink)
+            .where(JoinLink.id == link.id, *_working())
+            .values(used_at=func.now())
+            .returning(JoinLink.id)
+            .execution_options(synchronize_session=False)
+        )
+        if claimed is None:
+            raise ApiError(404, ErrorCode.JOIN_LINK_INVALID)
     user = await accounts.create_user(
         db,
         email=email,
         name=name,
-        role=Role.MEMBER,
+        role=link.role,
         password_hash=password_hash,
         email_confirmed=False,
     )
     message = await email_confirmation.new_code(db, request, tenant, user)
     me = await signed_in(request, response, tenant, db, user)  # commits
-    log.info("staff %s joined %s through the shared link", user.id, tenant.slug)
+    log.info("staff %s joined %s through a %s link", user.id, tenant.slug, link.role)
     await email_confirmation.send(request, tenant, message, "/api/join")
     return me

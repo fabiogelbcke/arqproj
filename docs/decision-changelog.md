@@ -19,6 +19,27 @@ a new entry too.
 
 ---
 
+## 2026-10-25 — A36, section 5: a one-time owner signup link from a command
+
+**Was:** creating an office's first owner required the operator to know the
+person's name and email and run `make staff ROLE=owner`, which printed an invite
+link to choose a password.
+
+**Now:** `make owner-link TENANT=…` prints a one-time link, valid for 7 days by
+default, without creating an account or requiring a name or email. Its recipient
+chooses name, email and password, then confirms the email with the existing
+6-digit code before using the owner account. The link is consumed atomically
+with account creation. Only its hash is stored. The painel's shared link still
+creates members only and neither lists nor revokes owner links.
+
+**Why:** Fabio approved this smaller onboarding step and migration 0037 with the
+`join_links` schema changes on 25 Oct 2026. It reuses the signup and confirmation
+flow already built, while keeping office and address creation in operator
+commands. A combined office-creation command and a guided setup checklist remain
+future work.
+
+---
+
 ## 2026-10-25 — A37, sections 7 and 15: "Baixar tudo", a password per link, staff copy any link
 
 **Was:** a supplier downloaded files one at a time; a link had no password of

@@ -48,10 +48,10 @@ def _hash(token: str) -> str:
 LOCAL_PORT = 5173  # `make dev`'s staff app; with `make serve` it is 8000
 
 
-def url(host: str, token: str) -> str:
+def url(host: str, token: str, *, path: str = PATH) -> str:
     # Local addresses (*.localhost) are plain http on the dev server's port.
     base = f"http://{host}:{LOCAL_PORT}" if host.endswith(".localhost") else f"https://{host}"
-    return f"{base}{PATH}#token={token}"
+    return f"{base}{path}#token={token}"
 
 
 async def made_since(session: AsyncSession, user: User, kind: LinkKind, since: datetime) -> bool:
