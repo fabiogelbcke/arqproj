@@ -1,4 +1,5 @@
-import { render, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Me } from "./api/client";
@@ -67,6 +68,35 @@ describe("product analytics in the browser (A39)", () => {
     expect(sdk.reset).toHaveBeenCalledTimes(1);
     expect(sdk.opt_in_capturing).toHaveBeenCalledTimes(1);
     expect(sdk.identify).toHaveBeenLastCalledWith(other.user_id, { role: "member" });
+  });
+
+  it("a sign-out while PostHog is still loading leaves it off", async () => {
+    const { capture, resetAnalytics, startAnalytics } = await import("./posthog");
+    const starting = startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
+    resetAnalytics(); // before the SDK has arrived
+    await starting;
+    expect(sdk.init).toHaveBeenCalledWith("phc_test", expect.objectContaining({ opt_out_capturing_by_default: true }));
+    expect(sdk.opt_in_capturing).not.toHaveBeenCalled();
+    expect(sdk.identify).not.toHaveBeenCalled();
+    capture("files_uploaded");
+    expect(sdk.capture).not.toHaveBeenCalled();
+  });
+
+  it("stops collecting when the session turns out to have ended (signed out in another tab)", async () => {
+    let signedIn = true;
+    fakeApi({
+      "GET /api/me": () => (signedIn ? { body: { ...ME, analytics: ANALYTICS } } : notSignedIn),
+    });
+    const { useMe } = await import("./session/session");
+    const queries = new QueryClient();
+    const { result } = renderHook(() => useMe(), {
+      wrapper: ({ children }) => <QueryClientProvider client={queries}>{children}</QueryClientProvider>,
+    });
+    await waitFor(() => expect(sdk.identify).toHaveBeenCalled());
+    signedIn = false;
+    await queries.invalidateQueries();
+    await waitFor(() => expect(result.current.data).toBeNull());
+    expect(sdk.opt_out_capturing).toHaveBeenCalled();
   });
 
   it("stays off where the server has no key (staging, local runs)", async () => {

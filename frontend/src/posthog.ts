@@ -12,6 +12,8 @@ import type { Me } from "./api/client";
 
 let client: PostHog | null = null;
 let loading: Promise<PostHog> | null = null;
+// Each sign-out ends a sign-in: a start still loading when it does stops there.
+let signIns = 0;
 
 /** Starts PostHog for this signed-in person: their id and role, never their email
  *  or name (Fabio, 26 Oct 2026), and their office as the `tenant` group, as the
@@ -20,6 +22,7 @@ let loading: Promise<PostHog> | null = null;
 export async function startAnalytics(me: Me): Promise<void> {
   const analytics = me.analytics;
   if (!analytics) return;
+  const mine = signIns;
   loading ??= import("posthog-js/full/no-external").then(({ default: posthog }) => {
     posthog.init(analytics.token, {
       api_host: analytics.host,
@@ -31,6 +34,9 @@ export async function startAnalytics(me: Me): Promise<void> {
       mask_all_element_attributes: true,
       disable_session_recording: true,
       disable_surveys: true,
+      // Nothing is sent until a sign-in turns it on (below), so a start that a
+      // sign-out overtook sends nothing either.
+      opt_out_capturing_by_default: true,
       capture_exceptions: {
         capture_unhandled_errors: true,
         capture_unhandled_rejections: true,
@@ -40,7 +46,11 @@ export async function startAnalytics(me: Me): Promise<void> {
     return posthog;
   });
   const posthog = await loading;
-  if (posthog.has_opted_out_capturing()) posthog.opt_in_capturing(); // signed in again
+  if (mine !== signIns) {
+    posthog.opt_out_capturing(); // signed out while it loaded
+    return;
+  }
+  if (posthog.has_opted_out_capturing()) posthog.opt_in_capturing();
   posthog.identify(analytics.user_id, { role: me.role });
   posthog.group("tenant", analytics.tenant_id, { slug: me.tenant_slug });
   client = posthog;
@@ -54,6 +64,7 @@ export function capture(event: string, properties?: Record<string, unknown>): vo
 /** Signing out: nothing more is collected (no clicks, pages or errors from the
  *  sign-in screen) until someone signs in again, who starts afresh. */
 export function resetAnalytics(): void {
+  signIns += 1;
   client?.opt_out_capturing();
   client?.reset();
   client = null;

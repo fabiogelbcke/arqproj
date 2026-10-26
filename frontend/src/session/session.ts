@@ -17,7 +17,10 @@ export function useMe() {
         void startAnalytics(me);
         return me;
       } catch (error) {
-        if (error instanceof ApiError && error.code === "not_signed_in") return null;
+        if (error instanceof ApiError && error.code === "not_signed_in") {
+          resetAnalytics(); // the session ended elsewhere (another tab): stop collecting
+          return null;
+        }
         throw error;
       }
     },
