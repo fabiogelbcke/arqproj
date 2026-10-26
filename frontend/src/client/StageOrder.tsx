@@ -1,15 +1,20 @@
 // Edit mode: "Reordenar etapas", every stage on one short list (no files) to drag
-// into a new order by its handle (with a keyboard: space, the arrows, space). Saved at once on
-// "Salvar": one change, its folders renumbered; each stage keeps its completion.
-// Loaded only when staff open it.
+// into a new order: by the whole row, or by its handle (with a keyboard: space,
+// the arrows, space). On a phone the row lifts only after a press-and-hold, so a
+// swipe scrolls and a tap moves nothing; the handle drags at once (Fabio, 25 Oct
+// 2026: people didn't find the handle). Saved at once on "Salvar": one change,
+// its folders renumbered; each stage keeps its completion. Loaded only when staff
+// open it.
 import {
   DndContext,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -23,6 +28,46 @@ import { useChange } from "./StageEditing";
 
 type Staff = NonNullable<Page["staff"]>;
 const pad = (n: number) => String(n).padStart(2, "0");
+
+/** A press-and-hold on a phone before the row lifts: long enough that a swipe
+ *  to scroll or a tap never moves a stage. */
+const HOLD_MS = 300;
+const onHandle = (event: Event) => (event.target as Element | null)?.closest?.("[data-drag-handle]") != null;
+
+/** The handle: a drag starts at once, a phone's finger too (no hold). */
+class HandleSensor extends PointerSensor {
+  static activators: typeof PointerSensor.activators = [
+    {
+      eventName: "onPointerDown",
+      handler: (event, options) =>
+        onHandle(event.nativeEvent) && PointerSensor.activators[0]!.handler(event, options),
+    },
+  ];
+}
+
+/** The rest of the row, with a mouse or pen: a small move starts it. */
+class RowMouseSensor extends PointerSensor {
+  static activators: typeof PointerSensor.activators = [
+    {
+      eventName: "onPointerDown",
+      handler: (event, options) =>
+        event.nativeEvent.pointerType !== "touch" &&
+        !onHandle(event.nativeEvent) &&
+        PointerSensor.activators[0]!.handler(event, options),
+    },
+  ];
+}
+
+/** The rest of the row, with a finger: only after holding it still. */
+class RowTouchSensor extends TouchSensor {
+  static activators: typeof TouchSensor.activators = [
+    {
+      eventName: "onTouchStart",
+      handler: (event, options) =>
+        !onHandle(event.nativeEvent) && TouchSensor.activators[0]!.handler(event, options),
+    },
+  ];
+}
 
 function Row({
   position,
@@ -44,14 +89,16 @@ function Row({
       ref={setNodeRef}
       className={`stage-order__row${isDragging ? " is-dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
+      // The whole row drags; the keyboard goes through the handle, focused.
+      {...listeners}
     >
       <button
         ref={setActivatorNodeRef}
         type="button"
         className="stage-order__handle"
+        data-drag-handle
         aria-label={t("edit.dragStage", { title })}
         {...attributes}
-        {...listeners}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="9" cy="6" r="1.4" /><circle cx="15" cy="6" r="1.4" />
@@ -88,10 +135,17 @@ export default function StageOrder({
   const byPosition = new Map(page.stages.map((stage) => [stage.position, stage]));
   const changed = order.some((position, i) => position !== page.stages[i]!.position);
   const sensors = useSensors(
-    // A small move before a drag starts, so a tap on the handle stays a tap.
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(HandleSensor),
+    // A small move before a drag starts, so a click on the row stays a click.
+    useSensor(RowMouseSensor, { activationConstraint: { distance: 4 } }),
+    // Still for a moment (a little wobble allowed): a swipe scrolls instead.
+    useSensor(RowTouchSensor, { activationConstraint: { delay: HOLD_MS, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+  // The hold has worked: a short buzz on phones that can, as the row lifts.
+  const started = ({ activatorEvent }: DragStartEvent) => {
+    if (typeof TouchEvent !== "undefined" && activatorEvent instanceof TouchEvent) navigator.vibrate?.(10);
+  };
   const dragged = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
     setOrder((now) => arrayMove(now, now.indexOf(Number(active.id)), now.indexOf(Number(over.id))));
@@ -120,7 +174,14 @@ export default function StageOrder({
             {t("edit.reorderStages")}
           </Heading>
           <p className="stage-order__hint">{t("edit.reorderHint")}</p>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragged}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={started}
+            onDragEnd={dragged}
+            // Read out on a handle, in the office's language: how to move it by keyboard.
+            accessibility={{ screenReaderInstructions: { draggable: t("edit.reorderKeys") } }}
+          >
             <SortableContext items={order} strategy={verticalListSortingStrategy}>
               <ol className="stage-order__list">
                 {order.map((position, index) => (

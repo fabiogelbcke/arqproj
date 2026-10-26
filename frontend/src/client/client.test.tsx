@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -847,6 +847,49 @@ describe("edit mode", () => {
     [order[0], order[1]] = [order[1]!, order[0]!];
     expect(sent.find((r) => r.method === "PUT")?.body).toEqual({ row_version: 4, order });
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Reordenar etapas" })).toBeNull());
+  });
+
+  /** The order of the titles on the reorder list, as shown. */
+  const shownOrder = (list: HTMLElement) =>
+    [...list.querySelectorAll(".stage-order__title")].map((title) => title.firstChild?.textContent);
+
+  /** A finger on `target` at row `from`'s height, held `hold` ms, then moved to
+   *  row `to`'s height and lifted. Rows are 50 px apart (as dragStage lays them). */
+  async function touchDrag(target: Element, from: number, to: number, hold: number) {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const row = this.closest(".stage-order__row");
+      const index = row ? [...row.parentElement!.children].indexOf(row) : 0;
+      return DOMRect.fromRect({ x: 0, y: index * 50, width: 400, height: 44 });
+    });
+    onTestFinished(() => void vi.restoreAllMocks());
+    const at = (row: number) => ({ touches: [{ clientX: 100, clientY: row * 50 + 20 }] });
+    fireEvent.touchStart(target, at(from));
+    await act(() => new Promise((done) => setTimeout(done, hold)));
+    for (let row = from; row <= to; row++) fireEvent.touchMove(target, at(row + 0.5));
+    fireEvent.touchEnd(target, { changedTouches: at(to).touches });
+  }
+
+  it("on a phone, a stage moves only after a press-and-hold; a swipe never moves one", async () => {
+    asStaff({});
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
+    const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
+    const before = shownOrder(list);
+    const first = within(list).getByText(PAGE.stages[0]!.title);
+    await touchDrag(first, 0, 1, 50); // a swipe, as when scrolling the list
+    expect(shownOrder(list)).toEqual(before);
+    expect(within(list).getByRole("button", { name: "Salvar" })).toBeDisabled();
+    await touchDrag(first, 0, 1, 350); // held still first: the row lifts and moves
+    expect(shownOrder(list)).toEqual([before[1], before[0], ...before.slice(2)]);
+    expect(within(list).getByRole("button", { name: "Salvar" })).toBeEnabled();
+  });
+
+  it("explains dragging the whole row, holding it on a phone, and the handle", async () => {
+    asStaff({});
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: "Reordenar etapas" }));
+    const list = await screen.findByRole("dialog", { name: "Reordenar etapas" });
+    expect(within(list).getByText(/Arraste uma etapa para mudar a ordem\. No celular, toque e segure/)).toBeInTheDocument();
   });
 
   it("keeps the same stage open after reordering moves it", async () => {

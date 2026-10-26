@@ -277,6 +277,14 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(page, "06i-etapa-editando");
   await page.locator("#stage-2").getByRole("button", { name: "Salvar" }).click();
   await page.locator("#stage-2").getByText("As plantas da sala estão prontas para a sua revisão.").waitFor();
+  // "Reordenar etapas": the whole row drags (a hold on a phone).
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: "Reordenar etapas" }).click();
+  await page.getByRole("dialog", { name: "Reordenar etapas" }).waitFor();
+  await page.locator(".stage-order__row").nth(1).hover();
+  await shoot(page, "06q-reordenar-etapas");
+  await page.keyboard.press("Escape");
   // Reopening a stage says the client will be emailed (A32), as completing does.
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();

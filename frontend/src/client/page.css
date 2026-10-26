@@ -311,11 +311,20 @@ a.site__brand { color: inherit; text-decoration: none; }
 .stage-order__heading { margin: 0; font-size: 22px; font-weight: 400; letter-spacing: -0.02em; }
 .stage-order__hint { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .stage-order__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+/* The whole row is grabbed: a hand over it, shaded on hover, shaded at once under
+   a finger (the hold has begun); lifted with a deeper shadow while it moves. On a
+   phone the long press never selects its text or opens the system's menu. */
 .stage-order__row {
   position: relative; display: grid; grid-template-columns: 40px 28px minmax(0, 1fr); align-items: center; gap: 6px;
   padding: 6px 6px 6px 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--raise);
+  cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  transition: background-color .15s, border-color .15s, box-shadow .15s;
 }
-.stage-order__row.is-dragging { z-index: 2; box-shadow: var(--shadow); border-color: var(--ink); }
+.stage-order__row:hover, .stage-order__row:active { background: var(--surface); border-color: var(--line-strong); }
+.stage-order__row.is-dragging {
+  z-index: 2; cursor: grabbing; background: var(--raise); border-color: var(--ink);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 22%), 0 2px 6px rgb(0 0 0 / 12%);
+}
 .stage-order__handle {
   display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; background: none;
   color: var(--muted); cursor: grab; touch-action: none;
