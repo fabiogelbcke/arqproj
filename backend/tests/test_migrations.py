@@ -678,3 +678,101 @@ def test_existing_join_links_stay_shared_member_links(migrated_url):
             connection.execute(text(f'DROP OWNED BY "{owner}"'))
             connection.execute(text(f'DROP ROLE "{owner}"'))
         engine.dispose()
+
+
+def test_survey_assessment_becomes_survey_in_every_office(migrated_url):
+    """0038 replaces "Levantamento e Diagnóstico" with "Levantamento" in every
+    office's projects (a project that had both keeps the old one as its own stage),
+    even run as an owner that tenant isolation binds (Cloud SQL's migration login)."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0038"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0037")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        for slug in ("alinea", "norte"):
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES (:s, 'X') RETURNING id"), {"s": slug}
+            )
+            for name, keys in (
+                ("Reforma", ["survey_assessment"]),
+                ("Ambas", ["survey", "survey_assessment"]),
+            ):
+                project = connection.scalar(
+                    text(
+                        "INSERT INTO projects (tenant_id, name, client_name, project_type) "
+                        "VALUES (:t, :n, 'C', 'renovation') RETURNING id"
+                    ),
+                    {"t": tenant, "n": name},
+                )
+                for position, key in enumerate(keys, start=1):
+                    connection.execute(
+                        text(
+                            "INSERT INTO project_stages "
+                            "(tenant_id, project_id, position, builtin_key, notes) "
+                            "VALUES (:t, :p, :n, :k, 'anotado')"
+                        ),
+                        {"t": tenant, "p": project, "n": position, "k": key},
+                    )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    try:
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0038",
+        )
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    "SELECT p.name, s.position, s.builtin_key, s.title, s.notes "
+                    "FROM project_stages s JOIN projects p ON p.id = s.project_id "
+                    "ORDER BY p.name, s.position"
+                )
+            ).all()
+            assert rows == [
+                ("Ambas", 1, "survey", None, "anotado"),
+                ("Ambas", 1, "survey", None, "anotado"),
+                ("Ambas", 2, None, "Levantamento e Diagnóstico", "anotado"),
+                ("Ambas", 2, None, "Levantamento e Diagnóstico", "anotado"),
+                ("Reforma", 1, "survey", None, "anotado"),
+                ("Reforma", 1, "survey", None, "anotado"),
+            ]
+            assert (
+                connection.scalar(
+                    text("SELECT count(*) FROM stage_definitions WHERE key = 'survey_assessment'")
+                )
+                == 0
+            )
+            assert connection.execute(
+                text(
+                    "SELECT stage_key FROM project_type_stages WHERE project_type = 'renovation' "
+                    "AND stage_key LIKE 'survey%'"
+                )
+            ).all() == [("survey",)]
+            positions = connection.scalars(
+                text("SELECT position FROM stage_definitions ORDER BY position")
+            ).all()
+            assert positions == list(range(positions[0], positions[0] + 11))  # no gap
+            assert connection.scalar(
+                text("SELECT relforcerowsecurity FROM pg_class WHERE relname = 'project_stages'")
+            )
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()

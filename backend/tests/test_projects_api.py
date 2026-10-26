@@ -404,7 +404,7 @@ async def test_the_dialog_gets_every_stage_and_each_types_usual_ones(client, own
         "Projeto de Paisagismo",
     ]
     assert options["types"][0]["stages"] == ARCHITECTURE
-    assert len(options["stages"]) == 12
+    assert len(options["stages"]) == 11
     assert options["stages"][0] == {"key": "briefing", "title": "Briefing"}
     every = [stage["key"] for stage in options["stages"]]
     for kind in options["types"]:  # each type's stages, in the shared order

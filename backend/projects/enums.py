@@ -47,11 +47,10 @@ class ProjectType(StrEnum):
 
 
 class BuiltinStage(StrEnum):
-    """The 12 built-in stages (A27), in the order every project lists them."""
+    """The 11 built-in stages (A27), in the order every project lists them."""
 
     BRIEFING = "briefing"
     SURVEY = "survey"
-    SURVEY_ASSESSMENT = "survey_assessment"
     FEASIBILITY_STUDY = "feasibility_study"
     PRELIMINARY_STUDY = "preliminary_study"
     SCHEMATIC_DESIGN = "schematic_design"

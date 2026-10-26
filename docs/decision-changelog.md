@@ -19,6 +19,21 @@ a new entry too.
 
 ---
 
+## 2026-10-26 — A27: one survey stage, "Levantamento"
+
+**Was:** 12 built-in stages, among them both "Levantamento" (site survey) and
+"Levantamento e Diagnóstico" (Reforma's survey of the existing building).
+
+**Now:** 11. "Levantamento" covers both; Reforma's usual stages list it with
+Reforma's own description ("Análise das condições existentes, estrutura e
+instalações."). Projects that had "Levantamento e Diagnóstico" show
+"Levantamento" in its place (notes and folder kept); a project that had both
+keeps the second as its own stage under the old title.
+
+**Why:** Fabio, 26 Oct 2026: two stages named "Levantamento…" are redundant.
+
+---
+
 ## 2026-10-25 — A36, section 5: a one-time owner signup link from a command
 
 **Was:** creating an office's first owner required the operator to know the
