@@ -62,12 +62,12 @@ spec:
             - name: GOOGLE_OAUTH_REDIRECT_URI
               value: https://myunio.app/api/drive/callback
             # The operator dashboard (A38): Unio's own address, where /admin answers,
-            # the Google accounts allowed in (Fabio, 26 Oct 2026), and Google sign-in's
+            # the Google accounts allowed in (Fabio, 26 Oct 2026; three added the same day), and Google sign-in's
             # return address there (the Drive client's, for now).
             - name: OPERATOR_HOST
               value: myunio.app
             - name: OPERATOR_EMAILS
-              value: fabio.gelbcke@gmail.com
+              value: fabio.gelbcke@gmail.com,brunocallado1@gmail.com,arqdevproj@gmail.com,mariana.mo.maciel@gmail.com
             - name: GOOGLE_SIGNIN_REDIRECT_URI
               value: https://myunio.app/api/auth/google/callback
             - name: DRIVE_READER_IDENTITY

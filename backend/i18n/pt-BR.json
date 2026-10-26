@@ -506,7 +506,7 @@
     "reopenStageOfCompletedMeans": "A etapa voltará a constar como em aberto, e o projeto deixará de constar como concluído.",
     "stageCompleted": "Etapa “{{title}}” concluída.",
     "stageReopened": "Etapa “{{title}}” reaberta.",
-    "reorderHint": "Arraste uma etapa para mudar a ordem. No teclado: espaço na alça, setas e espaço de novo. Cada etapa mantém sua conclusão; as pastas no Drive acompanham.",
+    "reorderHint": "Arraste uma etapa para mudar a ordem. Cada etapa mantém sua conclusão; as pastas no Drive acompanham.",
     "reorderHintTouch": "Toque e segure uma etapa por um instante e arraste para mudar a ordem, ou arraste pela alça à esquerda. Cada etapa mantém sua conclusão; as pastas no Drive acompanham.",
     "reorderRole": "etapa reordenável",
     "reorderPicked": "{{title}} selecionada, na posição {{place}}.",
