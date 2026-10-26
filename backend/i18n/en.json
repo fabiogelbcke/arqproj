@@ -506,7 +506,7 @@
     "reopenStageOfCompletedMeans": "The stage will appear as open again, and the project will no longer appear as completed.",
     "stageCompleted": "Stage “{{title}}” done.",
     "stageReopened": "Stage “{{title}}” reopened.",
-    "reorderHint": "Drag a stage to change the order. With a keyboard: space on the handle, the arrows, then space again. Each stage keeps its completion; the Drive folders follow.",
+    "reorderHint": "Drag a stage to change the order. Each stage keeps its completion; the Drive folders follow.",
     "reorderHintTouch": "Press and hold a stage for a moment, then drag to change the order, or drag by the handle on the left. Each stage keeps its completion; the Drive folders follow.",
     "reorderRole": "reorderable stage",
     "reorderPicked": "{{title}} picked up, at place {{place}}.",
