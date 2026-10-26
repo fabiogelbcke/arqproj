@@ -274,6 +274,29 @@ describe("confirming the email", () => {
     expect(sent.find((r) => r.path === "/api/me/email")?.body).toEqual({ email: "caio@hotmail.com" });
   });
 
+  it("after a correction whose email couldn't go, shows the new address it was saved as", async () => {
+    let email = caio.email;
+    api(
+      {},
+      {
+        "GET /api/me": () => ({ body: { ...caio, email } }),
+        "PUT /api/me/email": (body: unknown) => {
+          email = (body as { email: string }).email; // saved, but not sent
+          return { status: 503, body: { error: "email_not_sent" } };
+        },
+      },
+    );
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Corrigir e-mail" }));
+    const field = screen.getByLabelText("E-mail");
+    await userEvent.clear(field);
+    await userEvent.type(field, "caio@hotmail.com");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar e enviar código" }));
+    expect(await screen.findByText(/Não foi possível enviar o e-mail/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(await screen.findByText(/código de 6 dígitos para caio@hotmail.com/)).toBeInTheDocument();
+  });
+
   it("the email's link confirms with a press, not on opening", async () => {
     window.history.replaceState(null, "", "/confirmar-email#token=tok");
     const sent = fakeApi({

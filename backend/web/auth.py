@@ -438,6 +438,13 @@ async def _reset_link(
     user = await accounts.find_user(db, address)
     if user is None:
         return None
+    # The account's confirmation lock, as an email correction takes it, then the
+    # account as it is now: a correction that committed meanwhile must not get a
+    # link sent to the old address that would then confirm the new one (A36).
+    await accounts.lock_confirmation(db, user.id)
+    await db.refresh(user)
+    if user.email != accounts.normalize_email(address):
+        return None
     # One request per account at a time, until this transaction ends: two at once
     # must not both find no recent link and both send.
     await db.execute(_LOCK_RESET, {"user": str(user.id)})

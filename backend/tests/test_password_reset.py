@@ -167,3 +167,26 @@ async def test_a_failed_send_is_logged_and_still_says_nothing(client, sent, capl
         assert (await ask(client, "ana@alinea.example")).status_code == 204
     assert "password reset email failed" in caplog.text
     assert "tenant=alinea" in caplog.text
+
+
+async def test_a_correction_committed_meanwhile_gets_no_link_sent_to_the_old_address(
+    client, db_session, sent, monkeypatch
+):
+    """A reset request found the account by its old address, then an email
+    correction committed before the link was made: the link must not go to the
+    old address, where it would confirm the new one without proving it (A36)."""
+    found = accounts.find_user
+
+    async def found_then_corrected(db, address):
+        user = await found(db, address)
+        await db.execute(  # the correction, landing in between
+            text("UPDATE users SET email = 'beto@alinea.example' WHERE id = :id"),
+            {"id": user.id},
+        )
+        return user  # as it was read: still the old address
+
+    monkeypatch.setattr(auth.accounts, "find_user", found_then_corrected)
+    assert (await ask(client, "ana@alinea.example")).status_code == 204
+    assert sent.emails == []
+    made = await db_session.scalar(text("SELECT count(*) FROM password_links WHERE kind = 'reset'"))
+    assert made == 0
