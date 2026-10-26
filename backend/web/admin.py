@@ -13,45 +13,32 @@ Only on Unio's own address (OPERATOR_HOST): anywhere else these answer 404, as i
 they did not exist. Only Google accounts on the deployment's allowlist
 (OPERATOR_EMAILS) get in, checked again on every request, so taking an email off
 the list ends its access at once. An operator session is a signed cookie for that
-host alone, separate from office staff sessions, and short lived. Lifecycle
-actions use a separate restricted database login and commit an audit event with
-each change.
+host alone, separate from office staff sessions, and short lived. Read-only for
+now: the actions (create, suspend, delete an office) come in the next slice.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import secrets
-import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, Response
-from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from pydantic import BaseModel
 
 from backend.db.isolation import scope_to_tenant
 from backend.identity.models import Role
-from backend.operators import actions, offices
+from backend.operators import offices
 from backend.operators.google_signin import GoogleSignIn, SignInError, new_verifier
-from backend.operators.statistics import FileStats, load_files
 from backend.security import keys
-from backend.storage.base import StorageError
-from backend.storage.google_connect import ConnectError
-from backend.storage.models import StorageConnection, StorageKind
 from backend.tenancy.middleware import OPERATOR_PAGE
-from backend.tenancy.models import Tenant, TenantDomain, TenantStatus
 from backend.tenancy.resolve import current_tenant, normalize_host
 from backend.web import attempts, google_signin, pages
 from backend.web.auth import optional_staff
-from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
-from backend.web.page_files import _storage
 from backend.web.request_id import current_request_id
 
 log = logging.getLogger(__name__)
@@ -94,7 +81,6 @@ class OperatorOut(BaseModel):
     csrf_token: str
     # For the support-ID lookup and an office's errors: Cloud Logging's console,
     # opened on this service's logs (none locally).
-    actions_enabled: bool
     logs_project: str | None
     logs_service: str | None
 
@@ -134,9 +120,6 @@ class AdminOfficeOut(BaseModel):
     emails_sent: int
     share_links: int
     downloads: int
-    usage: dict[str, int]
-    link_statuses: dict[str, int]
-    project_types: dict[str, int]
     team: list[AdminStaffOut]
 
 
@@ -209,7 +192,6 @@ def _google(request: Request) -> GoogleSignIn:
 async def me(request: Request, session: dict = Depends(current_operator)) -> OperatorOut:
     settings = _settings(request)
     return OperatorOut(
-        actions_enabled=getattr(request.app.state, "operator_sessionmaker", None) is not None,
         email=session["email"],
         csrf_token=session["csrf"],
         logs_project=settings.google_cloud_project if settings.deployed else None,
@@ -323,167 +305,6 @@ async def office_detail(
     if not found:
         raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
     return _office(found[0])
-
-
-@router.post(
-    "/api/admin/offices/{slug}/file-statistics", responses=documented(401, 403, 404, 409, 503)
-)
-async def file_statistics(
-    slug: str,
-    request: Request,
-    response: Response,
-    _session: dict = Depends(operator_with_csrf),
-) -> FileStats:
-    response.headers["Cache-Control"] = "private, no-store"
-    async with request.app.state.sessionmaker() as db:
-        tenant = await db.scalar(select(Tenant).where(Tenant.slug == slug))
-        if tenant is None:
-            raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
-        await db.close()  # the registry read began an unscoped transaction
-        scope_to_tenant(db.sync_session, tenant.id)
-        try:
-            async with asyncio.timeout(45):
-                storage = await _storage(request, db)
-                if storage is None:
-                    raise ApiError(409, ErrorCode.DRIVE_NOT_CONNECTED)
-                used, limit = None, None
-                try:
-                    connection = await db.scalar(select(StorageConnection))
-                    if connection is not None and connection.kind is StorageKind.GOOGLE:
-                        _connection, writer = await writer_for(request, db)
-                        used, limit = await writer.storage()
-                except (ApiError, ConnectError) as error:
-                    log.error(
-                        "admin quota: route=%s operation=quota tenant=%s detail=%s",
-                        request.url.path,
-                        tenant.id,
-                        getattr(error, "detail", str(error)),
-                    )
-                result = await load_files(db, storage)
-                result.account_used, result.account_limit = used, limit
-                return result
-        except (StorageError, TimeoutError) as error:
-            log.error(
-                "admin files: route=%s operation=file-statistics tenant=%s detail=%s",
-                request.url.path,
-                tenant.id,
-                getattr(error, "detail", str(error)),
-            )
-            raise ApiError(503, ErrorCode.FILES_UNAVAILABLE) from None
-
-
-class CreateTenantIn(BaseModel):
-    slug: str = Field(pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", max_length=63)
-    name: str = Field(min_length=1, max_length=200)
-    hostname: str = Field(max_length=253, pattern=r"^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$")
-
-    @field_validator("name")
-    @classmethod
-    def nonempty_name(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("name required")
-        return value.strip()
-
-    @field_validator("hostname")
-    @classmethod
-    def usable_host(cls, value: str) -> str:
-        if (
-            value.startswith("www.")
-            or "." not in value
-            or any(
-                not part or len(part) > 63 or part.startswith("-") or part.endswith("-")
-                for part in value.split(".")
-            )
-        ):
-            raise ValueError("hostname required")
-        return value
-
-
-class TenantActionIn(BaseModel):
-    action: Literal["owner_link", "suspend", "restore", "delete"]
-    confirmation: str = ""
-
-
-class TenantActionOut(BaseModel):
-    owner_url: str | None = None
-
-
-def _action_sessionmaker(request: Request):
-    maker = getattr(request.app.state, "operator_sessionmaker", None)
-    if maker is None:
-        raise ApiError(503, ErrorCode.OPERATOR_ACTIONS_UNAVAILABLE)
-    return maker
-
-
-def _action_failure(request: Request, tenant: str, error: Exception) -> ApiError:
-    log.error(
-        "operator action: route=%s operation=tenant-action tenant=%s detail=%s",
-        request.url.path,
-        tenant,
-        error,
-    )
-    return ApiError(
-        409 if isinstance(error, IntegrityError) else 503,
-        ErrorCode.OPERATOR_ACTION_CONFLICT
-        if isinstance(error, IntegrityError)
-        else ErrorCode.OPERATOR_ACTION_FAILED,
-    )
-
-
-@router.post("/api/admin/offices", responses=documented(401, 403, 409, 422, 503))
-async def create_tenant(
-    body: CreateTenantIn,
-    request: Request,
-    response: Response,
-    operator: dict = Depends(operator_with_csrf),
-) -> TenantActionOut:
-    response.headers["Cache-Control"] = "private, no-store"
-    if body.hostname == _settings(request).operator_host:
-        raise ApiError(409, ErrorCode.OPERATOR_ACTION_CONFLICT)
-    try:
-        async with _action_sessionmaker(request)() as db:
-            tenant = Tenant(
-                id=uuid.uuid4(), slug=body.slug, name=body.name, status=TenantStatus.ACTIVE
-            )
-            scope_to_tenant(db.sync_session, tenant.id)
-            db.add(tenant)
-            await db.flush()
-            db.add(TenantDomain(tenant_id=tenant.id, hostname=body.hostname, is_primary=True))
-            await db.flush()
-            url = await actions.owner_link(db, tenant, _settings(request).local_site_port)
-            actions.audit(db, operator["email"], "create", tenant, current_request_id())
-            await db.commit()
-            return TenantActionOut(owner_url=url)
-    except SQLAlchemyError as error:
-        raise _action_failure(request, body.slug, error) from None
-
-
-@router.post("/api/admin/offices/{slug}/actions", responses=documented(401, 403, 404, 409, 503))
-async def tenant_action(
-    slug: str,
-    body: TenantActionIn,
-    request: Request,
-    response: Response,
-    operator: dict = Depends(operator_with_csrf),
-) -> TenantActionOut:
-    response.headers["Cache-Control"] = "private, no-store"
-    try:
-        async with _action_sessionmaker(request)() as db:
-            tenant = await actions.scoped_tenant(db, slug)
-            url = None
-            if body.action == "owner_link":
-                url = await actions.owner_link(db, tenant, _settings(request).local_site_port)
-            elif body.action == "delete":
-                await actions.delete_tenant(db, tenant, body.confirmation)
-            else:
-                tenant.status = (
-                    TenantStatus.SUSPENDED if body.action == "suspend" else TenantStatus.ACTIVE
-                )
-            actions.audit(db, operator["email"], body.action, tenant, current_request_id())
-            await db.commit()
-            return TenantActionOut(owner_url=url)
-    except SQLAlchemyError as error:
-        raise _action_failure(request, slug, error) from None
 
 
 async def _project_page(request: Request) -> Response:

@@ -281,10 +281,7 @@
     "email_not_sent": "Não foi possível enviar o e-mail. Tente novamente em alguns minutos.",
     "already_confirmed": "Este e-mail já foi confirmado. Recarregue a página.",
     "share_locked": "Este link é protegido por senha. Volte aos arquivos e digite a senha.",
-    "wrong_share_password": "Senha incorreta. Confira com quem enviou o link.",
-    "operator_action_conflict": "Não foi possível concluir. Confira o endereço, o estado do escritório e a confirmação.",
-    "operator_action_failed": "Não foi possível concluir a ação. Tente novamente e, se continuar, informe o código ao suporte.",
-    "operator_actions_unavailable": "As ações de administração ainda não estão disponíveis."
+    "wrong_share_password": "Senha incorreta. Confira com quem enviou o link."
   },
   "projectStatus": {
     "draft": "Rascunho",
@@ -1000,68 +997,6 @@
       "active": "Ativo",
       "invited": "Convite pendente",
       "unconfirmed": "E-mail não confirmado"
-    },
-    "usageTitle": "Uso do escritório",
-    "analytics": "Abrir painel de uso no PostHog",
-    "analyticsTenant": "Ver este escritório no PostHog",
-    "yes": "Sim",
-    "no": "Não",
-    "linkStates": "Links: {{active}} ativos · {{expired}} expirados · {{disabled}} desativados",
-    "downloadMeaning": "Downloads de links compartilhados iniciados, incluindo transferências interrompidas.",
-    "fileStats": "Estatísticas de arquivos",
-    "fileStatsScope": "Carregadas apenas ao solicitar. Arquivos visíveis nas etapas, incluindo versões anteriores e projetos arquivados. Não inclui arquivos ocultos, capas ou logotipos.",
-    "loadFiles": "Carregar estatísticas de arquivos",
-    "reloadFiles": "Atualizar estatísticas",
-    "loadedAt": "Consultado em {{time}}",
-    "fileTotals": "{{files}} arquivos · {{size}} conhecidos · {{unknown}} sem tamanho informado. {{populated}} de {{projects}} projetos com arquivos.",
-    "fileType": "Tipo",
-    "fileCount": "Arquivos",
-    "fileBytes": "Tamanho conhecido",
-    "unknownSizes": "Sem tamanho",
-    "accountSpace": "Armazenamento da conta Google",
-    "unavailable": "Indisponível",
-    "accountSpaceMeaning": "Uso de todos os serviços da conta; pode incluir o armazenamento compartilhado da organização. Não é o espaço usado apenas pelo Unio. Limite ausente não significa espaço ilimitado.",
-    "fileKinds": {
-      "image": "Imagens",
-      "video": "Vídeos",
-      "google": "Documentos Google",
-      "other": "Outros"
-    },
-    "usage": {
-      "projects": "Projetos",
-      "descriptions": "Com descrição",
-      "covers": "Com capa",
-      "projects_with_details": "Com detalhes",
-      "details": "Campos preenchidos",
-      "stages": "Etapas",
-      "completed_stages": "Etapas concluídas",
-      "stage_notes": "Etapas com notas",
-      "meetings": "Reuniões",
-      "logo": "Logo configurado"
-    },
-    "actions": {
-      "title": "Administrar escritório",
-      "create": "Criar escritório",
-      "name": "Nome do escritório",
-      "slug": "Identificador (letras minúsculas e hífens)",
-      "hostname": "Endereço (sem https://)",
-      "createConfirm": "Criar e gerar convite do responsável",
-      "ownerLink": "Link de cadastro do responsável",
-      "ownerHelp": "Copie este link e envie ao responsável. Funciona uma vez e vale por 7 dias. Guarde-o antes de sair desta página.",
-      "owner_link": "Novo convite do responsável",
-      "suspend": "Suspender",
-      "restore": "Reativar",
-      "delete": "Excluir escritório",
-      "confirmName": "Digite o nome exato do escritório",
-      "confirm": "Confirmar",
-      "cancel": "Cancelar",
-      "done": "Ação concluída.",
-      "explain": {
-        "owner_link": "Gerar um novo link de cadastro de responsável para {{name}}?",
-        "suspend": "Suspender {{name}}? O painel e as páginas ficarão indisponíveis até a reativação.",
-        "restore": "Reativar {{name}} e liberar novamente o painel e as páginas?",
-        "delete": "Excluir definitivamente os dados de {{name}} no Unio? Os arquivos no Drive serão preservados. Esta ação não pode ser desfeita."
-      }
     }
   }
 }
