@@ -305,6 +305,15 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await visitor.getByRole("region", { name: "Links criados neste dispositivo" }).getByText("Marcenaria Silva").waitFor();
   await shoot(visitor, "09d-links-do-dispositivo");
   await visitor.keyboard.press("Escape");
+  // A link with a password: the supplier types it first.
+  await visitor.getByRole("button", { name: /^Compartilhar arquivos de / }).first().click();
+  const locked = visitor.getByRole("dialog", { name: "Compartilhar arquivos" });
+  await locked.getByLabel("Senha (opcional)").fill("marcenaria");
+  await locked.getByRole("button", { name: "Gerar link" }).click();
+  const lockedUrl = await visitor.getByRole("dialog", { name: "Link pronto" }).getByLabel("Link para compartilhar").inputValue();
+  await visitor.goto(new URL(lockedUrl).pathname);
+  await visitor.getByRole("heading", { name: "Arquivos protegidos" }).waitFor();
+  await shoot(visitor, "09f-link-com-senha");
   // Staff see every link of the project, the dialog above the staff bar.
   await page.goto("/casa-jardim");
   await page.getByRole("button", { name: "Compartilhar arquivos", exact: true }).click();

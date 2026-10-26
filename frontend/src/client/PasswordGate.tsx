@@ -4,15 +4,18 @@ import { useTranslation } from "react-i18next";
 import { ApiError, api, call } from "../api/client";
 import { SiteHeader } from "./ProjectPage";
 
-/** A protected page: the client types the password once per device (A06). */
+/** A protected page: the client types the password once per device (A06). With
+ *  `unlock`, a shared link's own password (A37), in the link's words. */
 export function PasswordGate({
   office,
   slug,
   onUnlocked,
+  unlock,
 }: {
   office: { name: string } | null;
   slug: string;
   onUnlocked: () => void;
+  unlock?: { title: string; body: string; send: (password: string) => Promise<unknown> };
 }) {
   const { t, i18n } = useTranslation();
   const [password, setPassword] = useState("");
@@ -23,8 +26,8 @@ export function PasswordGate({
     <div className="client">
       {office && <SiteHeader office={office} />}
       <div className="cwrap page-message">
-        <h1>{t("page.lockedTitle")}</h1>
-        <p>{t("page.lockedBody")}</p>
+        <h1>{unlock?.title ?? t("page.lockedTitle")}</h1>
+        <p>{unlock?.body ?? t("page.lockedBody")}</p>
         <form
           className="password-gate"
           onSubmit={async (event) => {
@@ -32,12 +35,14 @@ export function PasswordGate({
             setBusy(true);
             setProblem(null);
             try {
-              await call(api.POST("/api/pages/{slug}/unlock", { params: { path: { slug } }, body: { password } }));
+              await (unlock
+                ? unlock.send(password)
+                : call(api.POST("/api/pages/{slug}/unlock", { params: { path: { slug } }, body: { password } })));
               onUnlocked();
             } catch (failure) {
               const error = failure instanceof ApiError ? failure : new ApiError("unexpected");
               const message = i18n.exists(`errors.${error.code}`) ? t(`errors.${error.code}`) : t("errors.unexpected");
-              const known = ["wrong_page_password", "too_many_attempts"].includes(error.code);
+              const known = ["wrong_page_password", "wrong_share_password", "too_many_attempts"].includes(error.code);
               setProblem(known || !error.requestId ? message : `${message} ${t("errors.reference", { id: error.requestId })}`);
             } finally {
               setBusy(false);

@@ -12,6 +12,7 @@ import { ChipGroup } from "../ui/ChipGroup";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { PasswordField } from "../ui/PasswordField";
 import { TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import { fileSize } from "./FileTools";
@@ -77,6 +78,8 @@ export function SharePanel({
   const [how, setHow] = useState<"stages" | "files">(from === null ? "stages" : "files");
   const [open, setOpen] = useState<ReadonlySet<number>>(new Set());
   const [label, setLabel] = useState("");
+  const [password, setPassword] = useState(""); // optional: the supplier types it once
+  const shortPassword = password.length > 0 && password.length < LIMITS.pagePasswordMin;
   const [expiry, setExpiry] = useState<Expiry>("30d");
   const [state, setState] = useState<"picking" | "making">("picking");
   const [made, setMade] = useState<Schemas["ShareMadeOut"] | null>(null);
@@ -129,6 +132,7 @@ export function SharePanel({
             files: chosen.map((file) => file.key),
             label: label.trim() || null,
             expiry,
+            password: password || null,
           },
         }),
       );
@@ -168,6 +172,7 @@ export function SharePanel({
                 })
               : t("share.noExpiry")}
           </p>
+          {made.link.protected && <p className="share-meta">{t("share.protectedNote")}</p>}
           <div className="share-actions">
             {typeof navigator.share === "function" && (
               <Button onPress={() => void navigator.share({ url: made.url, title: page.name }).catch(() => undefined)}>
@@ -203,8 +208,13 @@ export function SharePanel({
             staff={staff}
             links={links}
             owned={owned}
+            // A change answers without the address: the one listed stays.
             onChanged={(changed) =>
-              setLinks((was) => was?.map((link) => (link.id === changed.id ? changed : link)) ?? null)
+              setLinks(
+                (was) =>
+                  was?.map((link) => (link.id === changed.id ? { ...changed, url: changed.url ?? link.url } : link)) ??
+                  null,
+              )
             }
           />
         ) : (
@@ -352,6 +362,16 @@ export function SharePanel({
               onChange={setLabel}
               maxLength={LIMITS.shareLabel}
             />
+            <PasswordField
+              label={t("share.password")}
+              description={t("share.passwordHint")}
+              value={password}
+              onChange={setPassword}
+              maxLength={LIMITS.pagePassword}
+              autoComplete="new-password"
+              isInvalid={shortPassword}
+              errorMessage={t("errors.password_too_short", { min: LIMITS.pagePasswordMin })}
+            />
             <div className="share-expiry">
               <span id={`${id}-expiry`}>{t("share.expiry")}</span>
               <ChipGroup
@@ -371,7 +391,7 @@ export function SharePanel({
               <Button onPress={onClose}>{t("confirm.cancel")}</Button>
               <Button
                 variant="primary"
-                isDisabled={!chosen.length || tooLarge || state === "making"}
+                isDisabled={!chosen.length || tooLarge || shortPassword || state === "making"}
                 onPress={() => void make()}
               >
                 {state === "making" ? t("share.making") : t("share.make")}
@@ -438,11 +458,13 @@ function ShareLinks({
       <ul>
         {links.map((link) => {
           const live = !link.disabled && !link.expired;
-          const url = ownerOf(link)?.url;
+          // Staff copy any link (kept encrypted); a client, the ones made here.
+          const url = link.url ?? ownerOf(link)?.url;
           return (
             <li key={link.id} className={live ? undefined : "is-off"}>
               <div className="share-link__head">
                 <strong>{link.label ?? t("share.noLabel")}</strong>
+                {link.protected && <span className="pill">{t("share.withPassword")}</span>}
                 {link.disabled ? (
                   <span className="pill">{t("share.disabled")}</span>
                 ) : (

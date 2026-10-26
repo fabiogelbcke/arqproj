@@ -7,7 +7,9 @@
     POST /api/pages/{slug}/shares/{id}/refresh   "Atualizar link": its files' newer versions
     GET  /share/{token}                          the supplier's page (its shell)
     GET  /api/share/{token}                      what it shows
+    POST /api/share/{token}/unlock               a link's password, once per device
     GET  /api/share/{token}/files/{key}          one of its files
+    GET  /api/share/{token}/zip                  "Baixar tudo": every file, one zip
 
 Anyone who can see the page (the client, or staff) makes a link from the file
 keys the page handed out, so nobody shares a file the page didn't show them. The
@@ -16,8 +18,10 @@ lists the project's stage folders as the page does and shows the link's files
 still on it; renamed or moved to another stage, a file stays; hidden, trashed or
 taken out of the project, it drops out, and the page says how many.
 
-Only a hash of the token is stored. The device that made a link gets an owner
-key for it (signed, never stored), to list it, turn it off or update it later.
+A token is looked up by its hash and kept encrypted, so staff can copy any link
+again. The device that made a link gets an owner key for it (signed, never
+stored), to list it, turn it off or update it later. A link may have a password,
+typed once per device as a project page's (plan section 6).
 """
 
 from __future__ import annotations
@@ -29,13 +33,15 @@ import logging
 import secrets
 import time
 import uuid
+from contextlib import aclosing
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,8 +50,10 @@ from backend.db.engine import get_tenant_session
 from backend.documents import versions
 from backend.documents.versions import shown_name
 from backend.identity.models import User
+from backend.identity.passwords import hash_password, verify_password
 from backend.projects.models import Project, ProjectStage
 from backend.security import keys
+from backend.shares import zipped
 from backend.shares.models import LABEL_MAX, ShareLink, ShareLinkFile
 from backend.storage.base import StorageError, StorageItem
 from backend.tenancy.resolve import CurrentTenant, current_tenant
@@ -55,6 +63,7 @@ from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_files import (
     KEY_HOURS,
     NO_STORE,
+    _disposition,
     _failure_page,
     _in_project,
     _kind,
@@ -78,6 +87,7 @@ from backend.web.pages import (
     _readable,
 )
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
+from backend.web.project_settings import PAGE_PASSWORD_MAX, PAGE_PASSWORD_MIN
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -91,6 +101,12 @@ EXPORT_GUESS = 10 * 1024 * 1024
 KEY_PURPOSE = "share-file"
 OWNER_PURPOSE = "share-owner"
 OWNER_DAYS = 3650  # the owner key lasts as long as the device keeps it
+TOKEN_PURPOSE = "share-token"  # the token, encrypted, for staff to copy the link
+UNLOCK_PURPOSE = "share-unlock"
+UNLOCK_DAYS = 90  # as a project page's (plan section 6)
+# The example project's link (frontend `EXAMPLE_SHARE`): its page is in the
+# browser. A real token is 32 characters, so never this.
+EXAMPLE_TOKEN = "exemplo"
 # The supplier's page sends no referrer: the link itself is the secret.
 SHARE_HEADERS = {**PAGE_HEADERS, "Referrer-Policy": "no-referrer"}
 
@@ -115,6 +131,28 @@ def _owner_key(request: Request, link_id: uuid.UUID) -> str:
         {"l": str(link_id)},
         OWNER_DAYS * 86400,
     )
+
+
+def _url(request: Request, tenant: CurrentTenant, token: str) -> str:
+    return f"{_origin(request, tenant)}/share/{token}"
+
+
+def _unlock_cookie(link: ShareLink) -> str:
+    return f"share-{link.id.hex[:16]}"
+
+
+def _locked(request: Request, link: ShareLink) -> bool:
+    """A link with a password, not yet typed on this device."""
+    if link.password_hash is None:
+        return False
+    token = request.cookies.get(_unlock_cookie(link))
+    if not token:
+        return True
+    try:
+        found = keys.verify(request.app.state.settings.app_secret, UNLOCK_PURPOSE, token)
+    except keys.BadToken:
+        return True
+    return found.get("l") != str(link.id)
 
 
 def _owns(request: Request, owner: str | None) -> uuid.UUID | None:
@@ -196,6 +234,7 @@ class ShareIn(BaseModel):
     files: list[str] = Field(min_length=1, max_length=FILES_MAX)  # the page's file keys
     label: str | None = Field(default=None, max_length=LABEL_MAX)  # "Para quem?"
     expiry: ShareExpiry
+    password: str | None = Field(default=None, max_length=PAGE_PASSWORD_MAX)
 
 
 class ShareOut(BaseModel):
@@ -213,11 +252,15 @@ class ShareOut(BaseModel):
     newer: int | None
     downloads: int
     last_download_at: datetime | None
+    protected: bool  # has a password
+    # Staff: the link, to copy again. None elsewhere, and for links made before
+    # it was kept (0036).
+    url: str | None = None
 
 
 class ShareMadeOut(BaseModel):
     link: ShareOut
-    url: str  # shown once: only its hash is stored
+    url: str
     owner: str  # kept by the device that made it, to manage it later
 
 
@@ -230,8 +273,13 @@ class OwnerIn(BaseModel):
 
 
 async def _described(
-    db: AsyncSession, storage, project: Project, links: list[ShareLink]
+    db: AsyncSession,
+    storage,
+    project: Project,
+    links: list[ShareLink],
+    urls: tuple[Request, CurrentTenant] | None = None,
 ) -> list[ShareOut]:
+    """The links as the lists show them; with `urls` (staff), each one's address."""
     held = await _files(db, links)
     try:
         placed = await _placed(db, storage, project) if storage is not None else None
@@ -272,9 +320,24 @@ async def _described(
                 ),
                 downloads=link.downloads,
                 last_download_at=link.last_download_at,
+                protected=link.password_hash is not None,
+                url=_stored_url(link, *urls) if urls else None,
             )
         )
     return out
+
+
+def _stored_url(link: ShareLink, request: Request, tenant: CurrentTenant) -> str | None:
+    if link.token_encrypted is None:
+        return None
+    try:
+        token = keys.decrypt(
+            request.app.state.settings.app_secret, TOKEN_PURPOSE, link.token_encrypted
+        )
+    except keys.BadToken:  # a changed app secret: the list still shows, without it
+        log.error("shares: the stored address of link %s can't be read", link.id)
+        return None
+    return _url(request, tenant, token)
 
 
 @router.post(
@@ -308,6 +371,8 @@ async def make_share(
     items = [by_id[item_id].item for item_id in picked]
     if sum(item.size or 0 for item in items) > SIZE_MAX:
         raise ApiError(422, ErrorCode.SHARE_TOO_LARGE)
+    if body.password is not None and len(body.password) < PAGE_PASSWORD_MIN:
+        raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT)
     label = (body.label or "").strip() or None
     days = EXPIRY_DAYS[body.expiry]
     token = secrets.token_urlsafe(24)
@@ -315,6 +380,8 @@ async def make_share(
     link = ShareLink(
         project_id=project.id,
         token_hash=_hash(token),
+        token_encrypted=keys.encrypt(request.app.state.settings.app_secret, TOKEN_PURPOSE, token),
+        password_hash=await hash_password(body.password) if body.password else None,
         label=label,
         created_by=acting.user_id if acting else None,
         expires_at=datetime.now(UTC) + timedelta(days=days) if days else None,
@@ -331,7 +398,7 @@ async def make_share(
     [shown] = await _described(db, storage, project, [link])
     return ShareMadeOut(
         link=shown,
-        url=f"{_origin(request, tenant)}/share/{token}",
+        url=_url(request, tenant, token),
         owner=_owner_key(request, link.id),
     )
 
@@ -342,9 +409,10 @@ async def project_shares(
     slug: str,
     response: Response,
     staff: CurrentStaff = Depends(current_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> list[ShareOut]:
-    """Every link of the project, newest first, for staff."""
+    """Every link of the project, newest first, for staff, with its address."""
     project = await _readable(db, slug, staff, request)
     response.headers.update(NO_STORE)
     links = list(
@@ -354,7 +422,7 @@ async def project_shares(
             .order_by(ShareLink.created_at.desc())
         )
     )
-    return await _described(db, await _storage(request, db), project, links)
+    return await _described(db, await _storage(request, db), project, links, (request, tenant))
 
 
 @router.post("/api/pages/{slug}/shares/mine", responses=documented(403, 404))
@@ -507,9 +575,12 @@ class SharedOut(BaseModel):
     expires_at: datetime | None
     files: list[SharedFileOut]
     unavailable: int  # files of the link the page no longer shows
+    # "Baixar tudo": the zip's size, or None when a file's size isn't known before
+    # it downloads (a Google format).
+    zip_size: int | None = None
 
 
-@router.get("/api/share/{token}", responses=documented(404, 503))
+@router.get("/api/share/{token}", responses=documented(403, 404, 503))
 async def shared(
     request: Request,
     token: str,
@@ -519,21 +590,12 @@ async def shared(
 ) -> SharedOut:
     link, project = await _open_link(db, token)
     response.headers.update({**SHARE_HEADERS, **NO_STORE})
-    storage = await _storage(request, db)
-    try:
-        placed = await _placed(db, storage, project) if storage is not None else {}
-    except StorageError as error:
-        failure = _storage_failure(error, project, "share listing")
-        failure.headers = SHARE_HEADERS
-        raise failure from None
-    page = await _page(db, tenant, project, "")
-    held = (await _files(db, [link]))[link.id]
+    if _locked(request, link):
+        raise ApiError(403, ErrorCode.SHARE_LOCKED, headers={**SHARE_HEADERS, **NO_STORE})
+    held, shown, titles, _storage_view, office = await _shown(request, db, tenant, link, project)
     secret = request.app.state.settings.app_secret
     files = []
-    for item_id in held:
-        if item_id not in placed:
-            continue
-        where = placed[item_id]
+    for where in shown:
         key = keys.encrypt(
             secret,
             KEY_PURPOSE,
@@ -554,11 +616,11 @@ async def shared(
                 kind=_kind(where.item),
                 size=where.item.size,
                 modified_at=where.item.modified_at,
-                stage=f"{where.position:02d} {page.stages[where.position - 1].title}",
+                stage=titles[where.position],
             )
         )
     return SharedOut(
-        office=page.office,
+        office=office,
         locale=tenant.locale.value,
         timezone=tenant.timezone,
         project=project.name,
@@ -566,7 +628,181 @@ async def shared(
         expires_at=link.expires_at,
         files=files,
         unavailable=len(held) - len(files),
+        zip_size=zipped.length(_entries(shown, titles, tenant)) if shown else None,
     )
+
+
+async def _shown(
+    request: Request, db: AsyncSession, tenant: CurrentTenant, link: ShareLink, project: Project
+) -> tuple[list[str], list[Placed], dict[int, str], object, OfficeOut]:
+    """The link's files, those the page shows now (in the order picked), each
+    stage's "02 Estudo preliminar" by its place, the storage view that listed
+    them (its checks kept, for the downloads) and the office."""
+    storage = await _storage(request, db)
+    try:
+        placed = await _placed(db, storage, project) if storage is not None else {}
+    except StorageError as error:
+        failure = _storage_failure(error, project, "share listing")
+        failure.headers = SHARE_HEADERS
+        raise failure from None
+    page = await _page(db, tenant, project, "")
+    titles = {stage.position: f"{stage.position:02d} {stage.title}" for stage in page.stages}
+    held = (await _files(db, [link]))[link.id]
+    return held, [placed[i] for i in held if i in placed], titles, storage, page.office
+
+
+def _entries(
+    shown: list[Placed], titles: dict[int, str], tenant: CurrentTenant
+) -> list[zipped.Entry]:
+    """The zip's contents: a folder per stage, the files under Drive's names
+    (a "/" in either kept from making folders), dated in the office's time."""
+    zone = ZoneInfo(tenant.timezone)
+    names = zipped.unique_names(
+        [
+            f"{zipped.part(titles[where.position])}/{zipped.part(shown_name(where.item))}"
+            for where in shown
+        ]
+    )
+    return [
+        zipped.Entry(name, where.item.size, where.item.modified_at.astimezone(zone))
+        for name, where in zip(names, shown, strict=True)
+    ]
+
+
+class UnlockIn(BaseModel):
+    password: str = Field(max_length=200)
+
+
+@router.post("/api/share/{token}/unlock", status_code=204, responses=documented(401, 404, 429))
+async def unlock_share(
+    request: Request,
+    token: str,
+    body: UnlockIn,
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """The supplier types the link's password once per device."""
+    challenge = {**SHARE_HEADERS, **NO_STORE}  # never stored (plan section 6)
+    link, _project = await _open_link(db, token)
+    if link.password_hash is None:
+        raise ApiError(404, ErrorCode.SHARE_NOT_FOUND, headers=challenge)
+    who, key = attempts.device(request), f"share:{link.id}"
+    if not attempts.admit(key, who):  # reserved before the (slow) hash check
+        raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS, headers=challenge)
+    try:
+        right = await verify_password(link.password_hash, body.password)
+    except BaseException:
+        attempts.failed(key, who)
+        raise
+    if not right:
+        attempts.failed(key, who)
+        raise ApiError(401, ErrorCode.WRONG_SHARE_PASSWORD, headers=challenge)
+    attempts.succeeded(key, who)
+    response = Response(status_code=204, headers=challenge)
+    response.set_cookie(
+        _unlock_cookie(link),
+        keys.sign(
+            request.app.state.settings.app_secret,
+            UNLOCK_PURPOSE,
+            {"l": str(link.id)},
+            UNLOCK_DAYS * 86400,
+        ),
+        max_age=UNLOCK_DAYS * 86400,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=request.app.state.settings.deployed,
+    )
+    return response
+
+
+def _download_failure(tenant: CurrentTenant, error: ApiError, back: str) -> Response:
+    """A download that can't go, as a short page in the office's language."""
+    if error.code in (ErrorCode.SHARE_NOT_FOUND, ErrorCode.SHARE_LOCKED):
+        return _failure_page(
+            tenant, "", error.code, 404 if error.code is ErrorCode.SHARE_NOT_FOUND else 403, back
+        )
+    if error.code is ErrorCode.SHARE_DAILY_LIMIT:
+        return _failure_page(tenant, "", error.code, 429, back)
+    if error.code in (ErrorCode.FILES_UNAVAILABLE, ErrorCode.PAGE_UNAVAILABLE):
+        return _failure_page(tenant, "", ErrorCode.FILES_UNAVAILABLE, 503, back)
+    return _failure_page(tenant, "", ErrorCode.FILE_NOT_FOUND, 404, back)
+
+
+@router.get("/api/share/{token}/zip", include_in_schema=False)
+async def shared_zip(
+    request: Request,
+    token: str,
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """ "Baixar tudo": the link's files as they are on the page now, a folder per
+    stage, written while it downloads. Counted against the day as one download of
+    its whole size."""
+    back = f"/share/{token}"
+    try:
+        link, project = await _open_link(db, token)
+        if _locked(request, link):
+            raise ApiError(403, ErrorCode.SHARE_LOCKED)
+        _held, shown, titles, storage, _office_shown = await _shown(
+            request, db, tenant, link, project
+        )
+        if not shown:
+            raise ApiError(404, ErrorCode.FILE_NOT_FOUND)
+        entries = _entries(shown, titles, tenant)
+        size = zipped.length(entries)
+        # Its exact length; with a Google format (no size beforehand), that one is
+        # a guess and the rest count as they are.
+        guessed = sum(EXPORT_GUESS if e.size is None else e.size for e in entries)
+        await _count(db, link, size if size is not None else guessed)
+    except ApiError as error:
+        return _download_failure(tenant, error, back)
+    await db.close()  # before the bytes flow (plan section 15)
+
+    # The one upstream download open now, closed however the zip ends (the
+    # supplier cancelling included: storage.Download's rule).
+    current: list = []
+
+    async def open_file(index: int):
+        download = await storage.download(shown[index].item)
+        current.append(download)
+
+        async def chunks():
+            async for chunk in download.chunks:
+                yield chunk
+            current.remove(download)
+            await download.aclose()
+
+        return chunks()
+
+    async def body():
+        try:
+            async with aclosing(zipped.stream(entries, open_file)) as parts:
+                async for chunk in parts:
+                    yield chunk
+        except (StorageError, zipped.SizeChanged) as error:  # the browser sees a cut download
+            log.error(
+                "shares: zip of link %s broke off for %s/%s: %s",
+                link.id,
+                project.tenant_id,
+                project.id,
+                getattr(error, "detail", "") or error,
+            )
+            raise
+        finally:
+            for download in current:
+                await download.aclose()
+
+    headers = {
+        **SHARE_HEADERS,
+        **NO_STORE,
+        "Content-Disposition": _disposition(f"{project.name}.zip", inline=False),
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+    }
+    if size is not None:
+        headers["Content-Length"] = str(size)
+    log.info("shares: zip of link %s, %s files", link.id, len(entries))
+    return StreamingResponse(body(), media_type="application/zip", headers=headers)
 
 
 @router.get("/api/share/{token}/files/{key}", include_in_schema=False)
@@ -580,6 +816,8 @@ async def shared_file(
     back = f"/share/{token}"
     try:
         link, project = await _open_link(db, token)
+        if _locked(request, link):
+            raise ApiError(403, ErrorCode.SHARE_LOCKED)
         found = open_key(request, KEY_PURPOSE, key)
         if found.get("l") != str(link.id):
             raise ApiError(404, ErrorCode.FILE_NOT_FOUND)
@@ -594,31 +832,24 @@ async def shared_file(
             raise _storage_failure(error, project, "share open") from None
         if item.identity not in (await _files(db, [link]))[link.id]:
             raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # the link moved to a newer version
-        await _count(db, link, item)
+        await _count(db, link, item.size if item.size is not None else EXPORT_GUESS)
         try:
             download = await storage.download(item)
         except StorageError as error:
             raise _storage_failure(error, project, "share download") from None
     except ApiError as error:
-        if error.code is ErrorCode.SHARE_NOT_FOUND:
-            return _failure_page(tenant, "", error.code, 404, back)
-        if error.code is ErrorCode.SHARE_DAILY_LIMIT:
-            return _failure_page(tenant, "", error.code, 429, back)
-        if error.code in (ErrorCode.FILES_UNAVAILABLE, ErrorCode.PAGE_UNAVAILABLE):
-            return _failure_page(tenant, "", ErrorCode.FILES_UNAVAILABLE, 503, back)
-        return _failure_page(tenant, "", ErrorCode.FILE_NOT_FOUND, 404, back)
+        return _download_failure(tenant, error, back)
     await db.close()  # before the bytes flow (plan section 15)
     answer = streamed(project, item, download, inline=False)
     answer.headers["Referrer-Policy"] = "no-referrer"
     return answer
 
 
-async def _count(db: AsyncSession, link: ShareLink, item: StorageItem) -> None:
-    """The file's size against the link's day, before any byte flows: past the
+async def _count(db: AsyncSession, link: ShareLink, size: int) -> None:
+    """A download's size against the link's day, before any byte flows: past the
     daily cap, refused. Counted when it starts, so a cut download still counts.
     One conditional update, so downloads at the same moment can't both slip under
     the cap."""
-    size = item.size if item.size is not None else EXPORT_GUESS
     today = datetime.now(UTC).date()
     spent = case((ShareLink.day == today, ShareLink.day_bytes), else_=0)
     counted = await db.execute(
@@ -653,7 +884,8 @@ async def share_shell(
             "The client page is not built. Run `make build` (or `make dev`).", status_code=503
         )
     try:
-        await _open_link(db, token)
+        if token != EXAMPLE_TOKEN:  # the example project's, shown from the browser
+            await _open_link(db, token)
         status = 200
     except ApiError as error:
         status = error.status_code

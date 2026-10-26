@@ -1,8 +1,9 @@
 """Links that share a project's files, say with a supplier (A37, plan section 15).
 
 A link holds the exact versions it was made with: each file by its storage
-identity, found again in the project's folders on every visit. Only a hash of
-its token is stored.
+identity, found again in the project's folders on every visit. Its token is
+looked up by hash, and kept encrypted with the app's secret so staff can copy
+the link again (Fabio, 25 Oct 2026).
 """
 
 from __future__ import annotations
@@ -52,6 +53,12 @@ class ShareLink(IdMixin, TimestampsMixin, TenantOwned, Base):
 
     project_id: Mapped[uuid.UUID] = mapped_column(index=True)
     token_hash: Mapped[str] = mapped_column(Text, unique=True)
+    # The token, encrypted (keys.encrypt): staff copy the link from the list.
+    # None for links made before 0036.
+    token_encrypted: Mapped[str | None] = mapped_column(Text)
+    # The sender's optional password (an adaptive hash, as project pages'):
+    # the supplier types it once per device.
+    password_hash: Mapped[str | None] = mapped_column(Text)
     label: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[uuid.UUID | None] = mapped_column()
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # None: never

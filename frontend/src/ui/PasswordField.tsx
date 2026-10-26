@@ -1,10 +1,11 @@
 import { useState, type KeyboardEvent, type MouseEvent } from "react";
-import { Button, FieldError, Input, Label, TextField as AriaTextField, type TextFieldProps } from "react-aria-components";
+import { Button, FieldError, Input, Label, Text, TextField as AriaTextField, type TextFieldProps } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import styles from "./ui.module.css";
 
-type Props = Omit<TextFieldProps, "type"> & { label: string };
+// `description`: a hint under it; `errorMessage`: what to fix when `isInvalid`.
+type Props = Omit<TextFieldProps, "type"> & { label: string; description?: string; errorMessage?: string };
 
 /** Apple's systems show their own Caps Lock mark beside the cursor (macOS since
  *  Sonoma, iPadOS), so ours would be a second one; but on a Mac only Safari's
@@ -21,7 +22,7 @@ function systemShowsCapsLock() {
 /** A labelled password input with an eye button that shows the password as typed,
  *  and, unless the system shows its own, a mark in its right edge while Caps Lock is on
  *  (said to screen readers too). */
-export function PasswordField({ label, ...props }: Props) {
+export function PasswordField({ label, description, errorMessage, ...props }: Props) {
   const { t } = useTranslation();
   const [shown, setShown] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
@@ -66,7 +67,12 @@ export function PasswordField({ label, ...props }: Props) {
       <span className="sr-only" role="status">
         {capsLock ? t("signIn.capsLock") : ""}
       </span>
-      <FieldError className={styles.fieldError} />
+      {description && (
+        <Text slot="description" className={styles.hint}>
+          {description}
+        </Text>
+      )}
+      <FieldError className={styles.fieldError}>{errorMessage}</FieldError>
     </AriaTextField>
   );
 }

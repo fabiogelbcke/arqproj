@@ -1,6 +1,9 @@
 """Sharing files by link (A37): made from the page's files, served as they were
 picked, managed by staff or the device that made them (local folder storage)."""
 
+import io
+import os
+import zipfile
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -365,3 +368,167 @@ async def test_the_suppliers_page_names_only_the_office_before_any_script(
     assert 'name="robots" content="noindex"' in shell.text
     assert shell.headers["referrer-policy"] == "no-referrer"
     assert (await client.get("/share/unknown", headers=ALINEA)).status_code == 404
+
+
+# -- a link's password -----------------------------------------------------------------
+
+
+async def test_a_link_with_a_password_opens_once_it_is_typed(client, owner, files):
+    roles = Roles(client)
+    roles.visitor()
+    link = await made(client, ["Planta.pdf"], password="marcenaria")
+    assert link["link"]["protected"] is True
+    locked = await shared(client, link)
+    assert (locked.status_code, locked.json()["error"]) == (403, "share_locked")
+    assert "Casa Jardim" not in locked.text  # nothing of the project before it
+    zipped = await client.get(f"/api/share/{token_of(link)}/zip", headers=ALINEA)
+    assert zipped.status_code == 403 and "protegido por senha" in zipped.text
+    unlock = f"/api/share/{token_of(link)}/unlock"
+    wrong = await client.post(unlock, json={"password": "outra"}, headers=ALINEA)
+    assert (wrong.status_code, wrong.json()["error"]) == (401, "wrong_share_password")
+    assert (
+        await client.post(unlock, json={"password": "marcenaria"}, headers=ALINEA)
+    ).status_code == 204
+    assert await shared_names(client, link) == ["Planta.pdf"]
+    # Another link of the project isn't unlocked by it.
+    other = await made(client, ["Planta.pdf"], password="vidracaria")
+    assert (await shared(client, other)).status_code == 403
+
+
+async def test_a_link_password_is_at_least_as_long_as_a_pages(client, owner, files):
+    response = await make(client, ["Planta.pdf"], password="curta")
+    assert (response.status_code, response.json()["error"]) == (422, "password_too_short")
+
+
+async def test_guessing_a_link_password_waits_after_a_few_tries(client, owner, files):
+    link = await made(client, ["Planta.pdf"], password="marcenaria")
+    unlock = f"/api/share/{token_of(link)}/unlock"
+    for _ in range(attempts.LIMIT):
+        await client.post(unlock, json={"password": "errada"}, headers=ALINEA)
+    blocked = await client.post(unlock, json={"password": "marcenaria"}, headers=ALINEA)
+    assert (blocked.status_code, blocked.json()["error"]) == (429, "too_many_attempts")
+
+
+# -- copying a link again ---------------------------------------------------------------
+
+
+async def test_staff_can_copy_any_link_again_and_visitors_get_no_addresses(client, owner, files):
+    roles = Roles(client)
+    roles.visitor()
+    link = await made(client, ["Planta.pdf"])
+    mine = await client.post(
+        "/api/pages/casa-jardim/shares/mine", json={"owners": [link["owner"]]}, headers=ALINEA
+    )
+    assert mine.json()[0]["url"] is None  # the device keeps its own
+    roles.staff()
+    [listed_link] = await listed(client, owner)
+    assert listed_link["url"] == link["url"]
+
+
+# -- "Baixar tudo" ------------------------------------------------------------------------
+
+
+async def test_everything_downloads_as_one_zip_a_folder_per_stage(client, owner, files):
+    stage = files / "Casa Jardim"
+    (stage / "02 - Conceito" / "Planta.pdf").write_bytes(PDF + b" outra")  # same name, other stage
+    listed_now = await page_files(client)
+    second = await client.get("/api/pages/casa-jardim/files", headers=ALINEA)
+    conceito = next(
+        f
+        for g in second.json()["stages"][1]["groups"]
+        for f in g["files"]
+        if f["name"] == "Planta.pdf"
+    )
+    response = await client.post(
+        "/api/pages/casa-jardim/shares",
+        json={
+            "files": [
+                listed_now["Planta.pdf"]["key"],
+                conceito["key"],
+                listed_now["Foto do terreno.png"]["key"],
+            ],
+            "expiry": "7d",
+        },
+        headers=ALINEA,
+    )
+    link = response.json()
+    body = (await shared(client, link)).json()
+    download = await client.get(f"/api/share/{token_of(link)}/zip", headers=ALINEA)
+    assert download.status_code == 200
+    assert download.headers["content-type"] == "application/zip"
+    assert download.headers["content-disposition"].startswith(
+        'attachment; filename="Casa Jardim.zip"'
+    )
+    assert int(download.headers["content-length"]) == len(download.content) == body["zip_size"]
+    archive = zipfile.ZipFile(io.BytesIO(download.content))
+    assert archive.testzip() is None
+    assert archive.namelist() == [
+        "01 Briefing/Planta.pdf",
+        "02 Levantamento/Planta.pdf",
+        "01 Briefing/Foto do terreno.png",
+    ]
+    assert archive.read("02 Levantamento/Planta.pdf") == PDF + b" outra"
+    assert (await listed(client, owner))[0]["downloads"] == 1  # one download, the whole zip
+
+
+async def test_the_zip_holds_what_the_link_serves_now(client, owner, files):
+    link = await made(client, ["Planta.pdf", "Foto do terreno.png"])
+    briefing = files / "Casa Jardim" / "01 - Briefing"
+    (briefing / "Foto do terreno.png").rename(briefing / "_Foto do terreno.png")  # hidden
+    (briefing / "Planta v2.pdf").write_bytes(PDF + b" v2")  # a newer version: not in the link
+    archive = zipfile.ZipFile(
+        io.BytesIO((await client.get(f"/api/share/{token_of(link)}/zip", headers=ALINEA)).content)
+    )
+    assert archive.namelist() == ["01 Briefing/Planta.pdf"]
+    assert archive.read("01 Briefing/Planta.pdf") == PDF + b" v1"
+
+
+async def test_the_zip_counts_its_whole_size_against_the_day(client, owner, files, monkeypatch):
+    link = await made(client, ["Planta.pdf", "Programa de necessidades.pdf"])
+    size = (await shared(client, link)).json()["zip_size"]
+    monkeypatch.setattr(shares, "DAY_BYTES_MAX", size + 10)
+    url = f"/api/share/{token_of(link)}/zip"
+    assert (await client.get(url, headers=ALINEA)).status_code == 200
+    refused = await client.get(url, headers=ALINEA)
+    assert refused.status_code == 429 and "limite de downloads de hoje" in refused.text
+
+
+async def test_a_slash_in_a_stage_title_never_makes_a_folder_in_the_zip(
+    client, db_session, owner, files
+):
+    await db_session.execute(
+        text(
+            "UPDATE project_stages SET builtin_key = NULL, title = 'Briefing/Prefeitura', "
+            f"about = NULL WHERE project_id = {CASA} AND position = 1"
+        )
+    )
+    link = await made(client, ["Planta.pdf"])
+    archive = zipfile.ZipFile(
+        io.BytesIO((await client.get(f"/api/share/{token_of(link)}/zip", headers=ALINEA)).content)
+    )
+    assert archive.namelist() == ["01 Briefing-Prefeitura/Planta.pdf"]
+
+
+async def test_zip_times_are_the_offices(client, owner, files):
+    planta = files / "Casa Jardim" / "01 - Briefing" / "Planta.pdf"
+    moment = datetime(2026, 10, 20, 13, 0, tzinfo=UTC)  # 10:00 in São Paulo
+    os.utime(planta, (moment.timestamp(), moment.timestamp()))
+    link = await made(client, ["Planta.pdf"])
+    archive = zipfile.ZipFile(
+        io.BytesIO((await client.get(f"/api/share/{token_of(link)}/zip", headers=ALINEA)).content)
+    )
+    assert archive.getinfo("01 Briefing/Planta.pdf").date_time == (2026, 10, 20, 10, 0, 0)
+
+
+async def test_an_unreadable_stored_address_never_breaks_the_staff_list(
+    client, db_session, owner, files
+):
+    link = await made(client, ["Planta.pdf"])
+    await db_session.execute(
+        text(
+            "UPDATE share_links SET token_encrypted = 'v1:not-ours' "
+            f"WHERE id = '{link['link']['id']}'"
+        )
+    )
+    [listed_link] = await listed(client, owner)
+    assert listed_link["url"] is None

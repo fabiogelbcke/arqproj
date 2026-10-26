@@ -64,6 +64,21 @@ describe("the example project", () => {
     expect(sent.map((r) => `${r.method} ${r.path}`).sort()).toEqual(["GET /api/me", "GET /api/tenant"]);
   });
 
+  it("shares files by link in memory, and the link opens the picked files from this browser", async () => {
+    localStorage.removeItem("example-share");
+    const { sent } = visit(false);
+    await userEvent.click(await screen.findByRole("button", { name: /^Compartilhar arquivos de Estudo/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Compartilhar arquivos" });
+    await userEvent.type(within(dialog).getByLabelText("Para quem?"), "Marcenaria Silva");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Gerar link" }));
+    const ready = await screen.findByRole("dialog", { name: "Link pronto" });
+    expect(within(ready).getByLabelText("Link para compartilhar")).toHaveValue(`${window.location.origin}/share/exemplo`);
+    const kept = JSON.parse(localStorage.getItem("example-share")!);
+    expect(kept.label).toBe("Marcenaria Silva");
+    expect(kept.files.map((f: { name: string }) => f.name)).toContain("Implantação - estudo A.pdf");
+    expect(sent.some((r) => r.path.includes("/shares"))).toBe(false); // nothing reached the server
+  });
+
   it("gives signed-in staff their own header menu, whose Sair really signs them out", async () => {
     const { sent } = visit(true);
     await screen.findByRole("heading", { level: 1, name: "Casa das Araucárias" });
