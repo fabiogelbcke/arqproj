@@ -19,6 +19,23 @@ a new entry too.
 
 ---
 
+## 2026-10-26 — A38: the dashboard reads with the app's own login, office by office
+
+**Was:** (A38, earlier the same day) cross-office reads and the lifecycle
+actions would both go through a separate database login.
+
+**Now:** reads use the app's own login, scoped to each office in turn exactly as
+a request is, so the isolation policy applies to every read and no login sees
+every office at once. The separate login stays for the lifecycle actions
+(creating, suspending, deleting offices), which need privileges the app lacks.
+
+**Why:** found while building slice 1: with a handful of offices, a few queries
+each is cheap, and it needed no new database login or privileges (so no schema
+or infrastructure change for a read-only first slice). Codex's review of PR #138
+pointed out the register still said otherwise.
+
+---
+
 ## 2026-10-26 — A38 (new), section 21: an operator dashboard
 
 **Was:** section 5 named a "Platform operator" with "operational tools with

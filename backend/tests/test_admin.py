@@ -36,7 +36,7 @@ async def sign_in(client, email=OPERATOR) -> dict:
 # -- where and who ---------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("path", ["/api/admin/me", "/api/admin/offices", "/admin"])
+@pytest.mark.parametrize("path", ["/api/admin/me", "/api/admin/offices", "/admin/escritorios"])
 async def test_nothing_answers_on_an_offices_address(client, operators, path):
     await sign_in(client)
     response = await client.get(path, headers=ALINEA)
@@ -127,11 +127,52 @@ async def test_an_offices_page_adds_its_team(client, operators, db_session):
 
 async def test_the_page_answers_only_on_unios_address(app, client, operators, tmp_path):
     (tmp_path / "admin.html").write_text("<!doctype html><title>Admin</title>")
+    (tmp_path / "client.html").write_text("<!doctype html><head><!--page-head--></head>")
     app.state.settings = app.state.settings.model_copy(update={"frontend_dist": str(tmp_path)})
     page = await client.get("/admin/offices/alinea", headers=UNIO)
     assert page.status_code == 200 and "Admin" in page.text
     assert "frame-ancestors 'none'" in page.headers["content-security-policy"]
-    assert (await client.get("/admin", headers=ALINEA)).status_code == 404
+    # On an office's address it is no dashboard: the project pages' answer.
+    elsewhere = await client.get("/admin", headers=ALINEA)
+    assert elsewhere.status_code == 404 and "Admin" not in elsewhere.text
+
+
+async def test_a_project_at_admin_stays_reachable_on_its_office(
+    app, client, operators, db_session, tmp_path
+):
+    """/admin is the dashboard only on Unio's address; an office's project may
+    have that address."""
+    from sqlalchemy import text
+
+    (tmp_path / "client.html").write_text("<!doctype html><head><!--page-head--></head>")
+    app.state.settings = app.state.settings.model_copy(update={"frontend_dist": str(tmp_path)})
+    await db_session.execute(
+        text("UPDATE project_slugs SET slug = 'admin' WHERE slug = 'casa-jardim'")
+    )
+    page = await client.get("/admin", headers=ALINEA)
+    assert page.status_code == 200 and "Casa Jardim" in page.text
+
+
+async def test_deleted_projects_are_not_counted(client, operators, db_session):
+    from sqlalchemy import text
+
+    await sign_in(client)
+    before = {
+        o["slug"]: o["projects"]
+        for o in (await client.get("/api/admin/offices", headers=UNIO)).json()
+    }["alinea"]
+    await db_session.execute(
+        text(
+            "UPDATE projects SET deleted_at = now() WHERE id IN (SELECT ps.project_id FROM "
+            "project_slugs ps JOIN tenants t ON t.id = ps.tenant_id "
+            "WHERE ps.slug = 'casa-jardim' AND t.slug = 'alinea')"
+        )
+    )
+    after = {
+        o["slug"]: o["projects"]
+        for o in (await client.get("/api/admin/offices", headers=UNIO)).json()
+    }["alinea"]
+    assert after["active"] == before["active"] - 1
 
 
 # -- Google sign-in -------------------------------------------------------------------

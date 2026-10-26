@@ -29,12 +29,15 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, Response
 from pydantic import BaseModel
 
+from backend.db.isolation import scope_to_tenant
 from backend.identity.models import Role
 from backend.operators import offices
 from backend.operators.google_signin import GoogleSignIn, SignInError, new_verifier
 from backend.security import keys
 from backend.tenancy.middleware import OPERATOR_PAGE
-from backend.tenancy.resolve import normalize_host
+from backend.tenancy.resolve import current_tenant, normalize_host
+from backend.web import pages
+from backend.web.auth import optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 
 log = logging.getLogger(__name__)
@@ -290,13 +293,26 @@ async def office_detail(
     return _office(found[0])
 
 
+async def _project_page(request: Request) -> Response:
+    """The office's project at /admin, as the project pages' route would serve it."""
+    tenant = current_tenant(request)
+    async with request.app.state.sessionmaker() as db:
+        scope_to_tenant(db.sync_session, tenant.id)
+        staff = await optional_staff(request, Response(), db)
+        return await pages.shell(request, PAGE.lstrip("/"), staff, tenant, db)
+
+
 @router.get(PAGE, include_in_schema=False)
 @router.get(PAGE + "/{rest:path}", include_in_schema=False)
 async def page(request: Request, rest: str = "") -> Response:
     try:
         _on_operator_host(request)
     except ApiError:
-        return PlainTextResponse("Not found", status_code=404)
+        # On an office's address `/admin` is no dashboard: a project may have
+        # that address (projects' addresses never have a second part).
+        if rest or getattr(request.state, "tenant", None) is None:
+            return PlainTextResponse("Not found", status_code=404)
+        return await _project_page(request)
     shell = Path(_settings(request).frontend_dist) / "admin.html"
     if not shell.is_file():
         return PlainTextResponse(

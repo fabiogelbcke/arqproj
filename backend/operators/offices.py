@@ -111,7 +111,11 @@ async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, tea
     office.projects = {
         str(status): count
         for status, count in (
-            await session.execute(select(Project.status, func.count()).group_by(Project.status))
+            await session.execute(
+                select(Project.status, func.count())
+                .where(Project.deleted_at.is_(None))  # as the painel counts them
+                .group_by(Project.status)
+            )
         ).all()
     }
     for status in ProjectStatus:
