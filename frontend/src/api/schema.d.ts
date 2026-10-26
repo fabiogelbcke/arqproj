@@ -1314,6 +1314,28 @@ export interface components {
             /** Last Seen At */
             last_seen_at: string | null;
         };
+        /**
+         * AnalyticsOut
+         * @description Product analytics for the browser (A39), given only to signed-in staff and
+         *     only where the server has PostHog set, so one image serves staging and
+         *     production with each one's own key, and visitors' browsers never load it.
+         */
+        AnalyticsOut: {
+            /** Token */
+            token: string;
+            /** Host */
+            host: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+        };
         /** Body_add_logo_png_api_office_logo_png_put */
         Body_add_logo_png_api_office_logo_png_put: {
             /** File */
@@ -1636,6 +1658,7 @@ export interface components {
             page_tour_seen: boolean;
             /** Email Confirmed */
             email_confirmed: boolean;
+            analytics?: components["schemas"]["AnalyticsOut"] | null;
         };
         /** MeetingIn */
         MeetingIn: {

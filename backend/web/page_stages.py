@@ -206,6 +206,16 @@ async def add_stage(
         if isinstance(error, ConnectError):
             raise _drive_failed("add stage", tenant, project_id, error) from None
         raise
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture(
+            "stage_added",
+            properties={
+                "stage_kind": "builtin" if body.builtin_key is not None else "custom",
+                "stage_position": position,
+                "reopened_project": reopens,
+            },
+        )
     return Response(status_code=204)
 
 
@@ -421,6 +431,7 @@ class CompletionIn(BaseModel):
     responses=documented(401, 404, 409, 422),
 )
 async def set_completion(
+    request: Request,
     project_id: uuid.UUID,
     position: int,
     body: CompletionIn,
@@ -437,6 +448,12 @@ async def set_completion(
     if stage is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)  # as the other stage routes
     await _complete(db, tenant, project_id, stages, stage, body.completed, body.row_version)
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture(
+            "stage_completion_changed",
+            properties={"completed": body.completed, "stage_position": position},
+        )
     return Response(status_code=204)
 
 
@@ -490,6 +507,7 @@ class ProjectCompletionIn(BaseModel):
     responses=documented(401, 404, 409, 422),
 )
 async def complete_project(
+    request: Request,
     project_id: uuid.UUID,
     body: ProjectCompletionIn,
     _staff: CurrentStaff = Depends(require_csrf),
@@ -499,6 +517,9 @@ async def complete_project(
     are asked when they complete the last stage, and can do it later; the client
     sees it at once and is told by email (A32)."""
     await _finish(db, project_id, body.row_version)
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture("project_completed")
     return Response(status_code=204)
 
 

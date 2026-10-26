@@ -82,3 +82,4 @@ spike/
 frontend/test-results/
 frontend/playwright-report/
 frontend/screenshots/
+.posthog-wizard-cache/

@@ -21,7 +21,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
@@ -143,6 +143,7 @@ def _detail_value(value_type: DetailType, value: str) -> dict:
     "/projects/{project_id}/content", status_code=204, responses=documented(401, 404, 409, 422)
 )
 async def change_content(
+    request: Request,
     project_id: uuid.UUID,
     body: ContentIn,
     _staff: CurrentStaff = Depends(require_csrf),
@@ -185,6 +186,16 @@ async def change_content(
         for row in rows:
             db.add(ProjectDetail(project_id=project_id, **row))
     await db.commit()
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture(
+            "project_content_updated",
+            properties={
+                "description_updated": body.description is not None,
+                "details_updated": body.details is not None,
+                "project_type_updated": body.project_type is not None,
+            },
+        )
     return Response(status_code=204)
 
 
@@ -212,6 +223,7 @@ async def _next_meeting(db: AsyncSession, project_id: uuid.UUID) -> Meeting | No
     "/projects/{project_id}/meeting", status_code=204, responses=documented(401, 404, 409, 422)
 )
 async def set_meeting(
+    request: Request,
     project_id: uuid.UUID,
     body: MeetingIn,
     _staff: CurrentStaff = Depends(require_csrf),
@@ -256,6 +268,11 @@ async def set_meeting(
     kind = EventKind.MEETING_SCHEDULED if upcoming is None else EventKind.MEETING_CHANGED
     record(db, project, kind, title=title)
     await db.commit()
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture(
+            "meeting_scheduled", properties={"action": "created" if upcoming is None else "updated"}
+        )
     return Response(status_code=204)
 
 
@@ -263,6 +280,7 @@ async def set_meeting(
     "/projects/{project_id}/meeting", status_code=204, responses=documented(401, 404, 409)
 )
 async def clear_meeting(
+    request: Request,
     project_id: uuid.UUID,
     row_version: int,
     _staff: CurrentStaff = Depends(require_csrf),
@@ -274,6 +292,10 @@ async def clear_meeting(
         await db.execute(delete(Meeting).where(Meeting.id == upcoming.id))
         record(db, project, EventKind.MEETING_CLEARED, title=upcoming.title)
     await db.commit()
+    if upcoming is not None:
+        posthog_client = getattr(request.app.state, "posthog", None)
+        if posthog_client is not None:
+            posthog_client.capture("meeting_cleared")
     return Response(status_code=204)
 
 

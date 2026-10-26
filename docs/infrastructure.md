@@ -109,7 +109,10 @@ except the `/` home page, which every address shows), and `myunio.app`, all thro
 the load balancer below (A21), and
 `https://portal-496714293251.us-east1.run.app`. Secrets:
 `portal-production-app-secret` (its own), `portal-oauth-client-secret` and
-`portal-resend-api-key` (production's, from the old site). Drive uses the production OAuth client
+`portal-resend-api-key` (production's, from the old site). PostHog (A39):
+`POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` as plain settings in
+`deploy/production/service.yaml` (a project token is public by design); staging
+has none. Drive uses the production OAuth client
 `496714293251-ov1b5fd8gir885g9p51qsrbn9gbq6l7i`, whose redirect URIs must include
 `https://myunio.app/api/drive/callback` (one shared return address that forwards to
 the office that started); files are read as `portal-production@`. Emails send from `myunio.app`, Alinea's from

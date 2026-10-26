@@ -96,6 +96,10 @@ class Settings(BaseSettings):
     # (locally), that address doesn't exist; run backend.commands.maintenance.
     maintenance_audience: str | None = None
     maintenance_caller: str | None = None
+    # Product analytics (PostHog), off unless both are set: the old app's `.env`
+    # is not read, so a local run or a test never sends events by accident.
+    posthog_project_token: str | None = None
+    posthog_host: str | None = None
 
     @field_validator("log_level")
     @classmethod

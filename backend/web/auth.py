@@ -95,6 +95,17 @@ class ChoosePasswordIn(BaseModel):
     password: str
 
 
+class AnalyticsOut(BaseModel):
+    """Product analytics for the browser (A39), given only to signed-in staff and
+    only where the server has PostHog set, so one image serves staging and
+    production with each one's own key, and visitors' browsers never load it."""
+
+    token: str  # PostHog's project token: public by design, not a secret
+    host: str
+    user_id: uuid.UUID  # the person, as the server identifies them
+    tenant_id: uuid.UUID  # the office: PostHog's `tenant` group
+
+
 class MeOut(BaseModel):
     email: str
     name: str
@@ -111,6 +122,7 @@ class MeOut(BaseModel):
     # False: joined through the shared link, and must confirm the email before
     # anything else (A36).
     email_confirmed: bool
+    analytics: AnalyticsOut | None = None
 
 
 def _not_signed_in() -> ApiError:
@@ -140,6 +152,10 @@ async def current_account(
         raise _not_signed_in()
     row, user = found
     await db.commit()  # keeps an extended expiry, if find_active extended it
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:  # this request's events are this person's
+        posthog_client.identify_context(str(user.id))
+        posthog_client.set_context_session(str(row.id))
     # The browser keeps the cookie as long as the session lives, so an active
     # person is not signed out 30 days after signing in.
     _set_cookie(request, response, token, row.expires_at)
@@ -198,6 +214,20 @@ async def require_csrf_account(
     return _check_csrf(request, account)
 
 
+def analytics_for(
+    request: Request, user_id: uuid.UUID, tenant: CurrentTenant
+) -> AnalyticsOut | None:
+    settings = request.app.state.settings
+    if not (settings.posthog_project_token and settings.posthog_host):
+        return None
+    return AnalyticsOut(
+        token=settings.posthog_project_token,
+        host=settings.posthog_host,
+        user_id=user_id,
+        tenant_id=tenant.id,
+    )
+
+
 def me_out(
     staff_email: str,
     name: str,
@@ -248,7 +278,19 @@ async def signed_in(
     token, row = await sessions.start(db, user)
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
-    return me_out(
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        # This request began anonymously; identify the active request context once
+        # its authenticated account and server session exist.
+        posthog_client.identify_context(str(user.id))
+        posthog_client.set_context_session(str(row.id))
+        # Only the id and role (Fabio, 26 Oct 2026): no email or name in PostHog.
+        posthog_client.set(properties={"role": str(user.role)})
+        posthog_client.group_identify(
+            "tenant", str(tenant.id), properties={"slug": tenant.slug, "name": tenant.name}
+        )
+        posthog_client.capture("user_signed_in")
+    out = me_out(
         user.email,
         user.name,
         user.role,
@@ -258,10 +300,13 @@ async def signed_in(
         user.tour_seen_at is not None,
         user.email_confirmed_at is not None,
     )
+    out.analytics = analytics_for(request, user.id, tenant)
+    return out
 
 
 @router.delete("/session", status_code=204, responses=documented(401, 403))
 async def sign_out(
+    request: Request,
     response: Response,
     staff: CurrentStaff = Depends(require_csrf_account),
     db: AsyncSession = Depends(get_tenant_session),
@@ -269,6 +314,9 @@ async def sign_out(
     row = await db.get(LoginSession, staff.session_id)
     await sessions.revoke(db, row)
     await db.commit()
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture("user_signed_out")
     del response.headers["set-cookie"]  # current_staff's refresh of the same cookie
     response.delete_cookie(COOKIE, path="/")
 
@@ -314,18 +362,23 @@ async def choose_password(
     await accounts.set_password(db, user, password_hash)
     # The link came to their inbox: that proves the address too.
     await accounts.confirm_email(db, user)
-    return await signed_in(request, response, tenant, db, user)
+    result = await signed_in(request, response, tenant, db, user)
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture("password_set")
+    return result
 
 
 @router.get("/me", responses=documented(401))
 async def me(
+    request: Request,
     staff: CurrentStaff = Depends(current_account),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
     office = await display_name(db, tenant)
     seen = await db.scalar(select(User.tour_seen_at).where(User.id == staff.user_id))
-    return me_out(
+    out = me_out(
         staff.email,
         staff.name,
         staff.role,
@@ -335,6 +388,8 @@ async def me(
         seen is not None,
         staff.email_confirmed,
     )
+    out.analytics = analytics_for(request, staff.user_id, tenant)
+    return out
 
 
 @router.post("/me/tour-seen", status_code=204, responses=documented(401, 403))

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { type Locale, useOfficeLocale } from "../i18n";
+import { startAnalytics } from "../posthog";
 import type { Page } from "./format";
 import { PasswordGate } from "./PasswordGate";
 import { signOut } from "./signOut";
@@ -39,6 +40,7 @@ export function ClientApp() {
     call(api.GET("/api/me")).then(
       (me) => {
         setCsrfToken(me.csrf_token);
+        void startAnalytics(me);
         setSignedIn(true);
         setTourSeen(me.page_tour_seen);
         setPerson({ name: me.name, email: me.email });

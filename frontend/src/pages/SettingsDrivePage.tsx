@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router";
 
 import { ApiError, type ErrorCode } from "../api/client";
 import { SPACE_LOW, bytes, useConnectDrive, useDisconnectDrive, useDrive, useDriveSpace } from "../drive/drive";
+import { capture } from "../posthog";
 import dialogs from "../projects/projects.module.css";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
@@ -102,7 +103,17 @@ export function DriveDetails({
         (status.can_manage ? (
           <div className={styles.actions}>
             {(!google || expired) && (
-              <Button variant="primary" onPress={() => connect.mutate(false)} isDisabled={connect.isPending}>
+              <Button
+                variant="primary"
+                onPress={() => {
+                  // Only the start shows here: the rest happens at Google (A39).
+                  capture("drive_connection_started", {
+                    connection_type: status.has_folder ? "reconnect" : "initial",
+                  });
+                  connect.mutate(false);
+                }}
+                isDisabled={connect.isPending}
+              >
                 {t(expired ? "drive.reconnect" : status.has_folder ? "drive.reconnectSame" : "drive.connect")}
               </Button>
             )}
