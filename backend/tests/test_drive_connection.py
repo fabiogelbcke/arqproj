@@ -646,3 +646,11 @@ async def test_if_the_switch_cannot_be_saved_the_old_grant_stays_and_the_new_roo
     saved = await connection(db_session)
     await db_session.refresh(saved)
     assert saved.root_id == "root1"
+
+
+async def test_missing_quota_is_not_reported_as_zero(client, owner, google):
+    await come_back(client, await start(client, owner))
+    google.quota = {}
+    response = await client.get("/api/drive/space", headers=ALINEA)
+    assert response.status_code == 503
+    assert "Google returned" not in response.text

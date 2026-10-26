@@ -17,6 +17,9 @@ from pydantic import BaseModel
 
 
 class ErrorCode(StrEnum):
+    OPERATOR_ACTION_CONFLICT = "operator_action_conflict"
+    OPERATOR_ACTION_FAILED = "operator_action_failed"
+    OPERATOR_ACTIONS_UNAVAILABLE = "operator_actions_unavailable"
     NOT_SIGNED_IN = "not_signed_in"
     CSRF_TOKEN_MISSING_OR_WRONG = "csrf_token_missing_or_wrong"
     INVALID_CREDENTIALS = "invalid_credentials"

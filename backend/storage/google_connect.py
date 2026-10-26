@@ -152,6 +152,8 @@ class DriveWriter:
             params={"fields": "storageQuota(limit,usage)"},
         )
         quota = response.json().get("storageQuota", {})
+        if quota.get("usage") is None:
+            raise ConnectError(ConnectProblem.FOLDER_FAILED, "Google returned no storage usage")
         limit = int(quota.get("limit") or 0)
         return int(quota.get("usage") or 0), limit or None
 

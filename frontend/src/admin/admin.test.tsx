@@ -170,3 +170,44 @@ describe("counts", () => {
     expect(row).not.toHaveTextContent("1 pessoa");
   });
 });
+
+describe("usage additions", () => {
+  it("loads file statistics only on request and sends the operator CSRF token", async () => {
+    const sent = fakeApi({
+      "GET /api/admin/me": () => ({ body: ME }),
+      "GET /api/admin/offices/alinea": () => ({ body: { ...ALINEA, usage: { descriptions: 3, details: 8 }, link_statuses: { active: 1, expired: 1, disabled: 1 } } }),
+      "POST /api/admin/offices/alinea/file-statistics": () => ({ body: { loaded_at: "2026-10-26T12:00:00Z", projects: 7, projects_with_files: 3, files: 4, known_bytes: 1024, unknown_sizes: 1, account_used: null, account_limit: null, types: [{ kind: "pdf", files: 3, known_bytes: 1024, unknown_sizes: 0 }, { kind: "google", files: 1, known_bytes: 0, unknown_sizes: 1 }] } }),
+    });
+    renderAt("/escritorios/alinea");
+    const load = await screen.findByRole("button", { name: "Carregar estatísticas de arquivos" });
+    expect(sent.some(r => r.path.endsWith("file-statistics"))).toBe(false);
+    expect(screen.getByText("Links: 1 ativos · 1 expirados · 1 desativados")).toBeInTheDocument();
+    await userEvent.click(load);
+    expect(await screen.findByText("PDF")).toBeInTheDocument();
+    expect(screen.getByText(/4 arquivos · 1 KiB conhecidos/)).toBeInTheDocument();
+    expect(sent.find(r => r.path.endsWith("file-statistics"))?.headers.get("X-CSRF-Token")).toBe("csrf-9");
+    const url = new URL(screen.getByRole("link", { name: "Ver este escritório no PostHog" }).getAttribute("href")!);
+    expect(JSON.parse(url.searchParams.get("properties")!)).toEqual([{ key: "tenant", value: ["alinea"], operator: "exact", type: "event" }]);
+  });
+
+  it("requires the exact name before deleting a suspended office", async () => {
+    const sent = fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),
+      "GET /api/admin/offices/alinea": () => ({ body: { ...ALINEA, status: "suspended" } }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+      "POST /api/admin/offices/alinea/actions": () => ({ body: { owner_url: null } }),
+    });
+    renderAt("/escritorios/alinea");
+    await userEvent.click(await screen.findByRole("button", { name: "Excluir escritório" }));
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+    const name = screen.getByLabelText("Digite o nome exato do escritório");
+    await userEvent.type(name, "alinea");
+    expect(confirm).toBeDisabled();
+    await userEvent.clear(name);
+    await userEvent.type(name, "Alinea");
+    await userEvent.click(confirm);
+    await vi.waitFor(() => expect(sent.some(r => r.path.endsWith("/actions"))).toBe(true));
+    expect(sent.find(r => r.path.endsWith("/actions"))?.headers.get("X-CSRF-Token")).toBe("csrf-9");
+  });
+});

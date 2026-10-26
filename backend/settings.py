@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     # accounts allowed in, comma separated, set in the deployment, not the database.
     operator_host: str = "localhost"
     operator_emails: str = ""
+    # Separate restricted login for audited lifecycle actions. Unset disables actions.
+    operator_database_url: str | None = None
     # Google sign-in's one return address, on that host (the Drive client's).
     google_signin_redirect_uri: str = "http://localhost:5173/api/auth/google/callback"
     # Local development: offices whose storage kind is "folder" read files under

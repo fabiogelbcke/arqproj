@@ -55,6 +55,7 @@ from backend.storage.connections import storage_for
 from backend.storage.models import StorageConnection
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
+from backend.transfers import measured
 from backend.web.auth import CurrentStaff, optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.office import image_type
@@ -568,10 +569,12 @@ async def page_file(
     # Everything is checked: let the database connection go before the bytes
     # flow, so slow downloads never hold the small pool (plan section 15).
     await db.close()
-    return streamed(project, item, download, inline)
+    return streamed(project, item, download, inline, request=request)
 
 
-def streamed(project: Project, item: StorageItem, download, inline: bool) -> StreamingResponse:
+def streamed(
+    project: Project, item: StorageItem, download, inline: bool, *, request=None, source=None
+) -> StreamingResponse:
     """A checked file's bytes, as they come from Drive; never run on the office's
     address."""
     kind = _kind(item)
@@ -608,7 +611,15 @@ def streamed(project: Project, item: StorageItem, download, inline: bool) -> Str
         finally:
             await download.aclose()
 
-    return StreamingResponse(body(), media_type=media_type, headers=headers)
+    return StreamingResponse(
+        measured(
+            request, project, body(), source or ("preview" if shown_inline else "project_download")
+        )
+        if request is not None
+        else body(),
+        media_type=media_type,
+        headers=headers,
+    )
 
 
 @router.get("/api/pages/{slug}/files/{key}/thumb", include_in_schema=False)

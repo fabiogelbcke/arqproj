@@ -21,6 +21,7 @@ export const E2E_ENV = {
   LOCAL_STORAGE_ROOT: FILES,
   EMAIL_OUTBOX: OUTBOX,
   OPERATOR_EMAILS: OPERATOR,
+  OPERATOR_DATABASE_URL: "postgresql+psycopg://arqproj_operator@localhost:5432/arqproj_e2e",
 };
 
 export default defineConfig({
