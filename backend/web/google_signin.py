@@ -18,7 +18,8 @@ registered to that office. The sign-in is completed only there:
 
 Google signs in an existing account of this office by its verified email, and
 never makes one: invites and sign-up links do. Proving the email this way also
-confirms it (an unconfirmed sign-up, a pending invite). Passwords keep working.
+confirms it (an unconfirmed sign-up). A pending invite is accepted only through
+its link first. Passwords keep working.
 """
 
 from __future__ import annotations
@@ -170,6 +171,11 @@ async def finish(
     if user is None or user.email != identity.email:
         log.info("google sign-in: no account for that email in %s", tenant.slug)
         return _back("sem-conta")
+    if user.password_hash is None:
+        # A pending invite (A36): accepted only through its link, which sets the
+        # password; until then the team page offers to cancel or resend it, which
+        # must never touch an account in use.
+        return _back("convite")
     # Google has shown the address is theirs: a pending sign-up or invite counts.
     await accounts.confirm_email(db, user)
     response = _back()

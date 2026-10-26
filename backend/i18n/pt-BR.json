@@ -26,7 +26,13 @@
   "signIn": {
     "google": "Entrar com Google",
     "or": "ou",
-    "googleProblem": {"expirado": "A entrada com Google expirou. Tente de novo.", "cancelado": "A entrada foi cancelada no Google.", "sem-conta": "Não há uma conta neste escritório com esse e-mail do Google. Peça um convite a quem administra o escritório, ou entre com e-mail e senha.", "falhou": "Não foi possível entrar com o Google agora. Tente de novo em instantes."},
+    "googleProblem": {
+      "convite": "Seu convite para este escritório ainda não foi aceito. Abra o link do convite no seu e-mail para escolher sua senha; depois disso, você poderá entrar com o Google.",
+      "expirado": "A entrada com Google expirou. Tente de novo.",
+      "cancelado": "A entrada foi cancelada no Google.",
+      "sem-conta": "Não há uma conta neste escritório com esse e-mail do Google. Peça um convite a quem administra o escritório, ou entre com e-mail e senha.",
+      "falhou": "Não foi possível entrar com o Google agora. Tente de novo em instantes."
+    },
     "title": "Entrar",
     "intro": "Painel de projetos de {{office}}.",
     "email": "E-mail",

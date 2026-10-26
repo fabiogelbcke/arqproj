@@ -197,3 +197,16 @@ async def test_an_address_corrected_meanwhile_is_not_signed_in(
     done = await returned(client, query)
     assert done.headers["location"].startswith("/painel/entrar?google=sem-conta&ref=")
     assert (await client.get("/api/me", headers=ALINEA)).status_code == 401
+
+
+async def test_a_pending_invite_is_accepted_only_through_its_link(client, google, db_session):
+    """Signed in with Google, an invited account would still read as a pending
+    invite (no password), and cancelling that would delete an account in use."""
+    t = await tenant_id(db_session, "alinea")
+    await db_session.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(t)})
+    await accounts.create_user(db_session, email="bia@alinea.example", name="Bia")  # invited
+    google["identity"] = Identity("bia@alinea.example", "Bia")
+    query = await start(client)
+    done = await returned(client, query)
+    assert done.headers["location"].startswith("/painel/entrar?google=convite&ref=")
+    assert (await client.get("/api/me", headers=ALINEA)).status_code == 401
