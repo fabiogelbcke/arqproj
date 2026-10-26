@@ -1870,6 +1870,14 @@ section 5's role table gets its tools at `myunio.app/admin`:
   action is written to an operator audit log (who, what, which office, when).
 - **Slice 3, PostHog.** Offices as PostHog groups for usage trends (building on
   PR #106); the office page links to its PostHog view.
+- **Then, Google sign-in for offices** (Fabio, 26 Oct 2026: right after the
+  dashboard's, reusing its Google client): the shared return address on Unio's
+  host and the single-use hand-off to the office's own address described in
+  section 5, so one registered address serves every office and domain. Accounts
+  stay per office; Google signs in an existing account by its verified email
+  and never creates one by itself. Sign-up and owner links may offer "Continuar
+  com Google" instead of a password and the code. Passwords keep working. It
+  asks Google only for name and email; connecting Drive stays separate.
 
 Managed DB backups and point-in-time recovery must be enabled on a suitable plan.
 Initial proposed objectives: recover at most 24 hours of metadata loss for the
