@@ -1891,7 +1891,7 @@ section 5's role table gets its tools at `myunio.app/admin`:
   table, so signing out ends it in that browser and removing an email ends it
   everywhere. Counts are read office by office with the app's login, scoped like
   a request: no login that sees every office. Logs open in Cloud Logging's
-  console with the search filled in (a support code, or an office's errors),
+  console with the search filled in (a support code, or an office's errors by its slug or ID),
   read with the operator's own Google access; the app gets no log permissions.
   Locally (and in the browser tests), `localhost/admin` offers an allowlisted
   email without Google; the server refuses that anywhere deployed.

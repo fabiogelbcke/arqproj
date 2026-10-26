@@ -10,6 +10,7 @@ import { officeErrorsUrl, supportCodeUrl } from "./logs";
 
 const ME = { email: "fabio@unio.example", csrf_token: "csrf-9", logs_project: "arq-proj", logs_service: "portal" };
 const ALINEA = {
+  id: "4f1c2b8e-1111-4c4c-9a9a-000000000001",
   slug: "alinea",
   name: "Alinea",
   status: "active",
@@ -122,7 +123,7 @@ describe("the operator dashboard", () => {
     expect(within(team).getByText("Bia").closest("tr")).toHaveTextContent("Convite pendente");
     expect(screen.getByRole("link", { name: /Abrir os erros deste escritório/ })).toHaveAttribute(
       "href",
-      officeErrorsUrl({ project: "arq-proj", service: "portal" }, "alinea"),
+      officeErrorsUrl({ project: "arq-proj", service: "portal" }, ALINEA),
     );
     expect(screen.getByRole("link", { name: "alineaarquitetos.com" })).toHaveAttribute("href", "https://alineaarquitetos.com/painel/");
   });
@@ -147,8 +148,9 @@ describe("the log links", () => {
     expect(support).toContain('resource.labels.service_name="portal"');
     expect(support).toContain('("abc123" OR trace="projects/arq-proj/traces/abc123")');
     expect(supportCodeUrl(target, "x")).toContain("?project=arq-proj");
-    const errors = decodeURIComponent(officeErrorsUrl(target, "alinea"));
-    expect(errors).toContain('severity>=ERROR\n"tenant=alinea"');
+    const errors = decodeURIComponent(officeErrorsUrl(target, { slug: "alinea", id: "u-1" }));
+    // By slug or by ID: uploads and emails log the office's ID (Codex, PR #138).
+    expect(errors).toContain('severity>=ERROR\n("alinea" OR "u-1")');
   });
 });
 

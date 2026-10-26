@@ -16,9 +16,10 @@ export function supportCodeUrl(target: LogsTarget, code: string): string {
   return url(target, `("${id}" OR trace="projects/${target.project}/traces/${id}")`);
 }
 
-/** An office's errors: every ERROR line names its office ("tenant=<slug>"). */
-export function officeErrorsUrl(target: LogsTarget, slug: string): string {
-  return url(target, `severity>=ERROR\n"tenant=${slug}"`);
+/** An office's errors. Lines name their office by slug ("tenant=alinea",
+ *  "… for alinea") or, in uploads and emails, by its ID: either matches. */
+export function officeErrorsUrl(target: LogsTarget, office: { slug: string; id: string }): string {
+  return url(target, `severity>=ERROR\n("${office.slug}" OR "${office.id}")`);
 }
 
 /** A request ID: 32 hexadecimal characters (Cloud Run's trace, or our own). */

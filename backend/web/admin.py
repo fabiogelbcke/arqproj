@@ -101,6 +101,7 @@ class AdminStaffOut(BaseModel):
 
 
 class AdminOfficeOut(BaseModel):
+    id: str  # for searching the logs, where some lines name the office by it
     slug: str
     name: str
     status: str
@@ -123,7 +124,9 @@ class AdminOfficeOut(BaseModel):
 
 def _office(summary: offices.OfficeSummary) -> AdminOfficeOut:
     data = {k: v for k, v in vars(summary).items() if k not in ("id", "team")}
-    return AdminOfficeOut(**data, team=[AdminStaffOut(**vars(m)) for m in summary.team])
+    return AdminOfficeOut(
+        **data, id=str(summary.id), team=[AdminStaffOut(**vars(m)) for m in summary.team]
+    )
 
 
 def _settings(request: Request):

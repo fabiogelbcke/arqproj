@@ -4661,6 +4661,10 @@
       },
       "AdminOfficeOut": {
         "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
           "slug": {
             "type": "string",
             "title": "Slug"
@@ -4775,6 +4779,7 @@
         },
         "type": "object",
         "required": [
+          "id",
           "slug",
           "name",
           "status",

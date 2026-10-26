@@ -301,7 +301,7 @@ function OfficePage() {
       <section className={styles.panel} aria-labelledby="errors">
         <h2 id="errors">{t("admin.errors")}</h2>
         {logs ? (
-          <a href={officeErrorsUrl(logs, o.slug)} target="_blank" rel="noreferrer">
+          <a href={officeErrorsUrl(logs, o)} target="_blank" rel="noreferrer">
             {t("admin.errorsOpen")}
           </a>
         ) : (

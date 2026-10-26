@@ -1241,6 +1241,8 @@ export interface components {
         AccessMode: "public" | "password";
         /** AdminOfficeOut */
         AdminOfficeOut: {
+            /** Id */
+            id: string;
             /** Slug */
             slug: string;
             /** Name */
