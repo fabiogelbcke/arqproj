@@ -7,6 +7,7 @@ import { LogoPng, useOffice } from "../office/office";
 import { ConfirmEmailPage } from "../pages/ConfirmEmailPage";
 import { useMe, useSignedOut } from "../session/session";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { EXAMPLE_SLUG } from "../client/example/address";
 import { HeaderMenu } from "../ui/HeaderMenu";
 import { OfficeBrand } from "../ui/OfficeBrand";
 import { SiteFooter } from "../ui/UnioMark";
@@ -71,6 +72,7 @@ function Painel() {
               onSignOut={() => signOut.mutate()}
               signingOut={signOut.isPending}
               onTour={startTour}
+              example={`/${EXAMPLE_SLUG}`}
             />
           </div>
           <MobileMenu

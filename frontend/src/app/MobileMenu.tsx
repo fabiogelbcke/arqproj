@@ -2,6 +2,7 @@ import { Button, Dialog, DialogTrigger, Modal, ModalOverlay, Switch } from "reac
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router";
 
+import { EXAMPLE_SLUG } from "../client/example/address";
 import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { useTheme } from "../ui/theme";
@@ -9,7 +10,7 @@ import styles from "../pages/pages.module.css";
 
 /** Phones: the top bar's ☰ opens a drawer from the right, full height: a
  *  greeting at the top, the painel's sections, then the theme switch, the
- *  painel's tour and Sair. */
+ *  painel's tour, the example project and Sair. */
 export function MobileMenu({
   name,
   onSignOut,
@@ -65,6 +66,9 @@ export function MobileMenu({
                 >
                   {t("painelTour.again")}
                 </Button>
+                <a className={styles.menuItem} href={`/${EXAMPLE_SLUG}`}>
+                  {t("firstSteps.example")}
+                </a>
                 <Button className={styles.menuItem} onPress={onSignOut} isDisabled={signingOut}>
                   {t("nav.signOut")}
                 </Button>

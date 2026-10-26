@@ -54,15 +54,16 @@
 }
 
 .group { display: grid; gap: 20px; }
-/* A grey bar: the group's name, and how many on the right. */
-.groupHead {
-  display: flex; align-items: center; gap: 10px; min-height: 30px; padding: 0 14px;
-  border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--surface);
-}
+/* The group's name as a heading and its count in a small round tag beside it
+   (Fabio, 26 Oct 2026: nicer than the grey bar). */
+.groupHead { display: flex; align-items: center; gap: 10px; }
 .groupHead h2 {
-  margin: 0; font: 500 var(--text-2xs)/1.4 var(--font); letter-spacing: var(--caps-spacing); text-transform: uppercase;
+  margin: 0; font: 500 20px/1.2 var(--display-font); letter-spacing: -0.01em; color: var(--ink);
 }
-.groupCount { margin-left: auto; font-size: var(--text-2xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.groupCount {
+  display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 8px; border-radius: var(--r-pill);
+  background: var(--surface); color: var(--ink); font: 500 var(--text-2xs)/1 var(--font); font-variant-numeric: tabular-nums;
+}
 
 /* Cards gain columns as space allows: 2 on phones, 3, then 4. */
 .rows {

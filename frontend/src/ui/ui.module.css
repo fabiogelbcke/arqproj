@@ -300,6 +300,21 @@
 .menuItem[data-selected] .menuSwitch::after { translate: 14px 0; }
 .menuSeparator { height: 1px; margin: 6px 0; background: var(--line); }
 
+/* ThemeToggle: "Modo escuro" and the menu's switch, on its own in the header. */
+.themeToggle {
+  display: inline-flex; align-items: center; gap: 10px; min-height: var(--control-icon); padding: 0 2px;
+  color: var(--ink); font: 400 var(--text-sm) var(--font); letter-spacing: 0; text-transform: none; cursor: pointer;
+}
+.themeToggle[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 12px; }
+.themeToggle[data-selected] .menuSwitch { background: var(--ink); }
+.themeToggle[data-selected] .menuSwitch::after { translate: 14px 0; }
+.themeToggleMoon { display: none; width: 18px; height: 18px; }
+@media (max-width: 640px) {
+  .themeToggle { gap: 8px; }
+  .themeToggleLabel { display: none; }
+  .themeToggleMoon { display: block; }
+}
+
 /* DialogFrame: the dimmed page, the box, its title. Above the phone's floating
    search and + (z-index 40) and the project page's staff bar (50); toasts (60)
    stay above it. */

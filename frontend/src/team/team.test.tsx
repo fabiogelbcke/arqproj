@@ -124,12 +124,12 @@ describe("Configurações → Equipe", () => {
       },
     );
     renderAt("/configuracoes/equipe");
-    await userEvent.click(await screen.findByRole("button", { name: "Criar link da equipe" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Criar link de convite" }));
     expect(await screen.findByLabelText("Convidar através de um link")).toHaveValue("http://alinea.localhost/painel/entrar-na-equipe#token=xyz");
     expect(screen.getByText(/o link só aparece uma vez e vale por 24 horas/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Criar novo link" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Desativar link" }));
-    expect(await screen.findByRole("button", { name: "Criar link da equipe" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Criar link de convite" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Convidar através de um link")).toBeNull();
   });
 

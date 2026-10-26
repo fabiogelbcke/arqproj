@@ -7,17 +7,20 @@ import styles from "./ui.module.css";
 
 /** The header's menu, the same on the painel and the project pages (Fabio, 22 Oct
  *  2026): who is signed in (their initial on the button), "Modo escuro", the
- *  page's tour and Sair. A client, signed out, gets the same menu with only
+ *  page's tour, on the painel the example project (moved from the projects page,
+ *  Fabio, 26 Oct 2026), and Sair. A client, signed out, gets the same menu with only
  *  "Modo escuro", behind a ☰. */
 export function HeaderMenu({
   person,
   onTour,
   tourLabel,
+  example,
   onSignOut,
   signingOut = false,
 }: {
   person?: { name: string; email: string } | null;
   onTour?: () => void;
+  example?: string; // the example project's address (the painel), beside its tour
   tourLabel?: string; // the page's own tour: "Ver o tour do painel" by default
   onSignOut?: () => void;
   signingOut?: boolean;
@@ -53,13 +56,18 @@ export function HeaderMenu({
               <span className={styles.menuSwitch} aria-hidden="true" />
             </MenuItem>
           </MenuSection>
-          {(onTour || onSignOut) && (
+          {(onTour || example || onSignOut) && (
             <>
               <Separator className={styles.menuSeparator} />
               <MenuSection>
                 {onTour ? (
                   <MenuItem id="tour" className={styles.menuItem}>
                     {tourLabel ?? t("painelTour.again")}
+                  </MenuItem>
+                ) : null}
+                {example ? (
+                  <MenuItem id="example" href={example} className={styles.menuItem}>
+                    {t("firstSteps.example")}
                   </MenuItem>
                 ) : null}
                 {onSignOut ? (

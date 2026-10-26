@@ -43,7 +43,6 @@ function Group({
   className,
   title,
   count,
-  countLabel,
   projects,
   timeZone,
   limit,
@@ -52,7 +51,6 @@ function Group({
   className: string | undefined;
   title: string;
   count: string;
-  countLabel?: string;
   projects: ProjectSummary[];
   timeZone: string;
   limit?: number;
@@ -66,7 +64,7 @@ function Group({
     <section className={`${styles.group} ${className ?? ""}`} aria-labelledby={id}>
       <div className={styles.groupHead}>
         <h2 id={id}>{title}</h2>
-        <span className={styles.groupCount} aria-label={countLabel}>
+        <span className={styles.groupCount}>
           {count}
         </span>
       </div>
@@ -296,8 +294,7 @@ export function ProjectsPage() {
               id="group-active"
               className={styles.activeGroup}
               title={t("projects.groupActive")}
-              count={t("projects.groupCount", { shown: active.length, total: shown.length })}
-              countLabel={t("projects.groupCountLabel", { shown: active.length, total: shown.length })}
+              count={String(active.length)}
               projects={active}
               timeZone={timeZone}
             />

@@ -1340,7 +1340,11 @@ Pipeline:
    provider permits; do not promise mathematical exactly-once email delivery.
 6. Signed provider callbacks update delivery/bounce state idempotently.
 
-Email contains a short summary and portal links, not attachments or passwords.
+Email contains a short summary and portal links, not attachments or passwords. The summary
+names each stage that changed and says what changed in general terms ("3 arquivos
+enviados", "marcada como concluída", "reaberta"), never file names (Fabio, 26 Oct
+2026); one stage reads as a sentence, several as a list; the project and the
+meeting follow as sentences.
 Send recipients separately to avoid exposing the client list. Offer an
 unguessable unsubscribe link scoped to that recipient/project and an office
 preference control. Disabled recipients remain suppressed on retries. Initial
@@ -1571,8 +1575,9 @@ the reserved address (a migration).
   above the steps, with the example's cover: "Antes de começar, veja como fica a
   página de um projeto pronto" and "Ver o exemplo". It is not one of the steps
   the progress counts; at the top, a phone shows it on the first screen (the
-  steps fill it). Once the steps are done, a line "Ver um projeto de exemplo"
-  stays on the painel. The painel tour's last step also leads there. An empty
+  steps fill it). Once the steps are done, "Ver um projeto de exemplo" stays
+  in the account menu and the phone's drawer (moved from the projects page,
+  Fabio, 26 Oct 2026). The painel tour's last step also leads there. An empty
   projects list was considered and rejected: while there are no projects, the
   steps are on screen too, above it.
 

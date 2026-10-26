@@ -203,7 +203,10 @@ export default function StageOrder({
           <Heading slot="title" className="stage-order__heading">
             {t("edit.reorderStages")}
           </Heading>
-          <p className="stage-order__hint">{t("edit.reorderHint")}</p>
+          {/* Said the way this device works: touch, or mouse and keyboard. */}
+          <p className="stage-order__hint">
+            {t(window.matchMedia?.("(pointer: coarse)").matches ? "edit.reorderHintTouch" : "edit.reorderHint")}
+          </p>
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}

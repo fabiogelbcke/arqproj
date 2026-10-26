@@ -355,7 +355,6 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
           <input className="input" type="url" id="m-link" value={form.link} onChange={set("link")} placeholder="https://meet.google.com/…" required />
         </div>
       )}
-      <p className="hint">{t("edit.timeZoneHint")}</p>
     </Editor>
   );
 }

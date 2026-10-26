@@ -147,7 +147,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(page, "04-configuracoes-escritorio");
 
   await page.goto("/painel/configuracoes/drive");
-  await page.getByRole("heading", { name: "Google Drive" }).waitFor();
+  await page.getByRole("heading", { name: "Armazenamento" }).waitFor();
   await shoot(page, "05-configuracoes-drive");
 
   await page.goto("/painel/configuracoes/equipe");
@@ -309,7 +309,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await visitor.getByRole("button", { name: /^Compartilhar arquivos de / }).first().click();
   const share = visitor.getByRole("dialog", { name: "Compartilhar arquivos" });
   await share.waitFor();
-  await share.getByLabel("Para quem?").fill("Marcenaria Silva");
+  await share.getByLabel("Para quem? (Opcional)").fill("Marcenaria Silva");
   await shoot(visitor, "09-compartilhar-arquivos");
   await share.getByRole("button", { name: "Gerar link" }).click();
   const ready = visitor.getByRole("dialog", { name: "Link pronto" });

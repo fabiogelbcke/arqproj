@@ -208,6 +208,7 @@ export function SharePanel({
             staff={staff}
             links={links}
             owned={owned}
+            onNew={() => setTab("new")}
             // A change answers without the address: the one listed stays.
             onChanged={(changed) =>
               setLinks(
@@ -356,7 +357,6 @@ export function SharePanel({
             )}
             <TextField
               label={t("share.label")}
-              description={t("share.labelHint")}
               placeholder={t("share.labelExample")}
               value={label}
               onChange={setLabel}
@@ -412,6 +412,7 @@ function ShareLinks({
   staff,
   links,
   owned,
+  onNew,
   onChanged,
 }: {
   page: Page;
@@ -419,6 +420,7 @@ function ShareLinks({
   staff: boolean;
   links: Share[] | null;
   owned: Owned[];
+  onNew: () => void;
   onChanged: (link: Share) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -454,7 +456,19 @@ function ShareLinks({
   };
   return (
     <section className="share-links" aria-label={t(staff ? "share.linksStaff" : "share.linksMine")}>
-      {!links.length && <p>{t("share.noLinks")}</p>}
+      {!links.length && (
+        <div className="share-links__empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+            <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" strokeLinecap="round" />
+            <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" strokeLinecap="round" />
+          </svg>
+          <strong>{t("share.noLinks")}</strong>
+          <p>{t(staff ? "share.noLinksStaff" : "share.noLinksMine")}</p>
+          <Button size="small" onPress={onNew}>
+            {t("share.newTab")}
+          </Button>
+        </div>
+      )}
       <ul>
         {links.map((link) => {
           const live = !link.disabled && !link.expired;

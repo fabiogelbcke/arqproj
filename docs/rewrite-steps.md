@@ -257,7 +257,7 @@ office. So the painel comes next, then the client page once its design settles:
 
 1. **P1 Drive connection** (moved first, 15 Oct 2026: creation needs Drive,
    so it is built once with folders) and the painel's **first steps** checklist.
-   **As built:** Configurações → Google Drive (owners connect and disconnect;
+   **As built:** Configurações → Armazenamento (Google Drive until 26 Oct 2026; owners connect and disconnect;
    members see), `drive.file` sign-in through **one shared return address**
    that forwards to the office that started (signed `state`, a one-time nonce
    cookie, only to addresses registered to that office); the "Portal Clientes"

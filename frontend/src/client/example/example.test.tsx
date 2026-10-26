@@ -69,7 +69,7 @@ describe("the example project", () => {
     const { sent } = visit(false);
     await userEvent.click(await screen.findByRole("button", { name: /^Compartilhar arquivos de Estudo/ }));
     const dialog = await screen.findByRole("dialog", { name: "Compartilhar arquivos" });
-    await userEvent.type(within(dialog).getByLabelText("Para quem?"), "Marcenaria Silva");
+    await userEvent.type(within(dialog).getByLabelText("Para quem? (Opcional)"), "Marcenaria Silva");
     await userEvent.click(within(dialog).getByRole("button", { name: "Gerar link" }));
     const ready = await screen.findByRole("dialog", { name: "Link pronto" });
     expect(within(ready).getByLabelText("Link para compartilhar")).toHaveValue(`${window.location.origin}/share/exemplo`);
