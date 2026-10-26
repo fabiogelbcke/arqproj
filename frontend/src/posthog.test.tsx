@@ -37,9 +37,20 @@ describe("product analytics in the browser (A39)", () => {
     expect(sdk.group).toHaveBeenCalledWith("tenant", ANALYTICS.tenant_id, { slug: "alinea" });
     expect(JSON.stringify(sdk.identify.mock.calls)).not.toContain(ME.email);
     await startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
-    expect(sdk.init).toHaveBeenCalledTimes(1); // once per page
+    expect(sdk.init).toHaveBeenCalledTimes(1); // set up once per page
     capture("files_uploaded", { file_count: 2 });
     expect(sdk.capture.mock.calls).toEqual([["files_uploaded", { file_count: 2 }]]);
+  });
+
+  it("identifies the next person after a sign-out, without reloading the page", async () => {
+    const { resetAnalytics, startAnalytics } = await import("./posthog");
+    await startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
+    resetAnalytics();
+    const other = { ...ANALYTICS, user_id: "6f1c1d1e-0000-4000-8000-000000000002" };
+    await startAnalytics({ ...ME, role: "member", analytics: other } as unknown as Me);
+    expect(sdk.init).toHaveBeenCalledTimes(1);
+    expect(sdk.reset).toHaveBeenCalledTimes(1);
+    expect(sdk.identify).toHaveBeenLastCalledWith(other.user_id, { role: "member" });
   });
 
   it("stays off where the server has no key (staging, local runs)", async () => {
