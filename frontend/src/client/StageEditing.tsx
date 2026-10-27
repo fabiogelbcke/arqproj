@@ -247,7 +247,14 @@ export function AddStage({
     );
   return (
     <div className="addstage">
-      <div className="editor add-stage">
+      <form
+        className="editor add-stage"
+        aria-label={t("edit.addStage")}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (naming && custom.trim()) void add({ title: custom.trim() });
+        }}
+      >
         <h3>{t("edit.addStage")}</h3>
         {/* One list: the built-in stages the project doesn't have, then "Etapa
             personalizada…", which asks for its name (Fabio, 23 Oct 2026). */}
@@ -275,23 +282,15 @@ export function AddStage({
           </select>
         </label>
         {naming && (
-          <form
-            className="field"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (custom.trim()) void add({ title: custom.trim() });
-            }}
-          >
+          <div className="field">
             <label htmlFor="custom-stage">{t("edit.customStageName")}</label>
-            <div className="add-stage__row">
-              <TextInput className="input" id="custom-stage" value={custom} maxLength={LIMITS.stageTitle} autoFocus onChange={(e) => setCustom(e.target.value)} />
-              <button className="b b--primary" type="submit" disabled={change.busy || !custom.trim()}>
-                {t("edit.add")}
-              </button>
-            </div>
-          </form>
+            <TextInput className="input" id="custom-stage" value={custom} maxLength={LIMITS.stageTitle} autoFocus onChange={(e) => setCustom(e.target.value)} />
+          </div>
         )}
         <p className="hint">{t("edit.addStageHint")}</p>
+        {/* Cancelar and Adicionar together at the bottom (Fabio, 26 Oct 2026); a
+            built-in stage is added as soon as it's chosen, so Adicionar is only
+            for a stage of the office's own. */}
         <div className="editor__actions">
           <button
             className="b"
@@ -303,8 +302,13 @@ export function AddStage({
           >
             {t("projectSettings.cancel")}
           </button>
+          {naming && (
+            <button className="b b--primary" type="submit" disabled={change.busy || !custom.trim()}>
+              {t("edit.add")}
+            </button>
+          )}
         </div>
-      </div>
+      </form>
     </div>
   );
 }
@@ -398,7 +402,12 @@ export function StageProgress({
         disabled={change.busy}
         onClick={() => setConfirming(true)}
       >
-        {completing ? t("edit.completeStage") : t("edit.reopenStage")}
+        {/* Both labels take the same place, the other one unseen, so the button is
+            as wide either way and the stages' buttons line up (Fabio, 26 Oct 2026). */}
+        <span className="stage-progress__label">{completing ? t("edit.completeStage") : t("edit.reopenStage")}</span>
+        <span className="stage-progress__label" aria-hidden="true">
+          {completing ? t("edit.reopenStage") : t("edit.completeStage")}
+        </span>
       </button>
       {confirming && (
         <ConfirmDialog

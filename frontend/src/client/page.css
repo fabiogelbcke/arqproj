@@ -142,13 +142,25 @@ a.site__brand { color: inherit; text-decoration: none; }
 .client .stage .stage__name .stage-help-pop { left: 0; right: auto; }
 .add-stage { width: min(560px, 100%); }
 .add-stage .field > span { font-size: 14px; font-weight: 500; }
-.add-stage__row { display: flex; gap: 8px; }
 
 /* Edit mode: uploads under the drop area, one row each until it is sent (A31). */
 .uploads { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
-.uploads li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
-.uploads__name { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
-.uploads progress { flex: 1 1 140px; height: 4px; accent-color: var(--mark); }
+.uploads li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--raise); color: var(--ink);
+}
+.uploads__name { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.uploads__percent { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.uploads .upload-bar { flex-basis: 100%; }
+/* An upload's bar: a soft rounded track filling smoothly (the browser's own bar
+   is drawn three ways, so each is restyled). */
+.upload-bar {
+  appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 6px;
+  border: 0; border-radius: 999px; overflow: hidden; background: var(--line); color: var(--ink);
+}
+.upload-bar::-webkit-progress-bar { background: var(--line); border-radius: 999px; }
+.upload-bar::-webkit-progress-value { background: var(--ink); border-radius: 999px; transition: width .25s ease; }
+.upload-bar::-moz-progress-bar { background: var(--ink); border-radius: 999px; }
 .uploads__failed [role="alert"] { flex-basis: 100%; color: var(--danger, #9b3d1d); }
 
 /* The current stage is a dark band, open or not (in the dark theme too). The prototype keeps
@@ -156,7 +168,6 @@ a.site__brand { color: inherit; text-decoration: none; }
    box dark on dark on wider screens. */
 .client.editing .stage.current .stage__title input, .client.editing .stage.current .drop { color: #fff; caret-color: #fff; border-color: #c9cbcd; }
 .client.editing .stage.current .drop small, .client.editing .stage.current .drop svg { color: #c9cbcd; }
-.client.editing .stage.current .uploads__failed [role="alert"] { color: #f2b8a2; }
 
 /* "Atualizações" on a phone: the panel spans the screen under the header rather
    than hanging off the bell, which would push it past the left edge. */
