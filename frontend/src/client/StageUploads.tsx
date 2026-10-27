@@ -640,15 +640,21 @@ export function AddSection({
         + {t("edit.addSection")}
       </button>
     );
+  const submit = () => name.trim() && !taken && !busy && void create();
+  // Not a <form>: in "Editar etapa" the whole stage is inside the stage's form,
+  // which Enter (or Escape) here would save (or close) too.
   return (
-    <form
+    <div
       className="addsection-form"
+      role="group"
       aria-label={t("edit.addSection")}
-      onSubmit={(event) => {
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== "Escape") return;
         event.preventDefault();
-        if (name.trim() && !taken) void create();
+        event.stopPropagation();
+        if (event.key === "Escape") close();
+        else if (event.target instanceof HTMLInputElement) submit();
       }}
-      onKeyDown={(event) => event.key === "Escape" && close()}
     >
       <label htmlFor={id}>{t("edit.sectionName")}</label>
       <TextInput
@@ -671,10 +677,10 @@ export function AddSection({
         <button className="b b--small" type="button" onClick={close}>
           {t("projectSettings.cancel")}
         </button>
-        <button className="b b--small b--primary" type="submit" disabled={busy || !name.trim() || taken}>
+        <button className="b b--small b--primary" type="button" disabled={busy || !name.trim() || taken} onClick={submit}>
           {t("edit.add")}
         </button>
       </div>
-    </form>
+    </div>
   );
 }

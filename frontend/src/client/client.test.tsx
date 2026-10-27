@@ -1741,6 +1741,24 @@ describe("edit mode", () => {
       expect(within(stage).queryByText("Esta etapa já tem uma seção com esse nome.")).toBeNull();
     });
 
+    it("makes a section while Editar etapa is open without saving or closing the stage", async () => {
+      const { sent } = asEditor({ "POST /api/projects/p-1/stages/2/folders": () => ({ status: 204 }) });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await userEvent.click(within(stage).getByRole("button", { name: "Editar etapa Levantamento" }));
+      await userEvent.type(await within(stage).findByLabelText("Nome da etapa"), " II");
+      await userEvent.click(await within(stage).findByRole("button", { name: "+ Nova seção" }));
+      await userEvent.type(within(stage).getByLabelText("Nome da seção"), "Plantas{Enter}");
+      expect(await screen.findByText("Seção “Plantas” criada.")).toBeInTheDocument();
+      expect(sent.filter((r) => r.method !== "GET").map((r) => r.path)).toEqual(["/api/projects/p-1/stages/2/folders"]);
+      expect(within(stage).getByLabelText("Nome da etapa")).toHaveValue("Levantamento II"); // still editing
+      // Escape closes only the section's form, too.
+      await userEvent.click(within(stage).getByRole("button", { name: "+ Nova seção" }));
+      await userEvent.keyboard("{Escape}");
+      expect(within(stage).getByLabelText("Nome da etapa")).toHaveValue("Levantamento II");
+      expect(within(stage).getByRole("button", { name: "+ Nova seção" })).toBeInTheDocument();
+    });
+
     it("refuses a section name the stage already has, before asking", async () => {
       const { sent } = asEditor({ "GET /api/pages/casa-jardim/files": () => ({ body: withSection() }) });
       await startEditing();
