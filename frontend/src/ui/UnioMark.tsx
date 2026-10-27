@@ -16,8 +16,8 @@ export function UnioMark({ className }: { className?: string }) {
 }
 
 /** At the foot of the painel and of a project's page, like Unio's landing page:
- *  its logo and line on the left; the office's name and Unio's legal pages on
- *  the right. */
+ *  its logo, line and legal pages on the left; the office's name on its own on
+ *  the right, so the legal pages don't read as the office's (Fabio, 26 Oct 2026). */
 export function SiteFooter({ office, className }: { office?: string; className?: string }) {
   const { t } = useTranslation();
   return (
@@ -27,12 +27,12 @@ export function SiteFooter({ office, className }: { office?: string; className?:
           <UnioMark />
         </a>
         <p>{t("footer.tagline")}</p>
+        <nav aria-label={t("footer.links")}>
+          <a href="/privacidade">{t("footer.privacy")}</a>
+          <a href="/termos">{t("footer.terms")}</a>
+        </nav>
       </div>
-      <nav aria-label={t("footer.links")}>
-        {office && <span className={styles.siteFooterOffice}>{office}</span>}
-        <a href="/privacidade">{t("footer.privacy")}</a>
-        <a href="/termos">{t("footer.terms")}</a>
-      </nav>
+      {office && <span className={styles.siteFooterOffice}>{office}</span>}
     </footer>
   );
 }

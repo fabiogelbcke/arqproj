@@ -3,6 +3,7 @@
     POST /api/projects/{id}/stages/{n}/uploads   open an upload; says where to send the file
     POST .../uploads/check                       which names would be a new version (A25)
     POST .../uploads/failed                      the browser's report of one that failed
+    POST /api/projects/{id}/stages/{n}/folders   "Nova seção": a subfolder of the stage
     PUT  /api/local-uploads/{token}              local folders only (never deployed): take it
     POST /api/pages/{slug}/files/{key}/hide      "Ocultar do cliente": a leading "_"
     POST /api/pages/{slug}/files/{key}/move      "Mover para outra etapa"
@@ -24,6 +25,10 @@ plain upload, which is saved apart ("Planta (2).pdf") so it never joins it.
 Nothing reserves a number while the bytes travel to Google: two new versions of
 one document opened at the same moment both get the next number, and the page
 flags the clash for staff to rename one (plan section 12).
+A section is a subfolder of the stage's folder (one level, as the page lists
+them), named by staff on the page. Uploads, the check and moves name a section
+by that name, never by a Drive id; with two of one name in Drive, the first as
+listed, which is the one the page shows first.
 Hiding renames it with a leading "_", which the page never shows (A05); moving
 puts it in another stage's folder, where the page shows it next. The office's
 grant (drive.file) reaches only files the app created, so a file put straight
@@ -56,7 +61,16 @@ from backend.storage.google_connect import ConnectError
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
-from backend.web.page_files import _file, _in_project, _item, _item_at, _list, _showable, _storage
+from backend.web.page_files import (
+    _file,
+    _hidden,
+    _in_project,
+    _item,
+    _item_at,
+    _list,
+    _showable,
+    _storage,
+)
 from backend.web.pages import _origin, _readable
 from backend.web.projects import _folders
 
@@ -65,6 +79,7 @@ router = APIRouter()
 
 UPLOAD_MAX_MB = 100
 UPLOAD_MAX = UPLOAD_MAX_MB * 1024 * 1024
+SECTION_NAME_MAX = 80
 LOCAL_PURPOSE = "local-upload"
 LOCAL_SECONDS = 3600  # like Google's session, it is used at once
 
@@ -78,6 +93,8 @@ class UploadIn(BaseModel):
     # "Enviar nova versão": a file's key from the page; saved as the next version
     # of its document, in its folder.
     version_of: str | None = Field(default=None, max_length=2000)
+    # A section of the stage, by its name; None: the stage's folder itself.
+    folder: str | None = Field(default=None, max_length=255)
 
 
 class UploadOut(BaseModel):
@@ -156,6 +173,18 @@ async def _documents(reader, folder: str) -> list[versions.Document]:
     return versions.group([i for i in await _list(reader, folder) if _showable(i)])
 
 
+async def _section(reader, stage: ProjectStage, name: str | None) -> str:
+    """The folder files go into: the stage's own, or its section of that name."""
+    if name is None:
+        return stage.folder_id
+    if reader is None:
+        raise ApiError(409, ErrorCode.STAGE_HAS_NO_FOLDER)
+    for item in await _list(reader, stage.folder_id):
+        if item.is_folder and not _hidden(item) and item.name == name:
+            return item.id
+    raise ApiError(404, ErrorCode.FOLDER_NOT_FOUND)  # renamed or removed in Drive since
+
+
 async def _as_new_version(
     request: Request, db: AsyncSession, tenant: CurrentTenant, project: Project, position, key, name
 ) -> tuple[str, str]:
@@ -196,15 +225,16 @@ async def start_upload(
     project, stage, reader = await _stage_for_upload(
         request, db, tenant, project_id, position, body.row_version
     )
-    folder = stage.folder_id
     if body.version_of is not None:
         folder, name = await _as_new_version(
             request, db, tenant, project, position, body.version_of, name
         )
-    elif reader is not None:
+    else:
         try:
-            # Never joins a document by accident: that is what "yes" is for.
-            name = versions.apart(await _documents(reader, folder), name)
+            folder = await _section(reader, stage, body.folder)
+            if reader is not None:
+                # Never joins a document by accident: that is what "yes" is for.
+                name = versions.apart(await _documents(reader, folder), name)
         except StorageError as error:
             raise _listing_failed(error, tenant, project_id, position) from None
     maker, _root = await _folders(request, db)
@@ -247,6 +277,7 @@ async def start_upload(
 class CheckIn(BaseModel):
     row_version: int
     names: list[str] = Field(max_length=100)
+    folder: str | None = Field(default=None, max_length=255)  # a section, as for uploads
 
 
 class MatchOut(BaseModel):
@@ -284,7 +315,8 @@ async def check_upload(
     if reader is None:
         return CheckOut(matches=[])
     try:
-        documents = await _documents(reader, stage.folder_id)
+        folder = await _section(reader, stage, body.folder)
+        documents = await _documents(reader, folder)
     except StorageError as error:
         raise _listing_failed(error, tenant, project_id, position) from None
     matches = []
@@ -304,10 +336,66 @@ async def check_upload(
                     current_version=document.versions[0][0],
                     saved_as=saved_as,
                     next_version=versions.parse(saved_as).version,
-                    key=_file(request, project, document.current, position, stage.folder_id).key,
+                    key=_file(request, project, document.current, position, folder).key,
                 )
             )
     return CheckOut(matches=matches)
+
+
+class SectionIn(BaseModel):
+    row_version: int
+    name: str = Field(max_length=SECTION_NAME_MAX)
+
+
+@router.post(
+    "/api/projects/{project_id}/stages/{position}/folders",
+    status_code=204,
+    responses=documented(401, 404, 409, 422, 503),
+)
+async def create_section(
+    request: Request,
+    project_id: uuid.UUID,
+    position: int,
+    body: SectionIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """ "Nova seção": a subfolder of the stage's folder, which the page shows as a
+    titled group once it holds a file (staff see it at once, to send files in)."""
+    try:
+        name = _clean(body.name)
+    except ApiError:
+        raise ApiError(422, ErrorCode.INVALID_FOLDER_NAME) from None
+    _project, stage, reader = await _stage_for_upload(
+        request, db, tenant, project_id, position, body.row_version
+    )
+    if reader is None:
+        raise ApiError(409, ErrorCode.STAGE_HAS_NO_FOLDER)
+    try:
+        taken = {
+            i.name.casefold()
+            for i in await _list(reader, stage.folder_id)
+            if i.is_folder and not _hidden(i)
+        }
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project_id, position) from None
+    # Drive allows two of a name; on the page they would read as one section.
+    if name.casefold() in taken:
+        raise ApiError(409, ErrorCode.FOLDER_EXISTS)
+    maker, _root = await _folders(request, db)
+    try:
+        await maker.create_folder(name, stage.folder_id)
+    except ConnectError as error:
+        log.error(
+            "uploads: creating a section failed for %s/%s, stage %s: %s",
+            tenant.id,
+            project_id,
+            position,
+            error.detail,
+        )
+        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    return Response(status_code=204)
 
 
 class UploadFailedIn(BaseModel):
@@ -432,6 +520,7 @@ class MoveIn(BaseModel):
     # The page's: stages may have moved since it loaded (plan section 7).
     row_version: int
     position: int  # the stage it goes to, from 1
+    folder: str | None = Field(default=None, max_length=255)  # one of its sections, by name
 
 
 @router.post(
@@ -446,8 +535,9 @@ async def move_file(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """Into another stage's folder, at its top. The file keeps its identity, so
-    it is not "new" again and sends no email (A10)."""
+    """Into a stage's folder, at its top or into one of its sections (the same
+    stage's too). The file keeps its identity, so it is not "new" again and sends
+    no email (A10)."""
     project = await _readable(db, slug, staff, request)
     await _changeable(db, project.id)
     if project.row_version != body.row_version:
@@ -465,6 +555,7 @@ async def move_file(
     try:
         if stage.folder_id not in await _in_project(reader, project):
             raise ApiError(409, ErrorCode.STAGE_HAS_NO_FOLDER)  # moved out of the project in Drive
+        target = await _section(reader, stage, body.folder)
     except StorageError as error:
         log.error(
             "uploads: checking the stage folder failed for %s/%s, stage %s: %s %s",
@@ -479,7 +570,7 @@ async def move_file(
     try:
         if not await maker.can_rename(item.id):
             raise ApiError(409, ErrorCode.FILE_NOT_OURS_TO_MOVE)
-        await maker.move(item.id, stage.folder_id)
+        await maker.move(item.id, target)
     except ConnectError as error:
         log.error(
             "uploads: moving %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail

@@ -4554,6 +4554,99 @@
         }
       }
     },
+    "/api/projects/{project_id}/stages/{position}/folders": {
+      "post": {
+        "summary": "Create Section",
+        "description": "\"Nova seção\": a subfolder of the stage's folder, which the page shows as a\ntitled group once it holds a file (staff see it at once, to send files in).",
+        "operationId": "create_section_api_projects__project_id__stages__position__folders_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/stages/{position}/uploads/failed": {
       "post": {
         "summary": "Upload Failed",
@@ -4709,7 +4802,7 @@
     "/api/pages/{slug}/files/{key}/move": {
       "post": {
         "summary": "Move File",
-        "description": "Into another stage's folder, at its top. The file keeps its identity, so\nit is not \"new\" again and sends no email (A10).",
+        "description": "Into a stage's folder, at its top or into one of its sections (the same\nstage's too). The file keeps its identity, so it is not \"new\" again and sends\nno email (A10).",
         "operationId": "move_file_api_pages__slug__files__key__move_post",
         "parameters": [
           {
@@ -5269,6 +5362,18 @@
             "type": "array",
             "maxItems": 100,
             "title": "Names"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
           }
         },
         "type": "object",
@@ -5704,6 +5809,9 @@
           "invalid_file_name",
           "hidden_file_name",
           "stage_has_no_folder",
+          "invalid_folder_name",
+          "folder_exists",
+          "folder_not_found",
           "upload_failed",
           "file_not_ours",
           "file_not_ours_to_move",
@@ -7278,6 +7386,25 @@
         ],
         "title": "Role"
       },
+      "SectionIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "name"
+        ],
+        "title": "SectionIn"
+      },
       "ShareExpiry": {
         "type": "string",
         "enum": [
@@ -8054,6 +8181,18 @@
               }
             ],
             "title": "Version Of"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
           }
         },
         "type": "object",
@@ -8217,6 +8356,18 @@
           "position": {
             "type": "integer",
             "title": "Position"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
           }
         },
         "type": "object",

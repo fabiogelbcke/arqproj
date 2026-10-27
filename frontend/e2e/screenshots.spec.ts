@@ -244,7 +244,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("button", { name: "Ações para Plantas.pdf" }).click();
   await page.getByRole("menuitem", { name: /Enviar nova versão/ }).waitFor();
   await shoot(page, "06l-menu-do-arquivo"); // "Enviar nova versão" first (A25)
-  await page.getByRole("menuitem", { name: "Mover para outra etapa" }).click();
+  await page.getByRole("menuitem", { name: "Mover para…" }).click();
   await page.getByRole("menu", { name: /^Mover/ }).waitFor();
   await shoot(page, "06f-mover-arquivo");
   // A file named like one already in the stage: "É uma nova versão?" (A25). Closed

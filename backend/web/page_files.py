@@ -94,7 +94,9 @@ class FileOut(BaseModel):
 
 
 class GroupOut(BaseModel):
-    folder: str | None  # None: files directly in the stage's folder
+    # A section: a subfolder of the stage's folder, by its name; None: files
+    # directly in the stage's folder.
+    folder: str | None
     files: list[FileOut]
 
 
@@ -170,10 +172,14 @@ async def _in_project(storage, project: Project) -> set[str]:
     return {i.id for i in await _list(storage, project.folder_id) if i.is_folder}
 
 
-async def stage_groups(storage, folder: str) -> list[tuple[str | None, str, list[StorageItem]]]:
+async def stage_groups(
+    storage, folder: str, empty: bool = False
+) -> list[tuple[str | None, str, list[StorageItem]]]:
     """What the page shows of one stage folder: its own files, then each visible
     subfolder's (one level), as (group name or None, folder listed, files). The
-    maintenance scan reads the same, so it notices exactly what clients see."""
+    maintenance scan reads the same, so it notices exactly what clients see.
+    `empty`: subfolders with nothing to show too, for staff to send files into
+    a section they just made."""
     items = await _list(storage, folder)
     groups = []
     direct = [i for i in items if _showable(i)]
@@ -181,7 +187,7 @@ async def stage_groups(storage, folder: str) -> list[tuple[str | None, str, list
         groups.append((None, folder, direct))
     for sub in (i for i in items if i.is_folder and not _hidden(i)):
         inner = [i for i in await _list(storage, sub.id) if _showable(i)]
-        if inner:
+        if inner or empty:
             groups.append((sub.name, sub.id, inner))
     return groups
 
@@ -318,7 +324,10 @@ async def page_files(
             stages.append(shown)  # moved out of the project: nothing to show
             continue
         try:
-            for group, parent, files in await stage_groups(storage, folder):
+            # Staff see empty sections too, to send files into; clients never do.
+            for group, parent, files in await stage_groups(
+                storage, folder, empty=staff is not None
+            ):
                 documents = versions.group(files)
                 for document in documents:
                     for number, item in document.versions:

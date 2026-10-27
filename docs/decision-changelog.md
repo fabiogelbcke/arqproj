@@ -19,6 +19,24 @@ a new entry too.
 
 ---
 
+## 2026-10-26 — A31: sections in a stage, made from the page
+
+**Was:** a stage's subfolders were shown as titled groups (one level), but only
+folders made in Drive; creating folders belonged to an optional painel file
+manager (A24, section 24), not built for the pilot.
+
+**Now:** "Nova seção" in edit mode makes a subfolder of the stage's folder.
+Staff upload into it from its own drop area and move files into it ("Mover
+para…", within the same stage too). The page calls it a "seção", not a
+folder. An empty section shows only to staff. Sections are named by their
+name in requests, never by Drive id. Renaming and removing them stays in Drive.
+
+**Why:** Fabio, 26 Oct 2026: the reading side already supported subfolders, and
+offices group a stage's files (plans, renders) without leaving the site (A34).
+The full painel file manager is still not needed for that.
+
+---
+
 ## 2026-10-26 — A38/A39: on-demand file statistics and audited management
 
 **Was:** a read-only dashboard, followed by lifecycle actions and PostHog links.

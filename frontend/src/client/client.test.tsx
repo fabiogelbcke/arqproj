@@ -793,9 +793,28 @@ describe("edit mode", () => {
     // Only the stages the project doesn't have, then the custom one; no name field yet.
     await waitFor(() => expect([...list.options].map((o) => o.text)).toEqual(["Escolher…", "Projeto Legal", "Etapa personalizada…"]));
     expect(screen.queryByLabelText("Nome da etapa")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Adicionar" })).toBeNull(); // a built-in stage needs no button
     await userEvent.selectOptions(list, "Etapa personalizada…");
+    // "Adicionar" joins "Cancelar" at the bottom, and is off until the stage has a name.
+    const add = screen.getByRole("button", { name: "Adicionar" });
+    expect(add).toBeDisabled();
+    expect(add.parentElement).toBe(screen.getByRole("button", { name: "Cancelar" }).parentElement);
     await userEvent.type(screen.getByLabelText("Nome da etapa"), "Visita técnica");
-    await userEvent.click(screen.getByRole("button", { name: "Adicionar" }));
+    await userEvent.click(add);
+    await waitFor(() =>
+      expect(sent.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([{ row_version: 4, title: "Visita técnica" }]),
+    );
+  });
+
+  it("adds a custom stage on Enter in its name", async () => {
+    const { sent } = asStaff({
+      "GET /api/project-types": () => ({ body: { types: [], stages: [] } }),
+      "POST /api/projects/p-1/stages": () => ({ status: 204 }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "+ Adicionar etapa" }));
+    await userEvent.selectOptions(await screen.findByLabelText("Etapa"), "Etapa personalizada…");
+    await userEvent.type(screen.getByLabelText("Nome da etapa"), "Visita técnica{Enter}");
     await waitFor(() =>
       expect(sent.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([{ row_version: 4, title: "Visita técnica" }]),
     );
@@ -1671,7 +1690,7 @@ describe("edit mode", () => {
       const { sent } = asEditor({ "POST /api/pages/casa-jardim/files/k1/move": () => ({ status: 204 }) });
       await startEditing();
       await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
-      await userEvent.click(screen.getByRole("menuitem", { name: "Mover para outra etapa" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Mover para…" }));
       const stages = screen.getByRole("menu", { name: "Mover “Planta.pdf” para" });
       expect(within(stages).getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
         "01 Briefing",
@@ -1689,9 +1708,85 @@ describe("edit mode", () => {
       });
       await startEditing();
       await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
-      await userEvent.click(screen.getByRole("menuitem", { name: "Mover para outra etapa" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Mover para…" }));
       await userEvent.click(screen.getByRole("menuitem", { name: "01 Briefing" }));
       expect(await screen.findByText(/mova-o para a pasta da outra etapa/)).toBeInTheDocument();
+    });
+
+    // Levantamento with an empty section "Plantas", as staff are sent it (clients never are).
+    const withSection = () => {
+      const files = structuredClone(FILES);
+      files.stages[1]!.groups.push({ folder: "Plantas", files: [] } as never);
+      return files;
+    };
+
+    it("makes a section of a stage from its name", async () => {
+      const { sent } = asEditor({ "POST /api/projects/p-1/stages/2/folders": () => ({ status: 204 }) });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await userEvent.click(within(stage).getByRole("button", { name: "+ Nova seção" }));
+      await userEvent.type(within(stage).getByLabelText("Nome da seção"), " Plantas {Enter}");
+      expect(await screen.findByText("Seção “Plantas” criada.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/stages/2/folders"))?.body).toEqual({ row_version: 4, name: "Plantas" });
+      expect(within(stage).getByRole("button", { name: "+ Nova seção" })).toBeInTheDocument(); // closed again
+    });
+
+    it("refuses a section name the stage already has, before asking", async () => {
+      const { sent } = asEditor({ "GET /api/pages/casa-jardim/files": () => ({ body: withSection() }) });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await within(stage).findByRole("heading", { name: "Plantas" });
+      await userEvent.click(within(stage).getByRole("button", { name: "+ Nova seção" }));
+      await userEvent.type(within(stage).getByLabelText("Nome da seção"), "plantas");
+      expect(within(stage).getByText("Esta etapa já tem uma seção com esse nome.")).toBeInTheDocument();
+      expect(within(stage).getByRole("button", { name: "Adicionar" })).toBeDisabled();
+      await userEvent.keyboard("{Enter}");
+      expect(sent.some((r) => r.path.endsWith("/folders"))).toBe(false);
+    });
+
+    it("shows an empty section only in edit mode, with a drop area that sends into it", async () => {
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withSection() }),
+        "POST /api/projects/p-1/stages/2/uploads/check": () => ({ body: { matches: [] } }),
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+      });
+      const stage = await screen.findByRole("region", { name: "Levantamento" });
+      await within(stage).findByText("Planta.pdf");
+      expect(within(stage).queryByRole("heading", { name: "Plantas" })).toBeNull(); // as clients see it
+      await startEditing();
+      expect(await within(stage).findByRole("heading", { name: "Plantas" })).toBeInTheDocument();
+      expect(within(stage).getByText(/Nenhum arquivo nesta seção ainda/)).toBeInTheDocument();
+      await userEvent.upload(
+        within(stage).getByLabelText("Enviar arquivos para a seção Plantas"),
+        new File(["%PDF"], "Corte.pdf", { type: "application/pdf" }),
+      );
+      expect(await screen.findByText("Arquivo enviado.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/uploads/check"))?.body).toEqual({
+        row_version: 4,
+        names: ["Corte.pdf"],
+        folder: "Plantas",
+      });
+      expect(sent.find((r) => r.path.endsWith("/uploads"))?.body).toMatchObject({ name: "Corte.pdf", folder: "Plantas" });
+    });
+
+    it("moves a file into a section, its own stage's too", async () => {
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withSection() }),
+        "POST /api/pages/casa-jardim/files/k1/move": () => ({ status: 204 }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Mover para…" }));
+      const places = screen.getByRole("menu", { name: "Mover “Planta.pdf” para" });
+      expect(within(places).getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+        "01 Briefing",
+        "02 Levantamento › Plantas", // not "02 Levantamento": it's there now
+        "03 Estudo Preliminar",
+        "Voltar",
+      ]);
+      await userEvent.click(within(places).getByRole("menuitem", { name: "02 Levantamento › Plantas" }));
+      expect(await screen.findByText("“Planta.pdf” foi movido para Levantamento › Plantas.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/k1/move"))?.body).toEqual({ position: 2, row_version: 4, folder: "Plantas" });
     });
 
     it("makes an image the cover, and offers it only for images", async () => {

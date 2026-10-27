@@ -1,18 +1,22 @@
-// Edit mode: the prototype's drop area under each stage's files, and each file's
-// menu ("Enviar nova versão", "Ocultar do cliente"). Files go from the browser
+// Edit mode: the prototype's drop area under each stage's files (and each of its
+// sections'), "Nova seção", and each file's menu ("Enviar nova versão", "Mover
+// para…", "Ocultar do cliente"). A section is a subfolder of the stage's folder,
+// named by its name. Files go from the browser
 // straight to Drive (A31): the app opens the upload, the browser sends the bytes to
 // the address it gets. Versions come from the names (A25): a new version is saved
 // as the next "vN", which the app names.
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Dialog, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, type Schemas } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { capture } from "../posthog";
 import { Button } from "../ui/Button";
 import { errorMessage } from "../ui/ErrorNotice";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { MoreIcon } from "../ui/MoreIcon";
+import { TextInput } from "../ui/TextInput";
 import { toast, toastError } from "../ui/Toast";
 import styles from "../ui/ui.module.css";
 import { useDismiss } from "../ui/useDismiss";
@@ -121,13 +125,15 @@ export async function sendFile(
 const message = (failure: unknown) => errorMessage(failure, { max: UPLOAD_MAX_MB });
 
 /** Opens the upload and sends the file. `versionOf`: a file's key, to save this
- *  one as the next version of its document, in its folder. */
+ *  one as the next version of its document, in its folder; else `section`, the
+ *  stage's section it goes into (none: the stage's own folder). */
 async function uploadFile(
   staff: Staff,
   position: number,
   file: File,
   onProgress: (fraction: number) => void,
   versionOf?: string,
+  section?: string,
 ): Promise<void> {
   if (file.size > UPLOAD_MAX) throw new ApiError("file_too_large");
   const path = { project_id: staff.project_id, position };
@@ -139,7 +145,7 @@ async function uploadFile(
         name: file.name,
         size: file.size,
         mime_type: file.type,
-        ...(versionOf ? { version_of: versionOf } : {}),
+        ...(versionOf ? { version_of: versionOf } : section ? { folder: section } : {}),
       },
     }),
   );
@@ -201,19 +207,24 @@ function VersionQuestion({ match, onAnswer }: { match: Match; onAnswer: (answer:
 
 type Sending = { id: number; name: string; progress: number; failed?: string };
 
-/** "Solte arquivos aqui ou escolha no computador", and how each upload goes. */
+/** "Solte arquivos aqui ou escolha no computador", and how each upload goes.
+ *  With `section`, a smaller one under that section's files, sending into it. */
 export function StageDrop({
   staff,
   position,
   folder,
+  section,
   onChanged,
 }: {
   staff: Staff;
   position: number;
-  folder: string; // the stage folder's name, as staff know it in Drive
+  folder: string; // the folder's path, as staff know it in Drive
+  section?: string;
   onChanged: () => void;
 }) {
   const { t } = useTranslation();
+  const unique = useId();
+  const inputId = section ? `up-${position}${unique}` : `up-${position}`; // the stage's own keeps its id
   const [over, setOver] = useState(false);
   const chooser = useRef<HTMLInputElement>(null);
   const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
@@ -227,7 +238,7 @@ export function StageDrop({
     const id = (next.current += 1);
     setSending((all) => [...all, { id, name: file.name, progress: 0 }]);
     try {
-      await uploadFile(staff, position, file, (progress) => update(id, { progress }), versionOf);
+      await uploadFile(staff, position, file, (progress) => update(id, { progress }), versionOf, section);
       setSending((all) => all.filter((item) => item.id !== id));
       return true;
     } catch (failure) {
@@ -245,7 +256,7 @@ export function StageDrop({
       ? await call(
           api.POST("/api/projects/{project_id}/stages/{position}/uploads/check", {
             params: { path: { project_id: staff.project_id, position } },
-            body: { row_version: staff.row_version, names },
+            body: { row_version: staff.row_version, names, ...(section ? { folder: section } : {}) },
           }),
         )
       : { matches: [] };
@@ -285,8 +296,8 @@ export function StageDrop({
   return (
     <>
       <div
-        className={`drop${over ? " over" : ""}`}
-        data-tour="upload"
+        className={`drop${section ? " drop--section" : ""}${over ? " over" : ""}`}
+        data-tour={section ? undefined : "upload"}
         // A click anywhere in the area chooses files, not only on its link (whose
         // label opens the chooser itself).
         onClick={(event) => {
@@ -312,15 +323,16 @@ export function StageDrop({
         <input
           ref={chooser}
           type="file"
-          id={`up-${position}`}
+          id={inputId}
+          aria-label={section ? t("edit.sendToSection", { section }) : undefined}
           multiple
           onChange={(event) => {
             void upload([...(event.target.files ?? [])]);
             event.target.value = ""; // the same file can be chosen again
           }}
         />
-        <label htmlFor={`up-${position}`}>{touch ? t("edit.tapToChoose") : t("edit.chooseFiles")}</label>
-        <small>{t("edit.dropNote", { folder, max: UPLOAD_MAX_MB })}</small>
+        <label htmlFor={inputId}>{touch ? t("edit.tapToChoose") : t("edit.chooseFiles")}</label>
+        {!section && <small>{t("edit.dropNote", { folder, max: UPLOAD_MAX_MB })}</small>}
       </div>
       {sending.length > 0 && (
         <ul className="uploads" aria-live="polite">
@@ -339,11 +351,17 @@ export function StageDrop({
                   </button>
                 </>
               ) : (
-                <progress
-                  max={1}
-                  value={item.progress}
-                  aria-label={t("edit.sending", { name: item.name })}
-                />
+                <>
+                  <span className="uploads__percent" aria-hidden="true">
+                    {Math.round(item.progress * 100)}%
+                  </span>
+                  <progress
+                    className="upload-bar"
+                    max={1}
+                    value={item.progress}
+                    aria-label={t("edit.sending", { name: item.name })}
+                  />
+                </>
               )}
             </li>
           ))}
@@ -355,18 +373,22 @@ export function StageDrop({
 }
 
 /** The "⋯" on each file in edit mode: set as cover (images), move to another
- *  stage, hide from the client. Changes are made here, not in Drive (A34). */
+ *  stage or section, hide from the client. Changes are made here, not in Drive (A34). */
 export function FileMenu({
   slug,
   file,
   page,
   position,
+  folder = null,
+  sections = [],
   onChanged,
 }: {
   slug: string;
   file: FileItem;
   page: Page;
   position: number; // the stage it is in, from 1
+  folder?: string | null; // its section, if it's in one
+  sections?: string[][]; // each stage's sections, by the stage's index
   onChanged: () => void;
 }) {
   const { t } = useTranslation();
@@ -430,16 +452,33 @@ export function FileMenu({
         ),
       t("edit.coverSet", { name: file.name }),
     );
-  const move = (to: number) =>
+  // Every stage, and under each its sections, but not where the file is now.
+  const places = page.stages.flatMap((stage, i) => {
+    const title = `${String(i + 1).padStart(2, "0")} ${stage.title}`;
+    return [
+      { position: i + 1, section: null as string | null, label: title, done: stage.title },
+      ...(sections[i] ?? []).map((section) => ({
+        position: i + 1,
+        section,
+        label: `${title} › ${section}`,
+        done: `${stage.title} › ${section}`,
+      })),
+    ].filter((place) => place.position !== position || place.section !== folder);
+  });
+  const move = (to: (typeof places)[number]) =>
     act(
       () =>
         call(
           api.POST("/api/pages/{slug}/files/{key}/move", {
             params: { path },
-            body: { position: to, row_version: page.staff!.row_version },
+            body: {
+              position: to.position,
+              row_version: page.staff!.row_version,
+              ...(to.section ? { folder: to.section } : {}),
+            },
           }),
         ),
-      t("edit.fileMoved", { name: file.name, stage: page.stages[to - 1]!.title }),
+      t("edit.fileMoved", { name: file.name, stage: to.done }),
     );
   return (
     <div
@@ -471,7 +510,7 @@ export function FileMenu({
       />
       {sendingVersion !== null && (
         <progress
-          className="filemenu__progress"
+          className="upload-bar filemenu__progress"
           max={1}
           value={sendingVersion}
           aria-label={t("edit.sending", { name: file.name })}
@@ -504,7 +543,7 @@ export function FileMenu({
               {t("edit.setCover")}
             </button>
           )}
-          {page.stages.length > 1 && (
+          {places.length > 0 && (
             <button type="button" role="menuitem" disabled={busy} onClick={() => setOpen("move")}>
               {t("edit.moveFile")}
             </button>
@@ -518,13 +557,18 @@ export function FileMenu({
       )}
       {open === "move" && (
         <div className="menu__list" role="menu" aria-label={t("edit.moveFileTo", { name: file.name })}>
-          {page.stages.map((stage, i) =>
-            i + 1 === position ? null : (
-              <button key={i} type="button" role="menuitem" disabled={busy} onClick={() => void move(i + 1)}>
-                {`${String(i + 1).padStart(2, "0")} ${stage.title}`}
-              </button>
-            ),
-          )}
+          {places.map((place) => (
+            <button
+              key={`${place.position}/${place.section ?? ""}`}
+              type="button"
+              role="menuitem"
+              className={place.section ? "menu__sub" : undefined}
+              disabled={busy}
+              onClick={() => void move(place)}
+            >
+              {place.label}
+            </button>
+          ))}
           <hr />
           <button type="button" role="menuitem" disabled={busy} onClick={() => setOpen("menu")}>
             {t("edit.menuBack")}
@@ -544,5 +588,92 @@ export function FileMenu({
         />
       )}
     </div>
+  );
+}
+
+/** "Nova seção", under a stage's drop area: a titled group of the stage's files
+ *  (a subfolder of its folder in Drive). It shows at once in edit mode, with its
+ *  own drop area; clients see it once it holds a file. */
+export function AddSection({
+  staff,
+  position,
+  sections,
+  onChanged,
+}: {
+  staff: Staff;
+  position: number;
+  sections: string[]; // the stage's, to refuse a name it has before asking
+  onChanged: () => void;
+}) {
+  const { t } = useTranslation();
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const id = useId();
+  const taken = sections.some((section) => section.toLocaleLowerCase() === name.trim().toLocaleLowerCase());
+  const close = () => {
+    setNaming(false);
+    setName("");
+  };
+  const create = async () => {
+    setBusy(true);
+    try {
+      await call(
+        api.POST("/api/projects/{project_id}/stages/{position}/folders", {
+          params: { path: { project_id: staff.project_id, position } },
+          body: { row_version: staff.row_version, name: name.trim() },
+        }),
+      );
+      toast(t("edit.sectionAdded", { name: name.trim() }));
+      close();
+      onChanged(); // the page lists Drive again, with the new section
+    } catch (failure) {
+      toastError(failure);
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!naming)
+    return (
+      <button className="ghostline addsection" type="button" onClick={() => setNaming(true)}>
+        + {t("edit.addSection")}
+      </button>
+    );
+  return (
+    <form
+      className="addsection-form"
+      aria-label={t("edit.addSection")}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (name.trim() && !taken) void create();
+      }}
+      onKeyDown={(event) => event.key === "Escape" && close()}
+    >
+      <label htmlFor={id}>{t("edit.sectionName")}</label>
+      <TextInput
+        className="input"
+        id={id}
+        value={name}
+        maxLength={LIMITS.sectionName}
+        autoFocus
+        placeholder={t("edit.sectionPlaceholder")}
+        aria-invalid={taken || undefined}
+        aria-describedby={taken ? `${id}-taken` : undefined}
+        onChange={(event) => setName(event.target.value)}
+      />
+      {taken && (
+        <p className="addsection-form__error" id={`${id}-taken`}>
+          {t("errors.folder_exists")}
+        </p>
+      )}
+      <div className="addsection-form__actions">
+        <button className="b b--small" type="button" onClick={close}>
+          {t("projectSettings.cancel")}
+        </button>
+        <button className="b b--small b--primary" type="submit" disabled={busy || !name.trim() || taken}>
+          {t("edit.add")}
+        </button>
+      </div>
+    </form>
   );
 }

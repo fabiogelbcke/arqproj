@@ -5,6 +5,7 @@
   "description": 600,
   "stageTitle": 80,
   "stageNotes": 120,
+  "sectionName": 80,
   "detailText": 40,
   "meetingTitle": 40,
   "meetingLocation": 60,

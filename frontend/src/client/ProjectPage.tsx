@@ -43,6 +43,7 @@ const ReorderStages = lazy(() => import("./StageEditing").then((m) => ({ default
 const StageEditForm = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageEditForm })));
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
 const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
+const AddSection = lazy(() => import("./StageUploads").then((m) => ({ default: m.AddSection })));
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
 // "Compartilhar arquivos" (A37), loaded when it opens.
 const SharePanel = lazy(() => import("./SharePanel").then((m) => ({ default: m.SharePanel })));
@@ -178,6 +179,7 @@ function StageFilesList({
   slug,
   timeZone,
   fileMenu,
+  section,
   view,
   onOpen,
   empty,
@@ -186,7 +188,8 @@ function StageFilesList({
   reference: string | null;
   slug: string;
   timeZone: string;
-  fileMenu?: (file: FileItem) => ReactNode;
+  fileMenu?: (file: FileItem, folder: string | null) => ReactNode;
+  section?: (folder: string) => ReactNode; // edit mode: a section's drop area, under its files
   view: FileView;
   onOpen: (file: FileItem, folder: string | null) => void; // folder: its subfolder's name
   // No files yet: "done" (finished without any), "waiting" (they're still to
@@ -227,18 +230,24 @@ function StageFilesList({
       {files.groups.map((group) => (
         <div key={group.folder ?? ""} className="file-group">
           {group.folder && <h3 className="file-group__title">{group.folder}</h3>}
-          <div className="files" data-view={view}>
-            {group.files.map((file) => (
-              <FileCard
-                key={file.key}
-                file={file}
-                slug={slug}
-                timeZone={timeZone}
-                menu={fileMenu?.(file)}
-                onOpen={() => onOpen(file, group.folder ?? null)}
-              />
-            ))}
-          </div>
+          {group.files.length > 0 ? (
+            <div className="files" data-view={view}>
+              {group.files.map((file) => (
+                <FileCard
+                  key={file.key}
+                  file={file}
+                  slug={slug}
+                  timeZone={timeZone}
+                  menu={fileMenu?.(file, group.folder ?? null)}
+                  onOpen={() => onOpen(file, group.folder ?? null)}
+                />
+              ))}
+            </div>
+          ) : (
+            // Only in edit mode: clients never get an empty section.
+            <p className="file-group__empty">{t("edit.sectionEmpty")}</p>
+          )}
+          {group.folder && section?.(group.folder)}
         </div>
       ))}
     </>
@@ -555,6 +564,7 @@ function Stage({
   editor,
   uploads,
   fileMenu,
+  section,
   view = "grid",
   progress,
   hidden = false,
@@ -577,7 +587,8 @@ function Stage({
   // Edit mode: "Editar etapa" lays the stage out with its form's parts (StageEditParts).
   editor?: { editing: boolean; onEdit: () => void; form: (layout: (parts?: StageEditParts) => ReactNode) => ReactNode };
   uploads?: ReactNode; // edit mode: the drop area
-  fileMenu?: (file: FileItem) => ReactNode;
+  fileMenu?: (file: FileItem, folder: string | null) => ReactNode;
+  section?: (folder: string) => ReactNode; // edit mode: each section's drop area
   view?: FileView;
   progress?: ReactNode; // edit mode: "Marcar como concluída" or "Reabrir etapa"
   hidden?: boolean; // a search or filter found nothing here
@@ -726,6 +737,7 @@ function Stage({
             slug={slug}
             timeZone={page.timezone}
             fileMenu={fileMenu}
+            section={section}
             view={view}
             onOpen={onOpenFile}
             empty={editor ? null : state === "done" ? "done" : "waiting"}
@@ -926,9 +938,13 @@ export function ProjectPage({
   useEffect(() => setClosed(new Set()), [query, prefs.type]);
   const shown = page.stages.map((stage, i) => {
     const files = filesFor(stageFiles, i + 1).files;
-    return files ? shownFiles(files, stage.title, query, prefs) : { files: undefined, count: 0 };
+    return files ? shownFiles(files, stage.title, query, prefs, canEdit && !filtering) : { files: undefined, count: 0 };
   });
   const unreadable = (i: number) => Boolean(filesFor(stageFiles, i + 1).files?.unavailable);
+  // Each stage's sections (its subfolders), empty ones too: where "Mover para…" can put a file.
+  const sections = page.stages.map(
+    (_, i) => filesFor(stageFiles, i + 1).files?.groups.flatMap((g) => (g.folder ? [g.folder] : [])) ?? [],
+  );
   // The share panel: undefined while closed; null opened above the stages, or
   // the row of the stage it was opened from.
   const [shareFrom, setShareFrom] = useState<number | null | undefined>(undefined);
@@ -1204,14 +1220,40 @@ export function ProjectPage({
                     folder={`${pad(i + 1)} - ${page.stages[i]!.title}`}
                     onChanged={() => onChanged?.()}
                   />
+                  {!unreadable(i) && (
+                    <AddSection staff={staff!} position={i + 1} sections={sections[i]!} onChanged={() => onChanged?.()} />
+                  )}
                 </Suspense>
               ) : undefined
             }
+            section={
+              canEdit
+                ? (section) => (
+                    <Suspense fallback={null}>
+                      <StageDrop
+                        staff={staff!}
+                        position={i + 1}
+                        folder={`${pad(i + 1)} - ${page.stages[i]!.title}/${section}`}
+                        section={section}
+                        onChanged={() => onChanged?.()}
+                      />
+                    </Suspense>
+                  )
+                : undefined
+            }
             fileMenu={
               canEdit
-                ? (file) => (
+                ? (file, folder) => (
                     <Suspense fallback={null}>
-                      <FileMenu slug={slug} file={file} page={page} position={i + 1} onChanged={() => onChanged?.()} />
+                      <FileMenu
+                        slug={slug}
+                        file={file}
+                        page={page}
+                        position={i + 1}
+                        folder={folder}
+                        sections={sections}
+                        onChanged={() => onChanged?.()}
+                      />
                     </Suspense>
                   )
                 : undefined
