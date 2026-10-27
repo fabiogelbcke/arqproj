@@ -1721,14 +1721,24 @@ describe("edit mode", () => {
     };
 
     it("makes a section of a stage from its name", async () => {
-      const { sent } = asEditor({ "POST /api/projects/p-1/stages/2/folders": () => ({ status: 204 }) });
+      let made = false; // the next listing has it
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: made ? withSection() : FILES }),
+        "POST /api/projects/p-1/stages/2/folders": () => {
+          made = true;
+          return { status: 204 };
+        },
+      });
       await startEditing();
       const stage = screen.getByRole("region", { name: "Levantamento" });
-      await userEvent.click(within(stage).getByRole("button", { name: "+ Nova seção" }));
+      await userEvent.click(await within(stage).findByRole("button", { name: "+ Nova seção" }));
       await userEvent.type(within(stage).getByLabelText("Nome da seção"), " Plantas {Enter}");
       expect(await screen.findByText("Seção “Plantas” criada.")).toBeInTheDocument();
       expect(sent.find((r) => r.path.endsWith("/stages/2/folders"))?.body).toEqual({ row_version: 4, name: "Plantas" });
-      expect(within(stage).getByRole("button", { name: "+ Nova seção" })).toBeInTheDocument(); // closed again
+      expect(await within(stage).findByRole("heading", { name: "Plantas" })).toBeInTheDocument();
+      // Closed again, with no "already has one" for the section it just made.
+      expect(within(stage).getByRole("button", { name: "+ Nova seção" })).toBeInTheDocument();
+      expect(within(stage).queryByText("Esta etapa já tem uma seção com esse nome.")).toBeNull();
     });
 
     it("refuses a section name the stage already has, before asking", async () => {

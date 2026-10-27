@@ -300,7 +300,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.locator("#stage-2").getByRole("button", { name: "+ Nova seção" }).click();
   await page.locator("#stage-2").getByLabel("Nome da seção").fill("Plantas executivas");
   await page.keyboard.press("Enter");
-  await page.locator("#stage-2").getByRole("heading", { name: "Plantas executivas" }).waitFor();
+  await page.locator("#stage-2").getByRole("button", { name: "+ Nova seção" }).waitFor(); // saved
   await page.locator("#stage-2").getByRole("heading", { name: "Plantas executivas" }).scrollIntoViewIfNeeded();
   await shoot(page, "06s-nova-secao");
   // Reopening a stage says the client will be emailed (A32), as completing does.

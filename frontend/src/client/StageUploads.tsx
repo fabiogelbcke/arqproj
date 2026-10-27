@@ -610,7 +610,8 @@ export function AddSection({
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const id = useId();
-  const taken = sections.some((section) => section.toLocaleLowerCase() === name.trim().toLocaleLowerCase());
+  // Not while saving: the page may list the new section before the answer comes.
+  const taken = !busy && sections.some((section) => section.toLocaleLowerCase() === name.trim().toLocaleLowerCase());
   const close = () => {
     setNaming(false);
     setName("");
