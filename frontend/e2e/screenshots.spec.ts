@@ -388,7 +388,16 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.getByRole("table").waitFor();
   await shoot(page, "10b-operacao-escritorios");
+  await page.getByRole("button", { name: "Criar escritório", exact: true }).click();
+  await page.getByLabel("Nome do escritório").fill("Ateliê Horizonte");
+  await page.getByLabel("Endereço", { exact: true }).fill("horizonte.myunio.app");
+  await shoot(page, "10d-operacao-criar");
+  await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "Alinea (dev)" }).click();
   await page.getByRole("heading", { name: "Equipe" }).waitFor();
+  await page.getByRole("button", { name: "Carregar estatísticas de arquivos" }).click();
+  await page.getByText("PDF", { exact: true }).waitFor();
   await shoot(page, "10c-operacao-escritorio");
+  await page.getByRole("button", { name: "Suspender", exact: true }).click();
+  await shoot(page, "10e-operacao-suspender");
 });

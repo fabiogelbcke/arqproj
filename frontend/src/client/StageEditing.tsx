@@ -398,7 +398,12 @@ export function StageProgress({
         disabled={change.busy}
         onClick={() => setConfirming(true)}
       >
-        {completing ? t("edit.completeStage") : t("edit.reopenStage")}
+        {/* Both labels take the same place, the other one unseen, so the button is
+            as wide either way and the stages' buttons line up (Fabio, 26 Oct 2026). */}
+        <span className="stage-progress__label">{completing ? t("edit.completeStage") : t("edit.reopenStage")}</span>
+        <span className="stage-progress__label" aria-hidden="true">
+          {completing ? t("edit.reopenStage") : t("edit.completeStage")}
+        </span>
       </button>
       {confirming && (
         <ConfirmDialog

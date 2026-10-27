@@ -335,6 +335,8 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
   }
 }
 
-/* "Etapa personalizada…": its name takes the row, "Adicionar" beside it. */
-.client .add-stage__row { display: flex; align-items: center; gap: 8px; }
-.client .add-stage__row > :first-child { flex: 1; min-width: 0; }
+/* "Marcar como concluída" / "Reabrir etapa": both labels in one cell, the
+   unseen one only giving the width (StageProgress). */
+.client .stage-progress { display: inline-grid; align-content: center; justify-items: center; }
+.client .stage-progress__label { grid-area: 1 / 1; }
+.client .stage-progress__label[aria-hidden="true"] { visibility: hidden; }

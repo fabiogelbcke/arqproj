@@ -142,7 +142,6 @@ a.site__brand { color: inherit; text-decoration: none; }
 .client .stage .stage__name .stage-help-pop { left: 0; right: auto; }
 .add-stage { width: min(560px, 100%); }
 .add-stage .field > span { font-size: 14px; font-weight: 500; }
-.add-stage__row { display: flex; gap: 8px; }
 
 /* Edit mode: uploads under the drop area, one row each until it is sent (A31). */
 .uploads { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
