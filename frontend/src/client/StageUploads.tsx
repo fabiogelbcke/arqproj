@@ -653,11 +653,14 @@ export function AddSection({
       role="group"
       aria-label={t("edit.addSection")}
       onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== "Escape") return;
+        // Enter in the name creates it (and would otherwise submit the stage's
+        // form); on a button it presses that button, as anywhere.
+        const naming = event.key === "Enter" && event.target instanceof HTMLInputElement;
+        if (event.key !== "Escape" && !naming) return;
         event.preventDefault();
         event.stopPropagation();
-        if (event.key === "Escape") close();
-        else if (event.target instanceof HTMLInputElement) submit();
+        if (naming) submit();
+        else close();
       }}
     >
       <label htmlFor={id}>{t("edit.sectionName")}</label>

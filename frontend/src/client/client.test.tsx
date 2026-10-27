@@ -1759,6 +1759,22 @@ describe("edit mode", () => {
       expect(within(stage).getByRole("button", { name: "+ Nova seção" })).toBeInTheDocument();
     });
 
+    it("lets the section box's buttons work from the keyboard", async () => {
+      const { sent } = asEditor({ "POST /api/projects/p-1/stages/2/folders": () => ({ status: 204 }) });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await userEvent.click(await within(stage).findByRole("button", { name: "+ Nova seção" }));
+      await userEvent.type(within(stage).getByLabelText("Nome da seção"), "Plantas");
+      within(stage).getByRole("button", { name: "Adicionar" }).focus();
+      await userEvent.keyboard("{Enter}");
+      expect(await screen.findByText("Seção “Plantas” criada.")).toBeInTheDocument();
+      expect(sent.filter((r) => r.path.endsWith("/folders"))).toHaveLength(1);
+      await userEvent.click(within(stage).getByRole("button", { name: "+ Nova seção" }));
+      within(stage).getByRole("button", { name: "Cancelar" }).focus();
+      await userEvent.keyboard("{Enter}");
+      expect(within(stage).getByRole("button", { name: "+ Nova seção" })).toBeInTheDocument();
+    });
+
     it("refuses a section name the stage already has, before asking", async () => {
       const { sent } = asEditor({ "GET /api/pages/casa-jardim/files": () => ({ body: withSection() }) });
       await startEditing();
