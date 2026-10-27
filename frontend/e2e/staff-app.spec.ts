@@ -1009,10 +1009,11 @@ test("an operator manages a fictional office with confirmation", async ({ page }
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.getByRole("button", { name: "Criar escritório", exact: true }).click();
   await page.getByLabel("Nome do escritório", { exact: true }).fill("Ateliê Horizonte");
-  await page.getByLabel(/Identificador/).fill("horizonte-teste");
-  await page.getByLabel(/Endereço \(sem/).fill("horizonte-teste.localhost");
+  await page.getByLabel("Endereço", { exact: true }).fill("horizonte-teste.localhost");
+  await expect(page.getByLabel("Identificador", { exact: true })).toHaveValue("horizonte-teste");
   await page.getByRole("button", { name: "Criar e gerar convite do responsável" }).click();
   await expect(page.getByLabel("Link de cadastro do responsável")).toHaveValue(/#token=/);
+  await page.getByRole("button", { name: "Concluir", exact: true }).click();
   await page.getByRole("link", { name: "Ateliê Horizonte" }).click();
   await page.getByRole("button", { name: "Suspender", exact: true }).click();
   await page.getByRole("button", { name: "Confirmar", exact: true }).click();

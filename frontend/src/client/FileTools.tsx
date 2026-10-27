@@ -99,12 +99,14 @@ export function sortFiles(files: FileItem[], sort: FileSort): FileItem[] {
 }
 
 /** A stage's files that match the search (a file's name or the stage's title) and
- *  the type, each group sorted; with how many matched. */
+ *  the type, each group sorted; with how many matched. `sections`: keep the
+ *  groups left empty too (edit mode, unfiltered: an empty section to send files into). */
 export function shownFiles(
   files: StageFiles,
   stageTitle: string,
   query: string,
   prefs: Prefs,
+  sections = false,
 ): { files: StageFiles; count: number } {
   const wanted = normalize(query.trim());
   let count = 0;
@@ -118,7 +120,7 @@ export function shownFiles(
       count += kept.length;
       return { ...group, files: sortFiles(kept, prefs.sort) };
     })
-    .filter((group) => group.files.length > 0);
+    .filter((group) => group.files.length > 0 || (sections && group.folder));
   return { files: { ...files, groups }, count };
 }
 

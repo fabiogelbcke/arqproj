@@ -8,12 +8,15 @@ import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { Button } from "../ui/Button";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { InfoTip } from "../ui/InfoTip";
+import { Panel } from "../ui/Panel";
 import { TextField } from "../ui/TextField";
+import { Toaster } from "../ui/Toast";
 import { UnioMark } from "../ui/UnioMark";
 import { officeErrorsUrl, SUPPORT_CODE, supportCodeUrl, type LogsTarget } from "./logs";
 import styles from "./admin.module.css";
 import { CreateTenant, TenantActions } from "./Actions";
-import { AnalyticsLink, Usage } from "./Usage";
+import { AnalyticsLink, FileStatistics, Usage } from "./Usage";
 
 type Operator = Schemas["OperatorOut"];
 type Office = Schemas["AdminOfficeOut"];
@@ -117,7 +120,7 @@ function Layout({ me }: { me: Operator }) {
           <UnioMark className={styles.barMark} />
           <span>{t("admin.title")}</span>
         </Link>
-        <span className={styles.muted}>{me.email}</span>
+        <span className={styles.operatorEmail}>{me.email}</span>
         <Button size="small" variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
           {t("nav.signOut")}
         </Button>
@@ -126,6 +129,7 @@ function Layout({ me }: { me: Operator }) {
         <ErrorNotice error={signOut.error} />
         <Outlet context={me} />
       </main>
+      <Toaster />
     </>
   );
 }
@@ -137,7 +141,7 @@ function SupportLookup({ me }: { me: Operator }) {
   const logs = target(me);
   const valid = SUPPORT_CODE.test(code.trim());
   return (
-    <section className={styles.panel} aria-labelledby="support">
+    <Panel aria-labelledby="support">
       <h2 id="support">{t("admin.support")}</h2>
       <p className={styles.muted}>{t("admin.supportIntro")}</p>
       <Form
@@ -158,7 +162,7 @@ function SupportLookup({ me }: { me: Operator }) {
         </Button>
       </Form>
       {!logs && <p className={styles.muted}>{t("admin.logsOnlyDeployed")}</p>}
-    </section>
+    </Panel>
   );
 }
 
@@ -183,13 +187,17 @@ function Offices() {
   const offices = useQuery({ queryKey: ["admin", "offices"], queryFn: () => call(api.GET("/api/admin/offices")) });
   return (
     <>
-      <div className={styles.head}>
-        <h1>{t("admin.offices")}</h1>
-        {offices.data && <span className={styles.count}>{offices.data.length}</span>}
-      </div>
-      {me?.actions_enabled && <CreateTenant />}
-      <AnalyticsLink />
-      {me && <SupportLookup me={me} />}
+      <header className={styles.pageHead}>
+        <div className={styles.head}>
+          <h1>{t("admin.offices")}</h1>
+          {offices.data && <span className={styles.count}>{offices.data.length}</span>}
+        </div>
+        <div className={styles.headActions}>
+          <AnalyticsLink />
+          {me?.actions_enabled && <CreateTenant />}
+        </div>
+      </header>
+      {offices.isPending && <p className={styles.muted}>{t("app.loading")}</p>}
       <ErrorNotice error={offices.error} />
       {offices.data && (
         <div className={styles.tableWrap}>
@@ -243,11 +251,12 @@ function Offices() {
           </table>
         </div>
       )}
+      {me && <SupportLookup me={me} />}
     </>
   );
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+function Fact({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className={styles.fact}>
       <dt>{label}</dt>
@@ -273,27 +282,37 @@ function OfficePage() {
       <Link to="/" className={styles.back}>
         ← {t("admin.offices")}
       </Link>
-      <div className={styles.head}>
-        <h1>{o.name}</h1>
-        <span className={styles.state} data-state={o.status}>
-          {t(`admin.status.${o.status}`)}
-        </span>
-      </div>
-      <p className={styles.hosts}>
-        {o.hosts.map((host) => (
-          <a key={host} href={`https://${host}/painel/`} target="_blank" rel="noreferrer">
-            {host}
-          </a>
-        ))}
-      </p>
+      <header className={styles.pageHead}>
+        <div className={styles.titleBlock}>
+          <div className={styles.head}>
+            <h1>{o.name}</h1>
+            <span className={styles.state} data-state={o.status}>
+              {t(`admin.status.${o.status}`)}
+            </span>
+          </div>
+          <p className={styles.hosts}>
+            {o.hosts.map((host) => (
+              <a key={host} href={`https://${host}/painel/`} target="_blank" rel="noreferrer">
+                {host}
+              </a>
+            ))}
+          </p>
+        </div>
+        <div className={styles.headActions}>
+          <AnalyticsLink slug={o.slug} />
+          {me?.actions_enabled && <TenantActions key={o.id} office={o} />}
+        </div>
+      </header>
       <dl className={styles.facts}>
         <Fact label={t("admin.created")}>{date(o.created_at, i18n.language)}</Fact>
         <Fact label={t("admin.team")}>
           {t("admin.teamCount", { count: o.staff })} · {t("admin.owners", { count: o.owners })}
         </Fact>
         <Fact label={t("admin.projects")}>
-          {t("admin.activeCount", { count: o.projects.active ?? 0 })} ·{" "}
-          {t("admin.otherProjects", { completed: o.projects.completed ?? 0, archived: o.projects.archived ?? 0 })}
+          {t("admin.activeCount", { count: o.projects.active ?? 0 })}
+          <span className={styles.muted}>
+            {t("admin.otherProjects", { completed: o.projects.completed ?? 0, archived: o.projects.archived ?? 0 })}
+          </span>
         </Fact>
         <Fact label={t("admin.storageTitle")}>
           <StorageState office={o} />
@@ -301,23 +320,18 @@ function OfficePage() {
         </Fact>
         <Fact label={t("admin.lastActivity")}>{dateTime(o.last_activity_at, i18n.language)}</Fact>
         <Fact label={t("admin.emails")}>{o.emails_sent}</Fact>
-        <Fact label={t("admin.links")}>
+        <Fact
+          label={
+            <>
+              {t("admin.links")} <InfoTip label={t("admin.aboutDownloads")}>{t("admin.downloadMeaning")}</InfoTip>
+            </>
+          }
+        >
           {o.share_links} · {t("admin.downloads", { count: o.downloads })}
+          {o.link_statuses && <span className={styles.muted}>{t("admin.linkStates", { ...o.link_statuses })}</span>}
         </Fact>
       </dl>
-      <Usage key={o.slug} office={o} />
-      {me?.actions_enabled && <TenantActions key={o.id} office={o} />}
-      <section className={styles.panel} aria-labelledby="errors">
-        <h2 id="errors">{t("admin.errors")}</h2>
-        {logs ? (
-          <a href={officeErrorsUrl(logs, o)} target="_blank" rel="noreferrer">
-            {t("admin.errorsOpen")}
-          </a>
-        ) : (
-          <p className={styles.muted}>{t("admin.logsOnlyDeployed")}</p>
-        )}
-      </section>
-      <section aria-labelledby="team">
+      <Panel aria-labelledby="team">
         <h2 id="team">{t("admin.team")}</h2>
         {o.team.length === 0 && <p className={styles.muted}>{t("admin.noTeam")}</p>}
         <div className={styles.tableWrap} hidden={o.team.length === 0}>
@@ -345,7 +359,19 @@ function OfficePage() {
             </tbody>
           </table>
         </div>
-      </section>
+      </Panel>
+      <Usage key={o.slug} office={o} />
+      <FileStatistics key={`files-${o.slug}`} office={o} />
+      <Panel aria-labelledby="errors">
+        <h2 id="errors">{t("admin.errors")}</h2>
+        {logs ? (
+          <a href={officeErrorsUrl(logs, o)} target="_blank" rel="noreferrer">
+            {t("admin.errorsOpen")}
+          </a>
+        ) : (
+          <p className={styles.muted}>{t("admin.logsOnlyDeployed")}</p>
+        )}
+      </Panel>
     </>
   );
 }

@@ -335,6 +335,41 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
   }
 }
 
-/* "Etapa personalizada…": its name takes the row, "Adicionar" beside it. */
-.client .add-stage__row { display: flex; align-items: center; gap: 8px; }
-.client .add-stage__row > :first-child { flex: 1; min-width: 0; }
+/* "Marcar como concluída" / "Reabrir etapa": both labels in one cell, the
+   unseen one only giving the width (StageProgress). */
+.client .stage-progress { display: inline-grid; align-content: center; justify-items: center; }
+.client .stage-progress__label { grid-area: 1 / 1; }
+.client .stage-progress__label[aria-hidden="true"] { visibility: hidden; }
+
+/* Sections (a stage's subfolders): each a box of its own that folds from its
+   title, with its drop area inside in edit mode; the stage's own drop area and
+   "Nova seção" come after them (StageUploads). The box takes its shades from
+   the text colour, so it reads on the dark current stage too. */
+.client .file-section {
+  margin-top: 18px; padding: 0 16px; border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: var(--r-card); background: color-mix(in srgb, currentColor 3%, transparent);
+}
+.client .file-section[open] { padding-bottom: 16px; }
+.client .file-section__head {
+  display: flex; align-items: center; gap: 10px; padding: 14px 0; cursor: pointer; list-style: none;
+}
+.client .file-section__head::-webkit-details-marker { display: none; }
+.client .file-section__head > svg { flex: none; width: 18px; height: 18px; opacity: .7; }
+.client .file-section .file-group__title {
+  margin: 0; font-size: var(--text-sm); font-weight: 500; letter-spacing: normal; text-transform: none; color: inherit;
+}
+.client .file-section__count { font-size: var(--text-xs); opacity: .65; }
+.client .file-section__head > :last-child { margin-left: auto; transition: transform .2s ease; }
+.client .file-section:not([open]) .file-section__head > :last-child { transform: rotate(-90deg); }
+.client .file-section .files { margin-top: 0; }
+.client .drop--section { min-height: 64px; margin-top: 12px; padding: 10px 14px; font-size: var(--text-sm); }
+.client .file-group__empty { margin: 0; font-size: var(--text-xs); opacity: .7; }
+.client .addsection { margin-top: 12px; }
+.client .addsection-form {
+  display: grid; gap: 8px; max-width: 420px; margin-top: 14px; padding: 14px; border: 1px solid var(--line);
+  border-radius: var(--r-card); background: var(--raise); color: var(--ink);
+}
+.client .addsection-form label { font-size: var(--text-sm); font-weight: 500; }
+.client .addsection-form__error { margin: 0; font-size: var(--text-xs); color: var(--danger, #9b3d1d); }
+.client .addsection-form__actions { display: flex; justify-content: flex-end; gap: 8px; }
+.client .menu__list .menu__sub { padding-left: 26px; }

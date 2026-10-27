@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "../test/render";
+import { hostOf, slugFromHost } from "./Actions";
 import { adminRoutes } from "./AdminApp";
 import { officeErrorsUrl, supportCodeUrl } from "./logs";
 
@@ -181,10 +182,10 @@ describe("usage additions", () => {
     renderAt("/escritorios/alinea");
     const load = await screen.findByRole("button", { name: "Carregar estatísticas de arquivos" });
     expect(sent.some(r => r.path.endsWith("file-statistics"))).toBe(false);
-    expect(screen.getByText("Links: 1 ativos · 1 expirados · 1 desativados")).toBeInTheDocument();
+    expect(screen.getByText("1 ativos · 1 expirados · 1 desativados")).toBeInTheDocument();
     await userEvent.click(load);
     expect(await screen.findByText("PDF")).toBeInTheDocument();
-    expect(screen.getByText(/4 arquivos · 1 KiB conhecidos/)).toBeInTheDocument();
+    expect(screen.getByText("3 de 7")).toBeInTheDocument(); // projects with files
     expect(sent.find(r => r.path.endsWith("file-statistics"))?.headers.get("X-CSRF-Token")).toBe("csrf-9");
     const url = new URL(screen.getByRole("link", { name: "Ver este escritório no PostHog" }).getAttribute("href")!);
     expect(JSON.parse(url.searchParams.get("properties")!)).toEqual([{ key: "tenant", value: ["alinea"], operator: "exact", type: "event" }]);
@@ -209,5 +210,66 @@ describe("usage additions", () => {
     await userEvent.click(confirm);
     await vi.waitFor(() => expect(sent.some(r => r.path.endsWith("/actions"))).toBe(true));
     expect(sent.find(r => r.path.endsWith("/actions"))?.headers.get("X-CSRF-Token")).toBe("csrf-9");
+  });
+});
+
+describe("creating an office", () => {
+  it("suggests the identifier from the address until it is edited", () => {
+    expect(slugFromHost("alinea.myunio.app")).toBe("alinea");
+    expect(slugFromHost(" https://Casa-Norte.myunio.app/painel ")).toBe("casa-norte");
+    expect(slugFromHost("-x_y-.example.com")).toBe("xy");
+    expect(slugFromHost("")).toBe("");
+    expect(hostOf("HTTPS://Alinea.MyUnio.app/")).toBe("alinea.myunio.app");
+  });
+
+  it("creates in a dialog and shows the owner's link to copy", async () => {
+    const sent = fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+      "POST /api/admin/offices": () => ({ body: { owner_url: "https://horizonte.myunio.app/painel/entrar-na-equipe#token=abc" } }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Criar escritório" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText("Nome do escritório"), "Ateliê Horizonte");
+    await userEvent.type(within(dialog).getByLabelText("Endereço"), "https://Horizonte.myunio.app");
+    const slug = within(dialog).getByLabelText("Identificador");
+    expect(slug).toHaveValue("horizonte");
+    await userEvent.clear(slug);
+    await userEvent.type(slug, "horizonte-sp");
+    await userEvent.type(within(dialog).getByLabelText("Endereço"), "x"); // no longer follows the address
+    expect(slug).toHaveValue("horizonte-sp");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e gerar convite do responsável" }));
+    expect(await within(dialog).findByLabelText("Link de cadastro do responsável")).toHaveValue("https://horizonte.myunio.app/painel/entrar-na-equipe#token=abc");
+    expect(sent.find((r) => r.path === "/api/admin/offices" && r.method === "POST")?.body).toEqual({ name: "Ateliê Horizonte", slug: "horizonte-sp", hostname: "horizonte.myunio.appx" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Concluir" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("stays open while creating, so the owner link is not lost", async () => {
+    fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+      "POST /api/admin/offices": () => ({ body: { owner_url: "https://horizonte.myunio.app/painel/entrar-na-equipe#token=abc" } }),
+    });
+    let answer!: () => void;
+    const held = new Promise<void>((resolve) => (answer = resolve));
+    const fake = globalThis.fetch;
+    vi.stubGlobal("fetch", async (input: Request) => {
+      if (input.method === "POST" && new URL(input.url).pathname === "/api/admin/offices") await held;
+      return fake(input);
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Criar escritório" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText("Nome do escritório"), "Ateliê Horizonte");
+    await userEvent.type(within(dialog).getByLabelText("Endereço"), "horizonte.myunio.app");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e gerar convite do responsável" }));
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    answer();
+    expect(await within(dialog).findByLabelText("Link de cadastro do responsável")).toHaveValue("https://horizonte.myunio.app/painel/entrar-na-equipe#token=abc");
+    vi.unstubAllGlobals();
   });
 });

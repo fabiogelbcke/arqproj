@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -53,6 +54,9 @@ def _sample_files() -> None:
     root = os.environ.get("LOCAL_STORAGE_ROOT")
     if not root or "e2e" not in root:  # never the developer's own dataset
         return
+    # Fresh, like the database: files and sections an earlier run made would
+    # show in the screenshots and clash with this run's.
+    shutil.rmtree(root, ignore_errors=True)
     for name, content in SAMPLE_FILES.items():
         path = Path(root) / name
         path.parent.mkdir(parents=True, exist_ok=True)

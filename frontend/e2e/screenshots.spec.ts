@@ -244,7 +244,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("button", { name: "Ações para Plantas.pdf" }).click();
   await page.getByRole("menuitem", { name: /Enviar nova versão/ }).waitFor();
   await shoot(page, "06l-menu-do-arquivo"); // "Enviar nova versão" first (A25)
-  await page.getByRole("menuitem", { name: "Mover para outra etapa" }).click();
+  await page.getByRole("menuitem", { name: "Mover para…" }).click();
   await page.getByRole("menu", { name: /^Mover/ }).waitFor();
   await shoot(page, "06f-mover-arquivo");
   // A file named like one already in the stage: "É uma nova versão?" (A25). Closed
@@ -285,6 +285,24 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.locator(".stage-order__row").nth(1).hover();
   await shoot(page, "06q-reordenar-etapas");
   await page.keyboard.press("Escape");
+  // "Adicionar etapa", naming one of the office's own: Adicionar beside Cancelar.
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: "+ Adicionar etapa" }).click();
+  await page.locator(".add-stage select").selectOption({ label: "Etapa personalizada…" });
+  await page.getByLabel("Nome da etapa").fill("Visita técnica");
+  await page.locator(".add-stage").scrollIntoViewIfNeeded();
+  await shoot(page, "06r-adicionar-etapa");
+  await page.locator(".add-stage").getByRole("button", { name: "Cancelar" }).click();
+  // A stage's sections: a new one, empty, with its own drop area (staff only).
+  const closed = page.locator("#stage-2").getByRole("button", { name: /^Abrir etapa/ });
+  if (await closed.count()) await closed.click();
+  await page.locator("#stage-2").getByRole("button", { name: "+ Nova seção" }).click();
+  await page.locator("#stage-2").getByLabel("Nome da seção").fill("Plantas executivas");
+  await page.keyboard.press("Enter");
+  await page.locator("#stage-2").getByRole("button", { name: "+ Nova seção" }).waitFor(); // saved
+  await page.locator("#stage-2").getByRole("heading", { name: "Plantas executivas" }).scrollIntoViewIfNeeded();
+  await shoot(page, "06s-nova-secao");
   // Reopening a stage says the client will be emailed (A32), as completing does.
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
@@ -388,7 +406,16 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.getByRole("table").waitFor();
   await shoot(page, "10b-operacao-escritorios");
+  await page.getByRole("button", { name: "Criar escritório", exact: true }).click();
+  await page.getByLabel("Nome do escritório").fill("Ateliê Horizonte");
+  await page.getByLabel("Endereço", { exact: true }).fill("horizonte.myunio.app");
+  await shoot(page, "10d-operacao-criar");
+  await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "Alinea (dev)" }).click();
   await page.getByRole("heading", { name: "Equipe" }).waitFor();
+  await page.getByRole("button", { name: "Carregar estatísticas de arquivos" }).click();
+  await page.getByText("PDF", { exact: true }).waitFor();
   await shoot(page, "10c-operacao-escritorio");
+  await page.getByRole("button", { name: "Suspender", exact: true }).click();
+  await shoot(page, "10e-operacao-suspender");
 });

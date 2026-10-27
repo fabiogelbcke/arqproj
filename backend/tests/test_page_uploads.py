@@ -8,6 +8,7 @@ from backend.projects import creation
 from backend.storage.google_connect import ConnectError, ConnectProblem
 from backend.tests import test_office
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as
+from backend.tests.test_page_access import Roles
 from backend.web import page_uploads
 
 owner = test_office.owner  # fixtures
@@ -511,3 +512,141 @@ async def test_a_name_with_an_invisible_space_is_still_seen_as_a_new_version(
     await send(client, first)
     response = await check(client, owner, [SCREENSHOT])
     assert [m["name"] for m in response.json()["matches"]] == [SCREENSHOT]
+
+
+# -- Seções: subfolders of a stage ------------------------------------------------------
+
+
+async def new_section(client, headers, name="Plantas", stage=1, row_version=None):
+    staff = await staff_of(client)
+    return await client.post(
+        f"/api/projects/{staff['project_id']}/stages/{stage}/folders",
+        json={"row_version": staff["row_version"] if row_version is None else row_version}
+        | {"name": name},
+        headers=headers,
+    )
+
+
+async def groups_seen(client, position=1):
+    stages = (await client.get("/api/pages/casa-jardim/files", headers=ALINEA)).json()["stages"]
+    return [(g["folder"], [f["name"] for f in g["files"]]) for g in stages[position - 1]["groups"]]
+
+
+async def test_a_new_section_is_a_subfolder_staff_see_at_once_and_clients_once_it_has_files(
+    client, owner, folders
+):
+    roles = Roles(client)
+    response = await new_section(client, owner)
+    assert response.status_code == 204, response.text
+    assert (folders / "01 - Briefing" / "Plantas").is_dir()
+    assert await groups_seen(client) == [(None, ["Programa.pdf"]), ("Plantas", [])]
+    roles.visitor()
+    assert await groups_seen(client) == [(None, ["Programa.pdf"])]  # nothing to show yet
+    roles.staff()
+    await send(client, await start(client, owner, folder="Plantas"))
+    assert (folders / "01 - Briefing" / "Plantas" / "Planta baixa.pdf").read_bytes() == PDF
+    roles.visitor()
+    assert await groups_seen(client) == [
+        (None, ["Programa.pdf"]),
+        ("Plantas", ["Planta baixa.pdf"]),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("name", "error"),
+    [(" \t ", "invalid_folder_name"), ("_Rascunhos", "invalid_folder_name")],
+)
+async def test_a_section_needs_a_name_the_page_would_show(client, owner, folders, name, error):
+    response = await new_section(client, owner, name=name)
+    assert (response.status_code, response.json()["error"]) == (422, error)
+    assert [p.name for p in (folders / "01 - Briefing").iterdir()] == ["Programa.pdf"]
+
+
+async def test_a_second_section_of_the_same_name_is_refused(client, owner, folders):
+    (folders / "01 - Briefing" / "Plantas").mkdir()
+    response = await new_section(client, owner, name="plantas")
+    assert (response.status_code, response.json()["error"]) == (409, "folder_exists")
+    assert not (folders / "01 - Briefing" / "plantas (2)").exists()
+
+
+async def test_a_section_after_stages_changed_is_refused(client, owner, folders):
+    stale = (await staff_of(client))["row_version"] - 1
+    response = await new_section(client, owner, row_version=stale)
+    assert (response.status_code, response.json()["error"]) == (409, "project_changed")
+
+
+async def test_only_staff_of_the_office_make_sections(client, db_session, owner, folders):
+    staff = await staff_of(client)
+    url = f"/api/projects/{staff['project_id']}/stages/1/folders"
+    body = {"row_version": staff["row_version"], "name": "Plantas"}
+    assert (await client.post(url, json=body, headers=ALINEA)).status_code in (401, 403)
+    norte = await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
+    response = await client.post(url, json=body, headers=norte)
+    assert (response.status_code, response.json()["error"]) == (404, "project_not_found")
+    assert not (folders / "01 - Briefing" / "Plantas").exists()
+
+
+async def test_an_upload_into_a_section_gone_from_drive_is_refused(client, owner, folders):
+    await new_section(client, owner)
+    (folders / "01 - Briefing" / "Plantas").rmdir()
+    response = await start(client, owner, folder="Plantas")
+    assert (response.status_code, response.json()["error"]) == (404, "folder_not_found")
+
+
+async def test_a_hidden_subfolder_is_never_a_section(client, owner, folders):
+    (folders / "01 - Briefing" / "_Interno").mkdir()
+    response = await start(client, owner, folder="_Interno")
+    assert (response.status_code, response.json()["error"]) == (404, "folder_not_found")
+    assert not (folders / "01 - Briefing" / "_Interno" / "Planta baixa.pdf").exists()
+
+
+async def test_the_check_looks_for_new_versions_in_the_section_named(client, owner, folders):
+    await new_section(client, owner)
+    (folders / "01 - Briefing" / "Plantas" / "Planta v2.pdf").write_bytes(PDF)
+    staff = await staff_of(client)
+    url = f"/api/projects/{staff['project_id']}/stages/1/uploads/check"
+    body = {"row_version": staff["row_version"], "names": ["Planta.pdf", "Programa.pdf"]}
+    inside = await client.post(url, json=body | {"folder": "Plantas"}, headers=owner)
+    assert [m["document"] for m in inside.json()["matches"]] == ["Planta.pdf"]
+    top = await client.post(url, json=body, headers=owner)
+    assert [m["document"] for m in top.json()["matches"]] == ["Programa.pdf"]
+    # Its key makes the upload the next version there.
+    await send(client, await start(client, owner, version_of=inside.json()["matches"][0]["key"]))
+    assert (folders / "01 - Briefing" / "Plantas" / "Planta v3.pdf").exists()
+
+
+async def test_a_file_moves_into_a_section_of_its_own_stage_and_back_out(client, owner, folders):
+    await new_section(client, owner)
+    staff = await staff_of(client)
+    url = f"/api/pages/casa-jardim/files/{await file_key(client)}/move"
+    body = {"position": 1, "row_version": staff["row_version"]}
+    assert (
+        await client.post(url, json=body | {"folder": "Plantas"}, headers=owner)
+    ).status_code == 204
+    assert await groups_seen(client) == [("Plantas", ["Programa.pdf"])]
+    url = f"/api/pages/casa-jardim/files/{await file_key(client)}/move"
+    assert (await client.post(url, json=body, headers=owner)).status_code == 204
+    assert await groups_seen(client) == [(None, ["Programa.pdf"]), ("Plantas", [])]
+
+
+async def test_a_file_moves_into_another_stages_section(client, owner, folders):
+    await new_section(client, owner, stage=2)
+    staff = await staff_of(client)
+    response = await client.post(
+        f"/api/pages/casa-jardim/files/{await file_key(client)}/move",
+        json={"position": 2, "row_version": staff["row_version"], "folder": "Plantas"},
+        headers=owner,
+    )
+    assert response.status_code == 204, response.text
+    assert (folders / "02 - Conceito" / "Plantas" / "Programa.pdf").exists()
+
+
+async def test_moving_into_a_section_that_isnt_there_moves_nothing(client, owner, folders):
+    staff = await staff_of(client)
+    response = await client.post(
+        f"/api/pages/casa-jardim/files/{await file_key(client)}/move",
+        json={"position": 2, "row_version": staff["row_version"], "folder": "Plantas"},
+        headers=owner,
+    )
+    assert (response.status_code, response.json()["error"]) == (404, "folder_not_found")
+    assert (folders / "01 - Briefing" / "Programa.pdf").exists()
