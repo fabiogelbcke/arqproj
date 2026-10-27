@@ -245,4 +245,31 @@ describe("creating an office", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Concluir" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("stays open while creating, so the owner link is not lost", async () => {
+    fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+      "POST /api/admin/offices": () => ({ body: { owner_url: "https://horizonte.myunio.app/painel/entrar-na-equipe#token=abc" } }),
+    });
+    let answer!: () => void;
+    const held = new Promise<void>((resolve) => (answer = resolve));
+    const fake = globalThis.fetch;
+    vi.stubGlobal("fetch", async (input: Request) => {
+      if (input.method === "POST" && new URL(input.url).pathname === "/api/admin/offices") await held;
+      return fake(input);
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Criar escritório" }));
+    const dialog = screen.getByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText("Nome do escritório"), "Ateliê Horizonte");
+    await userEvent.type(within(dialog).getByLabelText("Endereço"), "horizonte.myunio.app");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e gerar convite do responsável" }));
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    answer();
+    expect(await within(dialog).findByLabelText("Link de cadastro do responsável")).toHaveValue("https://horizonte.myunio.app/painel/entrar-na-equipe#token=abc");
+    vi.unstubAllGlobals();
+  });
 });

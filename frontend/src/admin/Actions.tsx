@@ -61,8 +61,10 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
     mutationFn: () => call(api.POST("/api/admin/offices", { body: { name, slug, hostname: hostOf(hostname) } })),
     onSuccess: () => void cache.invalidateQueries({ queryKey: ["admin", "offices"] }),
   });
+  // Open until the request answers: its owner link is shown only here (Codex, PR #149).
+  const close = () => !create.isPending && onClose();
   return (
-    <DialogFrame title={t("admin.actions.create")} onClose={onClose}>
+    <DialogFrame title={t("admin.actions.create")} onClose={close}>
       {create.data?.owner_url ? (
         <OwnerLink url={create.data.owner_url} onDone={onClose} />
       ) : (
@@ -72,7 +74,7 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
           <TextField label={t("admin.actions.slug")} description={t("admin.actions.slugHint")} value={slug} onChange={setEdited} isRequired autoComplete="off" />
           <ErrorNotice error={create.error} />
           <div className={styles.dialogActions}>
-            <Button onPress={onClose}>{t("admin.actions.cancel")}</Button>
+            <Button onPress={close} isDisabled={create.isPending}>{t("admin.actions.cancel")}</Button>
             <Button type="submit" variant="primary" isDisabled={create.isPending}>{t("admin.actions.createConfirm")}</Button>
           </div>
         </Form>
@@ -109,8 +111,10 @@ function ActionDialog({ office, action, onClose }: { office: Schemas["AdminOffic
       if (action === "delete") void navigate("/");
     },
   });
+  // As creating: closing mid-request would hide its result, or seem to cancel it.
+  const close = () => !run.isPending && onClose();
   return (
-    <DialogFrame title={t(`admin.actions.${action}`)} onClose={onClose}>
+    <DialogFrame title={t(`admin.actions.${action}`)} onClose={close}>
       {run.data?.owner_url ? (
         <OwnerLink url={run.data.owner_url} onDone={onClose} />
       ) : (
@@ -119,7 +123,7 @@ function ActionDialog({ office, action, onClose }: { office: Schemas["AdminOffic
           {action === "delete" && <TextField label={t("admin.actions.confirmName")} value={confirmation} onChange={setConfirmation} isRequired autoComplete="off" />}
           <ErrorNotice error={run.error} />
           <div className={styles.dialogActions}>
-            <Button onPress={onClose}>{t("admin.actions.cancel")}</Button>
+            <Button onPress={close} isDisabled={run.isPending}>{t("admin.actions.cancel")}</Button>
             <Button type="submit" variant="primary" className={action === "delete" || action === "suspend" ? ui.dangerAction : undefined} isDisabled={run.isPending || (action === "delete" && confirmation !== office.name)}>
               {t("admin.actions.confirm")}
             </Button>
