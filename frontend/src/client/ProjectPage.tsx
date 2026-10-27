@@ -191,8 +191,8 @@ function StageFilesList({
   timeZone: string;
   fileMenu?: (file: FileItem, folder: string | null) => ReactNode;
   section?: (folder: string) => ReactNode; // edit mode: a section's drop area, under its files
-  // Edit mode: the stage's own drop area and "Nova seção", after its own files and
-  // before its sections, so each drop area sits under what it fills.
+  // Edit mode: the stage's own drop area and "Nova seção", at the stage's end, after
+  // its sections (each boxed, with its own drop area inside).
   uploads?: ReactNode;
   view: FileView;
   onOpen: (file: FileItem, folder: string | null) => void; // folder: its subfolder's name
@@ -233,37 +233,54 @@ function StageFilesList({
         </div>
       ))
     );
-  const own = files.groups.filter((group) => !group.folder);
-  const sections = files.groups.filter((group) => group.folder);
+  const cards = (group: (typeof files.groups)[number]) => (
+    <div className="files" data-view={view}>
+      {group.files.map((file) => (
+        <FileCard
+          key={file.key}
+          file={file}
+          slug={slug}
+          timeZone={timeZone}
+          menu={fileMenu?.(file, group.folder ?? null)}
+          onOpen={() => onOpen(file, group.folder ?? null)}
+        />
+      ))}
+    </div>
+  );
+  // The stage's own files first; then each section in its own box, which folds
+  // from its title (open at first) so it's plain where one starts and ends.
   return (
     <>
-      {[...own, ...(uploads ? [null] : []), ...sections].map((group) =>
-        group === null ? (
-          <div key="uploads">{uploads}</div>
-        ) : (
-          <div key={group.folder ?? ""} className="file-group">
-            {group.folder && <h3 className="file-group__title">{group.folder}</h3>}
+      {files.groups.map((group) =>
+        group.folder ? (
+          <details key={group.folder} className="file-group file-section" open>
+            <summary className="file-section__head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" />
+              </svg>
+              <h3 className="file-group__title">{group.folder}</h3>
+              <span className="file-section__count">
+                {group.files.length
+                  ? t("page.fileCount", { count: group.files.length, padded: pad(group.files.length) })
+                  : t("page.noFilesShort")}
+              </span>
+              <Icon name="down" />
+            </summary>
             {group.files.length > 0 ? (
-              <div className="files" data-view={view}>
-                {group.files.map((file) => (
-                  <FileCard
-                    key={file.key}
-                    file={file}
-                    slug={slug}
-                    timeZone={timeZone}
-                    menu={fileMenu?.(file, group.folder ?? null)}
-                    onOpen={() => onOpen(file, group.folder ?? null)}
-                  />
-                ))}
-              </div>
+              cards(group)
             ) : (
               // Only in edit mode: clients never get an empty section.
               <p className="file-group__empty">{t("edit.sectionEmpty")}</p>
             )}
-            {group.folder && section?.(group.folder)}
+            {section?.(group.folder)}
+          </details>
+        ) : (
+          <div key="" className="file-group">
+            {cards(group)}
           </div>
         ),
       )}
+      {uploads}
     </>
   );
 }

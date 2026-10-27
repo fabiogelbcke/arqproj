@@ -541,6 +541,7 @@
     "chooseFiles": "escolha no computador",
     "tapToChoose": "Toque para escolher arquivos",
     "dropNote": "Os arquivos ficam na pasta “{{folder}}” do seu Drive e aparecem para o cliente. Até {{max}} MB por arquivo.",
+    "dropNoteSection": "Os arquivos entram na seção “{{section}}” e aparecem para o cliente. Até {{max}} MB por arquivo.",
     "sending": "Enviando {{name}}",
     "dismiss": "Fechar",
     "uploaded_one": "Arquivo enviado.",

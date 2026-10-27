@@ -332,7 +332,11 @@ export function StageDrop({
           }}
         />
         <label htmlFor={inputId}>{touch ? t("edit.tapToChoose") : t("edit.chooseFiles")}</label>
-        {!section && <small>{t("edit.dropNote", { folder, max: UPLOAD_MAX_MB })}</small>}
+        <small>
+          {section
+            ? t("edit.dropNoteSection", { section, max: UPLOAD_MAX_MB })
+            : t("edit.dropNote", { folder, max: UPLOAD_MAX_MB })}
+        </small>
       </div>
       {sending.length > 0 && (
         <ul className="uploads" aria-live="polite">

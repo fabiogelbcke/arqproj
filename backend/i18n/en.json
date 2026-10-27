@@ -541,6 +541,7 @@
     "chooseFiles": "choose from your computer",
     "tapToChoose": "Tap to choose files",
     "dropNote": "Files are stored in the “{{folder}}” folder in your Drive and appear for the client. Up to {{max}} MB per file.",
+    "dropNoteSection": "Files go into the “{{section}}” section and appear for the client. Up to {{max}} MB per file.",
     "sending": "Sending {{name}}",
     "dismiss": "Close",
     "uploaded_one": "File sent.",
