@@ -1756,6 +1756,11 @@ describe("edit mode", () => {
       await startEditing();
       expect(await within(stage).findByRole("heading", { name: "Plantas" })).toBeInTheDocument();
       expect(within(stage).getByText(/Nenhum arquivo nesta seção ainda/)).toBeInTheDocument();
+      // The stage's own drop area comes before its sections, each of which has its own after its files.
+      await waitFor(() => expect(document.getElementById("up-2")).not.toBeNull()); // loads on its own
+      const ownDrop = document.getElementById("up-2")!; // the stage's own drop area
+      const heading = within(stage).getByRole("heading", { name: "Plantas" });
+      expect(ownDrop.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       await userEvent.upload(
         within(stage).getByLabelText("Enviar arquivos para a seção Plantas"),
         new File(["%PDF"], "Corte.pdf", { type: "application/pdf" }),

@@ -285,6 +285,24 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.locator(".stage-order__row").nth(1).hover();
   await shoot(page, "06q-reordenar-etapas");
   await page.keyboard.press("Escape");
+  // "Adicionar etapa", naming one of the office's own: Adicionar beside Cancelar.
+  await page.goto("/casa-jardim");
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  await page.getByRole("button", { name: "+ Adicionar etapa" }).click();
+  await page.locator(".add-stage select").selectOption({ label: "Etapa personalizada…" });
+  await page.getByLabel("Nome da etapa").fill("Visita técnica");
+  await page.locator(".add-stage").scrollIntoViewIfNeeded();
+  await shoot(page, "06r-adicionar-etapa");
+  await page.locator(".add-stage").getByRole("button", { name: "Cancelar" }).click();
+  // A stage's sections: a new one, empty, with its own drop area (staff only).
+  const closed = page.locator("#stage-2").getByRole("button", { name: /^Abrir etapa/ });
+  if (await closed.count()) await closed.click();
+  await page.locator("#stage-2").getByRole("button", { name: "+ Nova seção" }).click();
+  await page.locator("#stage-2").getByLabel("Nome da seção").fill("Plantas executivas");
+  await page.keyboard.press("Enter");
+  await page.locator("#stage-2").getByRole("heading", { name: "Plantas executivas" }).waitFor();
+  await page.locator("#stage-2").getByRole("heading", { name: "Plantas executivas" }).scrollIntoViewIfNeeded();
+  await shoot(page, "06s-nova-secao");
   // Reopening a stage says the client will be emailed (A32), as completing does.
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();

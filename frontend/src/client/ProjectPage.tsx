@@ -180,6 +180,7 @@ function StageFilesList({
   timeZone,
   fileMenu,
   section,
+  uploads,
   view,
   onOpen,
   empty,
@@ -190,6 +191,9 @@ function StageFilesList({
   timeZone: string;
   fileMenu?: (file: FileItem, folder: string | null) => ReactNode;
   section?: (folder: string) => ReactNode; // edit mode: a section's drop area, under its files
+  // Edit mode: the stage's own drop area and "Nova seção", after its own files and
+  // before its sections, so each drop area sits under what it fills.
+  uploads?: ReactNode;
   view: FileView;
   onOpen: (file: FileItem, folder: string | null) => void; // folder: its subfolder's name
   // No files yet: "done" (finished without any), "waiting" (they're still to
@@ -197,17 +201,21 @@ function StageFilesList({
   empty: "done" | "waiting" | null;
 }) {
   const { t } = useTranslation();
-  if (!files) return null; // still loading
+  if (!files) return uploads ?? null; // still loading
   if (files.unavailable)
     return (
-      <p className="empty-stage">
-        {t("page.filesUnavailable")}
-        {reference && ` ${t("errors.reference", { id: reference })}`}
-      </p>
+      <>
+        <p className="empty-stage">
+          {t("page.filesUnavailable")}
+          {reference && ` ${t("errors.reference", { id: reference })}`}
+        </p>
+        {uploads}
+      </>
     );
   if (!files.groups.length)
     return (
-      empty && (
+      uploads ??
+      (empty && (
         <div className="stage-empty">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
             <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" />
@@ -223,33 +231,39 @@ function StageFilesList({
             </p>
           )}
         </div>
-      )
+      ))
     );
+  const own = files.groups.filter((group) => !group.folder);
+  const sections = files.groups.filter((group) => group.folder);
   return (
     <>
-      {files.groups.map((group) => (
-        <div key={group.folder ?? ""} className="file-group">
-          {group.folder && <h3 className="file-group__title">{group.folder}</h3>}
-          {group.files.length > 0 ? (
-            <div className="files" data-view={view}>
-              {group.files.map((file) => (
-                <FileCard
-                  key={file.key}
-                  file={file}
-                  slug={slug}
-                  timeZone={timeZone}
-                  menu={fileMenu?.(file, group.folder ?? null)}
-                  onOpen={() => onOpen(file, group.folder ?? null)}
-                />
-              ))}
-            </div>
-          ) : (
-            // Only in edit mode: clients never get an empty section.
-            <p className="file-group__empty">{t("edit.sectionEmpty")}</p>
-          )}
-          {group.folder && section?.(group.folder)}
-        </div>
-      ))}
+      {[...own, ...(uploads ? [null] : []), ...sections].map((group) =>
+        group === null ? (
+          <div key="uploads">{uploads}</div>
+        ) : (
+          <div key={group.folder ?? ""} className="file-group">
+            {group.folder && <h3 className="file-group__title">{group.folder}</h3>}
+            {group.files.length > 0 ? (
+              <div className="files" data-view={view}>
+                {group.files.map((file) => (
+                  <FileCard
+                    key={file.key}
+                    file={file}
+                    slug={slug}
+                    timeZone={timeZone}
+                    menu={fileMenu?.(file, group.folder ?? null)}
+                    onOpen={() => onOpen(file, group.folder ?? null)}
+                  />
+                ))}
+              </div>
+            ) : (
+              // Only in edit mode: clients never get an empty section.
+              <p className="file-group__empty">{t("edit.sectionEmpty")}</p>
+            )}
+            {group.folder && section?.(group.folder)}
+          </div>
+        ),
+      )}
     </>
   );
 }
@@ -738,11 +752,11 @@ function Stage({
             timeZone={page.timezone}
             fileMenu={fileMenu}
             section={section}
+            uploads={uploads}
             view={view}
             onOpen={onOpenFile}
             empty={editor ? null : state === "done" ? "done" : "waiting"}
           />
-          {uploads}
           {parts?.remove}
         </div>
       </div>
