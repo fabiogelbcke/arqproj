@@ -11,32 +11,11 @@ import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { LinkToCopy } from "../ui/LinkToCopy";
 import { Panel } from "../ui/Panel";
 import { TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import styles from "./pages.module.css";
-
-
-/** A link to pass on, with "Copiar link" (a WhatsApp message, say). */
-function LinkToCopy({ link, label }: { link: string; label: string }) {
-  const { t } = useTranslation();
-  return (
-    <div className={styles.linkToCopy}>
-      <input aria-label={label} readOnly value={link} onFocus={(event) => event.currentTarget.select()} />
-      <Button
-        size="small"
-        onPress={() =>
-          void navigator.clipboard?.writeText(link).then(
-            () => toast(t("team.copied")),
-            () => toast(link),
-          )
-        }
-      >
-        {t("team.copy")}
-      </Button>
-    </div>
-  );
-}
 
 /** Configurações → Equipe (A36): who's in, pending invites, and for owners a
  *  personal invite and the shared office link. */
@@ -116,7 +95,7 @@ function Members({ members, manage }: { members: Member[]; manage: boolean }) {
             </div>
           )}
           {sentAgain?.id === member.id && (
-            <LinkToCopy link={sentAgain.link} label={t("team.inviteLinkOf", { name: member.name })} />
+            <LinkToCopy className={styles.linkToCopy} link={sentAgain.link} label={t("team.inviteLinkOf", { name: member.name })} />
           )}
         </li>
       ))}

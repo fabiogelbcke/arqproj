@@ -412,3 +412,10 @@
 .siteFooter nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .siteFooterOffice { color: var(--ink); letter-spacing: var(--caps-spacing); text-transform: uppercase; }
 @media (max-width: 640px) { .siteFooter { flex-direction: column; align-items: flex-start; } }
+
+/* LinkToCopy: the link, selected on focus, and "Copiar link" beside it. */
+.linkToCopy { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.linkToCopy input {
+  flex: 1; min-width: 0; min-height: var(--control-small); padding: 0 10px; border: 1px solid var(--line);
+  border-radius: var(--r); background: var(--bg); color: var(--ink); font: 13px/1 ui-monospace, monospace;
+}
