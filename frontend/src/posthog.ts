@@ -91,6 +91,9 @@ export async function startAnalytics(me: Me): Promise<void> {
       disable_session_recording: true,
       disable_surveys: true,
       before_send: scrub,
+      // Both send the full address outside `scrub`'s reach: off here, whatever PostHog's settings say.
+      capture_heatmaps: false,
+      capture_performance: false,
       // Nothing is sent until a sign-in turns it on (below), so a start that a
       // sign-out overtook sends nothing either.
       opt_out_capturing_by_default: true,
@@ -131,6 +134,9 @@ export async function startVisitorAnalytics(analytics: VisitorAnalytics | null |
       disable_session_recording: true,
       disable_surveys: true,
       before_send: scrub,
+      // Both send the full address outside `scrub`'s reach: off here, whatever PostHog's settings say.
+      capture_heatmaps: false,
+      capture_performance: false,
       capture_exceptions: {
         capture_unhandled_errors: true,
         capture_unhandled_rejections: true,

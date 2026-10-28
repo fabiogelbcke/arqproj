@@ -48,6 +48,8 @@ describe("product analytics in the browser (A39)", () => {
         api_host: "https://us.i.posthog.com",
         disable_session_recording: true,
         mask_all_text: true,
+        capture_heatmaps: false,
+        capture_performance: false,
       }),
     );
     expect(sdk.identify).toHaveBeenCalledWith(ANALYTICS.user_id, { role: "owner" });
@@ -126,6 +128,8 @@ describe("product analytics in the browser (A39)", () => {
         person_profiles: "never",
         disable_session_recording: true,
         mask_all_text: true,
+        capture_heatmaps: false, // they send the address unscrubbed
+        capture_performance: false,
       }),
     );
     expect(sdk.identify).not.toHaveBeenCalled(); // nobody, only counted
