@@ -169,6 +169,8 @@ class StaffView(BaseModel):
 
 
 class PageOut(BaseModel):
+    # The project's id: analytics names a project by it, never by its name or address (A39).
+    id: uuid.UUID
     office: OfficeOut
     locale: Locale
     timezone: str
@@ -265,6 +267,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         .limit(1)
     )
     return PageOut(
+        id=project.id,
         office=await _office(db, tenant),
         locale=locale,
         timezone=tenant.timezone,

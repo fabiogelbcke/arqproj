@@ -6840,6 +6840,11 @@
       },
       "PageOut": {
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
           "office": {
             "$ref": "#/components/schemas/backend__web__pages__OfficeOut"
           },
@@ -6938,6 +6943,7 @@
         },
         "type": "object",
         "required": [
+          "id",
           "office",
           "locale",
           "timezone",

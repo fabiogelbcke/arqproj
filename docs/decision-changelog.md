@@ -34,8 +34,11 @@ came from, clicks without their text, and a few named actions. Still no cookies,
 no person profiles, no names or emails, no session recording. More staff
 actions are sent (stages renamed, moved or removed, publishing, covers, office
 settings, Drive connected, uploads with their size, the tour), and sign-ins say
-how (password, Google, a link, joining). The
-privacy policy says what is measured on project pages.
+how (password, Google, a link, joining). The browser sends no page title and
+no project address (a project page is `/projeto` plus the project's id, Fabio's
+choice: the address is made from the project's name) and keeps only `utm_` tags
+from addresses. The privacy policy says what is measured on project pages and
+shared files.
 
 **Why:** Fabio (28 Oct 2026) wants to know whether offices use the features as
 intended, what they use most, how clients use the project page, and what drives

@@ -80,10 +80,13 @@ cifrada) e, se uma conta Google for conectada, o acesso descrito abaixo.</li>
 conta, à sua função e ao escritório, sem nome, e-mail nem o texto mostrado na tela, para
 entendermos como o {PRODUCT} é usado. Erros do servidor e do navegador também são registrados,
 para corrigi-los.</li>
-<li><strong>Uso das páginas de projeto:</strong> quantas vezes as páginas são abertas, de onde
-(por exemplo, do link de um e-mail de atualização), em que tipo de aparelho, o que é aberto ou
-baixado e em que partes da página se clica, sem o texto mostrado na tela, sem cookies e sem
-identificar quem visita: cada visitante é contado por um código anônimo que muda todos os dias,
+<li><strong>Uso das páginas de projeto e de arquivos compartilhados:</strong> quantas vezes as
+páginas são abertas, de onde (por exemplo, do link de um e-mail de atualização), em que tipo de
+aparelho, o que é aberto ou baixado, em que partes da página se clica, se a senha digitada estava
+certa (nunca a senha), links de arquivos criados ou desativados e inscrições ou cancelamentos dos
+e-mails de atualização (nunca o e-mail), sem o texto mostrado na tela, sem nomes de projetos ou
+arquivos, sem cookies e sem identificar quem visita: cada visitante é contado por um código
+anônimo que muda todos os dias,
 para entendermos como os clientes usam as páginas e quanto custa servi-las.</li>
 <li><strong>Registros técnicos:</strong> endereço IP, navegador, data e hora das solicitações,
 usados para segurança e para corrigir problemas, guardados por até 30 dias.</li>
@@ -172,10 +175,13 @@ Google account is connected, the access described below.</li>
 as creating a project or sharing files), tied to the account's internal identifier, its role and
 its office, without name, email or the text shown on screen, so we understand how {PRODUCT} is
 used. Server and browser errors are recorded too, to fix them.</li>
-<li><strong>Use of project pages:</strong> how often pages are opened, from where (for example
-an update email's link), on what kind of device, what is opened or downloaded and which parts of
-the page are clicked, without the text shown on screen, without cookies and without identifying
-visitors: each visitor is counted by an anonymous code that changes every day, so we understand
+<li><strong>Use of project pages and shared files:</strong> how often pages are opened, from
+where (for example an update email's link), on what kind of device, what is opened or downloaded,
+which parts of the page are clicked, whether a password typed was right (never the password), file
+links made or turned off, and update emails subscribed to or unsubscribed from (never the
+address), without the text shown on screen, without project or file names, without cookies and
+without identifying visitors: each visitor is counted by an anonymous code that changes every
+day, so we understand
 how clients use the pages and what serving them costs.</li>
 <li><strong>Technical logs:</strong> IP address, browser, and time of requests, for security and
 troubleshooting, kept for up to 30 days.</li>

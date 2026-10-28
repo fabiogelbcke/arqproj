@@ -1933,6 +1933,11 @@ export interface components {
         };
         /** PageOut */
         PageOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
             office: components["schemas"]["backend__web__pages__OfficeOut"];
             locale: components["schemas"]["Locale"];
             /** Timezone */

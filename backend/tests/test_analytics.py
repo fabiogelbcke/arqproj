@@ -90,8 +90,10 @@ async def test_a_staff_members_actions_are_theirs_and_a_clients_are_nobodys(
     by_staff, by_client = events(sent, "share_link_created")
     assert by_staff["distinct_id"] == staff
     assert by_client["properties"]["$process_person_profile"] is False  # personless
-    assert by_client["distinct_id"] != staff
+    assert by_client["distinct_id"].startswith("visitor:")  # today's anonymous visitor
+    assert by_client["properties"]["viewer"] == "visitor"  # not counted as staff use
     assert by_client["properties"]["tenant"] == "alinea"  # still counted for the office
+    assert "viewer" not in by_staff["properties"]
 
 
 async def test_without_posthog_configured_nothing_is_sent_and_pages_work(app, client, owner):

@@ -9,22 +9,14 @@ import { day, meetingWhen, type Page } from "./format";
 import { capture } from "../posthog";
 
 type Update = Schemas["UpdateOut"];
-type Entry = {
-  id: string;
-  date: string;
-  title: string;
-  context: string;
-  target: number | "meeting" | null;
-};
+type Entry = { id: string; date: string; title: string; context: string; target: number | "meeting" | null };
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const storageKey = (slug: string) => `updates-read:${slug}`;
 
 function readIds(slug: string): Set<string> {
   try {
-    return new Set(
-      JSON.parse(localStorage.getItem(storageKey(slug)) ?? "[]") as string[],
-    );
+    return new Set(JSON.parse(localStorage.getItem(storageKey(slug)) ?? "[]") as string[]);
   } catch {
     return new Set(); // private mode, or storage off: everything stays unread
   }
@@ -46,87 +38,45 @@ export function entriesFor(
   for (const update of updates) {
     const index = (update.stage_position ?? 0) - 1;
     const stage = page.stages[index];
-    const base = {
-      id: update.id,
-      date: day(update.occurred_at, locale, page.timezone),
-    };
+    const base = { id: update.id, date: day(update.occurred_at, locale, page.timezone) };
     if (update.kind === "file_published") {
       if (stage && update.name)
         entries.push({
           ...base,
           // A version (A25) says which: the card shows the document's clean name.
           title:
-            update.version != null
-              ? t("updates.fileVersion", {
-                  name: update.name,
-                  version: update.version,
-                })
-              : update.name,
+            update.version != null ? t("updates.fileVersion", { name: update.name, version: update.version }) : update.name,
           context: `${pad(index + 1)} ${stage.title}`,
           target: index,
         });
     } else if (update.kind === "note_changed") {
       if (!stage || notes.has(index)) continue;
       notes.add(index);
-      if (stage.notes)
-        entries.push({
-          ...base,
-          title: t("updates.note"),
-          context: stage.notes,
-          target: index,
-        });
+      if (stage.notes) entries.push({ ...base, title: t("updates.note"), context: stage.notes, target: index });
     } else if (update.kind === "stage_completed") {
       if (!stage?.completed || finished.has(index)) continue; // reopened since
       finished.add(index);
-      entries.push({
-        ...base,
-        title: t("updates.stageCompleted"),
-        context: `${pad(index + 1)} ${stage.title}`,
-        target: index,
-      });
+      entries.push({ ...base, title: t("updates.stageCompleted"), context: `${pad(index + 1)} ${stage.title}`, target: index });
     } else if (update.kind === "stage_reopened") {
       if (!stage || stage.completed || finished.has(index)) continue; // completed again since
       finished.add(index);
-      entries.push({
-        ...base,
-        title: t("updates.stageReopened"),
-        context: `${pad(index + 1)} ${stage.title}`,
-        target: index,
-      });
+      entries.push({ ...base, title: t("updates.stageReopened"), context: `${pad(index + 1)} ${stage.title}`, target: index });
     } else if (update.kind === "stage_advanced") {
       continue; // the old progress (before stages completed on their own): nothing holds it now
     } else if (update.kind === "project_completed") {
       if (completed || !page.completed) continue;
       completed = true;
-      entries.push({
-        ...base,
-        title: t("updates.completed"),
-        context: page.name,
-        target: null,
-      });
+      entries.push({ ...base, title: t("updates.completed"), context: page.name, target: null });
     } else {
       if (meeting) continue;
       meeting = true;
       const next = page.next_meeting;
       if (next) {
         const when = meetingWhen(next, locale, page.timezone);
-        const title =
-          update.kind === "meeting_scheduled"
-            ? t("updates.meetingScheduled")
-            : t("updates.meetingChanged");
-        entries.push({
-          ...base,
-          title,
-          context: `${next.title} · ${when.day} · ${when.time}`,
-          target: "meeting",
-        });
+        const title = update.kind === "meeting_scheduled" ? t("updates.meetingScheduled") : t("updates.meetingChanged");
+        entries.push({ ...base, title, context: `${next.title} · ${when.day} · ${when.time}`, target: "meeting" });
       } else if (update.kind === "meeting_cleared" && update.name) {
-        entries.push({
-          ...base,
-          title: t("updates.meetingCancelled"),
-          context: update.name,
-          target: null,
-        });
+        entries.push({ ...base, title: t("updates.meetingCancelled"), context: update.name, target: null });
       }
     }
   }
@@ -145,10 +95,7 @@ export function UpdatesBell({
   onStage: (index: number) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const entries = useMemo(
-    () => entriesFor(page, updates, t, i18n.language),
-    [page, updates, t, i18n.language],
-  );
+  const entries = useMemo(() => entriesFor(page, updates, t, i18n.language), [page, updates, t, i18n.language]);
   const [read, setRead] = useState(() => readIds(slug));
   const [open, setOpen] = useState(false);
   const panel = useRef<HTMLDetailsElement>(null);
@@ -183,19 +130,9 @@ export function UpdatesBell({
     >
       <summary
         className="b b--small"
-        aria-label={
-          unread
-            ? t("updates.unread", { count: unread })
-            : t("updates.noneUnread")
-        }
+        aria-label={unread ? t("updates.unread", { count: unread }) : t("updates.noneUnread")}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          aria-hidden="true"
-        >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
         </svg>
         <span className="notification-label">{t("updates.label")}</span>
@@ -204,48 +141,26 @@ export function UpdatesBell({
       <section className="notification-panel" aria-label={t("updates.title")}>
         <div className="notification-head">
           <h2>{t("updates.title")}</h2>
-          <button
-            className="iconbtn"
-            type="button"
-            aria-label={t("updates.close")}
-            onClick={() => setOpen(false)}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              aria-hidden="true"
-            >
+          <button className="iconbtn" type="button" aria-label={t("updates.close")} onClick={() => setOpen(false)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
         </div>
         {entries.length ? (
           <>
-            <button
-              className="notification-read"
-              type="button"
-              onClick={markRead}
-              disabled={!unread}
-            >
+            <button className="notification-read" type="button" onClick={markRead} disabled={!unread}>
               {unread ? t("updates.markRead") : t("updates.allRead")}
             </button>
             <ul>
               {entries.map((entry) => (
-                <li
-                  key={entry.id}
-                  className={read.has(entry.id) ? undefined : "is-unread"}
-                >
+                <li key={entry.id} className={read.has(entry.id) ? undefined : "is-unread"}>
                   <small>{entry.date}</small>
                   <strong>{entry.title}</strong>
                   <p>{entry.context}</p>
                   {entry.target !== null && (
                     <button type="button" onClick={() => go(entry.target!)}>
-                      {entry.target === "meeting"
-                        ? t("updates.seeMeeting")
-                        : t("updates.seeStage")}{" "}
-                      →
+                      {entry.target === "meeting" ? t("updates.seeMeeting") : t("updates.seeStage")} →
                     </button>
                   )}
                 </li>

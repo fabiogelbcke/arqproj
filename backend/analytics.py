@@ -58,6 +58,7 @@ def visitor_properties(request: Request, tenant_id: uuid.UUID) -> dict:
         "$process_person_profile": False,
         "$groups": {"tenant": str(tenant_id)},
         "tenant": tenant.slug if tenant is not None else None,
+        "viewer": "visitor",  # as the browser's visitor events, so staff ones can be told apart
         "device": device_kind(request.headers.get("user-agent", "")),
     }
 
