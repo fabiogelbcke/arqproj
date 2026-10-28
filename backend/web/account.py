@@ -144,9 +144,8 @@ async def change_email(
     office = await office_of(db, request.app.state.settings, tenant.id)
     await db.commit()
     # The notice first: whatever happens to the code, the old address hears of it.
-    await send(
-        request, tenant, email_changed_email(office, user.name, old, email), "/api/me/email/change"
-    )
+    notice = email_changed_email(office, user.name, old, email, message.idempotency_key)
+    await send(request, tenant, notice, "/api/me/email/change")
     if not await send(request, tenant, message, "/api/me/email/change"):
         raise ApiError(503, ErrorCode.EMAIL_NOT_SENT)  # "Reenviar código" on the next screen
     return await _me_now(db, tenant, staff, user)

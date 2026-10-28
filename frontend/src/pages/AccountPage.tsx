@@ -3,7 +3,7 @@ import { useState } from "react";
 import { DialogTrigger, Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
-import { api, call } from "../api/client";
+import { ApiError, api, call } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { ME, useMe, useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
@@ -132,12 +132,18 @@ function PasswordForm() {
  *  it (ConfirmEmailPage), and the old address is told. */
 function ChangeEmail() {
   const { t } = useTranslation();
+  const client = useQueryClient();
   const signedIn = useSignedIn();
   const [email, setEmail] = useState("");
   const [current, setCurrent] = useState("");
   const change = useMutation({
     mutationFn: () => call(api.POST("/api/me/email/change", { body: { email, current } })),
     onSuccess: (me) => signedIn(me), // unconfirmed now: the layout shows the code screen
+    // The address changed but the code didn't go: the code screen, to resend it there.
+    onError: (failure) => {
+      if (failure instanceof ApiError && failure.code === "email_not_sent")
+        void client.invalidateQueries({ queryKey: ME });
+    },
   });
   return (
     <DialogTrigger>

@@ -209,3 +209,20 @@ async def test_a_password_changed_while_checking_the_current_one_wins(
         text("SELECT password_hash FROM users WHERE email = 'dona@alinea.example'")
     )
     assert stored == "changed"  # the other change stands
+
+
+async def test_each_email_change_notifies_the_old_address_under_its_own_key(client, owner, sent):
+    """The provider drops a repeated key for a day: A→B, B→A, A→B must all go."""
+    from backend.tests.test_team import code_in
+
+    keys = []
+    for new in ("b@alinea.example", "dona@alinea.example", "b@alinea.example"):
+        response = await change_email(client, owner, email=new)
+        assert response.status_code == 200, response.text
+        notice, code = sent.emails[-2:]
+        keys.append(notice.idempotency_key)
+        typed = await client.post(
+            "/api/me/email-code", json={"code": code_in(code.text)}, headers=owner
+        )
+        assert typed.status_code == 200
+    assert len(set(keys)) == 3

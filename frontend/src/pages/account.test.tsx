@@ -104,6 +104,28 @@ describe("Minha conta", () => {
     expect(screen.queryByRole("heading", { level: 1, name: "Minha conta" })).toBeNull();
   });
 
+  it("moves on to the code screen even when the code couldn't be emailed, to resend it there", async () => {
+    let me: typeof ME & { email_confirmed?: boolean } = ME;
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: me }),
+      "GET /api/projects": () => ({ body: [] }),
+      // The address changed, but the email didn't go.
+      "POST /api/me/email/change": () => {
+        me = { ...me, email: "ana.nova@alinea.example", email_confirmed: false };
+        return { status: 503, body: { error: "email_not_sent" } };
+      },
+    });
+    renderAt("/conta");
+    await userEvent.click(await screen.findByRole("button", { name: "Alterar e-mail" }));
+    const dialog = screen.getByRole("dialog", { name: "Alterar e-mail" });
+    await userEvent.type(within(dialog).getByLabelText(/Novo e-mail/), "ana.nova@alinea.example");
+    await userEvent.type(within(dialog).getByLabelText(/Senha atual/), "a good password");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Enviar código" }));
+    expect(await screen.findByRole("heading", { name: "Confirme seu e-mail" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reenviar código" })).toBeInTheDocument();
+  });
+
   it("says when the current password is wrong", async () => {
     signedIn({
       "POST /api/me/password": () => ({ status: 422, body: { error: "current_password_wrong" } }),

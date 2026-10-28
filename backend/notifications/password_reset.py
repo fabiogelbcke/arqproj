@@ -141,9 +141,11 @@ def confirm_email(office: Office, name: str, to: str, token: str, code: str) -> 
     )
 
 
-def email_changed_email(office: Office, name: str, to: str, new: str) -> Email:
+def email_changed_email(office: Office, name: str, to: str, new: str, change: str) -> Email:
     """To the old address, when the account's email changes ("Minha conta"): so
-    an unexpected change gets noticed. No link: nothing to do if it was them."""
+    an unexpected change gets noticed. No link: nothing to do if it was them.
+    `change`: this change's own id (its confirmation email's key), so every change
+    sends its notice, even A→B again within the provider's day of remembered keys."""
     locale = office.locale
     hello = t(locale, "resetHello", name=_first(name))
     intro = t(locale, "emailChangedIntro", office=office.name, email=new)
@@ -159,6 +161,6 @@ def email_changed_email(office: Office, name: str, to: str, new: str) -> Email:
         subject=t(locale, "emailChangedSubject", office=office.name),
         html=html,
         text="\n".join([office.name, "", hello, intro, "", ignore]),
-        idempotency_key="email-changed-" + hashlib.sha256(f"{to}>{new}".encode()).hexdigest()[:32],
+        idempotency_key="email-changed-" + hashlib.sha256(change.encode()).hexdigest()[:32],
         reply_to=office.reply_to,
     )
