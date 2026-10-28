@@ -16,80 +16,81 @@ sources; confirm them on the provider's own page before relying on them.
 ## 1. What it all costs
 
 Every cost of running Unio, in one place: the product itself, the paid extras an
-office could add, and running the business around it. US$ per month unless
-marked. Prices for extras and tools come from the companion analyses
+office could add, and running the business around it. Every amount names its
+currency; monthly unless marked. Amounts in reals convert at US$1 = R$5.50.
+Prices for extras and tools come from the companion analyses
 ([storage](storage-strategy.md), [WhatsApp](whatsapp-updates.md),
 [AI](ai-for-the-business.md)) and the sources at the end.
 
 ### 1a. Running the product (fixed, whatever the number of offices)
 
-| Item | Today | When it grows | Notes |
+| Item | Today (per month) | When it grows (per month) | Notes |
 | --- | --- | --- | --- |
-| Cloud SQL (`db-f1-micro`, 10 GB, backups) | ~10 | ~25–30 (`db-g1-small`) | [infrastructure.md](infrastructure.md#costs-approximate-monthly). The next size is likely somewhere past 50–100 active offices; measure first. |
-| Global load balancer (A21) | ~18–20 + traffic | same | Covered by credits for the first three months. |
-| Cloud Run, Build, Artifact Registry, Scheduler | ~0 | a few dollars | Within free tiers at pilot scale. |
-| Logs and alerts (Cloud Logging and Monitoring) | 0 | 0 | 50 GiB of logs a month free; we are far below. |
-| Email (Resend) | 0 | 20 → 90 | Free: 3,000 emails a month, 100 a day. Pro: 20 for 50,000. Scale: from 90 for 100,000. The 100-a-day cap comes first, around 10 busy offices. |
-| Product analytics (PostHog) | 0 | 0 at our volume | 1 million events and 5,000 session recordings a month free. |
-| Domains (`myunio.app` and others) | ~2–4 | same | Averaged per month. An office's own domain is bought by the office; its certificate costs us nothing. |
-| **Total** | **~30–35** | **~90 at 100 offices** | |
+| Cloud SQL (`db-f1-micro`, 10 GB, backups) | ~US$10 | ~US$25–30 (`db-g1-small`) | [infrastructure.md](infrastructure.md#costs-approximate-monthly). The next size is likely somewhere past 50–100 active offices; measure first. |
+| Global load balancer (A21) | ~US$18–20 + traffic | same | Covered by credits for the first three months. |
+| Cloud Run, Build, Artifact Registry, Scheduler | ~US$0 | a few US$ | Within free tiers at pilot scale. |
+| Logs and alerts (Cloud Logging and Monitoring) | US$0 | US$0 | 50 GiB of logs a month free; we are far below. |
+| Email (Resend) | US$0 | US$20 → US$90 | Free: 3,000 emails a month, 100 a day. Pro: US$20 for 50,000. Scale: from US$90 for 100,000. The 100-a-day cap comes first, around 10 busy offices. |
+| Product analytics (PostHog) | US$0 | US$0 at our volume | 1 million events and 5,000 session recordings a month free. |
+| Domains (`myunio.app` and others) | ~US$2–4 | same | Averaged per month. An office's own domain is bought by the office; its certificate costs us nothing. |
+| **Total** | **~US$30–35 (R$165–190)** | **~US$90 (R$495) at 100 offices** | |
 
 ### 1b. Per office, as it is today
 
 Files stay in **the office's own Google Drive**, so storage costs us nothing.
 What grows with each office:
 
-| Item | Per office | Notes |
+| Item | Per office, per month | Notes |
 | --- | --- | --- |
-| Download traffic | 1.20–3.60 | The page streams files through Cloud Run: ~0.12/GB to the internet, for 10–30 GB a month. |
-| Update emails | ~0.01–0.20 | A few hundred emails a month, once on a paid Resend plan. |
-| Database and compute | ~0 | Until the database's next size (1a). |
-| **Total** | **~1.50–4** | Call it **2.50** in the totals below. |
+| Download traffic | US$1.20–3.60 | The page streams files through Cloud Run: ~US$0.12/GB to the internet, for 10–30 GB a month. |
+| Update emails | ~US$0.01–0.20 | A few hundred emails a month, once on a paid Resend plan. |
+| Database and compute | ~US$0 | Until the database's next size (1a). |
+| **Total** | **~US$1.50–4 (R$8–22)** | Call it **US$2.50** in the totals below. |
 
 ### 1c. Extras an office could add (each with its own cost)
 
 These are options, not decided. Each could be in a tier or sold as an add-on
 (section 2).
 
-| Extra | Cost to us per office | One-off or fixed cost | Source |
+| Extra | Cost to us per office, per month | One-off or fixed cost | Source |
 | --- | --- | --- | --- |
-| **Our own file storage** (Cloudflare R2) instead of Drive | 0.75–2.25 for 50–150 GB stored. Downloads from R2 are free, so this **replaces** the 1.20–3.60 of 1b. | ~2–3 weeks to build | [storage-strategy.md](storage-strategy.md#c-our-own-storage) |
-| Own storage on Google Cloud Storage instead | ~5.90 for 100 GB stored and 20 GB downloaded (also replacing 1b's downloads) | same | same |
-| **More cloud providers** (OneDrive, Dropbox) | ~0 | ~2–3 weeks each, then upkeep | [storage-strategy.md](storage-strategy.md#b-more-cloud-providers) |
-| **WhatsApp updates** (Meta Cloud API) | ~1.30–2.60 for a busy office (160–320 utility messages at ~0.008); +0.005 a message through Twilio | ~1–2 weeks to build; Meta business verification (free) | [whatsapp-updates.md](whatsapp-updates.md#cost) |
-| **AI assistant in the panel** | ~0.10–0.50 (1,000 questions a month across all offices cost 10–20) | 1–2 weeks to build | [ai-for-the-business.md](ai-for-the-business.md#1-customer-support) |
-| **The office's own domain** for its pages | ~0 | An hour of setup per office | — |
-| Full Drive access instead of `drive.file` (not recommended) | 0 | **~540 a year** (CASA Tier 2), every year | [storage-strategy.md](storage-strategy.md#where-we-are) |
+| **Our own file storage** (Cloudflare R2) instead of Drive | US$0.75–2.25 for 50–150 GB stored. Downloads from R2 are free, so this **replaces** the US$1.20–3.60 of 1b. | ~2–3 weeks to build | [storage-strategy.md](storage-strategy.md#c-our-own-storage) |
+| Own storage on Google Cloud Storage instead | ~US$5.90 for 100 GB stored and 20 GB downloaded (also replacing 1b's downloads) | same | same |
+| **More cloud providers** (OneDrive, Dropbox) | ~US$0 | ~2–3 weeks each, then upkeep | [storage-strategy.md](storage-strategy.md#b-more-cloud-providers) |
+| **WhatsApp updates** (Meta Cloud API) | ~US$1.30–2.60 for a busy office (160–320 utility messages at ~US$0.008 each); +US$0.005 a message through Twilio | ~1–2 weeks to build; Meta business verification (free) | [whatsapp-updates.md](whatsapp-updates.md#cost) |
+| **AI assistant in the panel** | ~US$0.10–0.50 (1,000 questions a month across all offices cost US$10–20) | 1–2 weeks to build | [ai-for-the-business.md](ai-for-the-business.md#1-customer-support) |
+| **The office's own domain** for its pages | ~US$0 | An hour of setup per office | — |
+| Full Drive access instead of `drive.file` (not recommended) | US$0 | **~US$540 a year** (CASA Tier 2), every year | [storage-strategy.md](storage-strategy.md#where-we-are) |
 
 ### 1d. Running the business
 
-| Item | Options (US$/month) | Suggested now | Later |
+| Item | Options (per month unless marked) | Suggested now | Later |
 | --- | --- | --- | --- |
-| **Support chat on the site and panel** | See the comparison below | **WhatsApp Business app** (free) + **Crisp Free** or **Chatwoot Hacker** (0) | Crisp Mini (45) or Chatwoot Startups (19 per agent) |
-| **Error tracking** | Sentry Developer 0 (1 user, 5,000 errors); Team 26–29 (50,000 errors) | Cloud Logging's alerts (0) | Sentry Team, when a second developer joins |
-| **Uptime check and status page** | Better Stack free (10 monitors, 1 status page on our subdomain); UptimeRobot Solo 12–13 (its free plan is non-commercial only) | Better Stack free | Better Stack paid, from ~30 |
-| **Email accounts** (`contato@`, `suporte@myunio.app`) | Google Workspace Business Starter 7–8.40 per user (~R$35–45, plus 6.38% IOF on an international card) | 1–2 users | 1 per person |
-| **AI for the business** (support drafts, weekly digest, sales research) | 5–40 in API costs at pilot scale | Through Fabio's subscription first | See [ai-for-the-business.md](ai-for-the-business.md#what-to-build-first) |
-| **Accountant** (Simples Nacional) | R$150–600 a month; online firms R$259–900 | **Needed from the first invoice** | — |
+| **Support chat on the site and panel** | See the comparison below | **WhatsApp Business app** (free) + **Crisp Free** or **Chatwoot Hacker** (US$0) | Crisp Mini (US$45) or Chatwoot Startups (US$19 per agent) |
+| **Error tracking** | Sentry Developer US$0 (1 user, 5,000 errors); Team US$26–29 (50,000 errors) | Cloud Logging's alerts (US$0) | Sentry Team, when a second developer joins |
+| **Uptime check and status page** | Better Stack free (10 monitors, 1 status page on our subdomain); UptimeRobot Solo US$12–13 (its free plan is non-commercial only) | Better Stack free | Better Stack paid, from ~US$30 |
+| **Email accounts** (`contato@`, `suporte@myunio.app`) | Google Workspace Business Starter US$7–8.40 per user (~R$35–45, plus 6.38% IOF on an international card) | 1–2 users | 1 per person |
+| **AI for the business** (support drafts, weekly digest, sales research) | US$5–40 in API costs at pilot scale | Through Fabio's subscription first | See [ai-for-the-business.md](ai-for-the-business.md#what-to-build-first) |
+| **Accountant** (Simples Nacional) | R$150–600; online firms R$259–900 | **Needed from the first invoice** | — |
 | **Opening the company** (CNPJ) | R$500–3,000, once | Before charging | — |
 | **Lawyer** for terms, privacy policy, contract | One-off; get 2–3 quotes | Before public signup | Yearly review |
-| **Payment fees** | Pix by hand: ~0. Asaas: R$0.99–1.99 per Pix received. Card (Stripe): ~2.9% + a fixed fee | Pix by hand | Asaas at 15–20 paying offices (section 3) |
+| **Payment fees** | Pix by hand: ~R$0. Asaas: R$0.99–1.99 per Pix received. Card (Stripe): ~2.9% + a fixed fee per payment | Pix by hand | Asaas at 15–20 paying offices (section 3) |
 | **Taxes** | Simples Nacional: from ~6% of revenue (Anexo III), more under Anexo V | — | Confirm with the accountant (section 3) |
 
 #### Support chat tools compared
 
-All prices per month, mostly from comparison sites (confirm on each provider's
-page). "Seat" is one person answering.
+Prices in US$ per month, mostly from comparison sites (confirm on each
+provider's page). "Seat" is one person answering.
 
 | Tool | Free plan | Paid | Notes for us |
 | --- | --- | --- | --- |
 | **WhatsApp Business app** | Free | — | How Brazilian architects already talk to suppliers. One phone number, a few people via linked devices. No API needed. |
-| **Crisp** | 2 seats, chat widget | Mini 45 (4 seats), Essentials 95 (10 seats, knowledge base, AI chatbot), Plus 295 | Priced per workspace, not per seat: cheap for a small team. Has a WhatsApp channel on paid plans. |
-| **Chatwoot** (open source) | Hacker: 2 agents, ~500 conversations a month | Startups 19 per agent, Business 39 per agent | Can also run on our own server for free. Connects WhatsApp (Cloud API), email and the site chat in one inbox. |
-| **tawk.to** | Unlimited agents and chats | Removing "Powered by tawk.to": ~19–39 | Cheapest, but its branding shows on our pages unless paid. |
-| **Help Scout** | Up to 5 users | Standard 25 per user, Plus 45–50 | Email-first help desk with a knowledge base; AI answers 0.75 per resolution. |
-| **Intercom** | — | Essential 29 per seat (annual), Advanced 85; Fin AI 0.99 per resolution, 50 a month minimum | Polished; the most expensive at our size. |
-| **Zendesk** | — | Support Team 19 per agent, Suite Team 55 | Built for larger support teams. |
+| **Crisp** | 2 seats, chat widget | Mini US$45 (4 seats), Essentials US$95 (10 seats, knowledge base, AI chatbot), Plus US$295 | Priced per workspace, not per seat: cheap for a small team. Has a WhatsApp channel on paid plans. |
+| **Chatwoot** (open source) | Hacker: 2 agents, ~500 conversations a month | Startups US$19 per agent, Business US$39 per agent | Can also run on our own server for free. Connects WhatsApp (Cloud API), email and the site chat in one inbox. |
+| **tawk.to** | Unlimited agents and chats | Removing "Powered by tawk.to": ~US$19–39 | Cheapest, but its branding shows on our pages unless paid. |
+| **Help Scout** | Up to 5 users | Standard US$25 per user, Plus US$45–50 | Email-first help desk with a knowledge base; AI answers US$0.75 per resolution. |
+| **Intercom** | — | Essential US$29 per seat (annual), Advanced US$85; Fin AI US$0.99 per resolution, 50 a month minimum | Polished; the most expensive at our size. |
+| **Zendesk** | — | Support Team US$19 per agent, Suite Team US$55 | Built for larger support teams. |
 | Octadesk, JivoChat (Brazilian) | — | Quote only | Portuguese support and BRL invoices; no public prices found. |
 
 **Suggested:** while Fabio answers support himself, the WhatsApp Business app
@@ -100,28 +101,28 @@ are built, since one inbox would then hold both.
 
 ### 1e. Totals
 
-Three sizes. "Base" is 1a + 1b + the business tools a team that size needs
-(1d), without taxes or payment fees. R$ at 5.50.
+Three sizes, per month. "Base" is 1a + 1b + the business tools a team that size
+needs (1d), without taxes or payment fees.
 
 | | 5 offices (pilot) | 20 offices | 100 offices |
 | --- | --- | --- | --- |
-| Product (1a) | 35 | 50 | 90 |
-| Per office (1b, 2.50 each) | 12 | 50 | 250 |
-| Support chat | 0 | 45 (Crisp Mini) | 95 (Crisp Essentials) |
-| Error tracking and uptime | 0 | 26 | 56 |
-| Email accounts | 8 (1 user) | 16 (2) | 24 (3) |
-| AI for the business | 0 | 15 | 50 |
-| Accountant | 55 (R$300) | 65 (R$350) | 110 (R$600) |
-| **Base total** | **~110 (R$600)** | **~265 (R$1,460)** | **~675 (R$3,700)** |
-| **Base per office** | **~22 (R$120)** | **~13 (R$73)** | **~6.75 (R$37)** |
-| + WhatsApp for every office (2 each) | +10 | +40 | +200 |
-| + Own storage for every office (R2, replaces the downloads in 1b) | ~0 | ~0 | ~0 |
+| Product (1a) | US$35 | US$50 | US$90 |
+| Per office (1b, US$2.50 each) | US$12 | US$50 | US$250 |
+| Support chat | US$0 | US$45 (Crisp Mini) | US$95 (Crisp Essentials) |
+| Error tracking and uptime | US$0 | US$26 | US$56 |
+| Email accounts | US$8 (1 user) | US$16 (2) | US$24 (3) |
+| AI for the business | US$0 | US$15 | US$50 |
+| Accountant | US$55 (R$300) | US$65 (R$350) | US$110 (R$600) |
+| **Base total** | **~US$110 (R$600)** | **~US$265 (R$1,460)** | **~US$675 (R$3,700)** |
+| **Base per office** | **~US$22 (R$120)** | **~US$13 (R$73)** | **~US$6.75 (R$37)** |
+| + WhatsApp for every office (US$2 each) | +US$10 | +US$40 | +US$200 |
+| + Own storage for every office (R2, replaces the downloads in 1b) | ~US$0 | ~US$0 | ~US$0 |
 
-Against the Profissional tier at R$249 (section 2), at 100 offices: about R$37
-of base cost, R$11 of WhatsApp, R$15 of Simples tax (6%) and R$1.50 of payment
-fee per office. **That leaves roughly 75% of the price**, before salaries and
-marketing. At 5 offices the base cost per office is high (R$120), but founding
-offices are free during the pilot anyway (section 4).
+Against the Profissional tier at R$249 a month (section 2), at 100 offices:
+about R$37 of base cost, R$11 of WhatsApp, R$15 of Simples tax (6%) and R$1.50
+of payment fee per office. **That leaves roughly 75% of the price**, before
+salaries and marketing. At 5 offices the base cost per office is high (R$120),
+but founding offices are free during the pilot anyway (section 4).
 
 **What actually decides the margin:** taxes (section 3) and the time spent on
 support and onboarding, not infrastructure. That's why the support tools above
