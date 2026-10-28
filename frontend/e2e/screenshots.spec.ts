@@ -185,6 +185,10 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.reload();
   await page.getByText("E-mail não confirmado").waitFor();
   await shoot(page, "05g-equipe-nao-confirmado");
+  // "Minha conta": the person's own name and password.
+  await page.goto("/painel/conta");
+  await page.getByRole("heading", { level: 1, name: "Minha conta" }).waitFor();
+  await shoot(page, "05h-minha-conta");
 
   // The client's page (no sign-in needed; the staff session doesn't change it).
   await page.setViewportSize(SIZES[0]!);

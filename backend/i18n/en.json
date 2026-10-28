@@ -234,6 +234,7 @@
     "invalid_request": "We could not send this information. Reload the page and try again.",
     "link_invalid": "This link no longer works. Ask your office's owner for a new one.",
     "password_too_short": "The password must be at least {{min}} characters.",
+    "current_password_wrong": "That isn't your current password. Check it and try again.",
     "unexpected": "We couldn’t complete this action. Please try again shortly.",
     "network": "No connection to the server. Check your internet and try again.",
     "reference": "Support code: {{id}}",
@@ -1350,5 +1351,20 @@
     "addressFree": "Available",
     "create": "Create office",
     "next": "Next, you enter your name, email and password and confirm the email with a code."
+  },
+  "account": {
+    "title": "My account",
+    "nameTitle": "Your details",
+    "name": "Your name",
+    "nameHint": "How your team and clients see you.",
+    "email": "Email",
+    "emailHint": "Used to sign in and for notices. It can't be changed here yet.",
+    "save": "Save",
+    "nameSaved": "Name saved.",
+    "passwordTitle": "Password",
+    "currentPassword": "Current password",
+    "changePassword": "Change password",
+    "passwordNote": "Changing your password keeps you signed in on this device and signs out every other device.",
+    "passwordChanged": "Password changed. Other devices were signed out."
   }
 }

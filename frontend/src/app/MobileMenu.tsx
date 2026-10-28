@@ -50,6 +50,9 @@ export function MobileMenu({
                   <NavLink to="/configuracoes" onClick={close}>
                     {t("nav.settings")}
                   </NavLink>
+                  <NavLink to="/conta" onClick={close}>
+                    {t("account.title")}
+                  </NavLink>
                 </nav>
                 <Switch className={styles.switch} isSelected={theme === "dark"} onChange={(dark) => setTheme(dark ? "dark" : "light")}>
                   {t("theme.dark")}

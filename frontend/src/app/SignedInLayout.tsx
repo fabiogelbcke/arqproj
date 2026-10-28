@@ -71,6 +71,7 @@ function Painel() {
           <div className={styles.barActions}>
             <HeaderMenu
               person={me.data}
+              onAccount={() => void navigate("/conta")}
               onSignOut={() => signOut.mutate()}
               signingOut={signOut.isPending}
               onTour={startTour}

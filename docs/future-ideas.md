@@ -98,6 +98,13 @@ decision in the [decision changelog](decision-changelog.md).
 - The painel's ☰ drawer on phones (greeting, Modo escuro, Sair) is the natural
   home for a staff member's own account: change password, change email, maybe
   notification preferences. Fabio, 18 Oct 2026: "later".
+- Built 28 Oct 2026 (PR for review): "Minha conta" (`/painel/conta`), from the
+  account menu and the phone drawer.
+  - Your name.
+  - Your password: the current one first; it ends every other sign-in and keeps
+    this device; five wrong in 15 minutes, then a wait.
+- Still open: changing the email (the new address must be confirmed first) and
+  notification preferences.
 
 
 ## A file's link that survives renames

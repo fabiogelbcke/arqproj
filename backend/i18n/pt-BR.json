@@ -234,6 +234,7 @@
     "invalid_request": "Não foi possível enviar estas informações. Recarregue a página e tente novamente.",
     "link_invalid": "Este link não funciona mais. Peça um novo ao responsável pelo escritório.",
     "password_too_short": "A senha precisa ter pelo menos {{min}} caracteres.",
+    "current_password_wrong": "A senha atual não confere. Confira e tente novamente.",
     "unexpected": "Não foi possível concluir a ação. Tente novamente em instantes.",
     "network": "Sem conexão com o servidor. Verifique sua internet e tente novamente.",
     "reference": "Código de suporte: {{id}}",
@@ -1350,5 +1351,20 @@
     "addressFree": "Disponível",
     "create": "Criar escritório",
     "next": "Depois, você informa o seu nome, e-mail e senha e confirma o e-mail com um código."
+  },
+  "account": {
+    "title": "Minha conta",
+    "nameTitle": "Seus dados",
+    "name": "Seu nome",
+    "nameHint": "Como a equipe e os clientes veem você.",
+    "email": "E-mail",
+    "emailHint": "Usado para entrar e para receber avisos. Ainda não é possível alterá-lo por aqui.",
+    "save": "Salvar",
+    "nameSaved": "Nome salvo.",
+    "passwordTitle": "Senha",
+    "currentPassword": "Senha atual",
+    "changePassword": "Alterar senha",
+    "passwordNote": "Ao alterar a senha, você continua conectado neste aparelho, e os outros aparelhos são desconectados.",
+    "passwordChanged": "Senha alterada. Os outros aparelhos foram desconectados."
   }
 }
