@@ -22,7 +22,7 @@ The costs are in their own documents, under [costs/](costs/README.md):
 
 In short: about R$14 a month per office plus taxes (6% under Simples Anexo III,
 15.5% under Anexo V), R$520–2,700 a month of fixed costs depending on size, and
-about R$6,500 once. At an average R$242 a month, fixed costs are covered from
+about R$1,500 once. At an average R$242 a month, fixed costs are covered from
 about 6 paying offices, and about 75% of revenue is left from 50 offices,
 before salaries and marketing.
 

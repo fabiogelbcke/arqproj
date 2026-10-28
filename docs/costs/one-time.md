@@ -12,9 +12,9 @@ currency; US$1 = R$5.50.
 | Item | Cost | When | Notes |
 | --- | --- | --- | --- |
 | **Opening the company** (CNPJ, Simples Nacional) | R$500–3,000 | Before the first invoice | Online accountants often include it with a yearly contract. The simulation uses R$1,500. |
-| **Lawyer**: terms of use, privacy policy (LGPD), contract with offices | Get 2–3 quotes | Before public signup | No quote yet: the simulation uses **R$5,000 as a placeholder**. A yearly review afterwards ([fixed.md](fixed.md)). |
+| **Lawyer**: terms of use, privacy policy (LGPD), contract with offices | R$0 for now | Before public signup | Fabio's mother, a lawyer, does it for free for now; a paid arrangement once there is revenue ([fixed.md](fixed.md)). |
 | Meta business verification (for WhatsApp updates) | US$0 | Before building WhatsApp | [whatsapp-updates.md](../whatsapp-updates.md) |
-| **Total in cash** | **~R$6,500** (R$3,500–10,000) | | Paid back in about 3 months at 20 offices ([margin.md](margin.md#break-even-and-paying-back-the-one-off-costs)) |
+| **Total in cash** | **~R$1,500** (R$500–3,000) | | Paid back in about a month at 20 offices ([margin.md](margin.md#break-even-and-paying-back-the-one-off-costs)) |
 
 ## Building the extras
 

@@ -36,7 +36,7 @@ every year. See [storage-strategy.md](../storage-strategy.md#where-we-are).
 | **Email accounts** (`contato@`, `suporte@myunio.app`) | Google Workspace Business Starter US$7–8.40 per user (~R$35–45, plus 6.38% IOF on an international card) | 1–2 users | 1 per person |
 | **AI for the business** (support drafts, weekly digest, sales research) | US$5–40 in API costs at pilot scale | Through Fabio's subscription first | See [ai-for-the-business.md](../ai-for-the-business.md#what-to-build-first) |
 | **Accountant** (Simples Nacional) | R$150–600; online firms R$259–900 | **Needed from the first invoice** | — |
-| **Lawyer**, yearly review of terms and contract | Quote | — | Once a year after the first version ([one-time.md](one-time.md)) |
+| **Lawyer**: reviews of terms and contracts | R$0 for now | Fabio's mother, for free | A paid arrangement with her once there is revenue; not in the simulation yet |
 
 ### Support chat tools compared
 

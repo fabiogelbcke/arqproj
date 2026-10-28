@@ -7,6 +7,7 @@ one-time.md; this file only adds them up. Rough on purpose: no churn, no growth
 curve, every office in steady state.
 """
 
+import math
 import re
 import sys
 from pathlib import Path
@@ -56,7 +57,7 @@ def fixed_usd(n):
 
 # -- One-time costs (one-time.md), R$ --------------------------------------------------
 
-ONE_TIME = {"Opening the company": 1_500, "Lawyer: terms, privacy, contract": 5_000}
+ONE_TIME = {"Opening the company": 1_500, "Lawyer: terms, privacy, contract": 0}
 
 
 # -- Taxes: Simples Nacional, by the last 12 months' revenue ---------------------------
@@ -177,7 +178,8 @@ def report():
     for p in prices:
         even = next((n for n in range(1, 500) if month(n, price=p)["result"] >= 0), None)
         at_20 = month(20, price=p)["result"]
-        payback = f"{one_off / at_20:.0f} months" if at_20 > 0 else "never"
+        months = math.ceil(one_off / at_20) if at_20 > 0 else None
+        payback = "never" if months is None else f"{months} month{'s' * (months > 1)}"
         body.append([brl(p), f"{even} offices", payback])
     out.append(
         table(

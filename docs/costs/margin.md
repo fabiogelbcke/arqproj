@@ -22,7 +22,7 @@ Per month, at a number of paying offices:
 - **Tax:** Simples Nacional on the yearly revenue, Anexo III or V
   ([per-office.md](per-office.md#taxes-grow-with-revenue)).
 - **Fixed costs:** the steps in [fixed.md](fixed.md#by-size).
-- **One-off costs** (~R$6,500, [one-time.md](one-time.md)) only in the payback
+- **One-off costs** (~R$1,500, [one-time.md](one-time.md)) only in the payback
   column.
 
 ### Assumptions
@@ -77,13 +77,13 @@ Average price after the tier mix and annual discounts: **R$242** a month.
 
 ### Break-even and paying back the one-off costs
 
-| Average price | Fixed costs covered from | One-off costs (R$6,500) paid back at 20 offices |
+| Average price | Fixed costs covered from | One-off costs (R$1,500) paid back at 20 offices |
 | --- | --- | --- |
-| R$129 | 12 offices | 22 months |
-| R$199 | 7 offices | 5 months |
-| R$249 | 6 offices | 3 months |
-| R$299 | 5 offices | 2 months |
-| R$399 | 4 offices | 2 months |
+| R$129 | 12 offices | 6 months |
+| R$199 | 7 offices | 2 months |
+| R$249 | 6 offices | 1 month |
+| R$299 | 5 offices | 1 month |
+| R$399 | 4 offices | 1 month |
 <!-- simulate.py:end -->
 
 ## Reading it

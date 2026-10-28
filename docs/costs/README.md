@@ -36,8 +36,8 @@ Companion analyses: [storage](../storage-strategy.md),
   the AI assistant. Plus payment fees (~R$2 a payment through Asaas) and
   **taxes, the largest per-office cost**: 6% of revenue under Simples Anexo III,
   15.5% or more under Anexo V.
-- **One-off:** ~R$6,500 in cash (company and lawyer, the lawyer still a
-  guess), plus weeks of building for each extra.
+- **One-off:** ~R$1,500 in cash (opening the company; the lawyer is free for
+  now), plus weeks of building for each extra.
 - **Margin** ([margin.md](margin.md)): at an average R$242 a month per office,
   fixed costs are covered from about 6 paying offices, and **about 75% of
   revenue is left from 50 offices** (66% under Anexo V), before salaries and
