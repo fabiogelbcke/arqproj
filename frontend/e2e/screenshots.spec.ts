@@ -57,6 +57,7 @@ test("@screenshots owner signup", async ({ page }) => {
 });
 
 test("@screenshots staff app", async ({ page, browser }) => {
+  test.setTimeout(60_000); // one long walk through every screen; the default 30 s is close
   await page.emulateMedia({ reducedMotion: "reduce" }); // no half-faded dialogs
   mkdirSync(OUT, { recursive: true });
   await page.goto("/painel/entrar");
@@ -304,6 +305,12 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.locator("#stage-2").getByRole("button", { name: "+ Nova seção" }).waitFor(); // saved
   await page.locator("#stage-2").getByRole("heading", { name: "Plantas executivas" }).scrollIntoViewIfNeeded();
   await shoot(page, "06s-nova-secao");
+  // A section's "⋯": hiding it says its files stay in Drive (A31).
+  await page.locator("#stage-2").getByRole("button", { name: "Ações da seção Plantas executivas" }).click();
+  await page.getByRole("menuitem", { name: /Ocultar seção/ }).click();
+  await page.getByRole("alertdialog", { name: /Ocultar a seção/ }).waitFor();
+  await shoot(page, "06t-ocultar-secao");
+  await page.keyboard.press("Escape");
   // Reopening a stage says the client will be emailed (A32), as completing does.
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();

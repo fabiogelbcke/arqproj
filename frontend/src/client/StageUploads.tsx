@@ -14,8 +14,10 @@ import { LIMITS } from "../api/limits";
 import { capture } from "../posthog";
 import { Button } from "../ui/Button";
 import { errorMessage } from "../ui/ErrorNotice";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { MoreIcon } from "../ui/MoreIcon";
+import { NameDialog } from "../ui/NameDialog";
 import { TextInput } from "../ui/TextInput";
 import { toast, toastError } from "../ui/Toast";
 import styles from "../ui/ui.module.css";
@@ -376,6 +378,16 @@ export function StageDrop({
   );
 }
 
+/** Moves a file to a stage (from 1), into one of its sections or not: from
+ *  "Mover para…" and from dragging its card (fileDrag). */
+export const moveRequest = (page: Page, slug: string, key: string, to: { position: number; section: string | null }) =>
+  call(
+    api.POST("/api/pages/{slug}/files/{key}/move", {
+      params: { path: { slug, key } },
+      body: { position: to.position, row_version: page.staff!.row_version, ...(to.section ? { folder: to.section } : {}) },
+    }),
+  );
+
 /** The "⋯" on each file in edit mode: set as cover (images), move to another
  *  stage or section, hide from the client. Changes are made here, not in Drive (A34). */
 export function FileMenu({
@@ -470,20 +482,7 @@ export function FileMenu({
     ].filter((place) => place.position !== position || place.section !== folder);
   });
   const move = (to: (typeof places)[number]) =>
-    act(
-      () =>
-        call(
-          api.POST("/api/pages/{slug}/files/{key}/move", {
-            params: { path },
-            body: {
-              position: to.position,
-              row_version: page.staff!.row_version,
-              ...(to.section ? { folder: to.section } : {}),
-            },
-          }),
-        ),
-      t("edit.fileMoved", { name: file.name, stage: to.done }),
-    );
+    act(() => moveRequest(page, slug, file.key, to), t("edit.fileMoved", { name: file.name, stage: to.done }));
   return (
     <div
       ref={menu}
@@ -689,5 +688,125 @@ export function AddSection({
         </button>
       </div>
     </div>
+  );
+}
+
+/** The "⋯" on a section's title in edit mode: "Renomear seção" and "Ocultar
+ *  seção" (its folder renamed "_name": off the page, still in Drive with its
+ *  files). Only for sections the app made (drive.file); for one made straight in
+ *  Drive the site says to change it there. */
+export function SectionMenu({
+  staff,
+  position,
+  section,
+  count,
+  sections,
+  onChanged,
+}: {
+  staff: Staff;
+  position: number;
+  section: string;
+  count: number; // its files, for the question before hiding it
+  sections: string[]; // the stage's, to refuse a name another one has
+  onChanged: () => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState<false | "menu" | "rename" | "hide">(false);
+  const menu = useRef<HTMLSpanElement>(null);
+  useDismiss(menu, open === "menu", () => setOpen(false));
+  const [busy, setBusy] = useState(false);
+  const path = { project_id: staff.project_id, position };
+  const change = async (request: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    try {
+      await request();
+      setOpen(false);
+      toast(done);
+      onChanged(); // the page lists Drive again
+    } catch (failure) {
+      toastError(failure);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const rename = (name: string) =>
+    change(
+      () =>
+        call(
+          api.POST("/api/projects/{project_id}/stages/{position}/folders/rename", {
+            params: { path },
+            body: { row_version: staff.row_version, name: section, new_name: name },
+          }),
+        ),
+      t("edit.sectionRenamed", { name }),
+    );
+  const hide = () =>
+    change(
+      () =>
+        call(
+          api.POST("/api/projects/{project_id}/stages/{position}/folders/hide", {
+            params: { path },
+            body: { row_version: staff.row_version, name: section },
+          }),
+        ),
+      t("edit.sectionHidden", { name: section }),
+    );
+  const others = sections.filter((other) => other !== section).map((other) => other.toLocaleLowerCase());
+  return (
+    // In the section's title, which folds the section on a click, and in the
+    // stage's form while "Editar etapa" is open: what happens here stays here.
+    <span
+      ref={menu}
+      className={`menu section-menu${open === "menu" ? " is-open" : ""}`}
+      onClick={(event) => menu.current?.contains(event.target as Node) && event.preventDefault()}
+      onKeyDown={(event) => event.stopPropagation()}
+      onSubmit={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="section-menu__button"
+        aria-haspopup="true"
+        aria-expanded={open === "menu"}
+        aria-label={t("edit.sectionActions", { section })}
+        onClick={() => setOpen(open === "menu" ? false : "menu")}
+      >
+        <MoreIcon />
+      </button>
+      {open === "menu" && (
+        <span className="menu__list" role="menu">
+          <button type="button" role="menuitem" onClick={() => setOpen("rename")}>
+            {t("edit.renameSection")}
+          </button>
+          <button type="button" role="menuitem" onClick={() => setOpen("hide")}>
+            {t("edit.hideSection")}
+            <small>{t("edit.hideSectionNote")}</small>
+          </button>
+        </span>
+      )}
+      {open === "rename" && (
+        <NameDialog
+          title={t("edit.renameSection")}
+          label={t("edit.sectionName")}
+          initial={section}
+          confirm={t("projectSettings.save")}
+          maxLength={LIMITS.sectionName}
+          problem={(name) => (others.includes(name.toLocaleLowerCase()) ? t("errors.folder_exists") : null)}
+          busy={busy}
+          onConfirm={(name) => void rename(name)}
+          onCancel={() => setOpen(false)}
+        />
+      )}
+      {open === "hide" && (
+        <ConfirmDialog
+          title={t("edit.hideSectionAsk", { section })}
+          text={count ? t("edit.hideSectionMeans", { count, section }) : t("edit.hideSectionEmpty", { section })}
+          note={t("edit.hideSectionUndo")}
+          confirm={t("edit.hideSection")}
+          busy={busy}
+          onConfirm={() => void hide()}
+          onCancel={() => setOpen(false)}
+        />
+      )}
+    </span>
   );
 }

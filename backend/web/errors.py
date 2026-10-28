@@ -78,6 +78,7 @@ class ErrorCode(StrEnum):
     INVALID_FOLDER_NAME = "invalid_folder_name"  # a section's: blank, or starts with "_"
     FOLDER_EXISTS = "folder_exists"  # the stage already has a section of that name
     FOLDER_NOT_FOUND = "folder_not_found"  # the section is gone from Drive: reload
+    FOLDER_NOT_OURS = "folder_not_ours"  # a section made straight in Drive: change it there
     UPLOAD_FAILED = "upload_failed"  # the browser couldn't finish sending: logged, with the code
     FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
     FILE_NOT_OURS_TO_MOVE = "file_not_ours_to_move"  # put straight into Drive: move it there

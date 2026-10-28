@@ -19,6 +19,25 @@ a new entry too.
 
 ---
 
+## 2026-10-28 — A31/A34: renaming and hiding sections; dragging files to move them
+
+**Was:** renaming or removing a section stayed in Drive (A31, 26 Oct). Dragging
+a file onto another stage was "a later addition" (A34).
+
+**Now:** "Renomear seção" and "Ocultar seção" on a section's "⋯". Hiding renames
+its folder `_name`: the section and its files leave the page but stay in Drive,
+and the confirmation says so. In edit mode a file card dragged onto a stage or
+into a section moves there, as "Mover para…" does.
+
+**Why:** Fabio, 28 Oct 2026. For a section that still holds files he chose
+hiding over the alternatives:
+- Moving its files up into the stage and trashing the folder fails for any file
+  added through Drive, which `drive.file` can't move.
+- Allowing removal only of empty sections means more clicks.
+Hiding works for every section the app made and loses nothing.
+
+---
+
 ## 2026-10-28 — A38 (proposed): a link to create an office, the base for signup
 
 **Was:** only an operator creates an office and its address (the dashboard, or
