@@ -91,8 +91,9 @@ loads anything from `backend/migrations/` or `backend/commands/`.
   CI runs the full suite (backend, staff app, browser tests, image) on every
   pull request into `staging`; it takes minutes, the full local run much longer.
 - Push to the pull request and ask for its review right away, while CI runs
-  (Fabio, 23 Oct 2026: waiting doubled each round): a fresh Claude reviewer or
-  Codex, as `docs/pull-requests.md` says. Fix what the review or CI finds.
+  (Fabio, 23 Oct 2026: waiting doubled each round): Claude on GitHub
+  (`@claude review`), a local fresh reviewer or Codex, as
+  `docs/pull-requests.md` says. Fix what the review or CI finds.
   Hand the pull request to Fabio only once CI has passed: never a red one.
 - Run the full suite locally (`make test`, `make e2e`) only when there is no
   pull request to run CI on, or when asked.

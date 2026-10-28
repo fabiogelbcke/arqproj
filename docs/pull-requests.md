@@ -5,17 +5,22 @@ review guidelines (what any reviewer checks); this file holds the rest.
 
 ## Code review
 
-Pull requests for the rewrite go into the `staging` branch. Two reviewers are
-available (Fabio, 28 Oct 2026: Codex reviews use up the Codex plan, the Claude
-plan has room):
+Pull requests for the rewrite go into the `staging` branch. Three reviewers
+are available (Fabio, 28 Oct 2026: Codex reviews use up the Codex plan, the
+Claude plan has room). None of them has the author's conversation, and the
+author's session never reviews its own change in their place.
 
-- **A fresh Claude reviewer:** a new Claude Code agent that has none of the
-  author's conversation. The author's Claude Code session starts it with the
-  brief below, changing only the pull request number, so nothing of the
-  author's reasoning reaches it. The author's session never reviews its own
-  change in its place. A pull request written without a Claude Code session
-  (Codex, Cowork) is reviewed by Codex, or by a fresh reviewer if Fabio starts
-  one.
+- **Claude on GitHub** (`.github/workflows/claude-review.yml`): comment
+  `@claude review` on the pull request, or `@claude review high-risk` for the
+  larger model. It reviews with the instructions in the workflow, comments on
+  the lines it finds problems in, and posts a summary. Its runs are in the
+  repository's Actions tab, so what it was asked and what it did can be
+  checked (Fabio, 28 Oct 2026: more auditable than a review started from a
+  session). Anyone with write access can ask for it, so pull requests from
+  Codex or Cowork get it too.
+- **A local fresh reviewer**, for documentation-only pull requests and file
+  moves: the author's Claude Code session starts a new agent with the brief
+  below, changing only the pull request number.
 - **Codex** on GitHub (comment `@codex review`; marking a draft ready does not
   reliably trigger it). A Codex round that hasn't come back in 15 minutes is
   asked for again.
@@ -24,7 +29,7 @@ Ask for each round as soon as its commit is pushed, without waiting for CI: the
 two run side by side (Fabio, 23 Oct 2026). When the review rounds end and CI has
 passed, the pull request goes to Fabio, who reviews and merges.
 
-The fresh reviewer's brief:
+The local fresh reviewer's brief:
 
 > Review pull request #N in fabiogelbcke/arqproj. You did not write it. Read
 > `AGENTS.md` (its "Review guidelines"), `docs/pull-requests.md` and the
@@ -42,9 +47,9 @@ UI change to the sign-in screens is high-risk):
 | Pull request | Reviews |
 | --- | --- |
 | An extremely simple change (a typo, a one-line copy fix, a doc wording tweak) | None. Say so in the description. |
-| Documentation only, file moves, very simple changes | One fresh Claude review. A documentation-only change after a clean review needs no other. |
-| UI changes and low-risk backend changes | Fresh Claude reviews only, at most 2 rounds. |
-| High-risk changes to anything: security, data isolation, migrations, deploys, money, email sending, sign-in, privacy | A fresh Claude review first, then Codex once its findings are fixed, even if it came back clean: a second model catches different things. A later round goes to the reviewer whose findings were just fixed. At most 4 rounds in all. |
+| Documentation only, file moves | One local fresh review. A documentation-only change after a clean review needs no other. |
+| UI changes, low-risk and very simple code changes | `@claude review` only, at most 2 rounds (1 for very simple changes). |
+| High-risk changes to anything: security, data isolation, migrations, deploys, money, email sending, sign-in, privacy | `@claude review high-risk` first, then Codex once its findings are fixed, even if it came back clean: a second model catches different things. A later round goes to the reviewer whose findings were just fixed. At most 4 rounds in all. |
 
 How many rounds:
 
@@ -59,7 +64,7 @@ How many rounds:
   issues are still appearing at the limit, the pull request is too big or its
   design is unsettled: pause and discuss it with Fabio.
 - When Codex is out of quota, a high-risk pull request goes through its rounds
-  with fresh Claude reviews, its description says "Codex review pending", and
+  with Claude reviews, its description says "Codex review pending", and
   Fabio decides whether to merge before it. Codex reviews it once it is back,
   merged or not.
 
