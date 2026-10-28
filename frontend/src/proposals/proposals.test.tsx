@@ -191,7 +191,9 @@ const GENERATOR: Generator = {
   default_notes: "Observações padrão.",
 };
 
-function generator(extra: Record<string, (body: unknown) => { status?: number; body?: unknown }> = {}) {
+type Reply = { status?: number; body?: unknown };
+
+function generator(extra: Record<string, (body: unknown) => Reply | Promise<Reply>> = {}) {
   const sent = fakeApi({
     "GET /api/tenant": () => ({ body: TENANT }),
     "GET /api/me": () => ({ body: ME }),
@@ -288,6 +290,34 @@ describe("the proposal generator", () => {
     await userEvent.click(await crumb());
     await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Sair sem salvar" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+  });
+
+  it("keeps what is typed while a save is under way", async () => {
+    let finish = () => {};
+    const versions: unknown[] = [];
+    const { router } = generator({
+      "GET /api/projects/p-1/proposal": () => ({ body: { ...GENERATOR, versions } }),
+      "POST /api/projects/p-1/proposals": () =>
+        new Promise((resolve) => {
+          finish = () => {
+            const saved = { version: 1, created_at: "2026-10-28T12:00:00Z", created_by: "Ana" };
+            versions.unshift(saved);
+            resolve({ status: 201, body: saved });
+          };
+        }),
+    });
+    await userEvent.type(await screen.findByLabelText(/Valor total/), "1.000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    const description = () => screen.getAllByLabelText("Descrição")[0] as HTMLTextAreaElement;
+    await userEvent.type(description(), " E visitas.");
+    finish();
+    expect(await screen.findByText(/Versão 1/)).toBeInTheDocument(); // reloaded with the saved version
+    expect(description().value).toBe("Conversas. E visitas.");
+
+    // Still unsaved: leaving asks.
+    await userEvent.click(within(screen.getByRole("navigation", { name: "Onde você está" })).getByRole("link", { name: "Projetos" }));
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/projetos/p-1/proposta");
   });
 
   it("marks the proposal accepted only after asking", async () => {

@@ -114,21 +114,28 @@ export function ProposalPage() {
   const { projectId = "" } = useParams();
   const { t } = useTranslation();
   const generator = useGenerator(projectId);
+  const savedHere = useRef(new Set<number>());
   if (generator.error) return <ErrorNotice error={generator.error} />;
   if (!generator.data) return <p className={styles.lead}>{t("app.loading")}</p>;
-  // A fresh form whenever another version is saved elsewhere and reloaded.
-  return <Generator key={generator.data.versions[0]?.version ?? 0} data={generator.data} />;
+  // A fresh form whenever another version is saved elsewhere and reloaded; the
+  // form's own saves keep it as it is, with anything typed while saving.
+  const latestElsewhere = generator.data.versions.find((v) => !savedHere.current.has(v.version))?.version ?? 0;
+  return (
+    <Generator key={latestElsewhere} data={generator.data} onSaved={(version) => savedHere.current.add(version)} />
+  );
 }
 
-function Generator({ data }: { data: Generator }) {
+function Generator({ data, onSaved }: { data: Generator; onSaved: (version: number) => void }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
   const office = useOffice();
   const [draft, setDraft] = useState<Draft>(() => draftFrom(data.start, locale));
   const [dirty, setDirty] = useState(false);
+  const edits = useRef(0); // counts changes, so a save knows whether more came after it
   const change = (next: Partial<Draft>) => {
     setDraft((was) => ({ ...was, ...next }));
     setDirty(true);
+    edits.current += 1;
   };
   const save = useSaveProposal(data.project_id);
   const accept = useAcceptProposal(data.project_id);
@@ -224,9 +231,11 @@ function Generator({ data }: { data: Generator }) {
     const checked = check(draft, locale, t);
     if ("problem" in checked) return setProblem(checked.problem);
     setProblem(null);
+    const editsSaved = edits.current;
     save.mutate(checked.content, {
       onSuccess: (saved) => {
-        setDirty(false);
+        onSaved(saved.version);
+        if (edits.current === editsSaved) setDirty(false);
         toast(t("proposal.generator.saved", { version: saved.version }));
       },
     });
