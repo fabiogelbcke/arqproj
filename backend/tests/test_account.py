@@ -184,3 +184,28 @@ async def test_wrong_passwords_for_the_email_count_with_the_passwords(client, ow
         await change(client, owner, current="wrong")
     refused = await change_email(client, owner)
     assert (refused.status_code, refused.json()["error"]) == (429, "too_many_attempts")
+
+
+async def test_a_password_changed_while_checking_the_current_one_wins(
+    client, db_session, owner, monkeypatch
+):
+    """Two changes at once: the one checked against an outdated password loses."""
+    from sqlalchemy import text
+
+    real = account.verify_password
+
+    async def meanwhile(password_hash, password):
+        ok = await real(password_hash, password)
+        # Another tab's change (or a reset) lands while this one is being checked.
+        await db_session.execute(
+            text("UPDATE users SET password_hash = 'changed' WHERE email = 'dona@alinea.example'")
+        )
+        return ok
+
+    monkeypatch.setattr(account, "verify_password", meanwhile)
+    response = await change(client, owner)
+    assert (response.status_code, response.json()["error"]) == (422, "current_password_wrong")
+    stored = await db_session.scalar(
+        text("SELECT password_hash FROM users WHERE email = 'dona@alinea.example'")
+    )
+    assert stored == "changed"  # the other change stands

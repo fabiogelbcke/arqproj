@@ -76,10 +76,13 @@ async def change_password(
         password_hash = await accounts.new_password_hash(body.password)
     except accounts.PasswordTooShort:
         raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT) from None
-    await _check_current(staff, db, body.current)
-    user = await db.get(User, staff.user_id)
+    user = await _check_current(staff, db, body.current)
     await accounts.set_password(db, user, password_hash)  # ends every sign-in
-    return await signed_in(request, response, tenant, db, user)  # this device again
+    result = await signed_in(request, response, tenant, db, user)  # this device again
+    posthog_client = getattr(request.app.state, "posthog", None)
+    if posthog_client is not None:
+        posthog_client.capture("password_set")  # A39, as a reset link's
+    return result
 
 
 class EmailChangeIn(BaseModel):
@@ -87,18 +90,33 @@ class EmailChangeIn(BaseModel):
     email: str = Field(max_length=500)
 
 
-async def _check_current(staff: CurrentStaff, db: AsyncSession, current: str) -> None:
-    """The account's current password, within the per-account limit."""
+async def _check_current(
+    staff: CurrentStaff, db: AsyncSession, current: str, *, confirmation: bool = False
+) -> User:
+    """The account, locked for this transaction, once its current password is
+    checked (within the per-account limit). The check runs with no connection held
+    and no lock (it's slow); so afterwards the row is read again under its lock, and
+    if the password changed meanwhile (another tab, a reset), this request loses:
+    a change checked against an outdated password never overwrites a newer one.
+    `confirmation`: the account's confirmation lock first, in the order the code
+    flow takes them (backend/web/email_confirmation.py), so the two never deadlock."""
     key = _limit_key(staff)
     if not attempts.admit(*key):
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
     user = await db.get(User, staff.user_id)
+    checked = user.password_hash if user else None
     await db.commit()  # the connection back before the slow check
-    if user is None or not await verify_password(user.password_hash, current):
+    if user is None or not await verify_password(checked, current):
         attempts.failed(*key)
         await anyio.sleep(FAILED_LOGIN_DELAY)
         raise ApiError(422, ErrorCode.CURRENT_PASSWORD_WRONG)
     attempts.succeeded(*key)
+    if confirmation:
+        await accounts.lock_confirmation(db, staff.user_id)
+    user = await db.get(User, staff.user_id, with_for_update=True, populate_existing=True)
+    if user is None or user.password_hash != checked:
+        raise ApiError(422, ErrorCode.CURRENT_PASSWORD_WRONG)  # changed meanwhile
+    return user
 
 
 @router.post("/me/email/change", responses=documented(401, 403, 409, 422, 429, 503))
@@ -112,9 +130,7 @@ async def change_email(
     email = tidy_email(body.email)
     if not is_email(email):
         raise ApiError(422, ErrorCode.INVALID_EMAIL)
-    await _check_current(staff, db, body.current)
-    await accounts.lock_confirmation(db, staff.user_id)
-    user = await db.get(User, staff.user_id, populate_existing=True)
+    user = await _check_current(staff, db, body.current, confirmation=True)
     if email == user.email:
         raise ApiError(422, ErrorCode.EMAIL_UNCHANGED)
     await db.execute(_LOCK_EMAIL, {"email": email})
