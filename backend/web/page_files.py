@@ -621,6 +621,8 @@ def byte_range(request: Request, item: StorageItem) -> tuple[int, int] | None:
         if int(last) == 0:
             raise RangeNotSatisfiable
         return max(size - int(last), 0), size - 1
+    if last and int(last) < int(first):
+        return None  # reversed: unreadable, so the whole file (and a share counts all of it)
     if int(first) >= size:
         raise RangeNotSatisfiable
     return int(first), min(int(last), size - 1) if last else size - 1

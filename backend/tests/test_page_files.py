@@ -136,7 +136,9 @@ async def test_a_range_past_the_end_is_refused_with_the_size(client, owner, file
         assert refused.headers["content-range"] == f"bytes */{len(PDF)}"
 
 
-@pytest.mark.parametrize("asked", ["bytes=0-1,4-5", "items=0-3", "bytes=abc", "bytes=-"])
+@pytest.mark.parametrize(
+    "asked", ["bytes=0-1,4-5", "items=0-3", "bytes=abc", "bytes=-", "bytes=5-2"]
+)
 async def test_a_range_we_dont_read_gets_the_whole_file(client, owner, files, asked):
     whole = await client.get(await pdf_url(client), headers=ALINEA | {"range": asked})
     assert (whole.status_code, whole.content) == (200, PDF)
