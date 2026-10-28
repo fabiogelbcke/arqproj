@@ -320,6 +320,22 @@ describe("the proposal generator", () => {
     expect(router.state.location.pathname).toBe("/projetos/p-1/proposta");
   });
 
+  it("keeps the draft when reloading the proposal's details fails", async () => {
+    let loads = 0;
+    generator({
+      "GET /api/projects/p-1/proposal": () => (++loads === 1 ? { body: GENERATOR } : { status: 500, body: {} }),
+      "PUT /api/proposal-presets": (body) => ({ body: (body as { services: unknown }).services }),
+    });
+    const description = async () => (await screen.findAllByLabelText("Descrição"))[0] as HTMLTextAreaElement;
+    await userEvent.type(await description(), " E visitas.");
+    await userEvent.type(screen.getByLabelText("Nome do cliente"), " Souza");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar como padrão deste serviço" }));
+    await waitFor(() => expect(loads).toBe(3), { timeout: 4000 }); // the reload and its retry both fail
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect((screen.getByLabelText("Nome do cliente") as HTMLInputElement).value).toBe("Helena Duarte Souza");
+    expect((await description()).value).toBe("Conversas. E visitas.");
+  });
+
   it("marks the proposal accepted only after asking", async () => {
     const sent = generator({ "POST /api/projects/p-1/accept-proposal": () => ({ body: {} }) });
     await userEvent.click(await screen.findByRole("button", { name: "Proposta aceita" }));

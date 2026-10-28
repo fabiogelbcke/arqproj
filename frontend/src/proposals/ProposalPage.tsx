@@ -115,8 +115,9 @@ export function ProposalPage() {
   const { t } = useTranslation();
   const generator = useGenerator(projectId);
   const savedHere = useRef(new Set<number>());
-  if (generator.error) return <ErrorNotice error={generator.error} />;
-  if (!generator.data) return <p className={styles.lead}>{t("app.loading")}</p>;
+  // A failed refresh keeps the form and its unsaved draft; only a first load shows the error.
+  if (!generator.data)
+    return generator.error ? <ErrorNotice error={generator.error} /> : <p className={styles.lead}>{t("app.loading")}</p>;
   // A fresh form whenever another version is saved elsewhere and reloaded; the
   // form's own saves keep it as it is, with anything typed while saving.
   const latestElsewhere = generator.data.versions.find((v) => !savedHere.current.has(v.version))?.version ?? 0;
