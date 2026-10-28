@@ -19,6 +19,41 @@ a new entry too.
 
 ---
 
+## 2026-10-28 — A40 (new), A24: proposals, with a "Proposta" project status
+
+**Was:** no proposals. A project was `active` from creation (A35), and its page
+showed stages and files from the start. Creation asked for name, client, type,
+stages and optional client emails (A24).
+
+**Now:** staff generate a branded proposal PDF from the project page. Creation
+gains one optional checkbox, "Começa como proposta", which starts the project in
+a new `proposal` status: its client page shows only the proposal and the office's
+contact details until staff mark it accepted. Proposal services and their texts
+are separate from stages, saved as office presets. No emails, no online
+acceptance.
+
+**Alternatives rejected:**
+- *Reuse the `draft` status.* A draft's client page is "not found", but the
+  proposal is meant to be sent through the project page.
+- *Every project starts as a proposal*, or *generating a proposal switches the
+  status.* The first adds a click for offices that never send proposals; the
+  second changes the client's page without staff expecting it.
+- *Proposal items are the project's stages, with one description each.* The
+  example proposals list services that are not stages (rendered images,
+  lighting and plumbing as separate items), and their sales wording differs from
+  a stage's description on the client page.
+- *Show the planned stages beside the proposal.* They would be empty.
+- *Email the client when a proposal is generated.* Offices may want to present
+  it first.
+- *Online acceptance.* The product is not a negotiation tool; the PDF keeps
+  signature lines.
+
+**Why:** Fabio, 28 Oct 2026, from two proposals of a friendly office: proposals
+are written by hand today (with mistakes such as differing footers between
+pages), and a project page with only a proposal should not look empty.
+
+---
+
 ## 2026-10-26 — A31: sections in a stage, made from the page
 
 **Was:** a stage's subfolders were shown as titled groups (one level), but only
