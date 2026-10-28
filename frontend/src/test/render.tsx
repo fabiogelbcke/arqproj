@@ -20,7 +20,9 @@ export function fakeApi(handlers: Record<string, Handler>) {
       const body = input.method === "GET" ? undefined : await input.clone().json().catch(() => undefined);
       sent.push({ method: input.method, path, body, headers: input.headers });
       const handler = handlers[`${input.method} ${path}`];
-      const reply = handler ? await handler(body) : { status: 404, body: { error: "not_found" } };
+      const answer = handler ? handler(body) : { status: 404, body: { error: "not_found" } };
+      // Only a handler that answers later is waited for: other replies keep their timing.
+      const reply = answer instanceof Promise ? await answer : answer;
       return new Response(reply.status === 204 ? null : JSON.stringify(reply.body ?? {}), {
         status: reply.status ?? 200,
         headers: { "Content-Type": "application/json", ...reply.headers },
