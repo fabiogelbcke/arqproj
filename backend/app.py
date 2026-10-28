@@ -34,6 +34,7 @@ from backend.web import (
     legal,
     maintenance,
     office,
+    office_signup,
     onboarding,
     page_edit,
     page_files,
@@ -242,6 +243,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(legal.router)
     app.include_router(maintenance.router)
     app.include_router(admin.router)  # before the pages: /admin is no project's
+    app.include_router(office_signup.router)  # likewise /criar-escritorio
     app.include_router(auth.router)
     app.include_router(google_signin.router)
     app.include_router(email_confirmation.router)

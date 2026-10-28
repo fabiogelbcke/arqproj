@@ -5,13 +5,13 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router";
 
 import { ApiError, api, call, type Me } from "../api/client";
+import { takeToken } from "../api/linkToken";
 import { ME, useSignedIn, useSignedOut } from "../session/session";
 import { Button } from "../ui/Button";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { AuthBrand } from "./AuthBrand";
-import { takeToken } from "./ChoosePasswordPage";
 import styles from "./pages.module.css";
 
 /** Shown instead of the painel to someone who joined through the office's shared

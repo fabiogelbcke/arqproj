@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router";
 
 import { ApiError, api, call } from "../api/client";
+import { takeToken } from "../api/linkToken";
 import { LIMITS } from "../api/limits";
 import { useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
@@ -13,7 +14,6 @@ import { ErrorNotice } from "../ui/ErrorNotice";
 import { MIN_PASSWORD_LENGTH, NewPasswordFields } from "../ui/NewPasswordFields";
 import { TextField } from "../ui/TextField";
 import { AuthBrand } from "./AuthBrand";
-import { takeToken } from "./ChoosePasswordPage";
 import styles from "./pages.module.css";
 
 /** A shared member link or one-time owner link (A36): a name, an email and a

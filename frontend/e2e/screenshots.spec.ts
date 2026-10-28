@@ -411,6 +411,18 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await page.getByLabel("Endereço", { exact: true }).fill("horizonte.myunio.app");
   await shoot(page, "10d-operacao-criar");
   await page.keyboard.press("Escape");
+  // A link for someone to create their own office (A38), and its page.
+  await page.getByRole("button", { name: "Link para criar escritório" }).click();
+  await page.getByRole("button", { name: "Gerar link" }).click();
+  const link = await page.getByRole("textbox", { name: "Link para criar escritório" }).inputValue();
+  await shoot(page, "10f-operacao-link-criar");
+  await page.keyboard.press("Escape");
+  const signup = await page.context().newPage();
+  await signup.goto(`${unio}/criar-escritorio#${link.split("#")[1]}`);
+  await signup.getByLabel(/Nome do escritório/).fill("Estúdio Ipê");
+  await signup.getByText("Disponível").waitFor();
+  await shoot(signup, "11-criar-escritorio");
+  await signup.close();
   await page.getByRole("link", { name: "Alinea (dev)" }).click();
   await page.getByRole("heading", { name: "Equipe" }).waitFor();
   await page.getByRole("button", { name: "Carregar estatísticas de arquivos" }).click();

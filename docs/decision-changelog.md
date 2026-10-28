@@ -19,6 +19,32 @@ a new entry too.
 
 ---
 
+## 2026-10-28 — A38 (proposed): a link to create an office, the base for signup
+
+**Was:** only an operator creates an office and its address (the dashboard, or
+`make tenant`); its owner then signs up through a one-time owner link (A36). An
+open signup page was declined (A36, 25 Oct): "links we generate".
+
+**Now (for review):** an operator can make a one-time link to create an office.
+Its holder names the office and picks its `{address}.myunio.app` on Unio's
+address; the office and address are created through the operator's lifecycle
+login, the link is used up in the same transaction, and the browser goes on to
+the new office's existing owner signup. Still no open signup: a link is needed,
+and only an operator makes one.
+
+**Why:** Fabio, 28 Oct 2026: "an office creation page that is only via
+sharable link for now, but in the future we can use as basis for the actual
+sign up page". It lets the person pick their own name and address (a trade-off
+the owner-link flow recorded) without opening signup to anyone. The app's own
+login gains no privilege: creation stays with the lifecycle login, and the new
+table `office_signup_links` is granted to it alone (migration 0040).
+
+**Not yet:** public signup without a link (needs rate limits, abuse checks and
+perhaps payment, A38/section 22). On staging, offices it makes get an address
+under `staging.myunio.app`, which isn't routed (staging serves one office).
+
+---
+
 ## 2026-10-26 — A31: sections in a stage, made from the page
 
 **Was:** a stage's subfolders were shown as titled groups (one level), but only
