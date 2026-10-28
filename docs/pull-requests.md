@@ -10,12 +10,12 @@ available (Fabio, 28 Oct 2026: Codex reviews use up the Codex plan, the Claude
 plan has room):
 
 - **A fresh Claude reviewer:** a new Claude Code agent that has none of the
-  author's conversation. It gets only the pull request number and reads
-  `AGENTS.md` (its review guidelines), this file and the documentation the
-  description's **Context** links, so the author's reasoning can't bias it. It
-  posts its findings as one comment on the pull request, starting
-  "🤖 Claude:". The author's own session never reviews its own change in its
-  place.
+  author's conversation. The author's Claude Code session starts it with the
+  brief below, changing only the pull request number, so nothing of the
+  author's reasoning reaches it. The author's session never reviews its own
+  change in its place. A pull request written without a Claude Code session
+  (Codex, Cowork) is reviewed by Codex, or by a fresh reviewer if Fabio starts
+  one.
 - **Codex** on GitHub (comment `@codex review`; marking a draft ready does not
   reliably trigger it). A Codex round that hasn't come back in 15 minutes is
   asked for again.
@@ -24,14 +24,27 @@ Ask for each round as soon as its commit is pushed, without waiting for CI: the
 two run side by side (Fabio, 23 Oct 2026). When the review rounds end and CI has
 passed, the pull request goes to Fabio, who reviews and merges.
 
-Who reviews:
+The fresh reviewer's brief:
+
+> Review pull request #N in fabiogelbcke/arqproj. You did not write it. Read
+> `AGENTS.md` (its "Review guidelines"), `docs/pull-requests.md` and the
+> documentation the description's Context section links, then the pull request
+> through `gh pr view N` and `gh pr diff N`; read any other file you need on its
+> branch. Skip the "Git workflow" steps: you change nothing. Look for bugs and
+> for mismatches with the documentation, keeping to real problems. Post exactly
+> one comment with `gh pr comment N`, starting "🤖 Claude: fresh-agent review",
+> listing findings as P1 (serious), P2 (worth fixing) or P3 (minor), or saying
+> it is clean (👍). Do not edit files, push, approve or merge.
+
+Who reviews (when a pull request fits more than one row, the riskiest wins: a
+UI change to the sign-in screens is high-risk):
 
 | Pull request | Reviews |
 | --- | --- |
 | An extremely simple change (a typo, a one-line copy fix, a doc wording tweak) | None. Say so in the description. |
 | Documentation only, file moves, very simple changes | One fresh Claude review. A documentation-only change after a clean review needs no other. |
 | UI changes and low-risk backend changes | Fresh Claude reviews only, at most 2 rounds. |
-| High-risk changes to anything: security, data isolation, migrations, deploys, money, email sending, sign-in, privacy | A fresh Claude review first; once its findings are fixed, Codex; later rounds by either. At most 4 rounds in all, at least one by Codex: a second model catches different things. |
+| High-risk changes to anything: security, data isolation, migrations, deploys, money, email sending, sign-in, privacy | A fresh Claude review first, then Codex once its findings are fixed, even if it came back clean: a second model catches different things. A later round goes to the reviewer whose findings were just fixed. At most 4 rounds in all. |
 
 How many rounds:
 
@@ -41,9 +54,14 @@ How many rounds:
 - Stop when a round brings only declined or marginal findings, or comes back
   clean (👍).
 - A serious (P1) finding always gets one more round after its fix.
+- A high-risk pull request stops only after a Codex round.
 - The limits above stand (Fabio, 18 Oct 2026: reviews cost tokens). If real
   issues are still appearing at the limit, the pull request is too big or its
   design is unsettled: pause and discuss it with Fabio.
+- When Codex is out of quota, a high-risk pull request goes through its rounds
+  with fresh Claude reviews, its description says "Codex review pending", and
+  Fabio decides whether to merge before it. Codex reviews it once it is back,
+  merged or not.
 
 - Fix serious findings and those realistic for our actual setup.
 - Do not implement findings that are nitpicky, guard against configurations we
