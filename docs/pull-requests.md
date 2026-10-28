@@ -10,9 +10,10 @@ are available (Fabio, 28 Oct 2026: Codex reviews use up the Codex plan, the
 Claude plan has room). None of them has the author's conversation, and the
 author's session never reviews its own change in their place.
 
-- **Claude on GitHub** (`.github/workflows/claude-review.yml`): comment
-  `@claude review` on the pull request, or `@claude review high-risk` for the
-  larger model. It reviews with the instructions in the workflow, comments on
+- **Claude on GitHub** (`.github/workflows/claude-review.yml`): start a comment
+  on the pull request with `@claude review` (after the "🤖 Claude:" prefix, from
+  an agent), or `@claude review high-risk` for the larger model. It reviews only
+  pull requests opened by someone with write access: the repository is public. It reviews with the instructions in the workflow, comments on
   the lines it finds problems in, and posts a summary. Its runs are in the
   repository's Actions tab, so what it was asked and what it did can be
   checked (Fabio, 28 Oct 2026: more auditable than a review started from a
