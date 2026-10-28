@@ -88,7 +88,7 @@ describe("Minha conta", () => {
     renderAt("/conta");
     await userEvent.click(await screen.findByRole("button", { name: "Alterar e-mail" }));
     const dialog = screen.getByRole("dialog", { name: "Alterar e-mail" });
-    expect(dialog).toHaveTextContent("O e-mail atual será avisado da troca.");
+    expect(dialog).toHaveTextContent("O e-mail atual será avisado da troca, e os outros aparelhos serão desconectados.");
     await userEvent.type(within(dialog).getByLabelText(/Novo e-mail/), "ana.nova@alinea.example");
     await userEvent.type(within(dialog).getByLabelText(/Senha atual/), "a good password");
     await userEvent.click(within(dialog).getByRole("button", { name: "Enviar código" }));
