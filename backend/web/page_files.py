@@ -28,9 +28,11 @@ in the office's language (and the support code), not the API's JSON.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import logging
+import re
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -568,7 +570,11 @@ async def page_file(
         project = await _readable(db, slug, staff, request)
         storage, item = await _item(request, db, project, key)
         try:
-            download = await storage.download(item)
+            part = byte_range(request, item)
+        except RangeNotSatisfiable:
+            return not_satisfiable(item)
+        try:
+            download = await storage.download(item, part)
         except StorageError as error:
             raise _storage_failure(error, project, "download") from None
     except ApiError as error:
@@ -578,7 +584,53 @@ async def page_file(
     # Everything is checked: let the database connection go before the bytes
     # flow, so slow downloads never hold the small pool (plan section 15).
     await db.close()
-    return streamed(project, item, download, inline, request=request, staff=staff is not None)
+    return streamed(
+        project, item, download, inline, request=request, part=part, staff=staff is not None
+    )
+
+
+class RangeNotSatisfiable(Exception):
+    """The range asked for starts past the file's end (answered 416)."""
+
+
+def etag(item: StorageItem) -> str:
+    """The file's version as a strong validator: its id, last change, size and
+    checksum (Drive's MD5, where it has one). A resumed download asks for the rest
+    only if this still matches (If-Range), so two versions of a file are never
+    stitched together."""
+    seen = f"{item.id}\n{item.modified_at.isoformat()}\n{item.size}\n{item.checksum}"
+    return '"' + hashlib.sha256(seen.encode()).hexdigest()[:32] + '"'
+
+
+def byte_range(request: Request, item: StorageItem) -> tuple[int, int] | None:
+    """The one byte range the request asks for (`bytes=first-last`, `first-` or
+    `-suffix`), clipped to the file; None for the whole file: no Range, several,
+    one we don't read, a native export (no size), or an If-Range that no longer
+    matches (RFC 9110 section 14). Past the end: RangeNotSatisfiable."""
+    header, size = request.headers.get("range"), item.size
+    if not header or size is None or item.is_native:
+        return None
+    if_range = request.headers.get("if-range")
+    if if_range is not None and if_range != etag(item):
+        return None  # changed since the first part (or a date): the whole file again
+    match = re.fullmatch(r"\s*bytes\s*=\s*(\d*)\s*-\s*(\d*)\s*", header)
+    if not match or match.groups() == ("", ""):
+        return None
+    first, last = match.groups()
+    if first == "":  # the last N bytes
+        if int(last) == 0:
+            raise RangeNotSatisfiable
+        return max(size - int(last), 0), size - 1
+    if int(first) >= size:
+        raise RangeNotSatisfiable
+    return int(first), min(int(last), size - 1) if last else size - 1
+
+
+def not_satisfiable(item: StorageItem) -> Response:
+    return Response(
+        status_code=416,
+        headers={**PAGE_HEADERS, **NO_STORE, "Content-Range": f"bytes */{item.size}"},
+    )
 
 
 def streamed(
@@ -590,9 +642,10 @@ def streamed(
     request=None,
     source=None,
     staff: bool = False,
+    part: tuple[int, int] | None = None,
 ) -> StreamingResponse:
     """A checked file's bytes, as they come from Drive; never run on the office's
-    address."""
+    address. `part`: the byte range asked for and downloaded (206)."""
     kind = _kind(item)
     shown_inline = inline and kind in ("image", "pdf")
     name = shown_name(item)  # Drive's, with its version: "Planta v3.pdf"
@@ -608,6 +661,14 @@ def streamed(
     }
     if download.size is not None:
         headers["Content-Length"] = str(download.size)
+    # Ranges for files of known size: a PDF opens at any page, a broken download
+    # resumes (plan section 15). A native document's export has no size.
+    rangeable = item.size is not None and not item.is_native
+    headers["Accept-Ranges"] = "bytes" if rangeable else "none"
+    if rangeable:
+        headers["ETag"] = etag(item)
+    if part is not None:
+        headers["Content-Range"] = f"bytes {part[0]}-{part[1]}/{item.size}"
     media_type = download.media_type if shown_inline else "application/octet-stream"
 
     async def body():
@@ -639,6 +700,7 @@ def streamed(
         else body(),
         media_type=media_type,
         headers=headers,
+        status_code=206 if part is not None else 200,
     )
 
 

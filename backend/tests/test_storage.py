@@ -71,6 +71,14 @@ async def test_a_file_has_its_details_and_bytes(store):
     assert download.media_type == "application/pdf"
 
 
+@pytest.mark.parametrize(("first", "last"), [(2, 5), (0, 0), (5, len(PDF) - 1)])
+async def test_a_byte_range_is_just_those_bytes(store, first, last):
+    storage, ids = store
+    download = await storage.download(await storage.get(ids["planta"]), (first, last))
+    assert b"".join([chunk async for chunk in download.chunks]) == PDF[first : last + 1]
+    assert download.size == last - first + 1
+
+
 @pytest.mark.parametrize("item_id", ["nope", "../outside.txt"])
 async def test_unknown_items_and_paths_outside_are_not_found(store, item_id):
     storage, _ = store
@@ -369,3 +377,21 @@ async def test_a_download_abandoned_before_reading_can_still_be_closed(drive):
     download = await storage.download(StorageItem("f1", "P.pdf", "application/pdf", 4, None))
     await download.aclose()  # the client went away before the first chunk
     assert closed
+
+
+async def test_a_byte_range_is_asked_of_google_as_one(drive):
+    storage, fake = drive
+    item = StorageItem("f1", "Planta.pdf", "application/pdf", 10, None)
+    fake.answers = [(206, b"2345")]
+    download = await storage.download(item, (2, 5))
+    assert b"".join([c async for c in download.chunks]) == b"2345"
+    assert (download.size, fake.requests[0].headers["Range"]) == (4, "bytes=2-5")
+
+
+async def test_a_google_documents_export_ignores_a_range(drive):
+    storage, fake = drive
+    doc = StorageItem("doc1", "Memorial", "application/vnd.google-apps.document", None, None)
+    fake.answers = [(200, b"%PDF exported")]
+    download = await storage.download(doc, (2, 5))
+    assert b"".join([c async for c in download.chunks]) == b"%PDF exported"
+    assert "Range" not in fake.requests[0].headers and download.size is None

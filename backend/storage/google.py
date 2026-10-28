@@ -114,7 +114,9 @@ class GoogleDriveStorage:
             raise StorageError(StorageProblem.NOT_FOUND)
         return _item(body)
 
-    async def download(self, item: StorageItem) -> Download:
+    async def download(
+        self, item: StorageItem, byte_range: tuple[int, int] | None = None
+    ) -> Download:
         _check(item.id)
         if item.is_folder or item.is_shortcut or (item.is_native and not item.exports_as_pdf):
             raise StorageError(StorageProblem.NOT_FOUND)
@@ -125,7 +127,12 @@ class GoogleDriveStorage:
             url = f"{self._api}/files/{item.id}"
             params = {"alt": "media", "supportsAllDrives": "true"}
             media_type, size = item.mime_type, item.size
-        response = await self._send("GET", url, params, stream=True)
+        headers = {}
+        if byte_range is not None and not item.is_native:
+            first, last = byte_range
+            headers["Range"] = f"bytes={first}-{last}"  # Drive answers 206 with those bytes
+            size = last - first + 1
+        response = await self._send("GET", url, params, stream=True, headers=headers)
 
         async def chunks():
             try:
@@ -154,7 +161,7 @@ class GoogleDriveStorage:
         return (await self._send("GET", re.sub(r"=s\d+$", f"=s{size}", link), {})).content
 
     async def _send(
-        self, method: str, url: str, params: dict, *, stream: bool = False
+        self, method: str, url: str, params: dict, *, stream: bool = False, headers=None
     ) -> httpx2.Response:
         problem, detail = StorageProblem.UNAVAILABLE, ""
         for attempt in range(RETRIES + 1):
@@ -166,8 +173,8 @@ class GoogleDriveStorage:
                 problem, detail = StorageProblem.UNAVAILABLE, f"token: {error!r}"
                 log.warning("Drive token unavailable: %r", error)
                 continue
-            headers = {"Authorization": f"Bearer {token}"}
-            request = self._client.build_request(method, url, params=params, headers=headers)
+            sent = {"Authorization": f"Bearer {token}", **(headers or {})}
+            request = self._client.build_request(method, url, params=params, headers=sent)
             try:
                 response = await self._client.send(request, stream=stream)
             except httpx2.TransportError as error:
@@ -246,9 +253,11 @@ class OfficeDrive:
         await self._require_inside(item_id)
         return await self._drive.get(item_id)
 
-    async def download(self, item: StorageItem) -> Download:
+    async def download(
+        self, item: StorageItem, byte_range: tuple[int, int] | None = None
+    ) -> Download:
         await self._require_inside(item.id)
-        return await self._drive.download(item)
+        return await self._drive.download(item, byte_range)
 
     async def thumbnail(self, item: StorageItem, size: int = 640) -> bytes | None:
         await self._require_inside(item.id)

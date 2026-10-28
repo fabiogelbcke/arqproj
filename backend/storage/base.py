@@ -108,7 +108,13 @@ class Storage(Protocol):
 
     async def get(self, item_id: str) -> StorageItem: ...
 
-    async def download(self, item: StorageItem) -> Download: ...
+    async def download(
+        self, item: StorageItem, byte_range: tuple[int, int] | None = None
+    ) -> Download:
+        """The file's bytes; with `byte_range` (first, last, both inclusive and
+        within its size), only those, and `size` is their count. Ranges are for
+        files of known size: a native document's export has none."""
+        ...
 
     async def thumbnail(self, item: StorageItem, size: int = 640) -> bytes | None:
         """A small preview image, or None where the store has none."""
