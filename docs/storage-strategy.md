@@ -114,7 +114,7 @@ API means the code isn't tied to Cloudflare. Pay attention to:
   cost); we'd own the index.
 - **Downloads without Cloud Run.** Signed links straight from the bucket, which
   also removes the download traffic cost in
-  [pricing](pricing-and-trials.md#1-what-an-office-costs-us-to-serve).
+  [pricing](pricing-and-trials.md#1b-per-office-as-it-is-today).
 - **Something to sell.** Storage-based tiers, "keep finished projects forever"
   as a paid extra.
 - **Offices with no Google account** can use Unio.
