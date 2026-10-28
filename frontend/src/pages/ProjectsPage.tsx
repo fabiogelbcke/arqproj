@@ -14,7 +14,7 @@ import {
   loadSort,
   isMine,
   matches,
-  personKey,
+  peopleOf,
   projectTypes,
   responsibles,
   saveSort,
@@ -34,7 +34,7 @@ import { toast } from "../ui/Toast";
 import pageStyles from "./pages.module.css";
 
 const ALL_TYPES = "all";
-// The responsible chips (?resp=…): everyone, "Meus projetos", or one person by personKey.
+// The responsible chips (?resp=…): everyone, "Meus projetos", or one person (peopleOf's id).
 const EVERYONE = "all";
 const MINE = "meus";
 
@@ -198,12 +198,18 @@ export function ProjectsPage() {
   );
   // The chosen type's last project archived: every project again.
   const type = types.some((option) => option.id === chosenType) ? chosenType : ALL_TYPES;
-  // Who's responsible, from each project's "Responsável" detail: a chip each, and
-  // "Meus projetos" when the signed-in person's name is among them. Only with two
-  // or more people: one name filters nothing.
+  // Who works on each project: its members where the office has them (A41),
+  // otherwise its "Responsável" detail. A chip each, and "Meus projetos" when the
+  // signed-in person is among them. Only with two or more people: one filters nothing.
+  const byMembers = me.data?.features.includes("project_members") ?? false;
+  const myId = me.data?.id ?? "";
   const myName = me.data?.name ?? "";
-  const people = useMemo(() => responsibles(projects.data ?? [], i18n.language), [projects.data, i18n.language]);
-  const anyMine = (projects.data ?? []).some((project) => isMine(project.responsible, myName));
+  const myself = useMemo(() => ({ id: myId, name: myName }), [myId, myName]);
+  const people = useMemo(
+    () => responsibles(projects.data ?? [], i18n.language, byMembers),
+    [projects.data, i18n.language, byMembers],
+  );
+  const anyMine = (projects.data ?? []).some((project) => isMine(project, myself, byMembers));
   // No chips (fewer than two people): no filter either, or it couldn't be undone (Codex, PR #155).
   const person =
     people.length < 2
@@ -223,10 +229,12 @@ export function ProjectsPage() {
             matches(project, query) &&
             (type === ALL_TYPES || project.project_type === type) &&
             (person === EVERYONE ||
-              (person === MINE ? isMine(project.responsible, myName) : personKey(project.responsible ?? "") === person)),
+              (person === MINE
+                ? isMine(project, myself, byMembers)
+                : peopleOf(project, byMembers).some((p) => p.id === person))),
         )
         .sort(compareProjects(sort, i18n.language)),
-    [projects.data, query, type, person, myName, sort, i18n.language],
+    [projects.data, query, type, person, myself, byMembers, sort, i18n.language],
   );
   // No drafts for now (A35); one left in the database is listed with the live ones.
   const active = shown.filter((p) => p.status === "active" || p.status === "draft");

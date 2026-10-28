@@ -24,7 +24,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from backend.db.base import Base, IdMixin, TimestampsMixin
+from backend.db.base import Base, CreatedAtMixin, IdMixin, TimestampsMixin
 from backend.db.isolation import TenantOwned
 from backend.db.types import TextEnum, enum_check
 from backend.projects.enums import (
@@ -309,6 +309,27 @@ class ProjectDetail(IdMixin, TenantOwned, Base):
     value_text: Mapped[str | None] = mapped_column(Text)
     value_number: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     value_date: Mapped[date | None] = mapped_column(Date)
+
+
+class ProjectMember(IdMixin, CreatedAtMixin, TenantOwned, Base):
+    """Someone of the office's staff working on a project (A41): the painel
+    filters by them, and the client page names them as "Responsável". Gone with
+    the project, or with the account."""
+
+    __tablename__ = "project_members"
+    __table_args__ = (
+        _project_fk("project_members"),
+        ForeignKeyConstraint(
+            ["tenant_id", "user_id"],
+            ["users.tenant_id", "users.id"],
+            ondelete="CASCADE",
+            name="fk_project_members_user",
+        ),
+        UniqueConstraint("project_id", "user_id", name="uq_project_members_project_id_user_id"),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(index=True)
 
 
 class Meeting(IdMixin, TimestampsMixin, TenantOwned, Base):

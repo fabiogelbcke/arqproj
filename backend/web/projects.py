@@ -22,6 +22,7 @@ from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
+from backend.identity.models import User
 from backend.notifications.models import RECIPIENTS_MAX, ProjectRecipient, RecipientStatus
 from backend.projects.creation import (
     CreationProblem,
@@ -35,6 +36,7 @@ from backend.projects.models import (
     Meeting,
     Project,
     ProjectDetail,
+    ProjectMember,
     ProjectSlug,
     ProjectStage,
     ProjectTypeDef,
@@ -43,7 +45,7 @@ from backend.projects.models import (
 )
 from backend.storage.google_connect import ConnectError
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
-from backend.tenancy.models import Locale
+from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.drive import writer_for
@@ -67,6 +69,11 @@ class RecipientOut(BaseModel):
     # False once the client followed the email's unsubscribe link: they get
     # nothing more, and staff can't undo it (A32, section 14).
     subscribed: bool
+
+
+class MemberRef(BaseModel):
+    id: uuid.UUID
+    name: str
 
 
 class ProjectSummary(BaseModel):
@@ -96,6 +103,8 @@ class ProjectSummary(BaseModel):
     recipients: list[RecipientOut]
     # Its "Responsável" detail as typed, if it has one: the painel filters by it.
     responsible: str | None = None
+    # Who works on it, by name (A41); empty unless the office has the feature (A40).
+    members: list[MemberRef] = []
 
 
 class StageOption(BaseModel):
@@ -130,8 +139,9 @@ class ProjectIn(BaseModel):
 
 
 async def summaries(
-    db: AsyncSession, locale: Locale, only: uuid.UUID | None = None
+    db: AsyncSession, tenant: CurrentTenant, only: uuid.UUID | None = None
 ) -> list[ProjectSummary]:
+    locale = tenant.locale
     query = (
         select(Project, ProjectSlug.slug, ProjectTypeDef.labels)
         .join(ProjectSlug, (ProjectSlug.project_id == Project.id) & ProjectSlug.is_current)
@@ -198,6 +208,15 @@ async def summaries(
             )
         ).all()
     )
+    members: dict[uuid.UUID, list[MemberRef]] = {}
+    if tenant.has(Feature.PROJECT_MEMBERS):
+        for project_id, user_id, name in await db.execute(
+            select(ProjectMember.project_id, User.id, User.name)
+            .join(User, User.id == ProjectMember.user_id)
+            .where(ProjectMember.project_id.in_(ids))
+            .order_by(func.lower(User.name), User.id)
+        ):
+            members.setdefault(project_id, []).append(MemberRef(id=user_id, name=name))
     recipients: dict[uuid.UUID, list[RecipientOut]] = {}
     for recipient in await db.scalars(
         select(ProjectRecipient)
@@ -239,6 +258,7 @@ async def summaries(
             access_mode=project.access_mode,
             recipients=recipients.get(project.id, []),
             responsible=responsible.get(project.id),
+            members=members.get(project.id, []),
         )
         for project, slug, labels in rows
     ]
@@ -257,7 +277,7 @@ async def projects(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> list[ProjectSummary]:
-    return await summaries(db, tenant.locale)
+    return await summaries(db, tenant)
 
 
 @router.get("/project-types", responses=documented(401))
@@ -341,4 +361,4 @@ async def new_project(
                 "recipient_count": len(body.recipients),
             },
         )
-    return (await summaries(db, tenant.locale, only=project.id))[0]
+    return (await summaries(db, tenant, only=project.id))[0]

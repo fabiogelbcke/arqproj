@@ -51,6 +51,7 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
     row_version: 1,
     cover_url: null,
     access_mode: "public",
+    members: [],
     ...changes,
   };
 }
@@ -195,14 +196,54 @@ describe("the project list", () => {
 
   it("matches people by name, ignoring titles, accents, case and spacing", () => {
     expect(personKey("Arq.  Conceição  Lima")).toBe("conceicao lima");
-    expect(isMine("Arqa. Conceição S. Lima", "conceicao lima")).toBe(true);
-    expect(isMine("Ana Souza", "Bruno")).toBe(false);
-    expect(isMine(null, "Ana")).toBe(false);
-    expect(isMine("Ana Souza", "")).toBe(false); // no name: nothing is "mine"
+    const by = (responsible: string | null) => project({ responsible });
+    expect(isMine(by("Arqa. Conceição S. Lima"), { id: "x", name: "conceicao lima" })).toBe(true);
+    expect(isMine(by("Ana Souza"), { id: "x", name: "Bruno" })).toBe(false);
+    expect(isMine(by(null), { id: "x", name: "Ana" })).toBe(false);
+    expect(isMine(by("Ana Souza"), { id: "x", name: "" })).toBe(false); // no name: nothing is "mine"
     expect(responsibles(PEOPLE, "pt-BR")).toEqual([
       { id: "ana souza", label: "Arq. Ana Souza" },
       { id: "bruno lima", label: "Eng. Bruno Lima" },
     ]);
+  });
+
+  describe("with project members (A41)", () => {
+    const ana = { id: ME.id, name: "Ana Souza" };
+    const bruno = { id: "00000000-0000-0000-0000-0000000000b2", name: "Bruno Lima" };
+    // Another Ana, a different account: her projects aren't "mine".
+    const otherAna = { id: "00000000-0000-0000-0000-0000000000c3", name: "Ana" };
+    const TEAM = [
+      project({ id: "21", name: "Casa Ana", slug: "casa-ana", members: [ana, bruno], responsible: "Eng. Bruno Lima" }),
+      project({ id: "22", name: "Loja Bruno", slug: "loja-bruno", members: [bruno] }),
+      project({ id: "23", name: "Casa da outra Ana", slug: "outra", members: [otherAna] }),
+      project({ id: "24", name: "Sem equipe", slug: "sem" }),
+    ];
+    const on = { ...ME, features: ["project_members"] };
+
+    it("filters by account, not by the typed Responsável", async () => {
+      api(LOCAL, { "GET /api/me": () => ({ body: on }), "GET /api/projects": () => ({ body: TEAM }) });
+      renderAt("/");
+      const chips = await screen.findByRole("radiogroup", { name: "Responsável" });
+      expect(within(chips).getAllByRole("radio").map((chip) => chip.textContent)).toEqual([
+        "Toda a equipe",
+        "Meus projetos",
+        "Ana",
+        "Ana Souza",
+        "Bruno Lima",
+      ]);
+      await userEvent.click(within(chips).getByRole("radio", { name: "Meus projetos" }));
+      expect(titles()).toEqual(["Casa Ana"]);
+      await userEvent.click(within(chips).getByRole("radio", { name: "Bruno Lima" }));
+      expect(titles().sort()).toEqual(["Casa Ana", "Loja Bruno"]);
+    });
+
+    it("leaves members out while the office doesn't have the feature", async () => {
+      api(LOCAL, { "GET /api/projects": () => ({ body: TEAM }) });
+      renderAt("/");
+      await screen.findAllByTestId("project-card");
+      // Only the typed "Eng. Bruno Lima": one person, so no chips.
+      expect(screen.queryByRole("radiogroup", { name: "Responsável" })).toBeNull();
+    });
   });
 
   it("names a type without a short name by its full name", async () => {

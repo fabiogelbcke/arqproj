@@ -120,23 +120,33 @@ export function personKey(name: string): string {
     .join(" ");
 }
 
-/** The people named as responsible across the projects, once each (by
- *  personKey), as first written, in alphabetical order: the painel's chips. */
-export function responsibles(projects: ProjectSummary[], locale: string): { id: string; label: string }[] {
+/** Who works on a project, each with an id the painel's chips filter by. With
+ *  project members (A41), its members by account; otherwise the person typed in
+ *  its "Responsável" detail, by personKey. */
+export function peopleOf(project: ProjectSummary, byMembers: boolean): { id: string; label: string }[] {
+  if (byMembers) return project.members.map((member) => ({ id: member.id, label: member.name }));
+  const key = project.responsible ? personKey(project.responsible) : "";
+  return key ? [{ id: key, label: project.responsible!.trim() }] : [];
+}
+
+/** The people across the projects, once each, as first written, in alphabetical
+ *  order: the painel's chips. */
+export function responsibles(projects: ProjectSummary[], locale: string, byMembers = false): { id: string; label: string }[] {
   const seen = new Map<string, string>();
   for (const project of projects) {
-    const key = project.responsible ? personKey(project.responsible) : "";
-    if (key && !seen.has(key)) seen.set(key, project.responsible!.trim());
+    for (const person of peopleOf(project, byMembers)) if (!seen.has(person.id)) seen.set(person.id, person.label);
   }
   return [...seen].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, locale));
 }
 
-/** Whether a project's responsible is the signed-in person: every word of their
- *  name is in it ("Marina Carvalho" is "Arq. Marina S. Carvalho"). */
-export function isMine(responsible: string | null | undefined, myName: string): boolean {
-  const mine = personKey(myName).split(" ").filter(Boolean);
-  if (!mine.length || !responsible) return false;
-  const words = new Set(personKey(responsible).split(" "));
+/** Whether the signed-in person works on the project. With project members, by
+ *  account; otherwise when every word of their name is in its "Responsável"
+ *  ("Marina Carvalho" is "Arq. Marina S. Carvalho"). */
+export function isMine(project: ProjectSummary, me: { id: string; name: string }, byMembers = false): boolean {
+  if (byMembers) return project.members.some((member) => member.id === me.id);
+  const mine = personKey(me.name).split(" ").filter(Boolean);
+  if (!mine.length || !project.responsible) return false;
+  const words = new Set(personKey(project.responsible).split(" "));
   return mine.every((word) => words.has(word));
 }
 
