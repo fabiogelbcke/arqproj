@@ -49,7 +49,8 @@ A busy office: 20 active projects, 2 clients each, 8 updates a month each,
 - R$14–23 at R$5.50 to the dollar.
 
 That's small enough to include in a plan, or to sell as an extra (see
-[pricing-and-trials.md](pricing-and-trials.md)).
+[pricing-and-trials.md](pricing-and-trials.md); its effect on the margin is in
+[costs/margin.md](costs/margin.md)).
 
 ## Choices to make
 

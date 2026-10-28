@@ -95,7 +95,8 @@ some models; working files stay elsewhere) and its clients download
 | AWS S3 (US) | US$0.023 | ~US$0.09/GB after 100 GB free | ~US$2.30/month |
 
 So even generous storage costs **US$1–6 per office per month**. That's small
-against any plausible price (see [pricing-and-trials.md](pricing-and-trials.md)).
+against any plausible price (see [costs/per-office.md](costs/per-office.md) and
+[costs/margin.md](costs/margin.md)).
 **R2 stands out**: free downloads matter because clients download, and an S3
 API means the code isn't tied to Cloudflare. Pay attention to:
 
@@ -114,7 +115,7 @@ API means the code isn't tied to Cloudflare. Pay attention to:
   cost); we'd own the index.
 - **Downloads without Cloud Run.** Signed links straight from the bucket, which
   also removes the download traffic cost in
-  [pricing](pricing-and-trials.md#1b-per-office-as-it-is-today).
+  [costs per office](costs/per-office.md#as-it-is-today).
 - **Something to sell.** Storage-based tiers, "keep finished projects forever"
   as a paid extra.
 - **Offices with no Google account** can use Unio.
