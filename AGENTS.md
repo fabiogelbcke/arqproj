@@ -135,6 +135,11 @@ committed here.
   register row, add one. Newest at the top, never edit a past entry.
 - `docs/infrastructure-cost-comparison.md` holds the hosting and provider cost
   analysis.
+- `docs/pricing-and-trials.md`, `docs/costs/` (fixed, per-office and one-off
+  costs, margin simulations), `docs/storage-strategy.md`,
+  `docs/ai-for-the-business.md` and `docs/whatsapp-updates.md` are analyses for
+  discussion (pricing and trials, what it all costs, own storage versus more
+  providers, AI across the business, WhatsApp updates), not decisions.
 - `docs/future-ideas.md` is the user-requested collection of uncommitted product
   ideas. Add possibilities there; promote agreed scope into the existing plan
   and record changed decisions in the changelog before implementing them.
