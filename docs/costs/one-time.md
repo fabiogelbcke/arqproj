@@ -14,13 +14,13 @@ currency; US$1 = R$5.50.
 | **Opening the company** (CNPJ, Simples Nacional) | R$500–3,000 | Before the first invoice | Online accountants often include it with a yearly contract. The simulation uses R$1,500. |
 | **Lawyer**: terms of use, privacy policy (LGPD), contract with offices | R$0 for now | Before public signup | Fabio's mother, a lawyer, does it for free for now; a paid arrangement once there is revenue ([fixed.md](fixed.md)). |
 | Meta business verification (for WhatsApp updates) | US$0 | Before building WhatsApp | [whatsapp-updates.md](../whatsapp-updates.md) |
-| **Total in cash** | **~R$1,500** (R$500–3,000) | | Paid back in about a month at 20 offices ([margin.md](margin.md#break-even-and-paying-back-the-one-off-costs)) |
+| **Total in cash** | **~R$1,500** (R$500–3,000) | | Less than a month of fixed costs at 20 offices |
 
 ## Building the extras
 
 Each extra in [per-office.md](per-office.md#extras-an-office-could-add) costs
 weeks of work before it costs anything per office. With Claude Code, the cash
-cost is the subscription already paid; the real cost is the weeks not spent on
+cost is the subscription already counted in [fixed.md](fixed.md); the real cost is the weeks not spent on
 something else.
 
 | Extra | Work | Then |

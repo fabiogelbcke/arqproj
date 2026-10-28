@@ -25,8 +25,8 @@ Per month, at a number of paying offices:
   ([per-office.md](per-office.md#taxes-grow-with-revenue)).
 - **Fixed costs:** the steps in [fixed.md](fixed.md#by-size), with an online
   accountant at R$150–200.
-- **One-off costs** (~R$1,500, [one-time.md](one-time.md)) only in the payback
-  column.
+- **One-off costs** (~R$1,500, [one-time.md](one-time.md)) are left out: small
+  next to a year of recurring costs.
 
 Plans are measured by staff and active projects, with traffic as what they
 cost us ([why](../pricing-and-trials.md#tier-sketch-hypotheses-to-test-with-pilot-offices)).
@@ -67,29 +67,29 @@ It needs only Python.
 | Serving the offices (traffic, email) | R$69 | R$138 | R$275 | R$688 | R$1,375 | R$2,750 |
 | Payment fees | R$0 | R$0 | R$40 | R$100 | R$199 | R$398 |
 | Simples Nacional | R$30 | R$61 | R$183 | R$548 | R$1,378 | R$3,869 |
-| Fixed costs | R$370 | R$370 | R$997 | R$1,024 | R$1,850 | R$2,279 |
-| **Left before salaries and marketing** | **R$38** | **R$446** | **R$1,548** | **R$6,768** | **R$14,466** | **R$30,255** |
-| **Margin** | **7%** | **44%** | **51%** | **74%** | **75%** | **76%** |
+| Fixed costs | R$645 | R$645 | R$1,272 | R$1,300 | R$2,125 | R$2,554 |
+| **Left before salaries and marketing** | **−R$237** | **R$171** | **R$1,273** | **R$6,493** | **R$14,191** | **R$29,980** |
+| **Margin** | **−47%** | **17%** | **42%** | **71%** | **74%** | **76%** |
 
 ### Margin by price set
 
 | Price set | 5 | 10 | 20 | 50 | 100 | 200 |
 | --- | --- | --- | --- | --- | --- | --- |
-| A (R$59 / R$149 / R$349) | −35% | 19% | 30% | 64% | 67% | 71% |
-| B (R$79 / R$199 / R$449) | −4% | 37% | 45% | 72% | 73% | 75% |
-| C (R$89 / R$229 / R$499) | 7% | 44% | 51% | 74% | 75% | 76% |
-| D (R$99 / R$249 / R$549) | 15% | 48% | 55% | 76% | 76% | 77% |
-| E (R$119 / R$299 / R$649) | 28% | 56% | 61% | 79% | 78% | 79% |
+| A (R$59 / R$149 / R$349) | −116% | −21% | 16% | 60% | 65% | 70% |
+| B (R$79 / R$199 / R$449) | −65% | 7% | 35% | 68% | 72% | 74% |
+| C (R$89 / R$229 / R$499) | −47% | 17% | 42% | 71% | 74% | 76% |
+| D (R$99 / R$249 / R$549) | −34% | 24% | 46% | 73% | 75% | 77% |
+| E (R$119 / R$299 / R$649) | −14% | 35% | 54% | 77% | 77% | 78% |
 
 ### Margin under other assumptions (price set C)
 
 |  | 5 | 10 | 20 | 50 | 100 | 200 |
 | --- | --- | --- | --- | --- | --- | --- |
-| As above | 7% | 44% | 51% | 74% | 75% | 76% |
-| Anexo V (payroll under 28% of revenue) | −2% | 34% | 41% | 65% | 66% | 69% |
-| WhatsApp + AI assistant for every office | −5% | 31% | 43% | 67% | 69% | 70% |
-| Anexo V and both extras | −15% | 22% | 33% | 58% | 60% | 62% |
-| More small offices (60% / 30% / 10%) | −9% | 36% | 43% | 72% | 74% | 76% |
+| As above | −47% | 17% | 42% | 71% | 74% | 76% |
+| Anexo V (payroll under 28% of revenue) | −56% | 7% | 32% | 62% | 65% | 68% |
+| WhatsApp + AI assistant for every office | −59% | 4% | 34% | 64% | 67% | 69% |
+| Anexo V and both extras | −69% | −5% | 24% | 55% | 58% | 62% |
+| More small offices (60% / 30% / 10%) | −77% | 2% | 32% | 68% | 72% | 75% |
 
 ### Each plan on its own (price set C)
 
@@ -101,25 +101,25 @@ It needs only Python.
 
 ### The basic plan's price
 
-| Essencial at | Left per office | Offices on it alone to cover today's fixed costs (R$370) |
+| Essencial at | Left per office | Offices on it alone to cover today's fixed costs (R$645) |
 | --- | --- | --- |
-| R$39 | R$29 | 13 |
-| R$49 | R$38 | 10 |
-| R$59 | R$47 | 8 |
-| R$69 | R$56 | 7 |
-| R$79 | R$65 | 6 |
-| R$89 | R$74 | 6 |
-| R$99 | R$83 | 5 |
+| R$39 | R$29 | 23 |
+| R$49 | R$38 | 18 |
+| R$59 | R$47 | 14 |
+| R$69 | R$56 | 12 |
+| R$79 | R$65 | 10 |
+| R$89 | R$74 | 9 |
+| R$99 | R$83 | 8 |
 
-### Break-even and paying back the one-off costs
+### Break-even
 
-| Price set | Fixed costs covered from | One-off costs (R$1,500) paid back at 20 offices |
+| Price set | Fixed costs covered from | Left at 20 offices |
 | --- | --- | --- |
-| A | 8 offices | 3 months |
-| B | 6 offices | 2 months |
-| C | 5 offices | 1 month |
-| D | 5 offices | 1 month |
-| E | 4 offices | 1 month |
+| A | 13 offices | R$329 |
+| B | 10 offices | R$938 |
+| C | 8 offices | R$1,273 |
+| D | 8 offices | R$1,548 |
+| E | 6 offices | R$2,157 |
 <!-- simulate.py:end -->
 
 ## Reading it
@@ -128,19 +128,20 @@ It needs only Python.
   ~R$65–83 a month after tax, fee and traffic (~85% of its price). It costs us
   little because small offices download little. Even at R$49 it pays for
   itself; what a low price changes is how many offices it takes to pay the
-  fixed costs.
-- **Below ~5 paying offices the fixed costs aren't covered**, and the 10
-  founding offices at half price keep the margin low up to about 20. That's
-  expected for a pilot, and the amounts are small either way.
-- **From ~50 offices about three quarters of revenue is left** with any price
-  set from B up, and it barely moves after that: taxes rise with revenue about
+  fixed costs (8–10 at R$79–99, 18 at R$49).
+- **Below ~8 paying offices the fixed costs aren't covered** (6 to 13
+  depending on the price set), and the 10 founding offices at half price keep
+  the margin low up to about 20. That's expected for a pilot: the loss is at
+  most the ~R$645 of fixed costs a month.
+- **From ~50 offices about 70% of revenue is left** with any price set from B
+  up, and it barely moves after that: taxes rise with revenue about
   as fast as fixed costs shrink per office.
 - **The tax annex moves the margin by about 9 points**, more than WhatsApp and
   the AI assistant together (about 7). Settle Anexo III vs V (the *Fator R*)
   with the accountant before fixing prices.
-- **Price matters most at small sizes.** At 20 offices set A leaves 30% and set
-  E 61%; at 100 offices the gap narrows (67% vs 78%).
+- **Price matters most at small sizes.** At 20 offices set A leaves 16% and set
+  E 54%; at 100 offices the gap narrows (65% vs 77%).
 - **Not in here:** salaries (Fabio's *pró-labore* is also what qualifies for
   Anexo III), marketing, the time spent on support and onboarding, and churn.
-  The ~R$14,500 a month left at 100 offices (set C) is what pays for all of
+  The ~R$14,000 a month left at 100 offices (set C) is what pays for all of
   them.

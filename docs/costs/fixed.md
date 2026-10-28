@@ -34,7 +34,8 @@ every year. See [storage-strategy.md](../storage-strategy.md#where-we-are).
 | **Error tracking** | Sentry Developer US$0 (1 user, 5,000 errors); Team US$26–29 (50,000 errors) | Cloud Logging's alerts (US$0) | Sentry Team, when a second developer joins |
 | **Uptime check and status page** | Better Stack free (10 monitors, 1 status page on our subdomain); UptimeRobot Solo US$12–13 (its free plan is non-commercial only) | Better Stack free | Better Stack paid, from ~US$30 |
 | **Email accounts** (`contato@`, `suporte@myunio.app`) | Google Workspace Business Starter US$7–8.40 per user (~R$35–45, plus 6.38% IOF on an international card) | 1–2 users | 1 per person |
-| **AI for the business** (support drafts, weekly digest, sales research) | US$5–40 in API costs at pilot scale | Through Fabio's subscription first | See [ai-for-the-business.md](../ai-for-the-business.md#what-to-build-first) |
+| **Claude subscription** (building the product, support, the business) | ~US$50 (R$275) | From now | Fabio's estimate of its share of the bill |
+| **AI for the business** (support drafts, weekly digest, sales research) | US$5–40 in API costs at pilot scale | Through the Claude subscription first | See [ai-for-the-business.md](../ai-for-the-business.md#what-to-build-first) |
 | **Accountant** (Simples Nacional) | R$150–200 with an online firm (Contabilizei, Agilize, Conube; prices to confirm); a traditional office R$300–600 | **Needed from the first invoice** (we're not a company yet) | — |
 | **Lawyer**: reviews of terms and contracts | R$0 for now | Fabio's mother, for free | A paid arrangement with her once there is revenue; not in the simulation yet |
 
@@ -73,9 +74,9 @@ guesses at when each tool becomes worth paying for; change them in
 | Support chat | US$0 | US$45 (Crisp Mini) | US$95 (Crisp Essentials) | US$95 |
 | Error tracking and uptime | US$0 | US$26 | US$56 | US$56 |
 | Email accounts | US$8 (1 user) | US$16 (2) | US$24 (3) | US$32 (4) |
-| AI for the business | US$0 | US$15 | US$50 | US$50 |
+| AI for the business (API) | US$0 | US$15 | US$50 | US$50 |
+| Claude subscription | US$50 | US$50 | US$50 | US$50 |
 | Accountant | R$150 | R$150 | R$200 | R$200 |
-| **Total** | **~R$370** | **~R$1,000** | **~R$1,850** | **~R$2,280** |
+| **Total** | **~R$645** | **~R$1,270** | **~R$2,125** | **~R$2,555** |
 
-Not included: salaries (Fabio's included), marketing, and Fabio's own Claude
-subscription.
+Not included: salaries (Fabio's included) and marketing.

@@ -77,13 +77,9 @@ def fixed_usd(n):
         "Error tracking and uptime": 0 if n < 15 else 26 if n < 60 else 56,
         "Email accounts (Workspace)": 8 * (1 if n < 15 else 2 if n < 60 else 3 if n < 150 else 4),
         "AI for the business": 0 if n < 15 else 15 if n < 60 else 50,
+        "Claude subscription (building, support, the business)": 50,
         "Accountant": (150 if n < 60 else 200) / USD,
     }
-
-
-# -- One-time costs (one-time.md), R$ --------------------------------------------------
-
-ONE_TIME = {"Opening the company": 1_500, "Lawyer: terms, privacy, contract": 0}
 
 
 # -- Taxes: Simples Nacional, by the last 12 months' revenue ---------------------------
@@ -253,25 +249,12 @@ def report():
         )
     )
 
-    out.append("\n### Break-even and paying back the one-off costs\n")
-    one_off = sum(ONE_TIME.values())
+    out.append("\n### Break-even\n")
     body = []
     for name, prices in PRICE_SETS.items():
         even = next((n for n in range(1, 500) if month(n, prices=prices)["result"] >= 0), None)
-        at_20 = month(20, prices=prices)["result"]
-        months = math.ceil(one_off / at_20) if at_20 > 0 else None
-        payback = "never" if months is None else f"{months} month{'s' * (months > 1)}"
-        body.append([name, f"{even} offices", payback])
-    out.append(
-        table(
-            [
-                "Price set",
-                "Fixed costs covered from",
-                f"One-off costs ({brl(one_off)}) paid back at 20 offices",
-            ],
-            body,
-        )
-    )
+        body.append([name, f"{even} offices", brl(month(20, prices=prices)["result"])])
+    out.append(table(["Price set", "Fixed costs covered from", "Left at 20 offices"], body))
     return "\n".join(out)
 
 

@@ -20,7 +20,7 @@ provider's own page before relying on them.
 | [fixed.md](fixed.md) | Running the product (database, load balancer, email, domains) and the business (support chat, error tracking, email accounts, accountant) | **Recurring, fixed**: paid whatever the number of offices; steps up at a few sizes |
 | [per-office.md](per-office.md) | Download traffic and emails of each office, paid extras (own storage, WhatsApp, AI assistant), payment fees, taxes | **Recurring, grows with offices or revenue** |
 | [one-time.md](one-time.md) | Opening the company, the lawyer, building each extra | **Once** (money or weeks of work) |
-| [margin.md](margin.md) | Rough simulations: margin at 5 to 200 offices, by price, tax annex and extras; break-even | Calculated by [simulate.py](simulate.py) from the three above |
+| [margin.md](margin.md) | Rough simulations: margin at 5 to 200 offices, by price set, tax annex and extras; each plan's own margin; break-even | Calculated by [simulate.py](simulate.py) from the three above |
 
 Companion analyses: [storage](../storage-strategy.md),
 [WhatsApp](../whatsapp-updates.md), [AI for the business](../ai-for-the-business.md),
@@ -29,9 +29,9 @@ Companion analyses: [storage](../storage-strategy.md),
 
 ## In short
 
-- **Fixed:** ~R$370 a month today (US$30–35 of product, an online accountant,
-  one email account), ~R$1,000 from about 15 offices (paid support and
-  monitoring tools), ~R$1,850 at 100.
+- **Fixed:** ~R$645 a month today (US$30–35 of product, the Claude
+  subscription, an online accountant, one email account), ~R$1,270 from about
+  15 offices (paid support and monitoring tools), ~R$2,125 at 100.
 - **Per office:** R$4–34 a month depending on its plan's traffic (R$14 on
   average); ~R$13 more with WhatsApp and the AI assistant. Plus payment fees (~R$2 a payment through Asaas) and
   **taxes, the largest per-office cost**: 6% of revenue under Simples Anexo III,
@@ -40,7 +40,7 @@ Companion analyses: [storage](../storage-strategy.md),
   now), plus weeks of building for each extra.
 - **Margin** ([margin.md](margin.md)), five price sets with a basic plan from
   R$59 to R$119: with R$89 / R$229 / R$499, fixed costs are covered from about
-  5 paying offices and **about 74% of revenue is left from 50 offices** (65%
+  8 paying offices and **about 71% of revenue is left from 50 offices** (62%
   under Anexo V), before salaries and marketing. A basic plan under R$100
   still leaves ~85% of its price. What decides the margin is the price and
   the tax annex, not infrastructure.
