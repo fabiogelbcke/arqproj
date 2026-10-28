@@ -1114,9 +1114,13 @@ step to creation:
    Drive.
 4. Staff send the client the page's link themselves; nothing is emailed.
 5. While the project is `proposal`, the client page shows the office's branding,
-   the project's name, the latest proposal (on the page, with "Baixar PDF") and
-   the office's contact details. Stages, files, the meeting, the updates panel
-   and email sign-up are not shown.
+   the project's name and the latest proposal, presented for the screen rather
+   than as the letter (the letter is the PDF, "Baixar PDF"): the opening text
+   beside a summary (fee, number of instalments, number of services), the
+   services as numbered cards with those not included, the fee and instalments,
+   the observations, and "Próximos passos": the office's contact as the way to
+   accept (call, email, and WhatsApp for a Brazilian mobile number). Stages,
+   files, the meeting, the updates panel and email sign-up are not shown.
 6. "Proposta aceita" makes the project `active` and the page normal; a
    "Proposta" row in its details keeps the latest proposal reachable. A declined
    proposal is archived like any project, and its page still shows the proposal.

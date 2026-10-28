@@ -3,11 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ClientApp } from "../client/ClientApp";
+import { whatsappLink } from "../client/ProposalPhase";
 import type { Page } from "../client/format";
 import { fakeApi, ME, renderAt, TENANT } from "../test/render";
 import { formatAmount, instalments, parseAmount, type Generator, type ProposalView } from "./proposals";
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("WhatsApp links", () => {
+  it("are made for Brazilian mobile numbers only", () => {
+    expect(whatsappLink("(47) 99123-4567")).toBe("https://wa.me/5547991234567");
+    expect(whatsappLink("+55 47 99123-4567")).toBe("https://wa.me/5547991234567");
+    expect(whatsappLink("(47) 3000-0000")).toBeNull(); // a landline
+    expect(whatsappLink("+1 415 555 0100")).toBeNull();
+  });
+});
 
 describe("amounts as typed", () => {
   it.each([
@@ -96,23 +106,32 @@ describe("a project's page while it is a proposal", () => {
   it("shows the proposal, its PDF and the office's contact, and nothing of the work", async () => {
     client(PAGE);
     expect(await screen.findByRole("heading", { level: 1, name: "Casa Jardim" })).toBeInTheDocument();
-    expect(screen.getByText("1. BRIEFING")).toBeInTheDocument();
-    expect(
-      screen.getByText("Os honorários para a elaboração dos trabalhos serão de R$ 29.000,00 (vinte e nove mil reais)."),
-    ).toBeInTheDocument();
-    expect(screen.getByText("R$ 14.500,00 no aceite da proposta")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Baixar PDF" })).toHaveAttribute(
-      "href",
-      "/api/pages/casa-jardim/proposal.pdf?v=2&download=true",
-    );
-    expect(screen.getByRole("link", { name: "contato@alinea.example" })).toHaveAttribute(
-      "href",
-      "mailto:contato@alinea.example",
-    );
-    expect(screen.getByRole("link", { name: "(47) 3000-0000" })).toHaveAttribute("href", "tel:4730000000");
+    expect(screen.getByText("Para Helena Duarte")).toBeInTheDocument();
+    // The summary first: the fee, how it is paid, what is included.
+    const summary = screen.getAllByRole("definition").map((d) => d.textContent);
+    expect(summary).toEqual(expect.arrayContaining(["R$ 29.000,00", "Parcela única", "1 serviço"]));
+    const services = within(screen.getByRole("region", { name: "O que está incluído" }));
+    expect(services.getByRole("heading", { name: "Briefing" })).toBeInTheDocument();
+    expect(services.getByText("Projeto estrutural")).toBeInTheDocument(); // not included
+    const fees = within(screen.getByRole("region", { name: "Honorários e pagamento" }));
+    expect(fees.getByText("(vinte e nove mil reais)")).toBeInTheDocument();
+    expect(fees.getByRole("listitem")).toHaveTextContent("Parcela 1no aceite da propostaR$ 14.500,00");
+    for (const download of screen.getAllByRole("link", { name: "Baixar PDF" }))
+      expect(download).toHaveAttribute("href", "/api/pages/casa-jardim/proposal.pdf?v=2&download=true");
+    // Next steps: talk to the office. A landline: a call, no WhatsApp.
+    const next = within(screen.getByRole("region", { name: "Próximos passos" }));
+    expect(next.getByRole("link", { name: "Enviar e-mail" })).toHaveAttribute("href", "mailto:contato@alinea.example");
+    expect(next.getByRole("link", { name: "Ligar · (47) 3000-0000" })).toHaveAttribute("href", "tel:4730000000");
+    expect(next.queryByRole("link", { name: "WhatsApp" })).toBeNull();
+    expect(next.getByText("Arq. Laura Mendes")).toBeInTheDocument();
     // No stages, files or email sign-up.
     expect(screen.queryByText(/Cronograma|Novidades por e-mail/)).toBeNull();
     expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
+  });
+
+  it("offers WhatsApp for a mobile number", async () => {
+    client({ ...PAGE, proposal: { ...PROPOSAL, phone: "(47) 99123-4567" } });
+    expect(await screen.findByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", "https://wa.me/5547991234567");
   });
 
   it("says the proposal is coming when none is saved yet", async () => {

@@ -1,11 +1,11 @@
-// A project's page while it is a proposal (A40): the proposal itself, its PDF and
-// the office's contact details, and nothing of the work, which hasn't started.
-// Staff get a bar to change the proposal or mark it accepted.
+// A project's page while it is a proposal (A40): the proposal presented for the
+// screen (the formal letter is its PDF), the office's contact as the next step,
+// and nothing of the work, which hasn't started. Staff get a bar to change the
+// proposal or mark it accepted.
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { api, call } from "../api/client";
-import { ProposalLetter } from "../proposals/ProposalLetter";
+import { api, call, type Schemas } from "../api/client";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Toaster, toast, toastError } from "../ui/Toast";
 import { SiteFooter } from "../ui/UnioMark";
@@ -84,6 +84,177 @@ function StaffBar({ page, ready, onChanged }: { page: Page; ready: boolean; onCh
   );
 }
 
+type Proposal = Schemas["ProposalOut"];
+
+function Paragraphs({ text }: { text: string }) {
+  return (
+    <>
+      {text
+        .split(/\n{2,}/)
+        .map((block) => block.trim())
+        .filter(Boolean)
+        .map((block, i) => (
+          <p key={i}>{block}</p>
+        ))}
+    </>
+  );
+}
+
+/** A Brazilian mobile number's WhatsApp link ("(47) 99123-4567"); none for a
+ *  landline or a number from elsewhere, which may have no WhatsApp. */
+export function whatsappLink(phone: string): string | null {
+  let digits = phone.replace(/\D/g, "");
+  if (digits.length === 13 && digits.startsWith("55")) digits = digits.slice(2);
+  return digits.length === 11 && digits[2] === "9" ? `https://wa.me/55${digits}` : null;
+}
+
+function Presentation({ proposal, office }: { proposal: Proposal; office: string }) {
+  const { t } = useTranslation();
+  const pdf = `${proposal.pdf_url}&download=true`;
+  const whatsapp = proposal.phone ? whatsappLink(proposal.phone) : null;
+  const facts: Array<[string, string]> = [
+    ...(proposal.fee ? [[t("proposal.page.fee"), proposal.fee] as [string, string]] : []),
+    ...(proposal.payments.length
+      ? [[t("proposal.page.payment"), t("proposal.page.paymentCount", { count: proposal.payments.length })] as [string, string]]
+      : []),
+    ...(proposal.services.length
+      ? [[t("proposal.page.included"), t("proposal.page.servicesCount", { count: proposal.services.length })] as [string, string]]
+      : []),
+  ];
+  return (
+    <>
+      <div className="proposal-opening">
+        <div className="proposal-opening__text">
+          <p className="proposal-date">{proposal.date_line}</p>
+          <div className="proposal-intro">
+            <p className="proposal-to">{t("proposal.pdf.greeting")}</p>
+            <Paragraphs text={proposal.intro} />
+          </div>
+        </div>
+        <aside className="proposal-opening__side">
+          <dl className="details-list">
+            {facts.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <a className="b b--primary proposal-download" href={pdf}>
+            {t("proposal.page.download")}
+          </a>
+        </aside>
+      </div>
+
+      {proposal.services.length > 0 && (
+        <section className="proposal-section" aria-labelledby="proposal-services">
+          <h2 id="proposal-services" className="proposal-section__title">
+            {t("proposal.page.services")}
+          </h2>
+          <ol className="proposal-services">
+            {proposal.services.map((service, i) => (
+              <li key={i} className="proposal-service">
+                <span className="proposal-service__n" aria-hidden="true">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h3>{service.title}</h3>
+                <Paragraphs text={service.description} />
+              </li>
+            ))}
+          </ol>
+          {proposal.not_included.length > 0 && (
+            <div className="proposal-excluded">
+              <h3>{t("proposal.page.notIncluded")}</h3>
+              <ul>
+                {proposal.not_included.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
+
+      {(proposal.fee || proposal.payments.length > 0) && (
+        <section className="proposal-section" aria-labelledby="proposal-fees">
+          <h2 id="proposal-fees" className="proposal-section__title">
+            {t("proposal.page.fees")}
+          </h2>
+          <div className="proposal-fees">
+            {proposal.fee && (
+              <div className="proposal-fee">
+                <p className="proposal-fee__amount">{proposal.fee}</p>
+                {proposal.fee_in_words && <p className="proposal-fee__words">({proposal.fee_in_words})</p>}
+              </div>
+            )}
+            {proposal.payments.length > 0 && (
+              <ol className="proposal-payments">
+                {proposal.payments.map((payment, i) => (
+                  <li key={i}>
+                    <span className="proposal-payments__n">{t("proposal.page.instalment", { n: i + 1 })}</span>
+                    <span className="proposal-payments__when">{payment.when}</span>
+                    <strong>{payment.amount}</strong>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </section>
+      )}
+
+      {proposal.notes && (
+        <section className="proposal-section proposal-notes" aria-labelledby="proposal-notes">
+          <h2 id="proposal-notes" className="proposal-section__title">
+            {t("proposal.page.notes")}
+          </h2>
+          <Paragraphs text={proposal.notes} />
+        </section>
+      )}
+
+      <section className="proposal-next" aria-labelledby="proposal-next">
+        <div className="proposal-next__text">
+          <h2 id="proposal-next">{t("proposal.page.nextTitle")}</h2>
+          <p>{t("proposal.page.nextText", { office })}</p>
+          <dl className="proposal-next__who">
+            {proposal.signatory && (
+              <div>
+                <dt>{t("proposal.page.signedBy")}</dt>
+                <dd>{proposal.signatory}</dd>
+              </div>
+            )}
+            {proposal.address && (
+              <div>
+                <dt>{t("proposal.page.address")}</dt>
+                <dd>{proposal.address}</dd>
+              </div>
+            )}
+          </dl>
+        </div>
+        <div className="proposal-next__actions">
+          {whatsapp && (
+            <a className="b b--primary" href={whatsapp} target="_blank" rel="noopener">
+              {t("proposal.page.whatsapp")}
+            </a>
+          )}
+          {proposal.phone && (
+            <a className={whatsapp ? "b" : "b b--primary"} href={`tel:${proposal.phone.replace(/[^\d+]/g, "")}`}>
+              {t("proposal.page.call")} · {proposal.phone}
+            </a>
+          )}
+          {proposal.email && (
+            <a className="b" href={`mailto:${proposal.email}`}>
+              {t("proposal.page.email")}
+            </a>
+          )}
+          <a className="b" href={pdf}>
+            {t("proposal.page.download")}
+          </a>
+        </div>
+      </section>
+    </>
+  );
+}
+
 export function ProposalPhase({
   page,
   ready = false,
@@ -99,21 +270,6 @@ export function ProposalPhase({
 }) {
   const { t } = useTranslation();
   const proposal = page.proposal;
-  const contact = proposal
-    ? [
-        proposal.address && <p key="address">{proposal.address}</p>,
-        proposal.phone && (
-          <p key="phone">
-            <a href={`tel:${proposal.phone.replace(/[^\d+]/g, "")}`}>{proposal.phone}</a>
-          </p>
-        ),
-        proposal.email && (
-          <p key="email">
-            <a href={`mailto:${proposal.email}`}>{proposal.email}</a>
-          </p>
-        ),
-      ].filter(Boolean)
-    : [];
   return (
     <div className="client proposal-phase">
       <SiteHeader
@@ -126,32 +282,13 @@ export function ProposalPhase({
         <header className="project-heading proposal-heading">
           <p className="project-kind">{t("proposal.page.kicker")}</p>
           <h1 className="project-title">{page.name}</h1>
+          {proposal && <p className="proposal-for">{t("proposal.page.for", { name: proposal.client_name })}</p>}
         </header>
-        <div className="proposal-layout">
-          <div className="proposal-layout__main">
-            {proposal ? (
-              <ProposalLetter proposal={proposal} office={page.office} />
-            ) : (
-              <p className="proposal-none">{t("proposal.page.none")}</p>
-            )}
-          </div>
-          {proposal && (
-            <aside className="proposal-layout__side">
-              <a className="b b--primary" href={`${proposal.pdf_url}&download=true`}>
-                {t("proposal.page.download")}
-              </a>
-              {contact.length > 0 && (
-                <div className="proposal-contact">
-                  <h2>{t("proposal.page.contact")}</h2>
-                  <p>
-                    <strong>{page.office.name}</strong>
-                  </p>
-                  {contact}
-                </div>
-              )}
-            </aside>
-          )}
-        </div>
+        {proposal ? (
+          <Presentation proposal={proposal} office={page.office.name} />
+        ) : (
+          <p className="proposal-none">{t("proposal.page.none")}</p>
+        )}
         <SiteFooter office={page.office.name} className="client-footer" />
       </div>
       {page.staff && <StaffBar page={page} ready={ready} onChanged={onChanged} />}
