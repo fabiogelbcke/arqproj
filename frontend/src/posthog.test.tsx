@@ -46,36 +46,59 @@ describe("product analytics in the browser (A39)", () => {
         mask_all_text: true,
       }),
     );
-    expect(sdk.identify).toHaveBeenCalledWith(ANALYTICS.user_id, { role: "owner" });
-    expect(sdk.group).toHaveBeenCalledWith("tenant", ANALYTICS.tenant_id, { slug: "alinea" });
+    expect(sdk.identify).toHaveBeenCalledWith(ANALYTICS.user_id, {
+      role: "owner",
+    });
+    expect(sdk.group).toHaveBeenCalledWith("tenant", ANALYTICS.tenant_id, {
+      slug: "alinea",
+    });
     expect(JSON.stringify(sdk.identify.mock.calls)).not.toContain(ME.email);
     await startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
     expect(sdk.init).toHaveBeenCalledTimes(1); // set up once per page
     capture("files_uploaded", { file_count: 2 });
-    expect(sdk.capture.mock.calls).toEqual([["files_uploaded", { file_count: 2 }]]);
+    expect(sdk.capture.mock.calls).toEqual([
+      ["files_uploaded", { file_count: 2 }],
+    ]);
   });
 
   it("collects nothing between a sign-out and the next sign-in, who is identified anew", async () => {
-    const { capture, resetAnalytics, startAnalytics } = await import("./posthog");
+    const { capture, resetAnalytics, startAnalytics } =
+      await import("./posthog");
     await startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
     resetAnalytics();
     expect(sdk.opt_out_capturing).toHaveBeenCalled(); // no clicks, pages or errors from the sign-in screen
     capture("files_uploaded");
     expect(sdk.capture).not.toHaveBeenCalled();
-    const other = { ...ANALYTICS, user_id: "6f1c1d1e-0000-4000-8000-000000000002" };
-    await startAnalytics({ ...ME, role: "member", analytics: other } as unknown as Me);
+    const other = {
+      ...ANALYTICS,
+      user_id: "6f1c1d1e-0000-4000-8000-000000000002",
+    };
+    await startAnalytics({
+      ...ME,
+      role: "member",
+      analytics: other,
+    } as unknown as Me);
     expect(sdk.init).toHaveBeenCalledTimes(1);
     expect(sdk.reset).toHaveBeenCalledTimes(1);
     expect(sdk.opt_in_capturing).toHaveBeenCalledTimes(1);
-    expect(sdk.identify).toHaveBeenLastCalledWith(other.user_id, { role: "member" });
+    expect(sdk.identify).toHaveBeenLastCalledWith(other.user_id, {
+      role: "member",
+    });
   });
 
   it("a sign-out while PostHog is still loading leaves it off", async () => {
-    const { capture, resetAnalytics, startAnalytics } = await import("./posthog");
-    const starting = startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
+    const { capture, resetAnalytics, startAnalytics } =
+      await import("./posthog");
+    const starting = startAnalytics({
+      ...ME,
+      analytics: ANALYTICS,
+    } as unknown as Me);
     resetAnalytics(); // before the SDK has arrived
     await starting;
-    expect(sdk.init).toHaveBeenCalledWith("phc_test", expect.objectContaining({ opt_out_capturing_by_default: true }));
+    expect(sdk.init).toHaveBeenCalledWith(
+      "phc_test",
+      expect.objectContaining({ opt_out_capturing_by_default: true }),
+    );
     expect(sdk.opt_in_capturing).not.toHaveBeenCalled();
     expect(sdk.identify).not.toHaveBeenCalled();
     capture("files_uploaded");
@@ -85,12 +108,15 @@ describe("product analytics in the browser (A39)", () => {
   it("stops collecting when the session turns out to have ended (signed out in another tab)", async () => {
     let signedIn = true;
     fakeApi({
-      "GET /api/me": () => (signedIn ? { body: { ...ME, analytics: ANALYTICS } } : notSignedIn),
+      "GET /api/me": () =>
+        signedIn ? { body: { ...ME, analytics: ANALYTICS } } : notSignedIn,
     });
     const { useMe } = await import("./session/session");
     const queries = new QueryClient();
     const { result } = renderHook(() => useMe(), {
-      wrapper: ({ children }) => <QueryClientProvider client={queries}>{children}</QueryClientProvider>,
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queries}>{children}</QueryClientProvider>
+      ),
     });
     await waitFor(() => expect(sdk.identify).toHaveBeenCalled());
     signedIn = false;
@@ -105,16 +131,71 @@ describe("product analytics in the browser (A39)", () => {
     expect(sdk.init).not.toHaveBeenCalled();
   });
 
-  it("never starts for a client or supplier on a project page", async () => {
+  it("counts a project page's visitor without cookies or a person, where the server has a key", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    const visitor = {
+      token: "phc_test",
+      host: "https://us.i.posthog.com",
+      tenant_id: ANALYTICS.tenant_id,
+    };
+    fakeApi({
+      "GET /api/tenant": () => ({ body: { ...TENANT, analytics: visitor } }),
+      "GET /api/me": () => notSignedIn,
+      "GET /api/pages/casa-jardim": () => ({
+        status: 404,
+        body: { error: "page_not_found" },
+      }),
+    });
+    const { ClientApp } = await import("./client/ClientApp");
+    render(<ClientApp />);
+    await waitFor(() => expect(sdk.init).toHaveBeenCalled());
+    expect(sdk.init).toHaveBeenCalledWith(
+      "phc_test",
+      expect.objectContaining({
+        cookieless_mode: "always",
+        person_profiles: "never",
+        disable_session_recording: true,
+        mask_all_text: true,
+      }),
+    );
+    expect(sdk.identify).not.toHaveBeenCalled(); // nobody, only counted
+  });
+
+  it("starts nothing for a visitor where the server has no key", async () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => notSignedIn,
-      "GET /api/pages/casa-jardim": () => ({ status: 404, body: { error: "page_not_found" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        status: 404,
+        body: { error: "page_not_found" },
+      }),
     });
     const { ClientApp } = await import("./client/ClientApp");
     render(<ClientApp />);
     await waitFor(() => expect(document.body.textContent).not.toBe(""));
     expect(sdk.init).not.toHaveBeenCalled();
+  });
+
+  it("staff on a project page are counted as themselves, not as a visitor", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    const visitor = {
+      token: "phc_test",
+      host: "https://us.i.posthog.com",
+      tenant_id: ANALYTICS.tenant_id,
+    };
+    fakeApi({
+      "GET /api/tenant": () => ({ body: { ...TENANT, analytics: visitor } }),
+      "GET /api/me": () => ({ body: { ...ME, analytics: ANALYTICS } }),
+      "GET /api/pages/casa-jardim": () => ({
+        status: 404,
+        body: { error: "page_not_found" },
+      }),
+    });
+    const { ClientApp } = await import("./client/ClientApp");
+    render(<ClientApp />);
+    await waitFor(() => expect(sdk.identify).toHaveBeenCalled());
+    expect(sdk.init).toHaveBeenCalledTimes(1);
+    expect(sdk.init.mock.calls[0]![1]).not.toHaveProperty("cookieless_mode");
   });
 });

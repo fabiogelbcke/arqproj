@@ -411,7 +411,7 @@ async def join(
         email_confirmed=False,
     )
     message = await email_confirmation.new_code(db, request, tenant, user)
-    me = await signed_in(request, response, tenant, db, user)  # commits
+    me = await signed_in(request, response, tenant, db, user, method="join")  # commits
     log.info("staff %s joined %s through a %s link", user.id, tenant.slug, link.role)
     await email_confirmation.send(request, tenant, message, "/api/join")
     return me

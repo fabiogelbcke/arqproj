@@ -188,6 +188,6 @@ async def finish(
     # Google has shown the address is theirs: a pending sign-up or invite counts.
     await accounts.confirm_email(db, user)
     response = _back()
-    await signed_in(request, response, tenant, db, user)  # commits
+    await signed_in(request, response, tenant, db, user, method="google")  # commits
     log.info("staff %s signed in with google in %s", user.id, tenant.slug)
     return response

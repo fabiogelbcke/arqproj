@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { type Locale, useOfficeLocale } from "../i18n";
-import { startAnalytics } from "../posthog";
+import { startAnalytics, startVisitorAnalytics } from "../posthog";
 import type { Page } from "./format";
 import { PasswordGate } from "./PasswordGate";
 import { signOut } from "./signOut";
@@ -31,11 +31,14 @@ export function ClientApp() {
   // Staff who haven't seen the project page's tour yet (per account).
   const [tourSeen, setTourSeen] = useState(true);
   // Who is signed in, for the header menu (their initial, name and Sair).
-  const [person, setPerson] = useState<{ name: string; email: string } | null>(null);
+  const [person, setPerson] = useState<{ name: string; email: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     // The office (name, language) is public, so even "not found" is in its language.
-    call(api.GET("/api/tenant")).then(setOffice, () => setOffice(null));
+    const tenant = call(api.GET("/api/tenant"));
+    tenant.then(setOffice, () => setOffice(null));
     // Signed-in staff: their CSRF token, for publishing from the staff bar.
     call(api.GET("/api/me")).then(
       (me) => {
@@ -45,7 +48,15 @@ export function ClientApp() {
         setTourSeen(me.page_tour_seen);
         setPerson({ name: me.name, email: me.email });
       },
-      () => undefined,
+      // Anyone else (a client, a visitor): counted without cookies (A39).
+      () =>
+        tenant
+          .then((office) =>
+            startVisitorAnalytics(
+              office.analytics && { ...office.analytics, slug: office.slug },
+            ),
+          )
+          .catch(() => undefined),
     );
     call(api.GET("/api/pages/{slug}", { params: { path: { slug } } })).then(
       (page) => setState({ kind: "page", page }),
@@ -63,9 +74,13 @@ export function ClientApp() {
       },
     );
   }, [slug, version]);
-  useOfficeLocale(((state.kind === "page" && state.page.locale) || office?.locale) as Locale | undefined);
+  useOfficeLocale(
+    ((state.kind === "page" && state.page.locale) || office?.locale) as
+      Locale | undefined,
+  );
 
-  if (state.kind === "loading") return <p className="sr">{t("page.loading")}</p>;
+  if (state.kind === "loading")
+    return <p className="sr">{t("page.loading")}</p>;
   if (state.kind === "page")
     return (
       <ProjectPage
@@ -80,9 +95,21 @@ export function ClientApp() {
       />
     );
   if (state.kind === "locked")
-    return <PasswordGate office={office} slug={slug} onUnlocked={() => setVersion((v) => v + 1)} />;
+    return (
+      <PasswordGate
+        office={office}
+        slug={slug}
+        onUnlocked={() => setVersion((v) => v + 1)}
+      />
+    );
   if (state.kind === "missing")
-    return <PageMessage office={office} title={t("page.notFoundTitle")} body={t("page.notFoundBody")} />;
+    return (
+      <PageMessage
+        office={office}
+        title={t("page.notFoundTitle")}
+        body={t("page.notFoundBody")}
+      />
+    );
   // The office disconnected its Drive: staff are told how to bring the pages back.
   if (state.kind === "unavailable")
     return (
@@ -92,7 +119,8 @@ export function ClientApp() {
         body={
           person ? (
             <>
-              {t("page.unavailableStaff")} <a href="/painel/configuracoes/drive">{t("drive.reconnect")}</a>
+              {t("page.unavailableStaff")}{" "}
+              <a href="/painel/configuracoes/drive">{t("drive.reconnect")}</a>
             </>
           ) : (
             t("page.unavailableBody")
@@ -101,12 +129,17 @@ export function ClientApp() {
       />
     );
   // Anything else: the shared wording, with the support code (AGENTS.md).
-  const failure = state.error instanceof ApiError ? state.error : new ApiError("unexpected");
+  const failure =
+    state.error instanceof ApiError ? state.error : new ApiError("unexpected");
   return (
     <PageMessage
       office={office}
       title={t("errors.unexpected")}
-      body={failure.requestId ? t("errors.reference", { id: failure.requestId }) : ""}
+      body={
+        failure.requestId
+          ? t("errors.reference", { id: failure.requestId })
+          : ""
+      }
     />
   );
 }

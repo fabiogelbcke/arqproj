@@ -29,6 +29,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import InvalidEmail, email_list
 from backend.identity.passwords import hash_password
@@ -249,6 +250,7 @@ async def _move_address(db: AsyncSession, project_id: uuid.UUID, slug: str) -> N
 
 @router.post("/projects/{project_id}/publish", responses=documented(401, 404, 409, 422))
 async def publish(
+    request: Request,
     project_id: uuid.UUID,
     _staff: CurrentStaff = Depends(require_csrf),
     tenant: CurrentTenant = Depends(current_tenant),
@@ -268,6 +270,7 @@ async def publish(
         if published.rowcount != 1:  # someone archived it meanwhile
             raise ApiError(409, ErrorCode.PROJECT_CHANGED)
         await db.commit()
+        capture(request, "project_published")
     elif project.status is not ProjectStatus.ACTIVE:
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # completed or archived
     db.expire_all()
@@ -305,6 +308,7 @@ async def upload_cover(
         raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
     content = await file.read(COVER_MAX_BYTES + 1)
     await store_cover(request, db, tenant, project, content)
+    capture(request, "project_cover_set")
     return await _summary(db, tenant, project_id)
 
 
@@ -375,6 +379,7 @@ async def remove_cover(
         project.cover_file_id = project.cover_type = None
         await db.commit()
     db.expire_all()
+    capture(request, "project_cover_removed")
     return await _summary(db, tenant, project_id)
 
 

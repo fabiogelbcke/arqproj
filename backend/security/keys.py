@@ -40,6 +40,11 @@ def _unb64(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
+def keyed_hash(secret: str, purpose: str, data: str) -> str:
+    """A hex digest of `data` that only the app can recompute (HMAC-SHA256)."""
+    return hmac.new(_key(secret, purpose), data.encode(), hashlib.sha256).hexdigest()
+
+
 def sign(secret: str, purpose: str, payload: dict, ttl_seconds: int) -> str:
     """A tamper-proof note that expires (e.g. OAuth `state`)."""
     body = _b64(json.dumps(payload | {"exp": int(time.time()) + ttl_seconds}).encode())

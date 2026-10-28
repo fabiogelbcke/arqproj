@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture
 from backend.db.engine import get_tenant_session
 from backend.db.isolation import scope_to_tenant
 from backend.identity.models import Role
@@ -236,6 +237,7 @@ async def callback(request: Request) -> Response:
                 ConnectProblem.OTHER_ACCOUNT: ErrorCode.DRIVE_OTHER_ACCOUNT,
             }.get(error.problem, ErrorCode.DRIVE_CONNECT_FAILED)
             return _back(request, code)
+    capture(request, "drive_connected", {"fresh": bool(state.get("fresh", False))})
     done = RedirectResponse(f"{SETTINGS_PAGE}?resultado=conectado", 302)
     done.delete_cookie(NONCE_COOKIE, path="/api/drive/callback")
     return done
@@ -383,6 +385,7 @@ async def disconnect(
     connection.writer_token = None
     connection.writer_status = WriterStatus.NONE
     await db.commit()
+    capture(request, "drive_disconnected")
 
 
 async def writer_for(request: Request, db: AsyncSession) -> tuple[StorageConnection, DriveWriter]:

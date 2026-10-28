@@ -46,6 +46,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture, capture_visit
 from backend.db.engine import get_tenant_session
 from backend.documents import versions
 from backend.documents.versions import shown_name
@@ -538,6 +539,7 @@ async def refresh_share(
         await db.commit()
         await db.refresh(link)
         log.info("shares: link %s moved to newer versions", link.id)
+    capture(request, "share_link_renewed", {"changed": updated != held})
     [shown] = await _described(db, storage, project, [link])
     return shown
 
@@ -633,6 +635,12 @@ async def shared(
                 stage=titles[where.position],
             )
         )
+    capture_visit(
+        request,
+        project.tenant_id,
+        "share_page_viewed",
+        {"file_count": len(files), "has_password": link.password_hash is not None},
+    )
     return SharedOut(
         office=office,
         locale=tenant.locale.value,
@@ -709,8 +717,10 @@ async def unlock_share(
         raise
     if not right:
         attempts.failed(key, who)
+        capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": False})
         raise ApiError(401, ErrorCode.WRONG_SHARE_PASSWORD, headers=challenge)
     attempts.succeeded(key, who)
+    capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": True})
     response = Response(status_code=204, headers=challenge)
     response.set_cookie(
         _unlock_cookie(link),

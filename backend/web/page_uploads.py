@@ -49,6 +49,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture
 from backend.db.engine import get_tenant_session
 from backend.documents import versions
 from backend.documents.versions import shown_name
@@ -271,6 +272,15 @@ async def start_upload(
     log.info(
         "uploads: opened for %s/%s, stage %s, %s bytes", tenant.id, project_id, position, body.size
     )
+    capture(
+        request,
+        "upload_started",
+        {
+            "bytes": body.size,
+            "new_version": body.version_of is not None,
+            "stage_position": position,
+        },
+    )
     return UploadOut(upload_url=url)
 
 
@@ -395,6 +405,7 @@ async def create_section(
             error.detail,
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    capture(request, "section_created", {"stage_position": position})
     return Response(status_code=204)
 
 
@@ -411,6 +422,7 @@ class UploadFailedIn(BaseModel):
     responses=documented(401, 502),
 )
 async def upload_failed(
+    request: Request,
     project_id: uuid.UUID,
     position: int,
     body: UploadFailedIn,
@@ -430,6 +442,7 @@ async def upload_failed(
         body.status,
         body.detail,
     )
+    capture(request, "upload_failed", {"bytes": body.size, "stage_position": position})
     raise ApiError(502, ErrorCode.UPLOAD_FAILED)
 
 
@@ -513,6 +526,7 @@ async def hide_file(
             "uploads: hiding %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    capture(request, "file_hidden")
     return Response(status_code=204)
 
 
@@ -576,4 +590,5 @@ async def move_file(
             "uploads: moving %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    capture(request, "file_moved")
     return Response(status_code=204)
