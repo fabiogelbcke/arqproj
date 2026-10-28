@@ -1152,6 +1152,12 @@
       "updatePreset": "Salvar como padrão deste serviço",
       "presetSaved": "“{{title}}” salvo nos serviços do escritório.",
       "saveDefault": "Salvar como padrão",
+      "leave": {
+        "ask": "Sair sem salvar a proposta?",
+        "means": "As alterações feitas desde o último salvamento serão perdidas.",
+        "confirm": "Sair sem salvar",
+        "cancel": "Continuar editando"
+      },
       "defaultSaved": "Texto padrão salvo. As próximas propostas começam com ele.",
       "fees": "Honorários",
       "fee": "Valor total (R$)",

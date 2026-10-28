@@ -200,8 +200,8 @@ function generator(extra: Record<string, (body: unknown) => { status?: number; b
     "POST /api/projects/p-1/proposal/preview-page": () => ({ body: { ...PROPOSAL, fee: "", fee_in_words: "" } }),
     ...extra,
   });
-  renderAt("/projetos/p-1/proposta");
-  return sent;
+  const router = renderAt("/projetos/p-1/proposta");
+  return Object.assign(sent, { router });
 }
 
 describe("the proposal generator", () => {
@@ -268,6 +268,26 @@ describe("the proposal generator", () => {
       "Anteprojeto",
       "Imagens renderizadas",
     ]);
+  });
+
+  it("asks before a link in the painel discards unsaved changes", async () => {
+    const { router } = generator();
+    const crumb = async () =>
+      within(await screen.findByRole("navigation", { name: "Onde você está" })).getByRole("link", { name: "Projetos" });
+    await userEvent.click(await crumb()); // nothing changed: leaves straight away
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    await router.navigate("/projetos/p-1/proposta");
+
+    await userEvent.type((await screen.findAllByLabelText("Descrição"))[0]!, " E visitas.");
+    await userEvent.click(await crumb());
+    const ask = await screen.findByRole("alertdialog");
+    await userEvent.click(within(ask).getByRole("button", { name: "Continuar editando" }));
+    expect(router.state.location.pathname).toBe("/projetos/p-1/proposta");
+    expect((screen.getAllByLabelText("Descrição")[0] as HTMLTextAreaElement).value).toBe("Conversas. E visitas.");
+
+    await userEvent.click(await crumb());
+    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Sair sem salvar" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
   });
 
   it("marks the proposal accepted only after asking", async () => {

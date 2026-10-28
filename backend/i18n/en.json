@@ -1152,6 +1152,12 @@
       "updatePreset": "Save as this service's default",
       "presetSaved": "“{{title}}” saved to the office's services.",
       "saveDefault": "Save as default",
+      "leave": {
+        "ask": "Leave without saving the proposal?",
+        "means": "Changes made since the last save will be lost.",
+        "confirm": "Leave without saving",
+        "cancel": "Keep editing"
+      },
       "defaultSaved": "Default text saved. New proposals start with it.",
       "fees": "Fees",
       "fee": "Total (R$)",

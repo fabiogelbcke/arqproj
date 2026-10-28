@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router";
+import { Link, useBlocker, useParams } from "react-router";
 
 import type { Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
@@ -138,7 +138,9 @@ function Generator({ data }: { data: Generator }) {
   const [accepting, setAccepting] = useState(false);
   const [instalmentCount, setInstalmentCount] = useState("4");
 
-  // Leaving with unsaved changes asks first (the browser's own question).
+  // Leaving with unsaved changes asks first: the browser's own question when the
+  // tab closes or reloads, ours when a link in the painel is followed.
+  const leaving = useBlocker(dirty);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -560,6 +562,18 @@ function Generator({ data }: { data: Generator }) {
           )}
         </aside>
       </div>
+
+      {leaving.state === "blocked" && (
+        <ConfirmDialog
+          title={t("proposal.generator.leave.ask")}
+          text={t("proposal.generator.leave.means")}
+          confirm={t("proposal.generator.leave.confirm")}
+          cancel={t("proposal.generator.leave.cancel")}
+          danger
+          onCancel={() => leaving.reset()}
+          onConfirm={() => leaving.proceed()}
+        />
+      )}
 
       {accepting && (
         <ConfirmDialog
