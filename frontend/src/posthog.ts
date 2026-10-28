@@ -9,13 +9,44 @@
 // servers, so the site's Content Security Policy only lets events out
 // (backend/web/painel.py). Until it starts, `capture` and `resetAnalytics` do
 // nothing.
-import type { PostHog } from "posthog-js";
+import type { CaptureResult, PostHog } from "posthog-js";
 
 import type { Me, Schemas } from "./api/client";
 
 type VisitorAnalytics = Schemas["VisitorAnalyticsOut"] & { slug: string };
 
 let client: PostHog | null = null;
+
+/** A URL as analytics may see it: only its `utm_` campaign tags kept. The rest of
+ *  a query can name a client's file (`?pasta=Renders&arquivo=Fachada.jpg`) or carry
+ *  a sign-in link's token, and masking text and attributes leaves URLs alone. */
+export function withoutPrivateQuery(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return value; // not a URL
+  }
+  for (const key of [...url.searchParams.keys()]) {
+    if (!key.startsWith("utm_")) url.searchParams.delete(key);
+  }
+  url.hash = "";
+  return url.toString();
+}
+
+/** Every URL-valued property of an event, through `withoutPrivateQuery`
+ *  ($current_url, $referrer, their $initial_ copies and any others). */
+function stripUrls(event: CaptureResult | null): CaptureResult | null {
+  if (!event) return event;
+  for (const bag of [event.properties, event.$set, event.$set_once]) {
+    if (!bag) continue;
+    for (const [key, value] of Object.entries(bag)) {
+      if (typeof value === "string" && /^https?:\/\//.test(value))
+        bag[key] = withoutPrivateQuery(value);
+    }
+  }
+  return event;
+}
 let loading: Promise<PostHog> | null = null;
 // Each sign-out ends a sign-in: a start still loading when it does stops there.
 let signIns = 0;
@@ -40,6 +71,7 @@ export async function startAnalytics(me: Me): Promise<void> {
         mask_all_element_attributes: true,
         disable_session_recording: true,
         disable_surveys: true,
+        before_send: stripUrls,
         // Nothing is sent until a sign-in turns it on (below), so a start that a
         // sign-out overtook sends nothing either.
         opt_out_capturing_by_default: true,
@@ -83,6 +115,7 @@ export async function startVisitorAnalytics(
         mask_all_element_attributes: true,
         disable_session_recording: true,
         disable_surveys: true,
+        before_send: stripUrls,
         capture_exceptions: {
           capture_unhandled_errors: true,
           capture_unhandled_rejections: true,

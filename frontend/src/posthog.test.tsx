@@ -12,6 +12,7 @@ const sdk = vi.hoisted(() => {
     init: vi.fn(),
     identify: vi.fn(),
     group: vi.fn(),
+    register: vi.fn(),
     capture: vi.fn(),
     reset: vi.fn(),
     opt_out_capturing: vi.fn(() => void (optedOut = true)),
@@ -159,6 +160,57 @@ describe("product analytics in the browser (A39)", () => {
       }),
     );
     expect(sdk.identify).not.toHaveBeenCalled(); // nobody, only counted
+  });
+
+  it("sends no file names or tokens from addresses, only where a visit came from", async () => {
+    const { startAnalytics, startVisitorAnalytics } = await import("./posthog");
+    await startVisitorAnalytics({
+      token: "phc_test",
+      host: "https://us.i.posthog.com",
+      tenant_id: ANALYTICS.tenant_id,
+      slug: "alinea",
+    });
+    await startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
+    const send = sdk.init.mock.calls[0]![1].before_send;
+    const event = send({
+      event: "$pageview",
+      properties: {
+        $current_url:
+          "https://alinea.myunio.app/casa-jardim?etapa=3&pasta=Renders&arquivo=Fachada%20Silva.jpg&utm_source=email#topo",
+        $referrer: "https://alinea.myunio.app/entrar?token=abc123",
+        $pathname: "/casa-jardim",
+        file_count: 2,
+      },
+      $set_once: {
+        $initial_current_url:
+          "https://alinea.myunio.app/casa-jardim?arquivo=x.pdf",
+      },
+    });
+    expect(event.properties).toEqual({
+      $current_url: "https://alinea.myunio.app/casa-jardim?utm_source=email",
+      $referrer: "https://alinea.myunio.app/entrar",
+      $pathname: "/casa-jardim",
+      file_count: 2,
+    });
+    expect(event.$set_once.$initial_current_url).toBe(
+      "https://alinea.myunio.app/casa-jardim",
+    );
+  });
+
+  it("strips addresses for signed-in staff too", async () => {
+    const { startAnalytics } = await import("./posthog");
+    await startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
+    const send = sdk.init.mock.calls[0]![1].before_send;
+    const event = send({
+      event: "$pageview",
+      properties: {
+        $current_url:
+          "https://alinea.myunio.app/casa-jardim?arquivo=Planta.pdf",
+      },
+    });
+    expect(event.properties.$current_url).toBe(
+      "https://alinea.myunio.app/casa-jardim",
+    );
   });
 
   it("starts nothing for a visitor where the server has no key", async () => {
