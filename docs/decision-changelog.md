@@ -19,6 +19,23 @@ a new entry too.
 
 ---
 
+## 2026-10-28 — A40, A24: "Nova proposta" button instead of a checkbox
+
+**Was:** one optional checkbox in the creation form, "Começa como proposta"
+(entry below, same day).
+
+**Now:** a secondary "Nova proposta" button beside "Novo projeto" opens the same
+form, titled "Nova proposta", and goes straight to the proposal generator after
+creating. On phones the floating + opens a menu of the two.
+
+**Why:** Fabio, reviewing it: a checkbox at the end of the form is easily missed,
+and offices think of a new client's first step as a proposal. One form behind
+both keeps a proposal a project in an early status, not a separate thing.
+
+**Alternatives rejected:**
+- *Two equal buttons.* Most creations are still projects; "Novo projeto" stays
+  the main one.
+
 ## 2026-10-28 — A40 (new), A24: proposals, with a "Proposta" project status
 
 **Was:** no proposals. A project was `active` from creation (A35), and its page

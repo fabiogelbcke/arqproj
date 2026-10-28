@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { driveDisconnected, useDrive } from "../drive/drive";
 import { DriveNotice } from "../drive/DriveNotice";
 import { FirstSteps } from "../drive/FirstSteps";
-import { NewProjectDialog } from "../projects/NewProjectDialog";
+import { NewProjectButton, NewProjectButtons } from "../projects/NewProjectDialog";
 import { ProjectCard } from "../projects/ProjectCard";
 import {
   DEFAULT_SORT,
@@ -27,7 +27,6 @@ import { ErrorNotice } from "../ui/ErrorNotice";
 import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
 import { sortFromValue, sortLabelKey, sortValue } from "../ui/sort";
-import { toast } from "../ui/Toast";
 import pageStyles from "./pages.module.css";
 
 const ALL_TYPES = "all";
@@ -98,10 +97,15 @@ function NoProjectsYet() {
       <div className={styles.emptyText}>
         <h2 id="projects-empty">{t("projects.emptyTitle")}</h2>
         <p>{t("projects.emptyBody")}</p>
-        <NewProjectDialog
-          trigger={{ label: t("projects.new"), className: styles.emptyAction ?? "" }}
-          onCreated={(project) => toast(t("newProject.created", { name: project.name }))}
-        />
+        <div className={styles.emptyActions}>
+          <NewProjectButton kind="project" label={t("projects.new")} className={styles.emptyAction} />
+          <NewProjectButton
+            kind="proposal"
+            label={t("projects.newProposal")}
+            variant="secondary"
+            className={styles.emptyAction}
+          />
+        </div>
       </div>
     </section>
   );
@@ -240,7 +244,7 @@ export function ProjectsPage() {
                 options={SORTS.map((option) => ({ value: sortValue(option), label: t(sortLabelKey(option)) }))}
                 onChange={(value) => changeSort(sortFromValue(value, SORTS, DEFAULT_SORT))}
               />
-              <NewProjectDialog onCreated={(project) => toast(t("newProject.created", { name: project.name }))} />
+              <NewProjectButtons />
             </div>
             {types.length > 1 && (
               <ChipGroup

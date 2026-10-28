@@ -10,15 +10,16 @@
    the small size (ui/sizes.css). */
 .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
 /* The search (ui/SearchBox) takes the room left, and gives way first: on a
-   tablet the sort and "Novo projeto" stay on its row instead of one wrapping
+   tablet the sort and the two new buttons stay on its row instead of wrapping
    alone. The sort is a ui/SelectField. */
-.search { flex: 1 1 240px; min-width: 160px; }
+.search { flex: 1 1 140px; min-width: 120px; }
 .tools > :not(.search) { flex: none; }
-/* "Novo projeto": a dark pill in small capitals. */
+/* "Nova proposta" and "Novo projeto": pills in small capitals, the project dark. */
+.newButtons { display: flex; gap: 10px; }
 .newButton {
   gap: 10px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
 }
-.newButton > span:first-child { display: none; } /* the + is for phones */
+.newFab { display: none; } /* the + is for phones */
 /* One type of project at a time; a hairline under them closes the head. */
 .typeChips { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 @media (max-width: 720px) {
@@ -43,14 +44,15 @@
   .search svg { left: 20px; width: 21px; height: 21px; } /* Safari's address-bar size */
   .search input { height: 100%; padding: 0 20px 0 52px; border: 0; background: transparent; font-size: 17px; }
   .search input[data-focused] { background: transparent; }
-  /* "Novo projeto" is the round + beside it (its name stays for screen readers). */
-  .tools .newButton { /* over the Button's own size */
-    position: fixed; z-index: 40; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
-    display: grid; place-items: center; width: var(--control-floating); height: var(--control-floating); min-height: 0; padding: 0; gap: 0;
-    border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
+  /* The two buttons become the round + beside it, opening a menu of the two. */
+  .tools .newButtons { position: fixed; z-index: 40; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); }
+  .tools .newButton { display: none; }
+  .newFab {
+    display: grid; place-items: center; width: var(--control-floating); height: var(--control-floating); padding: 0;
+    border: 0; border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%); cursor: pointer;
+    background: var(--primary, var(--ink)); color: var(--on-primary, var(--bg));
   }
-  .newButton > span:first-child { display: block; font-size: 36px; font-weight: 300; line-height: 1; translate: 0 -2px; }
-  .newLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .newFab > span { font-size: 36px; font-weight: 300; line-height: 1; translate: 0 -2px; }
 }
 
 .group { display: grid; gap: 20px; }
@@ -199,8 +201,9 @@
 }
 .emptyText h2 { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; }
 .emptyText p { font-size: var(--text-md); color: var(--muted); }
+.emptyActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
 .emptyAction {
-  margin-top: 8px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
+  border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
 }
 @media (max-width: 720px) {
   .ghosts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
