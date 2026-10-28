@@ -155,7 +155,7 @@ describe("the project list", () => {
     const chips = await screen.findByRole("radiogroup", { name: "Responsável" });
     // One chip per person however it's written, alphabetically, after "Meus projetos".
     expect(within(chips).getAllByRole("radio").map((chip) => chip.textContent)).toEqual([
-      "Todos",
+      "Toda a equipe",
       "Meus projetos",
       "Arq. Ana Souza",
       "Eng. Bruno Lima",
@@ -165,7 +165,7 @@ describe("the project list", () => {
     expect(new URLSearchParams(router.state.location.search).get("resp")).toBe("meus");
     await userEvent.click(within(chips).getByRole("radio", { name: "Eng. Bruno Lima" }));
     expect(titles()).toEqual(["Casa Bruno"]);
-    await userEvent.click(within(chips).getByRole("radio", { name: "Todos" }));
+    await userEvent.click(within(chips).getByRole("radio", { name: "Toda a equipe" }));
     expect(titles()).toHaveLength(4);
     expect(router.state.location.search).toBe("");
   });
