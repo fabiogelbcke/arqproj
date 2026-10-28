@@ -7328,6 +7328,10 @@
             "type": "string",
             "title": "Phone"
           },
+          "whatsapp": {
+            "type": "string",
+            "title": "Whatsapp"
+          },
           "email": {
             "type": "string",
             "title": "Email"
@@ -7342,6 +7346,7 @@
           "address",
           "city",
           "phone",
+          "whatsapp",
           "email",
           "signatory"
         ],
@@ -7406,6 +7411,18 @@
               }
             ],
             "title": "Phone"
+          },
+          "whatsapp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp"
           },
           "signatory": {
             "anyOf": [
@@ -8252,6 +8269,12 @@
             "title": "Phone",
             "default": ""
           },
+          "whatsapp": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Whatsapp",
+            "default": ""
+          },
           "email": {
             "type": "string",
             "maxLength": 100,
@@ -8332,6 +8355,10 @@
             "type": "string",
             "title": "Phone"
           },
+          "whatsapp": {
+            "type": "string",
+            "title": "Whatsapp"
+          },
           "email": {
             "type": "string",
             "title": "Email"
@@ -8356,6 +8383,7 @@
           "signatory",
           "address",
           "phone",
+          "whatsapp",
           "email",
           "pdf_url"
         ],
@@ -8448,6 +8476,12 @@
             "type": "string",
             "maxLength": 40,
             "title": "Phone",
+            "default": ""
+          },
+          "whatsapp": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Whatsapp",
             "default": ""
           },
           "email": {
@@ -9541,6 +9575,10 @@
             "type": "string",
             "title": "Phone"
           },
+          "whatsapp": {
+            "type": "string",
+            "title": "Whatsapp"
+          },
           "signatory": {
             "type": "string",
             "title": "Signatory"
@@ -9557,6 +9595,7 @@
           "address",
           "city",
           "phone",
+          "whatsapp",
           "signatory"
         ],
         "title": "OfficeOut"

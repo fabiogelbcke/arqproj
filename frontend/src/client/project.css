@@ -390,7 +390,11 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 .client .proposal-intro { display: grid; gap: 12px; max-width: 62ch; font-size: var(--text-md); line-height: 1.7; }
 .client .proposal-intro p { margin: 0; }
 .client .proposal-opening__side { display: grid; gap: 14px; }
-.client .proposal-download { width: 100%; min-height: var(--control-main); }
+/* The PDF: the page's main action, beside the title. */
+.client .proposal-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 40px; }
+.client .proposal-download { gap: 10px; min-height: 52px; padding-inline: 28px; font-size: var(--text-md); }
+.client .proposal-download svg { width: 20px; height: 20px; }
+.client .proposal-download--pinned { display: none; }
 /* A section: a small capitals title over a hairline, like the stages'. */
 .client .proposal-section { margin-top: 56px; }
 .client .proposal-section__title {
@@ -447,6 +451,14 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 .client .proposal-next__actions .b { min-height: var(--control-main); }
 .client .proposal-none { color: var(--muted); padding: 32px 0; }
 @media (max-width: 860px) {
+  .client .proposal-top { display: grid; }
+  .client .proposal-top .proposal-download { width: 100%; }
+  /* Once scrolled, the PDF stays at the bottom of a phone's screen. */
+  .client .proposal-download--pinned {
+    display: inline-flex; position: fixed; z-index: 40; left: 16px; right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
+  }
+  .client.proposal-phase:has(.proposal-download--pinned) .cwrap { padding-bottom: 88px; }
   .client .proposal-opening, .client .proposal-fees, .client .proposal-next { grid-template-columns: minmax(0, 1fr); }
   .client .proposal-next { padding: 24px 20px; }
   .client .proposal-next__actions { min-width: 0; }

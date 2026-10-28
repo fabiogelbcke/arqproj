@@ -100,9 +100,12 @@ function Paragraphs({ text }: { text: string }) {
   );
 }
 
-/** A Brazilian mobile number's WhatsApp link ("(47) 99123-4567"); none for a
- *  landline or a number from elsewhere, which may have no WhatsApp. */
-export function whatsappLink(phone: string): string | null {
+/** The office's WhatsApp link: its WhatsApp number (a Brazilian one without the
+ *  country code gets +55), else its phone when that is a Brazilian mobile. None
+ *  for a landline, which may have no WhatsApp. */
+export function whatsappLink(whatsapp: string, phone: string): string | null {
+  const own = whatsapp.replace(/\D/g, "");
+  if (own) return `https://wa.me/${own.length <= 11 && !whatsapp.trim().startsWith("+") ? `55${own}` : own}`;
   let digits = phone.replace(/\D/g, "");
   if (digits.length === 13 && digits.startsWith("55")) digits = digits.slice(2);
   return digits.length === 11 && digits[2] === "9" ? `https://wa.me/55${digits}` : null;
@@ -111,7 +114,7 @@ export function whatsappLink(phone: string): string | null {
 function Presentation({ proposal, office }: { proposal: Proposal; office: string }) {
   const { t } = useTranslation();
   const pdf = `${proposal.pdf_url}&download=true`;
-  const whatsapp = proposal.phone ? whatsappLink(proposal.phone) : null;
+  const whatsapp = whatsappLink(proposal.whatsapp, proposal.phone);
   const facts: Array<[string, string]> = [
     ...(proposal.fee ? [[t("proposal.page.fee"), proposal.fee] as [string, string]] : []),
     ...(proposal.payments.length
@@ -140,9 +143,6 @@ function Presentation({ proposal, office }: { proposal: Proposal; office: string
               </div>
             ))}
           </dl>
-          <a className="b b--primary proposal-download" href={pdf}>
-            {t("proposal.page.download")}
-          </a>
         </aside>
       </div>
 
@@ -279,11 +279,19 @@ export function ProposalPhase({
         onSignOut={page.staff ? onSignOut : undefined}
       />
       <div className="cwrap">
-        <header className="project-heading proposal-heading">
-          <p className="project-kind">{t("proposal.page.kicker")}</p>
-          <h1 className="project-title">{page.name}</h1>
-          {proposal && <p className="proposal-for">{t("proposal.page.for", { name: proposal.client_name })}</p>}
-        </header>
+        <div className="proposal-top">
+          <header className="project-heading proposal-heading">
+            <p className="project-kind">{t("proposal.page.kicker")}</p>
+            <h1 className="project-title">{page.name}</h1>
+            {proposal && <p className="proposal-for">{t("proposal.page.for", { name: proposal.client_name })}</p>}
+          </header>
+          {proposal && (
+            <a className="b b--primary proposal-download" href={`${proposal.pdf_url}&download=true`}>
+              <Icon name="download" />
+              {t("proposal.page.download")}
+            </a>
+          )}
+        </div>
         {proposal ? (
           <Presentation proposal={proposal} office={page.office.name} />
         ) : (
@@ -291,6 +299,12 @@ export function ProposalPhase({
         )}
         <SiteFooter office={page.office.name} className="client-footer" />
       </div>
+      {proposal && !page.staff && (
+        <a className="b b--primary proposal-download proposal-download--pinned" href={`${proposal.pdf_url}&download=true`}>
+          <Icon name="download" />
+          {t("proposal.page.download")}
+        </a>
+      )}
       {page.staff && <StaffBar page={page} ready={ready} onChanged={onChanged} />}
       <Toaster />
     </div>

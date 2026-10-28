@@ -37,9 +37,9 @@ export function SettingsOfficePage() {
   );
 }
 
-type ProposalFields = { address: string; city: string; phone: string; signatory: string };
+type ProposalFields = { address: string; city: string; phone: string; whatsapp: string; signatory: string };
 
-/** What proposals print (A40): the footer's address and phone, the date line's
+/** What proposals print (A40): the footer's address and phones, the date line's
  *  city, who signs. The generator fills in the blank ones; owners change them here. */
 function ProposalDetails() {
   const { t } = useTranslation();
@@ -53,6 +53,7 @@ function ProposalDetails() {
     address: details.address,
     city: details.city,
     phone: details.phone,
+    whatsapp: details.whatsapp,
     signatory: details.signatory,
   };
   const field = (name: keyof ProposalFields) => ({
@@ -91,6 +92,7 @@ function ProposalDetails() {
           {...field("city")}
         />
         <TextField label={t("office.phone")} type="tel" maxLength={LIMITS.proposalPhone} {...field("phone")} />
+        <TextField label={t("office.whatsapp")} type="tel" maxLength={LIMITS.proposalPhone} {...field("whatsapp")} />
         <ErrorNotice error={save.error} />
         {manage && (
           <div className={styles.actions}>

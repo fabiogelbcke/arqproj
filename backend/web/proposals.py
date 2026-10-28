@@ -165,6 +165,7 @@ class ProposalOut(BaseModel):
     signatory: str
     address: str
     phone: str
+    whatsapp: str
     email: str
     pdf_url: str  # changes with each version, so browsers fetch the new one
 
@@ -187,6 +188,7 @@ def proposal_out(content: ProposalContent, version: int, locale: Locale, url: st
         signatory=content.signatory,
         address=content.address,
         phone=content.phone,
+        whatsapp=content.whatsapp,
         email=content.email,
         pdf_url=url,
     )
@@ -218,6 +220,7 @@ class OfficeDetailsOut(BaseModel):
     address: str
     city: str
     phone: str
+    whatsapp: str
     email: str
     signatory: str
 
@@ -262,6 +265,7 @@ def _office(found: OfficeProfile | None) -> OfficeDetailsOut:
         address=(found and found.address) or "",
         city=(found and found.city) or "",
         phone=(found and found.phone) or "",
+        whatsapp=(found and found.whatsapp) or "",
         email=(found and found.contact_email) or "",
         signatory=(found and found.signatory) or "",
     )
@@ -308,6 +312,7 @@ async def generator(
             signatory=office.signatory,
             address=office.address,
             phone=office.phone,
+            whatsapp=office.whatsapp,
             email=office.email,
         )
     slug = await db.scalar(
@@ -381,6 +386,7 @@ async def _fill_office_blanks(
         ("address", content.address),
         ("city", content.city),
         ("phone", content.phone),
+        ("whatsapp", content.whatsapp),
         ("signatory", content.signatory),
     ):
         if value and not getattr(found, column):

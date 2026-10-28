@@ -84,6 +84,7 @@ class OfficeOut(BaseModel):
     address: str
     city: str
     phone: str
+    whatsapp: str
     signatory: str
 
 
@@ -94,6 +95,7 @@ class OfficeIn(BaseModel):
     address: str | None = Field(default=None, max_length=ADDRESS_MAX)
     city: str | None = Field(default=None, max_length=CITY_MAX)
     phone: str | None = Field(default=None, max_length=PHONE_MAX)
+    whatsapp: str | None = Field(default=None, max_length=PHONE_MAX)
     signatory: str | None = Field(default=None, max_length=SIGNATORY_MAX)
 
 
@@ -112,6 +114,7 @@ def _out(tenant: CurrentTenant, found: OfficeProfile | None, staff: CurrentStaff
         address=(found and found.address) or "",
         city=(found and found.city) or "",
         phone=(found and found.phone) or "",
+        whatsapp=(found and found.whatsapp) or "",
         signatory=(found and found.signatory) or "",
     )
 
@@ -158,7 +161,7 @@ async def change_office(
         if email and not is_email(email):
             raise ApiError(422, ErrorCode.INVALID_EMAIL)
         found.contact_email = email or None
-    for column in ("address", "city", "phone", "signatory"):
+    for column in ("address", "city", "phone", "whatsapp", "signatory"):
         value = getattr(body, column)
         if value is not None:
             setattr(found, column, value.strip() or None)

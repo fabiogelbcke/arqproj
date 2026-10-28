@@ -2081,6 +2081,8 @@ export interface components {
             city: string;
             /** Phone */
             phone: string;
+            /** Whatsapp */
+            whatsapp: string;
             /** Email */
             email: string;
             /** Signatory */
@@ -2098,6 +2100,8 @@ export interface components {
             city?: string | null;
             /** Phone */
             phone?: string | null;
+            /** Whatsapp */
+            whatsapp?: string | null;
             /** Signatory */
             signatory?: string | null;
         };
@@ -2391,6 +2395,11 @@ export interface components {
              */
             phone: string;
             /**
+             * Whatsapp
+             * @default
+             */
+            whatsapp: string;
+            /**
              * Email
              * @default
              */
@@ -2427,6 +2436,8 @@ export interface components {
             address: string;
             /** Phone */
             phone: string;
+            /** Whatsapp */
+            whatsapp: string;
             /** Email */
             email: string;
             /** Pdf Url */
@@ -2492,6 +2503,11 @@ export interface components {
              * @default
              */
             phone: string;
+            /**
+             * Whatsapp
+             * @default
+             */
+            whatsapp: string;
             /**
              * Email
              * @default
@@ -2886,6 +2902,8 @@ export interface components {
             city: string;
             /** Phone */
             phone: string;
+            /** Whatsapp */
+            whatsapp: string;
             /** Signatory */
             signatory: string;
         };

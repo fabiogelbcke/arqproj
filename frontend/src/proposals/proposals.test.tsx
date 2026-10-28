@@ -11,11 +11,17 @@ import { formatAmount, instalments, parseAmount, type Generator, type ProposalVi
 afterEach(() => vi.unstubAllGlobals());
 
 describe("WhatsApp links", () => {
-  it("are made for Brazilian mobile numbers only", () => {
-    expect(whatsappLink("(47) 99123-4567")).toBe("https://wa.me/5547991234567");
-    expect(whatsappLink("+55 47 99123-4567")).toBe("https://wa.me/5547991234567");
-    expect(whatsappLink("(47) 3000-0000")).toBeNull(); // a landline
-    expect(whatsappLink("+1 415 555 0100")).toBeNull();
+  it("use the office's WhatsApp number, a Brazilian one without its +55 too", () => {
+    expect(whatsappLink("(47) 99123-4567", "(47) 3000-0000")).toBe("https://wa.me/5547991234567");
+    expect(whatsappLink("+55 47 99123-4567", "")).toBe("https://wa.me/5547991234567");
+    expect(whatsappLink("+1 415 555 0100", "")).toBe("https://wa.me/14155550100");
+  });
+
+  it("else use the phone, when it is a Brazilian mobile", () => {
+    expect(whatsappLink("", "(47) 99123-4567")).toBe("https://wa.me/5547991234567");
+    expect(whatsappLink("", "+55 47 99123-4567")).toBe("https://wa.me/5547991234567");
+    expect(whatsappLink("", "(47) 3000-0000")).toBeNull(); // a landline
+    expect(whatsappLink("", "+1 415 555 0100")).toBeNull();
   });
 });
 
@@ -66,6 +72,7 @@ const PROPOSAL: ProposalView = {
   signatory: "Arq. Laura Mendes",
   address: "Rua das Palmeiras, 120",
   phone: "(47) 3000-0000",
+  whatsapp: "",
   email: "contato@alinea.example",
   pdf_url: "/api/pages/casa-jardim/proposal.pdf?v=2",
 };
@@ -116,7 +123,10 @@ describe("a project's page while it is a proposal", () => {
     const fees = within(screen.getByRole("region", { name: "Honorários e pagamento" }));
     expect(fees.getByText("(vinte e nove mil reais)")).toBeInTheDocument();
     expect(fees.getByRole("listitem")).toHaveTextContent("Parcela 1no aceite da propostaR$ 14.500,00");
-    for (const download of screen.getAllByRole("link", { name: "Baixar PDF" }))
+    // The PDF: beside the title, pinned on phones, and again at the end.
+    const downloads = screen.getAllByRole("link", { name: "Baixar proposta em PDF" });
+    expect(downloads).toHaveLength(3);
+    for (const download of downloads)
       expect(download).toHaveAttribute("href", "/api/pages/casa-jardim/proposal.pdf?v=2&download=true");
     // Next steps: talk to the office. A landline: a call, no WhatsApp.
     const next = within(screen.getByRole("region", { name: "Próximos passos" }));
@@ -129,15 +139,15 @@ describe("a project's page while it is a proposal", () => {
     expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
   });
 
-  it("offers WhatsApp for a mobile number", async () => {
-    client({ ...PAGE, proposal: { ...PROPOSAL, phone: "(47) 99123-4567" } });
+  it("offers WhatsApp for the office's WhatsApp number", async () => {
+    client({ ...PAGE, proposal: { ...PROPOSAL, whatsapp: "(47) 99123-4567" } });
     expect(await screen.findByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", "https://wa.me/5547991234567");
   });
 
   it("says the proposal is coming when none is saved yet", async () => {
     client({ ...PAGE, proposal: null, proposal_url: null });
     expect(await screen.findByText(/A proposta está sendo preparada/)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Baixar PDF" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Baixar proposta em PDF" })).toBeNull();
   });
 
   it("lets staff change the proposal or mark it accepted, after asking", async () => {
@@ -197,6 +207,7 @@ const GENERATOR: Generator = {
     signatory: "Arq. Laura Mendes",
     address: "",
     phone: "",
+    whatsapp: "",
     email: "",
   },
   versions: [],
@@ -205,7 +216,7 @@ const GENERATOR: Generator = {
     { title: "Anteprojeto", description: "Planta humanizada." },
     { title: "Imagens renderizadas", description: "Perspectivas." },
   ],
-  office: { address: "", city: "Joinville", phone: "", email: "", signatory: "Arq. Laura Mendes" },
+  office: { address: "", city: "Joinville", phone: "", whatsapp: "", email: "", signatory: "Arq. Laura Mendes" },
   default_intro: "Abertura padrão.",
   default_notes: "Observações padrão.",
 };

@@ -2,7 +2,7 @@
 
 - `projects.status` gains `proposal`: the client page shows only the proposal
   until staff mark it accepted.
-- `office_profiles` gains the details a proposal prints (address, city, phone,
+- `office_profiles` gains the details a proposal prints (address, city, phone, WhatsApp,
   the signing architect) and the office's own opening and observations.
 - `proposal_service_presets`: the services the office offers, as new proposals
   list them. `proposals`: each saved version of a project's proposal, as its
@@ -31,7 +31,15 @@ STATUSES_BEFORE = "'draft', 'active', 'completed', 'archived'"
 STATUSES_AFTER = "'draft', 'proposal', 'active', 'completed', 'archived'"
 ARCHIVED_FROM_BEFORE = "'draft', 'active', 'completed'"
 ARCHIVED_FROM_AFTER = "'draft', 'proposal', 'active', 'completed'"
-OFFICE_COLUMNS = ("address", "city", "phone", "signatory", "proposal_intro", "proposal_notes")
+OFFICE_COLUMNS = (
+    "address",
+    "city",
+    "phone",
+    "whatsapp",
+    "signatory",
+    "proposal_intro",
+    "proposal_notes",
+)
 
 
 def _statuses(statuses: str, archived_from: str) -> None:

@@ -321,10 +321,11 @@ function ShareIcon() {
   );
 }
 
-export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left" }) {
+export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left" | "download" }) {
   const paths = {
     link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
     left: "M15 6l-6 6 6 6",
+    download: "M12 4v11M7 10l5 5 5-5M5 19h14",
     down: "M6 9l6 6 6-6",
     up: "M6 15l6-6 6 6",
     x: "M6 6l12 12M18 6L6 18",

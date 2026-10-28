@@ -114,6 +114,8 @@ class _Letter(FPDF):
 def _footer(content: ProposalContent, locale: Locale) -> str:
     words = texts(locale)["pdf"]
     parts = [content.address, content.phone]
+    if content.whatsapp and content.whatsapp != content.phone:
+        parts.append(fill(words["whatsapp"], number=content.whatsapp))
     if content.email:
         parts.append(fill(words["email"], email=content.email))
     return " - ".join(part for part in parts if part)

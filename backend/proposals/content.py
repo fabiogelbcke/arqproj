@@ -79,10 +79,19 @@ class ProposalContent(BaseModel):
     # The footer: the office's details as they were when it was saved.
     address: str = Field(default="", max_length=ADDRESS_MAX)
     phone: str = Field(default="", max_length=PHONE_MAX)
+    whatsapp: str = Field(default="", max_length=PHONE_MAX)
     email: str = Field(default="", max_length=EMAIL_MAX)
 
     @field_validator(
-        "client_name", "city", "intro", "notes", "signatory", "address", "phone", "email"
+        "client_name",
+        "city",
+        "intro",
+        "notes",
+        "signatory",
+        "address",
+        "phone",
+        "whatsapp",
+        "email",
     )
     @classmethod
     def _trimmed(cls, value: str) -> str:

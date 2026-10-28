@@ -262,9 +262,19 @@ async def test_an_incomplete_proposal_is_refused(client, owner, changes):
 async def test_saving_fills_in_only_the_office_details_it_lacks(client, db_session, owner):
     await client.patch("/api/office", json={"phone": "(11) 1111-1111"}, headers=owner)
     found = await casa_jardim(client)
-    await save(client, owner, found["id"], phone="(47) 3000-0000", email="não é e-mail")
+    await save(
+        client,
+        owner,
+        found["id"],
+        phone="(47) 3000-0000",
+        whatsapp="(47) 99123-4567",
+        email="não é e-mail",
+    )
     office = (await client.get("/api/office", headers=ALINEA)).json()
     assert office["phone"] == "(11) 1111-1111"  # set before: owners change it in settings
+    assert office["whatsapp"] == "(47) 99123-4567"
+    generator = (await client.get(f"/api/projects/{found['id']}/proposal", headers=owner)).json()
+    assert generator["office"]["whatsapp"] == "(47) 99123-4567"
     assert office["address"] == "Rua das Palmeiras, 120 - Centro"  # was blank: filled in
     assert (office["city"], office["signatory"]) == ("Joinville", "Arq. Laura Mendes")
     assert office["contact_email"] is None  # not an address: never saved
@@ -477,6 +487,16 @@ def test_a_logo_is_drawn_at_the_top(tmp_path):
     )
     assert b"/Subtype /Image" in pdf
     assert "ALINEA" not in pdf_text(pdf).split("Joinville")[0]
+
+
+@pytest.mark.parametrize(
+    ("whatsapp", "shown"),
+    [("(47) 99123-4567", True), ("", False), ("(47) 3000-0000", False)],  # the phone's twin: once
+)
+def test_the_footer_names_a_whatsapp_number_of_its_own(whatsapp, shown):
+    proposal = ProposalContent.model_validate(content(whatsapp=whatsapp))
+    pdf = render(proposal, office_name="A", project_name="B", logo=None, locale=Locale.PT_BR)
+    assert ("WhatsApp" in pdf_text(pdf)) is shown
 
 
 def test_a_long_proposal_runs_over_several_pages_with_the_footer_on_each():

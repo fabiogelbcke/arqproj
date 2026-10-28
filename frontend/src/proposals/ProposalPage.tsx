@@ -1,6 +1,6 @@
 // The proposal generator (A40): /painel/projetos/{id}/proposta. The form on the
-// left, the proposal as the client will see it on the right (on phones, under
-// the form). Saving makes the next version, shown on the project page at once;
+// left, what changes most first (the client, the fees, the services), the office's
+// details last; the PDF's preview on the right (on phones, under the form). Saving makes the next version, shown on the project page at once;
 // nothing is emailed: staff send the page's link when they choose.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Form } from "react-aria-components";
@@ -48,6 +48,7 @@ type Draft = {
   signatory: string;
   address: string;
   phone: string;
+  whatsapp: string;
   email: string;
 };
 
@@ -65,6 +66,7 @@ function draftFrom(start: Generator["start"], locale: string): Draft {
     signatory: start.signatory ?? "",
     address: start.address ?? "",
     phone: start.phone ?? "",
+    whatsapp: start.whatsapp ?? "",
     email: start.email ?? "",
   };
 }
@@ -283,20 +285,14 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
         >
           <section className={styles.section} aria-labelledby="p-to">
             <h2 id="p-to">{t("proposal.generator.to")}</h2>
-            <TextField
-              label={t("proposal.generator.client")}
-              description={t("proposal.generator.clientHint")}
-              value={draft.client_name}
-              onChange={(client_name) => change({ client_name })}
-              maxLength={LIMITS.proposalClient}
-              isRequired
-            />
             <div className={styles.pair}>
               <TextField
-                label={t("proposal.generator.city")}
-                value={draft.city}
-                onChange={(city) => change({ city })}
-                maxLength={LIMITS.proposalCity}
+                label={t("proposal.generator.client")}
+                description={t("proposal.generator.clientHint")}
+                value={draft.client_name}
+                onChange={(client_name) => change({ client_name })}
+                maxLength={LIMITS.proposalClient}
+                isRequired
               />
               <TextField
                 label={t("proposal.generator.date")}
@@ -306,84 +302,6 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
                 isRequired
               />
             </div>
-            <DefaultText
-              label={t("proposal.generator.intro")}
-              value={draft.intro}
-              onChange={(intro) => change({ intro })}
-              maxLength={LIMITS.proposalIntro}
-              saved={data.default_intro}
-              busy={saveDefaults.isPending}
-              onSaveDefault={() =>
-                saveDefaults.mutate(
-                  { intro: draft.intro },
-                  { onSuccess: () => toast(t("proposal.generator.defaultSaved")), onError: (e) => toastError(e) },
-                )
-              }
-            />
-          </section>
-
-          <section className={styles.section} aria-labelledby="p-services">
-            <h2 id="p-services">{t("proposal.generator.services")}</h2>
-            <p className={styles.hint}>{t("proposal.generator.servicesHint")}</p>
-            <ol className={styles.services}>
-              {services.map((service, i) => {
-                const preset = data.presets.find((p) => sameTitle(p, service));
-                const isDefault = preset !== undefined && same(preset, service);
-                return (
-                  <li key={i} className={styles.service}>
-                    <div className={styles.serviceHead}>
-                      <span className={styles.number}>{i + 1}.</span>
-                      <div className={styles.serviceTools}>
-                        <Button size="small" variant="ghost" isDisabled={i === 0} onPress={() => move(i, -1)} aria-label={t("proposal.generator.moveUp", { title: service.title })}>
-                          ↑
-                        </Button>
-                        <Button size="small" variant="ghost" isDisabled={i === services.length - 1} onPress={() => move(i, 1)} aria-label={t("proposal.generator.moveDown", { title: service.title })}>
-                          ↓
-                        </Button>
-                        <Button size="small" variant="ghost" onPress={() => change({ services: services.filter((_, j) => j !== i) })}>
-                          {t("proposal.generator.remove")}
-                        </Button>
-                      </div>
-                    </div>
-                    <TextField
-                      label={t("proposal.generator.serviceTitle")}
-                      value={service.title}
-                      onChange={(title) => setService(i, { title })}
-                      maxLength={LIMITS.serviceTitle}
-                      isRequired
-                    />
-                    <TextAreaField
-                      label={t("proposal.generator.serviceDescription")}
-                      value={service.description}
-                      onChange={(description) => setService(i, { description })}
-                      maxLength={LIMITS.serviceDescription}
-                    />
-                    {!isDefault && service.title.trim() && (
-                      <Button size="small" className={styles.saveDefault} isDisabled={savePresets.isPending} onPress={() => saveAsPreset(service)}>
-                        {preset ? t("proposal.generator.updatePreset") : t("proposal.generator.addPreset")}
-                      </Button>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-            {services.length < LIMITS.proposalServices && (
-              <ActionMenu
-                label={t("proposal.generator.addService")}
-                className={styles.addButton}
-                placement="bottom start"
-                items={[
-                  ...notListed.map((preset, i) => ({ id: `preset-${i}`, label: preset.title })),
-                  { id: "blank", label: t("proposal.generator.blankService") },
-                ]}
-                onAction={(id) => {
-                  const preset = id.startsWith("preset-") ? notListed[Number(id.slice(7))] : undefined;
-                  change({ services: [...services, preset ? { ...preset } : { title: "", description: "" }] });
-                }}
-              >
-                + {t("proposal.generator.addService")}
-              </ActionMenu>
-            )}
           </section>
 
           <section className={styles.section} aria-labelledby="p-fees">
@@ -461,6 +379,70 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
             )}
           </section>
 
+          <section className={styles.section} aria-labelledby="p-services">
+            <h2 id="p-services">{t("proposal.generator.services")}</h2>
+            <p className={styles.hint}>{t("proposal.generator.servicesHint")}</p>
+            <ol className={styles.services}>
+              {services.map((service, i) => {
+                const preset = data.presets.find((p) => sameTitle(p, service));
+                const isDefault = preset !== undefined && same(preset, service);
+                return (
+                  <li key={i} className={styles.service}>
+                    <div className={styles.serviceHead}>
+                      <span className={styles.number}>{i + 1}.</span>
+                      <div className={styles.serviceTools}>
+                        <Button size="small" variant="ghost" isDisabled={i === 0} onPress={() => move(i, -1)} aria-label={t("proposal.generator.moveUp", { title: service.title })}>
+                          ↑
+                        </Button>
+                        <Button size="small" variant="ghost" isDisabled={i === services.length - 1} onPress={() => move(i, 1)} aria-label={t("proposal.generator.moveDown", { title: service.title })}>
+                          ↓
+                        </Button>
+                        <Button size="small" variant="ghost" onPress={() => change({ services: services.filter((_, j) => j !== i) })}>
+                          {t("proposal.generator.remove")}
+                        </Button>
+                      </div>
+                    </div>
+                    <TextField
+                      label={t("proposal.generator.serviceTitle")}
+                      value={service.title}
+                      onChange={(title) => setService(i, { title })}
+                      maxLength={LIMITS.serviceTitle}
+                      isRequired
+                    />
+                    <TextAreaField
+                      label={t("proposal.generator.serviceDescription")}
+                      value={service.description}
+                      onChange={(description) => setService(i, { description })}
+                      maxLength={LIMITS.serviceDescription}
+                    />
+                    {!isDefault && service.title.trim() && (
+                      <Button size="small" className={styles.saveDefault} isDisabled={savePresets.isPending} onPress={() => saveAsPreset(service)}>
+                        {preset ? t("proposal.generator.updatePreset") : t("proposal.generator.addPreset")}
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+            {services.length < LIMITS.proposalServices && (
+              <ActionMenu
+                label={t("proposal.generator.addService")}
+                className={styles.addButton}
+                placement="bottom start"
+                items={[
+                  ...notListed.map((preset, i) => ({ id: `preset-${i}`, label: preset.title })),
+                  { id: "blank", label: t("proposal.generator.blankService") },
+                ]}
+                onAction={(id) => {
+                  const preset = id.startsWith("preset-") ? notListed[Number(id.slice(7))] : undefined;
+                  change({ services: [...services, preset ? { ...preset } : { title: "", description: "" }] });
+                }}
+              >
+                + {t("proposal.generator.addService")}
+              </ActionMenu>
+            )}
+          </section>
+
           <section className={styles.section} aria-labelledby="p-terms">
             <h2 id="p-terms">{t("proposal.generator.terms")}</h2>
             <TextAreaField
@@ -468,6 +450,20 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
               description={t("proposal.generator.notIncludedHint")}
               value={draft.not_included}
               onChange={(not_included) => change({ not_included })}
+            />
+            <DefaultText
+              label={t("proposal.generator.intro")}
+              value={draft.intro}
+              onChange={(intro) => change({ intro })}
+              maxLength={LIMITS.proposalIntro}
+              saved={data.default_intro}
+              busy={saveDefaults.isPending}
+              onSaveDefault={() =>
+                saveDefaults.mutate(
+                  { intro: draft.intro },
+                  { onSuccess: () => toast(t("proposal.generator.defaultSaved")), onError: (e) => toastError(e) },
+                )
+              }
             />
             <DefaultText
               label={t("proposal.generator.notes")}
@@ -496,12 +492,20 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
               onChange={(signatory) => change({ signatory })}
               maxLength={LIMITS.proposalSignatory}
             />
-            <TextField
-              label={t("proposal.generator.address")}
-              value={draft.address}
-              onChange={(address) => change({ address })}
-              maxLength={LIMITS.proposalAddress}
-            />
+            <div className={styles.pair}>
+              <TextField
+                label={t("proposal.generator.address")}
+                value={draft.address}
+                onChange={(address) => change({ address })}
+                maxLength={LIMITS.proposalAddress}
+              />
+              <TextField
+                label={t("proposal.generator.city")}
+                value={draft.city}
+                onChange={(city) => change({ city })}
+                maxLength={LIMITS.proposalCity}
+              />
+            </div>
             <div className={styles.pair}>
               <TextField
                 label={t("proposal.generator.phone")}
@@ -511,13 +515,20 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
                 type="tel"
               />
               <TextField
-                label={t("proposal.generator.email")}
-                value={draft.email}
-                onChange={(email) => change({ email })}
-                maxLength={LIMITS.email}
-                type="email"
+                label={t("proposal.generator.whatsapp")}
+                value={draft.whatsapp}
+                onChange={(whatsapp) => change({ whatsapp })}
+                maxLength={LIMITS.proposalPhone}
+                type="tel"
               />
             </div>
+            <TextField
+              label={t("proposal.generator.email")}
+              value={draft.email}
+              onChange={(email) => change({ email })}
+              maxLength={LIMITS.email}
+              type="email"
+            />
           </section>
 
           <div className={styles.actions}>
