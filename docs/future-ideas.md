@@ -65,6 +65,8 @@ decision in the [decision changelog](decision-changelog.md).
   still undecided.
 - Explore recipient preferences, batching, delivery costs and the provider's
   consent/template requirements before choosing an implementation.
+- Research done 28 Oct 2026: [whatsapp-updates.md](whatsapp-updates.md)
+  (costs, provider, whose number, consent, effort).
 - Decide whether recipients choose one channel or can receive both, and how to
   avoid unwanted duplicate notifications.
 
