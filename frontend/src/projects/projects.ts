@@ -107,6 +107,39 @@ export function suggestedSlug(name: string): string {
     .replace(/-+$/, "");
 }
 
+// Words before a name that don't make it another person: "Arq. Marina" is Marina.
+const TITLES = new Set(["arq", "arqa", "arquiteta", "arquiteto", "eng", "enga", "engenheira", "engenheiro", "dr", "dra", "sr", "sra"]);
+
+/** A person's name as the painel matches it: no accents, case, titles or extra
+ *  spaces. "Arq. Marina  Carvalho" → "marina carvalho". */
+export function personKey(name: string): string {
+  return plain(name)
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((word) => word && !TITLES.has(word))
+    .join(" ");
+}
+
+/** The people named as responsible across the projects, once each (by
+ *  personKey), as first written, in alphabetical order: the painel's chips. */
+export function responsibles(projects: ProjectSummary[], locale: string): { id: string; label: string }[] {
+  const seen = new Map<string, string>();
+  for (const project of projects) {
+    const key = project.responsible ? personKey(project.responsible) : "";
+    if (key && !seen.has(key)) seen.set(key, project.responsible!.trim());
+  }
+  return [...seen].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, locale));
+}
+
+/** Whether a project's responsible is the signed-in person: every word of their
+ *  name is in it ("Marina Carvalho" is "Arq. Marina S. Carvalho"). */
+export function isMine(responsible: string | null | undefined, myName: string): boolean {
+  const mine = personKey(myName).split(" ").filter(Boolean);
+  if (!mine.length || !responsible) return false;
+  const words = new Set(personKey(responsible).split(" "));
+  return mine.every((word) => words.has(word));
+}
+
 export function matches(project: ProjectSummary, query: string): boolean {
   const words = plain(query).trim().split(/\s+/).filter(Boolean);
   const haystack = plain(`${project.name} ${project.client_name}`);

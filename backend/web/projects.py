@@ -30,10 +30,11 @@ from backend.projects.creation import (
     NewProject,
     create_project,
 )
-from backend.projects.enums import AccessMode, ProjectStatus
+from backend.projects.enums import AccessMode, DetailKey, ProjectStatus
 from backend.projects.models import (
     Meeting,
     Project,
+    ProjectDetail,
     ProjectSlug,
     ProjectStage,
     ProjectTypeDef,
@@ -93,6 +94,8 @@ class ProjectSummary(BaseModel):
     access_mode: AccessMode
     # Who gets this project's email updates (A32), in the order they were added.
     recipients: list[RecipientOut]
+    # Its "Responsável" detail as typed, if it has one: the painel filters by it.
+    responsible: str | None = None
 
 
 class StageOption(BaseModel):
@@ -184,6 +187,17 @@ async def summaries(
             .ext(distinct_on(Meeting.project_id))
         )
     }
+    responsible = dict(
+        (
+            await db.execute(
+                select(ProjectDetail.project_id, ProjectDetail.value_text).where(
+                    ProjectDetail.project_id.in_(ids),
+                    ProjectDetail.key == DetailKey.RESPONSIBLE,
+                    ProjectDetail.value_text.is_not(None),
+                )
+            )
+        ).all()
+    )
     recipients: dict[uuid.UUID, list[RecipientOut]] = {}
     for recipient in await db.scalars(
         select(ProjectRecipient)
@@ -224,6 +238,7 @@ async def summaries(
             cover_url=cover_url(project),
             access_mode=project.access_mode,
             recipients=recipients.get(project.id, []),
+            responsible=responsible.get(project.id),
         )
         for project, slug, labels in rows
     ]

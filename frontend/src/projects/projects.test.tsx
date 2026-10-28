@@ -6,8 +6,11 @@ import { fakeApi, ME, renderAt, TENANT } from "../test/render";
 import {
   compareProjects,
   coverIndex,
+  isMine,
   loadSort,
   matches,
+  personKey,
+  responsibles,
   saveSort,
   suggestedSlug,
   type ProjectSummary,
@@ -135,6 +138,62 @@ describe("the project list", () => {
     expect(screen.getByText("Nenhum projeto encontrado para “jardim”.")).toBeInTheDocument();
     await userEvent.click(within(chips).getByRole("radio", { name: "Todos" }));
     expect(screen.getAllByTestId("project-card")).toHaveLength(1);
+  });
+
+  // ME is "Ana": the first two are hers (one person, written two ways), Bruno's is not.
+  const PEOPLE = [
+    project({ id: "11", name: "Casa Ana", slug: "casa-ana", responsible: "Arq. Ana Souza" }),
+    project({ id: "12", name: "Loja Ana", slug: "loja-ana", responsible: "ana  souza" }),
+    project({ id: "13", name: "Casa Bruno", slug: "casa-bruno", responsible: "Eng. Bruno Lima" }),
+    project({ id: "14", name: "Sem responsável", slug: "sem", responsible: null }),
+  ];
+  const titles = () => screen.getAllByTestId("project-card").map((card) => within(card).getByRole("heading").textContent);
+
+  it("filters by who's responsible, with \"Meus projetos\" for the signed-in person", async () => {
+    api(LOCAL, { "GET /api/projects": () => ({ body: PEOPLE }) });
+    const router = renderAt("/");
+    const chips = await screen.findByRole("radiogroup", { name: "Responsável" });
+    // One chip per person however it's written, alphabetically, after "Meus projetos".
+    expect(within(chips).getAllByRole("radio").map((chip) => chip.textContent)).toEqual([
+      "Todos",
+      "Meus projetos",
+      "Arq. Ana Souza",
+      "Eng. Bruno Lima",
+    ]);
+    await userEvent.click(within(chips).getByRole("radio", { name: "Meus projetos" }));
+    expect(titles().sort()).toEqual(["Casa Ana", "Loja Ana"]);
+    expect(new URLSearchParams(router.state.location.search).get("resp")).toBe("meus");
+    await userEvent.click(within(chips).getByRole("radio", { name: "Eng. Bruno Lima" }));
+    expect(titles()).toEqual(["Casa Bruno"]);
+    await userEvent.click(within(chips).getByRole("radio", { name: "Todos" }));
+    expect(titles()).toHaveLength(4);
+    expect(router.state.location.search).toBe("");
+  });
+
+  it("starts from the person in the address", async () => {
+    api(LOCAL, { "GET /api/projects": () => ({ body: PEOPLE }) });
+    renderAt("/?resp=bruno%20lima");
+    expect(within(await screen.findByRole("radiogroup", { name: "Responsável" })).getByRole("radio", { name: "Eng. Bruno Lima" })).toBeChecked();
+    expect(titles()).toEqual(["Casa Bruno"]);
+  });
+
+  it("offers no responsible chips when the projects name one person or none", async () => {
+    api(LOCAL, { "GET /api/projects": () => ({ body: PEOPLE.slice(0, 2) }) });
+    renderAt("/");
+    await screen.findAllByTestId("project-card");
+    expect(screen.queryByRole("radiogroup", { name: "Responsável" })).toBeNull();
+  });
+
+  it("matches people by name, ignoring titles, accents, case and spacing", () => {
+    expect(personKey("Arq.  Conceição  Lima")).toBe("conceicao lima");
+    expect(isMine("Arqa. Conceição S. Lima", "conceicao lima")).toBe(true);
+    expect(isMine("Ana Souza", "Bruno")).toBe(false);
+    expect(isMine(null, "Ana")).toBe(false);
+    expect(isMine("Ana Souza", "")).toBe(false); // no name: nothing is "mine"
+    expect(responsibles(PEOPLE, "pt-BR")).toEqual([
+      { id: "ana souza", label: "Arq. Ana Souza" },
+      { id: "bruno lima", label: "Eng. Bruno Lima" },
+    ]);
   });
 
   it("names a type without a short name by its full name", async () => {

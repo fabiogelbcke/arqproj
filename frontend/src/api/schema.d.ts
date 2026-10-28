@@ -2163,6 +2163,8 @@ export interface components {
             access_mode: components["schemas"]["AccessMode"];
             /** Recipients */
             recipients: components["schemas"]["RecipientOut"][];
+            /** Responsible */
+            responsible?: string | null;
         };
         /** ProjectTypeOption */
         ProjectTypeOption: {

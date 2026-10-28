@@ -12,8 +12,11 @@ import {
   SORTS,
   compareProjects,
   loadSort,
+  isMine,
   matches,
+  personKey,
   projectTypes,
+  responsibles,
   saveSort,
   useProjects,
   type ProjectSummary,
@@ -31,6 +34,9 @@ import { toast } from "../ui/Toast";
 import pageStyles from "./pages.module.css";
 
 const ALL_TYPES = "all";
+// The responsible chips (?resp=…): everyone, "Meus projetos", or one person by personKey.
+const EVERYONE = "all";
+const MINE = "meus";
 
 // Completed projects shown before "Ver todos": two rows of four.
 const COMPLETED_SHOWN = 8;
@@ -158,6 +164,7 @@ export function ProjectsPage() {
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
   const chosenType = params.get("type") ?? ALL_TYPES;
+  const chosenPerson = params.get("resp") ?? EVERYONE;
   const setParam = (name: string, value: string, empty: string) =>
     setParams(
       (current) => {
@@ -170,6 +177,7 @@ export function ProjectsPage() {
     );
   const setQuery = (value: string) => setParam("q", value, "");
   const setType = (value: string) => setParam("type", value, ALL_TYPES);
+  const setPerson = (value: string) => setParam("resp", value, EVERYONE);
   const searchBox = useRef<HTMLInputElement>(null);
   // Phones: one group at a time, chosen with two tabs (desktop shows both).
   const [phoneGroup, setPhoneGroup] = useState<"active" | "completed">("active");
@@ -190,18 +198,32 @@ export function ProjectsPage() {
   );
   // The chosen type's last project archived: every project again.
   const type = types.some((option) => option.id === chosenType) ? chosenType : ALL_TYPES;
+  // Who's responsible, from each project's "Responsável" detail: a chip each, and
+  // "Meus projetos" when the signed-in person's name is among them. Only with two
+  // or more people: one name filters nothing.
+  const myName = me.data?.name ?? "";
+  const people = useMemo(() => responsibles(projects.data ?? [], i18n.language), [projects.data, i18n.language]);
+  const anyMine = (projects.data ?? []).some((project) => isMine(project.responsible, myName));
+  const person =
+    chosenPerson === MINE ? (anyMine ? MINE : EVERYONE) : people.some((p) => p.id === chosenPerson) ? chosenPerson : EVERYONE;
   const shown = useMemo(
     () =>
       (projects.data ?? [])
-        .filter((project) => matches(project, query) && (type === ALL_TYPES || project.project_type === type))
+        .filter(
+          (project) =>
+            matches(project, query) &&
+            (type === ALL_TYPES || project.project_type === type) &&
+            (person === EVERYONE ||
+              (person === MINE ? isMine(project.responsible, myName) : personKey(project.responsible ?? "") === person)),
+        )
         .sort(compareProjects(sort, i18n.language)),
-    [projects.data, query, type, sort, i18n.language],
+    [projects.data, query, type, person, myName, sort, i18n.language],
   );
   // No drafts for now (A35); one left in the database is listed with the live ones.
   const active = shown.filter((p) => p.status === "active" || p.status === "draft");
   const completed = shown.filter((p) => p.status === "completed");
   const hasAny = !hidden && (projects.data?.length ?? 0) > 0;
-  const filtering = query.trim() !== "" || type !== ALL_TYPES;
+  const filtering = query.trim() !== "" || type !== ALL_TYPES || person !== EVERYONE;
 
   return (
     <>
@@ -250,6 +272,19 @@ export function ProjectsPage() {
                 chips={[{ id: ALL_TYPES, label: t("projects.allTypes") }, ...types]}
                 value={type}
                 onChange={setType}
+              />
+            )}
+            {people.length > 1 && (
+              <ChipGroup
+                className={styles.typeChips}
+                label={t("projects.responsibles")}
+                chips={[
+                  { id: EVERYONE, label: t("projects.everyone") },
+                  ...(anyMine ? [{ id: MINE, label: t("projects.mine") }] : []),
+                  ...people,
+                ]}
+                value={person}
+                onChange={setPerson}
               />
             )}
           </>

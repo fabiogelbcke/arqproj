@@ -7637,6 +7637,17 @@
             },
             "type": "array",
             "title": "Recipients"
+          },
+          "responsible": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responsible"
           }
         },
         "type": "object",
