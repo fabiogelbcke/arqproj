@@ -7,8 +7,13 @@ import { fakeApi, ME, renderAt, TENANT } from "../test/render";
 afterEach(() => vi.unstubAllGlobals());
 
 function signedIn(extra: Parameters<typeof fakeApi>[0] = {}) {
-  let me = ME;
+  let me: typeof ME & { email_confirmed?: boolean } = ME;
   const sent = fakeApi({
+    // The server's own account, as the email change leaves it.
+    "POST /api/me/email/change": (body) => {
+      me = { ...me, email: (body as { email: string }).email, email_confirmed: false };
+      return { body: me };
+    },
     "GET /api/tenant": () => ({ body: TENANT }),
     "GET /api/me": () => ({ body: me }),
     "PATCH /api/me": (body) => {
@@ -76,6 +81,27 @@ describe("Minha conta", () => {
     await userEvent.type(name, "!");
     await userEvent.click(screen.getAllByRole("button", { name: "Salvar" })[0]!);
     await waitFor(() => expect(sent.find((r) => r.method === "PATCH")?.headers.get("X-CSRF-Token")).toBe("csrf-new"));
+  });
+
+  it("changes the email with the current password, then asks for the code sent to it", async () => {
+    const sent = signedIn();
+    renderAt("/conta");
+    await userEvent.click(await screen.findByRole("button", { name: "Alterar e-mail" }));
+    const dialog = screen.getByRole("dialog", { name: "Alterar e-mail" });
+    expect(dialog).toHaveTextContent("O e-mail atual será avisado da troca.");
+    await userEvent.type(within(dialog).getByLabelText(/Novo e-mail/), "ana.nova@alinea.example");
+    await userEvent.type(within(dialog).getByLabelText(/Senha atual/), "a good password");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Enviar código" }));
+    await waitFor(() =>
+      expect(sent.find((r) => r.path === "/api/me/email/change")?.body).toEqual({
+        email: "ana.nova@alinea.example",
+        current: "a good password",
+      }),
+    );
+    // Unconfirmed now: the painel shows the code screen, naming the new address.
+    expect(await screen.findByRole("heading", { name: "Confirme seu e-mail" })).toBeInTheDocument();
+    expect(document.body).toHaveTextContent("ana.nova@alinea.example");
+    expect(screen.queryByRole("heading", { level: 1, name: "Minha conta" })).toBeNull();
   });
 
   it("says when the current password is wrong", async () => {

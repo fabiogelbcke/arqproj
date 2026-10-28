@@ -100,3 +100,87 @@ async def test_only_a_signed_in_staff_member_with_their_token(client, db_session
     # Another office's staff change only their own account, on their own address.
     norte = await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
     assert (await client.patch("/api/me", json={"name": "Nora"}, headers=norte)).status_code == 204
+
+
+# -- the email ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def sent(monkeypatch):
+    from backend.tests.test_team import Sent
+    from backend.web import email_confirmation
+
+    box = Sent()
+    monkeypatch.setattr(email_confirmation, "sender_for", lambda settings, http: box)
+    return box
+
+
+async def change_email(client, headers, email="ana.nova@alinea.example", current=PASSWORD):
+    return await client.post(
+        "/api/me/email/change", json={"current": current, "email": email}, headers=headers
+    )
+
+
+async def test_a_new_email_is_confirmed_by_its_code_and_the_old_one_is_told(client, owner, sent):
+    from backend.tests.test_team import code_in
+
+    response = await change_email(client, owner, email="  Ana.Nova@Alinea.example ")
+    assert response.status_code == 200, response.text
+    assert (response.json()["email"], response.json()["email_confirmed"]) == (
+        "ana.nova@alinea.example",
+        False,
+    )
+    notice, code = sent.emails
+    assert notice.to == "dona@alinea.example" and "foi alterado" in notice.subject
+    assert "ana.nova@alinea.example" in notice.text
+    assert code.to == "ana.nova@alinea.example"
+    # Until the code from the new address is typed, nothing else works.
+    blocked = await client.get("/api/projects", headers=ALINEA)
+    assert (blocked.status_code, blocked.json()["error"]) == (403, "email_unconfirmed")
+    typed = await client.post(
+        "/api/me/email-code", json={"code": code_in(code.text)}, headers=owner
+    )
+    assert typed.status_code == 200, typed.text
+    assert (await client.get("/api/projects", headers=ALINEA)).status_code == 200
+    # The new address signs in; the old one no longer does.
+    client.cookies.clear()
+    for email, status in (("ana.nova@alinea.example", 200), ("dona@alinea.example", 401)):
+        signed = await client.post(
+            "/api/session", json={"email": email, "password": PASSWORD}, headers=ALINEA
+        )
+        assert signed.status_code == status
+
+
+async def test_changing_the_email_needs_the_current_password(client, owner, sent):
+    response = await change_email(client, owner, current="not it")
+    assert (response.status_code, response.json()["error"]) == (422, "current_password_wrong")
+    assert sent.emails == []
+    assert (await client.get("/api/me", headers=ALINEA)).json()["email"] == "dona@alinea.example"
+
+
+@pytest.mark.parametrize(
+    ("email", "status", "error"),
+    [
+        ("not an email", 422, "invalid_email"),
+        ("dona@alinea.example", 422, "email_unchanged"),
+        ("membro@alinea.example", 409, "account_exists"),  # another account's
+    ],
+)
+async def test_an_email_that_cant_be_the_accounts_is_refused(
+    client, db_session, owner, sent, email, status, error
+):
+    from backend.identity import accounts  # another account, not signed in here
+
+    await accounts.create_user(
+        db_session, email="membro@alinea.example", name="Caio", password=PASSWORD, role=Role.MEMBER
+    )
+    response = await change_email(client, owner, email=email)
+    assert (response.status_code, response.json()["error"]) == (status, error)
+    assert sent.emails == []
+
+
+async def test_wrong_passwords_for_the_email_count_with_the_passwords(client, owner, sent):
+    for _ in range(5):
+        await change(client, owner, current="wrong")
+    refused = await change_email(client, owner)
+    assert (refused.status_code, refused.json()["error"]) == (429, "too_many_attempts")

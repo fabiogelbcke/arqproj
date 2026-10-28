@@ -1,13 +1,17 @@
-"""A staff member's own account ("Minha conta"): their name and their password.
+"""A staff member's own account ("Minha conta"): their name, password and email.
 
-    PATCH /api/me            change your name (as the team and clients see it)
-    POST  /api/me/password   change your password: the current one first
+    PATCH /api/me              change your name (as the team and clients see it)
+    POST  /api/me/password     change your password: the current one first
+    POST  /api/me/email/change change your email: the current password first
 
 Changing the password ends every sign-in of the account, this one included
 (accounts.set_password), then signs this device in again, so a stolen cookie
 stops working at once. Wrong current passwords are limited like a page's: five
 in 15 minutes, then 15 minutes' wait (backend/web/attempts.py), per account.
-Changing the email is later: it needs the new address confirmed first.
+Changing the email (with the current password, the same limit) makes the new
+address the account's, unconfirmed: a code goes to it, and the painel asks for it
+as at signup (backend/web/email_confirmation.py) before anything else works. The
+old address gets a notice, so an unexpected change gets noticed.
 """
 
 from __future__ import annotations
@@ -20,11 +24,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts
+from backend.identity.emails import is_email, tidy_email
 from backend.identity.models import User
 from backend.identity.passwords import verify_password
+from backend.notifications.office import office_of
+from backend.notifications.password_reset import email_changed_email
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
 from backend.web.auth import FAILED_LOGIN_DELAY, CurrentStaff, MeOut, require_csrf, signed_in
+from backend.web.email_confirmation import _LOCK_EMAIL, _me_now, new_code, send
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.team import _name
 
@@ -68,17 +76,61 @@ async def change_password(
         password_hash = await accounts.new_password_hash(body.password)
     except accounts.PasswordTooShort:
         raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT) from None
+    await _check_current(staff, db, body.current)
+    user = await db.get(User, staff.user_id)
+    await accounts.set_password(db, user, password_hash)  # ends every sign-in
+    return await signed_in(request, response, tenant, db, user)  # this device again
+
+
+class EmailChangeIn(BaseModel):
+    current: str = Field(max_length=200)
+    email: str = Field(max_length=500)
+
+
+async def _check_current(staff: CurrentStaff, db: AsyncSession, current: str) -> None:
+    """The account's current password, within the per-account limit."""
     key = _limit_key(staff)
     if not attempts.admit(*key):
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
     user = await db.get(User, staff.user_id)
-    # Hand the connection back before the slow check, as signing in does.
-    await db.commit()
-    if user is None or not await verify_password(user.password_hash, body.current):
+    await db.commit()  # the connection back before the slow check
+    if user is None or not await verify_password(user.password_hash, current):
         attempts.failed(*key)
         await anyio.sleep(FAILED_LOGIN_DELAY)
         raise ApiError(422, ErrorCode.CURRENT_PASSWORD_WRONG)
     attempts.succeeded(*key)
-    user = await db.get(User, staff.user_id)
-    await accounts.set_password(db, user, password_hash)  # ends every sign-in
-    return await signed_in(request, response, tenant, db, user)  # this device again
+
+
+@router.post("/me/email/change", responses=documented(401, 403, 409, 422, 429, 503))
+async def change_email(
+    body: EmailChangeIn,
+    request: Request,
+    staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> MeOut:
+    email = tidy_email(body.email)
+    if not is_email(email):
+        raise ApiError(422, ErrorCode.INVALID_EMAIL)
+    await _check_current(staff, db, body.current)
+    await accounts.lock_confirmation(db, staff.user_id)
+    user = await db.get(User, staff.user_id, populate_existing=True)
+    if email == user.email:
+        raise ApiError(422, ErrorCode.EMAIL_UNCHANGED)
+    await db.execute(_LOCK_EMAIL, {"email": email})
+    if await accounts.find_user(db, email) is not None:
+        raise ApiError(409, ErrorCode.ACCOUNT_EXISTS)
+    old = user.email
+    user.email = email
+    user.email_confirmed_at = None  # until the code from the new address is typed
+    await db.flush()
+    message = await new_code(db, request, tenant, user)
+    office = await office_of(db, request.app.state.settings, tenant.id)
+    await db.commit()
+    # The notice first: whatever happens to the code, the old address hears of it.
+    await send(
+        request, tenant, email_changed_email(office, user.name, old, email), "/api/me/email/change"
+    )
+    if not await send(request, tenant, message, "/api/me/email/change"):
+        raise ApiError(503, ErrorCode.EMAIL_NOT_SENT)  # "Reenviar código" on the next screen
+    return await _me_now(db, tenant, staff, user)

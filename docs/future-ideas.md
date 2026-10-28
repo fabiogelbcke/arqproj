@@ -102,9 +102,11 @@ decision in the [decision changelog](decision-changelog.md).
   account menu and the phone drawer.
   - Your name.
   - Your password: the current one first; it ends every other sign-in and keeps
-    this device; five wrong in 15 minutes, then a wait.
-- Still open: changing the email (the new address must be confirmed first) and
-  notification preferences.
+    this device.
+  - Your email: with the current password, the new address must be confirmed
+    with a code before the account works again, and the old address is told.
+  - Five wrong current passwords in 15 minutes, then a wait.
+- Still open: notification preferences.
 
 
 ## A file's link that survives renames

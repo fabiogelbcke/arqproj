@@ -1,12 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Form } from "react-aria-components";
+import { DialogTrigger, Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { api, call } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { ME, useMe, useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
+import dialogs from "../projects/projects.module.css";
+import { DialogFrame } from "../ui/DialogFrame";
+import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { NewPasswordFields } from "../ui/NewPasswordFields";
 import { Panel } from "../ui/Panel";
@@ -15,9 +18,8 @@ import { TextField } from "../ui/TextField";
 import { toast } from "../ui/Toast";
 import styles from "./pages.module.css";
 
-/** "Minha conta" (/painel/conta): the signed-in person's own name and password,
- *  from the account menu and the phone drawer. Their email shows; changing it is
- *  later (it needs the new address confirmed). */
+/** "Minha conta" (/painel/conta): the signed-in person's own name, email and
+ *  password, from the account menu and the phone drawer. */
 export function AccountPage() {
   const { t } = useTranslation();
   const me = useMe();
@@ -67,7 +69,10 @@ function NameForm({ current, email }: { current: string; email: string }) {
         isRequired
         autoComplete="name"
       />
-      <TextField label={t("account.email")} description={t("account.emailHint")} value={email} isReadOnly />
+      <div className={styles.accountEmail}>
+        <TextField label={t("account.email")} description={t("account.emailHint")} value={email} isReadOnly />
+        <ChangeEmail />
+      </div>
       <ErrorNotice error={save.error} />
       <div className={styles.actions}>
         <Button type="submit" variant="primary" isDisabled={save.isPending || name === null || !value.trim()}>
@@ -119,5 +124,56 @@ function PasswordForm() {
         </Button>
       </div>
     </Form>
+  );
+}
+
+/** "Alterar e-mail": the new address and the current password. The new address
+ *  becomes the account's, unconfirmed: the painel then asks for the code sent to
+ *  it (ConfirmEmailPage), and the old address is told. */
+function ChangeEmail() {
+  const { t } = useTranslation();
+  const signedIn = useSignedIn();
+  const [email, setEmail] = useState("");
+  const [current, setCurrent] = useState("");
+  const change = useMutation({
+    mutationFn: () => call(api.POST("/api/me/email/change", { body: { email, current } })),
+    onSuccess: (me) => signedIn(me), // unconfirmed now: the layout shows the code screen
+  });
+  return (
+    <DialogTrigger>
+      <Button variant="ghost" size="small">
+        {t("account.changeEmail")}
+      </Button>
+      <DialogFrame title={t("account.changeEmail")}>
+        {(close) => (
+          <Form
+            className={styles.form}
+            onSubmit={(event) => {
+              event.preventDefault();
+              change.mutate();
+            }}
+          >
+            <p className={styles.small}>{t("account.changeEmailNote")}</p>
+            <EmailField label={t("account.newEmail")} value={email} onChange={setEmail} isRequired autoFocus />
+            <PasswordField
+              label={t("account.currentPassword")}
+              value={current}
+              onChange={setCurrent}
+              isRequired
+              autoComplete="current-password"
+            />
+            <ErrorNotice error={change.error} />
+            <div className={dialogs.actions}>
+              <Button variant="ghost" onPress={close} isDisabled={change.isPending}>
+                {t("account.cancel")}
+              </Button>
+              <Button type="submit" variant="primary" isDisabled={change.isPending}>
+                {t("account.sendCode")}
+              </Button>
+            </div>
+          </Form>
+        )}
+      </DialogFrame>
+    </DialogTrigger>
   );
 }
