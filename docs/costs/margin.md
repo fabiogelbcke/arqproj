@@ -45,6 +45,10 @@ To try other numbers, change them at the top of [simulate.py](simulate.py) and
 run `python3 docs/costs/simulate.py --update`, which rewrites the tables below.
 It needs only Python.
 
+An interactive version with the same model, offices per plan and knobs for
+usage and unit costs: [Unio margin calculator](https://claude.ai/artifact/Gu1UgbeEQJcb7sf1iVvqsM)
+(a private Claude page; Fabio shares it).
+
 ## Results
 
 <!-- simulate.py:start -->
