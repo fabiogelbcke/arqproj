@@ -10,8 +10,9 @@ stops working at once. Wrong current passwords are limited like a page's: five
 in 15 minutes, then 15 minutes' wait (backend/web/attempts.py), per account.
 Changing the email (with the current password, the same limit) makes the new
 address the account's, unconfirmed: a code goes to it, and the painel asks for it
-as at signup (backend/web/email_confirmation.py) before anything else works. The
-old address gets a notice, so an unexpected change gets noticed.
+as at signup (backend/web/email_confirmation.py) before anything else works. It
+also ends the account's other sign-ins. The old address gets a notice, so an
+unexpected change gets noticed.
 """
 
 from __future__ import annotations
@@ -19,13 +20,13 @@ from __future__ import annotations
 import anyio
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts
 from backend.identity.emails import is_email, tidy_email
-from backend.identity.models import User
+from backend.identity.models import LoginSession, User
 from backend.identity.passwords import verify_password
 from backend.notifications.office import office_of
 from backend.notifications.password_reset import email_changed_email
@@ -139,6 +140,18 @@ async def change_email(
     old = user.email
     user.email = email
     user.email_confirmed_at = None  # until the code from the new address is typed
+    # Unconfirmed, any of the account's sessions may correct the address with no
+    # password (email_confirmation.correct_email): so only this device stays signed
+    # in, and a cookie stolen elsewhere can't redirect the code (Codex, PR #157).
+    await db.execute(
+        update(LoginSession)
+        .where(
+            LoginSession.user_id == user.id,
+            LoginSession.id != staff.session_id,
+            LoginSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=func.now())
+    )
     await db.flush()
     message = await new_code(db, request, tenant, user)
     office = await office_of(db, request.app.state.settings, tenant.id)

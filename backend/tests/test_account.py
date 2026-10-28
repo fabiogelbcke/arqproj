@@ -226,3 +226,21 @@ async def test_each_email_change_notifies_the_old_address_under_its_own_key(clie
         )
         assert typed.status_code == 200
     assert len(set(keys)) == 3
+
+
+async def test_changing_the_email_ends_every_other_sign_in(client, owner, sent):
+    """Unconfirmed, any session may correct the address without a password: so a
+    stolen cookie elsewhere must not outlive the change."""
+    elsewhere = client.cookies.get(auth.COOKIE)
+    signed = await client.post(
+        "/api/session",
+        json={"email": "dona@alinea.example", "password": PASSWORD},
+        headers=ALINEA,
+    )
+    here = {**ALINEA, auth.CSRF_HEADER: signed.json()["csrf_token"]}
+    assert (await change_email(client, here)).status_code == 200
+    assert (await client.get("/api/me", headers=ALINEA)).status_code == 200  # this device
+    client.cookies.set(auth.COOKIE, elsewhere)
+    assert (await client.get("/api/me", headers=ALINEA)).status_code == 401
+    stolen = await client.put("/api/me/email", json={"email": "thief@x.example"}, headers=owner)
+    assert stolen.status_code in (401, 403)

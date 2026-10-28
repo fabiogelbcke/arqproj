@@ -1364,7 +1364,7 @@
     "email": "E-mail",
     "emailHint": "Usado para entrar e para receber avisos.",
     "changeEmail": "Alterar e-mail",
-    "changeEmailNote": "Enviaremos um código para o novo e-mail. Até você digitá-lo, o painel fica bloqueado nesta conta. O e-mail atual será avisado da troca.",
+    "changeEmailNote": "Enviaremos um código para o novo e-mail. Até você digitá-lo, o painel fica bloqueado nesta conta. O e-mail atual será avisado da troca, e os outros aparelhos serão desconectados.",
     "newEmail": "Novo e-mail",
     "sendCode": "Enviar código",
     "cancel": "Cancelar",

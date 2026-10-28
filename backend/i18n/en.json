@@ -1364,7 +1364,7 @@
     "email": "Email",
     "emailHint": "Used to sign in and for notices.",
     "changeEmail": "Change email",
-    "changeEmailNote": "We'll send a code to the new email. Until you type it, the panel stays locked for this account. Your current email will be told of the change.",
+    "changeEmailNote": "We'll send a code to the new email. Until you type it, the panel stays locked for this account. Your current email will be told of the change, and other devices will be signed out.",
     "newEmail": "New email",
     "sendCode": "Send code",
     "cancel": "Cancel",
