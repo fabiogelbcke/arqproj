@@ -21,10 +21,11 @@ The costs are in their own documents, under [costs/](costs/README.md):
 200 offices.
 
 In short: about R$14 a month per office plus taxes (6% under Simples Anexo III,
-15.5% under Anexo V), R$520–2,700 a month of fixed costs depending on size, and
-about R$1,500 once. At an average R$242 a month, fixed costs are covered from
-about 6 paying offices, and about 75% of revenue is left from 50 offices,
-before salaries and marketing.
+15.5% under Anexo V), R$370–2,300 a month of fixed costs depending on size, and
+about R$1,500 once. With plans at R$89 / R$229 / R$499, fixed costs are covered
+from about 5 paying offices, and about 74% of revenue is left from 50 offices,
+before salaries and marketing. [margin.md](costs/margin.md) compares five price
+sets.
 
 **What actually decides the margin:** the price, the tax annex (section 3) and
 the time spent on support and onboarding, not infrastructure. That's why the
@@ -42,13 +43,26 @@ matches what costs us anything (downloads and emails come from active projects).
 
 | Tier | Active projects | Staff | Price/month (hypothesis) | For |
 | --- | --- | --- | --- | --- |
-| Essencial | up to 5 | 2 | R$99–129 | A solo architect or a two-person office |
-| Profissional | up to 20 | 5 | R$249–299 | The typical small office (our pilot profile) |
-| Escritório | up to 60 | unlimited | R$499–599 | Larger offices; own domain included |
+| Essencial | up to 3 | 1–2 | **under R$100** (R$79–99) | A solo architect or a two-person office |
+| Profissional | up to 15 | up to 5 | R$199–249 | The typical small office (our pilot profile) |
+| Escritório | up to 50 | unlimited | R$449–549 | Larger offices; own domain included |
 | Sob medida | more | — | quoted | Networks of offices, special terms |
 
 How to read it:
 
+- **What a tier can be measured by**, and what each costs us:
+  - **staff accounts**: easy to understand and to count; costs us nothing;
+  - **active projects**: section 22's axis; grows with the office's success and
+    roughly with what it costs us;
+  - **data stored**: costs us nothing while files stay in the office's Drive;
+    it only matters with our own storage (~US$0.015 a GB on R2);
+  - **download traffic**: what actually costs us (~US$0.12 a GB), but the
+    office doesn't control how much its clients download. Better as a generous
+    fair-use limit than as the thing a tier sells.
+
+  So: tiers by staff and active projects, with traffic as a fair-use limit.
+  [margin.md](costs/margin.md) gives each tier its own traffic and compares
+  five price sets.
 - Even the lowest price covers our cost per office many times over. **Price on
   the value to the office**, not on our costs. Compare: the hours an architect
   saves not answering "where's the latest floor plan?", and how professional the

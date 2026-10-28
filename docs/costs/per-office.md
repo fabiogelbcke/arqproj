@@ -18,7 +18,7 @@ What grows with each office:
 | Download traffic | US$1.20–3.60 | The page streams files through Cloud Run: ~US$0.12/GB to the internet, for 10–30 GB a month. |
 | Update emails | ~US$0.01–0.20 | A few hundred emails a month, once on a paid Resend plan. |
 | Database and compute | ~US$0 | Until the database's next size ([fixed.md](fixed.md)). |
-| **Total** | **~US$1.50–4 (R$8–22)** | The simulation uses **US$2.60 (R$14)**. |
+| **Total** | **~US$1.50–4 (R$8–22)** | The simulation gives each plan its own traffic: 5, 20 and 60 GB a month (R$4, R$14 and R$40 an office), R$14 on average. |
 
 ## Extras an office could add
 
@@ -52,7 +52,7 @@ company pays a share of revenue that rises with the last 12 months' revenue:
 
 | Revenue in the last 12 months | Anexo III (effective) | Anexo V (effective) |
 | --- | --- | --- |
-| Up to R$180,000 (~60 offices at R$242) | 6% | 15.5% |
+| Up to R$180,000 (~70 offices at R$203 on average) | 6% | 15.5% |
 | R$180,000–360,000 | 6–8.6% | 15.5–16.8% |
 | R$360,000–720,000 | 8.6–11.1% | 16.8–18.1% |
 

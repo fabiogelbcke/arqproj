@@ -29,20 +29,21 @@ Companion analyses: [storage](../storage-strategy.md),
 
 ## In short
 
-- **Fixed:** ~R$520 a month today (US$30–35 of product, the accountant, one
-  email account), ~R$1,200 from about 15 offices (paid support and monitoring
-  tools), ~R$2,250 at 100.
-- **Per office:** ~R$14 a month (downloads and emails); ~R$27 with WhatsApp and
-  the AI assistant. Plus payment fees (~R$2 a payment through Asaas) and
+- **Fixed:** ~R$370 a month today (US$30–35 of product, an online accountant,
+  one email account), ~R$1,000 from about 15 offices (paid support and
+  monitoring tools), ~R$1,850 at 100.
+- **Per office:** R$4–34 a month depending on its plan's traffic (R$14 on
+  average); ~R$13 more with WhatsApp and the AI assistant. Plus payment fees (~R$2 a payment through Asaas) and
   **taxes, the largest per-office cost**: 6% of revenue under Simples Anexo III,
   15.5% or more under Anexo V.
 - **One-off:** ~R$1,500 in cash (opening the company; the lawyer is free for
   now), plus weeks of building for each extra.
-- **Margin** ([margin.md](margin.md)): at an average R$242 a month per office,
-  fixed costs are covered from about 6 paying offices, and **about 75% of
-  revenue is left from 50 offices** (66% under Anexo V), before salaries and
-  marketing. What decides it is the price and the tax annex, not
-  infrastructure.
+- **Margin** ([margin.md](margin.md)), five price sets with a basic plan from
+  R$59 to R$119: with R$89 / R$229 / R$499, fixed costs are covered from about
+  5 paying offices and **about 74% of revenue is left from 50 offices** (65%
+  under Anexo V), before salaries and marketing. A basic plan under R$100
+  still leaves ~85% of its price. What decides the margin is the price and
+  the tax annex, not infrastructure.
 
 ## Sources
 

@@ -2,8 +2,8 @@
 
 Run `python3 docs/costs/simulate.py` to print the tables, or `--update` to rewrite
 them in margin.md (between the `simulate.py` markers). Change an assumption below,
-rerun, commit both files. Every figure comes from fixed.md, per-office.md and
-one-time.md; this file only adds them up. Rough on purpose: no churn, no growth
+rerun, commit both files. Costs come from fixed.md, per-office.md and
+one-time.md; plans and prices are hypotheses to compare. Rough on purpose: no churn, no growth
 curve, every office in steady state.
 """
 
@@ -14,26 +14,52 @@ from pathlib import Path
 
 USD = 5.50  # R$ per US$1
 
-# -- Revenue --------------------------------------------------------------------------
+# -- Plans ----------------------------------------------------------------------------
 
-# (tier, price R$/month, share of offices). Prices: pricing-and-trials.md section 2.
-TIERS = [("Essencial", 119, 0.30), ("Profissional", 249, 0.55), ("Escritório", 549, 0.15)]
+# What each plan includes and what an office on it costs us. Traffic is what its client
+# pages download in a month (per-office.md: ~US$0.12 a GB through Cloud Run).
+# (plan, staff, active projects, GB downloaded a month, share of offices)
+PLANS = [
+    ("Essencial", "1–2", "3", 5, 0.40),
+    ("Profissional", "up to 5", "15", 20, 0.45),
+    ("Escritório", "unlimited", "50", 60, 0.15),
+]
+# Monthly prices (R$) for each plan, in PLANS' order: the price sets compared.
+PRICE_SETS = {
+    "A": (59, 149, 349),
+    "B": (79, 199, 449),
+    "C": (89, 229, 499),
+    "D": (99, 249, 549),
+    "E": (119, 299, 649),
+}
+MAIN = "C"
 ANNUAL_SHARE = 0.30  # offices on annual billing: pay 10 months, get 12
 FOUNDING = 10  # founding offices (trial model E): 50% off for life
 FOUNDING_DISCOUNT = 0.50
 
 
-def average_price():
-    listed = sum(price * share for _, price, share in TIERS)
-    return listed * (1 - ANNUAL_SHARE * 2 / 12)
+def paid(price):
+    """What a plan's price brings in a month, after annual billing's 2 free months."""
+    return price * (1 - ANNUAL_SHARE * 2 / 12)
+
+
+def average_price(prices, mix=None):
+    mix = mix or [plan[4] for plan in PLANS]
+    return sum(paid(price) * share for price, share in zip(prices, mix, strict=True))
 
 
 # -- Costs that grow with each office (per-office.md), US$/month -----------------------
 
-PER_OFFICE_USD = {"Downloads (Cloud Run traffic)": 2.50, "Update emails": 0.10}
+GB_USD = 0.12  # download traffic, per GB
+EMAILS_USD = 0.10  # update emails, per office
 EXTRAS_USD = {"WhatsApp updates": 2.00, "AI assistant in the panel": 0.30}
 PIX_FEE = 1.99  # R$ per payment through Asaas; Pix by hand (R$0) below ASAAS_FROM
 ASAAS_FROM = 20
+
+
+def serving_usd(gb, extras=False):
+    """US$/month an office costs us: its traffic, its emails and any extras."""
+    return gb * GB_USD + EMAILS_USD + (sum(EXTRAS_USD.values()) if extras else 0)
 
 
 # -- Fixed costs (fixed.md): each steps up with the number of offices ------------------
@@ -51,7 +77,7 @@ def fixed_usd(n):
         "Error tracking and uptime": 0 if n < 15 else 26 if n < 60 else 56,
         "Email accounts (Workspace)": 8 * (1 if n < 15 else 2 if n < 60 else 3 if n < 150 else 4),
         "AI for the business": 0 if n < 15 else 15 if n < 60 else 50,
-        "Accountant": (300 if n < 15 else 350 if n < 60 else 600) / USD,
+        "Accountant": (150 if n < 60 else 200) / USD,
     }
 
 
@@ -91,13 +117,13 @@ def tax_rate(yearly, annex):
 # -- The model -------------------------------------------------------------------------
 
 
-def month(n, price=None, annex=ANEXO_III, extras=False):
+def month(n, prices=PRICE_SETS[MAIN], annex=ANEXO_III, extras=False, mix=None):
     """One month at `n` paying offices, in R$."""
-    price = average_price() if price is None else price
+    mix = mix or [plan[4] for plan in PLANS]
     founding = min(n, FOUNDING)
-    revenue = price * (n - founding * FOUNDING_DISCOUNT)
-    per_office = sum(PER_OFFICE_USD.values()) + (sum(EXTRAS_USD.values()) if extras else 0)
-    variable = n * per_office * USD
+    revenue = average_price(prices, mix) * (n - founding * FOUNDING_DISCOUNT)
+    gb = sum(plan[3] * share for plan, share in zip(PLANS, mix, strict=True))
+    variable = n * serving_usd(gb, extras) * USD
     fees = n * PIX_FEE if n >= ASAAS_FROM else 0
     tax = revenue * tax_rate(revenue * 12, annex)
     fixed = sum(fixed_usd(n).values()) * USD
@@ -111,6 +137,14 @@ def month(n, price=None, annex=ANEXO_III, extras=False):
         "result": result,
         "margin": result / revenue,
     }
+
+
+def one_office(price, gb):
+    """What one office on a plan leaves each month, before fixed costs (R$, first tax
+    bracket, Asaas fee)."""
+    income = paid(price)
+    cost = income * ANEXO_III[0][1] + PIX_FEE + serving_usd(gb) * USD
+    return income, cost, income - cost
 
 
 def brl(value):
@@ -131,17 +165,38 @@ def table(header, rows):
 SIZES = [5, 10, 20, 50, 100, 200]
 
 
+def by_size(label, **kw):
+    return [label] + [pct(month(n, **kw)["margin"]) for n in SIZES]
+
+
 def report():
     out = []
-    runs = [month(n) for n in SIZES]
-    out.append(
-        f"Average price after the tier mix and annual discounts: **{brl(average_price())}"
-        "** a month.\n"
+    main = PRICE_SETS[MAIN]
+    out.append("### The plans and price sets compared\n")
+    body = [
+        [name, staff, projects, f"{gb} GB", pct(share)]
+        + [brl(prices[i]) for prices in PRICE_SETS.values()]
+        for i, (name, staff, projects, gb, share) in enumerate(PLANS)
+    ]
+    body.append(
+        ["**Average paid**", "", "", "", ""]
+        + [f"**{brl(average_price(prices))}**" for prices in PRICE_SETS.values()]
     )
-    out.append("### Main scenario (Anexo III, no extras), per month\n")
+    out.append(
+        table(
+            ["Plan", "Staff", "Active projects", "Traffic", "Offices", *PRICE_SETS],
+            body,
+        )
+    )
+    out.append(
+        "\n“Average paid” is after annual billing's two free months, before founding discounts.\n"
+    )
+
+    out.append(f"### Price set {MAIN}, per month (Anexo III, no extras)\n")
+    runs = [month(n) for n in SIZES]
     rows = [
         ("Revenue", "revenue"),
-        ("Cost per office (Cloud, email)", "variable"),
+        ("Serving the offices (traffic, email)", "variable"),
         ("Payment fees", "fees"),
         ("Simples Nacional", "tax"),
         ("Fixed costs", "fixed"),
@@ -151,40 +206,66 @@ def report():
         ["**Left before salaries and marketing**"] + [f"**{brl(r['result'])}**" for r in runs]
     )
     body.append(["**Margin**"] + [f"**{pct(r['margin'])}**" for r in runs])
-    body.append(
-        ["Total cost per office"]
-        + [brl((r["revenue"] - r["result"]) / n) for n, r in zip(SIZES, runs, strict=True)]
-    )
     out.append(table(["", *(f"{n} offices" for n in SIZES)], body))
 
-    out.append("\n### Margin under other assumptions\n")
-    variants = [
-        ("Main scenario", {}),
-        ("Anexo V (payroll under 28% of revenue)", {"annex": ANEXO_V}),
-        ("WhatsApp + AI assistant for every office", {"extras": True}),
-        ("Anexo V and both extras", {"annex": ANEXO_V, "extras": True}),
+    out.append("\n### Margin by price set\n")
+    body = [
+        by_size(f"{name} ({' / '.join(brl(p) for p in prices)})", prices=prices)
+        for name, prices in PRICE_SETS.items()
     ]
-    body = [[label] + [pct(month(n, **kw)["margin"]) for n in SIZES] for label, kw in variants]
+    out.append(table(["Price set", *(f"{n}" for n in SIZES)], body))
+
+    out.append(f"\n### Margin under other assumptions (price set {MAIN})\n")
+    small = [0.60, 0.30, 0.10]
+    body = [
+        by_size("As above"),
+        by_size("Anexo V (payroll under 28% of revenue)", annex=ANEXO_V),
+        by_size("WhatsApp + AI assistant for every office", extras=True),
+        by_size("Anexo V and both extras", annex=ANEXO_V, extras=True),
+        by_size(f"More small offices ({' / '.join(pct(s) for s in small)})", mix=small),
+    ]
     out.append(table(["", *(f"{n}" for n in SIZES)], body))
 
-    out.append("\n### Margin by average price (main scenario)\n")
-    prices = [129, 199, 249, 299, 399]
-    body = [[brl(p)] + [pct(month(n, price=p)["margin"]) for n in SIZES] for p in prices]
-    out.append(table(["Average price", *(f"{n}" for n in SIZES)], body))
+    out.append(f"\n### Each plan on its own (price set {MAIN})\n")
+    body = []
+    for (name, _, _, gb, _), price in zip(PLANS, main, strict=True):
+        income, cost, left = one_office(price, gb)
+        body.append([name, brl(price), brl(income), brl(cost), brl(left), pct(left / income)])
+    out.append(
+        table(["Plan", "Price", "Paid on average", "Tax, fee, serving", "Left", "Share"], body)
+    )
+
+    out.append("\n### The basic plan's price\n")
+    small_fixed = sum(fixed_usd(10).values()) * USD
+    gb = PLANS[0][3]
+    body = []
+    for price in [39, 49, 59, 69, 79, 89, 99]:
+        _, _, left = one_office(price, gb)
+        body.append([brl(price), brl(left), f"{math.ceil(small_fixed / left)}"])
+    out.append(
+        table(
+            [
+                "Essencial at",
+                "Left per office",
+                f"Offices on it alone to cover today's fixed costs ({brl(small_fixed)})",
+            ],
+            body,
+        )
+    )
 
     out.append("\n### Break-even and paying back the one-off costs\n")
     one_off = sum(ONE_TIME.values())
     body = []
-    for p in prices:
-        even = next((n for n in range(1, 500) if month(n, price=p)["result"] >= 0), None)
-        at_20 = month(20, price=p)["result"]
+    for name, prices in PRICE_SETS.items():
+        even = next((n for n in range(1, 500) if month(n, prices=prices)["result"] >= 0), None)
+        at_20 = month(20, prices=prices)["result"]
         months = math.ceil(one_off / at_20) if at_20 > 0 else None
         payback = "never" if months is None else f"{months} month{'s' * (months > 1)}"
-        body.append([brl(p), f"{even} offices", payback])
+        body.append([name, f"{even} offices", payback])
     out.append(
         table(
             [
-                "Average price",
+                "Price set",
                 "Fixed costs covered from",
                 f"One-off costs ({brl(one_off)}) paid back at 20 offices",
             ],
