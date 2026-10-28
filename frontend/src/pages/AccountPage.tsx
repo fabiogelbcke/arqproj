@@ -29,7 +29,17 @@ export function AccountPage() {
       <h1 className={styles.pageTitle}>{t("account.title")}</h1>
       <Panel className={styles.settingsPanel} aria-labelledby="account-name">
         <h2 id="account-name">{t("account.nameTitle")}</h2>
-        <NameForm current={me.data.name} email={me.data.email} />
+        <NameForm current={me.data.name} />
+        {/* Apart from the name's form: the dialog's submit would reach it too. */}
+        <div className={styles.accountEmail}>
+          <TextField
+            label={t("account.email")}
+            description={t("account.emailHint")}
+            value={me.data.email}
+            isReadOnly
+          />
+          <ChangeEmail />
+        </div>
       </Panel>
       <Panel className={styles.settingsPanel} aria-labelledby="account-password">
         <h2 id="account-password">{t("account.passwordTitle")}</h2>
@@ -39,7 +49,7 @@ export function AccountPage() {
   );
 }
 
-function NameForm({ current, email }: { current: string; email: string }) {
+function NameForm({ current }: { current: string }) {
   const { t } = useTranslation();
   const client = useQueryClient();
   const [name, setName] = useState<string | null>(null); // null: untouched
@@ -69,10 +79,6 @@ function NameForm({ current, email }: { current: string; email: string }) {
         isRequired
         autoComplete="name"
       />
-      <div className={styles.accountEmail}>
-        <TextField label={t("account.email")} description={t("account.emailHint")} value={email} isReadOnly />
-        <ChangeEmail />
-      </div>
       <ErrorNotice error={save.error} />
       <div className={styles.actions}>
         <Button type="submit" variant="primary" isDisabled={save.isPending || name === null || !value.trim()}>

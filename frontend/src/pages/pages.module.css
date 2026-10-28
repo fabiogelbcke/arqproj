@@ -338,5 +338,5 @@ a.brand:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 .orLine::before, .orLine::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
 /* "Minha conta": the email, read-only, with "Alterar e-mail" under it. */
-.accountEmail { display: grid; gap: 8px; justify-items: start; }
+.accountEmail { display: grid; gap: 8px; justify-items: start; margin-top: 24px; }
 .accountEmail > :first-child { justify-self: stretch; }

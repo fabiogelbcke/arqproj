@@ -126,6 +126,20 @@ describe("Minha conta", () => {
     expect(screen.getByRole("button", { name: "Reenviar código" })).toBeInTheDocument();
   });
 
+  it("submits only the email dialog, never an unsaved name beside it", async () => {
+    const sent = signedIn({
+      "POST /api/me/email/change": () => ({ status: 422, body: { error: "current_password_wrong" } }),
+    });
+    renderAt("/conta");
+    await userEvent.type(await screen.findByLabelText(/Seu nome/), " (rascunho)");
+    await userEvent.click(screen.getByRole("button", { name: "Alterar e-mail" }));
+    const dialog = screen.getByRole("dialog", { name: "Alterar e-mail" });
+    await userEvent.type(within(dialog).getByLabelText(/Novo e-mail/), "ana.nova@alinea.example");
+    await userEvent.type(within(dialog).getByLabelText(/Senha atual/), "not it{Enter}");
+    expect(await within(dialog).findByText(/A senha atual não confere/)).toBeInTheDocument();
+    expect(sent.some((r) => r.method === "PATCH")).toBe(false);
+  });
+
   it("says when the current password is wrong", async () => {
     signedIn({
       "POST /api/me/password": () => ({ status: 422, body: { error: "current_password_wrong" } }),
