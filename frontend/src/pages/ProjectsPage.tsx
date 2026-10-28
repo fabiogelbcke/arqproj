@@ -204,8 +204,17 @@ export function ProjectsPage() {
   const myName = me.data?.name ?? "";
   const people = useMemo(() => responsibles(projects.data ?? [], i18n.language), [projects.data, i18n.language]);
   const anyMine = (projects.data ?? []).some((project) => isMine(project.responsible, myName));
+  // No chips (fewer than two people): no filter either, or it couldn't be undone (Codex, PR #155).
   const person =
-    chosenPerson === MINE ? (anyMine ? MINE : EVERYONE) : people.some((p) => p.id === chosenPerson) ? chosenPerson : EVERYONE;
+    people.length < 2
+      ? EVERYONE
+      : chosenPerson === MINE
+        ? anyMine
+          ? MINE
+          : EVERYONE
+        : people.some((p) => p.id === chosenPerson)
+          ? chosenPerson
+          : EVERYONE;
   const shown = useMemo(
     () =>
       (projects.data ?? [])

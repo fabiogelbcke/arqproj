@@ -184,6 +184,15 @@ describe("the project list", () => {
     expect(screen.queryByRole("radiogroup", { name: "Responsável" })).toBeNull();
   });
 
+  it("drops a person from the address when the chips aren't there to undo it", async () => {
+    // Only Ana is named now (Bruno's project archived): no chips, so no filter either.
+    api(LOCAL, { "GET /api/projects": () => ({ body: [...PEOPLE.slice(0, 2), PEOPLE[3]!] }) });
+    renderAt("/?resp=ana%20souza");
+    await screen.findAllByTestId("project-card");
+    expect(screen.queryByRole("radiogroup", { name: "Responsável" })).toBeNull();
+    expect(titles()).toHaveLength(3); // the unassigned one too
+  });
+
   it("matches people by name, ignoring titles, accents, case and spacing", () => {
     expect(personKey("Arq.  Conceição  Lima")).toBe("conceicao lima");
     expect(isMine("Arqa. Conceição S. Lima", "conceicao lima")).toBe(true);
