@@ -67,7 +67,8 @@ drafts prove reliable.
 ## 2. Turning feedback into improvements (the loop we already run)
 
 This already works for the product: Fabio describes changes, Claude Code builds
-them in PRs, Codex reviews, CI tests, Fabio merges. It can be widened.
+them in PRs, Claude on GitHub (and Codex for risky ones) reviews, CI tests,
+Fabio merges. It can be widened.
 
 1. **Collect.** Support emails, pilot interviews, in-app comments, PostHog
    (where people stop or repeat actions), and errors in the logs.
