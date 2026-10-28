@@ -27,6 +27,9 @@ const PAGE: Page = {
     { position: 2, title: "Levantamento", about: null, notes: "", completed: false },
   ],
   next_meeting: null,
+  in_proposal: false,
+  proposal: null,
+  proposal_url: null,
 };
 
 const file = (key: string, name: string, size: number) => ({

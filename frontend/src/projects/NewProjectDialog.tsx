@@ -27,6 +27,8 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
   const [recipients, setRecipients] = useState<string[]>([]);
   const [newRecipient, setNewRecipient] = useState("");
   const [typeKey, setTypeKey] = useState<string | null>(null);
+  // "Começa como proposta" (A40): the page shows only the proposal until accepted.
+  const [asProposal, setAsProposal] = useState(false);
   // null: the chosen type's usual stages; a list once staff tick or untick one.
   const [ticked, setTicked] = useState<string[] | null>(null);
   const types = options.data?.types ?? [];
@@ -64,6 +66,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
             stages,
             slug,
             recipients: list,
+            proposal: asProposal,
             creation_key: creationKey,
           },
           {
@@ -135,6 +138,13 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
           ))}
         </div>
       </CheckboxGroup>
+      <Checkbox className={styles.stageOption} isSelected={asProposal} onChange={setAsProposal}>
+        <span className={styles.box} aria-hidden="true" />
+        <span>
+          {t("newProject.startAsProposal")}
+          <small className={styles.optionHint}>{t("newProject.startAsProposalHint")}</small>
+        </span>
+      </Checkbox>
       <TextField
         label={t("newProject.slug")}
         description={t("newProject.slugHint", { address: `${window.location.host}/${slug || "…"}` })}

@@ -46,7 +46,9 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
   return (
     <li className={styles.card} data-testid="project-card" data-tour="project-card">
       <Cover project={project} className={styles.cardCover} />
-      {project.status === "draft" && <span className={styles.draftTag}>{t("projectStatus.draft")}</span>}
+      {(project.status === "draft" || project.status === "proposal") && (
+        <span className={styles.draftTag}>{t(`projectStatus.${project.status}`)}</span>
+      )}
       <ProjectMenu project={project} />
       <div className={styles.identity}>
         <h3 className={styles.name}>

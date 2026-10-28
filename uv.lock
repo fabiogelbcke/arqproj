@@ -91,6 +91,7 @@ dependencies = [
     { name = "argon2-cffi" },
     { name = "cryptography" },
     { name = "fastapi" },
+    { name = "fpdf2" },
     { name = "google-auth", extra = ["requests"] },
     { name = "httpx2" },
     { name = "posthog" },
@@ -122,6 +123,7 @@ requires-dist = [
     { name = "argon2-cffi", specifier = "~=25.1.0" },
     { name = "cryptography", specifier = "~=50.0.2" },
     { name = "fastapi", specifier = "~=0.143.1" },
+    { name = "fpdf2", specifier = "~=2.8.3" },
     { name = "google-auth", extras = ["requests"], specifier = "~=2.62.0" },
     { name = "httpx2", specifier = "~=2.13.1" },
     { name = "posthog", specifier = ">=7.75.11" },
@@ -314,6 +316,15 @@ wheels = [
 ]
 
 [[package]]
+name = "defusedxml"
+version = "0.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/d5/c66da9b79e5bdb124974bfe172b4daf3c984ebd9c2a06e2b8a4dc7331c72/defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69", size = 75520, upload-time = "2021-03-08T10:59:26.269Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/6c/aa3f2f849e01cb6a001cd8554a88d4c77c5c1a31c95bdf1cf9301e6d9ef4/defusedxml-0.7.1-py2.py3-none-any.whl", hash = "sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61", size = 25604, upload-time = "2021-03-08T10:59:24.45Z" },
+]
+
+[[package]]
 name = "distro"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -354,6 +365,37 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/26/00/35d85dcce6c57fdc871f3867d465d780f302a175ea360f62533f12b27e2b/flask-3.1.3.tar.gz", hash = "sha256:0ef0e52b8a9cd932855379197dd8f94047b359ca0a78695144304cb45f87c9eb", size = 759004, upload-time = "2026-02-19T05:00:57.678Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/9c/34f6962f9b9e9c71f6e5ed806e0d0ff03c9d1b0b2340088a0cf4bce09b18/flask-3.1.3-py3-none-any.whl", hash = "sha256:f4bcbefc124291925f1a26446da31a5178f9483862233b23c0c96a20701f670c", size = 103424, upload-time = "2026-02-19T05:00:56.027Z" },
+]
+
+[[package]]
+name = "fonttools"
+version = "4.67.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/36/102e180f8f5dbaee88b26595b01ca8aa80bf4e62128d9aa94265b3996c96/fonttools-4.67.0.tar.gz", hash = "sha256:3cb57e6600ca77c0b1729cf8adc23bc0652633a37f18cfa934d9c7bc3de25519", size = 3750028, upload-time = "2026-10-14T13:20:28.294Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/b4/cd473e0a48427003733e92bc3e8077081ba537eb33f7c658f2b7bef63776/fonttools-4.67.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:8239e2ca24878715a19f061d065b5721e87da81d145e48b3418f771a469b5a24", size = 3106141, upload-time = "2026-10-14T13:18:57.238Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/36/04d74f0c71d93829657a703d680a54968253bbb5c93babc34378eae2087a/fonttools-4.67.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:1be99c1f07fca59510d657ef3eae584b5273fa4e203aff2383b3520744e19536", size = 2598180, upload-time = "2026-10-14T13:18:59.443Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/e6/b0cbdedb363a49043d704d8c7903543fdd317596409fb8ac2cb604c1e73c/fonttools-4.67.0-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ad8b4f7c754a627e91908fa1a1ccc90b489cd2810c0ba16acd26ea2ff5273db7", size = 5400755, upload-time = "2026-10-14T13:19:01.557Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/26/939ae9874dd44116f2ecf61cb0caf029e3004ec1ed311a86389dee3450be/fonttools-4.67.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:50c41e30aa2e0130b80d1a58ac0f3ea7c02a854a70dbea1ff8d88e0ce524806f", size = 5382979, upload-time = "2026-10-14T13:19:03.726Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/d1/35a0a34ab74609d2e8dc7a1f45f6386c81942868fc4fdf8e873878f392fd/fonttools-4.67.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:0781fe22583529e1e98bb8a3a33040632e202a4c427ed7e65412c41a21b8ebcb", size = 5343745, upload-time = "2026-10-14T13:19:06.055Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/90/293577941809c3ec5a7f0870c01b3729c682467a858b8978a5c3ea54c226/fonttools-4.67.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:36f0fee56227b909c9d1392f17b23803616f1f04efbe020c176d9945cabc0be5", size = 5501573, upload-time = "2026-10-14T13:19:08.241Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/3c/4e25460f37840c51b3983a7a83ceef7a1efa9ea588aca6f0e3a852f4b120/fonttools-4.67.0-cp313-cp313-win32.whl", hash = "sha256:48696b630069e29b8aa5ea8b034e4f651a2e112073938ec16bd536dadde1debf", size = 2444457, upload-time = "2026-10-14T13:19:10.463Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/f6/39e9461211309965514642c005a8d51e866a1092f69f5f693b16de9c5395/fonttools-4.67.0-cp313-cp313-win_amd64.whl", hash = "sha256:7343cd0ef70edf8be7f4913cb9b55b992fb4e04055b47dcfecddcc2eb045a9d2", size = 2496147, upload-time = "2026-10-14T13:19:12.588Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/61/4161946319472aaa9b897bd18ad5108a5b10f5ebaa503d921a001ac4fff9/fonttools-4.67.0-py3-none-any.whl", hash = "sha256:4304f03ed7f4ba000a8dcc941ad854bfa52e2f3b6112b8f099b6f431cf98e701", size = 1213142, upload-time = "2026-10-14T13:20:26.258Z" },
+]
+
+[[package]]
+name = "fpdf2"
+version = "2.8.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "defusedxml" },
+    { name = "fonttools" },
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/12/23/84dbe637708c2690972eff5df233a7c9f8d4bde809f714839dc1b08f5e5e/fpdf2-2.8.9.tar.gz", hash = "sha256:5b0b3786f5236a2b3cc83c1fee567df17ddd314f8c4e13d820d8f09b617ab4f0", size = 380865, upload-time = "2026-09-29T13:11:54.506Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/41/16/42cc18bba1561692a235fd232b38947e54f059150065d43d631b57a0085a/fpdf2-2.8.9-py3-none-any.whl", hash = "sha256:6e1d94af6d6311950a23dec7fb5fc84b000203eb59aee8e76c1e701b12a14976", size = 341268, upload-time = "2026-09-29T13:11:52.796Z" },
 ]
 
 [[package]]

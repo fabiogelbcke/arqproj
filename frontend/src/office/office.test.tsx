@@ -67,6 +67,31 @@ describe("Configurações → Escritório", () => {
     expect(await screen.findByText("Salvo.")).toBeInTheDocument();
   });
 
+  it("saves the details proposals print (A40), apart from the name and email", async () => {
+    const details = { ...OFFICE, address: "", city: "", phone: "", signatory: "" };
+    const sent = api(details, LOCAL, ME, {
+      "PATCH /api/office": (body: unknown) => ({ body: { ...details, ...(body as object) } }),
+    });
+    renderAt("/configuracoes");
+    await userEvent.type(await screen.findByLabelText(/Quem assina/), "Arq. Laura Mendes");
+    await userEvent.type(screen.getByLabelText(/^Cidade/), "Joinville");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar dados para propostas" }));
+    await waitFor(() => expect(sent.some((r) => r.method === "PATCH")).toBe(true));
+    expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({
+      address: "",
+      city: "Joinville",
+      phone: "",
+      signatory: "Arq. Laura Mendes",
+    });
+  });
+
+  it("shows members the details proposals print, without a way to change them", async () => {
+    api({ ...OFFICE, can_manage: false, address: "Rua A, 1", city: "", phone: "", signatory: "" } as Office);
+    renderAt("/configuracoes");
+    expect(await screen.findByLabelText(/^Endereço/)).toHaveValue("Rua A, 1");
+    expect(screen.queryByRole("button", { name: "Salvar dados para propostas" })).toBeNull();
+  });
+
   it("can be filled in from the first steps, without leaving the projects", async () => {
     const sent = api(OFFICE, LOCAL, ME, {
       "PATCH /api/office": (body: unknown) => ({ body: { ...OFFICE, ...(body as object) } }),

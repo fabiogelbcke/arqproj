@@ -41,6 +41,8 @@
   outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px var(--mark-soft);
 }
 .input[data-invalid] { border-color: var(--danger); }
+/* Multi-line (TextAreaField): grows with its text; resized by hand only up and down. */
+.textarea { min-height: calc(var(--control-main) * 2); resize: vertical; line-height: 1.5; field-sizing: content; }
 .fieldError { font-size: var(--text-sm); color: var(--danger); }
 
 .notice {

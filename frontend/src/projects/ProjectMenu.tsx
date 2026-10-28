@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 
 import { ApiError, api, call } from "../api/client";
 import { ActionMenu, type MenuAction } from "../ui/ActionMenu";
@@ -23,11 +24,13 @@ import styles from "./projects.module.css";
 
 /** The card's "⋯" (A24, revised 19 Oct 2026; a pencil until 22 Oct): a short menu. The photo is
  *  changed straight from it (picker, then the 3:2 crop) or removed; "Configurações
- *  do projeto" opens the "Projeto" dialog; archiving asks first, then offers
+ *  do projeto" opens the "Projeto" dialog; "Proposta" the proposal generator (A40);
+ *  archiving asks first, then offers
  *  "Desfazer". */
 export function ProjectMenu({ project }: { project: ProjectSummary }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const upload = useUploadCover();
   const remove = useRemoveCover();
   const archive = useChangeProject();
@@ -90,6 +93,8 @@ export function ProjectMenu({ project }: { project: ProjectSummary }) {
     { id: "photo", label: project.cover_url ? t("projectSettings.changePhoto") : t("projectSettings.addPhoto") },
     ...(project.cover_url ? [{ id: "removePhoto", label: t("projectSettings.removePhoto") }] : []),
     { id: "settings", label: t("projectSettings.openSettings") },
+    // The proposal generator (A40): a new one, or the latest to change.
+    { id: "proposal", label: t("projectSettings.proposal") },
     { id: "archive", label: t("projectSettings.archiveProject"), danger: true },
   ];
   return (
@@ -101,6 +106,7 @@ export function ProjectMenu({ project }: { project: ProjectSummary }) {
         onAction={(id) => {
           if (id === "photo") chooser.current?.click();
           else if (id === "removePhoto") removePhoto();
+          else if (id === "proposal") navigate(`/projetos/${project.id}/proposta`);
           else setOpen(id as "settings" | "archive");
         }}
       >

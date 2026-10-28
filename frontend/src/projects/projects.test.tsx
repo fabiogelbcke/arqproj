@@ -423,12 +423,28 @@ describe("Novo projeto", () => {
       client_name: "Família Souza",
       project_type: "interiors",
       slug: "casa-do-lago-conceicao",
+      proposal: false, // live at once unless "Começa como proposta" is ticked (A40)
     });
     expect(new Set((request?.body as { stages: string[] }).stages)).toEqual(
       new Set(["briefing", "detailing", "permit_documents"]),
     );
     expect((request?.body as { creation_key: string }).creation_key.length).toBeGreaterThanOrEqual(16);
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-123");
+  });
+
+  it("starts a project as a proposal when asked (A40)", async () => {
+    const sent = api(LOCAL, {
+      "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago", status: "proposal" }) }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa do Lago");
+    await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Família Souza");
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /Começa como proposta/ }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    await waitFor(() => expect(sent.some((r) => r.method === "POST")).toBe(true));
+    expect(sent.find((r) => r.method === "POST")?.body).toMatchObject({ proposal: true });
   });
 
   it("sends the client's emails with the project, a typed one too, and stops for one that isn't an email", async () => {

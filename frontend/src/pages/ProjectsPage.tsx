@@ -197,8 +197,9 @@ export function ProjectsPage() {
         .sort(compareProjects(sort, i18n.language)),
     [projects.data, query, type, sort, i18n.language],
   );
-  // No drafts for now (A35); one left in the database is listed with the live ones.
-  const active = shown.filter((p) => p.status === "active" || p.status === "draft");
+  // No drafts for now (A35); one left in the database is listed with the live ones,
+  // as are proposals (A40), each with its tag.
+  const active = shown.filter((p) => p.status === "active" || p.status === "draft" || p.status === "proposal");
   const completed = shown.filter((p) => p.status === "completed");
   const hasAny = !hidden && (projects.data?.length ?? 0) > 0;
   const filtering = query.trim() !== "" || type !== ALL_TYPES;

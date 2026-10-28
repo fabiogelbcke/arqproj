@@ -134,6 +134,8 @@ class NewProject:
     slug: str
     creation_key: str
     recipients: tuple[str, ...] = ()  # the client's addresses for updates (A32), optional
+    # "Começa como proposta" (A40): its page shows only the proposal until accepted.
+    proposal: bool = False
 
 
 async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
@@ -190,8 +192,8 @@ async def project_named(
 async def create_project(
     db: AsyncSession, maker: FolderMaker, root: str | None, locale: Locale, new: NewProject
 ) -> Project:
-    """The new project, published at once (A35), or the one this creation key
-    already made."""
+    """The new project, published at once (A35), as a proposal if asked (A40),
+    or the one this creation key already made."""
     existing = await db.scalar(select(Project).where(Project.creation_key == new.creation_key))
     if existing is not None:
         return existing
@@ -210,7 +212,7 @@ async def create_project(
             name=new.name.strip(),
             client_name=new.client_name.strip(),
             project_type=new.project_type,
-            status=ProjectStatus.ACTIVE,
+            status=ProjectStatus.PROPOSAL if new.proposal else ProjectStatus.ACTIVE,
             folder_id=project_folder,
             creation_key=new.creation_key,
         )

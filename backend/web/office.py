@@ -1,7 +1,7 @@
 """The office's details in the painel (Configurações → Escritório).
 
-    GET   /api/office        name, contact email, logo; anyone signed in
-    PATCH /api/office        change name and contact email (owners)
+    GET   /api/office        name, contact email, logo, proposal details; anyone signed in
+    PATCH /api/office        change name, contact email and proposal details (owners)
     PUT   /api/office/logo      upload the logo (owners; needs the office's storage)
     PUT   /api/office/logo/png  a PNG of the SVG logo, for one uploaded before PNGs
     PUT   /api/office/logo/dark  the logo for dark mode (owners)
@@ -27,7 +27,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +37,7 @@ from backend.identity.models import Role
 from backend.office.models import LogoType, OfficeProfile
 from backend.office.profile import logo_urls
 from backend.office.profile import profile as load_profile
+from backend.proposals.content import ADDRESS_MAX, CITY_MAX, PHONE_MAX, SIGNATORY_MAX
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
 from backend.storage.google_connect import ConnectError
@@ -78,11 +79,22 @@ class OfficeOut(BaseModel):
     # An SVG logo without its PNG (uploaded before PNGs): the painel draws one.
     logo_needs_png: bool
     can_manage: bool
+    # What proposals print (A40): the footer's address and phone, the date line's
+    # city, the architect who signs. "" when not set yet.
+    address: str
+    city: str
+    phone: str
+    signatory: str
 
 
 class OfficeIn(BaseModel):
     name: str | None = None
     contact_email: str | None = None
+    # "" clears it.
+    address: str | None = Field(default=None, max_length=ADDRESS_MAX)
+    city: str | None = Field(default=None, max_length=CITY_MAX)
+    phone: str | None = Field(default=None, max_length=PHONE_MAX)
+    signatory: str | None = Field(default=None, max_length=SIGNATORY_MAX)
 
 
 def _out(tenant: CurrentTenant, found: OfficeProfile | None, staff: CurrentStaff) -> OfficeOut:
@@ -97,6 +109,10 @@ def _out(tenant: CurrentTenant, found: OfficeProfile | None, staff: CurrentStaff
         and found.logo_type is LogoType.SVG
         and found.logo_png_file_id is None,
         can_manage=staff.role is Role.OWNER,
+        address=(found and found.address) or "",
+        city=(found and found.city) or "",
+        phone=(found and found.phone) or "",
+        signatory=(found and found.signatory) or "",
     )
 
 
@@ -142,6 +158,10 @@ async def change_office(
         if email and not is_email(email):
             raise ApiError(422, ErrorCode.INVALID_EMAIL)
         found.contact_email = email or None
+    for column in ("address", "city", "phone", "signatory"):
+        value = getattr(body, column)
+        if value is not None:
+            setattr(found, column, value.strip() or None)
     await db.commit()
     await db.refresh(found)
     return _out(tenant, found, staff)

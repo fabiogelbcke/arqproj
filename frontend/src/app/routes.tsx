@@ -14,6 +14,7 @@ import { SettingsLayout } from "../pages/SettingsLayout";
 import { SettingsOfficePage } from "../pages/SettingsOfficePage";
 import { SettingsTeamPage } from "../pages/SettingsTeamPage";
 import { SignInPage } from "../pages/SignInPage";
+import { ProposalPage } from "../proposals/ProposalPage";
 import { useMe, useTenant } from "../session/session";
 import { Toaster } from "../ui/Toast";
 import { UpdateBanner } from "../ui/UpdateBanner";
@@ -51,6 +52,7 @@ export const routes: RouteObject[] = [
         element: <SignedInLayout />,
         children: [
           { index: true, element: <ProjectsPage />, handle: title("nav.projects") },
+          { path: "projetos/:projectId/proposta", element: <ProposalPage />, handle: title("proposal.generator.title") },
           {
             path: "configuracoes",
             element: <SettingsLayout />,

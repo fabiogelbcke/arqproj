@@ -68,6 +68,10 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       completed,
     })),
     next_meeting: project.next_meeting,
+    // The example project is under way: no proposal (A40).
+    in_proposal: false,
+    proposal: null,
+    proposal_url: null,
     // Staff see the staff bar and can try edit mode.
     staff: signedIn
       ? {

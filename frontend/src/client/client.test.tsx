@@ -50,6 +50,9 @@ const PAGE: Page = {
     location: "Online",
     link: "https://meet.example/abc",
   },
+  in_proposal: false,
+  proposal: null,
+  proposal_url: null,
 };
 
 function at(path: string, handlers: Record<string, () => { status?: number; body?: unknown }>) {

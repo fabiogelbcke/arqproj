@@ -32,7 +32,75 @@ export function SettingsOfficePage() {
         {t("settings.office")}
       </h2>
       <OfficeDetails />
+      <ProposalDetails />
     </Panel>
+  );
+}
+
+type ProposalFields = { address: string; city: string; phone: string; signatory: string };
+
+/** What proposals print (A40): the footer's address and phone, the date line's
+ *  city, who signs. The generator fills in the blank ones; owners change them here. */
+function ProposalDetails() {
+  const { t } = useTranslation();
+  const office = useOffice();
+  const save = useSaveOffice();
+  const [draft, setDraft] = useState<ProposalFields | null>(null);
+  if (!office.data) return null;
+  const details = office.data;
+  const manage = details.can_manage;
+  const values = draft ?? {
+    address: details.address,
+    city: details.city,
+    phone: details.phone,
+    signatory: details.signatory,
+  };
+  const field = (name: keyof ProposalFields) => ({
+    value: values[name],
+    onChange: (value: string) => setDraft({ ...values, [name]: value }),
+    isReadOnly: !manage,
+  });
+  return (
+    <div className={styles.proposalBlock}>
+      <h3>{t("office.proposalDetails")}</h3>
+      <p className={styles.small}>{t("office.proposalDetailsHint")}</p>
+      <Form
+        className={styles.form}
+        onSubmit={(event) => {
+          event.preventDefault();
+          const submitted = values;
+          save.mutate(submitted, {
+            onSuccess: () => {
+              setDraft((current) => (current === submitted ? null : current));
+              toast(t("office.saved"));
+            },
+          });
+        }}
+      >
+        <TextField
+          label={t("office.signatory")}
+          description={t("office.signatoryHint")}
+          maxLength={LIMITS.proposalSignatory}
+          {...field("signatory")}
+        />
+        <TextField label={t("office.address")} maxLength={LIMITS.proposalAddress} {...field("address")} />
+        <TextField
+          label={t("office.city")}
+          description={t("office.cityHint")}
+          maxLength={LIMITS.proposalCity}
+          {...field("city")}
+        />
+        <TextField label={t("office.phone")} type="tel" maxLength={LIMITS.proposalPhone} {...field("phone")} />
+        <ErrorNotice error={save.error} />
+        {manage && (
+          <div className={styles.actions}>
+            <Button type="submit" variant="primary" isDisabled={save.isPending || !draft}>
+              {t("office.saveProposalDetails")}
+            </Button>
+          </div>
+        )}
+      </Form>
+    </div>
   );
 }
 

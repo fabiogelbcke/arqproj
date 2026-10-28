@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { api, call } from "../api/client";
+import { api, call, type Schemas } from "../api/client";
 import { ONBOARDING } from "../drive/drive";
 import { ME, TENANT } from "../session/session";
 import { svgToPng } from "./svgToPng";
@@ -27,8 +27,8 @@ function useRefreshAfterChange() {
 export function useSaveOffice() {
   const refresh = useRefreshAfterChange();
   return useMutation({
-    mutationFn: (body: { name: string; contact_email: string }) =>
-      call(api.PATCH("/api/office", { body })),
+    // Any of the office's details; those left out stay as they are.
+    mutationFn: (body: Schemas["OfficeIn"]) => call(api.PATCH("/api/office", { body })),
     onSuccess: refresh,
   });
 }

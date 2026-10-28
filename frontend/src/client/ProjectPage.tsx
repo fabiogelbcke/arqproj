@@ -401,12 +401,22 @@ function Description({ text }: { text: string }) {
   );
 }
 
-/** Cliente, type, the project's details, and the last update. */
+/** Cliente, type, the project's details, the accepted proposal (A40) and the last update. */
 function Facts({ page }: { page: Page }) {
   const { t, i18n } = useTranslation();
-  const rows: Array<[string, string]> = [
+  const rows: Array<[string, ReactNode]> = [
     [t("page.client"), page.client_name.toLocaleUpperCase(i18n.language)],
     ...page.details.map((d) => [d.label, detailValue(d, i18n.language)] as [string, string]),
+    ...(page.proposal_url
+      ? [
+          [
+            t("proposal.page.link"),
+            <a key="proposal" href={page.proposal_url} target="_blank" rel="noopener">
+              {t("proposal.page.open")}
+            </a>,
+          ] as [string, ReactNode],
+        ]
+      : []),
     [t("page.lastUpdate"), day(page.last_update, i18n.language, page.timezone)],
   ];
   return (
@@ -848,6 +858,12 @@ function StaffBar({
       >
         <Icon name="link" />
       </button>
+      {/* The proposal generator (A40), in the painel. */}
+      {!archived && (
+        <a className="b b--small hide-sm" href={`/painel/projetos/${staff.project_id}/proposta`}>
+          {t("proposal.page.link")}
+        </a>
+      )}
     </nav>
   );
 }

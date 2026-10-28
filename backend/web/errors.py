@@ -96,6 +96,7 @@ class ErrorCode(StrEnum):
     SHARE_DAILY_LIMIT = "share_daily_limit"  # the link served its day's downloads
     SHARE_LOCKED = "share_locked"  # the link has a password, not typed on this device
     WRONG_SHARE_PASSWORD = "wrong_share_password"
+    PROPOSAL_NOT_FOUND = "proposal_not_found"  # no such version, or none saved yet
 
 
 class ErrorOut(BaseModel):

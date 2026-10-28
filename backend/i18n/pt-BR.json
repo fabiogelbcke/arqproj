@@ -118,6 +118,8 @@
     "kicker": "Espaço de projetos"
   },
   "newProject": {
+    "startAsProposal": "Começa como proposta",
+    "startAsProposalHint": "A página do projeto mostra só a proposta até você marcá-la como aceita.",
     "recipients": "E-mails do cliente (opcional)",
     "recipientsHint": "Esses contatos recebem atualizações sobre arquivos, etapas e reuniões por e-mail. Você também pode adicioná-los depois.",
     "title": "Novo projeto",
@@ -152,6 +154,7 @@
     "saved": "E-mails salvos."
   },
   "projectSettings": {
+    "proposal": "Proposta",
     "recipients": "E-mails do cliente",
     "recipientsHint": "Clientes receberão automaticamente atualizações sobre o projeto por e-mail.",
     "newRecipient": "Novo e-mail",
@@ -207,6 +210,7 @@
     "en": "English"
   },
   "errors": {
+    "proposal_not_found": "Esta versão da proposta não existe mais. Recarregue a página.",
     "signin_not_configured": "O acesso com Google não está configurado neste ambiente.",
     "version_type_mismatch": "A nova versão precisa ser do mesmo tipo do arquivo atual.",
     "invalid_staff_name": "Informe o nome (até 80 caracteres).",
@@ -291,6 +295,7 @@
   },
   "projectStatus": {
     "draft": "Rascunho",
+    "proposal": "Proposta",
     "active": "Em andamento",
     "completed": "Concluído",
     "archived": "Arquivado"
@@ -365,6 +370,15 @@
     "exampleAction": "Ver o exemplo"
   },
   "office": {
+    "saveProposalDetails": "Salvar dados para propostas",
+    "proposalDetails": "Dados para propostas",
+    "proposalDetailsHint": "Aparecem no rodapé e na assinatura das propostas.",
+    "address": "Endereço",
+    "city": "Cidade",
+    "cityHint": "Usada na data da proposta.",
+    "phone": "Telefone",
+    "signatory": "Quem assina",
+    "signatoryHint": "Ex.: Arq. Laura Mendes",
     "name": "Nome do escritório",
     "nameHint": "Aparece no topo das páginas dos clientes e na aba do navegador.",
     "email": "E-mail de contato",
@@ -1078,6 +1092,158 @@
         "restore": "Reativar {{name}} e liberar novamente o painel e as páginas?",
         "delete": "Excluir definitivamente os dados de {{name}} no Unio? Os arquivos no Drive serão preservados. Esta ação não pode ser desfeita."
       }
+    }
+  },
+  "proposal": {
+    "pdf": {
+      "greeting": "Prezado(a) Senhor(a),",
+      "services": "SERVIÇOS PRESTADOS",
+      "fees": "HONORÁRIOS",
+      "feesText": "Os honorários para a elaboração dos trabalhos serão de {{amount}} ({{words}}).",
+      "payment": "FORMA DE PAGAMENTO",
+      "notIncluded": "SERVIÇOS NÃO INCLUÍDOS",
+      "notes": "OBSERVAÇÕES",
+      "closing": "Atenciosamente,",
+      "acceptance": "Aceite em ____/____/______",
+      "date": "{{city}}, {{day}} de {{month}} de {{year}}",
+      "dateNoCity": "{{day}} de {{month}} de {{year}}",
+      "months": [
+        "janeiro",
+        "fevereiro",
+        "março",
+        "abril",
+        "maio",
+        "junho",
+        "julho",
+        "agosto",
+        "setembro",
+        "outubro",
+        "novembro",
+        "dezembro"
+      ],
+      "email": "e-mail: {{email}}",
+      "page": "{{page}}/{{pages}}",
+      "fileName": "Proposta - {{name}}.pdf",
+      "title": "Proposta - {{name}}"
+    },
+    "generator": {
+      "title": "Proposta",
+      "where": "Onde você está",
+      "lead": "Monte a proposta e salve: ela fica disponível num link na página do projeto.",
+      "leadProposal": "Monte a proposta e salve: a página do projeto mostra a proposta mais recente ao cliente. Nenhum e-mail é enviado; envie o link quando quiser.",
+      "openPage": "Abrir a página do projeto",
+      "archived": "Este projeto está arquivado: a proposta pode ser vista, mas não alterada.",
+      "to": "Para quem",
+      "client": "Nome do cliente",
+      "clientHint": "Aparece no início da proposta e na assinatura.",
+      "city": "Cidade",
+      "date": "Data",
+      "intro": "Abertura",
+      "services": "Serviços",
+      "servicesHint": "Os serviços do escritório já vêm listados. Remova, reordene ou edite os desta proposta.",
+      "serviceTitle": "Nome do serviço",
+      "serviceDescription": "Descrição",
+      "moveUp": "Mover {{title}} para cima",
+      "moveDown": "Mover {{title}} para baixo",
+      "remove": "Remover",
+      "addService": "Adicionar serviço",
+      "blankService": "Serviço em branco",
+      "addPreset": "Salvar nos serviços do escritório",
+      "updatePreset": "Salvar como padrão deste serviço",
+      "presetSaved": "“{{title}}” salvo nos serviços do escritório.",
+      "saveDefault": "Salvar como padrão",
+      "defaultSaved": "Texto padrão salvo. As próximas propostas começam com ele.",
+      "fees": "Honorários",
+      "fee": "Valor total (R$)",
+      "feeHint": "O valor por extenso é escrito automaticamente.",
+      "payments": "Forma de pagamento",
+      "spreadInto": "Dividir em",
+      "instalmentCount": "Número de parcelas",
+      "instalments": "parcelas iguais",
+      "spread": "Aplicar",
+      "onAcceptance": "no aceite da proposta",
+      "daysAfter": "{{days}} dias após",
+      "amount": "Valor (R$)",
+      "when": "Quando",
+      "addPayment": "Adicionar parcela",
+      "paymentsDiffer": "As parcelas somam R$ {{paid}}, e os honorários são R$ {{fee}}.",
+      "terms": "Condições",
+      "notIncluded": "Serviços não incluídos",
+      "notIncludedHint": "Um por linha.",
+      "notes": "Observações",
+      "office": "Dados do escritório",
+      "officeHint": "Aparecem no rodapé e na assinatura. Os que faltarem nos dados do escritório são salvos lá com a proposta; para mudar os já salvos, use Configurações → Escritório.",
+      "signatory": "Quem assina",
+      "signatoryHint": "Ex.: Arq. Laura Mendes",
+      "address": "Endereço",
+      "phone": "Telefone",
+      "email": "E-mail",
+      "viewPdf": "Ver PDF",
+      "save": "Salvar proposta",
+      "saving": "Salvando…",
+      "saveHint": "Cada vez que você salva, uma nova versão é criada. O cliente vê sempre a mais recente.",
+      "saved": "Proposta salva (versão {{version}}).",
+      "versions": "Versões salvas",
+      "version": "Versão {{version}} · {{date}} · {{name}}",
+      "latest": "a que o cliente vê",
+      "download": "Baixar PDF",
+      "preview": "Prévia",
+      "needsClient": "Informe o nome do cliente.",
+      "needsService": "Adicione pelo menos um serviço.",
+      "needsServiceTitle": "Dê um nome a cada serviço.",
+      "needsFee": "Informe o valor dos honorários.",
+      "badPayment": "Confira o valor de cada parcela."
+    },
+    "accept": {
+      "action": "Proposta aceita",
+      "ask": "Marcar a proposta como aceita?",
+      "means": "A página do projeto passa a mostrar as etapas, os arquivos e as atualizações. A proposta continua disponível num link na página. Nenhum e-mail é enviado.",
+      "confirm": "Marcar como aceita",
+      "done": "Proposta aceita. O projeto está em andamento."
+    },
+    "page": {
+      "kicker": "Proposta",
+      "download": "Baixar PDF",
+      "contact": "Fale com o escritório",
+      "none": "A proposta está sendo preparada. Em breve ela aparecerá aqui.",
+      "edit": "Editar proposta",
+      "create": "Criar proposta",
+      "link": "Proposta",
+      "open": "Ver proposta"
+    },
+    "defaults": {
+      "intro": "Conforme solicitação, segue nossa proposta para a elaboração dos projetos descritos abaixo.",
+      "notes": "As despesas referentes a RRTs, taxas de aprovação e cópias dos projetos correrão por conta do contratante. A elaboração dos projetos acima não implica o acompanhamento nem a responsabilidade sobre a execução da obra. Os valores referem-se à elaboração dos projetos listados, não cabendo ao profissional os serviços de aprovação junto aos órgãos públicos. É reservado ao contratado o direito de uso de imagens durante a execução da obra e após a sua conclusão, para fins comerciais, preservando a privacidade e o anonimato do contratante.",
+      "services": [
+        {
+          "title": "Briefing",
+          "description": "Ouvir e entender a sua necessidade é fundamental para o sucesso do trabalho. Nesta etapa realizamos conversas para entendermos os desejos, sonhos, recursos e necessidades sobre a edificação a ser projetada."
+        },
+        {
+          "title": "Anteprojeto",
+          "description": "Entregamos uma planta baixa humanizada com o layout do mobiliário para discutirmos funcionalidade, fluxos, posicionamento dos cômodos, conforto acústico e lumínico, entre outras informações."
+        },
+        {
+          "title": "Imagens renderizadas",
+          "description": "Facilitamos a compreensão e a visualização dos espaços e volumes, com todos os elementos que compõem as fachadas, por meio de perspectivas externas volumétricas e fotorrealísticas da edificação."
+        },
+        {
+          "title": "Projeto arquitetônico de execução",
+          "description": "Com todas as etapas anteriores definidas, desenvolvemos o projeto técnico para a obra: plantas de todos os pavimentos, implantação, cortes e fachadas, com informações precisas sobre acabamentos, forros, gessos e tabela de esquadrias, para que tudo esteja de acordo com o projeto aprovado para a execução da obra."
+        },
+        {
+          "title": "Projeto luminotécnico",
+          "description": "Elaboramos plantas técnicas a partir da análise da função dos ambientes, com os pontos de tomadas, iluminação, ar-condicionado, comunicação, TV etc."
+        },
+        {
+          "title": "Projeto hidrossanitário",
+          "description": "Plantas técnicas com a definição e o dimensionamento das redes de água fria, água quente, pluvial e esgoto."
+        },
+        {
+          "title": "Detalhamento geral da obra",
+          "description": "Por meio de projetos complementares, facilitamos o entendimento de partes e componentes específicos da obra, como esquadrias, cobertura, escadas, churrasqueiras, lareiras e paginação de piso e parede, entre outros que se façam necessários."
+        }
+      ]
     }
   }
 }

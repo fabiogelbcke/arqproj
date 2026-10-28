@@ -8,6 +8,7 @@ import type { Page } from "./format";
 import { PasswordGate } from "./PasswordGate";
 import { signOut } from "./signOut";
 import { PageMessage, ProjectPage } from "./ProjectPage";
+import { ProposalPhase } from "./ProposalPhase";
 
 type State =
   | { kind: "loading" }
@@ -66,6 +67,17 @@ export function ClientApp() {
   useOfficeLocale(((state.kind === "page" && state.page.locale) || office?.locale) as Locale | undefined);
 
   if (state.kind === "loading") return <p className="sr">{t("page.loading")}</p>;
+  // A proposal (A40): only the proposal, until staff mark it accepted.
+  if (state.kind === "page" && state.page.in_proposal)
+    return (
+      <ProposalPhase
+        page={state.page}
+        ready={signedIn}
+        person={person}
+        onSignOut={signOut}
+        onChanged={() => setVersion((v) => v + 1)}
+      />
+    );
   if (state.kind === "page")
     return (
       <ProjectPage

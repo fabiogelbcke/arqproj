@@ -710,6 +710,8 @@ The following is a logical schema specification, not a migration:
 | `project_events` | tenant, project, kind (file published, new version, file withdrawn, note changed, stage completed, stage reopened, stage advanced (before 23 Oct 2026), project completed, meeting scheduled/changed/cleared), document/revision or stage reference, source fingerprint, detected/published times. Client-visible activity (A28): feeds the updates panel, the project's last-activity time and email batching; every kind but "note changed" can start an email (A32) |
 | `share_links` | tenant, project, token hash (unique) and the token encrypted (for staff to copy it), "Para quem?" label (≤ 60), optional password hash, who made it (a staff member, or none: the client), expiry, turned off, when its files were last updated, download count and last download, bytes served today (A37) |
 | `share_link_files` | tenant, link, the file's storage identity, order: the exact versions it serves (A37) |
+| `proposals` | tenant, project, version (from 1, unique per project), content (JSON: what staff filled in, checked when saved), who saved it, when: each saved version of a project's proposal, only ever added (A40) |
+| `proposal_service_presets` | tenant, order, title (≤ 80), description (≤ 1000): the services the office offers, as new proposals list them (A40) |
 | `notification_batches` | tenant, project, start/due time, state; events captured in batch-item rows |
 | `notification_deliveries` | tenant, batch, recipient, idempotency key, provider ID, attempt/result timestamps |
 | `operations` / `operation_steps` | tenant, type, request key/hash, state, result IDs, provisioning progress |
@@ -1096,19 +1098,29 @@ step to creation:
 1. Creation's one optional checkbox, "Começa como proposta", starts the project
    as `proposal`. Everything else about creation (A24, A07) is unchanged,
    stages and folders included.
-2. From the project page, staff open the proposal generator ("Gerar proposta"),
-   on any project, whatever its status. It asks once for office details the PDF
-   needs and the office lacks, saving them to the office's settings.
-3. Staff fill in and preview the proposal, then save it. Saving makes a new
-   version; staff can download any version.
+2. Staff open the proposal generator (`/painel/projetos/{id}/proposta`) from the
+   project card's "⋯" ("Proposta") or the project page's staff bar, on any
+   project. Its "Dados do escritório" holds the address, city, phone, email and
+   signing architect: saving a proposal fills in those the office lacks, so they
+   are asked for once (any staff member); changing ones already set is the
+   owners', in Configurações → Escritório.
+3. Staff fill in the proposal beside a live preview (the client page's view of
+   it) and "Ver PDF", then save it. Saving makes a new version; staff can
+   download any version. Each version is stored as its content (`proposals`),
+   and the PDF is drawn from it on request, on the server (fpdf2, Helvetica: no
+   browser in the image), with the office's current logo; nothing is written to
+   Drive.
 4. Staff send the client the page's link themselves; nothing is emailed.
 5. While the project is `proposal`, the client page shows the office's branding,
    the project's name, the latest proposal (on the page, with "Baixar PDF") and
    the office's contact details. Stages, files, the meeting, the updates panel
    and email sign-up are not shown.
 6. "Proposta aceita" makes the project `active` and the page normal; a
-   "Proposta" link on it keeps the latest proposal reachable. A declined
-   proposal is archived like any project.
+   "Proposta" row in its details keeps the latest proposal reachable. A declined
+   proposal is archived like any project, and its page still shows the proposal.
+
+In the painel, a proposal is listed with the projects in progress, tagged
+"Proposta" on its card.
 
 What the proposal holds, following the example proposals:
 
@@ -1125,11 +1137,14 @@ What the proposal holds, following the example proposals:
 | Observations | Office default text, editable per proposal |
 | Signatures | Client's name; the signing architect |
 
-Service presets belong to the office. An office without its own starts from a
-built-in list (briefing, schematic design, rendered images, construction
-documents, lighting, plumbing, detailing; texts based on a friendly office's
-proposals, with permission), and editing a service in a proposal offers "Salvar
-como padrão". Presets are separate from stage descriptions (A27): a stage's
+Service presets belong to the office (`proposal_service_presets`). An office
+without its own is offered a built-in list, from the translation catalogs
+(briefing, schematic design, rendered images, construction documents, lighting,
+plumbing, detailing; texts based on a friendly office's proposals, with
+permission). A service changed in a proposal offers "Salvar como padrão", which
+saves the office's whole list with it (by title: a new title is added); from then
+on the office's list replaces the built-in one. The opening and observations work
+the same way, kept on the office's profile. Presets are separate from stage descriptions (A27): a stage's
 text on the client page never changes because of a proposal.
 
 Customization stays small: the office's logo, accent colour and details, its
@@ -2141,7 +2156,6 @@ choices need an owner before their corresponding feature ships:
 | Cloud identity operations | Reader per office via managed credentials where practical | White-glove onboarding |
 | Account configurations officially supported | Personal My Drive first, add each Workspace type after proof | Each office onboarded |
 | Paid tier limits and archive behavior | Active projects primary; manual billing initially | Paid rollout |
-| Proposal PDF rendering and storage (A40) | Proposal content stored in the database per version; the PDF rendered on the server from it, with no browser in the image; how each version is kept (regenerated on demand or saved, and whether in the office's Drive) chosen with the first slice | First proposal slice |
 | Who may generate proposals and see fees | Every staff member for now (A40); owners only may come later | After pilot feedback |
 
 A completed plan is not proof of these features. Keep a release checklist with

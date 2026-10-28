@@ -4,14 +4,17 @@
     GET /api/pages/{slug}               what the page shows (public, read-only)
     GET /api/pages/{slug}/cover         its cover photo
     GET /api/pages/{slug}/meeting.ics   the next meeting, for a calendar app
+    GET /api/pages/{slug}/proposal.pdf  the latest proposal (A40)
 
-A page exists only for a published project (active, completed or archived) that
-isn't deleted: a draft, a deleted project and an unknown address all answer the
+A page exists only for a published project (a proposal, active, completed or
+archived) that isn't deleted: a draft, a deleted project and an unknown address all answer the
 same "not found", so nobody can tell them apart. The office's signed-in staff
 also see drafts and protected pages, with a staff bar (2.6) to publish them.
 An address the project had before redirects to the current one (A29). A
 password-protected project asks for its password once per device (2.4) and
-shows nothing until then; its name stays out of link previews.
+shows nothing until then; its name stays out of link previews. While a project is
+a proposal (A40), its page shows only the proposal: no stages, files, details or
+meeting, and the routes for those answer "not found" to clients.
 
 The server answers before any script runs: the tags messaging apps read for a
 link preview (they don't run scripts), the status, and the redirect. Pages are
@@ -57,6 +60,7 @@ from backend.projects.models import (
     ProjectTypeStage,
     StageDef,
 )
+from backend.proposals.content import ProposalContent
 from backend.security import keys
 from backend.storage.models import StorageConnection
 from backend.tenancy.models import Locale
@@ -67,15 +71,16 @@ from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
 from backend.web.project_settings import serve_cover
 from backend.web.projects import RecipientOut
+from backend.web.proposals import ProposalOut, in_proposal, latest, pdf_response, proposal_out
 
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-# Published: live or completed, or archived after being published. A draft that
-# was archived without ever being published stays unpublished.
-PUBLISHED = Project.status.in_((ProjectStatus.ACTIVE, ProjectStatus.COMPLETED)) | (
-    (Project.status == ProjectStatus.ARCHIVED) & (Project.archived_from != ProjectStatus.DRAFT)
-)
+# Published: a proposal (A40), live or completed, or archived after being published.
+# A draft that was archived without ever being published stays unpublished.
+PUBLISHED = Project.status.in_(
+    (ProjectStatus.PROPOSAL, ProjectStatus.ACTIVE, ProjectStatus.COMPLETED)
+) | ((Project.status == ProjectStatus.ARCHIVED) & (Project.archived_from != ProjectStatus.DRAFT))
 BANNER_SIZE = 2000  # pixels on the long side: the page's full-width cover
 PREVIEW_SIZE = 1200  # link previews: WhatsApp skips large images
 PAGE_HEADERS = {"X-Robots-Tag": "noindex"}
@@ -185,6 +190,13 @@ class PageOut(BaseModel):
     details: list[DetailOut]
     stages: list[StageOut]
     next_meeting: MeetingOut | None
+    # A proposal (A40): the page shows only `proposal` and the office's contact
+    # details; stages, details, description and meeting come empty.
+    in_proposal: bool = False
+    # The latest proposal: in full while in proposal, else only its link (None
+    # when the project never had one).
+    proposal: ProposalOut | None = None
+    proposal_url: str | None = None
     staff: StaffView | None = None
 
 
@@ -208,6 +220,39 @@ def _value(row: ProjectDetail) -> str | float | None:
 
 async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug: str) -> PageOut:
     locale = tenant.locale
+    newest = await latest(db, project.id)
+    proposal_url = f"/api/pages/{slug}/proposal.pdf?v={newest.version}" if newest else None
+    if in_proposal(project):
+        # Nothing but the proposal: the work hasn't started (A40).
+        return PageOut(
+            office=await _office(db, tenant),
+            locale=locale,
+            timezone=tenant.timezone,
+            name=project.name,
+            client_name=project.client_name,
+            project_type="",
+            project_type_key=project.project_type,
+            description="",
+            cover_url=None,
+            completed=False,
+            current_position=None,
+            last_update=project.last_activity_at or project.created_at,
+            details=[],
+            stages=[],
+            next_meeting=None,
+            in_proposal=True,
+            proposal=(
+                proposal_out(
+                    ProposalContent.model_validate(newest.content),
+                    newest.version,
+                    locale,
+                    proposal_url,
+                )
+                if newest and proposal_url
+                else None
+            ),
+            proposal_url=proposal_url,
+        )
     type_label = await db.scalar(
         select(ProjectTypeDef.labels).where(ProjectTypeDef.key == project.project_type)
     )
@@ -293,6 +338,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             if meeting
             else None
         ),
+        proposal_url=proposal_url,
     )
 
 
@@ -325,11 +371,19 @@ async def _offline(db: AsyncSession) -> bool:
 
 
 async def _readable(
-    db: AsyncSession, slug: str, staff: CurrentStaff | None, request: Request
+    db: AsyncSession,
+    slug: str,
+    staff: CurrentStaff | None,
+    request: Request,
+    proposal_ok: bool = False,
 ) -> Project:
-    """The project behind a current address, if this visitor may see its page."""
+    """The project behind a current address, if this visitor may see its page.
+    While it is a proposal, a client may only see the page and the proposal
+    (`proposal_ok`): its files, meeting, emails and links come later (A40)."""
     project, current = await _find(db, slug, staff)
     if project is None or current != slug:
+        raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
+    if staff is None and not proposal_ok and in_proposal(project):
         raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
     # Files and all; staff too, who see why.
     if await _offline(db):
@@ -349,7 +403,7 @@ async def page(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PageOut:
-    project = await _readable(db, slug, staff, request)
+    project = await _readable(db, slug, staff, request, proposal_ok=True)
     shown = await _page(db, tenant, project, slug)
     if staff is not None:
         shown.staff = StaffView(
@@ -379,13 +433,34 @@ async def page_cover(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     try:
-        project = await _readable(db, slug, staff, request)
+        project = await _readable(db, slug, staff, request, proposal_ok=True)
     except ApiError:
         return Response(status_code=404, headers=PAGE_HEADERS)
     size = PREVIEW_SIZE if preview else BANNER_SIZE
     private = staff is not None or project.access_mode is AccessMode.PASSWORD
     headers = {**COVER_HEADERS, **PRIVATE} if private else COVER_HEADERS
     return await serve_cover(request, db, project, size, headers)
+
+
+@router.get("/api/pages/{slug}/proposal.pdf", include_in_schema=False)
+async def page_proposal(
+    request: Request,
+    slug: str,
+    download: bool = False,
+    staff: CurrentStaff | None = Depends(optional_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """The latest proposal (A40): "Baixar PDF", or opened in the browser."""
+    try:
+        project = await _readable(db, slug, staff, request, proposal_ok=True)
+    except ApiError:
+        return Response(status_code=404, headers=PAGE_HEADERS)
+    newest = await latest(db, project.id)
+    if newest is None:
+        return Response(status_code=404, headers=PAGE_HEADERS)
+    content = ProposalContent.model_validate(newest.content)
+    return await pdf_response(request, db, tenant, project, content, download, PAGE_HEADERS)
 
 
 class UnlockIn(BaseModel):

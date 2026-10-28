@@ -238,6 +238,11 @@
   rotate: 45deg; translate: 0 -1px;
 }
 .stageOption[data-focus-visible] .box { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* A checkbox's own explanation, under its label ("Começa como proposta"). */
+.optionHint { display: block; margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
+/* A checkbox with a second line: its box beside the first. */
+.stageOption:has(.optionHint) { align-items: flex-start; }
+.stageOption:has(.optionHint) .box { margin-top: 2px; }
 .note { font-size: var(--text-sm); color: var(--muted); }
 .problem {
   padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--r); background: var(--danger-soft);

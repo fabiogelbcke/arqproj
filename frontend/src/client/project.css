@@ -373,3 +373,27 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 .client .addsection-form__error { margin: 0; font-size: var(--text-xs); color: var(--danger, #9b3d1d); }
 .client .addsection-form__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .client .menu__list .menu__sub { padding-left: 26px; }
+
+/* --- A proposal (A40): the proposal, its PDF and the office's contact ---- */
+.client .proposal-heading { margin-top: 28px; display: grid; gap: 10px; }
+.client .proposal-heading .project-kind { margin: 0; order: -1; color: var(--muted); }
+.client .proposal-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 24px 40px; align-items: start;
+  margin-top: 28px;
+}
+.client .proposal-layout__side { position: sticky; top: 16px; display: grid; gap: 20px; }
+.client .proposal-layout__side .b { width: 100%; min-height: var(--control-main); }
+.client .proposal-contact { display: grid; gap: 4px; font-size: var(--text-md); color: var(--muted); }
+.client .proposal-contact h2 {
+  margin: 0 0 6px; font-size: var(--text-2xs); font-weight: 500; letter-spacing: var(--caps-spacing);
+  text-transform: uppercase; color: var(--ink);
+}
+.client .proposal-contact p { margin: 0; overflow-wrap: anywhere; }
+.client .proposal-contact strong { color: var(--ink); font-weight: 500; }
+.client .proposal-contact a { color: inherit; }
+.client .proposal-none { color: var(--muted); padding: 32px 0; }
+@media (max-width: 860px) {
+  .client .proposal-layout { grid-template-columns: minmax(0, 1fr); }
+  /* On phones the download comes first, the contact after the proposal. */
+  .client .proposal-layout__side { position: static; order: -1; }
+}

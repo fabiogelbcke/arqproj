@@ -3288,6 +3288,543 @@
         }
       }
     },
+    "/api/projects/{project_id}/proposal": {
+      "get": {
+        "summary": "Generator",
+        "operationId": "generator_api_projects__project_id__proposal_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratorOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/proposal/preview": {
+      "post": {
+        "summary": "Preview",
+        "description": "What is on screen, as the PDF will be: nothing is saved.",
+        "operationId": "preview_api_projects__project_id__proposal_preview_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalContent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/proposal/preview-page": {
+      "post": {
+        "summary": "Preview Page",
+        "description": "What is on screen, as the client page will show it (amounts written out in\nthe office's language): the generator's live preview. Nothing is saved.",
+        "operationId": "preview_page_api_projects__project_id__proposal_preview_page_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/proposals": {
+      "post": {
+        "summary": "Save",
+        "description": "The next version. The client page shows it at once (A40: no email).",
+        "operationId": "save_api_projects__project_id__proposals_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalContent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/proposals/{version}/pdf": {
+      "get": {
+        "summary": "Version Pdf",
+        "operationId": "version_pdf_api_projects__project_id__proposals__version__pdf_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "download",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Download"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/accept-proposal": {
+      "post": {
+        "summary": "Accept",
+        "description": "\"Proposta aceita\": the page shows the project, with a link to the proposal.\nAccepting twice changes nothing.",
+        "operationId": "accept_api_projects__project_id__accept_proposal_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/proposal-presets": {
+      "put": {
+        "summary": "Change Presets",
+        "description": "The office's services, in order (\"Salvar como padrão\"). An empty list goes\nback to the built-in one.",
+        "operationId": "change_presets_api_proposal_presets_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresetOut"
+                  },
+                  "type": "array",
+                  "title": "Response Change Presets Api Proposal Presets Put"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/proposal-defaults": {
+      "patch": {
+        "summary": "Change Defaults",
+        "description": "The opening and observations new proposals start with.",
+        "operationId": "change_defaults_api_proposal_defaults_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/detail-types": {
       "get": {
         "summary": "Detail Types",
@@ -5036,6 +5573,19 @@
   },
   "components": {
     "schemas": {
+      "AcceptIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version"
+        ],
+        "title": "AcceptIn"
+      },
       "AccessMode": {
         "type": "string",
         "enum": [
@@ -5578,6 +6128,54 @@
         ],
         "title": "CreationOptions"
       },
+      "DefaultsIn": {
+        "properties": {
+          "intro": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intro"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 3000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "title": "DefaultsIn"
+      },
+      "DefaultsOut": {
+        "properties": {
+          "intro": {
+            "type": "string",
+            "title": "Intro"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "intro",
+          "notes"
+        ],
+        "title": "DefaultsOut"
+      },
       "DetailIn": {
         "properties": {
           "key": {
@@ -5831,7 +6429,8 @@
           "share_files_changed",
           "share_daily_limit",
           "share_locked",
-          "wrong_share_password"
+          "wrong_share_password",
+          "proposal_not_found"
         ],
         "title": "ErrorCode"
       },
@@ -6040,6 +6639,73 @@
           "kind"
         ],
         "title": "FileTypeStats"
+      },
+      "GeneratorOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProjectStatus"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "start": {
+            "$ref": "#/components/schemas/ProposalStart"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionOut"
+            },
+            "type": "array",
+            "title": "Versions"
+          },
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/PresetOut"
+            },
+            "type": "array",
+            "title": "Presets"
+          },
+          "office": {
+            "$ref": "#/components/schemas/OfficeDetailsOut"
+          },
+          "default_intro": {
+            "type": "string",
+            "title": "Default Intro"
+          },
+          "default_notes": {
+            "type": "string",
+            "title": "Default Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_name",
+          "slug",
+          "status",
+          "row_version",
+          "start",
+          "versions",
+          "presets",
+          "office",
+          "default_intro",
+          "default_notes"
+        ],
+        "title": "GeneratorOut"
       },
       "GroupOut": {
         "properties": {
@@ -6648,6 +7314,39 @@
         ],
         "title": "NotesIn"
       },
+      "OfficeDetailsOut": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "city": {
+            "type": "string",
+            "title": "City"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "signatory": {
+            "type": "string",
+            "title": "Signatory"
+          }
+        },
+        "type": "object",
+        "required": [
+          "address",
+          "city",
+          "phone",
+          "email",
+          "signatory"
+        ],
+        "title": "OfficeDetailsOut"
+      },
       "OfficeIn": {
         "properties": {
           "name": {
@@ -6671,6 +7370,54 @@
               }
             ],
             "title": "Contact Email"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "signatory": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signatory"
           }
         },
         "type": "object",
@@ -6925,6 +7672,32 @@
               }
             ]
           },
+          "in_proposal": {
+            "type": "boolean",
+            "title": "In Proposal",
+            "default": false
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProposalOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "proposal_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal Url"
+          },
           "staff": {
             "anyOf": [
               {
@@ -6955,6 +7728,80 @@
           "next_meeting"
         ],
         "title": "PageOut"
+      },
+      "Payment": {
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "maximum": 9999999999.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Amount"
+          },
+          "when": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "When"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "when"
+        ],
+        "title": "Payment"
+      },
+      "PaymentOut": {
+        "properties": {
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "when": {
+            "type": "string",
+            "title": "When"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "when"
+        ],
+        "title": "PaymentOut"
+      },
+      "PresetOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "description"
+        ],
+        "title": "PresetOut"
+      },
+      "PresetsIn": {
+        "properties": {
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/Service"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Services"
+          }
+        },
+        "type": "object",
+        "required": [
+          "services"
+        ],
+        "title": "PresetsIn"
       },
       "ProgressIn": {
         "properties": {
@@ -7128,6 +7975,11 @@
             "title": "Recipients",
             "default": []
           },
+          "proposal": {
+            "type": "boolean",
+            "title": "Proposal",
+            "default": false
+          },
           "creation_key": {
             "type": "string",
             "maxLength": 100,
@@ -7150,6 +8002,7 @@
         "type": "string",
         "enum": [
           "draft",
+          "proposal",
           "active",
           "completed",
           "archived"
@@ -7318,6 +8171,300 @@
         ],
         "title": "ProjectTypeOption"
       },
+      "ProposalContent": {
+        "properties": {
+          "client_name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Client Name"
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 60,
+            "title": "City",
+            "default": ""
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "intro": {
+            "type": "string",
+            "maxLength": 1500,
+            "title": "Intro",
+            "default": ""
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/Service"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Services"
+          },
+          "fee": {
+            "type": "integer",
+            "maximum": 9999999999.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Fee"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/Payment"
+            },
+            "type": "array",
+            "maxItems": 24,
+            "title": "Payments",
+            "default": []
+          },
+          "not_included": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Not Included",
+            "default": []
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 3000,
+            "title": "Notes",
+            "default": ""
+          },
+          "signatory": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Signatory",
+            "default": ""
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Address",
+            "default": ""
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Phone",
+            "default": ""
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Email",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_name",
+          "date",
+          "services",
+          "fee"
+        ],
+        "title": "ProposalContent",
+        "description": "Everything a proposal says. The office's name and logo are not in it:\nthe PDF always shows the office's current ones."
+      },
+      "ProposalOut": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "date_line": {
+            "type": "string",
+            "title": "Date Line"
+          },
+          "client_name": {
+            "type": "string",
+            "title": "Client Name"
+          },
+          "intro": {
+            "type": "string",
+            "title": "Intro"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceOut"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "fee": {
+            "type": "string",
+            "title": "Fee"
+          },
+          "fee_in_words": {
+            "type": "string",
+            "title": "Fee In Words"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentOut"
+            },
+            "type": "array",
+            "title": "Payments"
+          },
+          "not_included": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Not Included"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes"
+          },
+          "signatory": {
+            "type": "string",
+            "title": "Signatory"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "pdf_url": {
+            "type": "string",
+            "title": "Pdf Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "date_line",
+          "client_name",
+          "intro",
+          "services",
+          "fee",
+          "fee_in_words",
+          "payments",
+          "not_included",
+          "notes",
+          "signatory",
+          "address",
+          "phone",
+          "email",
+          "pdf_url"
+        ],
+        "title": "ProposalOut",
+        "description": "The latest proposal, ready to show on the page (A40)."
+      },
+      "ProposalStart": {
+        "properties": {
+          "client_name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Client Name"
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 60,
+            "title": "City",
+            "default": ""
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "intro": {
+            "type": "string",
+            "maxLength": 1500,
+            "title": "Intro",
+            "default": ""
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/Service"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Services",
+            "default": []
+          },
+          "fee": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9999999999.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/Payment"
+            },
+            "type": "array",
+            "maxItems": 24,
+            "title": "Payments",
+            "default": []
+          },
+          "not_included": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Not Included",
+            "default": []
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 3000,
+            "title": "Notes",
+            "default": ""
+          },
+          "signatory": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Signatory",
+            "default": ""
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Address",
+            "default": ""
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Phone",
+            "default": ""
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Email",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_name",
+          "date"
+        ],
+        "title": "ProposalStart",
+        "description": "What the generator opens with: the latest version, or a new proposal from\nthe office's details and defaults. Without a version, no fee yet."
+      },
       "ReaderStatus": {
         "type": "string",
         "enum": [
@@ -7404,6 +8551,44 @@
           "name"
         ],
         "title": "SectionIn"
+      },
+      "Service": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "Service"
+      },
+      "ServiceOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "description"
+        ],
+        "title": "ServiceOut"
       },
       "ShareExpiry": {
         "type": "string",
@@ -8256,6 +9441,37 @@
         ],
         "title": "ValidationError"
       },
+      "VersionOut": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "created_at",
+          "created_by"
+        ],
+        "title": "VersionOut"
+      },
       "WriterStatus": {
         "type": "string",
         "enum": [
@@ -8312,6 +9528,22 @@
           "can_manage": {
             "type": "boolean",
             "title": "Can Manage"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "city": {
+            "type": "string",
+            "title": "City"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "signatory": {
+            "type": "string",
+            "title": "Signatory"
           }
         },
         "type": "object",
@@ -8321,7 +9553,11 @@
           "logo_url",
           "logo_dark_url",
           "logo_needs_png",
-          "can_manage"
+          "can_manage",
+          "address",
+          "city",
+          "phone",
+          "signatory"
         ],
         "title": "OfficeOut"
       },

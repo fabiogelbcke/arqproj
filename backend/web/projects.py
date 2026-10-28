@@ -2,7 +2,7 @@
 
     GET  /api/projects    the office's projects, for the list (anyone signed in)
     GET  /api/project-types   the types and stages a new project chooses from
-    POST /api/projects    create a draft project with its folders (anyone signed in)
+    POST /api/projects    create a project with its folders (anyone signed in)
 
 Built-in texts (project types, stage titles) come in the office's
 language; what the office typed comes as typed.
@@ -121,6 +121,8 @@ class ProjectIn(BaseModel):
     slug: str = Field(max_length=200)
     # The client's addresses for updates (A32), optional.
     recipients: list[str] = Field(default=[], max_length=RECIPIENTS_MAX)
+    # "Começa como proposta" (A40): the page shows only the proposal until accepted.
+    proposal: bool = False
     # Made by the screen once per dialog: a retried or double-sent request
     # returns the project already created.
     creation_key: str = Field(min_length=16, max_length=100)
@@ -305,6 +307,7 @@ async def new_project(
         slug=body.slug.strip().lower(),
         creation_key=body.creation_key,
         recipients=tuple(body.recipients),
+        proposal=body.proposal,
     )
     try:
         project = await create_project(db, maker, root, tenant.locale, new)
@@ -324,6 +327,7 @@ async def new_project(
                 "project_type": project.project_type,
                 "stage_count": len(body.stages),
                 "recipient_count": len(body.recipients),
+                "proposal": body.proposal,
             },
         )
     return (await summaries(db, tenant.locale, only=project.id))[0]
