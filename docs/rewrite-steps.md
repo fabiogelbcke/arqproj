@@ -380,9 +380,18 @@ new password ends it. Images and PDFs open in the browser, everything else only
 downloads; nothing runs on the office's address (`nosniff`, a sandbox except for
 the PDF viewer). Drive's previews where it has them. A stage whose folder can't
 be read says so, and the rest of the page stays. The database connection is
-released before any file or cover streams. Deferred: byte ranges and
-validators for downloads (plan section 15; resumable downloads and seeking in
-large PDFs), with slice 4's sync. 2.6 Staff bar on the page ("Painel", "Editar"); a card's title opens
+released before any file or cover streams. Byte ranges and validators
+(plan section 15), built 28 Oct 2026:
+- a file of known size answers one `Range` with 206 and its part, and says
+  `Accept-Ranges: bytes`;
+- past the end is 416;
+- several ranges or an unreadable header get the whole file;
+- an `ETag` (id, last change, size, checksum) checked through `If-Range`
+  means a resumed download of a changed file starts over;
+- Drive is asked for just the part;
+- a share link counts only the part it sends against its daily cap.
+
+A Google document's PDF export has no size, so it has no ranges. 2.6 Staff bar on the page ("Painel", "Editar"); a card's title opens
 the page; "Copiar link". **As built (with "Publicar", ahead of 2.4 and 2.5):**
 the whole painel card links to `/{slug}`; the office's signed-in staff see
 their drafts and protected pages there, with the prototype's dock ("Painel",

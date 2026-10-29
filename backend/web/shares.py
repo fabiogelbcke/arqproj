@@ -65,6 +65,7 @@ from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_files import (
     KEY_HOURS,
     NO_STORE,
+    RangeNotSatisfiable,
     _disposition,
     _failure_page,
     _in_project,
@@ -72,6 +73,8 @@ from backend.web.page_files import (
     _still_listed,
     _storage,
     _storage_failure,
+    byte_range,
+    not_satisfiable,
     open_key,
     read_key,
     stage_groups,
@@ -866,24 +869,34 @@ async def shared_file(
             raise _storage_failure(error, project, "share open") from None
         if item.identity not in (await _files(db, [link]))[link.id]:
             raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # the link moved to a newer version
-        await _count(db, link, item.size if item.size is not None else EXPORT_GUESS)
         try:
-            download = await storage.download(item)
+            part = byte_range(request, item)
+        except RangeNotSatisfiable:
+            return not_satisfiable(item)
+        # A resumed download counts only the part it sends: the rest counted already.
+        size = item.size if item.size is not None else EXPORT_GUESS
+        # A download is one however many parts it takes: only the first counts one.
+        await _count(
+            db, link, part[1] - part[0] + 1 if part else size, new=part is None or part[0] == 0
+        )
+        try:
+            download = await storage.download(item, part)
         except StorageError as error:
             raise _storage_failure(error, project, "share download") from None
     except ApiError as error:
         return _download_failure(tenant, error, back)
     await db.close()  # before the bytes flow (plan section 15)
     answer = streamed(
-        project, item, download, inline=False, request=request, source="share_download"
+        project, item, download, inline=False, request=request, source="share_download", part=part
     )
     answer.headers["Referrer-Policy"] = "no-referrer"
     return answer
 
 
-async def _count(db: AsyncSession, link: ShareLink, size: int) -> None:
+async def _count(db: AsyncSession, link: ShareLink, size: int, new: bool = True) -> None:
     """A download's size against the link's day, before any byte flows: past the
-    daily cap, refused. Counted when it starts, so a cut download still counts.
+    daily cap, refused. Counted when it starts, so a cut download still counts;
+    `new` False for a later part of one (a resume), which adds bytes, not a download.
     One conditional update, so downloads at the same moment can't both slip under
     the cap."""
     today = datetime.now(UTC).date()
@@ -894,7 +907,7 @@ async def _count(db: AsyncSession, link: ShareLink, size: int) -> None:
         .values(
             day=today,
             day_bytes=spent + size,
-            downloads=ShareLink.downloads + 1,
+            downloads=ShareLink.downloads + (1 if new else 0),
             last_download_at=func.now(),
         )
         .returning(ShareLink.id)

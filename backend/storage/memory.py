@@ -44,10 +44,14 @@ class MemoryStorage:
             raise StorageError(StorageProblem.NOT_FOUND)
         return self._items[item_id]
 
-    async def download(self, item: StorageItem) -> Download:
+    async def download(
+        self, item: StorageItem, byte_range: tuple[int, int] | None = None
+    ) -> Download:
         if item.id not in self._content:
             raise StorageError(StorageProblem.NOT_FOUND)
         content = self._content[item.id]
+        if byte_range is not None:
+            content = content[byte_range[0] : byte_range[1] + 1]
 
         async def chunks():
             yield content
