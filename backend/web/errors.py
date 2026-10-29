@@ -29,6 +29,8 @@ class ErrorCode(StrEnum):
     INVALID_REQUEST = "invalid_request"  # malformed body or missing fields: a bug, not the user
     LINK_INVALID = "link_invalid"  # unknown, used, expired, replaced or another office's
     PASSWORD_TOO_SHORT = "password_too_short"
+    CURRENT_PASSWORD_WRONG = "current_password_wrong"  # "Minha conta": not the current one
+    EMAIL_UNCHANGED = "email_unchanged"  # "Minha conta": that is already the address
     OWNER_ONLY = "owner_only"  # only the office's owners may do this
     DRIVE_NOT_CONFIGURED = "drive_not_configured"  # this deployment has no Google app set up
     SIGNIN_NOT_CONFIGURED = "signin_not_configured"  # no Google app for signing in here

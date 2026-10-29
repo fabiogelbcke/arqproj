@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate, Outlet, type RouteObject } from "react-router";
 
 import { type Locale, useOfficeLocale } from "../i18n";
+import { AccountPage } from "../pages/AccountPage";
 import { ChoosePasswordPage } from "../pages/ChoosePasswordPage";
 import { ConfirmLinkPage } from "../pages/ConfirmEmailPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
@@ -63,6 +64,7 @@ export const routes: RouteObject[] = [
               { path: "equipe", element: <SettingsTeamPage />, handle: title("settings.team", "settings.title") },
             ],
           },
+          { path: "conta", element: <AccountPage />, handle: title("account.title") },
           { path: "*", element: <NotFoundPage />, handle: title("notFound.title") },
         ],
       },

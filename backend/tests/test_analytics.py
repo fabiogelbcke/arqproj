@@ -232,3 +232,17 @@ async def test_staff_actions_on_the_page_are_the_staff_members(client, db_sessio
     [seen] = events(sent, "page_tour_seen")
     assert seen["distinct_id"] == await staff_id(db_session, "dona@alinea.example")
     assert seen["properties"]["tenant"] == "alinea"
+
+
+async def test_a_password_changed_from_minha_conta_is_recorded(client, db_session, owner, sent):
+    from backend.web import attempts
+
+    attempts.reset()
+    response = await client.post(
+        "/api/me/password",
+        json={"current": "a good password", "password": "uma senha nova e boa"},
+        headers=owner,
+    )
+    assert response.status_code == 200, response.text
+    (event,) = events(sent, "password_set")
+    assert event["distinct_id"] == await staff_id(db_session, "dona@alinea.example")

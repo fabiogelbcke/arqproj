@@ -142,6 +142,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         # Joining by the shared link: the email confirmed, or a mistyped one corrected.
         ("users", "email_confirmed_at", "UPDATE"),
         ("users", "email", "UPDATE"),
+        ("users", "name", "UPDATE"),  # "Minha conta": a person renames themselves (0043)
         ("password_links", "used_at", "UPDATE"),
         ("password_links", "tries", "UPDATE"),  # wrong confirmation codes
         ("join_links", "revoked_at", "UPDATE"),  # turned off, or replaced by a new one
