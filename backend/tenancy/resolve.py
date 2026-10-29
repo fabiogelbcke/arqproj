@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from backend.tenancy.models import Locale, Tenant, TenantDomain, TenantStatus
+from backend.tenancy.models import Feature, Locale, Tenant, TenantDomain, TenantStatus
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +33,11 @@ class CurrentTenant:
     locale: Locale
     timezone: str
     primary_host: str
+    # Switched on for this office from the operator dashboard (A40).
+    features: frozenset[Feature] = frozenset()
+
+    def has(self, feature: Feature) -> bool:
+        return feature in self.features
 
 
 @dataclass(frozen=True)
@@ -90,8 +95,14 @@ async def resolve(session: AsyncSession, raw_host: str | None) -> Resolution | N
         locale=row.locale,
         timezone=row.timezone,
         primary_host=primary_host,
+        features=known_features(row.features),
     )
     return Resolution(tenant=tenant, redirect_host=None if host == primary_host else primary_host)
+
+
+def known_features(stored: list[str] | None) -> frozenset[Feature]:
+    """The stored features the code still knows; a removed one is ignored."""
+    return frozenset(Feature(f) for f in stored or () if f in {k.value for k in Feature})
 
 
 def current_tenant(request: Request) -> CurrentTenant:

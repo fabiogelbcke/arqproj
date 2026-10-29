@@ -11,7 +11,7 @@ from backend.db.isolation import scope_to_tenant
 from backend.identity import links
 from backend.identity.models import JoinLink, Role
 from backend.operators.models import OfficeSignupLink, OperatorAuditEvent
-from backend.tenancy.models import Tenant, TenantDomain, TenantStatus
+from backend.tenancy.models import Feature, Tenant, TenantDomain, TenantStatus
 from backend.web.errors import ApiError, ErrorCode
 
 # Child tables first. Explicit list: a new dependency fails closed until reviewed.
@@ -24,6 +24,7 @@ TENANT_TABLES = (
     "project_stages",
     "project_slugs",
     "project_recipients",
+    "project_members",
     "project_files_seen",
     "project_details",
     "password_links",
@@ -163,3 +164,9 @@ async def create_from_signup(
     link.created_tenant_id = tenant.id
     audit(db, f"signup-link:{link.id}", "create", tenant, request_id)
     return url
+
+
+def switch_feature(tenant: Tenant, feature: Feature, on: bool) -> None:
+    """Switch one feature on or off for the office (A40); the others stay."""
+    have = [f for f in tenant.features if f != feature]
+    tenant.features = sorted([*have, feature.value]) if on else have

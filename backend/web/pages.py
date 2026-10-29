@@ -30,11 +30,12 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.analytics import capture_visit
 from backend.db.engine import get_tenant_session
+from backend.identity.models import User
 from backend.identity.passwords import verify_password
 from backend.notifications.models import ProjectRecipient, RecipientStatus
 from backend.office.profile import logo_urls
@@ -52,6 +53,7 @@ from backend.projects.models import (
     Meeting,
     Project,
     ProjectDetail,
+    ProjectMember,
     ProjectSlug,
     ProjectStage,
     ProjectTypeDef,
@@ -60,7 +62,7 @@ from backend.projects.models import (
 )
 from backend.security import keys
 from backend.storage.models import StorageConnection
-from backend.tenancy.models import Locale
+from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
 from backend.web.auth import CurrentStaff, optional_staff
@@ -186,6 +188,8 @@ class PageOut(BaseModel):
     current_position: int | None
     last_update: datetime
     details: list[DetailOut]
+    # The staff working on it, by name: shown as "Responsável" (A41).
+    team: list[str] = []
     stages: list[StageOut]
     next_meeting: MeetingOut | None
     staff: StaffView | None = None
@@ -214,6 +218,8 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
     type_label = await db.scalar(
         select(ProjectTypeDef.labels).where(ProjectTypeDef.key == project.project_type)
     )
+    members = tenant.has(Feature.PROJECT_MEMBERS)
+    hidden = [DetailKey.CLIENT, DetailKey.RESPONSIBLE] if members else [DetailKey.CLIENT]
     details = [
         DetailOut(key=row.key, label=_text(labels, locale), type=row.value_type, value=value)
         for row, labels in await db.execute(
@@ -221,12 +227,25 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             .join(DetailTypeDef, DetailTypeDef.key == ProjectDetail.key)
             .where(ProjectDetail.project_id == project.id)
             # A "Cliente" saved before it stopped being offered: the name from
-            # creation is shown instead, first.
-            .where(ProjectDetail.key != DetailKey.CLIENT)
+            # creation is shown instead, first. A "Responsável" typed before the
+            # office had project members: the members are shown instead (A41).
+            .where(ProjectDetail.key.not_in(hidden))
             .order_by(ProjectDetail.position)
         )
         if (value := _value(row)) is not None
     ]
+    team = (
+        list(
+            await db.scalars(
+                select(User.name)
+                .join(ProjectMember, ProjectMember.user_id == User.id)
+                .where(ProjectMember.project_id == project.id)
+                .order_by(func.lower(User.name), User.id)
+            )
+        )
+        if members
+        else []
+    )
     stages = []
     for stage, titles, general, own in await db.execute(
         select(ProjectStage, StageDef.titles, StageDef.about, ProjectTypeStage.about)
@@ -285,6 +304,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         current_position=next((s.position for s in stages if not s.completed), len(stages) or None),
         last_update=project.last_activity_at or project.created_at,
         details=details,
+        team=team,
         stages=stages,
         next_meeting=(
             MeetingOut(

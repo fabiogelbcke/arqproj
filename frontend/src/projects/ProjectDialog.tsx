@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Form, Label, Radio, RadioGroup } from "react-aria-components";
+import { Checkbox, CheckboxGroup, Form, Label, Radio, RadioGroup, Text } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { capture } from "../posthog";
+import { useMe } from "../session/session";
+import { useTeam } from "../team/team";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { addEmails } from "../ui/EmailListField";
@@ -16,10 +18,12 @@ import { RecipientsField } from "./RecipientsField";
 import styles from "./projects.module.css";
 
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
 /** The project's settings (A24), after the prototype's "Projeto" dialog, opened
  *  from the card's menu ("Configurações do projeto"): name, client, client link,
- *  access and the client's email addresses, saved together by Salvar. The photo
+ *  access, the client's email addresses and, where the office has the feature
+ *  (A40), who works on it (A41), saved together by Salvar. The photo
  *  and archiving are in the menu itself (ProjectMenu). */
 export function ProjectDialog({ project, onClose }: { project: ProjectSummary; onClose: () => void }) {
   const { t } = useTranslation();
@@ -36,6 +40,8 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
   const [recipients, setRecipients] = useState(() => project.recipients.map((r) => r.email));
   const [newRecipient, setNewRecipient] = useState("");
   const unsubscribed = new Set(saved.recipients.filter((r) => !r.subscribed).map((r) => r.email));
+  const withMembers = useMe().data?.features.includes("project_members") ?? false;
+  const [members, setMembers] = useState(() => project.members.map((m) => m.id));
   const saving = change.isPending;
 
   const save = async () => {
@@ -54,12 +60,19 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
         wanted,
         saved.recipients.map((r) => r.email),
       );
+      const membersChanged =
+        withMembers &&
+        !sameSet(
+          members,
+          saved.members.map((m) => m.id),
+        );
       if (
         name !== saved.name ||
         client !== saved.client_name ||
         linkChanged ||
         accessChanged ||
-        recipientsChanged
+        recipientsChanged ||
+        membersChanged
       ) {
         setSaved(
           await change.mutateAsync({
@@ -70,6 +83,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
             ...(linkChanged ? { slug } : {}),
             ...(accessChanged ? { access_mode: access, ...(password ? { password } : {}) } : {}),
             ...(recipientsChanged ? { recipients: wanted } : {}),
+            ...(membersChanged ? { members } : {}),
           }),
         );
         capture("project_settings_saved", {
@@ -78,6 +92,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           link_changed: linkChanged,
           access_changed: accessChanged,
           recipients_changed: recipientsChanged,
+          members_changed: membersChanged,
           access_mode: access,
           recipient_count: wanted.length,
         });
@@ -183,6 +198,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           onDraft={setNewRecipient}
           unsubscribed={unsubscribed}
         />
+        {withMembers && <TeamField value={members} onChange={setMembers} />}
 
         {nameTaken ? (
           <p role="alert" className={styles.problem}>
@@ -199,5 +215,36 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
         </div>
       </Form>
     </DialogFrame>
+  );
+}
+
+/** "Equipe do projeto": a box for each of the office's staff (A41). */
+function TeamField({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+  const { t } = useTranslation();
+  const team = useTeam();
+  return (
+    <CheckboxGroup className={styles.stagesField} value={value} onChange={onChange}>
+      <Label className={styles.label}>{t("projectSettings.team")}</Label>
+      <Text slot="description" className={styles.note}>
+        {t("projectSettings.teamHint")}
+      </Text>
+      {team.data ? (
+        <div className={styles.stageOptions}>
+          {team.data.members.map((member) => (
+            <Checkbox key={member.id} value={member.id} className={styles.stageOption}>
+              <span className={styles.box} aria-hidden="true" />
+              {member.name}
+              {member.status === "invited" && <small className={styles.choiceNote}> ({t("projectSettings.invited")})</small>}
+            </Checkbox>
+          ))}
+        </div>
+      ) : (
+        team.error ? (
+          <ErrorNotice error={team.error} />
+        ) : (
+          <p className={styles.note}>{t("projectSettings.teamLoading")}</p>
+        )
+      )}
+    </CheckboxGroup>
   );
 }

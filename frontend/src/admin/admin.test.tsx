@@ -29,6 +29,8 @@ const ALINEA = {
   emails_sent: 12,
   share_links: 3,
   downloads: 7,
+  features: [] as string[],
+  all_features: ["project_members"],
   team: [],
 };
 const NORTE = { ...ALINEA, slug: "norte", name: "Norte", hosts: ["norte.myunio.app"], writer_status: "expired", pending: 0 };
@@ -127,6 +129,29 @@ describe("the operator dashboard", () => {
       officeErrorsUrl({ project: "arq-proj", service: "portal" }, ALINEA),
     );
     expect(screen.getByRole("link", { name: "alineaarquitetos.com" })).toHaveAttribute("href", "https://alineaarquitetos.com/painel/");
+  });
+
+  it("switches a feature on for one office (A40)", async () => {
+    let features: string[] = [];
+    const sent = fakeApi({
+      "GET /api/admin/me": () => ({ body: ME }),
+      "GET /api/admin/offices/alinea": () => ({ body: { ...ALINEA, features } }),
+      "POST /api/admin/offices/alinea/actions": (body: unknown) => {
+        features = (body as { action: string }).action === "feature_on" ? ["project_members"] : [];
+        return { body: { owner_url: null } };
+      },
+    });
+    renderAt("/escritorios/alinea");
+    const panel = await screen.findByRole("region", { name: "Funções em teste" });
+    const row = within(panel).getByText("Equipe do projeto").closest("li")!;
+    expect(row).toHaveTextContent("Desativada");
+    await userEvent.click(within(row).getByRole("button", { name: "Ativar" }));
+    expect(await within(row).findByText("Ativada")).toBeInTheDocument();
+    const post = sent.find((r) => r.method === "POST");
+    expect(post?.body).toEqual({ action: "feature_on", feature: "project_members", confirmation: "" });
+    expect(post?.headers.get("X-CSRF-Token")).toBe("csrf-9");
+    await userEvent.click(within(row).getByRole("button", { name: "Desativar" }));
+    expect(await within(row).findByText("Desativada")).toBeInTheDocument();
   });
 
   it("signs out with the session's CSRF token", async () => {
