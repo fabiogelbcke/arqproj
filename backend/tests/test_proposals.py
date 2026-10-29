@@ -146,6 +146,20 @@ async def test_the_propostas_tab_lists_open_accepted_and_declined_proposals(
     assert {row["name"]: row["state"] for row in listed}["Casa do Lago"] == "open"
 
 
+async def test_a_proposal_never_saved_cant_be_accepted(client, db_session, owner):
+    """A stale page or a direct call: it would become a project with no proposal,
+    gone from the Propostas tab (Claude's review, PR #168)."""
+    lake = (await create(client, owner, proposal=True)).json()
+    refused = await client.post(
+        f"/api/projects/{lake['id']}/accept-proposal",
+        json={"row_version": lake["row_version"]},
+        headers=owner,
+    )
+    assert (refused.status_code, refused.json()["error"]) == (422, "invalid_status_change")
+    listed = (await client.get("/api/proposals", headers=owner)).json()
+    assert [(row["name"], row["state"]) for row in listed] == [("Casa do Lago", "open")]
+
+
 async def test_a_project_archived_after_acceptance_is_no_declined_proposal(
     client, db_session, owner
 ):
@@ -217,6 +231,7 @@ async def test_accepting_makes_the_project_active_and_keeps_a_link_to_the_propos
 
 
 async def test_accepting_a_proposal_someone_changed_meanwhile_is_refused(client, db_session, owner):
+    await save(client, owner, (await casa_jardim(client))["id"])
     await make_proposal(db_session)
     found = await casa_jardim(client)
     stale = await client.post(

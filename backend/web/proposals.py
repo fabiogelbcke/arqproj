@@ -574,9 +574,12 @@ async def accept(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
-    """ "Proposta aceita": the page shows the project, with a link to the proposal.
-    Accepting twice changes nothing."""
+    """ "Proposta aceita": the same record becomes the project, its page showing
+    the work and the proposal as its "Proposta" stage. Accepting twice changes
+    nothing; a proposal never saved can't be accepted (nothing to show)."""
     project = await _project(db, project_id)
+    if project.status is ProjectStatus.PROPOSAL and await latest(db, project.id) is None:
+        raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
     if project.status is ProjectStatus.PROPOSAL:
         accepted = await db.execute(
             update(Project)
