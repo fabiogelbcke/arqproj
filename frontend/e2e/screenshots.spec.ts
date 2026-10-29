@@ -97,7 +97,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
-  // An iPad, upright and sideways: "Nova proposta" and "Novo projeto" stay on the search's row.
+  // An iPad, upright and sideways: "Novo projeto" stays on the search's row.
   for (const tablet of [{ name: "ipad", width: 820, height: 1180 }, { name: "ipad-wide", width: 1180, height: 820 }]) {
     await page.setViewportSize(tablet);
     await page.screenshot({ path: `${OUT}/03-projetos-${tablet.name}.png` });

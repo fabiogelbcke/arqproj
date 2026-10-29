@@ -14,13 +14,12 @@ from backend.identity.emails import EMAIL_LIMIT
 from backend.notifications.models import RECIPIENTS_MAX
 from backend.projects.creation import CLIENT_NAME_LIMIT, SLUG_MAX
 from backend.projects.creation import NAME_MAX as PROJECT_NAME_MAX
-from backend.projects.models import MEETING_LOCATION_MAX, MEETING_TITLE_MAX
+from backend.projects.models import MEETING_LOCATION_MAX, MEETING_TITLE_MAX, STAGE_TITLE_MAX
 from backend.proposals import content as proposal
 from backend.proposals.models import SERVICE_DESCRIPTION_MAX, SERVICE_TITLE_MAX
 from backend.shares.models import LABEL_MAX as SHARE_LABEL_MAX
 from backend.web.office import NAME_LIMIT as OFFICE_NAME_LIMIT
 from backend.web.page_edit import DESCRIPTION_MAX, DETAIL_TEXT_MAX, NOTES_MAX
-from backend.web.page_stages import STAGE_TITLE_MAX
 from backend.web.page_uploads import SECTION_NAME_MAX
 from backend.web.project_settings import PAGE_PASSWORD_MAX, PAGE_PASSWORD_MIN
 from backend.web.shares import SIZE_MAX as SHARE_BYTES_MAX

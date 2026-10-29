@@ -73,8 +73,15 @@ def content(**changes):
 
 
 async def casa_jardim(client):
+    """Casa Jardim as the painel lists it: with the projects, or, while a
+    proposal, in the Propostas tab (A42)."""
     found = [p for p in (await client.get("/api/projects", headers=ALINEA)).json()]
-    return next(p for p in found if p["slug"] == "casa-jardim")
+    project = next((p for p in found if p["slug"] == "casa-jardim"), None)
+    if project is not None:
+        return project
+    rows = (await client.get("/api/proposals", headers=ALINEA)).json()
+    row = next(r for r in rows if r["slug"] == "casa-jardim")
+    return {"id": row["project_id"], **row}
 
 
 async def make_proposal(db_session, name="Casa Jardim"):
@@ -102,6 +109,52 @@ async def test_a_project_created_as_a_proposal_shows_only_its_proposal(client, o
     assert page["in_proposal"] is True
     assert (page["stages"], page["details"], page["description"]) == ([], [], "")
     assert page["next_meeting"] is None and page["proposal"] is None  # none saved yet
+
+
+async def test_the_propostas_tab_lists_open_accepted_and_declined_proposals(
+    client, db_session, owner
+):
+    lake = (await create(client, owner, proposal=True)).json()
+    garden = await casa_jardim(client)  # a project from before, then a proposal made for it
+    assert (await save(client, owner, garden["id"], fee=2_900_000)).status_code == 201
+    listed = (await client.get("/api/proposals", headers=owner)).json()
+    assert {row["name"]: (row["state"], row["version"], row["fee"]) for row in listed} == {
+        "Casa Jardim": ("accepted", 1, 2_900_000),  # an active project with a proposal
+        "Casa do Lago": ("open", None, None),  # none saved yet
+    }
+    # Proposals have their own tab: the projects list leaves open ones out.
+    projects = (await client.get("/api/projects", headers=owner)).json()
+    assert "Casa do Lago" not in {p["name"] for p in projects}
+
+    # "Recusada": archived while a proposal.
+    declined = await client.patch(
+        f"/api/projects/{lake['id']}",
+        json={"status": "archived", "row_version": lake["row_version"]},
+        headers=owner,
+    )
+    assert declined.status_code == 200, declined.text
+    listed = (await client.get("/api/proposals", headers=owner)).json()
+    assert {row["name"]: row["state"] for row in listed}["Casa do Lago"] == "declined"
+    # And back, undone.
+    reopened = await client.patch(
+        f"/api/projects/{lake['id']}",
+        json={"status": "proposal", "row_version": declined.json()["row_version"]},
+        headers=owner,
+    )
+    assert reopened.status_code == 200, reopened.text
+    listed = (await client.get("/api/proposals", headers=owner)).json()
+    assert {row["name"]: row["state"] for row in listed}["Casa do Lago"] == "open"
+
+
+async def test_a_project_archived_after_acceptance_is_no_declined_proposal(
+    client, db_session, owner
+):
+    garden = await casa_jardim(client)
+    await save(client, owner, garden["id"])
+    await db_session.execute(
+        text("UPDATE projects SET status = 'archived', archived_from = 'active'")
+    )
+    assert (await client.get("/api/proposals", headers=owner)).json() == []
 
 
 async def test_a_project_created_without_the_option_is_active_as_before(client, owner):

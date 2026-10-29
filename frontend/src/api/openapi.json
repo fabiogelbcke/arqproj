@@ -3688,6 +3688,49 @@
         }
       }
     },
+    "/api/proposals": {
+      "get": {
+        "summary": "Proposal List",
+        "description": "Every proposal: open ones, those accepted (projects now) and those declined;\nthe most recently changed first.",
+        "operationId": "proposal_list_api_proposals_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProposalRow"
+                  },
+                  "type": "array",
+                  "title": "Response Proposal List Api Proposals Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/proposal": {
       "get": {
         "summary": "Generator",
@@ -8723,6 +8766,16 @@
             "maxItems": 50,
             "title": "Stages"
           },
+          "custom_stages": {
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Custom Stages",
+            "default": []
+          },
           "slug": {
             "type": "string",
             "maxLength": 200,
@@ -9154,6 +9207,87 @@
         "title": "ProposalOut",
         "description": "The latest proposal, ready to show on the page (A42)."
       },
+      "ProposalRow": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "client_name": {
+            "type": "string",
+            "title": "Client Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ProposalState"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved At"
+          },
+          "fee": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "name",
+          "client_name",
+          "slug",
+          "state",
+          "version",
+          "saved_at",
+          "fee",
+          "created_at",
+          "row_version"
+        ],
+        "title": "ProposalRow"
+      },
       "ProposalStart": {
         "properties": {
           "client_name": {
@@ -9262,6 +9396,15 @@
         ],
         "title": "ProposalStart",
         "description": "What the generator opens with: the latest version, or a new proposal from\nthe office's details and defaults. Without a version, no fee yet."
+      },
+      "ProposalState": {
+        "type": "string",
+        "enum": [
+          "open",
+          "accepted",
+          "declined"
+        ],
+        "title": "ProposalState"
       },
       "ReaderStatus": {
         "type": "string",

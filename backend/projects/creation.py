@@ -25,6 +25,7 @@ from backend.identity.emails import InvalidEmail, email_list
 from backend.notifications.models import ProjectRecipient
 from backend.projects.enums import RESERVED_SLUGS, ProjectStatus
 from backend.projects.models import (
+    STAGE_TITLE_MAX,
     Project,
     ProjectSlug,
     ProjectStage,
@@ -141,10 +142,19 @@ class NewProject:
     recipients: tuple[str, ...] = ()  # the client's addresses for updates (A32), optional
     # "Começa como proposta" (A42): its page shows only the proposal until accepted.
     proposal: bool = False
+    # The office's own stages, named as typed, after the built-in ones.
+    custom_stages: tuple[str, ...] = ()
 
 
-async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
-    """The project's stages, in order, once everything in `new` checks out."""
+@dataclass(frozen=True)
+class NewStage:
+    builtin: StageDef | None  # None: the office's own, titled `title`
+    title: str  # as its folder is named: in the office's language for a built-in
+
+
+async def _validate(db: AsyncSession, new: NewProject, locale: Locale) -> list[NewStage]:
+    """The project's stages, in order, once everything in `new` checks out: the
+    built-in ones in their fixed order, then the office's own as typed."""
     if not new.name.strip() or len(new.name.strip()) > NAME_MAX:
         raise CreationProblem("invalid_project_name")
     if not new.client_name.strip() or len(new.client_name.strip()) > CLIENT_NAME_LIMIT:
@@ -159,6 +169,16 @@ async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
     )
     if len(chosen) != len(new.stages) or len(stages) != len(chosen):
         raise CreationProblem("unknown_stage")  # unknown or repeated
+    ordered = [NewStage(s, s.titles.get(locale.value) or s.titles["pt-BR"]) for s in stages]
+    names = {stage.title.casefold() for stage in ordered}
+    for typed in new.custom_stages:
+        title = typed.strip()
+        # Blank, too long, or named like another of its stages: Drive would hold two
+        # folders a person can't tell apart.
+        if not title or len(title) > STAGE_TITLE_MAX or title.casefold() in names:
+            raise CreationProblem("invalid_stage")
+        names.add(title.casefold())
+        ordered.append(NewStage(None, title))
     if not valid_slug(new.slug):
         raise CreationProblem("invalid_slug")
     taken = await db.scalar(
@@ -174,7 +194,7 @@ async def _validate(db: AsyncSession, new: NewProject) -> list[StageDef]:
         email_list(new.recipients)
     except InvalidEmail:
         raise CreationProblem("invalid_email") from None
-    return stages
+    return ordered
 
 
 async def project_named(
@@ -202,15 +222,14 @@ async def create_project(
     existing = await db.scalar(select(Project).where(Project.creation_key == new.creation_key))
     if existing is not None:
         return existing
-    stages = list(enumerate(await _validate(db, new), start=1))
+    stages = list(enumerate(await _validate(db, new, locale), start=1))
 
     project_folder: str | None = None
     try:
         project_folder = await maker.create_folder(new.name.strip(), root)
         stage_folders = []
         for position, stage in stages:
-            title = stage.titles.get(locale.value) or stage.titles["pt-BR"]
-            folder = await maker.create_folder(f"{position:02d} - {title}", project_folder)
+            folder = await maker.create_folder(f"{position:02d} - {stage.title}", project_folder)
             stage_folders.append(folder)
 
         project = Project(
@@ -231,7 +250,8 @@ async def create_project(
                 ProjectStage(
                     project_id=project.id,
                     position=position,
-                    builtin_key=stage.key,
+                    builtin_key=stage.builtin.key if stage.builtin else None,
+                    title=None if stage.builtin else stage.title,
                     folder_id=folder,
                 )
             )

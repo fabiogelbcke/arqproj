@@ -19,6 +19,37 @@ a new entry too.
 
 ---
 
+## 2026-10-29 — A42, A24: a Propostas tab; acceptance makes the project; custom stages at creation
+
+**Was:** "Nova proposta" beside "Novo projeto", proposals listed with the
+projects (tagged), the generator with "Proposta aceita" and a link to the page,
+declining by archiving from the project's menu, the accepted proposal as a row
+in the project's details. Creation offered only built-in stages and ended with
+a toast in the painel.
+
+**Now:** a "Propostas" tab beside Projetos and Configurações, with "Nova
+proposta" and the proposals as "Ativas", "Aceitas" and "Recusadas"; the
+projects list leaves open ones out. The generator is for writing only, and
+saving opens the proposal's page. That page has "Recusada" (archived while a
+proposal, reopened from the tab) and "Proposta aceita", which asks "Criar o
+projeto a partir desta proposta?": the same record becomes the project. The
+accepted project's page shows the proposal as a first stage, "Proposta", with
+its PDF. Creation also takes the office's own stages by name, and a new project
+opens its page. Amounts are typed as currency.
+
+**Why:** Fabio, 29 Oct 2026, trying it: a proposal is a different job from a
+running project and gets in the way in the projects list; the generator's
+accept button came before anything was written; and after creating something
+the next step is always its page.
+
+**Alternatives rejected:**
+- *Choosing type and stages when accepting* (no folders for a proposal). Fabio
+  chose to keep them at creation and only confirm on acceptance.
+- *A new "declined" status.* Archiving while a proposal already means it and
+  needs no database change.
+- *Saving the PDF into a Drive stage folder on acceptance.* A drawn one follows
+  later changes and writes nothing to Drive.
+
 ## 2026-10-28 — A42, A40: proposals behind a feature switched on per office
 
 **Was:** proposals (A42) were planned for every office once merged.

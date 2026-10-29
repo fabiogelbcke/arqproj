@@ -11,6 +11,7 @@
     "terms": "Termos de Uso"
   },
   "nav": {
+    "proposals": "Propostas",
     "skipToContent": "Pular para o conteúdo",
     "projects": "Projetos",
     "signOut": "Sair",
@@ -123,6 +124,9 @@
     "kicker": "Espaço de projetos"
   },
   "newProject": {
+    "ownStage": "Outra etapa (opcional)",
+    "addStage": "Adicionar etapa",
+    "stageExists": "Já existe uma etapa chamada “{{title}}”.",
     "titleProposal": "Nova proposta",
     "createProposal": "Criar proposta",
     "proposalNote": "A página do projeto mostra só a proposta até você marcá-la como aceita. As pastas são criadas no Google Drive do escritório.",
@@ -428,9 +432,7 @@
     "first-stepsTitle": "Primeiros passos",
     "first-steps": "Conecte o Google Drive, personalize os dados do escritório e crie o primeiro projeto. O progresso é atualizado automaticamente.",
     "new-projectTitle": "Novo projeto",
-    "new-projectTitle_proposals": "Novo projeto ou proposta",
     "new-project": "Cada projeto ganha uma página para o cliente acompanhar. Você informa o nome, o cliente, o tipo e as etapas.",
-    "new-project_proposals": "Cada projeto ganha uma página para o cliente acompanhar. Um projeto que começa como proposta mostra só a proposta até ser aceito.",
     "project-cardTitle": "Seus projetos",
     "project-card": "Selecione um projeto para editar a página e enviar arquivos. No menu ⋯, você pode alterar a capa, abrir as configurações ou arquivar o projeto.",
     "settingsTitle": "Configurações",
@@ -1143,6 +1145,23 @@
     }
   },
   "proposal": {
+    "list": {
+      "kicker": "Propostas",
+      "title": "Propostas",
+      "lead": "Crie uma proposta para um novo cliente. Quando ela for aceita, vira um projeto.",
+      "open": "Ativas",
+      "accepted": "Aceitas",
+      "declined": "Recusadas",
+      "noOpen": "Nenhuma proposta em aberto.",
+      "version": "Versão {{version}} · {{date}}",
+      "notWritten": "Ainda não salva",
+      "actions": "Ações de {{name}}",
+      "edit": "Editar proposta",
+      "decline": "Marcar como recusada",
+      "reopen": "Reabrir proposta",
+      "declinedDone": "“{{name}}” marcada como recusada.",
+      "reopenedDone": "“{{name}}” reaberta."
+    },
     "pdf": {
       "greeting": "Prezado(a) Senhor(a),",
       "services": "SERVIÇOS PRESTADOS",
@@ -1275,12 +1294,19 @@
     },
     "accept": {
       "action": "Proposta aceita",
-      "ask": "Marcar a proposta como aceita?",
-      "means": "A página do projeto passa a mostrar as etapas, os arquivos e as atualizações. A proposta continua disponível num link na página. Nenhum e-mail é enviado.",
-      "confirm": "Marcar como aceita",
-      "done": "Proposta aceita. O projeto está em andamento."
+      "ask": "Criar o projeto a partir desta proposta?",
+      "means": "Esta proposta vira o projeto “{{name}}”: a página passa a mostrar as etapas, os arquivos e as atualizações, e a proposta fica na etapa “Proposta”. Nenhum e-mail é enviado.",
+      "confirm": "Criar projeto",
+      "done": "Proposta aceita. O projeto foi criado.",
+      "decline": "Recusada",
+      "declineAsk": "Marcar a proposta como recusada?",
+      "declineMeans": "Ela sai das propostas ativas e vai para as recusadas. A página continua mostrando a proposta, e você poderá reabri-la na aba Propostas.",
+      "declineConfirm": "Marcar como recusada",
+      "declineDone": "Proposta marcada como recusada."
     },
     "page": {
+      "stage": "Proposta",
+      "fileName": "Proposta – {{name}}.pdf",
       "kicker": "Proposta",
       "download": "Baixar proposta em PDF",
       "contact": "Fale com o escritório",

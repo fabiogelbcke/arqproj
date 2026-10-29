@@ -505,11 +505,13 @@ describe("Novo projeto", () => {
     expect(sent.some((r) => r.method === "POST")).toBe(false);
   });
 
-  it("sends the project with an address from its name and a one-time key", async () => {
+  it("sends the project with an address from its name and a one-time key, then opens its page", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
     const sent = api(LOCAL, {
       "POST /api/projects": (body: unknown) => ({
         status: 201,
-        body: project({ id: "9", name: (body as { name: string }).name, status: "active" }),
+        body: project({ id: "9", name: (body as { name: string }).name, slug: "casa-do-lago-conceicao", status: "active" }),
       }),
     });
     renderAt("/");
@@ -526,7 +528,8 @@ describe("Novo projeto", () => {
     await userEvent.click(within(dialog).getByText("Projeto Legal"));
     await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
 
-    expect(await screen.findByText("Projeto “Casa do Lago — Conceição” criado.")).toBeInTheDocument();
+    // Straight to the new project's page, to fill it in.
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/casa-do-lago-conceicao"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     const request = sent.find((r) => r.method === "POST");
     expect(request?.body).toMatchObject({
@@ -534,7 +537,8 @@ describe("Novo projeto", () => {
       client_name: "Família Souza",
       project_type: "interiors",
       slug: "casa-do-lago-conceicao",
-      proposal: false, // live at once; "Nova proposta" starts one as a proposal (A42)
+      proposal: false, // live at once; "Nova proposta" (the Propostas tab) starts one as a proposal (A42)
+      custom_stages: [],
     });
     expect(new Set((request?.body as { stages: string[] }).stages)).toEqual(
       new Set(["briefing", "detailing", "permit_documents"]),
@@ -543,38 +547,43 @@ describe("Novo projeto", () => {
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-123");
   });
 
-  it("Nova proposta starts the project as a proposal and opens it to be written (A42)", async () => {
-    const sent = api(LOCAL, {
-      "GET /api/me": () => ({ body: WITH_PROPOSALS }),
-      "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago", status: "proposal" }) }),
-    });
-    const router = renderAt("/");
-    await userEvent.click(await screen.findByRole("button", { name: "Nova proposta" }));
-    const dialog = await screen.findByRole("dialog", { name: "Nova proposta" });
-    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa do Lago");
-    await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Família Souza");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Criar proposta" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/projetos/9/proposta"));
-    expect(sent.find((r) => r.method === "POST")?.body).toMatchObject({ proposal: true });
-  });
-
-  it("on a phone, the + offers a project or a proposal", async () => {
+  it("offers only Novo projeto: proposals start in their own tab (A42)", async () => {
     api(LOCAL, { "GET /api/me": () => ({ body: WITH_PROPOSALS }) });
-    renderAt("/");
-    await userEvent.click(await screen.findByRole("button", { name: "Criar projeto ou proposta" }));
-    await userEvent.click(within(await screen.findByRole("menu")).getByRole("menuitem", { name: "Nova proposta" }));
-    expect(await screen.findByRole("dialog", { name: "Nova proposta" })).toBeInTheDocument();
-  });
-
-  it("without proposals switched on, offers only Novo projeto (A40)", async () => {
-    api();
     renderAt("/");
     expect(await screen.findByRole("button", { name: "Novo projeto" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nova proposta" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Criar projeto ou proposta" })).toBeNull();
+  });
+
+  it("adds the office's own stages after the built-in ones, and unticking one drops it", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    const sent = api(LOCAL, {
+      "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago", slug: "casa-do-lago" }) }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa do Lago");
+    await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Família Souza");
+    const own = within(dialog).getByLabelText(/Outra etapa/);
+    await userEvent.type(own, "Visita técnica{Enter}"); // Enter adds it; the form isn't sent
+    await userEvent.type(own, "Maquete");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar etapa" }));
+    await userEvent.type(own, "levantamento{Enter}"); // a built-in stage's name
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Já existe uma etapa chamada “levantamento”.");
+    await userEvent.clear(own);
+    expect(within(dialog).getByRole("checkbox", { name: "Visita técnica" })).toBeChecked();
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: "Maquete" }));
+    expect(within(dialog).queryByRole("checkbox", { name: "Maquete" })).toBeNull();
+    expect(sent.some((r) => r.method === "POST")).toBe(false);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    await waitFor(() => expect(sent.some((r) => r.method === "POST")).toBe(true));
+    expect(sent.find((r) => r.method === "POST")?.body).toMatchObject({ custom_stages: ["Visita técnica"] });
   });
 
   it("sends the client's emails with the project, a typed one too, and stops for one that isn't an email", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
     const sent = api(LOCAL, {
       "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago" }) }),
     });
@@ -590,7 +599,7 @@ describe("Novo projeto", () => {
     expect(sent.some((r) => r.method === "POST")).toBe(false);
     await userEvent.type(emails, ".com.br");
     await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
-    await screen.findByText("Projeto “Casa do Lago” criado.");
+    await waitFor(() => expect(assign).toHaveBeenCalled());
     expect(sent.find((r) => r.method === "POST")?.body).toMatchObject({
       recipients: ["ana@souza.com.br", "joao@souza.com.br"],
     });

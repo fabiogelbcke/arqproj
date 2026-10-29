@@ -23,7 +23,7 @@ import {
   type Sort,
 } from "../projects/projects";
 import styles from "../projects/projects.module.css";
-import { useFeature, useMe } from "../session/session";
+import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
 import { ChipGroup } from "../ui/ChipGroup";
 import { ErrorNotice } from "../ui/ErrorNotice";
@@ -97,7 +97,6 @@ function Group({
  *  to make one. The page's tools wait until there is something to search. */
 function NoProjectsYet() {
   const { t } = useTranslation();
-  const proposals = useFeature("proposals");
   return (
     <section className={styles.emptyState} aria-labelledby="projects-empty">
       <GhostCards />
@@ -106,14 +105,6 @@ function NoProjectsYet() {
         <p>{t("projects.emptyBody")}</p>
         <div className={styles.emptyActions}>
           <NewProjectButton kind="project" label={t("projects.new")} className={styles.emptyAction} />
-          {proposals && (
-            <NewProjectButton
-              kind="proposal"
-              label={t("projects.newProposal")}
-              variant="secondary"
-              className={styles.emptyAction}
-            />
-          )}
         </div>
       </div>
     </section>
@@ -244,8 +235,8 @@ export function ProjectsPage() {
     [projects.data, query, type, person, myself, byMembers, sort, i18n.language],
   );
   // No drafts for now (A35); one left in the database is listed with the live ones,
-  // as are proposals (A42), each with its tag.
-  const active = shown.filter((p) => p.status === "active" || p.status === "draft" || p.status === "proposal");
+  // with its tag. Proposals have their own tab (A42).
+  const active = shown.filter((p) => p.status === "active" || p.status === "draft");
   const completed = shown.filter((p) => p.status === "completed");
   const hasAny = !hidden && (projects.data?.length ?? 0) > 0;
   const filtering = query.trim() !== "" || type !== ALL_TYPES || person !== EVERYONE;

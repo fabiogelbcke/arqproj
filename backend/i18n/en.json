@@ -11,6 +11,7 @@
     "terms": "Terms of Use"
   },
   "nav": {
+    "proposals": "Proposals",
     "skipToContent": "Skip to content",
     "projects": "Projects",
     "signOut": "Sign out",
@@ -123,6 +124,9 @@
     "kicker": "Project space"
   },
   "newProject": {
+    "ownStage": "Another stage (optional)",
+    "addStage": "Add stage",
+    "stageExists": "There is already a stage called “{{title}}”.",
     "titleProposal": "New proposal",
     "createProposal": "Create proposal",
     "proposalNote": "The project page shows only the proposal until you mark it as accepted. Its folders are created in the office's Google Drive.",
@@ -428,9 +432,7 @@
     "first-stepsTitle": "First steps",
     "first-steps": "Connect Google Drive, customize your office details and create your first project. Progress updates automatically.",
     "new-projectTitle": "New project",
-    "new-projectTitle_proposals": "New project or proposal",
     "new-project": "Each project gets a page for the client to follow. You give its name, the client, the type and the stages.",
-    "new-project_proposals": "Each project gets a page for the client to follow. One that starts as a proposal shows only the proposal until it is accepted.",
     "project-cardTitle": "Your projects",
     "project-card": "Select a project to edit its page and upload files. Use the ⋯ menu to change the cover, open settings or archive the project.",
     "settingsTitle": "Settings",
@@ -1143,6 +1145,23 @@
     }
   },
   "proposal": {
+    "list": {
+      "kicker": "Proposals",
+      "title": "Proposals",
+      "lead": "Create a proposal for a new client. Once accepted, it becomes a project.",
+      "open": "Open",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "noOpen": "No open proposals.",
+      "version": "Version {{version}} · {{date}}",
+      "notWritten": "Not saved yet",
+      "actions": "Actions for {{name}}",
+      "edit": "Edit proposal",
+      "decline": "Mark as declined",
+      "reopen": "Reopen proposal",
+      "declinedDone": "“{{name}}” marked as declined.",
+      "reopenedDone": "“{{name}}” reopened."
+    },
     "pdf": {
       "greeting": "Dear Sir or Madam,",
       "services": "SERVICES",
@@ -1275,12 +1294,19 @@
     },
     "accept": {
       "action": "Proposal accepted",
-      "ask": "Mark the proposal as accepted?",
-      "means": "The project page will show its stages, files and updates. The proposal stays available from a link on the page. No email is sent.",
-      "confirm": "Mark as accepted",
-      "done": "Proposal accepted. The project is in progress."
+      "ask": "Create the project from this proposal?",
+      "means": "This proposal becomes the project “{{name}}”: the page will show its stages, files and updates, and the proposal stays in its “Proposal” stage. No email is sent.",
+      "confirm": "Create project",
+      "done": "Proposal accepted. The project was created.",
+      "decline": "Declined",
+      "declineAsk": "Mark the proposal as declined?",
+      "declineMeans": "It moves from the open proposals to the declined ones. The page keeps showing the proposal, and you can reopen it from the Proposals tab.",
+      "declineConfirm": "Mark as declined",
+      "declineDone": "Proposal marked as declined."
     },
     "page": {
+      "stage": "Proposal",
+      "fileName": "Proposal – {{name}}.pdf",
       "kicker": "Proposal",
       "download": "Download the proposal (PDF)",
       "contact": "Contact the office",
