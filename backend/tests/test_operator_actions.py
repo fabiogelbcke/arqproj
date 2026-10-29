@@ -83,8 +83,9 @@ async def test_delete_populated_tenant_preserves_other_tenant(client, actions_en
     await db_session.execute(
         text(
             "INSERT INTO proposals (project_id, version, content) "
-            "SELECT id, 1, '{}'::jsonb FROM projects LIMIT 1"
-        )
+            "SELECT id, 1, '{}'::jsonb FROM projects WHERE tenant_id = :t LIMIT 1"
+        ),
+        {"t": str(alinea)},
     )
     await db_session.execute(
         text(

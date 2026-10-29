@@ -179,6 +179,15 @@ describe("a project's page while it is a proposal", () => {
     await waitFor(() => expect(accepted).toBe(true));
     expect(sent.find((r) => r.path.endsWith("accept-proposal"))!.body).toEqual({ row_version: 7 });
   });
+
+  it("offers staff neither when proposals are switched off, though the page still shows it (A40)", async () => {
+    const staffPage = { ...PAGE, staff: { project_id: "p-1", status: "proposal" as const, row_version: 7, recipients: [], features: [] } };
+    client(staffPage, { "GET /api/me": () => ({ body: ME }) });
+    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    expect(within(bar).queryByRole("link", { name: "Editar proposta" })).toBeNull();
+    expect(within(bar).queryByRole("button", { name: "Proposta aceita" })).toBeNull();
+    expect(screen.getAllByRole("link", { name: /Baixar proposta em PDF/ }).length).toBeGreaterThan(0);
+  });
 });
 
 describe("an accepted proposal", () => {

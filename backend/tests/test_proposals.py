@@ -380,6 +380,23 @@ async def test_an_office_without_the_feature_makes_no_proposals(client, db_sessi
     assert page["proposal_url"]  # a link already sent keeps working
 
 
+async def test_without_the_feature_the_office_api_leaves_out_what_proposals_print(
+    client, db_session, office_owner
+):
+    await switch_on(db_session)
+    await client.patch("/api/office", json={"city": "Joinville"}, headers=office_owner)
+    await db_session.execute(text("UPDATE tenants SET features = '{}'"))
+    office = (await client.get("/api/office", headers=office_owner)).json()
+    assert office["city"] == ""  # kept, but not shown while switched off
+    refused = await client.patch("/api/office", json={"city": "Blumenau"}, headers=office_owner)
+    assert (refused.status_code, refused.json()["error"]) == (409, "feature_off")
+    renamed = await client.patch("/api/office", json={"name": "Alinea"}, headers=office_owner)
+    assert renamed.status_code == 200  # the rest of the office's settings as before
+    await switch_on(db_session)
+    office = (await client.get("/api/office", headers=office_owner)).json()
+    assert office["city"] == "Joinville"
+
+
 async def test_the_staff_bar_knows_whether_proposals_are_on(client, db_session, office_owner):
     await casa_jardim(client)
     page = (await client.get("/api/pages/casa-jardim", headers=office_owner)).json()
