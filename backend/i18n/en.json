@@ -287,7 +287,10 @@
     "wrong_share_password": "Wrong password. Check with whoever sent the link.",
     "operator_action_conflict": "Could not complete this action. Check the address, office status and confirmation.",
     "operator_action_failed": "Could not complete this action. Try again and contact support with the code if it continues.",
-    "operator_actions_unavailable": "Administration actions are not available yet."
+    "operator_actions_unavailable": "Administration actions are not available yet.",
+    "signup_link_invalid": "This link to create an office no longer works: it was used or is over 7 days old. Ask Unio for a new one.",
+    "office_address_taken": "That address is already in use. Choose another.",
+    "invalid_office_address": "Use 3 to 40 lowercase letters, numbers or hyphens, not starting or ending with a hyphen."
   },
   "projectStatus": {
     "draft": "Draft",
@@ -575,7 +578,6 @@
     "removeDetail": "Remove {{name}}",
     "meeting": "Meeting",
     "schedule": "Schedule",
-    "scheduleMeeting": "Schedule a meeting",
     "subject": "Subject",
     "day": "Date",
     "chooseDay": "Choose from the calendar",
@@ -1073,6 +1075,10 @@
       "confirm": "Confirm",
       "cancel": "Cancel",
       "done": "Action completed.",
+      "signupLink": "Link to create an office",
+      "signupLinkExplain": "Make a link for someone to create their own office: they choose its name and address, then create the owner account. The link works once and lasts 7 days.",
+      "signupLinkMake": "Make link",
+      "signupLinkHelp": "Copy this link and send it to whoever will create the office. It works once and lasts 7 days. It won't be shown again after you close this window.",
       "explain": {
         "owner_link": "Generate a new owner signup link for {{name}}?",
         "suspend": "Suspend {{name}}? Its panel and pages will be unavailable until restored.",
@@ -1080,5 +1086,16 @@
         "delete": "Permanently delete {{name}} data in Unio? Drive files will be preserved. This cannot be undone."
       }
     }
+  },
+  "signup": {
+    "title": "Create your office on Unio",
+    "intro": "Choose the name your clients will see and the address for your project pages. Next, you create your owner account.",
+    "name": "Office name",
+    "nameHint": "As clients see it. You can change it later.",
+    "address": "Your office's address on Unio",
+    "addressHint": "Where your team and clients will open Unio. It can't be changed later.",
+    "addressFree": "Available",
+    "create": "Create office",
+    "next": "Next, you enter your name, email and password and confirm the email with a code."
   }
 }

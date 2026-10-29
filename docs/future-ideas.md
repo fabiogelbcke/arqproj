@@ -140,6 +140,9 @@ link that takes in a stage's future files.
 - Existing pieces: `make tenant` (`backend/commands/tenants.py`),
   `make owner-link` and `make staff ROLE=owner` (`backend/commands/staff.py`),
   `SettingsOfficePage.tsx`, `SettingsDrivePage.tsx`, `SettingsTeamPage.tsx`.
+- Proposed 28 Oct 2026 (A38, PR for review): a one-time link with which the
+  person creates their own office (name and address) and then their owner
+  account (`/criar-escritorio`); the base for a public signup page.
 
 ## Guided tours and an example project
 

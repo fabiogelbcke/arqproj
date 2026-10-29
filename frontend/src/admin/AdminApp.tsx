@@ -15,7 +15,7 @@ import { Toaster } from "../ui/Toast";
 import { UnioMark } from "../ui/UnioMark";
 import { officeErrorsUrl, SUPPORT_CODE, supportCodeUrl, type LogsTarget } from "./logs";
 import styles from "./admin.module.css";
-import { CreateTenant, TenantActions } from "./Actions";
+import { CreateTenant, SignupLink, TenantActions } from "./Actions";
 import { AnalyticsLink, FileStatistics, Usage } from "./Usage";
 
 type Operator = Schemas["OperatorOut"];
@@ -194,6 +194,7 @@ function Offices() {
         </div>
         <div className={styles.headActions}>
           <AnalyticsLink />
+          {me?.actions_enabled && <SignupLink />}
           {me?.actions_enabled && <CreateTenant />}
         </div>
       </header>

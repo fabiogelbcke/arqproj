@@ -8,10 +8,12 @@ import { createRoot } from "react-dom/client";
 
 import { applyStoredTheme } from "../ui/theme";
 import { AdminApp } from "./AdminApp";
+import { OfficeSignupApp, SIGNUP_PATH } from "./OfficeSignup";
 
 applyStoredTheme();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <AdminApp />
+    {/* The same bundle serves the link to create an office, for no operator. */}
+    {window.location.pathname === SIGNUP_PATH ? <OfficeSignupApp /> : <AdminApp />}
   </StrictMode>,
 );

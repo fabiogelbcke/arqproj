@@ -260,6 +260,32 @@ describe("creating an office", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("makes a link to create an office, shown once to copy", async () => {
+    const url = "https://myunio.app/criar-escritorio#token=novo";
+    const sent = fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+      "POST /api/admin/signup-links": () => ({ body: { url } }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Link para criar escritório" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("funciona uma vez e vale por 7 dias");
+    expect(sent.some((r) => r.path === "/api/admin/signup-links")).toBe(false); // only once asked
+    await userEvent.click(within(dialog).getByRole("button", { name: "Gerar link" }));
+    expect(await within(dialog).findByLabelText("Link para criar escritório")).toHaveValue(url);
+  });
+
+  it("offers the link only when the actions are set up", async () => {
+    fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: false } }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+    });
+    renderAt("/");
+    await screen.findByRole("heading", { name: /Escritórios/ });
+    expect(screen.queryByRole("button", { name: "Link para criar escritório" })).toBeNull();
+  });
+
   it("stays open while creating, so the owner link is not lost", async () => {
     fakeApi({
       "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),

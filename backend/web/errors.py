@@ -20,6 +20,9 @@ class ErrorCode(StrEnum):
     OPERATOR_ACTION_CONFLICT = "operator_action_conflict"
     OPERATOR_ACTION_FAILED = "operator_action_failed"
     OPERATOR_ACTIONS_UNAVAILABLE = "operator_actions_unavailable"
+    SIGNUP_LINK_INVALID = "signup_link_invalid"  # an office signup link used, expired or unknown
+    OFFICE_ADDRESS_TAKEN = "office_address_taken"  # another office has that address
+    INVALID_OFFICE_ADDRESS = "invalid_office_address"  # not a usable subdomain, or reserved
     NOT_SIGNED_IN = "not_signed_in"
     CSRF_TOKEN_MISSING_OR_WRONG = "csrf_token_missing_or_wrong"
     INVALID_CREDENTIALS = "invalid_credentials"

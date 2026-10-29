@@ -9,7 +9,7 @@ import { defineConfig, type Plugin } from "vite";
 // sign-in cookie belongs to the address in the address bar.
 // The deployed app answers on /painel and /painel/ alike; Vite's dev server only
 // knows /painel/, so send the bare addresses there.
-const devRedirects: Plugin = {
+export const devRedirects: Plugin = {
   name: "painel-dev-redirects",
   configureServer(server) {
     server.middlewares.use((request, response, next) => {
@@ -29,6 +29,14 @@ const devRedirects: Plugin = {
       }
       // The operator dashboard (backend/web/admin.py): its own entry, at /admin.
       if (path === "/admin" || path?.startsWith("/admin/")) {
+        request.url = "/painel/admin.html" + (query ? `?${query}` : "");
+        next();
+        return;
+      }
+      // Creating an office from a link (backend/web/office_signup.py): the
+      // dashboard's entry, on Unio's own address only; on an office's address
+      // the path may be a project's, as deployed.
+      if (path === "/criar-escritorio" && (request.headers.host ?? "").split(":")[0] === "localhost") {
         request.url = "/painel/admin.html" + (query ? `?${query}` : "");
         next();
         return;

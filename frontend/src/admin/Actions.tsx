@@ -102,6 +102,45 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** "Link para criar escritório": a one-time link whose holder creates their
+ *  own office (name and address) and then their owner account. Shown once. */
+export function SignupLink() {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return <>
+    <Button onPress={() => setOpen(true)}>{t("admin.actions.signupLink")}</Button>
+    {open && <SignupLinkDialog onClose={() => setOpen(false)} />}
+  </>;
+}
+
+function SignupLinkDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const make = useMutation({ mutationFn: () => call(api.POST("/api/admin/signup-links")) });
+  const close = () => !make.isPending && onClose();
+  return (
+    <DialogFrame title={t("admin.actions.signupLink")} onClose={close}>
+      {make.data ? (
+        <div className={styles.dialogBody} role="status">
+          <p>{t("admin.actions.signupLinkHelp")}</p>
+          <LinkToCopy link={make.data.url} label={t("admin.actions.signupLink")} />
+          <div className={styles.dialogActions}>
+            <Button variant="primary" onPress={onClose}>{t("admin.actions.close")}</Button>
+          </div>
+        </div>
+      ) : (
+        <Form className={styles.dialogBody} onSubmit={(event) => { event.preventDefault(); make.mutate(); }}>
+          <p>{t("admin.actions.signupLinkExplain")}</p>
+          <ErrorNotice error={make.error} />
+          <div className={styles.dialogActions}>
+            <Button onPress={close} isDisabled={make.isPending}>{t("admin.actions.cancel")}</Button>
+            <Button type="submit" variant="primary" isDisabled={make.isPending}>{t("admin.actions.signupLinkMake")}</Button>
+          </div>
+        </Form>
+      )}
+    </DialogFrame>
+  );
+}
+
 /** An office's actions, beside its name: each asks first, in a dialog. */
 export function TenantActions({ office }: { office: Schemas["AdminOfficeOut"] }) {
   const { t } = useTranslation();
