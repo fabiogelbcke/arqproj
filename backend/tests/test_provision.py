@@ -124,7 +124,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("share_link_files", "SELECT"),
         ("share_link_files", "INSERT"),
         ("share_link_files", "DELETE"),  # "Atualizar link" replaces its files
-        # Proposals (A40): the office's service presets are its to change; a
+        # Proposals (A42): the office's service presets are its to change; a
         # proposal's versions are only ever added.
         ("proposal_service_presets", "SELECT"),
         ("proposal_service_presets", "INSERT"),

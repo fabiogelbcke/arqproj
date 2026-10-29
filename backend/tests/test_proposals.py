@@ -1,4 +1,4 @@
-"""Proposals (A40): the "Proposta" status, the generator, versions, the PDF and
+"""Proposals (A42): the "Proposta" status, the generator, versions, the PDF and
 what a client sees while a project is a proposal."""
 
 import re

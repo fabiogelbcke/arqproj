@@ -78,7 +78,7 @@ export function ClientApp() {
   useOfficeLocale(((state.kind === "page" && state.page.locale) || office?.locale) as Locale | undefined);
 
   if (state.kind === "loading") return <p className="sr">{t("page.loading")}</p>;
-  // A proposal (A40): only the proposal, until staff mark it accepted.
+  // A proposal (A42): only the proposal, until staff mark it accepted.
   if (state.kind === "page" && state.page.in_proposal)
     return (
       <ProposalPhase

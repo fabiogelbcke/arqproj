@@ -432,7 +432,7 @@ function Description({ text }: { text: string }) {
   );
 }
 
-/** Cliente, type, the project's details, the accepted proposal (A40) and the last update. */
+/** Cliente, type, the project's details, the accepted proposal (A42) and the last update. */
 function Facts({ page }: { page: Page }) {
   const { t, i18n } = useTranslation();
   const rows: Array<[string, ReactNode]> = [
@@ -899,7 +899,7 @@ function StaffBar({
       >
         <Icon name="link" />
       </button>
-      {/* The proposal generator (A40), in the painel. */}
+      {/* The proposal generator (A42), in the painel. */}
       {!archived && (
         <a className="b b--small hide-sm" href={`/painel/projetos/${staff.project_id}/proposta`}>
           {t("proposal.page.link")}

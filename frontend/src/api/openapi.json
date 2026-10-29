@@ -3674,7 +3674,7 @@
     "/api/projects/{project_id}/proposals": {
       "post": {
         "summary": "Save",
-        "description": "The next version. The client page shows it at once (A40: no email).",
+        "description": "The next version. The client page shows it at once (A42: no email).",
         "operationId": "save_api_projects__project_id__proposals_post",
         "parameters": [
           {
@@ -8778,7 +8778,7 @@
           "pdf_url"
         ],
         "title": "ProposalOut",
-        "description": "The latest proposal, ready to show on the page (A40)."
+        "description": "The latest proposal, ready to show on the page (A42)."
       },
       "ProposalStart": {
         "properties": {

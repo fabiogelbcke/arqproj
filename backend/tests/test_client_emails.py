@@ -223,7 +223,7 @@ async def test_archiving_drops_a_waiting_email_for_good(app, db_session, outbox,
 
 
 async def test_a_proposal_never_emails_its_client(app, client, db_session, owner, outbox, ready):
-    """Staff send a proposal's link themselves (A40): saving one, or files and
+    """Staff send a proposal's link themselves (A42): saving one, or files and
     stages changing meanwhile, emails nobody."""
     from backend.tests.test_maintenance_scan import call
     from backend.tests.test_proposals import content

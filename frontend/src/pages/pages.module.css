@@ -220,7 +220,7 @@ a.brand:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 .form { display: grid; gap: 18px; }
 .logoBlock { display: grid; gap: 10px; justify-items: start; }
 .logoBlock h3 { font-size: var(--text-lg); font-weight: 500; margin: 0; }
-/* The details proposals print (A40): headed like the logo, fields as wide as the name's. */
+/* The details proposals print (A42): headed like the logo, fields as wide as the name's. */
 .proposalBlock { display: grid; gap: 10px; }
 .proposalBlock h3 { font-size: var(--text-lg); font-weight: 500; margin: 0; }
 /* As on the pages: the logo on white, the dark mode one on the dark theme's ground. */

@@ -18,7 +18,7 @@ import { suggestedSlug, useCreateProject, useCreationOptions } from "./projects"
 import styles from "./projects.module.css";
 import { RecipientsField } from "./RecipientsField";
 
-/** A project, or one that starts as a proposal (A40): its page shows only the
+/** A project, or one that starts as a proposal (A42): its page shows only the
  *  proposal until staff mark it accepted. Two ways in, one form. */
 export type NewKind = "project" | "proposal";
 

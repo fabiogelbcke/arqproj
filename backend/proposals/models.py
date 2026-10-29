@@ -1,4 +1,4 @@
-"""Proposals (A40): the office's service presets, and each saved proposal.
+"""Proposals (A42): the office's service presets, and each saved proposal.
 
 A proposal is kept as its content (what staff filled in), one row per version;
 its PDF is drawn from it whenever asked for, with the office's current logo.

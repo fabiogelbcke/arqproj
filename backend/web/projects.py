@@ -121,7 +121,7 @@ class ProjectIn(BaseModel):
     slug: str = Field(max_length=200)
     # The client's addresses for updates (A32), optional.
     recipients: list[str] = Field(default=[], max_length=RECIPIENTS_MAX)
-    # "Começa como proposta" (A40): the page shows only the proposal until accepted.
+    # "Começa como proposta" (A42): the page shows only the proposal until accepted.
     proposal: bool = False
     # Made by the screen once per dialog: a retried or double-sent request
     # returns the project already created.

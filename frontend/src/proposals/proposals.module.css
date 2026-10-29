@@ -1,4 +1,4 @@
-/* The proposal generator (A40): the form, and the live preview beside it on wide
+/* The proposal generator (A42): the form, and the live preview beside it on wide
    screens (under it on phones). */
 .page { display: grid; gap: 24px; }
 .head { display: grid; gap: 10px; }

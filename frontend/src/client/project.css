@@ -382,7 +382,7 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 .client .addsection-form__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .client .menu__list .menu__sub { padding-left: 26px; }
 
-/* --- A proposal (A40): presented for the screen, the letter is its PDF ----- */
+/* --- A proposal (A42): presented for the screen, the letter is its PDF ----- */
 .client .proposal-heading { margin-top: 28px; display: grid; gap: 10px; }
 .client .proposal-heading .project-kind { margin: 0; order: -1; color: var(--muted); }
 .client .proposal-for {

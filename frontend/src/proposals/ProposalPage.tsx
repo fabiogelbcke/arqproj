@@ -1,4 +1,4 @@
-// The proposal generator (A40): /painel/projetos/{id}/proposta. The form on the
+// The proposal generator (A42): /painel/projetos/{id}/proposta. The form on the
 // left, what changes most first (the client, the fees, the services), the office's
 // details last; the PDF's preview on the right (on phones, under the form). Saving makes the next version, shown on the project page at once;
 // nothing is emailed: staff send the page's link when they choose.

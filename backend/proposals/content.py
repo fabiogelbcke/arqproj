@@ -1,4 +1,4 @@
-"""What a proposal holds (A40), the limits on it, and its amounts in words.
+"""What a proposal holds (A42), the limits on it, and its amounts in words.
 
 Saved as JSON (`proposals.content`) once it passes `ProposalContent`; the PDF and
 the client page both draw from it. Amounts are whole centavos, so no rounding

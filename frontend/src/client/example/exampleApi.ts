@@ -69,7 +69,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       completed,
     })),
     next_meeting: project.next_meeting,
-    // The example project is under way: no proposal (A40).
+    // The example project is under way: no proposal (A42).
     in_proposal: false,
     proposal: null,
     proposal_url: null,

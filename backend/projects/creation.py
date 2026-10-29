@@ -139,7 +139,7 @@ class NewProject:
     slug: str
     creation_key: str
     recipients: tuple[str, ...] = ()  # the client's addresses for updates (A32), optional
-    # "Começa como proposta" (A40): its page shows only the proposal until accepted.
+    # "Começa como proposta" (A42): its page shows only the proposal until accepted.
     proposal: bool = False
 
 
@@ -197,7 +197,7 @@ async def project_named(
 async def create_project(
     db: AsyncSession, maker: FolderMaker, root: str | None, locale: Locale, new: NewProject
 ) -> Project:
-    """The new project, published at once (A35), as a proposal if asked (A40),
+    """The new project, published at once (A35), as a proposal if asked (A42),
     or the one this creation key already made."""
     existing = await db.scalar(select(Project).where(Project.creation_key == new.creation_key))
     if existing is not None:

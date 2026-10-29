@@ -4,7 +4,7 @@
     GET /api/pages/{slug}               what the page shows (public, read-only)
     GET /api/pages/{slug}/cover         its cover photo
     GET /api/pages/{slug}/meeting.ics   the next meeting, for a calendar app
-    GET /api/pages/{slug}/proposal.pdf  the latest proposal (A40)
+    GET /api/pages/{slug}/proposal.pdf  the latest proposal (A42)
 
 A page exists only for a published project (a proposal, active, completed or
 archived) that isn't deleted: a draft, a deleted project and an unknown address all answer the
@@ -13,7 +13,7 @@ also see drafts and protected pages, with a staff bar (2.6) to publish them.
 An address the project had before redirects to the current one (A29). A
 password-protected project asks for its password once per device (2.4) and
 shows nothing until then; its name stays out of link previews. While a project is
-a proposal (A40), its page shows only the proposal: no stages, files, details or
+a proposal (A42), its page shows only the proposal: no stages, files, details or
 meeting, and the routes for those answer "not found" to clients.
 
 The server answers before any script runs: the tags messaging apps read for a
@@ -77,7 +77,7 @@ from backend.web.proposals import ProposalOut, in_proposal, latest, pdf_response
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-# Published: a proposal (A40), live or completed, or archived after being published.
+# Published: a proposal (A42), live or completed, or archived after being published.
 # A draft that was archived without ever being published stays unpublished.
 PUBLISHED = Project.status.in_(
     (ProjectStatus.PROPOSAL, ProjectStatus.ACTIVE, ProjectStatus.COMPLETED)
@@ -193,7 +193,7 @@ class PageOut(BaseModel):
     details: list[DetailOut]
     stages: list[StageOut]
     next_meeting: MeetingOut | None
-    # A proposal (A40): the page shows only `proposal` and the office's contact
+    # A proposal (A42): the page shows only `proposal` and the office's contact
     # details; stages, details, description and meeting come empty.
     in_proposal: bool = False
     # The latest proposal: in full while in proposal, else only its link (None
@@ -226,7 +226,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
     newest = await latest(db, project.id)
     proposal_url = f"/api/pages/{slug}/proposal.pdf?v={newest.version}" if newest else None
     if in_proposal(project):
-        # Nothing but the proposal: the work hasn't started (A40).
+        # Nothing but the proposal: the work hasn't started (A42).
         return PageOut(
             id=project.id,
             office=await _office(db, tenant),
@@ -384,7 +384,7 @@ async def _readable(
 ) -> Project:
     """The project behind a current address, if this visitor may see its page.
     While it is a proposal, a client may only see the page and the proposal
-    (`proposal_ok`): its files, meeting, emails and links come later (A40)."""
+    (`proposal_ok`): its files, meeting, emails and links come later (A42)."""
     project, current = await _find(db, slug, staff)
     if project is None or current != slug:
         raise ApiError(404, ErrorCode.PAGE_NOT_FOUND)
@@ -456,7 +456,7 @@ async def page_proposal(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """The latest proposal (A40): "Baixar PDF", or opened in the browser."""
+    """The latest proposal (A42): "Baixar PDF", or opened in the browser."""
     try:
         project = await _readable(db, slug, staff, request, proposal_ok=True)
     except ApiError:

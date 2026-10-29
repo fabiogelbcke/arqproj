@@ -1,4 +1,4 @@
-"""Drawing a proposal as a PDF (A40), in the layout of the offices' own proposals:
+"""Drawing a proposal as a PDF (A42), in the layout of the offices' own proposals:
 the logo at the top of every page, the office's address, phone and email at the
 foot, then the letter, the services, the fees, the payments, what is not
 included, the observations and two signature lines.

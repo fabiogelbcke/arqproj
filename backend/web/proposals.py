@@ -1,4 +1,4 @@
-"""Proposals in the painel (A40): the generator, its versions and presets.
+"""Proposals in the painel (A42): the generator, its versions and presets.
 
     GET   /api/projects/{id}/proposal          what the generator starts from
     POST  /api/projects/{id}/proposal/preview  the PDF of what is on screen, unsaved
@@ -8,7 +8,7 @@
     PUT   /api/proposal-presets                the office's services, the whole list
     PATCH /api/proposal-defaults               the office's opening and observations
 
-Anyone signed in may use them (A40: every staff member for now). Saving a proposal
+Anyone signed in may use them (A42: every staff member for now). Saving a proposal
 also fills in the office's address, city, phone, WhatsApp, email and signing
 architect where the office has none yet, so they are asked for once. An owner may
 also replace the ones already set, when asked on saving (`update_office`).
@@ -150,7 +150,7 @@ class PaymentOut(BaseModel):
 
 
 class ProposalOut(BaseModel):
-    """The latest proposal, ready to show on the page (A40)."""
+    """The latest proposal, ready to show on the page (A42)."""
 
     version: int
     date_line: str  # "Joinville, 7 de outubro de 2026"
@@ -410,7 +410,7 @@ async def save(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> VersionOut:
-    """The next version. The client page shows it at once (A40: no email)."""
+    """The next version. The client page shows it at once (A42: no email)."""
     if update_office and staff.role is not Role.OWNER:
         raise ApiError(403, ErrorCode.OWNER_ONLY)
     # Locked until saved: two saves at once get consecutive versions.

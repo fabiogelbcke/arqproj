@@ -75,7 +75,7 @@ async def test_create_owner_suspend_restore_delete_with_retained_audit(
 async def test_delete_populated_tenant_preserves_other_tenant(client, actions_enabled, db_session):
     headers = await test_admin.sign_in(client)
     name = await db_session.scalar(text("SELECT name FROM tenants WHERE slug='alinea'"))
-    # A proposal and a service preset (A40): deleted with the office too.
+    # A proposal and a service preset (A42): deleted with the office too.
     alinea = await db_session.scalar(text("SELECT id FROM tenants WHERE slug='alinea'"))
     await db_session.execute(
         text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(alinea)}

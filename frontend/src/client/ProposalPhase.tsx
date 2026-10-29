@@ -1,4 +1,4 @@
-// A project's page while it is a proposal (A40): the proposal presented for the
+// A project's page while it is a proposal (A42): the proposal presented for the
 // screen (the formal letter is its PDF), the office's contact as the next step,
 // and nothing of the work, which hasn't started. Staff get a bar to change the
 // proposal or mark it accepted.

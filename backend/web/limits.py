@@ -45,7 +45,7 @@ FIELD_LIMITS: dict[str, int] = {
     "recipients": RECIPIENTS_MAX,
     "shareLabel": SHARE_LABEL_MAX,
     "shareBytes": SHARE_BYTES_MAX,
-    # Proposals (A40).
+    # Proposals (A42).
     "proposalClient": proposal.CLIENT_MAX,
     "proposalCity": proposal.CITY_MAX,
     "proposalAddress": proposal.ADDRESS_MAX,

@@ -39,7 +39,7 @@ export function SettingsOfficePage() {
 
 type ProposalFields = { address: string; city: string; phone: string; whatsapp: string; signatory: string };
 
-/** What proposals print (A40): the footer's address and phones, the date line's
+/** What proposals print (A42): the footer's address and phones, the date line's
  *  city, who signs. The generator fills in the blank ones; owners change them here. */
 function ProposalDetails() {
   const { t } = useTranslation();

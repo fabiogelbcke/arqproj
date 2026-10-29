@@ -80,7 +80,7 @@ class OfficeOut(BaseModel):
     # An SVG logo without its PNG (uploaded before PNGs): the painel draws one.
     logo_needs_png: bool
     can_manage: bool
-    # What proposals print (A40): the footer's address and phone, the date line's
+    # What proposals print (A42): the footer's address and phone, the date line's
     # city, the architect who signs. "" when not set yet.
     address: str
     city: str

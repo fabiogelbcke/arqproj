@@ -423,7 +423,7 @@ describe("Novo projeto", () => {
       client_name: "Família Souza",
       project_type: "interiors",
       slug: "casa-do-lago-conceicao",
-      proposal: false, // live at once; "Nova proposta" starts one as a proposal (A40)
+      proposal: false, // live at once; "Nova proposta" starts one as a proposal (A42)
     });
     expect(new Set((request?.body as { stages: string[] }).stages)).toEqual(
       new Set(["briefing", "detailing", "permit_documents"]),
@@ -432,7 +432,7 @@ describe("Novo projeto", () => {
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-123");
   });
 
-  it("Nova proposta starts the project as a proposal and opens it to be written (A40)", async () => {
+  it("Nova proposta starts the project as a proposal and opens it to be written (A42)", async () => {
     const sent = api(LOCAL, {
       "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago", status: "proposal" }) }),
     });

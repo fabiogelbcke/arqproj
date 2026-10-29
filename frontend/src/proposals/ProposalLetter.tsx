@@ -1,4 +1,4 @@
-// A proposal on screen (A40), laid out like its PDF: the generator's preview of
+// A proposal on screen (A42), laid out like its PDF: the generator's preview of
 // the file. Its words are the PDF's (backend/i18n, `proposal.pdf`). The client
 // page presents the same content its own way (client/ProposalPhase).
 import { useTranslation } from "react-i18next";

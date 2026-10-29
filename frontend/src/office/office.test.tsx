@@ -67,7 +67,7 @@ describe("Configurações → Escritório", () => {
     expect(await screen.findByText("Salvo.")).toBeInTheDocument();
   });
 
-  it("saves the details proposals print (A40), apart from the name and email", async () => {
+  it("saves the details proposals print (A42), apart from the name and email", async () => {
     const details = { ...OFFICE, address: "", city: "", phone: "", signatory: "" };
     const sent = api(details, LOCAL, ME, {
       "PATCH /api/office": (body: unknown) => ({ body: { ...details, ...(body as object) } }),

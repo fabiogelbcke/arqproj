@@ -1017,7 +1017,7 @@ export interface paths {
         put?: never;
         /**
          * Save
-         * @description The next version. The client page shows it at once (A40: no email).
+         * @description The next version. The client page shows it at once (A42: no email).
          */
         post: operations["save_api_projects__project_id__proposals_post"];
         delete?: never;
@@ -2508,7 +2508,7 @@ export interface components {
         };
         /**
          * ProposalOut
-         * @description The latest proposal, ready to show on the page (A40).
+         * @description The latest proposal, ready to show on the page (A42).
          */
         ProposalOut: {
             /** Version */

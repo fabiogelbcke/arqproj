@@ -61,7 +61,7 @@ class OfficeProfile(IdMixin, TimestampsMixin, TenantOwned, Base):
     logo_dark_type: Mapped[LogoType | None] = mapped_column(TextEnum(LogoType))
     # The `_marca` folder holding them, inside the office's root folder.
     brand_folder_id: Mapped[str | None] = mapped_column(Text)
-    # For proposals (A40): the footer's address and phones, the city the date line
+    # For proposals (A42): the footer's address and phones, the city the date line
     # names, and the architect who signs. Asked in the proposal generator when missing.
     address: Mapped[str | None] = mapped_column(Text)
     city: Mapped[str | None] = mapped_column(Text)

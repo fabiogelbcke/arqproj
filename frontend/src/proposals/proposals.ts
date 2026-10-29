@@ -1,4 +1,4 @@
-// Proposals (A40): the generator's data, its saves, and amounts as typed.
+// Proposals (A42): the generator's data, its saves, and amounts as typed.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, call, type Schemas } from "../api/client";

@@ -1,4 +1,4 @@
-"""Proposals (A40, 28 Oct 2026).
+"""Proposals (A42, 28 Oct 2026).
 
 - `projects.status` gains `proposal`: the client page shows only the proposal
   until staff mark it accepted.
@@ -11,8 +11,8 @@
 Both new tables are isolated per office like every project table, and the
 operator role may delete them with the office (A38).
 
-Revision: 0040
-Previous: 0039
+Revision: 0042
+Previous: 0041
 """
 
 from collections.abc import Sequence
@@ -21,8 +21,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0041"
-down_revision: str | None = "0040"
+revision: str = "0042"
+down_revision: str | None = "0041"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
