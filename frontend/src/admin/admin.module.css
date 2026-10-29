@@ -86,6 +86,7 @@
 /* "Crie o seu escritório" (OfficeSignup): the address it will have, as typed. */
 .mutedText { margin: 0; color: var(--muted); font-size: var(--text-sm); line-height: 1.5; }
 .addressField { display: grid; gap: 6px; }
-.addressPreview { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.addressStatus { margin: 0; font-size: var(--text-sm); }
+.addressStatus:empty { display: none; }
 .addressOk { color: var(--ink); }
 .addressProblem { color: var(--danger); }

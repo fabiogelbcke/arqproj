@@ -31,6 +31,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import is_email, tidy_email
 from backend.identity.models import Role
@@ -124,6 +125,7 @@ async def office(
 
 @router.patch("/office", responses=documented(401, 403, 422))
 async def change_office(
+    request: Request,
     body: OfficeIn,
     staff: CurrentStaff = Depends(require_csrf),
     tenant: CurrentTenant = Depends(current_tenant),
@@ -144,6 +146,7 @@ async def change_office(
         found.contact_email = email or None
     await db.commit()
     await db.refresh(found)
+    capture(request, "office_settings_changed", {"fields": sorted(body.model_fields_set)})
     return _out(tenant, found, staff)
 
 
@@ -252,6 +255,7 @@ async def upload_logo(
     await db.commit()
     await _trash(request, db, *(p for p in previous if p not in ids.values()))
     await db.refresh(found)
+    capture(request, "office_logo_set", {"variant": "light"})
     return _out(tenant, found, staff)
 
 
@@ -279,6 +283,7 @@ async def upload_dark_logo(
     if previous and previous != found.logo_dark_file_id:
         await _trash(request, db, previous)
     await db.refresh(found)
+    capture(request, "office_logo_set", {"variant": "dark"})
     return _out(tenant, found, staff)
 
 
@@ -297,6 +302,7 @@ async def remove_dark_logo(
     await db.commit()
     await _trash(request, db, previous)
     await db.refresh(found)
+    capture(request, "office_logo_removed", {"variant": "dark"})
     return _out(tenant, found, staff)
 
 
@@ -322,6 +328,7 @@ async def add_logo_png(
     if previous and previous != found.logo_png_file_id:
         await _trash(request, db, previous)
     await db.refresh(found)
+    capture(request, "office_logo_set", {"variant": "png"})
     return _out(tenant, found, staff)
 
 

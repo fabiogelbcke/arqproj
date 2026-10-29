@@ -37,6 +37,7 @@ async function shoot(page: Page, name: string, theme: "light" | "dark" = "light"
     await page.screenshot({
       path: `${OUT}/${name}-${size.name}${theme === "dark" ? "-dark" : ""}.png`,
       fullPage: !dialog,
+      animations: "disabled", // a dialog or menu still fading in is shot finished, whatever the test forgot
     });
   }
 }
@@ -397,6 +398,7 @@ test("@screenshots preview page", async ({ page }) => {
 });
 
 test("@screenshots operator dashboard", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // no half-faded dialogs
   mkdirSync(OUT, { recursive: true });
   const unio = `http://localhost:${PORT}`;
   await page.goto(`${unio}/admin`);
@@ -408,7 +410,7 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await shoot(page, "10b-operacao-escritorios");
   await page.getByRole("button", { name: "Criar escritório", exact: true }).click();
   await page.getByLabel("Nome do escritório").fill("Ateliê Horizonte");
-  await page.getByLabel("Endereço", { exact: true }).fill("horizonte.myunio.app");
+  await page.getByLabel("Endereço do escritório no Unio", { exact: true }).fill("horizonte");
   await shoot(page, "10d-operacao-criar");
   await page.keyboard.press("Escape");
   // A link for someone to create their own office (A38), and its page.

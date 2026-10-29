@@ -35,7 +35,8 @@ describe("creating an office from a link", () => {
     const { sent, assign, cleared } = openLink();
     await userEvent.type(await screen.findByLabelText(/Nome do escritório/), "Estúdio Ipê");
     expect(screen.getByLabelText(/Endereço/)).toHaveValue("estudio-ipe");
-    expect(screen.getByText("estudio-ipe.myunio.app")).toBeInTheDocument();
+    expect(screen.getByText(".myunio.app")).toBeInTheDocument(); // fixed beside it: the full address as it's typed
+    expect(screen.getByText("11/40")).toBeInTheDocument();
     expect(await screen.findByText("Disponível")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Criar escritório" }));
     await vi.waitFor(() => expect(assign).toHaveBeenCalledWith(OWNER_URL));
@@ -60,6 +61,14 @@ describe("creating an office from a link", () => {
     expect(await screen.findByText("Disponível")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Criar escritório" })).toBeEnabled();
     expect(sent.some((r) => r.path === "/api/office-signup/create")).toBe(false);
+  });
+
+  it("takes a whole address pasted in as just its own part", async () => {
+    openLink();
+    const address = await screen.findByLabelText(/Endereço/);
+    await userEvent.click(address);
+    await userEvent.paste("https://Estudio-Ipe.myunio.app/");
+    expect(address).toHaveValue("estudio-ipe");
   });
 
   it("says a used or expired link no longer works, and shows no form", async () => {

@@ -46,6 +46,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture, capture_visit
 from backend.db.engine import get_tenant_session
 from backend.documents import versions
 from backend.documents.versions import shown_name
@@ -165,6 +166,17 @@ def _owns(request: Request, owner: str | None) -> uuid.UUID | None:
         return uuid.UUID(found["l"])
     except (keys.BadToken, KeyError, TypeError, ValueError):
         return None
+
+
+def _event(
+    request: Request, staff: CurrentStaff | None, project: Project, event: str, properties: dict
+) -> None:
+    """A share link made, renewed or turned off: as the staff member, or as an
+    anonymous visitor when a client does it from the page (A39)."""
+    if _staff_acting(request, staff) is not None:
+        capture(request, event, properties)
+    else:
+        capture_visit(request, project.tenant_id, event, properties)
 
 
 def _staff_acting(request: Request, staff: CurrentStaff | None) -> CurrentStaff | None:
@@ -395,16 +407,13 @@ async def make_share(
     )
     await db.commit()
     await db.refresh(link)
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture(
-            "share_link_created",
-            properties={
-                "file_count": len(items),
-                "has_password": body.password is not None,
-                "expiry_days": days,
-            },
-        )
+    _event(
+        request,
+        staff,
+        project,
+        "share_link_created",
+        {"file_count": len(items), "has_password": body.password is not None, "expiry_days": days},
+    )
     log.info("shares: link %s made for project %s, %s files", link.id, project.id, len(items))
     [shown] = await _described(db, storage, project, [link])
     return ShareMadeOut(
@@ -494,9 +503,7 @@ async def disable_share(
     if link.disabled_at is None:
         link.disabled_at = datetime.now(UTC)
         await db.commit()
-        posthog_client = getattr(request.app.state, "posthog", None)
-        if posthog_client is not None:
-            posthog_client.capture("share_link_disabled")
+        _event(request, staff, project, "share_link_disabled", {})
         log.info("shares: link %s turned off", link.id)
     [shown] = await _described(db, await _storage(request, db), project, [link])
     return shown
@@ -538,6 +545,7 @@ async def refresh_share(
         await db.commit()
         await db.refresh(link)
         log.info("shares: link %s moved to newer versions", link.id)
+    _event(request, staff, project, "share_link_renewed", {"changed": updated != held})
     [shown] = await _described(db, storage, project, [link])
     return shown
 
@@ -633,6 +641,12 @@ async def shared(
                 stage=titles[where.position],
             )
         )
+    capture_visit(
+        request,
+        project.tenant_id,
+        "share_page_viewed",
+        {"file_count": len(files), "has_password": link.password_hash is not None},
+    )
     return SharedOut(
         office=office,
         locale=tenant.locale.value,
@@ -709,8 +723,10 @@ async def unlock_share(
         raise
     if not right:
         attempts.failed(key, who)
+        capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": False})
         raise ApiError(401, ErrorCode.WRONG_SHARE_PASSWORD, headers=challenge)
     attempts.succeeded(key, who)
+    capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": True})
     response = Response(status_code=204, headers=challenge)
     response.set_cookie(
         _unlock_cookie(link),

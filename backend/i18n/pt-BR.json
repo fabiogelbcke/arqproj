@@ -1059,9 +1059,10 @@
       "create": "Criar escritório",
       "name": "Nome do escritório",
       "slug": "Identificador",
-      "hostname": "Endereço",
+      "hostname": "Endereço do escritório no Unio",
+      "hostnameHint": "Onde a equipe e os clientes do escritório vão acessar o Unio.",
       "slugHint": "Preenchido a partir do endereço. Identifica o escritório no PostHog e nos registros e não poderá ser alterado depois.",
-      "hostnameExample": "Ex.: escritorio.myunio.app",
+      "hostnameExample": "Ex.: escritorio",
       "close": "Concluir",
       "createConfirm": "Criar e gerar convite do responsável",
       "ownerLink": "Link de cadastro do responsável",
@@ -1087,12 +1088,12 @@
     }
   },
   "signup": {
-    "title": "Crie o seu escritório na Unio",
+    "title": "Crie o seu escritório no Unio",
     "intro": "Escolha o nome que os seus clientes verão e o endereço das páginas dos projetos. Em seguida, você cria a sua conta de responsável.",
     "name": "Nome do escritório",
     "nameHint": "Como aparece para os clientes. Você poderá alterá-lo depois.",
-    "address": "Endereço",
-    "addressHint": "As páginas dos projetos ficarão em seu-endereço.{{domain}}. Não poderá ser alterado depois.",
+    "address": "Endereço do seu escritório no Unio",
+    "addressHint": "Onde a sua equipe e os seus clientes vão acessar o Unio. Não poderá ser alterado depois.",
     "addressFree": "Disponível",
     "create": "Criar escritório",
     "next": "Depois, você informa o seu nome, e-mail e senha e confirma o e-mail com um código."

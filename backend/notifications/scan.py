@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 
 from sqlalchemy import select, text, update
@@ -59,6 +59,7 @@ class Report:
     failed: int = 0  # projects whose folders couldn't be read: logged, tried next pass
     busy: int = 0  # being scanned by another pass just then
     emails: int = 0
+    emails_by_tenant: dict[str, int] = field(default_factory=dict)  # for analytics
     unfinished: int = 0  # not reached before the time budget ran out: the next pass
 
 
@@ -138,9 +139,11 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
     # after start the next one, with its own quiet period (section 14).
     for due in await digest.to_send(db, project, now) if sender is not None else []:
         try:
-            report.emails += await digest.deliver(
-                db, settings, sender, storage, office, project, due, now
-            )
+            sent = await digest.deliver(db, settings, sender, storage, office, project, due, now)
+            report.emails += sent
+            if sent:
+                tenant = str(project.tenant_id)
+                report.emails_by_tenant[tenant] = report.emails_by_tenant.get(tenant, 0) + sent
         except digest.Wait:
             await db.commit()  # a file still changing, or files unreadable: next pass
             return

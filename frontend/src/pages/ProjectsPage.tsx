@@ -211,6 +211,8 @@ export function ProjectsPage() {
           {me.data?.tenant_name} / {t("projects.kicker")}
         </p>
         <h1 className="sr-only">{t("projects.title")}</h1>
+        {/* While the office is still setting up, its first steps come before the search (Fabio). */}
+        {!hidden && <FirstSteps />}
         {hasAny && (
           <>
             <div className={styles.groupTabs} role="group" aria-label={t("projects.groups")}>
@@ -254,7 +256,6 @@ export function ProjectsPage() {
         )}
       </div>
       <DriveNotice />
-      {!hidden && <FirstSteps />}
       {/* Screen readers hear how many a search or a chip leaves (WCAG 4.1.3). */}
       <p className="sr-only" role="status">
         {projects.data && filtering ? t("projects.resultCount", { count: shown.length }) : ""}

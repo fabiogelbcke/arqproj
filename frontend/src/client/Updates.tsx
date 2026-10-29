@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { Schemas } from "../api/client";
 import { useDismiss } from "../ui/useDismiss";
 import { day, meetingWhen, type Page } from "./format";
+import { capture } from "../posthog";
 
 type Update = Schemas["UpdateOut"];
 type Entry = { id: string; date: string; title: string; context: string; target: number | "meeting" | null };
@@ -118,7 +119,15 @@ export function UpdatesBell({
     onStage(target);
   };
   return (
-    <details ref={panel} className="client-notifications" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+    <details
+      ref={panel}
+      className="client-notifications"
+      open={open}
+      onToggle={(e) => {
+        if (e.currentTarget.open && !open) capture("updates_opened");
+        setOpen(e.currentTarget.open);
+      }}
+    >
       <summary
         className="b b--small"
         aria-label={unread ? t("updates.unread", { count: unread }) : t("updates.noneUnread")}

@@ -263,6 +263,18 @@ describe("the painel's first steps", () => {
     expect(within(steps).getByLabelText("0 de 3 passos concluídos")).toBeInTheDocument(); // not counted
   });
 
+  it("comes before the search while setting up, once there are projects to search (Fabio)", async () => {
+    const casa = { id: "11111111-1111-1111-1111-111111111111", name: "Casa Jardim", client_name: "Família Oliveira", slug: "casa-jardim", status: "active", project_type: "architecture", project_type_label: "Projeto Arquitetônico", stage_count: 7, completed_stage_count: 2, current_position: null, current_stage_title: null, next_meeting: null, created_at: "2026-09-01T12:00:00Z", last_activity_at: null, row_version: 4, cover_url: null, access_mode: "public", recipients: [] };
+    api(CONNECTED, {
+      "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: false, has_project: true } }),
+      "GET /api/projects": () => ({ body: [casa] }),
+    });
+    renderAt("/");
+    const steps = await screen.findByRole("region", { name: "Primeiros passos" });
+    const search = await screen.findByRole("searchbox");
+    expect(steps.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("leaves the page once the steps are done; the example project is in the account menu", async () => {
     api(NOT_CONNECTED, {
       "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: true, has_project: true } }),

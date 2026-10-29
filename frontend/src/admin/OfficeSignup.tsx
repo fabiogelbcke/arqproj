@@ -15,6 +15,7 @@ import { Button } from "../ui/Button";
 import { ErrorNotice, errorMessage } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { UnioMark } from "../ui/UnioMark";
+import { subdomainOf } from "./Actions";
 import styles from "./admin.module.css";
 
 export const SIGNUP_PATH = "/criar-escritorio";
@@ -92,16 +93,16 @@ function SignupForm({ token, domain }: { token: string; domain: string }) {
       <div className={styles.addressField}>
         <TextField
           label={t("signup.address")}
-          description={t("signup.addressHint", { domain })}
+          description={t("signup.addressHint")}
+          suffix={`.${domain}`}
           value={address}
-          onChange={setEdited}
+          onChange={(value) => setEdited(subdomainOf(value, `.${domain}`))}
           maxLength={ADDRESS_MAX}
           isRequired
           autoComplete="off"
           spellCheck="false"
         />
-        <p className={styles.addressPreview} aria-live="polite">
-          <span>{`${typedAddress(address) || "…"}.${domain}`}</span>
+        <p className={styles.addressStatus} aria-live="polite">
           {status && <span className={status.kind === "ok" ? styles.addressOk : styles.addressProblem}>{status.text}</span>}
         </p>
       </div>
