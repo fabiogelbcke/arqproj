@@ -19,6 +19,36 @@ a new entry too.
 
 ---
 
+## 2026-10-28 — A39: clients' and visitors' use of project pages, without cookies
+
+**Was:** PostHog recorded staff only. Clients and suppliers stayed personless,
+their browsers never loaded PostHog, and the privacy policy said visitors of
+project pages are not tracked. The only visitor data was `file_transfer` bytes.
+
+**Now:** the server also records what visitors do (unlocking a page, the
+meeting's calendar file, share pages, email subscriptions, update emails sent
+per office), each with an anonymous visitor id that changes every day and the
+device kind. On project pages, visitors who
+aren't signed-in staff get PostHog in cookieless mode: page views, where they
+came from, clicks without their text, and a few named actions. Still no cookies,
+no person profiles, no names or emails, no session recording. More staff
+actions are sent (stages renamed, moved or removed, publishing, covers, office
+settings, Drive connected, uploads with their size, the tour), and sign-ins say
+how (password, Google, a link, joining). The browser sends no page title and
+no project address (a project page is `/projeto` plus the project's id, Fabio's
+choice: the address is made from the project's name) and keeps only `utm_` tags
+from addresses. The privacy policy says what is measured on project pages and
+shared files.
+
+**Why:** Fabio (28 Oct 2026) wants to know whether offices use the features as
+intended, what they use most, how clients use the project page, and what drives
+costs (downloads, uploads, emails). Staff-only data answered none of the client
+questions. Asked to choose, he took both the server-side anonymous events and
+PostHog's cookieless mode in visitors' browsers now (rather than the browser
+part later), and the daily visitor hash so distinct visitors can be counted.
+Cookieless mode needs no consent banner: nothing is stored in the browser and
+no one can be followed across days.
+
 ## 2026-10-26 — A31: sections in a stage, made from the page
 
 **Was:** a stage's subfolders were shown as titled groups (one level), but only

@@ -31,6 +31,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts, links, sessions
 from backend.identity.models import LinkKind, LoginSession, Role, User
@@ -98,7 +99,8 @@ class ChoosePasswordIn(BaseModel):
 class AnalyticsOut(BaseModel):
     """Product analytics for the browser (A39), given only to signed-in staff and
     only where the server has PostHog set, so one image serves staging and
-    production with each one's own key, and visitors' browsers never load it."""
+    production with each one's own key. Visitors get their own, cookieless setup
+    from `/api/tenant` (`web.tenant.VisitorAnalyticsOut`)."""
 
     token: str  # PostHog's project token: public by design, not a secret
     host: str
@@ -272,9 +274,16 @@ async def sign_in(
 
 
 async def signed_in(
-    request: Request, response: Response, tenant: CurrentTenant, db: AsyncSession, user: User
+    request: Request,
+    response: Response,
+    tenant: CurrentTenant,
+    db: AsyncSession,
+    user: User,
+    method: str = "password",
 ) -> MeOut:
-    """Start a session for `user` (its cookie on `response`), and say who they are."""
+    """Start a session for `user` (its cookie on `response`), and say who they are.
+    `method` says how, for analytics: password, google, link (a password set from an
+    email's link) or join."""
     token, row = await sessions.start(db, user)
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
@@ -289,7 +298,7 @@ async def signed_in(
         posthog_client.group_identify(
             "tenant", str(tenant.id), properties={"slug": tenant.slug, "name": tenant.name}
         )
-        posthog_client.capture("user_signed_in")
+        posthog_client.capture("user_signed_in", properties={"method": method})
     out = me_out(
         user.email,
         user.name,
@@ -362,7 +371,7 @@ async def choose_password(
     await accounts.set_password(db, user, password_hash)
     # The link came to their inbox: that proves the address too.
     await accounts.confirm_email(db, user)
-    result = await signed_in(request, response, tenant, db, user)
+    result = await signed_in(request, response, tenant, db, user, method="link")
     posthog_client = getattr(request.app.state, "posthog", None)
     if posthog_client is not None:
         posthog_client.capture("password_set")
@@ -394,7 +403,9 @@ async def me(
 
 @router.post("/me/tour-seen", status_code=204, responses=documented(401, 403))
 async def tour_seen(
-    staff: CurrentStaff = Depends(require_csrf), db: AsyncSession = Depends(get_tenant_session)
+    request: Request,
+    staff: CurrentStaff = Depends(require_csrf),
+    db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
     """The project page's tour, finished or closed: not offered again to this account
     on any device ("Ver tour" in the staff bar replays it)."""
@@ -404,6 +415,7 @@ async def tour_seen(
         .values(tour_seen_at=func.now())
     )
     await db.commit()
+    capture(request, "page_tour_seen")
 
 
 @router.post("/password-reset", status_code=204, responses=documented(422, 429))

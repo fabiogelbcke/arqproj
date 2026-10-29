@@ -408,7 +408,8 @@ async def deliver(
     slug = await db.scalar(
         select(ProjectSlug.slug).where(ProjectSlug.project_id == project.id, ProjectSlug.is_current)
     )
-    link = f"{office.base}/{slug}"
+    # Tagged so page analytics (A39) can tell visits that came from an update email.
+    link = f"{office.base}/{slug}?utm_source=email&utm_medium=update"
     deliveries = list(
         await db.scalars(
             select(NotificationDelivery)

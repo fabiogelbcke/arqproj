@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture_visit
 from backend.db.engine import get_tenant_session
 from backend.identity.passwords import verify_password
 from backend.notifications.models import ProjectRecipient, RecipientStatus
@@ -168,6 +169,8 @@ class StaffView(BaseModel):
 
 
 class PageOut(BaseModel):
+    # The project's id: analytics names a project by it, never by its name or address (A39).
+    id: uuid.UUID
     office: OfficeOut
     locale: Locale
     timezone: str
@@ -264,6 +267,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         .limit(1)
     )
     return PageOut(
+        id=project.id,
         office=await _office(db, tenant),
         locale=locale,
         timezone=tenant.timezone,
@@ -416,8 +420,10 @@ async def unlock(
     if not right:
         attempts.failed(key, who)
         log.info("wrong page password for %s", slug)
+        capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": False})
         raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD, headers=challenge)
     attempts.succeeded(key, who)
+    capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": True})
     token = keys.sign(
         request.app.state.settings.app_secret,
         UNLOCK_PURPOSE,
@@ -501,6 +507,8 @@ async def meeting_ics(
     if meeting.link:
         lines.append(f"URL:{meeting.link}")
     lines += ["END:VEVENT", "END:VCALENDAR"]
+    if staff is None:
+        capture_visit(request, project.tenant_id, "meeting_added_to_calendar")
     return Response(
         "\r\n".join(lines) + "\r\n",
         media_type="text/calendar; charset=utf-8",

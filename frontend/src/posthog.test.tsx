@@ -12,6 +12,7 @@ const sdk = vi.hoisted(() => {
     init: vi.fn(),
     identify: vi.fn(),
     group: vi.fn(),
+    register: vi.fn(),
     capture: vi.fn(),
     reset: vi.fn(),
     opt_out_capturing: vi.fn(() => void (optedOut = true)),
@@ -27,6 +28,9 @@ const ANALYTICS = {
   user_id: "6f1c1d1e-0000-4000-8000-000000000001",
   tenant_id: "6f1c1d1e-0000-4000-8000-0000000000aa",
 };
+
+const VISITOR = { token: "phc_test", host: "https://us.i.posthog.com", tenant_id: ANALYTICS.tenant_id };
+const PROJECT_ID = "6f1c1d1e-0000-4000-8000-0000000000b1";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -44,6 +48,8 @@ describe("product analytics in the browser (A39)", () => {
         api_host: "https://us.i.posthog.com",
         disable_session_recording: true,
         mask_all_text: true,
+        capture_heatmaps: false,
+        capture_performance: false,
       }),
     );
     expect(sdk.identify).toHaveBeenCalledWith(ANALYTICS.user_id, { role: "owner" });
@@ -105,7 +111,31 @@ describe("product analytics in the browser (A39)", () => {
     expect(sdk.init).not.toHaveBeenCalled();
   });
 
-  it("never starts for a client or supplier on a project page", async () => {
+  it("counts a project page's visitor without cookies or a person, where the server has a key", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: { ...TENANT, analytics: VISITOR } }),
+      "GET /api/me": () => notSignedIn,
+      "GET /api/pages/casa-jardim": () => ({ status: 404, body: { error: "page_not_found" } }),
+    });
+    const { ClientApp } = await import("./client/ClientApp");
+    render(<ClientApp />);
+    await waitFor(() => expect(sdk.init).toHaveBeenCalled());
+    expect(sdk.init).toHaveBeenCalledWith(
+      "phc_test",
+      expect.objectContaining({
+        cookieless_mode: "always",
+        person_profiles: "never",
+        disable_session_recording: true,
+        mask_all_text: true,
+        capture_heatmaps: false, // they send the address unscrubbed
+        capture_performance: false,
+      }),
+    );
+    expect(sdk.identify).not.toHaveBeenCalled(); // nobody, only counted
+  });
+
+  it("starts nothing for a visitor where the server has no key", async () => {
     window.history.pushState({}, "", "/casa-jardim");
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
@@ -116,5 +146,60 @@ describe("product analytics in the browser (A39)", () => {
     render(<ClientApp />);
     await waitFor(() => expect(document.body.textContent).not.toBe(""));
     expect(sdk.init).not.toHaveBeenCalled();
+  });
+
+  it("staff on a project page are counted as themselves, not as a visitor", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    fakeApi({
+      "GET /api/tenant": () => ({ body: { ...TENANT, analytics: VISITOR } }),
+      "GET /api/me": () => ({ body: { ...ME, analytics: ANALYTICS } }),
+      "GET /api/pages/casa-jardim": () => ({ status: 404, body: { error: "page_not_found" } }),
+    });
+    const { ClientApp } = await import("./client/ClientApp");
+    render(<ClientApp />);
+    await waitFor(() => expect(sdk.identify).toHaveBeenCalled());
+    expect(sdk.init).toHaveBeenCalledTimes(1);
+    expect(sdk.init.mock.calls[0]![1]).not.toHaveProperty("cookieless_mode");
+  });
+
+  it("sends no project name, file name or token: the project by its id, only where a visit came from", async () => {
+    const { analyticsProject, startVisitorAnalytics } = await import("./posthog");
+    analyticsProject("casa-silva", PROJECT_ID);
+    await startVisitorAnalytics({ ...VISITOR, slug: "alinea" });
+    const scrub = sdk.init.mock.calls[0]![1].before_send;
+    const here = window.location.origin;
+    const event = scrub({
+      event: "$pageview",
+      properties: {
+        title: "Casa Silva · Alinea",
+        $current_url: `${here}/casa-silva?etapa=3&pasta=Renders&arquivo=Fachada%20Silva.jpg&utm_source=email#topo`,
+        $pathname: "/casa-silva",
+        $referrer: "https://www.google.com/search?q=casa+silva",
+        file_count: 2,
+      },
+      $set_once: { $initial_current_url: `${here}/casa-silva?arquivo=x.pdf`, $initial_pathname: "/casa-silva" },
+    });
+    expect(event.properties).toEqual({
+      $current_url: `${here}/projeto?utm_source=email`,
+      $pathname: "/projeto",
+      $referrer: "https://www.google.com/search",
+      file_count: 2,
+      project_id: PROJECT_ID,
+    });
+    expect(event.$set_once).toEqual({ $initial_current_url: `${here}/projeto`, $initial_pathname: "/projeto" });
+    expect(JSON.stringify(event)).not.toMatch(/silva|fachada|renders/i);
+  });
+
+  it("hides the project's address before its page has loaded, and from signed-in staff's events too", async () => {
+    const { analyticsProject, startAnalytics } = await import("./posthog");
+    analyticsProject("casa-silva", null); // the page hasn't answered yet
+    await startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
+    const scrub = sdk.init.mock.calls[0]![1].before_send;
+    const here = window.location.origin;
+    const event = scrub({
+      event: "$pageview",
+      properties: { title: "Casa Silva · Alinea", $current_url: `${here}/casa-silva?arquivo=Planta.pdf`, $pathname: "/casa-silva" },
+    });
+    expect(event.properties).toEqual({ $current_url: `${here}/projeto`, $pathname: "/projeto" });
   });
 });

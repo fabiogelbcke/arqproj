@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture_visit
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import is_email, tidy_email
 from backend.notifications.digest import unsubscribe_token
@@ -100,11 +101,15 @@ async def subscribe(
     office = await office_of(db, request.app.state.settings, tenant.id)
     await db.commit()
     log.info("emails: an address signed itself up for project %s", project.id)
+    if staff is None:
+        capture_visit(
+            request, tenant.id, "client_email_subscribed", {"returning": recipient is not None}
+        )
     stop = unsubscribe_token(request.app.state.settings, project.id, email)
     welcome = welcome_email(
         office,
         project.name,
-        f"{office.base}/{slug}",
+        f"{office.base}/{slug}?utm_source=email&utm_medium=welcome",
         email,
         f"{office.base}/api/emails/unsubscribe/{stop}",
     )

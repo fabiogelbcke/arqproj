@@ -1387,7 +1387,8 @@ export interface components {
          * AnalyticsOut
          * @description Product analytics for the browser (A39), given only to signed-in staff and
          *     only where the server has PostHog set, so one image serves staging and
-         *     production with each one's own key, and visitors' browsers never load it.
+         *     production with each one's own key. Visitors get their own, cookieless setup
+         *     from `/api/tenant` (`web.tenant.VisitorAnalyticsOut`).
          */
         AnalyticsOut: {
             /** Token */
@@ -1932,6 +1933,11 @@ export interface components {
         };
         /** PageOut */
         PageOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
             office: components["schemas"]["backend__web__pages__OfficeOut"];
             locale: components["schemas"]["Locale"];
             /** Timezone */
@@ -2315,11 +2321,14 @@ export interface components {
         TenantOut: {
             /** Name */
             name: string;
+            /** Slug */
+            slug: string;
             locale: components["schemas"]["Locale"];
             /** Logo Url */
             logo_url: string | null;
             /** Logo Dark Url */
             logo_dark_url: string | null;
+            analytics: components["schemas"]["VisitorAnalyticsOut"] | null;
         };
         /** TokenIn */
         TokenIn: {
@@ -2404,6 +2413,22 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VisitorAnalyticsOut
+         * @description PostHog for project pages' visitors (A39): cookieless, no person profiles.
+         *     Only where the server has PostHog set (production).
+         */
+        VisitorAnalyticsOut: {
+            /** Token */
+            token: string;
+            /** Host */
+            host: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
         };
         /**
          * WriterStatus

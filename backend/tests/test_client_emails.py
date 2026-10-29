@@ -128,9 +128,12 @@ async def test_nothing_goes_until_things_have_been_quiet(app, db_session, outbox
     assert await batches(db_session) == [("open",)]
     assert outbox.sent == []
     await make_due(db_session)
-    await run(app, outbox)
+    report = await run(app, outbox)
     assert len(outbox.sent) == 1
     assert await batches(db_session) == [("sent",)]
+    # Counted per office for analytics (each email is paid for).
+    office = await db_session.scalar(text(f"SELECT tenant_id FROM projects WHERE id = {CASA}"))
+    assert report.emails_by_tenant == {str(office): 1}
 
 
 def test_due_after_45_quiet_minutes_or_2_hours_at_most():
@@ -379,7 +382,8 @@ async def test_the_email_says_what_changed_and_links_the_page(app, db_session, o
     assert "A etapa 02 Levantamento foi atualizada: 2 arquivos enviados." in email.text
     assert "Croqui" not in email.text and "Fachada" not in email.text
     assert "Croqui" not in email.html and "<ul" not in email.html
-    assert "/casa-jardim" in email.text
+    # Tagged, so page analytics can tell visits that came from the email (A39).
+    assert "/casa-jardim?utm_source=email&utm_medium=update" in email.text
     assert email.headers["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
     assert email.headers["List-Unsubscribe"].startswith("<http")
 

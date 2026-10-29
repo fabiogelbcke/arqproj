@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { type Locale, useOfficeLocale } from "../i18n";
-import { startAnalytics } from "../posthog";
+import { analyticsProject, startAnalytics, startVisitorAnalytics } from "../posthog";
 import type { Page } from "./format";
 import { PasswordGate } from "./PasswordGate";
 import { signOut } from "./signOut";
@@ -35,7 +35,10 @@ export function ClientApp() {
 
   useEffect(() => {
     // The office (name, language) is public, so even "not found" is in its language.
-    call(api.GET("/api/tenant")).then(setOffice, () => setOffice(null));
+    analyticsProject(slug, null); // its address never reaches analytics, even before it loads
+    const tenant = call(api.GET("/api/tenant"));
+    tenant.then(setOffice, () => setOffice(null));
+    const loaded = call(api.GET("/api/pages/{slug}", { params: { path: { slug } } }));
     // Signed-in staff: their CSRF token, for publishing from the staff bar.
     call(api.GET("/api/me")).then(
       (me) => {
@@ -45,10 +48,18 @@ export function ClientApp() {
         setTourSeen(me.page_tour_seen);
         setPerson({ name: me.name, email: me.email });
       },
-      () => undefined,
+      // Anyone else (a client, a visitor): counted without cookies (A39), once the
+      // page has answered, so the first page view already carries the project's id.
+      () =>
+        Promise.all([tenant, loaded.catch(() => null)])
+          .then(([office]) => startVisitorAnalytics(office.analytics && { ...office.analytics, slug: office.slug }))
+          .catch(() => undefined),
     );
-    call(api.GET("/api/pages/{slug}", { params: { path: { slug } } })).then(
-      (page) => setState({ kind: "page", page }),
+    loaded.then(
+      (page) => {
+        analyticsProject(slug, page.id);
+        setState({ kind: "page", page });
+      },
       (error) => {
         const code = error instanceof ApiError ? error.code : null;
         const kind =
