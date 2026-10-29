@@ -34,6 +34,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture
 from backend.db.engine import get_tenant_session
 from backend.notifications.events import record
 from backend.notifications.models import EventKind
@@ -271,6 +272,7 @@ async def rename_stage(
         )
 
     await _run(db, renames, work, "rename stage", tenant, project_id)
+    capture(request, "stage_renamed")
     return Response(status_code=204)
 
 
@@ -325,6 +327,7 @@ async def move_stage(
         )
 
     await _run(db, renames, work, "move stage", tenant, project_id)
+    capture(request, "stage_moved")
     return Response(status_code=204)
 
 
@@ -371,6 +374,7 @@ async def reorder_stages(
             )
 
     await _run(db, renames, work, "reorder stages", tenant, project_id)
+    capture(request, "stages_reordered")
     return Response(status_code=204)
 
 
@@ -417,6 +421,7 @@ async def remove_stage(
             )
 
     await _run(db, renames, work, "remove stage", tenant, project_id)
+    capture(request, "stage_removed")
     return Response(status_code=204)
 
 

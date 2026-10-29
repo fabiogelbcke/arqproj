@@ -48,6 +48,7 @@ const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: 
 // "Compartilhar arquivos" (A37), loaded when it opens.
 const SharePanel = lazy(() => import("./SharePanel").then((m) => ({ default: m.SharePanel })));
 import { day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
+import { capture } from "../posthog";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -162,7 +163,10 @@ function FileCard({
           className="older-button"
           type="button"
           aria-haspopup="dialog"
-          onClick={() => setVersions(true)}
+          onClick={() => {
+            capture("file_versions_opened");
+            setVersions(true);
+          }}
         >
           {t("files.versionCount", { count: file.older.length + 1 })}
         </button>
@@ -1179,7 +1183,13 @@ export function ProjectPage({
             )}
             {!narrow && page.stages.length > 0 && (
               <div className="project-status__timeline">
-                <Timeline page={page} onJump={jump} />
+                <Timeline
+                  page={page}
+                  onJump={(n) => {
+                    capture("timeline_jumped");
+                    jump(n);
+                  }}
+                />
               </div>
             )}
             {movable.slice(0, moved)}
@@ -1211,7 +1221,14 @@ export function ProjectPage({
             narrow={narrow}
             share={
               canShare && (
-                <button type="button" className="b b--small client-share" onClick={() => setShareFrom(null)}>
+                <button
+                  type="button"
+                  className="b b--small client-share"
+                  onClick={() => {
+                    capture("share_panel_opened");
+                    setShareFrom(null);
+                  }}
+                >
                   <ShareIcon />
                   <span>{t("share.open")}</span>
                 </button>
@@ -1239,13 +1256,16 @@ export function ProjectPage({
             }
             hidden={filtering && shown[i]!.count === 0 && !unreadable(i)}
             help={openHelp === i}
-            onHelp={(open) => setOpenHelp(open ? i : null)}
+            onHelp={(open) => {
+              if (open) capture("stage_help_opened", { stage_position: i + 1 });
+              setOpenHelp(open ? i : null);
+            }}
             onShare={canShare && !canEdit ? () => setShareFrom(i) : undefined}
-            onToggle={() =>
-              filtering
-                ? setClosed((was) => toggled(was, i))
-                : setOpenStages((was) => (was.has(i) ? new Set() : new Set([i])))
-            }
+            onToggle={() => {
+              capture("stage_toggled", { stage_position: i + 1 });
+              if (filtering) setClosed((was) => toggled(was, i));
+              else setOpenStages((was) => (was.has(i) ? new Set() : new Set([i])));
+            }}
             {...filesFor(stageFiles, i + 1)}
             files={shown[i]!.files}
             total={countFiles(filesFor(stageFiles, i + 1).files)}

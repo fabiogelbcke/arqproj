@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import capture_visit
 from backend.db.engine import get_tenant_session
 from backend.notifications.digest import unsubscribing
 from backend.notifications.models import ProjectRecipient, RecipientStatus
@@ -123,6 +124,7 @@ async def confirm(
         recipient.status = RecipientStatus.UNSUBSCRIBED
         await db.commit()
     log.info("emails: an address unsubscribed from project %s", project_id)
+    capture_visit(request, tenant.id, "client_email_unsubscribed")
     done = t(tenant.locale, "unsubscribed", email=email, project=project)
     return _page(
         tenant, t(tenant.locale, "unsubscribeTitle", project=project), f"<p>{escape(done)}</p>"

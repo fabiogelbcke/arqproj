@@ -90,8 +90,10 @@ loads anything from `backend/migrations/` or `backend/commands/`.
   browser test with `npx playwright test -g "<name>"` (after `make build`).
   CI runs the full suite (backend, staff app, browser tests, image) on every
   pull request into `staging`; it takes minutes, the full local run much longer.
-- Push to the pull request and ask Codex for its review right away, while CI
-  runs (Fabio, 23 Oct 2026: waiting doubled each round); fix what either finds.
+- Push to the pull request and ask for its review right away, while CI runs
+  (Fabio, 23 Oct 2026: waiting doubled each round): Claude on GitHub
+  (`@claude review`), a local fresh reviewer or Codex, as
+  `docs/pull-requests.md` says. Fix what the review or CI finds.
   Hand the pull request to Fabio only once CI has passed: never a red one.
 - Run the full suite locally (`make test`, `make e2e`) only when there is no
   pull request to run CI on, or when asked.
@@ -135,6 +137,11 @@ committed here.
   register row, add one. Newest at the top, never edit a past entry.
 - `docs/infrastructure-cost-comparison.md` holds the hosting and provider cost
   analysis.
+- `docs/pricing-and-trials.md`, `docs/costs/` (fixed, per-office and one-off
+  costs, margin simulations), `docs/storage-strategy.md`,
+  `docs/ai-for-the-business.md` and `docs/whatsapp-updates.md` are analyses for
+  discussion (pricing and trials, what it all costs, own storage versus more
+  providers, AI across the business, WhatsApp updates), not decisions.
 - `docs/future-ideas.md` is the user-requested collection of uncommitted product
   ideas. Add possibilities there; promote agreed scope into the existing plan
   and record changed decisions in the changelog before implementing them.
@@ -146,9 +153,9 @@ committed here.
 ## Pull requests
 
 Before opening, updating or handing over a pull request, read
-`docs/pull-requests.md`: Codex review rounds and which findings to fix, the
-description's **Context** section, and screenshots for UI changes. Pull requests
-for the rewrite go into `staging`; Fabio reviews and merges.
+`docs/pull-requests.md`: who reviews, how many rounds, which findings to fix,
+the description's **Context** section, and screenshots for UI changes. Pull
+requests for the rewrite go into `staging`; Fabio reviews and merges.
 
 ### Review guidelines
 

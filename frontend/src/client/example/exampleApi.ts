@@ -47,6 +47,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
   const id = () => `exemplo-n${(counter += 1)}`;
 
   const page = (): Page => ({
+    id: "00000000-0000-4000-8000-00000000e0e0", // the example project is in no database
     office,
     locale,
     timezone: timeZone,

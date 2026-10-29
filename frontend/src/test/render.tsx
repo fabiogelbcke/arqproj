@@ -32,7 +32,7 @@ export function fakeApi(handlers: Record<string, Handler>) {
   return sent;
 }
 
-export const TENANT = { name: "Alinea", locale: "pt-BR" };
+export const TENANT = { name: "Alinea", slug: "alinea", locale: "pt-BR", analytics: null };
 export const ME = {
   email: "ana@alinea.example",
   name: "Ana",

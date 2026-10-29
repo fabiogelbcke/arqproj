@@ -1,12 +1,15 @@
-"""Aggregate transfer telemetry, without file names, URLs or visitor identities."""
+"""Aggregate transfer telemetry, without file names, URLs or visitor identities: a
+visitor's download carries only the day's anonymous visitor id (backend.analytics)."""
 
 import logging
 from contextlib import aclosing
 
+from backend.analytics import visitor_id, visitor_properties
+
 log = logging.getLogger(__name__)
 
 
-async def measured(request, project, chunks, source: str):
+async def measured(request, project, chunks, source: str, *, staff: bool = False):
     sent = 0
     complete = False
     try:
@@ -18,15 +21,15 @@ async def measured(request, project, chunks, source: str):
     finally:
         client = getattr(request.app.state, "posthog", None)
         if client is not None:
-            tenant = getattr(request.state, "tenant", None)
             try:
                 client.capture(
                     "file_transfer",
-                    distinct_id=f"tenant:{project.tenant_id}",
-                    properties={
-                        "$process_person_profile": False,
-                        "$groups": {"tenant": str(project.tenant_id)},
-                        "tenant": tenant.slug if tenant else None,
+                    distinct_id=(
+                        f"tenant:{project.tenant_id}" if staff else f"visitor:{visitor_id(request)}"
+                    ),
+                    properties=visitor_properties(request, project.tenant_id)
+                    | {
+                        "viewer": "staff" if staff else "visitor",
                         "source": source,
                         "bytes": sent,
                         "complete": complete,

@@ -5849,7 +5849,7 @@
           "tenant_id"
         ],
         "title": "AnalyticsOut",
-        "description": "Product analytics for the browser (A39), given only to signed-in staff and\nonly where the server has PostHog set, so one image serves staging and\nproduction with each one's own key, and visitors' browsers never load it."
+        "description": "Product analytics for the browser (A39), given only to signed-in staff and\nonly where the server has PostHog set, so one image serves staging and\nproduction with each one's own key. Visitors get their own, cookieless setup\nfrom `/api/tenant` (`web.tenant.VisitorAnalyticsOut`)."
       },
       "Body_add_logo_png_api_office_logo_png_put": {
         "properties": {
@@ -7624,6 +7624,11 @@
       },
       "PageOut": {
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
           "office": {
             "$ref": "#/components/schemas/backend__web__pages__OfficeOut"
           },
@@ -7748,6 +7753,7 @@
         },
         "type": "object",
         "required": [
+          "id",
           "office",
           "locale",
           "timezone",
@@ -9234,6 +9240,10 @@
             "type": "string",
             "title": "Name"
           },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
           "locale": {
             "$ref": "#/components/schemas/Locale"
           },
@@ -9258,14 +9268,26 @@
               }
             ],
             "title": "Logo Dark Url"
+          },
+          "analytics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VisitorAnalyticsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
           "name",
+          "slug",
           "locale",
           "logo_url",
-          "logo_dark_url"
+          "logo_dark_url",
+          "analytics"
         ],
         "title": "TenantOut"
       },
@@ -9525,6 +9547,31 @@
           "created_by"
         ],
         "title": "VersionOut"
+      },
+      "VisitorAnalyticsOut": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "host": {
+            "type": "string",
+            "title": "Host"
+          },
+          "tenant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "host",
+          "tenant_id"
+        ],
+        "title": "VisitorAnalyticsOut",
+        "description": "PostHog for project pages' visitors (A39): cookieless, no person profiles.\nOnly where the server has PostHog set (production)."
       },
       "WriterStatus": {
         "type": "string",
