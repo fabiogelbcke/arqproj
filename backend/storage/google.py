@@ -32,10 +32,7 @@ log = logging.getLogger(__name__)
 
 API = "https://www.googleapis.com/drive/v3"
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-FIELDS = (
-    "id,name,mimeType,size,modifiedTime,md5Checksum,headRevisionId,trashed,"
-    "shortcutDetails(targetId)"
-)
+FIELDS = "id,name,mimeType,size,modifiedTime,md5Checksum,trashed,shortcutDetails(targetId)"
 # Drive ids are letters, digits, `-` and `_`. Anything else is refused before it
 # can reach the `q` search expression.
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,200}$")
@@ -133,9 +130,6 @@ class GoogleDriveStorage:
         headers = {}
         if byte_range is not None and not item.is_native:
             first, last = byte_range
-            if item.revision:  # the version checked, even if the file is replaced meanwhile
-                url = f"{self._api}/files/{item.id}/revisions/{item.revision}"
-                params = {"alt": "media"}
             headers["Range"] = f"bytes={first}-{last}"  # Drive answers 206 with those bytes
             size = last - first + 1
         response = await self._send("GET", url, params, stream=True, headers=headers)
@@ -143,6 +137,18 @@ class GoogleDriveStorage:
             await response.aclose()
             detail = f"{url}: {response.status_code} to a range"
             raise StorageError(StorageProblem.UNAVAILABLE, detail)
+        if headers:
+            # The part is now being read; if the file was replaced since it was
+            # checked, these bytes may be the new version's under the old ETag.
+            # Asked again, it must be unchanged (a reader can't pin a revision).
+            try:
+                now = await self.get(item.id)
+            except BaseException:
+                await response.aclose()
+                raise
+            if (now.modified_at, now.checksum) != (item.modified_at, item.checksum):
+                await response.aclose()
+                raise StorageError(StorageProblem.UNAVAILABLE, f"{url}: changed during a range")
 
         async def chunks():
             try:
@@ -305,6 +311,5 @@ def _item(data: dict) -> StorageItem:
         size=int(data["size"]) if data.get("size") is not None else None,
         modified_at=datetime.fromisoformat(data["modifiedTime"].replace("Z", "+00:00")),
         checksum=data.get("md5Checksum"),
-        revision=data.get("headRevisionId"),
         shortcut_target=(data.get("shortcutDetails") or {}).get("targetId"),
     )

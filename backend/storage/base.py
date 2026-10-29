@@ -52,7 +52,6 @@ class StorageItem:
     size: int | None  # None for folders and Google-native documents
     modified_at: datetime
     checksum: str | None = None  # MD5 where the provider has one
-    revision: str | None = None  # this exact content, where the provider keeps it (Drive)
     shortcut_target: str | None = None  # the item a shortcut points to
     # What stays the same when the item is renamed or moved, where `id` doesn't
     # (local folders, whose ids are paths); None where `id` already does (Drive).

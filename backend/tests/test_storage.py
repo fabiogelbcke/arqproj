@@ -381,27 +381,25 @@ async def test_a_download_abandoned_before_reading_can_still_be_closed(drive):
 
 async def test_a_byte_range_is_asked_of_google_as_one(drive):
     storage, fake = drive
-    item = StorageItem("f1", "Planta.pdf", "application/pdf", 10, None)
-    fake.answers = [(206, b"2345")]
+    fake.answers = [(200, drive_file("f1", "Planta.pdf"))]
+    item = await storage.get("f1")
+    fake.answers = [(206, b"2345"), (200, drive_file("f1", "Planta.pdf"))]
     download = await storage.download(item, (2, 5))
     assert b"".join([c async for c in download.chunks]) == b"2345"
-    assert (download.size, fake.requests[0].headers["Range"]) == (4, "bytes=2-5")
+    assert (download.size, fake.requests[-2].headers["Range"]) == (4, "bytes=2-5")
 
 
-async def test_a_range_comes_from_the_revision_that_was_checked(drive):
-    """Replaced on Drive between the check and the download, the file's new bytes
-    never join a resumed download of the old one."""
+async def test_a_range_of_a_file_replaced_since_its_check_is_refused(drive):
+    """A reader can't pin a Drive revision: the file is asked for again once its
+    part is coming, and a new version's bytes never join a resumed download."""
     storage, fake = drive
-    fake.answers = [
-        (200, {"id": "f1", "name": "Planta.pdf", "mimeType": "application/pdf", "size": "10",
-               "modifiedTime": "2026-10-28T10:00:00Z", "headRevisionId": "rev7"}),
-        (206, b"2345"),
-    ]  # fmt: skip
+    fake.answers = [(200, drive_file("f1", "Planta.pdf"))]
     item = await storage.get("f1")
-    await storage.download(item, (2, 5))
-    asked = fake.requests[1]
-    assert asked.url.path.endswith("/files/f1/revisions/rev7")
-    assert asked.headers["Range"] == "bytes=2-5"
+    replaced = drive_file("f1", "Planta.pdf") | {"modifiedTime": "2026-10-15T12:00:05Z"}
+    fake.answers = [(206, b"2345"), (200, replaced)]
+    with pytest.raises(StorageError) as raised:
+        await storage.download(item, (2, 5))
+    assert raised.value.problem == StorageProblem.UNAVAILABLE
 
 
 async def test_a_range_google_answers_with_the_whole_file_is_refused(drive):
