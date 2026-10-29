@@ -1463,6 +1463,10 @@ export interface components {
             project_types: {
                 [key: string]: number;
             };
+            /** Features */
+            features: components["schemas"]["Feature"][];
+            /** All Features */
+            all_features: components["schemas"]["Feature"][];
             /** Team */
             team: components["schemas"]["AdminStaffOut"][];
         };
@@ -1654,7 +1658,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password";
+        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -1667,6 +1671,14 @@ export interface components {
          * @enum {string}
          */
         EventKind: "file_published" | "stage_advanced" | "stage_completed" | "stage_reopened" | "project_completed" | "meeting_scheduled" | "meeting_changed" | "meeting_cleared" | "note_changed";
+        /**
+         * Feature
+         * @description Work merged but switched on only for some offices, from the operator
+         *     dashboard (A40): staging and main deploy it switched off for everyone else.
+         *     Remove a feature from here once every office has it.
+         * @enum {string}
+         */
+        Feature: "project_members";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -1860,6 +1872,11 @@ export interface components {
         };
         /** MeOut */
         MeOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
             /** Email */
             email: string;
             /** Name */
@@ -1878,6 +1895,8 @@ export interface components {
             page_tour_seen: boolean;
             /** Email Confirmed */
             email_confirmed: boolean;
+            /** Features */
+            features: components["schemas"]["Feature"][];
             analytics?: components["schemas"]["AnalyticsOut"] | null;
         };
         /** MeetingIn */
@@ -1941,6 +1960,16 @@ export interface components {
             status: "active" | "invited" | "unconfirmed";
             /** Me */
             me: boolean;
+        };
+        /** MemberRef */
+        MemberRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** NewStageIn */
         NewStageIn: {
@@ -2060,6 +2089,11 @@ export interface components {
             last_update: string;
             /** Details */
             details: components["schemas"]["DetailOut"][];
+            /**
+             * Team
+             * @default []
+             */
+            team: string[];
             /** Stages */
             stages: components["schemas"]["StageOut"][];
             next_meeting: components["schemas"]["MeetingOut"] | null;
@@ -2091,6 +2125,8 @@ export interface components {
             password?: string | null;
             /** Recipients */
             recipients?: string[] | null;
+            /** Members */
+            members?: string[] | null;
         };
         /** ProjectCompletionIn */
         ProjectCompletionIn: {
@@ -2163,6 +2199,13 @@ export interface components {
             access_mode: components["schemas"]["AccessMode"];
             /** Recipients */
             recipients: components["schemas"]["RecipientOut"][];
+            /** Responsible */
+            responsible?: string | null;
+            /**
+             * Members
+             * @default []
+             */
+            members: components["schemas"]["MemberRef"][];
         };
         /** ProjectTypeOption */
         ProjectTypeOption: {
@@ -2421,12 +2464,13 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "owner_link" | "suspend" | "restore" | "delete";
+            action: "owner_link" | "suspend" | "restore" | "delete" | "feature_on" | "feature_off";
             /**
              * Confirmation
              * @default
              */
             confirmation: string;
+            feature?: components["schemas"]["Feature"] | null;
         };
         /** TenantActionOut */
         TenantActionOut: {

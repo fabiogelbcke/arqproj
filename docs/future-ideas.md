@@ -40,6 +40,16 @@ decision in the [decision changelog](decision-changelog.md).
   and saved searches or default views such as "my projects".
 - Keep organization separate from authorization: a default view can help someone
   focus on their work without necessarily restricting access to other projects.
+- Built 28 Oct 2026 (PR for review): the painel's "Responsável" chips. Each
+  person named in a project's "Responsável" detail gets a chip (the same name
+  however it's written: titles, accents, case). "Meus projetos" appears when the
+  signed-in person's name is among them. The choice stays in the address, like
+  the type. It filters only: everyone still sees every project.
+- Built 28 Oct 2026 in the same PR, behind a feature switched on per office
+  (A40): project members (A41). "Responsável" becomes the office's staff ticked
+  in the Projeto dialog, and the chips filter by account.
+- Still open: remembering a default view per person; whether to switch project
+  members on for every office (then the typed detail goes).
 
 ## Usage metrics
 

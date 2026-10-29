@@ -107,6 +107,49 @@ export function suggestedSlug(name: string): string {
     .replace(/-+$/, "");
 }
 
+// Words before a name that don't make it another person: "Arq. Marina" is Marina.
+const TITLES = new Set(["arq", "arqa", "arquiteta", "arquiteto", "eng", "enga", "engenheira", "engenheiro", "dr", "dra", "sr", "sra"]);
+
+/** A person's name as the painel matches it: no accents, case, titles or extra
+ *  spaces. "Arq. Marina  Carvalho" → "marina carvalho". */
+export function personKey(name: string): string {
+  return plain(name)
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((word) => word && !TITLES.has(word))
+    .join(" ");
+}
+
+/** Who works on a project, each with an id the painel's chips filter by. With
+ *  project members (A41), its members by account; otherwise the person typed in
+ *  its "Responsável" detail, by personKey. */
+export function peopleOf(project: ProjectSummary, byMembers: boolean): { id: string; label: string }[] {
+  if (byMembers) return project.members.map((member) => ({ id: member.id, label: member.name }));
+  const key = project.responsible ? personKey(project.responsible) : "";
+  return key ? [{ id: key, label: project.responsible!.trim() }] : [];
+}
+
+/** The people across the projects, once each, as first written, in alphabetical
+ *  order: the painel's chips. */
+export function responsibles(projects: ProjectSummary[], locale: string, byMembers = false): { id: string; label: string }[] {
+  const seen = new Map<string, string>();
+  for (const project of projects) {
+    for (const person of peopleOf(project, byMembers)) if (!seen.has(person.id)) seen.set(person.id, person.label);
+  }
+  return [...seen].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, locale));
+}
+
+/** Whether the signed-in person works on the project. With project members, by
+ *  account; otherwise when every word of their name is in its "Responsável"
+ *  ("Marina Carvalho" is "Arq. Marina S. Carvalho"). */
+export function isMine(project: ProjectSummary, me: { id: string; name: string }, byMembers = false): boolean {
+  if (byMembers) return project.members.some((member) => member.id === me.id);
+  const mine = personKey(me.name).split(" ").filter(Boolean);
+  if (!mine.length || !project.responsible) return false;
+  const words = new Set(personKey(project.responsible).split(" "));
+  return mine.every((word) => words.has(word));
+}
+
 export function matches(project: ProjectSummary, query: string): boolean {
   const words = plain(query).trim().split(/\s+/).filter(Boolean);
   const haystack = plain(`${project.name} ${project.client_name}`);

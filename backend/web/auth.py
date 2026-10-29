@@ -40,7 +40,7 @@ from backend.notifications.email import Email, EmailError, sender_for
 from backend.notifications.office import office_of
 from backend.notifications.password_reset import reset_email
 from backend.office.profile import display_name
-from backend.tenancy.models import Locale
+from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
 from backend.web.errors import ApiError, ErrorCode, documented
@@ -109,6 +109,7 @@ class AnalyticsOut(BaseModel):
 
 
 class MeOut(BaseModel):
+    id: uuid.UUID  # the account: "Meus projetos" (A41)
     email: str
     name: str
     role: Role
@@ -124,6 +125,8 @@ class MeOut(BaseModel):
     # False: joined through the shared link, and must confirm the email before
     # anything else (A36).
     email_confirmed: bool
+    # Switched on for the office from the operator dashboard (A40).
+    features: list[Feature]
     analytics: AnalyticsOut | None = None
 
 
@@ -231,6 +234,7 @@ def analytics_for(
 
 
 def me_out(
+    user_id: uuid.UUID,
     staff_email: str,
     name: str,
     role: Role,
@@ -241,6 +245,7 @@ def me_out(
     email_confirmed: bool = True,
 ) -> MeOut:
     return MeOut(
+        id=user_id,
         email=staff_email,
         name=name,
         role=role,
@@ -251,6 +256,7 @@ def me_out(
         csrf_token=csrf,
         page_tour_seen=tour_seen,
         email_confirmed=email_confirmed,
+        features=sorted(tenant.features),
     )
 
 
@@ -300,6 +306,7 @@ async def signed_in(
         )
         posthog_client.capture("user_signed_in", properties={"method": method})
     out = me_out(
+        user.id,
         user.email,
         user.name,
         user.role,
@@ -388,6 +395,7 @@ async def me(
     office = await display_name(db, tenant)
     seen = await db.scalar(select(User.tour_seen_at).where(User.id == staff.user_id))
     out = me_out(
+        staff.user_id,
         staff.email,
         staff.name,
         staff.role,

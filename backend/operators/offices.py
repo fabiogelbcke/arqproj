@@ -25,6 +25,7 @@ from backend.projects.models import Meeting, Project, ProjectDetail, ProjectStag
 from backend.shares.models import ShareLink
 from backend.storage.models import StorageConnection
 from backend.tenancy.models import Tenant, TenantDomain
+from backend.tenancy.resolve import known_features
 
 RECENT = timedelta(days=30)  # "emails sent" counts this long back
 
@@ -61,6 +62,7 @@ class OfficeSummary:
     usage: dict[str, int] = field(default_factory=dict)
     link_statuses: dict[str, int] = field(default_factory=dict)
     project_types: dict[str, int] = field(default_factory=dict)
+    features: list[str] = field(default_factory=list)  # switched on (A40)
     team: list[StaffMember] = field(default_factory=list)  # only for one office's page
 
 
@@ -205,6 +207,7 @@ async def summaries(
             status=str(tenant.status),
             created_at=tenant.created_at,
             hosts=hosts,
+            features=sorted(known_features(tenant.features)),
         )
         async with sessionmaker() as session:
             scope_to_tenant(session.sync_session, tenant.id)

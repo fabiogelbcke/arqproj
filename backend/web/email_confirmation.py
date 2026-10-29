@@ -95,6 +95,7 @@ async def _me_now(
     db: AsyncSession, tenant: CurrentTenant, account: CurrentStaff, user: User
 ) -> MeOut:
     return me_out(
+        user.id,
         user.email,
         user.name,
         user.role,

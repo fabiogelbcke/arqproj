@@ -1,7 +1,7 @@
 """A project's settings in the painel (A24): the "Projeto" dialog and the card's
 photo button.
 
-    PATCH  /api/projects/{id}         name, client, address, access; archive or restore
+    PATCH  /api/projects/{id}         name, client, address, access, members; archive or restore
     POST   /api/projects/{id}/publish a draft goes live (from the page's staff bar)
     PUT    /api/projects/{id}/cover   upload the cover photo
     DELETE /api/projects/{id}/cover   back to the placeholder photo
@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.analytics import capture
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import InvalidEmail, email_list
+from backend.identity.models import User
 from backend.identity.passwords import hash_password
 from backend.notifications.models import (
     RECIPIENTS_MAX,
@@ -40,11 +41,12 @@ from backend.notifications.models import (
 )
 from backend.projects.creation import CLIENT_NAME_LIMIT, NAME_MAX, project_named, valid_slug
 from backend.projects.enums import AccessMode, CoverType, ProjectStatus
-from backend.projects.models import Project, ProjectSlug
+from backend.projects.models import Project, ProjectMember, ProjectSlug
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
 from backend.storage.google_connect import ConnectError
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
+from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.drive import writer_for
@@ -59,6 +61,7 @@ COVER_MAX_BYTES = 10 * 1024 * 1024
 PAGE_PASSWORD_MIN = 6  # Fabio, 16 Oct 2026
 PAGE_PASSWORD_MAX = 25  # Fabio, 20 Oct 2026
 COVER_FOLDER = "_capa"
+MEMBERS_MAX = 100  # more than any office's team
 COVER_SIZE = 1280  # pixels on the long side, from Drive's thumbnails: enough for a card
 _EXTENSIONS = {CoverType.PNG: "png", CoverType.JPEG: "jpg", CoverType.WEBP: "webp"}
 COVER_HEADERS = {
@@ -84,6 +87,9 @@ class ProjectChange(BaseModel):
     password: str | None = Field(default=None, max_length=PAGE_PASSWORD_MAX)
     # The client's addresses for email updates, the whole list (A32).
     recipients: list[str] | None = Field(default=None, max_length=RECIPIENTS_MAX)
+    # Who works on it: the whole list of staff accounts (A41), if the office has
+    # the feature (A40).
+    members: list[uuid.UUID] | None = Field(default=None, max_length=MEMBERS_MAX)
 
 
 async def _project(db: AsyncSession, project_id: uuid.UUID, lock: bool = False) -> Project:
@@ -123,8 +129,30 @@ async def _set_recipients(db: AsyncSession, project_id: uuid.UUID, wanted: list[
     return changed
 
 
+async def _set_members(db: AsyncSession, project_id: uuid.UUID, wanted: list[uuid.UUID]) -> bool:
+    """Add the new members, remove the ones left out. Each must be one of the
+    office's accounts (another office's don't exist here). Whether anything changed."""
+    wanted = list(dict.fromkeys(wanted))
+    known = set(await db.scalars(select(User.id).where(User.id.in_(wanted)))) if wanted else set()
+    if len(known) != len(wanted):
+        raise ApiError(422, ErrorCode.UNKNOWN_MEMBER)
+    have = {
+        m.user_id: m
+        for m in await db.scalars(
+            select(ProjectMember).where(ProjectMember.project_id == project_id)
+        )
+    }
+    for user_id, member in have.items():
+        if user_id not in known:
+            await db.delete(member)
+    for user_id in wanted:
+        if user_id not in have:
+            db.add(ProjectMember(project_id=project_id, user_id=user_id))
+    return set(have) != known
+
+
 async def _summary(db: AsyncSession, tenant: CurrentTenant, project_id: uuid.UUID):
-    return (await summaries(db, tenant.locale, only=project_id))[0]
+    return (await summaries(db, tenant, only=project_id))[0]
 
 
 @router.patch("/projects/{project_id}", responses=documented(401, 404, 409, 422))
@@ -135,6 +163,8 @@ async def change_project(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
+    if body.members is not None and not tenant.has(Feature.PROJECT_MEMBERS):
+        raise ApiError(409, ErrorCode.FEATURE_OFF)
     # Locked until this save ends: a second dialog saving at the same moment
     # waits, then finds the new version and gets `project_changed`, rather than
     # colliding on the same new address.
@@ -204,7 +234,8 @@ async def change_project(
     recipients_changed = recipients is not None and await _set_recipients(
         db, project.id, recipients
     )
-    if values or new_slug or recipients_changed:
+    members_changed = body.members is not None and await _set_members(db, project.id, body.members)
+    if values or new_slug or recipients_changed or members_changed:
         # Only if nobody saved it since the screen loaded it.
         changed = await db.execute(
             update(Project)
