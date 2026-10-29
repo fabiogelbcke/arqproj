@@ -37,6 +37,7 @@ async function shoot(page: Page, name: string, theme: "light" | "dark" = "light"
     await page.screenshot({
       path: `${OUT}/${name}-${size.name}${theme === "dark" ? "-dark" : ""}.png`,
       fullPage: !dialog,
+      animations: "disabled", // a dialog or menu still fading in is shot finished, whatever the test forgot
     });
   }
 }
@@ -397,6 +398,7 @@ test("@screenshots preview page", async ({ page }) => {
 });
 
 test("@screenshots operator dashboard", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // no half-faded dialogs
   mkdirSync(OUT, { recursive: true });
   const unio = `http://localhost:${PORT}`;
   await page.goto(`${unio}/admin`);
