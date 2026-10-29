@@ -7112,7 +7112,8 @@
           "share_daily_limit",
           "share_locked",
           "wrong_share_password",
-          "proposal_not_found"
+          "proposal_not_found",
+          "proposal_accepted"
         ],
         "title": "ErrorCode"
       },

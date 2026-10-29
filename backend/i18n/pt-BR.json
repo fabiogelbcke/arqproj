@@ -17,6 +17,7 @@
     "signOut": "Sair",
     "settings": "Configurações",
     "menu": "Menu",
+    "help": "Ajuda",
     "sections": "Navegação",
     "hello": "Olá, {{name}}",
     "account": "Sua conta"
@@ -225,6 +226,7 @@
   },
   "errors": {
     "proposal_not_found": "Esta versão da proposta não existe mais. Recarregue a página.",
+    "proposal_accepted": "Esta proposta já foi aceita e não pode mais ser alterada.",
     "signin_not_configured": "O acesso com Google não está configurado neste ambiente.",
     "version_type_mismatch": "A nova versão precisa ser do mesmo tipo do arquivo atual.",
     "invalid_staff_name": "Informe o nome (até 80 caracteres).",
@@ -1199,6 +1201,7 @@
       "leadProposal": "Monte a proposta e salve: a página do projeto mostra a proposta mais recente ao cliente. Nenhum e-mail é enviado; envie o link quando quiser.",
       "openPage": "Abrir a página do projeto",
       "archived": "Este projeto está arquivado: a proposta pode ser vista, mas não alterada.",
+      "accepted": "Esta proposta foi aceita: pode ser vista, mas não alterada.",
       "to": "Para quem",
       "client": "Nome do cliente",
       "clientHint": "Aparece no início da proposta e na assinatura.",
