@@ -1006,8 +1006,6 @@
     "featuresHint": "Features already released, but switched on only for the offices chosen here. Others don't see them.",
     "featureOn": "On",
     "featureOff": "Off",
-    "turnOn": "Switch on",
-    "turnOff": "Switch off",
     "feature": {"project_members": {"name": "Project team", "about": "Tick who works on each project, filter the painel by person, and show the names to the client as responsible."}, "proposals": {"name": "Proposals", "about": "Generate the proposal PDF with the office's details, create projects as proposals (\"Nova proposta\") and show the client only the proposal until it is accepted."}},
     "signInIntro": "Sign in with an authorized Google account to see the platform's offices.",
     "signInGoogle": "Sign in with Google",

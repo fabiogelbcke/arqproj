@@ -1006,8 +1006,6 @@
     "featuresHint": "Funções já publicadas, mas ativadas só para os escritórios escolhidos aqui. Os outros não as veem.",
     "featureOn": "Ativada",
     "featureOff": "Desativada",
-    "turnOn": "Ativar",
-    "turnOff": "Desativar",
     "feature": {"project_members": {"name": "Equipe do projeto", "about": "Marcar quem trabalha em cada projeto, filtrar o painel por pessoa e mostrar os nomes ao cliente como responsáveis."}, "proposals": {"name": "Propostas", "about": "Gerar a proposta em PDF com os dados do escritório, criar projetos como proposta (\"Nova proposta\") e mostrar ao cliente só a proposta até ser aceita."}},
     "signInIntro": "Entre com uma conta Google autorizada para ver os escritórios da plataforma.",
     "signInGoogle": "Entrar com Google",

@@ -144,14 +144,19 @@ describe("the operator dashboard", () => {
     renderAt("/escritorios/alinea");
     const panel = await screen.findByRole("region", { name: "Funções em teste" });
     const row = within(panel).getByText("Equipe do projeto").closest("li")!;
+    // One switch: off, and saying so; switched on, it says so.
+    const toggle = within(row).getByRole("switch", { name: "Equipe do projeto" });
+    expect(toggle).not.toBeChecked();
     expect(row).toHaveTextContent("Desativada");
-    await userEvent.click(within(row).getByRole("button", { name: "Ativar" }));
+    await userEvent.click(toggle);
     expect(await within(row).findByText("Ativada")).toBeInTheDocument();
+    expect(within(row).getByRole("switch", { name: "Equipe do projeto" })).toBeChecked();
     const post = sent.find((r) => r.method === "POST");
     expect(post?.body).toEqual({ action: "feature_on", feature: "project_members", confirmation: "" });
     expect(post?.headers.get("X-CSRF-Token")).toBe("csrf-9");
-    await userEvent.click(within(row).getByRole("button", { name: "Desativar" }));
+    await userEvent.click(within(row).getByRole("switch", { name: "Equipe do projeto" }));
     expect(await within(row).findByText("Desativada")).toBeInTheDocument();
+    expect(sent.filter((r) => r.method === "POST").at(-1)?.body).toMatchObject({ action: "feature_off" });
   });
 
   it("signs out with the session's CSRF token", async () => {
