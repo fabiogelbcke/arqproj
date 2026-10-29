@@ -496,3 +496,62 @@ test("@screenshots project members", async ({ page }) => {
   await page.getByText("Responsáveis").filter({ visible: true }).first().waitFor();
   await shoot(page, "06u-responsaveis");
 });
+
+test("@screenshots proposals", async ({ page }) => {
+  test.setTimeout(120_000);
+  // Switched on for Alinea (A40), then a proposal from start to project (A42).
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  mkdirSync(OUT, { recursive: true });
+  await page.goto(`http://localhost:${PORT}/admin`);
+  await page.getByLabel(/E-mail autorizado/).fill(OPERATOR);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.getByRole("link", { name: "Alinea (dev)" }).click();
+  const proposals = page.getByRole("region", { name: "Funções em teste" }).getByRole("listitem").filter({ hasText: "Propostas" });
+  await proposals.locator("label").click();
+  await proposals.getByText("Ativada", { exact: true }).waitFor();
+
+  await page.goto(invite("propostas@alinea.example", "Laura Mendes"));
+  await page.getByLabel("Nova senha").fill("senha-das-capturas");
+  await page.getByLabel("Repita a senha").fill("senha-das-capturas");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await page.getByRole("region", { name: "Em andamento" }).waitFor();
+  const me = await (await page.request.get("/api/me")).json();
+  await page.request.post("/api/me/tour-seen", { headers: { "X-CSRF-Token": me.csrf_token } });
+
+  await page.getByRole("link", { name: "Propostas" }).first().click();
+  await page.getByRole("region", { name: /Ativas/ }).waitFor();
+  await shoot(page, "11-propostas-vazia");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("button", { name: "Nova proposta" }).click();
+  const dialog = page.getByRole("dialog", { name: "Nova proposta" });
+  await dialog.getByLabel("Nome do projeto").fill("Casa do Lago");
+  await dialog.getByLabel("Cliente").fill("Família Souza");
+  await dialog.getByLabel("Outra etapa (opcional)").fill("Visita técnica");
+  await dialog.getByLabel("Outra etapa (opcional)").press("Enter");
+  await shoot(page, "11b-nova-proposta");
+  await page.setViewportSize(SIZES[0]!);
+  await dialog.getByRole("button", { name: "Criar proposta" }).click();
+  await page.getByLabel(/Valor total/).waitFor();
+  await page.getByLabel(/Valor total/).pressSequentially("2900000");
+  await page.getByLabel("Número de parcelas").fill("3");
+  await page.getByRole("button", { name: "Aplicar" }).click();
+  await page.getByText("vinte e nove mil reais").first().waitFor();
+  await shoot(page, "11c-escrever-proposta");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("button", { name: "Salvar proposta" }).click();
+  await page.waitForURL(/\/casa-do-lago$/);
+  await page.getByRole("heading", { name: "Casa do Lago" }).first().waitFor();
+  await shoot(page, "11d-pagina-da-proposta");
+  await page.setViewportSize(SIZES[0]!);
+  const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
+  await bar.getByRole("button", { name: "Proposta aceita" }).click();
+  await shoot(page, "11e-aceitar-proposta");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("alertdialog").getByRole("button", { name: "Criar projeto" }).click();
+  await page.getByRole("region", { name: "Proposta" }).waitFor();
+  await shoot(page, "11f-projeto-com-proposta");
+  await page.setViewportSize(SIZES[0]!);
+  await page.goto("/painel/propostas");
+  await page.getByRole("region", { name: /Aceitas/ }).waitFor();
+  await shoot(page, "11g-propostas");
+});
