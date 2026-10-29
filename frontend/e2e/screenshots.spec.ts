@@ -456,7 +456,7 @@ test("@screenshots project members", async ({ page }) => {
   await page.getByRole("link", { name: "Alinea (dev)" }).click();
   const features = page.getByRole("region", { name: "Funções em teste" });
   const members = features.getByRole("listitem").filter({ hasText: "Equipe do projeto" });
-  await members.getByRole("button", { name: "Ativar" }).click();
+  await members.getByRole("switch", { name: "Equipe do projeto" }).click();
   await members.getByText("Ativada", { exact: true }).waitFor();
   await features.scrollIntoViewIfNeeded();
   await shoot(page, "10f-operacao-funcoes");

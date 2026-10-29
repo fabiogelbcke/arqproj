@@ -49,7 +49,7 @@ const SectionMenu = lazy(() => import("./StageUploads").then((m) => ({ default: 
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
 // "Compartilhar arquivos" (A37), loaded when it opens.
 const SharePanel = lazy(() => import("./SharePanel").then((m) => ({ default: m.SharePanel })));
-import { day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
+import { capitalized, day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 import { capture } from "../posthog";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -519,7 +519,7 @@ function StageCompletion({ page }: { page: Page }) {
  *  dot instead of tick boxes, so it reads as a set rather than a path or a
  *  checklist (Fabio, 23 Oct 2026). */
 function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const narrow = useNarrow();
   return (
     <>
@@ -551,7 +551,7 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
                     </svg>
                   )}
                 </span>
-                <b>{stage.title}</b>
+                <b>{capitalized(stage.title, i18n.language)}</b>
                 {state === "done" && <span className="sr">{t("page.stageDone")}</span>}
               </button>
             </li>

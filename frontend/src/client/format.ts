@@ -21,6 +21,12 @@ function calendarDay(value: string, locale: string): string {
 }
 
 /** Text as typed (in capitals, as the design shows facts), 1.240 m², or a date. */
+/** A name as a list shows it: its first letter capital ("visita técnica" →
+ *  "Visita técnica"); the rest as typed. */
+export function capitalized(text: string, locale: string): string {
+  return text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
+}
+
 export function detailValue(detail: Detail, locale: string): string {
   if (detail.type === "area") return `${Number(detail.value).toLocaleString(locale)} m²`;
   if (detail.type === "date") return calendarDay(String(detail.value), locale);

@@ -459,6 +459,28 @@ test("the client page lists each stage's files, with subfolders as groups", asyn
   await expect(first.getByText("Medidas do terreno.pdf")).toBeVisible();
 });
 
+test("choosing files to share, an opened stage shows all its files", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 400 }); // a short screen: the list must scroll
+  await page.goto("/casa-jardim");
+  await page.getByRole("button", { name: "Compartilhar arquivos", exact: true }).click();
+  const share = page.getByRole("dialog", { name: "Compartilhar arquivos" });
+  await share.getByText("Escolher arquivos", { exact: true }).click();
+  const toggles = share.locator(".share-stage__toggle");
+  await expect(toggles.first()).toBeVisible();
+  for (const toggle of await toggles.all()) await toggle.click();
+  // Each stage is as tall as its files: the list scrolls rather than squashing one.
+  const clipped = await share.locator(".share-stage").evaluateAll((stages) =>
+    stages.flatMap((stage) => {
+      const bottom = stage.getBoundingClientRect().bottom;
+      return [...stage.querySelectorAll(".share-file")]
+        .filter((file) => file.getBoundingClientRect().bottom > bottom + 1)
+        .map((file) => file.textContent);
+    }),
+  );
+  expect(clipped).toEqual([]);
+  expect(await share.locator(".share-file").count()).toBeGreaterThanOrEqual(4);
+});
+
 test("staff upload a file into a stage, the client sees it, and staff hide it", async ({ page, browser }) => {
   const link = invite("arquivos@alinea.example");
   await page.goto(link);
