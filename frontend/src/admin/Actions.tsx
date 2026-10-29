@@ -10,6 +10,7 @@ import { ErrorNotice } from "../ui/ErrorNotice";
 import { LinkToCopy } from "../ui/LinkToCopy";
 import { TextField } from "../ui/TextField";
 import { toast } from "../ui/Toast";
+import { ToggleSwitch } from "../ui/ToggleSwitch";
 import ui from "../ui/ui.module.css";
 import styles from "./admin.module.css";
 
@@ -193,7 +194,7 @@ function ActionDialog({ office, action, onClose }: { office: Schemas["AdminOffic
 }
 
 /** "Funções em teste" (A40): work merged but switched on only for some offices.
- *  Switching is undone the same way, so it doesn't ask first. */
+ *  One switch per feature; switching back undoes it, so it doesn't ask first. */
 export function Features({ office }: { office: Schemas["AdminOfficeOut"] }) {
   const { t } = useTranslation();
   const cache = useQueryClient();
@@ -215,10 +216,14 @@ export function Features({ office }: { office: Schemas["AdminOfficeOut"] }) {
               <b>{t(`admin.feature.${feature}.name`)}</b>
               <span className={styles.muted}>{t(`admin.feature.${feature}.about`)}</span>
             </div>
-            <span className={styles.muted}>{on ? t("admin.featureOn") : t("admin.featureOff")}</span>
-            <Button size="small" onPress={() => run.mutate({ feature, on: !on })} isDisabled={run.isPending}>
-              {on ? t("admin.turnOff") : t("admin.turnOn")}
-            </Button>
+            <ToggleSwitch
+              label={t(`admin.feature.${feature}.name`)}
+              isSelected={on}
+              isDisabled={run.isPending}
+              onChange={(next) => run.mutate({ feature, on: next })}
+            >
+              <span className={styles.muted}>{on ? t("admin.featureOn") : t("admin.featureOff")}</span>
+            </ToggleSwitch>
           </li>
         );
       })}
