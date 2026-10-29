@@ -39,9 +39,11 @@ describe("amounts as typed", () => {
 
   it("reads English amounts", () => {
     expect(parseAmount("29,000.50", "en")).toBe(2_900_050);
+    expect(parseAmount("29,000", "en")).toBe(2_900_000);
+    expect(parseAmount("1,000.000", "en")).toBeNull(); // centavos are two digits
   });
 
-  it.each(["", "abc", "R$", "12345678901"])("refuses %j", (typed) => {
+  it.each(["", "abc", "R$", "12345678901", "1.000,000", "29,0001"])("refuses %j", (typed) => {
     expect(parseAmount(typed, "pt-BR")).toBeNull();
   });
 

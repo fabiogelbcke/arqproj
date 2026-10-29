@@ -102,9 +102,10 @@ export function parseAmount(text: string, locale: string): number | null {
   const cleaned = text.replace(/[^\d,.]/g, "");
   if (!/\d/.test(cleaned)) return null;
   const at = cleaned.lastIndexOf(decimal);
-  // Two digits or fewer after the last decimal mark are centavos; the other mark groups.
-  const [whole, cents] =
-    at >= 0 && cleaned.length - at - 1 <= 2 ? [cleaned.slice(0, at), cleaned.slice(at + 1)] : [cleaned, ""];
+  // After the decimal mark come the centavos, two digits at most: "1.000,000" is
+  // refused rather than read as a million. The other mark groups thousands.
+  if (at >= 0 && cleaned.length - at - 1 > 2) return null;
+  const [whole, cents] = at >= 0 ? [cleaned.slice(0, at), cleaned.slice(at + 1)] : [cleaned, ""];
   const reais = whole.replace(/[,.]/g, "");
   if (!/^\d*$/.test(reais) || !/^\d*$/.test(cents) || reais.length > 9) return null;
   return Number(reais || "0") * 100 + Number(cents.padEnd(2, "0") || "0");
