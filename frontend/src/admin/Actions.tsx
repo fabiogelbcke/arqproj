@@ -25,6 +25,10 @@ export function slugFromHost(value: string) {
   return (hostOf(value).split(".")[0] ?? "").replace(/[^a-z0-9-]/g, "").replace(/^-+|-+$/g, "").slice(0, 63);
 }
 
+/** The office's part of its address, at most: the same as the signup page's
+ *  (Fabio, 28 Oct 2026). Short enough to type and read in a link. */
+const ADDRESS_MAX = 40;
+
 /** Where a new office is served: `{office}.myunio.app` (A21), or `{office}.localhost`
  *  on a local run. */
 export function officeDomain(host = window.location.hostname) {
@@ -85,7 +89,7 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
       ) : (
         <Form className={styles.dialogBody} onSubmit={(event) => { event.preventDefault(); create.mutate(); }}>
           <TextField label={t("admin.actions.name")} value={name} onChange={setName} isRequired autoFocus autoComplete="off" />
-          <TextField label={t("admin.actions.hostname")} description={t("admin.actions.hostnameHint")} placeholder={t("admin.actions.hostnameExample")} suffix={domain} value={subdomain} onChange={(value) => setSubdomain(subdomainOf(value, domain))} isRequired autoComplete="off" />
+          <TextField label={t("admin.actions.hostname")} description={t("admin.actions.hostnameHint")} placeholder={t("admin.actions.hostnameExample")} suffix={domain} maxLength={ADDRESS_MAX} value={subdomain} onChange={(value) => setSubdomain(subdomainOf(value, domain))} isRequired autoComplete="off" />
           <TextField label={t("admin.actions.slug")} description={t("admin.actions.slugHint")} value={slug} onChange={setEdited} isRequired autoComplete="off" />
           <ErrorNotice error={create.error} />
           <div className={styles.dialogActions}>

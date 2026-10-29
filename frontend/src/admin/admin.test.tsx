@@ -245,6 +245,8 @@ describe("creating an office", () => {
     await userEvent.type(address, "https://Horizonte.localhost"); // pasted whole: the tests run on localhost
     expect(address).toHaveValue("horizonte");
     expect(within(dialog).getByText(".localhost")).toBeInTheDocument(); // the fixed rest, beside it
+    expect(within(dialog).getByText("9/40")).toBeInTheDocument(); // the limit, as the signup page's
+    expect(address).toHaveAttribute("maxlength", "40");
     const slug = within(dialog).getByLabelText("Identificador");
     expect(slug).toHaveValue("horizonte");
     await userEvent.clear(slug);

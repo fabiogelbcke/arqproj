@@ -115,6 +115,10 @@
   flex: 1; min-width: 0; padding: 10px 14px; border: 0; outline: none; background: transparent;
   color: var(--ink); font: inherit;
 }
+.affixCounter {
+  align-self: center; padding-right: 12px; font-size: var(--text-xs); color: var(--muted);
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
 .suffix {
   display: flex; align-items: center; padding: 0 14px; border-left: 1px solid var(--line);
   background: var(--surface); color: var(--muted); white-space: nowrap;

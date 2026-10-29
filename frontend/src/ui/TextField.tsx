@@ -17,7 +17,7 @@ type Props = TextFieldProps & { label: string; description?: string; placeholder
 
 /** A labelled input with its hint and validation message; with `maxLength`, the
  *  "12/28" counter in the input's right edge (ui/TextInput's); with `suffix`, that
- *  text in its right edge, not editable. */
+ *  text in its right edge, not editable, and the counter just before it. */
 export function TextField({ label, description, placeholder, suffix, ...props }: Props) {
   return (
     <AriaTextField {...props} className={styles.field}>
@@ -25,6 +25,11 @@ export function TextField({ label, description, placeholder, suffix, ...props }:
       {suffix ? (
         <div className={styles.affixed}>
           <Input placeholder={placeholder} />
+          {props.maxLength && (
+            <span className={styles.affixCounter} aria-hidden="true">
+              {(props.value ?? "").length}/{props.maxLength}
+            </span>
+          )}
           <span className={styles.suffix}>{suffix}</span>
         </div>
       ) : props.maxLength ? (
