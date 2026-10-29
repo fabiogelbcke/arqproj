@@ -129,10 +129,10 @@ link that takes in a stage's future files.
   email. The recipient chooses their name, email and password and confirms the
   email with the existing 6-digit code before the account works. Fabio chose
   links we generate, not an open signup page.
-- Still proposed: one command creating the office, its address and its owner
-  link together; a signup page that also asks the office name clients see and a
-  contact email (prefilled with theirs); then a short setup checklist in the
-  panel: logo, connect Google Drive, invite the team.
+- Since built: the operator dashboard (A38) creates the office with its owner
+  link in one step, and new owners get "Primeiros passos" in the painel.
+- Still proposed: a signup page that also asks the office name clients see and a
+  contact email (prefilled with theirs).
 - Why this shape: the app never needs permission to create offices or
   addresses (the registry stays read-only for it, as today); it already edits
   the office profile. Trade-off: the office cannot pick its own address; we

@@ -4832,6 +4832,192 @@
         }
       }
     },
+    "/api/projects/{project_id}/stages/{position}/folders/rename": {
+      "post": {
+        "summary": "Rename Section",
+        "description": "\"Renomear seção\": its folder in Drive takes the new name.",
+        "operationId": "rename_section_api_projects__project_id__stages__position__folders_rename_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionRenameIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/stages/{position}/folders/hide": {
+      "post": {
+        "summary": "Hide Section",
+        "description": "\"Ocultar seção\": the folder stays in Drive with its files, renamed \"_name\",\nwhich the page never shows (A05), to staff or clients.",
+        "operationId": "hide_section_api_projects__project_id__stages__position__folders_hide_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionChangeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/stages/{position}/uploads/failed": {
       "post": {
         "summary": "Upload Failed",
@@ -5989,6 +6175,7 @@
           "invalid_folder_name",
           "folder_exists",
           "folder_not_found",
+          "folder_not_ours",
           "upload_failed",
           "file_not_ours",
           "file_not_ours_to_move",
@@ -7569,6 +7756,25 @@
         ],
         "title": "Role"
       },
+      "SectionChangeIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "name"
+        ],
+        "title": "SectionChangeIn"
+      },
       "SectionIn": {
         "properties": {
           "row_version": {
@@ -7587,6 +7793,31 @@
           "name"
         ],
         "title": "SectionIn"
+      },
+      "SectionRenameIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "new_name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "New Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "name",
+          "new_name"
+        ],
+        "title": "SectionRenameIn"
       },
       "ShareExpiry": {
         "type": "string",
