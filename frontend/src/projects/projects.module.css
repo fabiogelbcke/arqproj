@@ -19,7 +19,7 @@
 .newButton {
   gap: 10px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
 }
-.newFab { display: none; } /* the + is for phones */
+.newFab, .soloPlus { display: none; } /* the + is for phones */
 /* One type of project at a time; a hairline under them closes the head. */
 .typeChips { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 @media (max-width: 720px) {
@@ -53,6 +53,13 @@
     background: var(--primary, var(--ink)); color: var(--on-primary, var(--bg));
   }
   .newFab > span { font-size: 36px; font-weight: 300; line-height: 1; translate: 0 -2px; }
+  /* "Novo projeto" alone (no proposals): the button itself becomes the +. */
+  .tools .newSolo {
+    display: grid; place-items: center; width: var(--control-floating); height: var(--control-floating); min-height: 0;
+    padding: 0; gap: 0; border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
+  }
+  .soloPlus { display: block; font-size: 36px; font-weight: 300; line-height: 1; translate: 0 -2px; }
+  .soloLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 
 .group { display: grid; gap: 20px; }

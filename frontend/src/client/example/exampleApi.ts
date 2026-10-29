@@ -78,6 +78,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     staff: signedIn
       ? {
           project_id: EXAMPLE_SLUG,
+          features: [], // no proposal link on the example
           status: project.status,
           row_version: version,
           recipients: recipients.map((email) => ({ email, subscribed: true })),

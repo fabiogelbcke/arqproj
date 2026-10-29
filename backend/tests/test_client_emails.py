@@ -228,6 +228,7 @@ async def test_a_proposal_never_emails_its_client(app, client, db_session, owner
     from backend.tests.test_maintenance_scan import call
     from backend.tests.test_proposals import content
 
+    await db_session.execute(text("UPDATE tenants SET features = '{proposals}'"))
     await db_session.execute(text(f"UPDATE projects SET status = 'proposal' WHERE id = {CASA}"))
     project_id = await db_session.scalar(text(f"SELECT id FROM projects WHERE id = {CASA}"))
     saved = await client.post(

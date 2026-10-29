@@ -69,6 +69,8 @@ const LIST = [
   }),
 ];
 
+const WITH_PROPOSALS = { ...ME, features: ["proposals"] }; // switched on for the office (A40)
+
 function api(drive: object = LOCAL, extra = {}) {
   return fakeApi({
     "GET /api/tenant": () => ({ body: TENANT }),
@@ -543,6 +545,7 @@ describe("Novo projeto", () => {
 
   it("Nova proposta starts the project as a proposal and opens it to be written (A42)", async () => {
     const sent = api(LOCAL, {
+      "GET /api/me": () => ({ body: WITH_PROPOSALS }),
       "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago", status: "proposal" }) }),
     });
     const router = renderAt("/");
@@ -556,11 +559,19 @@ describe("Novo projeto", () => {
   });
 
   it("on a phone, the + offers a project or a proposal", async () => {
-    api();
+    api(LOCAL, { "GET /api/me": () => ({ body: WITH_PROPOSALS }) });
     renderAt("/");
     await userEvent.click(await screen.findByRole("button", { name: "Criar projeto ou proposta" }));
     await userEvent.click(within(await screen.findByRole("menu")).getByRole("menuitem", { name: "Nova proposta" }));
     expect(await screen.findByRole("dialog", { name: "Nova proposta" })).toBeInTheDocument();
+  });
+
+  it("without proposals switched on, offers only Novo projeto (A40)", async () => {
+    api();
+    renderAt("/");
+    expect(await screen.findByRole("button", { name: "Novo projeto" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nova proposta" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Criar projeto ou proposta" })).toBeNull();
   });
 
   it("sends the client's emails with the project, a typed one too, and stops for one that isn't an email", async () => {

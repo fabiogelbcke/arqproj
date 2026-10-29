@@ -6,6 +6,7 @@ import { Link } from "react-router";
 import { LIMITS } from "../api/limits";
 import { useConnectDrive, useDrive } from "../drive/drive";
 import { useDarkLogo, useOffice, useSaveOffice, useUploadLogo } from "../office/office";
+import { useFeature } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
@@ -26,13 +27,14 @@ export function initials(name: string): string {
 
 export function SettingsOfficePage() {
   const { t } = useTranslation();
+  const proposals = useFeature("proposals"); // what proposals print (A40, A42)
   return (
     <Panel className={styles.settingsPanel} aria-labelledby="office-title">
       <h2 id="office-title" className="sr-only">
         {t("settings.office")}
       </h2>
       <OfficeDetails />
-      <ProposalDetails />
+      {proposals && <ProposalDetails />}
     </Panel>
   );
 }

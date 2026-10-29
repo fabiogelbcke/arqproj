@@ -1854,7 +1854,7 @@ export interface components {
          *     Remove a feature from here once every office has it.
          * @enum {string}
          */
-        Feature: "project_members";
+        Feature: "project_members" | "proposals";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -2861,6 +2861,11 @@ export interface components {
              * @default []
              */
             recipients: components["schemas"]["RecipientOut"][];
+            /**
+             * Features
+             * @default []
+             */
+            features: components["schemas"]["Feature"][];
         };
         /** StageFilesOut */
         StageFilesOut: {

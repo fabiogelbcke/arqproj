@@ -38,7 +38,9 @@ function Painel() {
   });
 
   // The painel's tour, on demand only (plan section 16): from the account menu and the phone's drawer. Loaded when asked for.
-  const startTour = () => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }));
+  const proposals = me.data?.features.includes("proposals") ?? false;
+  const startTour = () =>
+    void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t, proposals }));
 
   if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
   if (me.error) return <main className={styles.centered}><ErrorNotice error={me.error} /></main>;

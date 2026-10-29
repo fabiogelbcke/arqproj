@@ -155,7 +155,7 @@ describe("a project's page while it is a proposal", () => {
   });
 
   it("lets staff change the proposal or mark it accepted, after asking", async () => {
-    const staffPage = { ...PAGE, staff: { project_id: "p-1", status: "proposal" as const, row_version: 7, recipients: [] } };
+    const staffPage = { ...PAGE, staff: { project_id: "p-1", status: "proposal" as const, row_version: 7, recipients: [], features: ["proposals" as const] } };
     let accepted = false;
     const sent = client(staffPage, {
       "GET /api/me": () => ({ body: ME }),

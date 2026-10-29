@@ -333,6 +333,8 @@ async def new_project(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
+    if body.proposal and not tenant.has(Feature.PROPOSALS):
+        raise ApiError(409, ErrorCode.FEATURE_OFF)  # "Nova proposta" is switched on per office
     maker, root = await _folders(request, db)
     new = NewProject(
         name=body.name,

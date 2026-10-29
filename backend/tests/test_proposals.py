@@ -16,7 +16,22 @@ from backend.tests import test_office
 from backend.tests.test_office import ALINEA, NORTE, PNG, sign_in_as
 from backend.tests.test_projects_api import create
 
-owner = test_office.owner  # fixtures
+office_owner = test_office.owner  # fixtures
+
+
+@pytest.fixture
+async def owner(office_owner, db_session):
+    """Alinea's owner, with proposals switched on for the office (A40)."""
+    await switch_on(db_session)
+    return office_owner
+
+
+async def switch_on(db, slug="alinea"):
+    await db.execute(
+        text("UPDATE tenants SET features = features || '{proposals}' WHERE slug = :s"),
+        {"s": slug},
+    )
+
 
 pytestmark = pytest.mark.anyio
 
@@ -334,10 +349,44 @@ async def test_another_offices_staff_never_reach_a_proposal(client, db_session, 
     norte = await sign_in_as(
         client, db_session, "dona@norte.example", Role.OWNER, host=NORTE, slug="norte"
     )
+    await switch_on(db_session, "norte")  # refused for its isolation, not its switch
     for path in ("proposal", "proposals/1/pdf"):
         response = await client.get(f"/api/projects/{found['id']}/{path}", headers=norte)
         assert response.status_code == 404, path
     assert (await save(client, norte, found["id"])).status_code == 404
+
+
+async def test_an_office_without_the_feature_makes_no_proposals(client, db_session, office_owner):
+    """Off by default (A40): creation refuses "Nova proposta", the generator and
+    the office's presets answer `feature_off`; the client page still shows what
+    was made while it was on."""
+    refused = await create(client, office_owner, proposal=True)
+    assert (refused.status_code, refused.json()["error"]) == (409, "feature_off")
+    found = await casa_jardim(client)
+    for method, path, body in (
+        ("GET", f"/api/projects/{found['id']}/proposal", None),
+        ("POST", f"/api/projects/{found['id']}/proposals", content()),
+        ("POST", f"/api/projects/{found['id']}/accept-proposal", {"row_version": 1}),
+        ("PUT", "/api/proposal-presets", {"services": []}),
+        ("PATCH", "/api/proposal-defaults", {"intro": "Olá."}),
+    ):
+        answer = await client.request(method, path, json=body, headers=office_owner)
+        assert (answer.status_code, answer.json()["error"]) == (409, "feature_off"), path
+
+    await switch_on(db_session)
+    assert (await save(client, office_owner, found["id"])).status_code == 201
+    await db_session.execute(text("UPDATE tenants SET features = '{}'"))
+    page = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()
+    assert page["proposal_url"]  # a link already sent keeps working
+
+
+async def test_the_staff_bar_knows_whether_proposals_are_on(client, db_session, office_owner):
+    await casa_jardim(client)
+    page = (await client.get("/api/pages/casa-jardim", headers=office_owner)).json()
+    assert page["staff"]["features"] == []
+    await switch_on(db_session)
+    page = (await client.get("/api/pages/casa-jardim", headers=office_owner)).json()
+    assert page["staff"]["features"] == ["proposals"]
 
 
 async def test_a_missing_version_says_so(client, owner):
@@ -437,6 +486,7 @@ async def test_an_offices_presets_and_defaults_are_its_own(client, db_session, o
     norte = await sign_in_as(
         client, db_session, "dona@norte.example", Role.OWNER, host=NORTE, slug="norte"
     )
+    await switch_on(db_session, "norte")  # refused for its isolation, not its switch
     norte_project = (await client.get("/api/projects", headers=NORTE)).json()[0]
     start = (
         await client.get(f"/api/projects/{norte_project['id']}/proposal", headers=norte)

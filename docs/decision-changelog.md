@@ -19,6 +19,20 @@ a new entry too.
 
 ---
 
+## 2026-10-28 — A42, A40: proposals behind a feature switched on per office
+
+**Was:** proposals (A42) were planned for every office once merged.
+
+**Now:** they are the `proposals` feature (A40), off until the operator
+dashboard switches it on for an office. Without it the painel shows no "Nova
+proposta", no "Proposta" in a card's menu or the staff bar and no "Dados para
+propostas", and the proposal API answers `feature_off`. Client pages keep showing
+proposals made while it was on, so a link already sent to a client still works.
+
+**Why:** Fabio, 28 Oct 2026, once the feature switches merged: proposals should
+reach staging and main without every office getting them, so his partners can
+try them first.
+
 ## 2026-10-28 — A42: owners may update the office's details from a proposal
 
 **Was:** saving a proposal only filled in the office details the office lacked;

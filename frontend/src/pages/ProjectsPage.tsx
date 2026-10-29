@@ -23,7 +23,7 @@ import {
   type Sort,
 } from "../projects/projects";
 import styles from "../projects/projects.module.css";
-import { useMe } from "../session/session";
+import { useFeature, useMe } from "../session/session";
 import { Button } from "../ui/Button";
 import { ChipGroup } from "../ui/ChipGroup";
 import { ErrorNotice } from "../ui/ErrorNotice";
@@ -97,6 +97,7 @@ function Group({
  *  to make one. The page's tools wait until there is something to search. */
 function NoProjectsYet() {
   const { t } = useTranslation();
+  const proposals = useFeature("proposals");
   return (
     <section className={styles.emptyState} aria-labelledby="projects-empty">
       <GhostCards />
@@ -105,12 +106,14 @@ function NoProjectsYet() {
         <p>{t("projects.emptyBody")}</p>
         <div className={styles.emptyActions}>
           <NewProjectButton kind="project" label={t("projects.new")} className={styles.emptyAction} />
-          <NewProjectButton
-            kind="proposal"
-            label={t("projects.newProposal")}
-            variant="secondary"
-            className={styles.emptyAction}
-          />
+          {proposals && (
+            <NewProjectButton
+              kind="proposal"
+              label={t("projects.newProposal")}
+              variant="secondary"
+              className={styles.emptyAction}
+            />
+          )}
         </div>
       </div>
     </section>

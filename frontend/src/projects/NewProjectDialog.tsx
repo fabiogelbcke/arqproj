@@ -1,12 +1,21 @@
 import { useState } from "react";
-import { Checkbox, CheckboxGroup, DialogTrigger, Form, Label, Radio, RadioGroup, Text } from "react-aria-components";
+import {
+  Checkbox,
+  CheckboxGroup,
+  DialogTrigger,
+  Form,
+  Label,
+  Radio,
+  RadioGroup,
+  Text,
+} from "react-aria-components";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 
 import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { useConnectDrive, useDrive } from "../drive/drive";
-import { useMe } from "../session/session";
+import { useFeature, useMe } from "../session/session";
 import { Button } from "../ui/Button";
 import { ActionMenu } from "../ui/ActionMenu";
 import { DialogFrame } from "../ui/DialogFrame";
@@ -256,32 +265,51 @@ export function NewProjectButton({
 }
 
 /** The toolbar's "Nova proposta" and "Novo projeto"; on phones, the floating +
- *  with a menu of the two. */
+ *  with a menu of the two. Without proposals (a feature, A40) only "Novo
+ *  projeto", and the + opens it straight away. */
 export function NewProjectButtons() {
   const { t } = useTranslation();
+  const proposals = useFeature("proposals");
   const [open, setOpen] = useState<NewKind | null>(null);
   return (
     <div className={styles.newButtons} data-tour="new-project">
-      <NewProjectButton
-        kind="proposal"
-        label={t("projects.newProposal")}
-        variant="secondary"
-        size="small"
-        className={styles.newButton}
-      />
-      <NewProjectButton kind="project" label={t("projects.new")} size="small" className={styles.newButton} />
-      <ActionMenu
-        label={t("projects.newMenu")}
-        className={styles.newFab}
-        placement="top end"
-        items={[
-          { id: "project", label: t("projects.new") },
-          { id: "proposal", label: t("projects.newProposal") },
-        ]}
-        onAction={(id) => setOpen(id as NewKind)}
-      >
-        <span aria-hidden="true">+</span>
-      </ActionMenu>
+      {proposals && (
+        <NewProjectButton
+          kind="proposal"
+          label={t("projects.newProposal")}
+          variant="secondary"
+          size="small"
+          className={styles.newButton}
+        />
+      )}
+      {proposals ? (
+        <NewProjectButton kind="project" label={t("projects.new")} size="small" className={styles.newButton} />
+      ) : (
+        // Alone, it becomes the round + on phones.
+        <DialogTrigger>
+          <Button variant="primary" size="small" className={`${styles.newButton} ${styles.newSolo}`}>
+            <span aria-hidden="true" className={styles.soloPlus}>
+              +
+            </span>
+            <span className={styles.soloLabel}>{t("projects.new")}</span>
+          </Button>
+          <NewProjectDialog kind="project" />
+        </DialogTrigger>
+      )}
+      {proposals && (
+        <ActionMenu
+          label={t("projects.newMenu")}
+          className={styles.newFab}
+          placement="top end"
+          items={[
+            { id: "project", label: t("projects.new") },
+            { id: "proposal", label: t("projects.newProposal") },
+          ]}
+          onAction={(id) => setOpen(id as NewKind)}
+        >
+          <span aria-hidden="true">+</span>
+        </ActionMenu>
+      )}
       {open && <NewProjectDialog kind={open} onClose={() => setOpen(null)} />}
     </div>
   );

@@ -173,6 +173,8 @@ class StaffView(BaseModel):
     row_version: int
     # Who gets the project's updates (A32): edit mode says when nobody does.
     recipients: list[RecipientOut] = []
+    # The office's switched-on features (A40): the bar's "Proposta" needs `proposals`.
+    features: list[Feature] = []
 
 
 class PageOut(BaseModel):
@@ -432,6 +434,7 @@ async def page(
     shown = await _page(db, tenant, project, slug)
     if staff is not None:
         shown.staff = StaffView(
+            features=sorted(tenant.features),
             project_id=project.id,
             status=project.status,
             row_version=project.row_version,

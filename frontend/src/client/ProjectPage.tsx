@@ -903,8 +903,8 @@ function StaffBar({
       >
         <Icon name="link" />
       </button>
-      {/* The proposal generator (A42), in the painel. */}
-      {!archived && (
+      {/* The proposal generator (A42), in the painel, where switched on (A40). */}
+      {!archived && staff.features?.includes("proposals") && (
         <a className="b b--small hide-sm" href={`/painel/projetos/${staff.project_id}/proposta`}>
           {t("proposal.page.link")}
         </a>

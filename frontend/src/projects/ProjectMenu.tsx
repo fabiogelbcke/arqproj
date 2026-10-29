@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 
 import { ApiError, api, call } from "../api/client";
+import { useFeature } from "../session/session";
 import { ActionMenu, type MenuAction } from "../ui/ActionMenu";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
@@ -29,6 +30,7 @@ import styles from "./projects.module.css";
  *  "Desfazer". */
 export function ProjectMenu({ project }: { project: ProjectSummary }) {
   const { t } = useTranslation();
+  const proposals = useFeature("proposals");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const upload = useUploadCover();
@@ -94,7 +96,7 @@ export function ProjectMenu({ project }: { project: ProjectSummary }) {
     ...(project.cover_url ? [{ id: "removePhoto", label: t("projectSettings.removePhoto") }] : []),
     { id: "settings", label: t("projectSettings.openSettings") },
     // The proposal generator (A42): a new one, or the latest to change.
-    { id: "proposal", label: t("projectSettings.proposal") },
+    ...(proposals ? [{ id: "proposal", label: t("projectSettings.proposal") }] : []),
     { id: "archive", label: t("projectSettings.archiveProject"), danger: true },
   ];
   return (

@@ -8,7 +8,9 @@
     PUT   /api/proposal-presets                the office's services, the whole list
     PATCH /api/proposal-defaults               the office's opening and observations
 
-Anyone signed in may use them (A42: every staff member for now). Saving a proposal
+Anyone signed in may use them (A42: every staff member for now), in an office
+with the `proposals` feature switched on (A40); elsewhere they answer
+`feature_off`. Client pages still show proposals already made. Saving a proposal
 also fills in the office's address, city, phone, WhatsApp, email and signing
 architect where the office has none yet, so they are asked for once. An owner may
 also replace the ones already set, when asked on saving (`update_office`).
@@ -51,14 +53,22 @@ from backend.proposals.pdf import date_line, fill, render, texts
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
 from backend.storage.models import StorageConnection
-from backend.tenancy.models import Locale
+from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.projects import ProjectSummary, summaries
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix="/api")
+
+
+def _switched_on(tenant: CurrentTenant = Depends(current_tenant)) -> None:
+    """Proposals are a feature switched on per office (A40, A42)."""
+    if not tenant.has(Feature.PROPOSALS):
+        raise ApiError(409, ErrorCode.FEATURE_OFF)
+
+
+router = APIRouter(prefix="/api", dependencies=[Depends(_switched_on)])
 
 PDF_HEADERS = {
     "X-Content-Type-Options": "nosniff",
