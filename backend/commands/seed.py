@@ -84,6 +84,7 @@ PROJECTS = {
                 DetailKey.LOCATION: "Rio de Janeiro — RJ",
                 DetailKey.BUILT_AREA: Decimal("148.5"),
                 DetailKey.EXPECTED_DELIVERY: date(2026, 12, 18),
+                DetailKey.RESPONSIBLE: "Arq. Pedro Lima",
             },
             "custom_stage": ("Aprovação no condomínio", "Envio do projeto à administração."),
             "folder": "Apartamento Higienópolis",

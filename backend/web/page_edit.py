@@ -41,7 +41,7 @@ from backend.projects.models import (
     ProjectStage,
     ProjectTypeDef,
 )
-from backend.tenancy.models import Locale
+from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
@@ -60,17 +60,24 @@ class DetailTypeOut(BaseModel):
     type: DetailType
 
 
+def _not_offered(tenant: CurrentTenant) -> list[DetailKey]:
+    """Not "Cliente": the client's name comes from creation and heads the details
+    anyway (Fabio, 22 Oct 2026). Not "Responsável" where the project's members
+    are named instead (A41)."""
+    if tenant.has(Feature.PROJECT_MEMBERS):
+        return [DetailKey.CLIENT, DetailKey.RESPONSIBLE]
+    return [DetailKey.CLIENT]
+
+
 @router.get("/detail-types", responses=documented(401))
 async def detail_types(
     _staff: CurrentStaff = Depends(current_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> list[DetailTypeOut]:
-    # Not "Cliente": the client's name comes from creation and heads the details
-    # anyway (Fabio, 22 Oct 2026).
     rows = await db.scalars(
         select(DetailTypeDef)
-        .where(DetailTypeDef.key != DetailKey.CLIENT)
+        .where(DetailTypeDef.key.not_in(_not_offered(tenant)))
         .order_by(DetailTypeDef.position)
     )
     return [
@@ -147,6 +154,7 @@ async def change_content(
     project_id: uuid.UUID,
     body: ContentIn,
     _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     values = {}
@@ -162,7 +170,7 @@ async def change_content(
             (
                 await db.execute(
                     select(DetailTypeDef.key, DetailTypeDef.value_type).where(
-                        DetailTypeDef.key != DetailKey.CLIENT  # offered no more, see above
+                        DetailTypeDef.key.not_in(_not_offered(tenant))
                     )
                 )
             ).all()

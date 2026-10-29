@@ -191,3 +191,38 @@ function ActionDialog({ office, action, onClose }: { office: Schemas["AdminOffic
     </DialogFrame>
   );
 }
+
+/** "Funções em teste" (A40): work merged but switched on only for some offices.
+ *  Switching is undone the same way, so it doesn't ask first. */
+export function Features({ office }: { office: Schemas["AdminOfficeOut"] }) {
+  const { t } = useTranslation();
+  const cache = useQueryClient();
+  const run = useMutation({
+    mutationFn: ({ feature, on }: { feature: Schemas["Feature"]; on: boolean }) =>
+      call(api.POST("/api/admin/offices/{slug}/actions", { params: { path: { slug: office.slug } }, body: { action: on ? "feature_on" : "feature_off", feature, confirmation: "" } })),
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["admin"] });
+      toast(t("admin.actions.done"));
+    },
+  });
+  return <>
+    <ul className={styles.features}>
+      {office.all_features.map((feature) => {
+        const on = office.features.includes(feature);
+        return (
+          <li key={feature}>
+            <div>
+              <b>{t(`admin.feature.${feature}.name`)}</b>
+              <span className={styles.muted}>{t(`admin.feature.${feature}.about`)}</span>
+            </div>
+            <span className={styles.muted}>{on ? t("admin.featureOn") : t("admin.featureOff")}</span>
+            <Button size="small" onPress={() => run.mutate({ feature, on: !on })} isDisabled={run.isPending}>
+              {on ? t("admin.turnOff") : t("admin.turnOn")}
+            </Button>
+          </li>
+        );
+      })}
+    </ul>
+    <ErrorNotice error={run.error} />
+  </>;
+}

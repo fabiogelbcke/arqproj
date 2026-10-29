@@ -15,7 +15,7 @@ import { Toaster } from "../ui/Toast";
 import { UnioMark } from "../ui/UnioMark";
 import { officeErrorsUrl, SUPPORT_CODE, supportCodeUrl, type LogsTarget } from "./logs";
 import styles from "./admin.module.css";
-import { CreateTenant, SignupLink, TenantActions } from "./Actions";
+import { CreateTenant, Features, SignupLink, TenantActions } from "./Actions";
 import { AnalyticsLink, FileStatistics, Usage } from "./Usage";
 
 type Operator = Schemas["OperatorOut"];
@@ -360,6 +360,11 @@ function OfficePage() {
             </tbody>
           </table>
         </div>
+      </Panel>
+      <Panel aria-labelledby="features">
+        <h2 id="features">{t("admin.features")}</h2>
+        <p className={styles.muted}>{t("admin.featuresHint")}</p>
+        <Features office={o} />
       </Panel>
       <Usage key={o.slug} office={o} />
       <FileStatistics key={`files-${o.slug}`} office={o} />

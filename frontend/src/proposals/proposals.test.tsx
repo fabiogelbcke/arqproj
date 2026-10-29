@@ -99,6 +99,7 @@ const PAGE: Page = {
   in_proposal: true,
   proposal: PROPOSAL,
   proposal_url: PROPOSAL.pdf_url,
+  team: [],
 };
 
 function client(page: Page, extra: Record<string, (body: unknown) => { status?: number; body?: unknown }> = {}) {

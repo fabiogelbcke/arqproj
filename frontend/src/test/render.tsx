@@ -34,6 +34,7 @@ export function fakeApi(handlers: Record<string, Handler>) {
 
 export const TENANT = { name: "Alinea", slug: "alinea", locale: "pt-BR", analytics: null };
 export const ME = {
+  id: "00000000-0000-0000-0000-0000000000a1",
   email: "ana@alinea.example",
   name: "Ana",
   role: "owner",
@@ -43,6 +44,7 @@ export const ME = {
   tenant_timezone: "America/Sao_Paulo",
   csrf_token: "csrf-123",
   email_confirmed: true,
+  features: [] as string[],
 };
 export const notSignedIn: Reply = { status: 401, body: { error: "not_signed_in" } };
 

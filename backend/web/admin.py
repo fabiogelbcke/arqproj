@@ -45,7 +45,7 @@ from backend.storage.base import StorageError
 from backend.storage.google_connect import ConnectError
 from backend.storage.models import StorageConnection, StorageKind
 from backend.tenancy.middleware import OPERATOR_PAGE
-from backend.tenancy.models import Tenant, TenantDomain, TenantStatus
+from backend.tenancy.models import Feature, Tenant, TenantDomain, TenantStatus
 from backend.tenancy.resolve import current_tenant, normalize_host
 from backend.web import attempts, google_signin, pages
 from backend.web.auth import optional_staff
@@ -137,13 +137,19 @@ class AdminOfficeOut(BaseModel):
     usage: dict[str, int]
     link_statuses: dict[str, int]
     project_types: dict[str, int]
+    # Switched on for this office (A40); `all_features` lists what can be.
+    features: list[Feature]
+    all_features: list[Feature]
     team: list[AdminStaffOut]
 
 
 def _office(summary: offices.OfficeSummary) -> AdminOfficeOut:
     data = {k: v for k, v in vars(summary).items() if k not in ("id", "team")}
     return AdminOfficeOut(
-        **data, id=str(summary.id), team=[AdminStaffOut(**vars(m)) for m in summary.team]
+        **data,
+        id=str(summary.id),
+        all_features=list(Feature),
+        team=[AdminStaffOut(**vars(m)) for m in summary.team],
     )
 
 
@@ -400,8 +406,10 @@ class CreateTenantIn(BaseModel):
 
 
 class TenantActionIn(BaseModel):
-    action: Literal["owner_link", "suspend", "restore", "delete"]
+    action: Literal["owner_link", "suspend", "restore", "delete", "feature_on", "feature_off"]
     confirmation: str = ""
+    # For "feature_on" and "feature_off" (A40).
+    feature: Feature | None = None
 
 
 class TenantActionOut(BaseModel):
@@ -475,11 +483,16 @@ async def tenant_action(
                 url = await actions.owner_link(db, tenant, _settings(request).local_site_port)
             elif body.action == "delete":
                 await actions.delete_tenant(db, tenant, body.confirmation)
+            elif body.action in ("feature_on", "feature_off"):
+                if body.feature is None:
+                    raise ApiError(409, ErrorCode.OPERATOR_ACTION_CONFLICT)
+                actions.switch_feature(tenant, body.feature, on=body.action == "feature_on")
             else:
                 tenant.status = (
                     TenantStatus.SUSPENDED if body.action == "suspend" else TenantStatus.ACTIVE
                 )
-            actions.audit(db, operator["email"], body.action, tenant, current_request_id())
+            done = f"{body.action}:{body.feature}" if body.feature else body.action
+            actions.audit(db, operator["email"], done, tenant, current_request_id())
             await db.commit()
             return TenantActionOut(owner_url=url)
     except SQLAlchemyError as error:

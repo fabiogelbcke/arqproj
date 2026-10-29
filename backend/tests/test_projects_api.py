@@ -341,6 +341,12 @@ async def test_the_list_has_what_the_cards_show(client, owner):
     assert casa["next_meeting"]["title"] == "Apresentação do layout"  # the past one is skipped
     apartment = listed["apartamento-atlantico"]
     assert apartment["stage_count"] == 8  # interiors' seven + the office's own
+    # The painel filters by who's responsible: the detail as typed, or none.
+    assert (casa["responsible"], apartment["responsible"]) == (
+        "Arq. Marina Carvalho",
+        "Arq. Pedro Lima",
+    )
+    assert listed["casa-das-oliveiras"]["responsible"] is None
 
 
 async def test_the_next_meeting_is_the_soonest_upcoming_one(client, db_session, owner):

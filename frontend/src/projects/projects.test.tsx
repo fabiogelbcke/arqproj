@@ -6,8 +6,11 @@ import { fakeApi, ME, renderAt, TENANT } from "../test/render";
 import {
   compareProjects,
   coverIndex,
+  isMine,
   loadSort,
   matches,
+  personKey,
+  responsibles,
   saveSort,
   suggestedSlug,
   type ProjectSummary,
@@ -48,6 +51,7 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
     row_version: 1,
     cover_url: null,
     access_mode: "public",
+    members: [],
     ...changes,
   };
 }
@@ -135,6 +139,111 @@ describe("the project list", () => {
     expect(screen.getByText("Nenhum projeto encontrado para “jardim”.")).toBeInTheDocument();
     await userEvent.click(within(chips).getByRole("radio", { name: "Todos" }));
     expect(screen.getAllByTestId("project-card")).toHaveLength(1);
+  });
+
+  // ME is "Ana": the first two are hers (one person, written two ways), Bruno's is not.
+  const PEOPLE = [
+    project({ id: "11", name: "Casa Ana", slug: "casa-ana", responsible: "Arq. Ana Souza" }),
+    project({ id: "12", name: "Loja Ana", slug: "loja-ana", responsible: "ana  souza" }),
+    project({ id: "13", name: "Casa Bruno", slug: "casa-bruno", responsible: "Eng. Bruno Lima" }),
+    project({ id: "14", name: "Sem responsável", slug: "sem", responsible: null }),
+  ];
+  const titles = () => screen.getAllByTestId("project-card").map((card) => within(card).getByRole("heading").textContent);
+
+  it("filters by who's responsible, with \"Meus projetos\" for the signed-in person", async () => {
+    api(LOCAL, { "GET /api/projects": () => ({ body: PEOPLE }) });
+    const router = renderAt("/");
+    const chips = await screen.findByRole("radiogroup", { name: "Responsável" });
+    // One chip per person however it's written, alphabetically, after "Meus projetos".
+    expect(within(chips).getAllByRole("radio").map((chip) => chip.textContent)).toEqual([
+      "Toda a equipe",
+      "Meus projetos",
+      "Arq. Ana Souza",
+      "Eng. Bruno Lima",
+    ]);
+    await userEvent.click(within(chips).getByRole("radio", { name: "Meus projetos" }));
+    expect(titles().sort()).toEqual(["Casa Ana", "Loja Ana"]);
+    expect(new URLSearchParams(router.state.location.search).get("resp")).toBe("meus");
+    await userEvent.click(within(chips).getByRole("radio", { name: "Eng. Bruno Lima" }));
+    expect(titles()).toEqual(["Casa Bruno"]);
+    await userEvent.click(within(chips).getByRole("radio", { name: "Toda a equipe" }));
+    expect(titles()).toHaveLength(4);
+    expect(router.state.location.search).toBe("");
+  });
+
+  it("starts from the person in the address", async () => {
+    api(LOCAL, { "GET /api/projects": () => ({ body: PEOPLE }) });
+    renderAt("/?resp=bruno%20lima");
+    expect(within(await screen.findByRole("radiogroup", { name: "Responsável" })).getByRole("radio", { name: "Eng. Bruno Lima" })).toBeChecked();
+    expect(titles()).toEqual(["Casa Bruno"]);
+  });
+
+  it("offers no responsible chips when the projects name one person or none", async () => {
+    api(LOCAL, { "GET /api/projects": () => ({ body: PEOPLE.slice(0, 2) }) });
+    renderAt("/");
+    await screen.findAllByTestId("project-card");
+    expect(screen.queryByRole("radiogroup", { name: "Responsável" })).toBeNull();
+  });
+
+  it("drops a person from the address when the chips aren't there to undo it", async () => {
+    // Only Ana is named now (Bruno's project archived): no chips, so no filter either.
+    api(LOCAL, { "GET /api/projects": () => ({ body: [...PEOPLE.slice(0, 2), PEOPLE[3]!] }) });
+    renderAt("/?resp=ana%20souza");
+    await screen.findAllByTestId("project-card");
+    expect(screen.queryByRole("radiogroup", { name: "Responsável" })).toBeNull();
+    expect(titles()).toHaveLength(3); // the unassigned one too
+  });
+
+  it("matches people by name, ignoring titles, accents, case and spacing", () => {
+    expect(personKey("Arq.  Conceição  Lima")).toBe("conceicao lima");
+    const by = (responsible: string | null) => project({ responsible });
+    expect(isMine(by("Arqa. Conceição S. Lima"), { id: "x", name: "conceicao lima" })).toBe(true);
+    expect(isMine(by("Ana Souza"), { id: "x", name: "Bruno" })).toBe(false);
+    expect(isMine(by(null), { id: "x", name: "Ana" })).toBe(false);
+    expect(isMine(by("Ana Souza"), { id: "x", name: "" })).toBe(false); // no name: nothing is "mine"
+    expect(responsibles(PEOPLE, "pt-BR")).toEqual([
+      { id: "ana souza", label: "Arq. Ana Souza" },
+      { id: "bruno lima", label: "Eng. Bruno Lima" },
+    ]);
+  });
+
+  describe("with project members (A41)", () => {
+    const ana = { id: ME.id, name: "Ana Souza" };
+    const bruno = { id: "00000000-0000-0000-0000-0000000000b2", name: "Bruno Lima" };
+    // Another Ana, a different account: her projects aren't "mine".
+    const otherAna = { id: "00000000-0000-0000-0000-0000000000c3", name: "Ana" };
+    const TEAM = [
+      project({ id: "21", name: "Casa Ana", slug: "casa-ana", members: [ana, bruno], responsible: "Eng. Bruno Lima" }),
+      project({ id: "22", name: "Loja Bruno", slug: "loja-bruno", members: [bruno] }),
+      project({ id: "23", name: "Casa da outra Ana", slug: "outra", members: [otherAna] }),
+      project({ id: "24", name: "Sem equipe", slug: "sem" }),
+    ];
+    const on = { ...ME, features: ["project_members"] };
+
+    it("filters by account, not by the typed Responsável", async () => {
+      api(LOCAL, { "GET /api/me": () => ({ body: on }), "GET /api/projects": () => ({ body: TEAM }) });
+      renderAt("/");
+      const chips = await screen.findByRole("radiogroup", { name: "Responsável" });
+      expect(within(chips).getAllByRole("radio").map((chip) => chip.textContent)).toEqual([
+        "Toda a equipe",
+        "Meus projetos",
+        "Ana",
+        "Ana Souza",
+        "Bruno Lima",
+      ]);
+      await userEvent.click(within(chips).getByRole("radio", { name: "Meus projetos" }));
+      expect(titles()).toEqual(["Casa Ana"]);
+      await userEvent.click(within(chips).getByRole("radio", { name: "Bruno Lima" }));
+      expect(titles().sort()).toEqual(["Casa Ana", "Loja Bruno"]);
+    });
+
+    it("leaves members out while the office doesn't have the feature", async () => {
+      api(LOCAL, { "GET /api/projects": () => ({ body: TEAM }) });
+      renderAt("/");
+      await screen.findAllByTestId("project-card");
+      // Only the typed "Eng. Bruno Lima": one person, so no chips.
+      expect(screen.queryByRole("radiogroup", { name: "Responsável" })).toBeNull();
+    });
   });
 
   it("names a type without a short name by its full name", async () => {

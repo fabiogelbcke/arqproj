@@ -6116,6 +6116,20 @@
             "type": "object",
             "title": "Project Types"
           },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "all_features": {
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            },
+            "type": "array",
+            "title": "All Features"
+          },
           "team": {
             "items": {
               "$ref": "#/components/schemas/AdminStaffOut"
@@ -6147,6 +6161,8 @@
           "usage",
           "link_statuses",
           "project_types",
+          "features",
+          "all_features",
           "team"
         ],
         "title": "AdminOfficeOut"
@@ -6763,6 +6779,8 @@
           "invalid_client_name",
           "unknown_project_type",
           "unknown_stage",
+          "unknown_member",
+          "feature_off",
           "invalid_slug",
           "project_name_taken",
           "slug_taken",
@@ -6856,6 +6874,14 @@
         ],
         "title": "EventKind",
         "description": "What a client can notice on the page (A28). All but a note email (A32)."
+      },
+      "Feature": {
+        "type": "string",
+        "enum": [
+          "project_members"
+        ],
+        "title": "Feature",
+        "description": "Work merged but switched on only for some offices, from the operator\ndashboard (A40): staging and main deploy it switched off for everyone else.\nRemove a feature from here once every office has it."
       },
       "FileOut": {
         "properties": {
@@ -7400,6 +7426,11 @@
       },
       "MeOut": {
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
           "email": {
             "type": "string",
             "title": "Email"
@@ -7438,6 +7469,13 @@
             "type": "boolean",
             "title": "Email Confirmed"
           },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            },
+            "type": "array",
+            "title": "Features"
+          },
           "analytics": {
             "anyOf": [
               {
@@ -7451,6 +7489,7 @@
         },
         "type": "object",
         "required": [
+          "id",
           "email",
           "name",
           "role",
@@ -7460,7 +7499,8 @@
           "tenant_timezone",
           "csrf_token",
           "page_tour_seen",
-          "email_confirmed"
+          "email_confirmed",
+          "features"
         ],
         "title": "MeOut"
       },
@@ -7622,6 +7662,25 @@
           "me"
         ],
         "title": "MemberOut"
+      },
+      "MemberRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MemberRef"
       },
       "NewStageIn": {
         "properties": {
@@ -8061,6 +8120,14 @@
             "type": "array",
             "title": "Details"
           },
+          "team": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Team",
+            "default": []
+          },
           "stages": {
             "items": {
               "$ref": "#/components/schemas/StageOut"
@@ -8322,6 +8389,22 @@
               }
             ],
             "title": "Recipients"
+          },
+          "members": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Members"
           }
         },
         "type": "object",
@@ -8527,6 +8610,25 @@
             },
             "type": "array",
             "title": "Recipients"
+          },
+          "responsible": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responsible"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MemberRef"
+            },
+            "type": "array",
+            "title": "Members",
+            "default": []
           }
         },
         "type": "object",
@@ -9622,7 +9724,9 @@
               "owner_link",
               "suspend",
               "restore",
-              "delete"
+              "delete",
+              "feature_on",
+              "feature_off"
             ],
             "title": "Action"
           },
@@ -9630,6 +9734,16 @@
             "type": "string",
             "title": "Confirmation",
             "default": ""
+          },
+          "feature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Feature"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

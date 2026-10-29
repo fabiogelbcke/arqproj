@@ -84,6 +84,33 @@ acceptance.
 are written by hand today (with mistakes such as differing footers between
 pages), and a project page with only a proposal should not look empty.
 
+## 2026-10-28 — A40/A41: features per office; project members replace the typed "Responsável"
+
+**Was:** every merged feature reached every office as soon as it was deployed;
+there was no way to ship something to staging for a few offices only. A
+project's responsible was a free-text detail, "Responsável" (A27), and the
+painel's chips (PR #155) matched people by the words of that name.
+
+**Now:** a feature can be switched on per office from the operator dashboard
+(A40), off by default. The first is `project_members` (A41): staff tick the
+office's people working on a project in the Projeto dialog; the chips and
+"Meus projetos" go by account, and the client page shows their names as
+"Responsável". Where it's on, the typed detail is no longer offered or shown;
+offices without it keep the detail.
+
+**Rejected:** a typed name alongside the members (outside architects, partner
+offices): the filter would be loose again, and Fabio chose members only. One
+responsible per project: offices work in teams. PostHog feature flags for A40:
+an outside call on every request, and flags per person rather than per office.
+A release branch or environment variable per feature: staging and main must not
+wait for an undecided feature, and switching per office needs no deploy.
+
+**Why:** Fabio, 28 Oct 2026: filtering by "Responsável" needs a way to assign
+the office's members to a project, and he isn't sure it's wanted yet, so his
+partners should try it on staging without it blocking other deployments.
+
+---
+
 ## 2026-10-28 — A31/A34: renaming and hiding sections; dragging files to move them
 
 **Was:** renaming or removing a section stayed in Drive (A31, 26 Oct). Dragging

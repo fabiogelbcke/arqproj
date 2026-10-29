@@ -11,6 +11,7 @@ import uuid
 from enum import StrEnum
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Text, text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.base import Base, CreatedAtMixin, IdMixin, TimestampsMixin
@@ -20,6 +21,14 @@ from backend.db.types import TextEnum, enum_check
 class TenantStatus(StrEnum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
+
+
+class Feature(StrEnum):
+    """Work merged but switched on only for some offices, from the operator
+    dashboard (A40): staging and main deploy it switched off for everyone else.
+    Remove a feature from here once every office has it."""
+
+    PROJECT_MEMBERS = "project_members"  # who works on each project (A41)
 
 
 class Locale(StrEnum):
@@ -46,6 +55,9 @@ class Tenant(IdMixin, TimestampsMixin, Base):
     status: Mapped[TenantStatus] = mapped_column(
         TextEnum(TenantStatus), server_default=text("'active'")
     )
+    # The features switched on for this office. No CHECK: a feature comes and goes
+    # without a migration; one the code no longer knows is ignored.
+    features: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("'{}'"))
 
     domains: Mapped[list[TenantDomain]] = relationship(back_populates="tenant")
 

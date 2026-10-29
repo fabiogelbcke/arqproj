@@ -18,11 +18,11 @@ const SIZES = [
   { name: "phone", width: 390, height: 844 },
 ];
 
-function invite(email: string): string {
+function invite(email: string, name = "Ana", role = "owner"): string {
   const output = execFileSync(
     "uv",
     ["run", "python", "-m", "backend.commands.staff", "add", "--tenant", "alinea", "--email", email,
-     "--name", "Ana", "--role", "owner"],
+     "--name", name, "--role", role],
     { cwd: "..", env: { ...process.env, ...E2E_ENV }, encoding: "utf-8" },
   );
   return output.match(/http\S+#token=\S+/)![0].replace(/:\d+\//, `:${PORT}/`);
@@ -439,4 +439,55 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await shoot(page, "10c-operacao-escritorio");
   await page.getByRole("button", { name: "Suspender", exact: true }).click();
   await shoot(page, "10e-operacao-suspender");
+});
+
+test("@screenshots project members", async ({ page }) => {
+  test.setTimeout(90_000);
+  // Switched on for Alinea from the operator dashboard (A40), then used (A41).
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  mkdirSync(OUT, { recursive: true });
+  await page.goto(`http://localhost:${PORT}/admin`);
+  await page.getByLabel(/E-mail autorizado/).fill(OPERATOR);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.getByRole("link", { name: "Alinea (dev)" }).click();
+  const features = page.getByRole("region", { name: "Funções em teste" });
+  await features.getByRole("button", { name: "Ativar" }).click();
+  await features.getByText("Ativada", { exact: true }).waitFor();
+  await features.scrollIntoViewIfNeeded();
+  await shoot(page, "10f-operacao-funcoes");
+
+  invite("pedro@alinea.example", "Pedro Lima", "member");
+  await page.goto(invite("equipe@alinea.example", "Ana Souza"));
+  await page.getByLabel("Nova senha").fill("senha-das-capturas");
+  await page.getByLabel("Repita a senha").fill("senha-das-capturas");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await page.getByRole("region", { name: "Em andamento" }).waitFor();
+  for (const [project, people] of [["Casa Jardim", ["Ana Souza", "Pedro Lima"]], ["Apartamento Atlântico", ["Pedro Lima"]]] as const) {
+    await page.setViewportSize(SIZES[0]!);
+    await page.getByRole("button", { name: `Opções do projeto ${project}` }).click();
+    await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();
+    const dialog = page.getByRole("dialog", { name: "Projeto" });
+    const team = dialog.getByRole("group", { name: "Equipe do projeto" });
+    for (const person of people) await team.getByRole("checkbox", { name: person }).check({ force: true });
+    if (project === "Casa Jardim") {
+      await team.scrollIntoViewIfNeeded();
+      await shoot(page, "03h-projeto-equipe");
+      await page.setViewportSize(SIZES[0]!);
+    }
+    await dialog.getByRole("button", { name: "Salvar" }).click();
+    await dialog.waitFor({ state: "hidden" });
+  }
+  await page.getByRole("radiogroup", { name: "Responsável" }).getByRole("radio", { name: "Meus projetos" }).click({ force: true });
+  await page.getByRole("region", { name: "Em andamento" }).waitFor();
+  await shoot(page, "03i-meus-projetos");
+  await page.setViewportSize(SIZES[0]!); // shoot() leaves the phone's size
+  await page.goto("/casa-jardim");
+  // The tour closed, then the page as the client sees it.
+  await page.locator(".driver-popover").waitFor();
+  const seen = page.waitForResponse((r) => r.url().endsWith("/api/me/tour-seen"));
+  await page.keyboard.press("Escape");
+  await seen;
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Ver como cliente" }).click();
+  await page.getByText("Responsáveis").filter({ visible: true }).first().waitFor();
+  await shoot(page, "06u-responsaveis");
 });

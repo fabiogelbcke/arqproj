@@ -432,12 +432,16 @@ function Description({ text }: { text: string }) {
   );
 }
 
-/** Cliente, type, the project's details, the accepted proposal (A42) and the last update. */
+/** Cliente, type, the project's details, who works on it, the accepted proposal (A42) and the last update. */
 function Facts({ page }: { page: Page }) {
   const { t, i18n } = useTranslation();
   const rows: Array<[string, ReactNode]> = [
     [t("page.client"), page.client_name.toLocaleUpperCase(i18n.language)],
     ...page.details.map((d) => [d.label, detailValue(d, i18n.language)] as [string, string]),
+    // The project's members (A41), named as its "Responsável".
+    ...(page.team.length
+      ? [[t("page.responsible", { count: page.team.length }), new Intl.ListFormat(i18n.language).format(page.team)] as [string, string]]
+      : []),
     ...(page.proposal_url
       ? [
           [

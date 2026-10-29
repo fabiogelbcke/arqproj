@@ -497,7 +497,7 @@ async def accept(
     elif project.status is not ProjectStatus.ACTIVE:
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # completed, archived or draft
     db.expire_all()
-    return (await summaries(db, tenant.locale, only=project_id))[0]
+    return (await summaries(db, tenant, only=project_id))[0]
 
 
 # -- the office's presets and defaults --------------------------------------------

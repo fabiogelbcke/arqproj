@@ -24,6 +24,7 @@ vi.mock("../ui/imageCrop", async (original) => ({
 const PAGE: Page = {
   id: "6f1c1d1e-0000-4000-8000-0000000000b1",
   office: { name: "Alinea", logo_url: null, logo_dark_url: null },
+  team: [],
   locale: "pt-BR",
   timezone: "America/Sao_Paulo",
   name: "Casa Jardim",
@@ -93,7 +94,19 @@ describe("the client page", () => {
     expect(screen.getByText("Medidas conferidas.")).toBeVisible(); // stage 2 is current
     expect(screen.getByText("1.240 m²")).toBeInTheDocument();
     expect(screen.getByText("15/10/2026")).toBeInTheDocument(); // the office's day
+    expect(screen.queryByText(/^Responsáve/)).toBeNull(); // no members: no row
     await waitFor(() => expect(document.title).toBe("Casa Jardim · Alinea")); // set after drawing
+  });
+
+  it("names the project's members as its responsible (A41)", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, team: ["Ana Souza", "Pedro Lima"] } }) });
+    const label = (await screen.findAllByText("Responsáveis"))[0]!;
+    expect(label.closest("div")).toHaveTextContent("Ana Souza e Pedro Lima");
+  });
+
+  it("says Responsável for one member, and nothing without members", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, team: ["Pedro Lima"] } }) });
+    expect((await screen.findAllByText("Responsável"))[0]!.closest("div")).toHaveTextContent("Pedro Lima");
   });
 
   it("saves the theme where the painel reads it, from the header's own switch", async () => {

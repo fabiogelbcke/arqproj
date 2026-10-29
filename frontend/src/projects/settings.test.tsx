@@ -43,6 +43,7 @@ const CASA: ProjectSummary = {
   cover_url: null,
   access_mode: "public",
   recipients: [],
+  members: [],
 };
 const PATH = `/api/projects/${CASA.id}`;
 
@@ -101,6 +102,59 @@ describe("the Projeto dialog", () => {
       row_version: 4,
       name: "Casa Jardim II",
       client_name: "Família Oliveira",
+    });
+  });
+
+  describe("Equipe do projeto (A41)", () => {
+    const pedro = { id: "00000000-0000-0000-0000-0000000000b2", name: "Pedro Lima" };
+    const TEAM = {
+      members: [
+        { id: ME.id, name: "Ana", email: ME.email, role: "owner", status: "active", me: true },
+        { ...pedro, email: "pedro@alinea.example", role: "member", status: "active", me: false },
+        { id: "00000000-0000-0000-0000-0000000000c3", name: "Rita", email: "rita@alinea.example", role: "member", status: "invited", me: false },
+      ],
+      join_link: { on: false, expires_at: null },
+      can_manage: true,
+    };
+    const on = { ...ME, features: ["project_members"] };
+
+    it("ticks who works on the project and sends only that list", async () => {
+      const sent = api({
+        "GET /api/me": () => ({ body: on }),
+        "GET /api/team": () => ({ body: TEAM }),
+        "GET /api/projects": () => ({ body: [{ ...CASA, members: [pedro] }] }),
+        [`PATCH ${PATH}`]: (body: unknown) => ({ body: { ...CASA, ...(body as object), row_version: 5 } }),
+      });
+      const dialog = await openSettings();
+      const team = await within(dialog).findByRole("group", { name: "Equipe do projeto" });
+      expect(within(team).getByRole("checkbox", { name: "Pedro Lima" })).toBeChecked();
+      expect(within(team).getByRole("checkbox", { name: /Rita.*convite pendente/ })).not.toBeChecked();
+      await userEvent.click(within(team).getByRole("checkbox", { name: "Ana" }));
+      await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+      expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+      const patch = sent.find((r) => r.method === "PATCH")?.body as { members: string[] };
+      expect([...patch.members].sort()).toEqual([ME.id, pedro.id].sort());
+    });
+
+    it("doesn't send the members when they didn't change", async () => {
+      const sent = api({
+        "GET /api/me": () => ({ body: on }),
+        "GET /api/team": () => ({ body: TEAM }),
+        "GET /api/projects": () => ({ body: [{ ...CASA, members: [pedro] }] }),
+        [`PATCH ${PATH}`]: (body: unknown) => ({ body: { ...CASA, ...(body as object), row_version: 5 } }),
+      });
+      const dialog = await openSettings();
+      await within(dialog).findByRole("group", { name: "Equipe do projeto" });
+      await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), " II");
+      await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+      expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+      expect(sent.find((r) => r.method === "PATCH")?.body).not.toHaveProperty("members");
+    });
+
+    it("isn't there while the office doesn't have the feature", async () => {
+      api({ "GET /api/team": () => ({ body: TEAM }) });
+      const dialog = await openSettings();
+      expect(within(dialog).queryByRole("group", { name: "Equipe do projeto" })).toBeNull();
     });
   });
 

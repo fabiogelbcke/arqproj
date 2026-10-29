@@ -48,6 +48,8 @@ class ErrorCode(StrEnum):
     INVALID_CLIENT_NAME = "invalid_client_name"
     UNKNOWN_PROJECT_TYPE = "unknown_project_type"
     UNKNOWN_STAGE = "unknown_stage"  # not a built-in stage, or chosen twice
+    UNKNOWN_MEMBER = "unknown_member"  # not one of the office's staff (A41)
+    FEATURE_OFF = "feature_off"  # not switched on for this office (A40)
     INVALID_SLUG = "invalid_slug"  # letters, numbers and hyphens; some words are the app's
     PROJECT_NAME_TAKEN = "project_name_taken"  # `conflict_name` as typed by the office
     SLUG_TAKEN = "slug_taken"  # `conflict_name` names the project that has it, when known
