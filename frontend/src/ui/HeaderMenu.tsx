@@ -12,6 +12,7 @@ import styles from "./ui.module.css";
  *  "Modo escuro", behind a ☰. */
 export function HeaderMenu({
   person,
+  onAccount,
   onTour,
   tourLabel,
   example,
@@ -19,6 +20,7 @@ export function HeaderMenu({
   signingOut = false,
 }: {
   person?: { name: string; email: string } | null;
+  onAccount?: () => void; // the painel: "Minha conta", the person's own name and password
   onTour?: () => void;
   example?: string; // the example project's address (the painel), beside its tour
   tourLabel?: string; // the page's own tour: "Ver o tour do painel" by default
@@ -44,7 +46,9 @@ export function HeaderMenu({
           className={styles.menu}
           aria-label={label}
           disabledKeys={signingOut ? ["signOut"] : []}
-          onAction={(key) => (key === "signOut" ? onSignOut?.() : key === "tour" ? onTour?.() : undefined)}
+          onAction={(key) =>
+            key === "signOut" ? onSignOut?.() : key === "tour" ? onTour?.() : key === "account" ? onAccount?.() : undefined
+          }
         >
           <MenuSection
             selectionMode="multiple"
@@ -56,10 +60,15 @@ export function HeaderMenu({
               <span className={styles.menuSwitch} aria-hidden="true" />
             </MenuItem>
           </MenuSection>
-          {(onTour || example || onSignOut) && (
+          {(onAccount || onTour || example || onSignOut) && (
             <>
               <Separator className={styles.menuSeparator} />
               <MenuSection>
+                {onAccount ? (
+                  <MenuItem id="account" className={styles.menuItem}>
+                    {t("account.title")}
+                  </MenuItem>
+                ) : null}
                 {onTour ? (
                   <MenuItem id="tour" className={styles.menuItem}>
                     {tourLabel ?? t("painelTour.again")}

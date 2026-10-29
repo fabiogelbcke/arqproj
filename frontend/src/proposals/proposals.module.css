@@ -1,0 +1,133 @@
+/* The proposal generator (A42): the form, and the live preview beside it on wide
+   screens (under it on phones). */
+.page { display: grid; gap: 24px; }
+.head { display: grid; gap: 10px; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 8px; font-size: var(--text-sm); color: var(--muted); }
+.crumbs a { color: inherit; }
+.crumbs a:hover { color: var(--ink); }
+.titleRow { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.title { font: 500 32px/1.15 var(--display-font); letter-spacing: -0.015em; }
+.lead { color: var(--muted); max-width: 70ch; }
+.note { font-size: var(--text-sm); color: var(--muted); }
+.headActions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.linkButton { font-size: var(--text-sm); color: var(--ink); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.form { display: grid; gap: 20px; min-width: 0; }
+.preview { position: sticky; top: 16px; max-height: calc(100dvh - 32px); overflow: auto; min-width: 0; }
+.previewLabel {
+  margin-bottom: 8px; font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase;
+  color: var(--muted);
+}
+@media (max-width: 1080px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .preview { position: static; max-height: none; overflow: visible; }
+}
+
+.section {
+  display: grid; gap: 16px; padding: 20px; border-radius: var(--r-panel); background: var(--surface);
+}
+.section h2 { font-size: var(--text-lg); font-weight: 600; }
+.subhead { font-size: var(--text-md); font-weight: 600; margin-top: 4px; }
+.hint { font-size: var(--text-sm); color: var(--muted); }
+/* Top-aligned: one field's hint under it doesn't push the other's input down. */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+@media (max-width: 560px) { .pair { grid-template-columns: 1fr; } }
+.withDefault { display: grid; gap: 8px; }
+.saveDefault { justify-self: start; }
+
+/* Services collapse to a line each (name, the start of the text); "Editar" opens one. */
+.services { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.service {
+  display: grid; gap: 12px; padding: 8px 8px 8px 14px; border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--raise);
+}
+.service[data-open] { padding: 12px 12px 16px 16px; }
+/* The buttons drop under the name when the row is narrow (phones). */
+.serviceHead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.number { font-weight: 600; }
+.serviceSummary { display: grid; flex: 1 1 200px; min-width: 0; }
+.serviceName { font-weight: 500; overflow-wrap: anywhere; }
+.serviceText {
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--text-sm); color: var(--muted);
+}
+.serviceTools { display: flex; gap: 2px; margin-left: auto; }
+.removed {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 8px 8px 14px; border: 1px dashed var(--line-strong); border-radius: var(--r-card);
+  font-size: var(--text-sm); color: var(--muted);
+}
+.addButton {
+  justify-self: start; min-height: var(--control-small); padding: 0 16px; border: 1px solid var(--line);
+  border-radius: var(--r-pill); background: var(--raise); color: var(--ink); font: inherit; font-size: var(--text-sm);
+  cursor: pointer;
+}
+.addButton[data-hovered] { border-color: var(--line-strong); }
+.addButton[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 3px; }
+
+.spread { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--text-sm); }
+.count {
+  width: 64px; min-height: var(--control-small); padding: 4px 8px; border: 1px solid var(--line);
+  border-radius: var(--r-field); background: var(--raise); color: var(--ink); font: inherit;
+}
+.addPayment { justify-self: start; }
+.payments { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.payment { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: 10px; align-items: end; }
+/* "Valor" and "Quando" over the first row only: the rows below line up under them
+   (screen readers still hear each field's name). "Remover" sits in the fields' middle. */
+.payment + .payment label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.removePayment { margin-bottom: calc((var(--control-main) - var(--control-small)) / 2); }
+@media (max-width: 560px) {
+  .payment { grid-template-columns: 1fr; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .removePayment { justify-self: start; margin-bottom: 0; }
+  .payment + .payment label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+}
+.warning { font-size: var(--text-sm); color: var(--ink); padding: 10px 12px; border-radius: var(--r-field); background: var(--raise); border-left: 3px solid var(--warm); }
+
+.actions { display: grid; gap: 12px; }
+.buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+.problem { color: var(--danger); font-size: var(--text-sm); }
+.versions { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: var(--text-sm); }
+.versions li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.versions a { color: var(--ink); }
+
+/* The Propostas tab (A42): "Nova proposta", then the proposals as rows in three
+   groups (open, accepted, declined), each headed like the projects' groups. */
+.listHead { display: grid; gap: 14px; justify-items: start; margin-bottom: 28px; }
+.kicker {
+  font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--muted);
+}
+.group { display: grid; gap: 14px; margin-bottom: 36px; }
+.groupTitle {
+  display: flex; align-items: center; gap: 10px; margin: 0;
+  font: 500 20px/1.2 var(--display-font); letter-spacing: -0.01em; color: var(--ink);
+}
+.groupCount {
+  display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; border-radius: var(--r-pill);
+  background: var(--surface); font: 500 var(--text-2xs) var(--font); color: var(--muted);
+}
+.rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto 36px; align-items: center; gap: 8px 20px;
+  padding: 8px 8px 8px 18px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--raise);
+}
+.rowMain { display: grid; gap: 2px; min-width: 0; padding: 6px 0; color: inherit; text-decoration: none; }
+.rowMain:hover .rowName { text-decoration: underline; }
+.rowName { font-weight: 500; overflow-wrap: anywhere; }
+.rowClient { font-size: var(--text-sm); color: var(--muted); overflow-wrap: anywhere; }
+.rowMeta { font-size: var(--text-sm); color: var(--muted); white-space: nowrap; }
+.rowFee { font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rowMenu {
+  display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink); cursor: pointer;
+}
+.rowMenu[data-hovered] { background: var(--surface); }
+.rowMenu[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 620px) {
+  .row { grid-template-columns: minmax(0, 1fr) 36px; }
+  .rowMain { grid-column: 1; }
+  .rowMeta, .rowFee { grid-column: 1; grid-row: auto; }
+  .rowMenu, .rowMenuSpace { grid-column: 2; grid-row: 1; }
+}

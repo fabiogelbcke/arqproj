@@ -38,6 +38,8 @@ function Painel() {
   });
 
   // The painel's tour, on demand only (plan section 16): from the account menu and the phone's drawer. Loaded when asked for.
+  // Proposals have their own tab, where switched on (A40, A42).
+  const proposals = me.data?.features.includes("proposals") ?? false;
   const startTour = () => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }));
 
   if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
@@ -62,6 +64,7 @@ function Painel() {
             <NavLink to="/" end>
               {t("nav.projects")}
             </NavLink>
+            {proposals && <NavLink to="/propostas">{t("nav.proposals")}</NavLink>}
             <NavLink to="/configuracoes" data-tour="settings">
               {t("nav.settings")}
             </NavLink>
@@ -69,6 +72,7 @@ function Painel() {
           <div className={styles.barActions}>
             <HeaderMenu
               person={me.data}
+              onAccount={() => void navigate("/conta")}
               onSignOut={() => signOut.mutate()}
               signingOut={signOut.isPending}
               onTour={startTour}

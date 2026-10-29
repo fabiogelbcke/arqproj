@@ -39,6 +39,7 @@ from backend.tenancy.models import Locale
 CLIENT_NAME_MAX = 48
 MEETING_TITLE_MAX = 40
 MEETING_LOCATION_MAX = 60
+STAGE_TITLE_MAX = 80  # a stage's name as the office types it
 
 
 # -- built-in content: reference tables shared by all offices (migration 0008) ---

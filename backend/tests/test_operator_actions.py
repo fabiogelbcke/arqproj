@@ -75,6 +75,24 @@ async def test_create_owner_suspend_restore_delete_with_retained_audit(
 async def test_delete_populated_tenant_preserves_other_tenant(client, actions_enabled, db_session):
     headers = await test_admin.sign_in(client)
     name = await db_session.scalar(text("SELECT name FROM tenants WHERE slug='alinea'"))
+    # A proposal and a service preset (A42): deleted with the office too.
+    alinea = await db_session.scalar(text("SELECT id FROM tenants WHERE slug='alinea'"))
+    await db_session.execute(
+        text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(alinea)}
+    )
+    await db_session.execute(
+        text(
+            "INSERT INTO proposals (project_id, version, content) "
+            "SELECT id, 1, '{}'::jsonb FROM projects WHERE tenant_id = :t LIMIT 1"
+        ),
+        {"t": str(alinea)},
+    )
+    await db_session.execute(
+        text(
+            "INSERT INTO proposal_service_presets (position, title, description) "
+            "VALUES (1, 'Briefing', '')"
+        )
+    )
     path = "/api/admin/offices/alinea/actions"
     assert (await client.post(path, json={"action": "suspend"}, headers=headers)).status_code == 200
     assert (
@@ -99,6 +117,11 @@ async def test_delete_populated_tenant_preserves_other_tenant(client, actions_en
         )
         == 2
     )
+    for table in ("proposals", "proposal_service_presets"):
+        left = await db_session.scalar(
+            text(f"SELECT count(*) FROM {table} WHERE tenant_id = :t"), {"t": alinea}
+        )
+        assert left == 0, table
 
 
 async def test_actions_require_operator_host_csrf_and_configuration(client, operators):

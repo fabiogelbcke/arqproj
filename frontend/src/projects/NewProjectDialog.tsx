@@ -1,6 +1,16 @@
 import { useState } from "react";
-import { Checkbox, CheckboxGroup, DialogTrigger, Form, Label, Radio, RadioGroup, Text } from "react-aria-components";
+import {
+  Checkbox,
+  CheckboxGroup,
+  DialogTrigger,
+  Form,
+  Label,
+  Radio,
+  RadioGroup,
+  Text,
+} from "react-aria-components";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 
 import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
@@ -11,12 +21,17 @@ import { DialogFrame } from "../ui/DialogFrame";
 import { addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
-import { suggestedSlug, useCreateProject, useCreationOptions, type ProjectSummary } from "./projects";
+import { suggestedSlug, useCreateProject, useCreationOptions } from "./projects";
 import styles from "./projects.module.css";
 import { RecipientsField } from "./RecipientsField";
 
-function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: ProjectSummary) => void }) {
+/** A project, or one that starts as a proposal (A42): its page shows only the
+ *  proposal until staff mark it accepted. Two ways in, one form. */
+export type NewKind = "project" | "proposal";
+
+function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const options = useCreationOptions();
   const create = useCreateProject();
   // One per dialog: a double click or a retry returns the project already made.
@@ -32,6 +47,20 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
   const types = options.data?.types ?? [];
   const type = types.find((option) => option.key === typeKey) ?? types[0];
   const stages = ticked ?? type?.stages ?? [];
+  // The office's own stages, named here, after the built-in ones; unticking one drops it.
+  const [own, setOwn] = useState<string[]>([]);
+  const [newStage, setNewStage] = useState("");
+  const [stageProblem, setStageProblem] = useState<string | null>(null);
+  const OWN = "own:";
+  const addOwn = () => {
+    const title = newStage.trim();
+    if (!title) return;
+    const names = [...(options.data?.stages ?? []).map((s) => s.title), ...own].map((n) => n.toLocaleLowerCase());
+    if (names.includes(title.toLocaleLowerCase())) return setStageProblem(t("newProject.stageExists", { title }));
+    setOwn([...own, title]);
+    setNewStage("");
+    setStageProblem(null);
+  };
   // Follows the name until the address is edited by hand.
   const [typedSlug, setTypedSlug] = useState<string | null>(null);
   const slug = typedSlug ?? suggestedSlug(name);
@@ -62,14 +91,19 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
             client_name: client,
             project_type: type?.key ?? "",
             stages,
+            custom_stages: own,
             slug,
             recipients: list,
+            proposal: kind === "proposal",
             creation_key: creationKey,
           },
           {
+            // Straight to what comes next: a proposal's generator, to write it; a
+            // project's page (outside the painel), to fill it in (Fabio, 29 Oct 2026).
             onSuccess: (project) => {
-              onCreated(project);
               close();
+              if (kind === "proposal") navigate(`/projetos/${project.id}/proposta`);
+              else window.location.assign(`/${project.slug}`);
             },
           },
         );
@@ -119,11 +153,18 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
           ))}
         </div>
       </RadioGroup>
-      <CheckboxGroup className={styles.stagesField} value={stages} onChange={setTicked}>
+      <CheckboxGroup
+        className={styles.stagesField}
+        value={[...stages, ...own.map((title) => OWN + title)]}
+        onChange={(values) => {
+          setTicked(values.filter((value) => !value.startsWith(OWN)));
+          setOwn(own.filter((title) => values.includes(OWN + title)));
+        }}
+      >
         <Label className={styles.label}>{t("newProject.stages")}</Label>
         <Text slot="description" className={styles.note}>
-          {stages.length
-            ? t("newProject.stagesHint", { count: stages.length })
+          {stages.length + own.length
+            ? t("newProject.stagesHint", { count: stages.length + own.length })
             : t("newProject.noStagesHint")}
         </Text>
         <div className={styles.stageOptions}>
@@ -133,8 +174,40 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
               {stage.title}
             </Checkbox>
           ))}
+          {own.map((title) => (
+            <Checkbox key={OWN + title} value={OWN + title} className={styles.stageOption}>
+              <span className={styles.box} aria-hidden="true" />
+              {title}
+            </Checkbox>
+          ))}
         </div>
       </CheckboxGroup>
+      {/* Another stage, named as the office calls it (Fabio, 29 Oct 2026). */}
+      <div className={styles.ownStage}>
+        <TextField
+          label={t("newProject.ownStage")}
+          value={newStage}
+          onChange={(value) => {
+            setNewStage(value);
+            setStageProblem(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault(); // adds the stage; the form isn't sent yet
+            addOwn();
+          }}
+          maxLength={LIMITS.stageTitle}
+          autoComplete="off"
+        />
+        <Button onPress={addOwn} isDisabled={!newStage.trim()}>
+          {t("newProject.addStage")}
+        </Button>
+      </div>
+      {stageProblem && (
+        <p role="alert" className={styles.problem}>
+          {stageProblem}
+        </p>
+      )}
       <TextField
         label={t("newProject.slug")}
         description={t("newProject.slugHint", { address: `${window.location.host}/${slug || "…"}` })}
@@ -145,7 +218,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         autoComplete="off"
         spellCheck="false"
       />
-      <p className={styles.note}>{t("newProject.publishNote")}</p>
+      <p className={styles.note}>{t(kind === "proposal" ? "newProject.proposalNote" : "newProject.publishNote")}</p>
       {clash ? (
         <p role="alert" className={styles.problem}>
           {clash}
@@ -162,7 +235,9 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
       <div className={styles.actions}>
         <Button onPress={close}>{t("newProject.cancel")}</Button>
         <Button type="submit" variant="primary" isDisabled={create.isPending || !options.data}>
-          {create.isPending ? t("newProject.creating") : t("newProject.create")}
+          {create.isPending
+            ? t("newProject.creating")
+            : t(kind === "proposal" ? "newProject.createProposal" : "newProject.create")}
         </Button>
       </div>
     </Form>
@@ -192,15 +267,9 @@ function NeedsDrive({ close }: { close: () => void }) {
   );
 }
 
-/** The "Novo projeto" button and its dialog. `trigger` replaces the usual button
- *  (the first steps' "Criar projeto"). */
-export function NewProjectDialog({
-  onCreated,
-  trigger,
-}: {
-  onCreated: (p: ProjectSummary) => void;
-  trigger?: { label: string; className: string };
-}) {
+/** The creation dialog: open while rendered with `onClose`, otherwise the dialog
+ *  of the DialogTrigger around it. */
+function NewProjectDialog({ kind, onClose }: { kind: NewKind; onClose?: () => void }) {
   const { t } = useTranslation();
   const drive = useDrive();
   // New folders are made with the office's grant and shown through the reader.
@@ -210,28 +279,55 @@ export function NewProjectDialog({
       drive.data.writer_status === "connected" &&
       drive.data.reader_status === "ok");
   return (
+    <DialogFrame title={t(kind === "proposal" ? "newProject.titleProposal" : "newProject.title")} onClose={onClose}>
+      {(close) =>
+        !drive.data ? (
+          <ErrorNotice error={drive.error} />
+        ) : storageReady ? (
+          <CreateForm kind={kind} close={close} />
+        ) : (
+          <NeedsDrive close={close} />
+        )
+      }
+    </DialogFrame>
+  );
+}
+
+/** A button that opens the creation dialog, e.g. the first steps' "Criar projeto". */
+export function NewProjectButton({
+  kind,
+  label,
+  className,
+  variant = "primary",
+  size,
+}: {
+  kind: NewKind;
+  label: string;
+  className?: string;
+  variant?: "primary" | "secondary";
+  size?: "small";
+}) {
+  return (
     <DialogTrigger>
-      {trigger ? (
-        <Button variant="primary" className={trigger.className}>
-          {trigger.label}
-        </Button>
-      ) : (
-        <Button variant="primary" size="small" className={styles.newButton} data-tour="new-project">
-          <span aria-hidden="true">+</span>
-          <span className={styles.newLabel}>{t("projects.new")}</span>
-        </Button>
-      )}
-      <DialogFrame title={t("newProject.title")}>
-        {(close) =>
-          !drive.data ? (
-            <ErrorNotice error={drive.error} />
-          ) : storageReady ? (
-            <CreateForm close={close} onCreated={onCreated} />
-          ) : (
-            <NeedsDrive close={close} />
-          )
-        }
-      </DialogFrame>
+      <Button variant={variant} size={size} className={className}>
+        {label}
+      </Button>
+      <NewProjectDialog kind={kind} />
+    </DialogTrigger>
+  );
+}
+
+/** The toolbar's "Novo projeto"; on phones, the floating + (proposals start in
+ *  their own tab, A42). */
+export function NewProjectButtons() {
+  const { t } = useTranslation();
+  return (
+    <DialogTrigger>
+      <Button variant="primary" size="small" className={styles.newButton} data-tour="new-project">
+        <span aria-hidden="true">+</span>
+        <span className={styles.newLabel}>{t("projects.new")}</span>
+      </Button>
+      <NewProjectDialog kind="project" />
     </DialogTrigger>
   );
 }

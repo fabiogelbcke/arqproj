@@ -19,6 +19,116 @@ a new entry too.
 
 ---
 
+## 2026-10-29 — A42, A24: a Propostas tab; acceptance makes the project; custom stages at creation
+
+**Was:** "Nova proposta" beside "Novo projeto", proposals listed with the
+projects (tagged), the generator with "Proposta aceita" and a link to the page,
+declining by archiving from the project's menu, the accepted proposal as a row
+in the project's details. Creation offered only built-in stages and ended with
+a toast in the painel.
+
+**Now:** a "Propostas" tab beside Projetos and Configurações, with "Nova
+proposta" and the proposals as "Ativas", "Aceitas" and "Recusadas"; the
+projects list leaves open ones out. The generator is for writing only, and
+saving opens the proposal's page. That page has "Recusada" (archived while a
+proposal, reopened from the tab) and "Proposta aceita", which asks "Criar o
+projeto a partir desta proposta?": the same record becomes the project. The
+accepted project's page shows the proposal as a first stage, "Proposta", with
+its PDF. Creation also takes the office's own stages by name, and a new project
+opens its page. Amounts are typed as currency.
+
+**Why:** Fabio, 29 Oct 2026, trying it: a proposal is a different job from a
+running project and gets in the way in the projects list; the generator's
+accept button came before anything was written; and after creating something
+the next step is always its page.
+
+**Alternatives rejected:**
+- *Choosing type and stages when accepting* (no folders for a proposal). Fabio
+  chose to keep them at creation and only confirm on acceptance.
+- *A new "declined" status.* Archiving while a proposal already means it and
+  needs no database change.
+- *Saving the PDF into a Drive stage folder on acceptance.* A drawn one follows
+  later changes and writes nothing to Drive.
+
+## 2026-10-28 — A42, A40: proposals behind a feature switched on per office
+
+**Was:** proposals (A42) were planned for every office once merged.
+
+**Now:** they are the `proposals` feature (A40), off until the operator
+dashboard switches it on for an office. Without it the painel shows no "Nova
+proposta", no "Proposta" in a card's menu or the staff bar and no "Dados para
+propostas", and the proposal API answers `feature_off`. Client pages keep showing
+proposals made while it was on, so a link already sent to a client still works.
+
+**Why:** Fabio, 28 Oct 2026, once the feature switches merged: proposals should
+reach staging and main without every office getting them, so his partners can
+try them first.
+
+## 2026-10-28 — A42: owners may update the office's details from a proposal
+
+**Was:** saving a proposal only filled in the office details the office lacked;
+changing ones already set was done in Configurações → Escritório.
+
+**Now:** the empty ones are still filled in for anyone. When an owner saves a
+proposal whose details differ from the office's, they are asked whether to update
+the office too ("Atualizar escritório" / "Só nesta proposta"). Members are not
+asked; their changes stay in the proposal.
+
+**Why:** Fabio, reviewing the branch: an owner who corrects a phone or address
+while writing a proposal usually means it for the office, and going to the
+settings afterwards is easy to forget. Asking keeps one-off changes (another
+signatory for one client) out of the office's details.
+
+## 2026-10-28 — A42, A24: "Nova proposta" button instead of a checkbox
+
+**Was:** one optional checkbox in the creation form, "Começa como proposta"
+(entry below, same day).
+
+**Now:** a secondary "Nova proposta" button beside "Novo projeto" opens the same
+form, titled "Nova proposta", and goes straight to the proposal generator after
+creating. On phones the floating + opens a menu of the two.
+
+**Why:** Fabio, reviewing it: a checkbox at the end of the form is easily missed,
+and offices think of a new client's first step as a proposal. One form behind
+both keeps a proposal a project in an early status, not a separate thing.
+
+**Alternatives rejected:**
+- *Two equal buttons.* Most creations are still projects; "Novo projeto" stays
+  the main one.
+
+## 2026-10-28 — A42 (new), A24: proposals, with a "Proposta" project status
+
+**Was:** no proposals. A project was `active` from creation (A35), and its page
+showed stages and files from the start. Creation asked for name, client, type,
+stages and optional client emails (A24).
+
+**Now:** staff generate a branded proposal PDF from the project page. Creation
+gains one optional checkbox, "Começa como proposta", which starts the project in
+a new `proposal` status: its client page shows only the proposal and the office's
+contact details until staff mark it accepted. Proposal services and their texts
+are separate from stages, saved as office presets. No emails, no online
+acceptance.
+
+**Alternatives rejected:**
+- *Reuse the `draft` status.* A draft's client page is "not found", but the
+  proposal is meant to be sent through the project page.
+- *Every project starts as a proposal*, or *generating a proposal switches the
+  status.* The first adds a click for offices that never send proposals; the
+  second changes the client's page without staff expecting it.
+- *Proposal items are the project's stages, with one description each.* The
+  example proposals list services that are not stages (rendered images,
+  lighting and plumbing as separate items), and their sales wording differs from
+  a stage's description on the client page.
+- *Show the planned stages beside the proposal.* They would be empty.
+- *Email the client when a proposal is generated.* Offices may want to present
+  it first.
+- *Online acceptance.* The product is not a negotiation tool; the PDF keeps
+  signature lines.
+
+**Why:** Fabio, 28 Oct 2026, from two proposals of a friendly office: proposals
+are written by hand today (with mistakes such as differing footers between
+pages), and a project page with only a proposal should not look empty.
+
 ## 2026-10-28 — A40/A41: features per office; project members replace the typed "Responsável"
 
 **Was:** every merged feature reached every office as soon as it was deployed;

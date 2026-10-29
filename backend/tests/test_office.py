@@ -344,16 +344,19 @@ def test_each_logo_change_gets_a_new_address():
     from datetime import UTC, datetime, timedelta
 
     from backend.office.models import LogoType, OfficeProfile
+    from backend.tenancy.models import Locale
+    from backend.tenancy.resolve import CurrentTenant
     from backend.web.office import _out
 
     staff = auth.CurrentStaff(None, "a@b.c", "A", Role.OWNER, None, "csrf")
+    tenant = CurrentTenant(None, "a", "A", Locale.PT_BR, "America/Sao_Paulo", "a.localhost")
     when = datetime(2026, 10, 15, 12, 0, 0, 100_000, tzinfo=UTC)
     urls = set()
     for moment in (when, when + timedelta(milliseconds=300)):
         profile = OfficeProfile(
             display_name="A", logo_file_id="f", logo_type=LogoType.PNG, updated_at=moment
         )
-        urls.add(_out(None, profile, staff).logo_url)
+        urls.add(_out(tenant, profile, staff).logo_url)
     assert len(urls) == 2
 
 

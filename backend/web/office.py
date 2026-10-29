@@ -1,7 +1,7 @@
 """The office's details in the painel (Configurações → Escritório).
 
-    GET   /api/office        name, contact email, logo; anyone signed in
-    PATCH /api/office        change name and contact email (owners)
+    GET   /api/office        name, contact email, logo, proposal details; anyone signed in
+    PATCH /api/office        change name, contact email and proposal details (owners)
     PUT   /api/office/logo      upload the logo (owners; needs the office's storage)
     PUT   /api/office/logo/png  a PNG of the SVG logo, for one uploaded before PNGs
     PUT   /api/office/logo/dark  the logo for dark mode (owners)
@@ -27,7 +27,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,10 +38,12 @@ from backend.identity.models import Role
 from backend.office.models import LogoType, OfficeProfile
 from backend.office.profile import logo_urls
 from backend.office.profile import profile as load_profile
+from backend.proposals.content import ADDRESS_MAX, CITY_MAX, PHONE_MAX, SIGNATORY_MAX
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
 from backend.storage.google_connect import ConnectError
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
+from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.drive import writer_for
@@ -79,15 +81,32 @@ class OfficeOut(BaseModel):
     # An SVG logo without its PNG (uploaded before PNGs): the painel draws one.
     logo_needs_png: bool
     can_manage: bool
+    # What proposals print (A42): the footer's address and phone, the date line's
+    # city, the architect who signs. "" when not set yet, or without proposals (A40).
+    address: str
+    city: str
+    phone: str
+    whatsapp: str
+    signatory: str
 
 
 class OfficeIn(BaseModel):
     name: str | None = None
     contact_email: str | None = None
+    # "" clears it.
+    address: str | None = Field(default=None, max_length=ADDRESS_MAX)
+    city: str | None = Field(default=None, max_length=CITY_MAX)
+    phone: str | None = Field(default=None, max_length=PHONE_MAX)
+    whatsapp: str | None = Field(default=None, max_length=PHONE_MAX)
+    signatory: str | None = Field(default=None, max_length=SIGNATORY_MAX)
+
+
+PROPOSAL_DETAILS = ("address", "city", "phone", "whatsapp", "signatory")
 
 
 def _out(tenant: CurrentTenant, found: OfficeProfile | None, staff: CurrentStaff) -> OfficeOut:
     has_logo = found is not None and found.logo_file_id is not None
+    proposals = found if tenant.has(Feature.PROPOSALS) else None
     logo_url, logo_dark_url = logo_urls(found)
     return OfficeOut(
         name=found.display_name if found else tenant.name,
@@ -98,6 +117,11 @@ def _out(tenant: CurrentTenant, found: OfficeProfile | None, staff: CurrentStaff
         and found.logo_type is LogoType.SVG
         and found.logo_png_file_id is None,
         can_manage=staff.role is Role.OWNER,
+        address=(proposals and proposals.address) or "",
+        city=(proposals and proposals.city) or "",
+        phone=(proposals and proposals.phone) or "",
+        whatsapp=(proposals and proposals.whatsapp) or "",
+        signatory=(proposals and proposals.signatory) or "",
     )
 
 
@@ -123,7 +147,7 @@ async def office(
     return _out(tenant, await load_profile(db), staff)
 
 
-@router.patch("/office", responses=documented(401, 403, 422))
+@router.patch("/office", responses=documented(401, 403, 409, 422))
 async def change_office(
     request: Request,
     body: OfficeIn,
@@ -132,6 +156,9 @@ async def change_office(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> OfficeOut:
     _owner(staff)
+    changes = body.model_fields_set
+    if not tenant.has(Feature.PROPOSALS) and changes.intersection(PROPOSAL_DETAILS):
+        raise ApiError(409, ErrorCode.FEATURE_OFF)  # proposals are switched on per office
     found = await _profile_for_change(db, tenant)
     if body.name is not None:
         name = body.name.strip()
@@ -144,6 +171,10 @@ async def change_office(
         if email and not is_email(email):
             raise ApiError(422, ErrorCode.INVALID_EMAIL)
         found.contact_email = email or None
+    for column in PROPOSAL_DETAILS:
+        value = getattr(body, column)
+        if value is not None:
+            setattr(found, column, value.strip() or None)
     await db.commit()
     await db.refresh(found)
     capture(request, "office_settings_changed", {"fields": sorted(body.model_fields_set)})

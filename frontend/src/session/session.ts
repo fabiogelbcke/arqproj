@@ -7,6 +7,11 @@ import { resetAnalytics, startAnalytics } from "../posthog";
 export const ME = ["me"] as const;
 export const TENANT = ["tenant"] as const;
 
+/** Whether the office has a feature switched on from the operator dashboard (A40). */
+export function useFeature(feature: Schemas["Feature"]): boolean {
+  return useMe().data?.features.includes(feature) ?? false;
+}
+
 export function useMe() {
   return useQuery({
     queryKey: ME,

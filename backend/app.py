@@ -24,6 +24,7 @@ from backend.settings import Settings
 from backend.storage.google import GoogleDriveStorage, ServerIdentity
 from backend.tenancy.middleware import TenantMiddleware
 from backend.web import (
+    account,
     admin,
     auth,
     drive,
@@ -44,6 +45,7 @@ from backend.web import (
     painel,
     project_settings,
     projects,
+    proposals,
     shares,
     subscribe,
     team,
@@ -245,6 +247,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin.router)  # before the pages: /admin is no project's
     app.include_router(office_signup.router)  # likewise /criar-escritorio
     app.include_router(auth.router)
+    app.include_router(account.router)
     app.include_router(google_signin.router)
     app.include_router(email_confirmation.router)
     app.include_router(tenant.router)
@@ -256,6 +259,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(subscribe.router)
     app.include_router(shares.router)
     app.include_router(project_settings.router)
+    app.include_router(proposals.router)
     app.include_router(painel.router)
     app.include_router(page_edit.router)
     app.include_router(page_files.router)

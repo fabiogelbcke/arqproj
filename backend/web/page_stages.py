@@ -39,7 +39,13 @@ from backend.db.engine import get_tenant_session
 from backend.notifications.events import record
 from backend.notifications.models import EventKind
 from backend.projects.enums import ProjectStatus
-from backend.projects.models import Project, ProjectStage, ProjectTypeStage, StageDef
+from backend.projects.models import (
+    STAGE_TITLE_MAX,
+    Project,
+    ProjectStage,
+    ProjectTypeStage,
+    StageDef,
+)
 from backend.storage.google_connect import ConnectError
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
@@ -50,8 +56,6 @@ from backend.web.projects import _folders
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
-
-STAGE_TITLE_MAX = 80
 
 
 def _text(texts: dict[str, str], locale: Locale) -> str:

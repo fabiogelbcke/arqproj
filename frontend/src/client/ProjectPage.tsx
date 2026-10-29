@@ -49,7 +49,7 @@ const SectionMenu = lazy(() => import("./StageUploads").then((m) => ({ default: 
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
 // "Compartilhar arquivos" (A37), loaded when it opens.
 const SharePanel = lazy(() => import("./SharePanel").then((m) => ({ default: m.SharePanel })));
-import { day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
+import { capitalized, day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 import { capture } from "../posthog";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -351,10 +351,11 @@ function ShareIcon() {
   );
 }
 
-export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left" }) {
+export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left" | "download" }) {
   const paths = {
     link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
     left: "M15 6l-6 6 6 6",
+    download: "M12 4v11M7 10l5 5 5-5M5 19h14",
     down: "M6 9l6 6 6-6",
     up: "M6 15l6-6 6 6",
     x: "M6 6l12 12M18 6L6 18",
@@ -434,7 +435,7 @@ function Description({ text }: { text: string }) {
 /** Cliente, type, the project's details, who works on it, and the last update. */
 function Facts({ page }: { page: Page }) {
   const { t, i18n } = useTranslation();
-  const rows: Array<[string, string]> = [
+  const rows: Array<[string, ReactNode]> = [
     [t("page.client"), page.client_name.toLocaleUpperCase(i18n.language)],
     ...page.details.map((d) => [d.label, detailValue(d, i18n.language)] as [string, string]),
     // The project's members (A41), named as its "Responsável".
@@ -508,7 +509,7 @@ function StageCompletion({ page }: { page: Page }) {
  *  dot instead of tick boxes, so it reads as a set rather than a path or a
  *  checklist (Fabio, 23 Oct 2026). */
 function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const narrow = useNarrow();
   return (
     <>
@@ -540,7 +541,7 @@ function Timeline({ page, onJump }: { page: Page; onJump: (index: number) => voi
                     </svg>
                   )}
                 </span>
-                <b>{stage.title}</b>
+                <b>{capitalized(stage.title, i18n.language)}</b>
                 {state === "done" && <span className="sr">{t("page.stageDone")}</span>}
               </button>
             </li>
@@ -836,6 +837,34 @@ function Stage({
   );
 }
 
+/** The accepted proposal (A42), as a first stage, "Proposta", holding its PDF:
+ *  drawn by the app from the latest version, so a later change shows here too.
+ *  Not one of the project's stages: no number, nothing to complete or upload. */
+function ProposalStage({ page, url }: { page: Page; url: string }) {
+  const { t } = useTranslation();
+  return (
+    <section className="stage is-expanded proposal-stage" aria-labelledby="st-proposal">
+      <span className="stage__n" aria-hidden="true" />
+      <div className="stage__head">
+        <div className="stage__title">
+          <div className="stage__name">
+            <h2 id="st-proposal">{t("proposal.page.stage")}</h2>
+          </div>
+        </div>
+      </div>
+      <div className="stage__body">
+        <a className="proposal-file" href={url} target="_blank" rel="noopener">
+          <span className="proposal-file__kind" aria-hidden="true">
+            PDF
+          </span>
+          <span className="proposal-file__name">{t("proposal.page.fileName", { name: page.name })}</span>
+          <Icon name="download" />
+        </a>
+      </div>
+    </section>
+  );
+}
+
 /** For the office's signed-in staff only (the prototype's dock): back to the
  *  painel, view or edit, and copy its link. Nothing about
  *  publishing: no drafts for now (A35). */
@@ -892,6 +921,12 @@ function StaffBar({
       >
         <Icon name="link" />
       </button>
+      {/* The proposal generator (A42), in the painel, where switched on (A40). */}
+      {!archived && staff.features?.includes("proposals") && (
+        <a className="b b--small hide-sm" href={`/painel/projetos/${staff.project_id}/proposta`}>
+          {t("proposal.page.link")}
+        </a>
+      )}
     </nav>
   );
 }
@@ -1289,6 +1324,7 @@ export function ProjectPage({
             <StageCompletion page={page} />
           </>
         )}
+        {page.proposal_url && !filtering && <ProposalStage page={page} url={page.proposal_url} />}
         {page.stages.map((_, i) => (
           <Stage
             key={i}

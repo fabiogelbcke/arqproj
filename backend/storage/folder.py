@@ -65,17 +65,23 @@ class FolderStorage:
     async def get(self, item_id: str) -> StorageItem:
         return await anyio.to_thread.run_sync(lambda: self._item(self._path(item_id)))
 
-    async def download(self, item: StorageItem) -> Download:
+    async def download(
+        self, item: StorageItem, byte_range: tuple[int, int] | None = None
+    ) -> Download:
         path = self._path(item.id)
         if path.is_dir():
             raise StorageError(StorageProblem.NOT_FOUND)
+        first, last = byte_range or (0, path.stat().st_size - 1)
 
         async def chunks():
             async with await anyio.open_file(path, "rb") as file:
-                while block := await file.read(CHUNK):
+                await file.seek(first)
+                left = last - first + 1
+                while left > 0 and (block := await file.read(min(CHUNK, left))):
+                    left -= len(block)
                     yield block
 
-        return Download(item.mime_type, path.stat().st_size, chunks())
+        return Download(item.mime_type, max(last - first + 1, 0), chunks())
 
     async def thumbnail(self, item: StorageItem, size: int = 640) -> bytes | None:
         return None

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Navigate, Outlet, type RouteObject } from "react-router";
 
 import { type Locale, useOfficeLocale } from "../i18n";
+import { AccountPage } from "../pages/AccountPage";
 import { ChoosePasswordPage } from "../pages/ChoosePasswordPage";
 import { ConfirmLinkPage } from "../pages/ConfirmEmailPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
@@ -14,7 +15,9 @@ import { SettingsLayout } from "../pages/SettingsLayout";
 import { SettingsOfficePage } from "../pages/SettingsOfficePage";
 import { SettingsTeamPage } from "../pages/SettingsTeamPage";
 import { SignInPage } from "../pages/SignInPage";
-import { useMe, useTenant } from "../session/session";
+import { ProposalPage } from "../proposals/ProposalPage";
+import { ProposalsPage } from "../proposals/ProposalsPage";
+import { useFeature, useMe, useTenant } from "../session/session";
 import { Toaster } from "../ui/Toast";
 import { UpdateBanner } from "../ui/UpdateBanner";
 import { usePageTitle, type TitleHandle } from "./pageTitle";
@@ -51,6 +54,8 @@ export const routes: RouteObject[] = [
         element: <SignedInLayout />,
         children: [
           { index: true, element: <ProjectsPage />, handle: title("nav.projects") },
+          { path: "propostas", element: <WithProposals />, handle: title("nav.proposals") },
+          { path: "projetos/:projectId/proposta", element: <ProposalPage />, handle: title("proposal.generator.title") },
           {
             path: "configuracoes",
             element: <SettingsLayout />,
@@ -61,6 +66,7 @@ export const routes: RouteObject[] = [
               { path: "equipe", element: <SettingsTeamPage />, handle: title("settings.team", "settings.title") },
             ],
           },
+          { path: "conta", element: <AccountPage />, handle: title("account.title") },
           { path: "*", element: <NotFoundPage />, handle: title("notFound.title") },
         ],
       },
@@ -68,3 +74,7 @@ export const routes: RouteObject[] = [
   },
 ];
 
+/** The Propostas tab, where the office has proposals switched on (A40, A42). */
+function WithProposals() {
+  return useFeature("proposals") ? <ProposalsPage /> : <NotFoundPage />;
+}

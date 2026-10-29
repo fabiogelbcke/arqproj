@@ -105,6 +105,66 @@ async def test_other_files_never_open_on_the_offices_address(client, owner, file
     assert "sandbox" in response.headers["content-security-policy"]
 
 
+async def pdf_url(client):
+    first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
+    return f"/api/pages/casa-jardim/files/{next(f for f in first if f['kind'] == 'pdf')['key']}"
+
+
+async def test_a_download_says_it_takes_ranges_and_names_its_version(client, owner, files):
+    whole = await client.get(await pdf_url(client), headers=ALINEA)
+    assert whole.headers["accept-ranges"] == "bytes"
+    assert whole.headers["etag"].startswith('"') and len(whole.headers["etag"]) == 34
+
+
+@pytest.mark.parametrize(
+    ("asked", "first", "last"),
+    [("bytes=2-5", 2, 5), ("bytes=5-", 5, len(PDF) - 1), ("bytes=-3", len(PDF) - 3, len(PDF) - 1),
+     ("bytes=4-999", 4, len(PDF) - 1)],
+)  # fmt: skip
+async def test_a_range_gets_just_those_bytes(client, owner, files, asked, first, last):
+    """A PDF opens at any page; a broken download resumes (plan section 15)."""
+    part = await client.get(await pdf_url(client), headers=ALINEA | {"range": asked})
+    assert (part.status_code, part.content) == (206, PDF[first : last + 1])
+    assert part.headers["content-range"] == f"bytes {first}-{last}/{len(PDF)}"
+    assert part.headers["content-length"] == str(last - first + 1)
+
+
+async def test_a_range_past_the_end_is_refused_with_the_size(client, owner, files):
+    for asked in (f"bytes={len(PDF)}-", "bytes=-0"):
+        refused = await client.get(await pdf_url(client), headers=ALINEA | {"range": asked})
+        assert refused.status_code == 416
+        assert refused.headers["content-range"] == f"bytes */{len(PDF)}"
+
+
+def test_an_empty_file_has_no_last_bytes_to_send():
+    from types import SimpleNamespace
+
+    from backend.storage.base import StorageItem
+
+    empty = StorageItem("f1", "Vazio.pdf", "application/pdf", 0, None)
+    with pytest.raises(page_files.RangeNotSatisfiable):  # not bytes 0--1
+        page_files.byte_range(SimpleNamespace(headers={"range": "bytes=-5"}), empty)
+
+
+@pytest.mark.parametrize(
+    "asked", ["bytes=0-1,4-5", "items=0-3", "bytes=abc", "bytes=-", "bytes=5-2"]
+)
+async def test_a_range_we_dont_read_gets_the_whole_file(client, owner, files, asked):
+    whole = await client.get(await pdf_url(client), headers=ALINEA | {"range": asked})
+    assert (whole.status_code, whole.content) == (200, PDF)
+
+
+async def test_a_resumed_download_of_a_changed_file_starts_over(client, owner, files):
+    url = await pdf_url(client)
+    tag = (await client.get(url, headers=ALINEA)).headers["etag"]
+    same = await client.get(url, headers=ALINEA | {"range": "bytes=2-", "if-range": tag})
+    assert same.status_code == 206
+    # The file changed since (or a date was sent): the whole file, never a mix.
+    for other in ('"0000"', "Wed, 21 Oct 2026 07:28:00 GMT"):
+        whole = await client.get(url, headers=ALINEA | {"range": "bytes=2-", "if-range": other})
+        assert (whole.status_code, whole.content) == (200, PDF)
+
+
 async def test_names_with_accents_download_with_their_name(client, owner, files):
     first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
     pdf = next(f for f in first if f["kind"] == "pdf")
@@ -272,7 +332,7 @@ async def test_a_failed_file_link_shows_a_translated_page_with_the_code(
 
     first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
 
-    async def down(self, item):
+    async def down(self, item, byte_range=None):
         raise StorageError(StorageProblem.UNAVAILABLE, "Drive said 500 for item drive-item-xyz")
 
     monkeypatch.setattr(FolderStorage, "download", down)
@@ -298,7 +358,7 @@ async def test_a_download_that_breaks_off_is_logged_with_its_context(
     from backend.storage.base import Download, StorageError, StorageProblem
     from backend.storage.memory import MemoryStorage
 
-    async def breaks(self, item):
+    async def breaks(self, item, byte_range=None):
         async def chunks():
             yield b"%PDF"
             raise StorageError(StorageProblem.UNAVAILABLE, "connection reset")

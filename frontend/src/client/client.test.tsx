@@ -52,6 +52,9 @@ const PAGE: Page = {
     location: "Online",
     link: "https://meet.example/abc",
   },
+  in_proposal: false,
+  proposal: null,
+  proposal_url: null,
 };
 
 function at(path: string, handlers: Record<string, () => { status?: number; body?: unknown }>) {
@@ -182,6 +185,15 @@ describe("the client page", () => {
     await userEvent.type(within(box).getByLabelText("Seu e-mail"), "ana@gmail.com");
     await userEvent.click(within(box).getByRole("button", { name: "Assinar" }));
     expect(await within(box).findByRole("alert")).toHaveTextContent("Este projeto não envia mais atualizações.");
+  });
+
+  it("starts each stage's name with a capital in the stages at the top, as typed elsewhere", async () => {
+    const stages = PAGE.stages.map((stage, i) => (i === 1 ? { ...stage, title: "visita técnica" } : stage));
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, stages } }) });
+    const top = await screen.findByRole("list", { name: "Etapas" });
+    expect(within(top).getByRole("button", { name: /^Visita técnica/ })).toBeInTheDocument();
+    // The stage's own heading keeps the name as typed; the page shows it in capitals.
+    expect(screen.getByRole("heading", { name: "visita técnica" })).toBeInTheDocument();
   });
 
   it("explains a stage in the project type's words", async () => {

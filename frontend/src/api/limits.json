@@ -16,5 +16,18 @@
   "pagePasswordMin": 6,
   "recipients": 20,
   "shareLabel": 60,
-  "shareBytes": 314572800
+  "shareBytes": 314572800,
+  "proposalClient": 80,
+  "proposalCity": 60,
+  "proposalAddress": 120,
+  "proposalPhone": 40,
+  "proposalSignatory": 80,
+  "proposalIntro": 1500,
+  "proposalNotes": 3000,
+  "proposalLine": 80,
+  "proposalServices": 20,
+  "proposalPayments": 24,
+  "proposalNotIncluded": 20,
+  "serviceTitle": 80,
+  "serviceDescription": 1000
 }

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router";
 
 import { EXAMPLE_SLUG } from "../client/example/address";
+import { useFeature } from "../session/session";
 import { CloseButton } from "../ui/CloseButton";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { useTheme } from "../ui/theme";
@@ -25,6 +26,7 @@ export function MobileMenu({
   onTour: () => void; // the painel's tour, once the drawer has gone
 }) {
   const { t } = useTranslation();
+  const proposals = useFeature("proposals"); // their own tab (A40, A42)
   const [theme, setTheme] = useTheme();
   return (
     <DialogTrigger>
@@ -47,8 +49,16 @@ export function MobileMenu({
                   <NavLink to="/" end onClick={close}>
                     {t("nav.projects")}
                   </NavLink>
+                  {proposals && (
+                    <NavLink to="/propostas" onClick={close}>
+                      {t("nav.proposals")}
+                    </NavLink>
+                  )}
                   <NavLink to="/configuracoes" onClick={close}>
                     {t("nav.settings")}
+                  </NavLink>
+                  <NavLink to="/conta" onClick={close}>
+                    {t("account.title")}
                   </NavLink>
                 </nav>
                 <Switch className={styles.switch} isSelected={theme === "dark"} onChange={(dark) => setTheme(dark ? "dark" : "light")}>

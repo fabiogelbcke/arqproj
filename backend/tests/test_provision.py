@@ -127,6 +127,14 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("share_link_files", "SELECT"),
         ("share_link_files", "INSERT"),
         ("share_link_files", "DELETE"),  # "Atualizar link" replaces its files
+        # Proposals (A42): the office's service presets are its to change; a
+        # proposal's versions are only ever added.
+        ("proposal_service_presets", "SELECT"),
+        ("proposal_service_presets", "INSERT"),
+        ("proposal_service_presets", "UPDATE"),
+        ("proposal_service_presets", "DELETE"),
+        ("proposals", "SELECT"),
+        ("proposals", "INSERT"),
     }
     assert _column_grants(migrated_url, group) == {
         ("users", "password_hash", "UPDATE"),
@@ -134,6 +142,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         # Joining by the shared link: the email confirmed, or a mistyped one corrected.
         ("users", "email_confirmed_at", "UPDATE"),
         ("users", "email", "UPDATE"),
+        ("users", "name", "UPDATE"),  # "Minha conta": a person renames themselves (0043)
         ("password_links", "used_at", "UPDATE"),
         ("password_links", "tries", "UPDATE"),  # wrong confirmation codes
         ("join_links", "revoked_at", "UPDATE"),  # turned off, or replaced by a new one

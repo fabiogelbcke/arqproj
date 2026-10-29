@@ -7,20 +7,22 @@ import { makeQueryClient } from "../app/App";
 import { routes } from "../app/routes";
 
 type Reply = { status?: number; body?: unknown; headers?: Record<string, string> };
-type Handler = (body: unknown) => Reply;
+type Handler = (body: unknown) => Reply | Promise<Reply>;
 
 /** Fake API: handlers keyed by "METHOD /path"; records what the app sent. */
 export function fakeApi(handlers: Record<string, Handler>) {
-  const sent: { method: string; path: string; body: unknown; headers: Headers }[] = [];
+  const sent: { method: string; path: string; query: string; body: unknown; headers: Headers }[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (given: Request | string) => {
       const input = typeof given === "string" ? new Request(new URL(given, window.location.origin)) : given;
-      const path = new URL(input.url).pathname;
+      const { pathname: path, search: query } = new URL(input.url);
       const body = input.method === "GET" ? undefined : await input.clone().json().catch(() => undefined);
-      sent.push({ method: input.method, path, body, headers: input.headers });
+      sent.push({ method: input.method, path, query, body, headers: input.headers });
       const handler = handlers[`${input.method} ${path}`];
-      const reply = handler ? handler(body) : { status: 404, body: { error: "not_found" } };
+      const answer = handler ? handler(body) : { status: 404, body: { error: "not_found" } };
+      // Only a handler that answers later is waited for: other replies keep their timing.
+      const reply = answer instanceof Promise ? await answer : answer;
       return new Response(reply.status === 204 ? null : JSON.stringify(reply.body ?? {}), {
         status: reply.status ?? 200,
         headers: { "Content-Type": "application/json", ...reply.headers },

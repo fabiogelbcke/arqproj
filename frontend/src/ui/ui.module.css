@@ -41,6 +41,8 @@
   outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px var(--mark-soft);
 }
 .input[data-invalid] { border-color: var(--danger); }
+/* Multi-line (TextAreaField): grows with its text; resized by hand only up and down. */
+.textarea { min-height: calc(var(--control-main) * 2); resize: vertical; line-height: 1.5; field-sizing: content; }
 .fieldError { font-size: var(--text-sm); color: var(--danger); }
 
 .notice {
@@ -321,6 +323,16 @@
 .menuItem[data-selected] .menuSwitch { background: var(--ink); }
 .menuItem[data-selected] .menuSwitch::after { translate: 14px 0; }
 .menuSeparator { height: 1px; margin: 6px 0; background: var(--line); }
+
+/* ToggleSwitch: a setting's state beside its switch ("Ativada" ●). */
+.toggleSwitch {
+  display: inline-flex; align-items: center; gap: 10px; min-height: var(--control-icon); padding: 0 2px;
+  color: var(--ink); font: 400 var(--text-sm) var(--font); cursor: pointer;
+}
+.toggleSwitch[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 12px; }
+.toggleSwitch[data-selected] .menuSwitch { background: var(--ink); }
+.toggleSwitch[data-selected] .menuSwitch::after { translate: 14px 0; }
+.toggleSwitch[data-disabled] { cursor: progress; opacity: 0.6; }
 
 /* ThemeToggle: "Modo escuro" and the menu's switch, on its own in the header. */
 .themeToggle {

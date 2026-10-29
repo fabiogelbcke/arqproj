@@ -5,14 +5,13 @@ import { useTranslation } from "react-i18next";
 import { EXAMPLE_SLUG } from "../client/example/address";
 import { DriveDetails } from "../pages/SettingsDrivePage";
 import { OfficeDetails } from "../pages/SettingsOfficePage";
-import { NewProjectDialog } from "../projects/NewProjectDialog";
+import { NewProjectButton } from "../projects/NewProjectDialog";
 import { useMe } from "../session/session";
 import styles from "../pages/pages.module.css";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { InfoTip } from "../ui/InfoTip";
 import { Panel } from "../ui/Panel";
-import { toast } from "../ui/Toast";
 import { useOnboarding } from "./drive";
 // A pale roof and sky behind the invitation to the example project.
 import exampleBand from "../client/example/images/convite.jpg";
@@ -82,10 +81,7 @@ export function FirstSteps() {
           hint={t("firstSteps.firstProjectHint")}
           action={action(
             steps.has_project,
-            <NewProjectDialog
-              trigger={{ label: t("firstSteps.firstProjectAction"), className: styles.stepAction ?? "" }}
-              onCreated={(project) => toast(t("newProject.created", { name: project.name }))}
-            />,
+            <NewProjectButton kind="project" label={t("firstSteps.firstProjectAction")} className={styles.stepAction} />,
           )}
         />
       </ol>

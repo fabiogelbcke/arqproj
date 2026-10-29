@@ -147,14 +147,19 @@ test("create a project → it is listed as a draft; a used address names its pro
   await expect(dialog.getByRole("radio", { name: "Projeto de Interiores" })).toBeChecked();
   await expect(dialog.getByRole("checkbox", { name: "Especificações" })).toBeChecked(); // usual for interiors
   await dialog.getByText("Especificações", { exact: true }).click(); // untick one
+  await dialog.getByLabel("Outra etapa (opcional)").fill("Visita técnica"); // the office's own
+  await dialog.getByLabel("Outra etapa (opcional)").press("Enter");
   await dialog.getByRole("button", { name: "Criar projeto" }).click();
-  await expect(dialog).toBeHidden();
+  // Straight to the new project's page, its own stage after the built-in ones.
+  await expect(page).toHaveURL(/\/casa-jardim-teste$/);
+  await expect(page.getByRole("heading", { name: "Visita técnica" })).toBeVisible();
 
   // Published at once (A35): with the live projects, no drafts group.
+  await page.goto("/painel/");
   const live = page.getByRole("region", { name: "Em andamento" });
   const card = live.getByTestId("project-card").filter({ hasText: "Família Teste" });
   await expect(page.getByRole("region", { name: "Rascunhos" })).toHaveCount(0);
-  await expect(card).toContainText("0 de 6 etapas concluídas"); // a new project: none yet
+  await expect(card).toContainText("0 de 7 etapas concluídas"); // a new project: none yet
   await expect(card).toContainText("Projeto de Interiores");
 
   // Search ignores accents and case.
@@ -459,6 +464,28 @@ test("the client page lists each stage's files, with subfolders as groups", asyn
   await expect(first.getByText("Medidas do terreno.pdf")).toBeVisible();
 });
 
+test("choosing files to share, an opened stage shows all its files", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 400 }); // a short screen: the list must scroll
+  await page.goto("/casa-jardim");
+  await page.getByRole("button", { name: "Compartilhar arquivos", exact: true }).click();
+  const share = page.getByRole("dialog", { name: "Compartilhar arquivos" });
+  await share.getByText("Escolher arquivos", { exact: true }).click();
+  const toggles = share.locator(".share-stage__toggle");
+  await expect(toggles.first()).toBeVisible();
+  for (const toggle of await toggles.all()) await toggle.click();
+  // Each stage is as tall as its files: the list scrolls rather than squashing one.
+  const clipped = await share.locator(".share-stage").evaluateAll((stages) =>
+    stages.flatMap((stage) => {
+      const bottom = stage.getBoundingClientRect().bottom;
+      return [...stage.querySelectorAll(".share-file")]
+        .filter((file) => file.getBoundingClientRect().bottom > bottom + 1)
+        .map((file) => file.textContent);
+    }),
+  );
+  expect(clipped).toEqual([]);
+  expect(await share.locator(".share-file").count()).toBeGreaterThanOrEqual(4);
+});
+
 test("staff upload a file into a stage, the client sees it, and staff hide it", async ({ page, browser }) => {
   const link = invite("arquivos@alinea.example");
   await page.goto(link);
@@ -678,7 +705,8 @@ test("on a phone the staff bar holds all its buttons", async ({ page }) => {
     const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
     await expect(bar.getByRole("link", { name: "Painel" })).toBeVisible();
     const box = (await bar.boundingBox())!;
-    for (const control of await bar.locator(":scope > a, :scope > button, :scope > .seg button").all()) {
+    // A control hidden on phones (the proposal link) is not measured.
+    for (const control of await bar.locator(":scope > a, :scope > button, :scope > .seg button").filter({ visible: true }).all()) {
       const inner = (await control.boundingBox())!;
       expect(inner.x, `${width}px`).toBeGreaterThanOrEqual(box.x);
       expect(inner.x + inner.width, `${width}px`).toBeLessThanOrEqual(box.x + box.width);

@@ -1,6 +1,7 @@
 """The emails with a link to choose a password: a reset ("Esqueceu a senha?")
-and an invite to the office's painel (A36); and the one with a code to confirm
-the email of someone who joined through the office's shared link.
+and an invite to the office's painel (A36); the one with a code to confirm an
+email (joining through the office's shared link, or a changed address); and the
+notice to the old address when an account's email changes.
 
 Sent from the office's address, in its language, with the link on its own
 address (never one taken from the request: plan section 4). The link works once
@@ -136,5 +137,30 @@ def confirm_email(office: Office, name: str, to: str, token: str, code: str) -> 
         html=html,
         text=text,
         idempotency_key="confirm-" + hashlib.sha256(token.encode()).hexdigest()[:32],
+        reply_to=office.reply_to,
+    )
+
+
+def email_changed_email(office: Office, name: str, to: str, new: str, change: str) -> Email:
+    """To the old address, when the account's email changes ("Minha conta"): so
+    an unexpected change gets noticed. No link: nothing to do if it was them.
+    `change`: this change's own id (its confirmation email's key), so every change
+    sends its notice, even A→B again within the provider's day of remembered keys."""
+    locale = office.locale
+    hello = t(locale, "resetHello", name=_first(name))
+    intro = t(locale, "emailChangedIntro", office=office.name, email=new)
+    ignore = t(locale, "emailChangedIgnore")
+    html = (
+        f'<!doctype html><html lang="{locale.value}"><body style="font-family:Arial,sans-serif;'
+        f'color:#1d1d1f;line-height:1.5">{_header(office)}<p>{escape(hello)}</p>'
+        f"<p>{escape(intro)}</p><p>{escape(ignore)}</p></body></html>"
+    )
+    return Email(
+        sender=office.sender,
+        to=to,
+        subject=t(locale, "emailChangedSubject", office=office.name),
+        html=html,
+        text="\n".join([office.name, "", hello, intro, "", ignore]),
+        idempotency_key="email-changed-" + hashlib.sha256(change.encode()).hexdigest()[:32],
         reply_to=office.reply_to,
     )

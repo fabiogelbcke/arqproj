@@ -222,6 +222,26 @@ async def test_archiving_drops_a_waiting_email_for_good(app, db_session, outbox,
     assert outbox.sent == []  # back from the archive, the old news stays unsent
 
 
+async def test_a_proposal_never_emails_its_client(app, client, db_session, owner, outbox, ready):
+    """Staff send a proposal's link themselves (A42): saving one, or files and
+    stages changing meanwhile, emails nobody."""
+    from backend.tests.test_maintenance_scan import call
+    from backend.tests.test_proposals import content
+
+    await db_session.execute(text("UPDATE tenants SET features = '{proposals}'"))
+    await db_session.execute(text(f"UPDATE projects SET status = 'proposal' WHERE id = {CASA}"))
+    project_id = await db_session.scalar(text(f"SELECT id FROM projects WHERE id = {CASA}"))
+    saved = await client.post(
+        f"/api/projects/{project_id}/proposals", json=content(), headers=owner
+    )
+    assert saved.status_code == 201, saved.text
+    await new_file(app, outbox, ready)
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    await make_due(db_session)
+    await run(app, outbox)
+    assert (await batches(db_session), outbox.sent) == ([], [])
+
+
 async def test_a_file_renamed_or_moved_meanwhile_shows_as_it_is_now(app, db_session, outbox, ready):
     path = await new_file(app, outbox, ready, "Croqui v1.pdf", "02 - Conceito")
     moved = ready / "01 - Briefing" / "Croqui final.pdf"

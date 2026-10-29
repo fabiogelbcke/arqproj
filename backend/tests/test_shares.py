@@ -341,6 +341,45 @@ async def test_a_link_downloads_up_to_its_daily_limit(
     assert (await client.get(url, headers=ALINEA)).status_code == 200
 
 
+async def test_a_resumed_download_counts_only_the_part_it_sends(
+    client, db_session, owner, files, monkeypatch
+):
+    link = await made(client, ["Programa de necessidades.pdf"])
+    key = (await shared(client, link)).json()["files"][0]["key"]
+    url = f"/api/share/{token_of(link)}/files/{key}"
+    part = await client.get(url, headers=ALINEA | {"range": "bytes=4-"})
+    assert (part.status_code, part.content) == (206, PDF[4:])
+    counted = await db_session.scalar(
+        text(f"SELECT day_bytes FROM share_links WHERE id = '{link['link']['id']}'")
+    )
+    assert counted == len(PDF) - 4
+
+
+async def test_a_download_in_parts_counts_as_one_download(client, db_session, owner, files):
+    link = await made(client, ["Programa de necessidades.pdf"])
+    key = (await shared(client, link)).json()["files"][0]["key"]
+    url = f"/api/share/{token_of(link)}/files/{key}"
+    for asked in ("bytes=0-3", "bytes=4-"):
+        assert (await client.get(url, headers=ALINEA | {"range": asked})).status_code == 206
+    downloads = await db_session.scalar(
+        text(f"SELECT downloads FROM share_links WHERE id = '{link['link']['id']}'")
+    )
+    assert downloads == 1
+
+
+async def test_a_reversed_range_never_lowers_the_days_count(client, db_session, owner, files):
+    """`bytes=9-0` would be a negative size: it gets the whole file, counted in full."""
+    link = await made(client, ["Programa de necessidades.pdf"])
+    key = (await shared(client, link)).json()["files"][0]["key"]
+    url = f"/api/share/{token_of(link)}/files/{key}"
+    whole = await client.get(url, headers=ALINEA | {"range": f"bytes={len(PDF) - 1}-0"})
+    assert (whole.status_code, whole.content) == (200, PDF)
+    counted = await db_session.scalar(
+        text(f"SELECT day_bytes FROM share_links WHERE id = '{link['link']['id']}'")
+    )
+    assert counted == len(PDF)
+
+
 async def test_a_key_opens_only_within_its_own_link(client, owner, files):
     first = await made(client, ["Planta.pdf"])
     second = await made(client, ["Planta.pdf"])

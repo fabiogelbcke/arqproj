@@ -10,11 +10,10 @@
    the small size (ui/sizes.css). */
 .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
 /* The search (ui/SearchBox) takes the room left, and gives way first: on a
-   tablet the sort and "Novo projeto" stay on its row instead of one wrapping
+   tablet the sort and the two new buttons stay on its row instead of wrapping
    alone. The sort is a ui/SelectField. */
-.search { flex: 1 1 240px; min-width: 160px; }
+.search { flex: 1 1 140px; min-width: 120px; }
 .tools > :not(.search) { flex: none; }
-/* "Novo projeto": a dark pill in small capitals. */
 .newButton {
   gap: 10px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
 }
@@ -43,7 +42,7 @@
   .search svg { left: 20px; width: 21px; height: 21px; } /* Safari's address-bar size */
   .search input { height: 100%; padding: 0 20px 0 52px; border: 0; background: transparent; font-size: 17px; }
   .search input[data-focused] { background: transparent; }
-  /* "Novo projeto" is the round + beside it (its name stays for screen readers). */
+  /* "Novo projeto" becomes the round + beside it. */
   .tools .newButton { /* over the Button's own size */
     position: fixed; z-index: 40; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
     display: grid; place-items: center; width: var(--control-floating); height: var(--control-floating); min-height: 0; padding: 0; gap: 0;
@@ -199,8 +198,9 @@
 }
 .emptyText h2 { font-size: 20px; font-weight: 500; letter-spacing: -0.01em; }
 .emptyText p { font-size: var(--text-md); color: var(--muted); }
+.emptyActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
 .emptyAction {
-  margin-top: 8px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
+  border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
 }
 @media (max-width: 720px) {
   .ghosts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -238,6 +238,11 @@
   rotate: 45deg; translate: 0 -1px;
 }
 .stageOption[data-focus-visible] .box { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* A checkbox's own explanation, under its label ("Começa como proposta"). */
+.optionHint { display: block; margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
+/* A checkbox with a second line: its box beside the first. */
+.stageOption:has(.optionHint) { align-items: flex-start; }
+.stageOption:has(.optionHint) .box { margin-top: 2px; }
 .note { font-size: var(--text-sm); color: var(--muted); }
 .problem {
   padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--r); background: var(--danger-soft);
@@ -281,3 +286,6 @@
   .groups[data-phone-group="active"] .phoneEmpty[data-group="active"],
   .groups[data-phone-group="completed"] .phoneEmpty[data-group="completed"] { display: block; }
 }
+/* "Outra etapa": a name and "Adicionar", its button on the field's line. */
+.ownStage { display: flex; align-items: flex-end; gap: 10px; }
+.ownStage > :first-child { flex: 1; min-width: 0; }
