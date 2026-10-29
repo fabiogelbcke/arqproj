@@ -34,13 +34,22 @@ import {
 } from "./proposals";
 import styles from "./proposals.module.css";
 import { useOffice } from "../office/office";
+import { useMe } from "../session/session";
+
+// A service as the form keeps it: a key to follow it as the list changes, and a
+// removed one stays in its place, with "Desfazer", until the next save.
+type DraftService = Preset & { key: number; removed?: boolean };
+let lastKey = 0;
+const draftService = (service: Preset): DraftService => ({ ...service, key: ++lastKey });
+const kept = (services: DraftService[]): Preset[] =>
+  services.filter((s) => !s.removed).map(({ title, description }) => ({ title, description }));
 
 type Draft = {
   client_name: string;
   city: string;
   date: string; // YYYY-MM-DD
   intro: string;
-  services: Preset[];
+  services: DraftService[];
   fee: string; // as typed: "29.000,00"
   payments: { amount: string; when: string }[];
   not_included: string; // one per line
@@ -58,7 +67,7 @@ function draftFrom(start: Generator["start"], locale: string): Draft {
     city: start.city ?? "",
     date: start.date,
     intro: start.intro ?? "",
-    services: (start.services ?? []).map((s) => ({ title: s.title, description: s.description ?? "" })),
+    services: (start.services ?? []).map((s) => draftService({ title: s.title, description: s.description ?? "" })),
     fee: start.fee ? formatAmount(start.fee, locale) : "",
     payments: (start.payments ?? []).map((p) => ({ amount: formatAmount(p.amount, locale), when: p.when })),
     not_included: (start.not_included ?? []).join("\n"),
@@ -76,9 +85,10 @@ type Checked = { content: ProposalContent } | { problem: string };
 /** The draft as the API takes it, or what to fix first (in the user's words). */
 function check(draft: Draft, locale: string, t: (key: string) => string): Checked {
   const fee = parseAmount(draft.fee, locale);
+  const services = kept(draft.services);
   if (!draft.client_name.trim()) return { problem: t("proposal.generator.needsClient") };
-  if (draft.services.length === 0) return { problem: t("proposal.generator.needsService") };
-  if (draft.services.some((s) => !s.title.trim())) return { problem: t("proposal.generator.needsServiceTitle") };
+  if (services.length === 0) return { problem: t("proposal.generator.needsService") };
+  if (services.some((s) => !s.title.trim())) return { problem: t("proposal.generator.needsServiceTitle") };
   if (!fee) return { problem: t("proposal.generator.needsFee") };
   const payments = draft.payments
     .filter((p) => p.amount.trim() || p.when.trim())
@@ -87,6 +97,7 @@ function check(draft: Draft, locale: string, t: (key: string) => string): Checke
   return {
     content: {
       ...draft,
+      services,
       fee,
       payments: payments as { amount: number; when: string }[],
       not_included: draft.not_included.split("\n").map((line) => line.trim()).filter(Boolean),
@@ -99,7 +110,7 @@ function previewBody(draft: Draft, locale: string): Schemas["ProposalStart"] {
   return {
     ...draft,
     client_name: draft.client_name.trim() || "—",
-    services: draft.services.filter((s) => s.title.trim()),
+    services: kept(draft.services).filter((s) => s.title.trim()),
     fee: parseAmount(draft.fee, locale) || null,
     payments: draft.payments.flatMap((p) => {
       const amount = parseAmount(p.amount, locale);
@@ -107,6 +118,21 @@ function previewBody(draft: Draft, locale: string): Schemas["ProposalStart"] {
     }),
     not_included: draft.not_included.split("\n").map((line) => line.trim()).filter(Boolean),
   };
+}
+
+const OFFICE_FIELDS = ["signatory", "address", "city", "phone", "whatsapp", "email"] as const;
+
+/** The office's details the proposal gives differently: an owner is asked whether
+ *  to update the office with them. Blanks either side aren't asked about (the
+ *  office's own blanks are filled in anyway). */
+function officeChanges(content: ProposalContent, office: Generator["office"]) {
+  const tidy = (field: (typeof OFFICE_FIELDS)[number], value: string | null | undefined) =>
+    field === "email" ? (value ?? "").trim().toLowerCase() : (value ?? "").trim();
+  return OFFICE_FIELDS.filter((field) => {
+    const given = tidy(field, content[field]);
+    const saved = tidy(field, office[field]);
+    return given && saved && given !== saved;
+  });
 }
 
 const same = (a: Preset, b: Preset) => a.title.trim() === b.title.trim() && a.description.trim() === b.description.trim();
@@ -132,6 +158,9 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
   const office = useOffice();
+  const owner = useMe().data?.role === "owner";
+  // Waiting for an owner's answer: update the office's details too, or not.
+  const [askOffice, setAskOffice] = useState<{ content: ProposalContent; fields: string[] } | null>(null);
   const [draft, setDraft] = useState<Draft>(() => draftFrom(data.start, locale));
   const [dirty, setDirty] = useState(false);
   const edits = useRef(0); // counts changes, so a save knows whether more came after it
@@ -176,16 +205,37 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
   }, [body, data.project_id]);
 
   const services = draft.services;
-  const setService = (index: number, next: Partial<Preset>) =>
-    change({ services: services.map((s, i) => (i === index ? { ...s, ...next } : s)) });
-  const move = (index: number, by: number) => {
+  const shown = services.filter((s) => !s.removed);
+  const setService = (key: number, next: Partial<DraftService>) =>
+    change({ services: services.map((s) => (s.key === key ? { ...s, ...next } : s)) });
+  // Past the next service still in the list, over any removed ones between.
+  const move = (key: number, by: -1 | 1) => {
+    const order = shown.map((s) => s.key);
+    const other = order[order.indexOf(key) + by];
+    if (other === undefined) return;
     const list = [...services];
-    const [moved] = list.splice(index, 1);
-    list.splice(index + by, 0, moved!);
+    const a = list.findIndex((s) => s.key === key);
+    const b = list.findIndex((s) => s.key === other);
+    [list[a], list[b]] = [list[b]!, list[a]!];
     change({ services: list });
   };
-  const notListed = data.presets.filter((preset) => !services.some((s) => sameTitle(s, preset)));
-  const saveAsPreset = (service: Preset) => {
+  // Collapsed to a line each; "Editar" opens one. Only what's on screen, not the draft.
+  const [editing, setEditing] = useState<Set<number>>(() => new Set());
+  const toggle = (key: number, open: boolean) =>
+    setEditing((was) => {
+      const next = new Set(was);
+      if (open) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  // A problem to fix first; an untitled service opens, to be named.
+  const fail = (problem: string) => {
+    setProblem(problem);
+    setEditing((was) => new Set([...was, ...shown.filter((s) => !s.title.trim()).map((s) => s.key)]));
+  };
+  const notListed = data.presets.filter((preset) => !shown.some((s) => sameTitle(s, preset)));
+  const saveAsPreset = ({ title, description }: Preset) => {
+    const service = { title, description };
     const list = data.presets.some((p) => sameTitle(p, service))
       ? data.presets.map((p) => (sameTitle(p, service) ? service : p))
       : [...data.presets, service];
@@ -212,7 +262,7 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
   const pdfWindow = useRef<Window | null>(null);
   const openPdf = () => {
     const checked = check(draft, locale, t);
-    if ("problem" in checked) return setProblem(checked.problem);
+    if ("problem" in checked) return fail(checked.problem);
     setProblem(null);
     // Opened at once, so the browser lets it through; the PDF follows.
     pdfWindow.current = window.open("", "_blank");
@@ -232,13 +282,23 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
 
   const submit = () => {
     const checked = check(draft, locale, t);
-    if ("problem" in checked) return setProblem(checked.problem);
+    if ("problem" in checked) return fail(checked.problem);
     setProblem(null);
+    const fields = owner ? officeChanges(checked.content, data.office) : [];
+    if (fields.length) return setAskOffice({ content: checked.content, fields });
+    store(checked.content, false);
+  };
+
+  const store = (content: ProposalContent, updateOffice: boolean) => {
+    setAskOffice(null);
     const editsSaved = edits.current;
-    save.mutate(checked.content, {
+    save.mutate({ content, updateOffice }, {
       onSuccess: (saved) => {
         onSaved(saved.version);
-        if (edits.current === editsSaved) setDirty(false);
+        if (edits.current === editsSaved) {
+          setDirty(false);
+          setDraft((was) => ({ ...was, services: was.services.filter((s) => !s.removed) }));
+        }
         toast(t("proposal.generator.saved", { version: saved.version }));
       },
     });
@@ -383,48 +443,74 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
             <h2 id="p-services">{t("proposal.generator.services")}</h2>
             <p className={styles.hint}>{t("proposal.generator.servicesHint")}</p>
             <ol className={styles.services}>
-              {services.map((service, i) => {
+              {services.map((service) => {
+                if (service.removed)
+                  return (
+                    <li key={service.key} className={styles.removed}>
+                      <span>{t("proposal.generator.removedService", { title: service.title.trim() || t("proposal.generator.untitled") })}</span>
+                      <Button size="small" variant="ghost" onPress={() => setService(service.key, { removed: false })}>
+                        {t("proposal.generator.undo")}
+                      </Button>
+                    </li>
+                  );
+                const i = shown.indexOf(service);
+                const open = editing.has(service.key);
                 const preset = data.presets.find((p) => sameTitle(p, service));
                 const isDefault = preset !== undefined && same(preset, service);
+                const name = service.title.trim() || t("proposal.generator.untitled");
                 return (
-                  <li key={i} className={styles.service}>
+                  <li key={service.key} className={styles.service} data-open={open || undefined}>
                     <div className={styles.serviceHead}>
                       <span className={styles.number}>{i + 1}.</span>
+                      <div className={styles.serviceSummary}>
+                        <span className={styles.serviceName}>{name}</span>
+                        {!open && service.description.trim() && (
+                          <span className={styles.serviceText}>{service.description}</span>
+                        )}
+                      </div>
                       <div className={styles.serviceTools}>
-                        <Button size="small" variant="ghost" isDisabled={i === 0} onPress={() => move(i, -1)} aria-label={t("proposal.generator.moveUp", { title: service.title })}>
+                        <Button size="small" variant="ghost" isDisabled={i === 0} onPress={() => move(service.key, -1)} aria-label={t("proposal.generator.moveUp", { title: name })}>
                           ↑
                         </Button>
-                        <Button size="small" variant="ghost" isDisabled={i === services.length - 1} onPress={() => move(i, 1)} aria-label={t("proposal.generator.moveDown", { title: service.title })}>
+                        <Button size="small" variant="ghost" isDisabled={i === shown.length - 1} onPress={() => move(service.key, 1)} aria-label={t("proposal.generator.moveDown", { title: name })}>
                           ↓
                         </Button>
-                        <Button size="small" variant="ghost" onPress={() => change({ services: services.filter((_, j) => j !== i) })}>
+                        <Button size="small" variant="ghost" onPress={() => toggle(service.key, !open)} aria-expanded={open} aria-label={t(open ? "proposal.generator.doneService" : "proposal.generator.editService", { title: name })}>
+                          {t(open ? "proposal.generator.done" : "proposal.generator.edit")}
+                        </Button>
+                        <Button size="small" variant="ghost" onPress={() => setService(service.key, { removed: true })} aria-label={t("proposal.generator.removeService", { title: name })}>
                           {t("proposal.generator.remove")}
                         </Button>
                       </div>
                     </div>
-                    <TextField
-                      label={t("proposal.generator.serviceTitle")}
-                      value={service.title}
-                      onChange={(title) => setService(i, { title })}
-                      maxLength={LIMITS.serviceTitle}
-                      isRequired
-                    />
-                    <TextAreaField
-                      label={t("proposal.generator.serviceDescription")}
-                      value={service.description}
-                      onChange={(description) => setService(i, { description })}
-                      maxLength={LIMITS.serviceDescription}
-                    />
-                    {!isDefault && service.title.trim() && (
-                      <Button size="small" className={styles.saveDefault} isDisabled={savePresets.isPending} onPress={() => saveAsPreset(service)}>
-                        {preset ? t("proposal.generator.updatePreset") : t("proposal.generator.addPreset")}
-                      </Button>
+                    {open && (
+                      <>
+                        <TextField
+                          label={t("proposal.generator.serviceTitle")}
+                          value={service.title}
+                          onChange={(title) => setService(service.key, { title })}
+                          maxLength={LIMITS.serviceTitle}
+                          isRequired
+                          autoFocus={!service.title}
+                        />
+                        <TextAreaField
+                          label={t("proposal.generator.serviceDescription")}
+                          value={service.description}
+                          onChange={(description) => setService(service.key, { description })}
+                          maxLength={LIMITS.serviceDescription}
+                        />
+                        {!isDefault && service.title.trim() && (
+                          <Button size="small" className={styles.saveDefault} isDisabled={savePresets.isPending} onPress={() => saveAsPreset(service)}>
+                            {preset ? t("proposal.generator.updatePreset") : t("proposal.generator.addPreset")}
+                          </Button>
+                        )}
+                      </>
                     )}
                   </li>
                 );
               })}
             </ol>
-            {services.length < LIMITS.proposalServices && (
+            {shown.length < LIMITS.proposalServices && (
               <ActionMenu
                 label={t("proposal.generator.addService")}
                 className={styles.addButton}
@@ -435,7 +521,9 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
                 ]}
                 onAction={(id) => {
                   const preset = id.startsWith("preset-") ? notListed[Number(id.slice(7))] : undefined;
-                  change({ services: [...services, preset ? { ...preset } : { title: "", description: "" }] });
+                  const added = draftService(preset ? { ...preset } : { title: "", description: "" });
+                  change({ services: [...services, added] });
+                  toggle(added.key, true); // opened, to write or adjust its text
                 }}
               >
                 + {t("proposal.generator.addService")}
@@ -484,7 +572,7 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
 
           <section className={styles.section} aria-labelledby="p-office">
             <h2 id="p-office">{t("proposal.generator.office")}</h2>
-            <p className={styles.hint}>{t("proposal.generator.officeHint")}</p>
+            <p className={styles.hint}>{t(owner ? "proposal.generator.officeHintOwner" : "proposal.generator.officeHint")}</p>
             <TextField
               label={t("proposal.generator.signatory")}
               description={t("proposal.generator.signatoryHint")}
@@ -593,6 +681,22 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
           danger
           onCancel={() => leaving.reset()}
           onConfirm={() => leaving.proceed()}
+        />
+      )}
+
+      {askOffice && (
+        <ConfirmDialog
+          title={t("proposal.generator.officeUpdate.ask")}
+          text={t("proposal.generator.officeUpdate.means", {
+            fields: new Intl.ListFormat(locale).format(
+              askOffice.fields.map((field) => t(`proposal.generator.officeUpdate.field.${field}`)),
+            ),
+          })}
+          confirm={t("proposal.generator.officeUpdate.confirm")}
+          cancel={t("proposal.generator.officeUpdate.cancel")}
+          onConfirm={() => store(askOffice.content, true)}
+          onCancel={() => store(askOffice.content, false)}
+          onDismiss={() => setAskOffice(null)}
         />
       )}
 

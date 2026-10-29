@@ -19,6 +19,21 @@ a new entry too.
 
 ---
 
+## 2026-10-28 — A40: owners may update the office's details from a proposal
+
+**Was:** saving a proposal only filled in the office details the office lacked;
+changing ones already set was done in Configurações → Escritório.
+
+**Now:** the empty ones are still filled in for anyone. When an owner saves a
+proposal whose details differ from the office's, they are asked whether to update
+the office too ("Atualizar escritório" / "Só nesta proposta"). Members are not
+asked; their changes stay in the proposal.
+
+**Why:** Fabio, reviewing the branch: an owner who corrects a phone or address
+while writing a proposal usually means it for the office, and going to the
+settings afterwards is easy to forget. Asking keeps one-off changes (another
+signatory for one client) out of the office's details.
+
 ## 2026-10-28 — A40, A24: "Nova proposta" button instead of a checkbox
 
 **Was:** one optional checkbox in the creation form, "Começa como proposta"

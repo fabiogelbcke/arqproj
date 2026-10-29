@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, call, type Schemas } from "../api/client";
+import { OFFICE } from "../office/office";
 import { PROJECTS } from "../projects/projects";
 
 export type Generator = Schemas["GeneratorOut"];
@@ -21,9 +22,18 @@ export function useGenerator(projectId: string) {
 export function useSaveProposal(projectId: string) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (body: ProposalContent) =>
-      call(api.POST("/api/projects/{project_id}/proposals", { params: { path: { project_id: projectId } }, body })),
-    onSuccess: () => void client.invalidateQueries({ queryKey: proposalKey(projectId) }),
+    // An owner may also replace the office's details with the proposal's.
+    mutationFn: ({ content, updateOffice }: { content: ProposalContent; updateOffice: boolean }) =>
+      call(
+        api.POST("/api/projects/{project_id}/proposals", {
+          params: { path: { project_id: projectId }, query: { update_office: updateOffice } },
+          body: content,
+        }),
+      ),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: proposalKey(projectId) });
+      void client.invalidateQueries({ queryKey: OFFICE });
+    },
   });
 }
 

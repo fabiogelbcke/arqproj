@@ -3501,6 +3501,16 @@
               "format": "uuid",
               "title": "Project Id"
             }
+          },
+          {
+            "name": "update_office",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Update Office"
+            }
           }
         ],
         "requestBody": {
@@ -3533,6 +3543,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {

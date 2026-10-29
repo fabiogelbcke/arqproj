@@ -223,6 +223,10 @@ const GENERATOR: Generator = {
 
 type Reply = { status?: number; body?: unknown };
 
+/** Services start collapsed: "Editar" opens one. */
+const editService = async (title: string) =>
+  userEvent.click(await screen.findByRole("button", { name: `Editar ${title}` }));
+
 function generator(extra: Record<string, (body: unknown) => Reply | Promise<Reply>> = {}) {
   const sent = fakeApi({
     "GET /api/tenant": () => ({ body: TENANT }),
@@ -278,6 +282,7 @@ describe("the proposal generator", () => {
 
   it("saves an edited service as the office's default, keeping the others", async () => {
     const sent = generator({ "PUT /api/proposal-presets": (body) => ({ body: (body as { services: unknown }).services }) });
+    await editService("Briefing");
     const descriptions = await screen.findAllByLabelText("Descrição");
     await userEvent.type(descriptions[0]!, " E visitas.");
     await userEvent.click(screen.getByRole("button", { name: "Salvar como padrão deste serviço" }));
@@ -295,10 +300,14 @@ describe("the proposal generator", () => {
     // Services already in the proposal aren't offered again.
     expect(within(menu).queryByRole("menuitem", { name: "Briefing" })).toBeNull();
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Imagens renderizadas" }));
+    // The one added opens; the others stay a line each.
     expect(screen.getAllByLabelText(/^Nome do serviço/).map((f) => (f as HTMLInputElement).value)).toEqual([
-      "Briefing",
-      "Anteprojeto",
       "Imagens renderizadas",
+    ]);
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      expect.stringContaining("1.Briefing"),
+      expect.stringContaining("2.Anteprojeto"),
+      expect.stringContaining("3.Imagens renderizadas"),
     ]);
   });
 
@@ -310,6 +319,7 @@ describe("the proposal generator", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
     await router.navigate("/projetos/p-1/proposta");
 
+    await editService("Briefing");
     await userEvent.type((await screen.findAllByLabelText("Descrição"))[0]!, " E visitas.");
     await userEvent.click(await crumb());
     const ask = await screen.findByRole("alertdialog");
@@ -338,6 +348,7 @@ describe("the proposal generator", () => {
     });
     await userEvent.type(await screen.findByLabelText(/Valor total/), "1.000,00");
     await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    await editService("Briefing");
     const description = () => screen.getAllByLabelText("Descrição")[0] as HTMLTextAreaElement;
     await userEvent.type(description(), " E visitas.");
     finish();
@@ -357,6 +368,7 @@ describe("the proposal generator", () => {
       "PUT /api/proposal-presets": (body) => ({ body: (body as { services: unknown }).services }),
     });
     const description = async () => (await screen.findAllByLabelText("Descrição"))[0] as HTMLTextAreaElement;
+    await editService("Briefing");
     await userEvent.type(await description(), " E visitas.");
     await userEvent.type(screen.getByLabelText("Nome do cliente"), " Souza");
     await userEvent.click(screen.getByRole("button", { name: "Salvar como padrão deste serviço" }));
@@ -364,6 +376,120 @@ describe("the proposal generator", () => {
     await new Promise((settle) => setTimeout(settle, 50));
     expect((screen.getByLabelText("Nome do cliente") as HTMLInputElement).value).toBe("Helena Duarte Souza");
     expect((await description()).value).toBe("Conversas. E visitas.");
+  });
+
+  it("removes a service with a way to undo it, and leaves it out when saving", async () => {
+    const sent = generator({
+      "POST /api/projects/p-1/proposals": () => ({
+        status: 201,
+        body: { version: 1, created_at: "2026-10-28T12:00:00Z", created_by: "Ana" },
+      }),
+    });
+    await userEvent.click(await screen.findByRole("button", { name: "Remover Briefing" }));
+    expect(screen.getByText("“Briefing” removido desta proposta.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar Anteprojeto" }).closest("li")).toHaveTextContent("1.Anteprojeto");
+    await userEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    expect(screen.getByRole("button", { name: "Editar Briefing" }).closest("li")).toHaveTextContent("1.Briefing");
+
+    await userEvent.click(screen.getByRole("button", { name: "Remover Briefing" }));
+    await userEvent.type(screen.getByLabelText(/Valor total/), "1.000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    await waitFor(() => expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(true));
+    const body = sent.find((r) => r.path.endsWith("/proposals"))!.body as { services: unknown[] };
+    expect(body.services).toEqual([{ title: "Anteprojeto", description: expect.any(String) }]);
+  });
+
+  it("moves a service past one removed", async () => {
+    generator();
+    await userEvent.click(await screen.findByRole("button", { name: "Adicionar serviço" }));
+    await userEvent.click(within(await screen.findByRole("menu")).getByRole("menuitem", { name: "Imagens renderizadas" }));
+    await userEvent.click(screen.getByRole("button", { name: "Remover Anteprojeto" }));
+    await userEvent.click(screen.getByRole("button", { name: "Mover Imagens renderizadas para cima" }));
+    // The one added is open: its button says "Concluir".
+    expect(screen.getByRole("button", { name: "Concluir Imagens renderizadas" }).closest("li")).toHaveTextContent(
+      "1.Imagens renderizadas",
+    );
+  });
+
+  it("opens an unnamed service when saving asks for its name", async () => {
+    generator();
+    await userEvent.click(await screen.findByRole("button", { name: "Adicionar serviço" }));
+    await userEvent.click(within(await screen.findByRole("menu")).getByRole("menuitem", { name: "Serviço em branco" }));
+    await userEvent.click(screen.getByRole("button", { name: "Concluir Serviço sem nome" }));
+    expect(screen.queryByLabelText(/^Nome do serviço/)).toBeNull();
+    await userEvent.type(screen.getByLabelText(/Valor total/), "1.000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Nome do serviço/)).toHaveValue("");
+  });
+
+  it("asks an owner whether a changed office detail updates the office", async () => {
+    const sent = generator({
+      "POST /api/projects/p-1/proposals": () => ({
+        status: 201,
+        body: { version: 1, created_at: "2026-10-28T12:00:00Z", created_by: "Ana" },
+      }),
+    });
+    await userEvent.type(await screen.findByLabelText(/Valor total/), "1.000,00");
+    const signatory = screen.getByLabelText(/^Quem assina/);
+    await userEvent.clear(signatory);
+    await userEvent.type(signatory, "Arq. Bruno Lima");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    const ask = await screen.findByRole("alertdialog");
+    expect(ask).toHaveTextContent("diferentes dos salvos no escritório: Quem assina.");
+    expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(false); // nothing saved until answered
+    await userEvent.keyboard("{Escape}"); // neither: back to the form, unsaved
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(false);
+
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Atualizar escritório" }));
+    await waitFor(() => expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(true));
+    expect(sent.find((r) => r.path.endsWith("/proposals"))!.query).toBe("?update_office=true");
+  });
+
+  it("saves only the proposal when the owner keeps the office's details", async () => {
+    const sent = generator({
+      "POST /api/projects/p-1/proposals": () => ({
+        status: 201,
+        body: { version: 1, created_at: "2026-10-28T12:00:00Z", created_by: "Ana" },
+      }),
+    });
+    await userEvent.type(await screen.findByLabelText(/Valor total/), "1.000,00");
+    await userEvent.type(screen.getByLabelText(/^Quem assina/), " Lima");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Só nesta proposta" }));
+    await waitFor(() => expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(true));
+    expect(sent.find((r) => r.path.endsWith("/proposals"))!.query).toBe("?update_office=false");
+  });
+
+  it("doesn't ask a member", async () => {
+    const sent = generator({
+      "GET /api/me": () => ({ body: { ...ME, role: "member" } }),
+      "POST /api/projects/p-1/proposals": () => ({
+        status: 201,
+        body: { version: 1, created_at: "2026-10-28T12:00:00Z", created_by: "Ana" },
+      }),
+    });
+    await userEvent.type(await screen.findByLabelText(/Valor total/), "1.000,00");
+    await userEvent.type(screen.getByLabelText(/^Quem assina/), " Lima");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    await waitFor(() => expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(true));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("doesn't ask an owner about details the office lacks: those are filled in", async () => {
+    const sent = generator({
+      "POST /api/projects/p-1/proposals": () => ({
+        status: 201,
+        body: { version: 1, created_at: "2026-10-28T12:00:00Z", created_by: "Ana" },
+      }),
+    });
+    await userEvent.type(await screen.findByLabelText(/Valor total/), "1.000,00");
+    await userEvent.type(screen.getByLabelText(/^Endereço/), "Rua das Palmeiras, 120");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    await waitFor(() => expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(true));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
   it("marks the proposal accepted only after asking", async () => {

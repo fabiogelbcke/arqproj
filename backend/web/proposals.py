@@ -9,9 +9,9 @@
     PATCH /api/proposal-defaults               the office's opening and observations
 
 Anyone signed in may use them (A40: every staff member for now). Saving a proposal
-also fills in the office's address, city, phone, email and signing architect
-where the office has none yet, so they are asked for once; changing ones already
-set belongs to the office's settings (owners).
+also fills in the office's address, city, phone, WhatsApp, email and signing
+architect where the office has none yet, so they are asked for once. An owner may
+also replace the ones already set, when asked on saving (`update_office`).
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import is_email, tidy_email
-from backend.identity.models import User
+from backend.identity.models import Role, User
 from backend.office.models import LogoType, OfficeProfile
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import ProjectStatus
@@ -374,10 +374,11 @@ async def preview_page(
     return proposal_out(body, 0, tenant.locale, "")
 
 
-async def _fill_office_blanks(
-    db: AsyncSession, tenant: CurrentTenant, content: ProposalContent
+async def _fill_office_details(
+    db: AsyncSession, tenant: CurrentTenant, content: ProposalContent, replace: bool
 ) -> None:
-    """The office's details it has no value for yet, from the proposal."""
+    """The office's details from the proposal: those it has no value for yet, or,
+    with `replace`, every one the proposal gives. A blank never clears one."""
     found = await load_profile(db)
     if found is None:
         found = OfficeProfile(display_name=tenant.name)
@@ -389,24 +390,29 @@ async def _fill_office_blanks(
         ("whatsapp", content.whatsapp),
         ("signatory", content.signatory),
     ):
-        if value and not getattr(found, column):
+        if value and (replace or not getattr(found, column)):
             setattr(found, column, value)
     email = tidy_email(content.email)
-    if email and is_email(email) and not found.contact_email:
+    if email and is_email(email) and (replace or not found.contact_email):
         found.contact_email = email
 
 
 @router.post(
-    "/projects/{project_id}/proposals", status_code=201, responses=documented(401, 404, 409, 422)
+    "/projects/{project_id}/proposals",
+    status_code=201,
+    responses=documented(401, 403, 404, 409, 422),
 )
 async def save(
     project_id: uuid.UUID,
     body: ProposalContent,
+    update_office: bool = False,
     staff: CurrentStaff = Depends(require_csrf),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> VersionOut:
     """The next version. The client page shows it at once (A40: no email)."""
+    if update_office and staff.role is not Role.OWNER:
+        raise ApiError(403, ErrorCode.OWNER_ONLY)
     # Locked until saved: two saves at once get consecutive versions.
     project = await _project(db, project_id, lock=True)
     if project.status is ProjectStatus.ARCHIVED:
@@ -425,7 +431,7 @@ async def save(
         created_by=staff.user_id,
     )
     db.add(saved)
-    await _fill_office_blanks(db, tenant, body)
+    await _fill_office_details(db, tenant, body, replace=update_office)
     try:
         await db.commit()
     except IntegrityError:

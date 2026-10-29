@@ -30,19 +30,33 @@
 .section h2 { font-size: var(--text-lg); font-weight: 600; }
 .subhead { font-size: var(--text-md); font-weight: 600; margin-top: 4px; }
 .hint { font-size: var(--text-sm); color: var(--muted); }
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* Top-aligned: one field's hint under it doesn't push the other's input down. */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
 @media (max-width: 560px) { .pair { grid-template-columns: 1fr; } }
 .withDefault { display: grid; gap: 8px; }
 .saveDefault { justify-self: start; }
 
-.services { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+/* Services collapse to a line each (name, the start of the text); "Editar" opens one. */
+.services { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .service {
-  display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-card);
+  display: grid; gap: 12px; padding: 8px 8px 8px 14px; border: 1px solid var(--line); border-radius: var(--r-card);
   background: var(--raise);
 }
-.serviceHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.service[data-open] { padding: 12px 12px 16px 16px; }
+/* The buttons drop under the name when the row is narrow (phones). */
+.serviceHead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .number { font-weight: 600; }
-.serviceTools { display: flex; gap: 4px; }
+.serviceSummary { display: grid; flex: 1 1 200px; min-width: 0; }
+.serviceName { font-weight: 500; overflow-wrap: anywhere; }
+.serviceText {
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--text-sm); color: var(--muted);
+}
+.serviceTools { display: flex; gap: 2px; margin-left: auto; }
+.removed {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 8px 8px 14px; border: 1px dashed var(--line-strong); border-radius: var(--r-card);
+  font-size: var(--text-sm); color: var(--muted);
+}
 .addButton {
   justify-self: start; min-height: var(--control-small); padding: 0 16px; border: 1px solid var(--line);
   border-radius: var(--r-pill); background: var(--raise); color: var(--ink); font: inherit; font-size: var(--text-sm);

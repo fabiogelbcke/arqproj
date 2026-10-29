@@ -280,6 +280,37 @@ async def test_saving_fills_in_only_the_office_details_it_lacks(client, db_sessi
     assert office["contact_email"] is None  # not an address: never saved
 
 
+async def test_an_owner_may_update_the_offices_details_when_saving(client, db_session, owner):
+    await client.patch(
+        "/api/office",
+        json={"phone": "(11) 1111-1111", "city": "Blumenau", "contact_email": "a@alinea.example"},
+        headers=owner,
+    )
+    found = await casa_jardim(client)
+    saved = await client.post(
+        f"/api/projects/{found['id']}/proposals?update_office=true",
+        json=content(phone="(47) 3000-0000", city="", email="b@alinea.example"),
+        headers=owner,
+    )
+    assert saved.status_code == 201, saved.text
+    office = (await client.get("/api/office", headers=ALINEA)).json()
+    assert office["phone"] == "(47) 3000-0000"
+    assert office["contact_email"] == "b@alinea.example"
+    assert office["city"] == "Blumenau"  # left blank in the proposal: kept
+
+    member = await sign_in_as(client, db_session, "membro@alinea.example", Role.MEMBER)
+    refused = await client.post(
+        f"/api/projects/{found['id']}/proposals?update_office=true",
+        json=content(phone="(47) 2222-2222"),
+        headers=member,
+    )
+    assert (refused.status_code, refused.json()["error"]) == (403, "owner_only")
+    office = (await client.get("/api/office", headers=ALINEA)).json()
+    assert office["phone"] == "(47) 3000-0000"
+    versions = (await client.get(f"/api/projects/{found['id']}/proposal", headers=owner)).json()
+    assert len(versions["versions"]) == 1  # the refused save made no version
+
+
 async def test_members_make_proposals_too(client, db_session, owner):
     member = await sign_in_as(client, db_session, "membro@alinea.example", Role.MEMBER)
     found = await casa_jardim(client)

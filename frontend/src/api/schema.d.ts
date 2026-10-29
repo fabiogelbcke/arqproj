@@ -6006,7 +6006,9 @@ export interface operations {
     };
     save_api_projects__project_id__proposals_post: {
         parameters: {
-            query?: never;
+            query?: {
+                update_office?: boolean;
+            };
             header?: never;
             path: {
                 project_id: string;
@@ -6030,6 +6032,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
