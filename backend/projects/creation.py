@@ -108,7 +108,12 @@ class LocalFolders:
         if current.name == name:
             return item_id
         candidate, n = current.with_name(name), 2
-        while (self.root / candidate).exists():
+
+        def taken(path: Path) -> bool:  # by another item: on macOS "A" is "a"
+            there = self.root / path
+            return there.exists() and not there.samefile(self.root / current)
+
+        while taken(candidate):
             candidate, n = current.with_name(f"{name} ({n})"), n + 1
         (self.root / current).rename(self.root / candidate)
         return candidate.as_posix()

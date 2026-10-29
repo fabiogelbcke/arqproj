@@ -82,3 +82,11 @@
   /* Tables scroll sideways rather than breaking every cell into words. */
   .table td { white-space: nowrap; }
 }
+
+/* "Crie o seu escritório" (OfficeSignup): the address it will have, as typed. */
+.mutedText { margin: 0; color: var(--muted); font-size: var(--text-sm); line-height: 1.5; }
+.addressField { display: grid; gap: 6px; }
+.addressStatus { margin: 0; font-size: var(--text-sm); }
+.addressStatus:empty { display: none; }
+.addressOk { color: var(--ink); }
+.addressProblem { color: var(--danger); }

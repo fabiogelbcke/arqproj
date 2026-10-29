@@ -650,3 +650,95 @@ async def test_moving_into_a_section_that_isnt_there_moves_nothing(client, owner
     )
     assert (response.status_code, response.json()["error"]) == (404, "folder_not_found")
     assert (folders / "01 - Briefing" / "Programa.pdf").exists()
+
+
+async def change_section(client, headers, action, name="Plantas", **extra):
+    staff = await staff_of(client)
+    return await client.post(
+        f"/api/projects/{staff['project_id']}/stages/1/folders/{action}",
+        json={"row_version": staff["row_version"], "name": name} | extra,
+        headers=headers,
+    )
+
+
+async def test_renaming_a_section_renames_its_folder_and_keeps_its_files(client, owner, folders):
+    await new_section(client, owner)
+    (folders / "01 - Briefing" / "Plantas" / "Corte.pdf").write_bytes(PDF)
+    response = await change_section(client, owner, "rename", new_name=" Plantas executivas ")
+    assert response.status_code == 204, response.text
+    assert (folders / "01 - Briefing" / "Plantas executivas" / "Corte.pdf").exists()
+    assert ("Plantas executivas", ["Corte.pdf"]) in await groups_seen(client)
+
+
+@pytest.mark.parametrize(
+    ("new_name", "status", "error"),
+    [
+        ("_Rascunhos", 422, "invalid_folder_name"),
+        ("  ", 422, "invalid_folder_name"),
+        ("renders", 409, "folder_exists"),  # another section's, in any case
+    ],
+)
+async def test_a_section_cant_be_renamed_to_a_name_the_page_wouldnt_show_apart(
+    client, owner, folders, new_name, status, error
+):
+    await new_section(client, owner)
+    await new_section(client, owner, name="Renders")
+    response = await change_section(client, owner, "rename", new_name=new_name)
+    assert (response.status_code, response.json()["error"]) == (status, error)
+    assert (folders / "01 - Briefing" / "Plantas").is_dir()
+
+
+async def test_renaming_a_section_to_its_own_name_in_other_case_is_allowed(client, owner, folders):
+    await new_section(client, owner)
+    assert (await change_section(client, owner, "rename", new_name="PLANTAS")).status_code == 204
+    assert [p.name for p in (folders / "01 - Briefing").iterdir() if p.is_dir()] == ["PLANTAS"]
+
+
+async def test_hiding_a_section_keeps_it_and_its_files_in_drive_but_off_the_page(
+    client, owner, folders
+):
+    await new_section(client, owner)
+    (folders / "01 - Briefing" / "Plantas" / "Corte.pdf").write_bytes(PDF)
+    response = await change_section(client, owner, "hide")
+    assert response.status_code == 204, response.text
+    assert (folders / "01 - Briefing" / "_Plantas" / "Corte.pdf").read_bytes() == PDF
+    assert await groups_seen(client) == [(None, ["Programa.pdf"])]  # staff don't see it either
+
+
+@pytest.mark.parametrize("action", ["rename", "hide"])
+async def test_a_section_made_straight_in_drive_is_changed_there(
+    client, owner, folders, monkeypatch, action
+):
+    async def not_ours(self, item_id):
+        return False  # drive.file: the grant sees only what the app created
+
+    (folders / "01 - Briefing" / "Plantas").mkdir()
+    monkeypatch.setattr(creation.LocalFolders, "can_rename", not_ours)
+    response = await change_section(client, owner, action, new_name="Renders")
+    assert (response.status_code, response.json()["error"]) == (409, "folder_not_ours")
+    assert (folders / "01 - Briefing" / "Plantas").is_dir()
+
+
+@pytest.mark.parametrize("action", ["rename", "hide"])
+async def test_changing_a_section_that_isnt_there_or_after_stages_changed_is_refused(
+    client, owner, folders, action
+):
+    response = await change_section(client, owner, action, new_name="Renders")
+    assert (response.status_code, response.json()["error"]) == (404, "folder_not_found")
+    await new_section(client, owner)
+    stale = (await staff_of(client))["row_version"] - 1
+    response = await change_section(client, owner, action, new_name="Renders", row_version=stale)
+    assert (response.status_code, response.json()["error"]) == (409, "project_changed")
+
+
+@pytest.mark.parametrize("action", ["rename", "hide"])
+async def test_only_staff_of_the_office_change_sections(client, db_session, owner, folders, action):
+    await new_section(client, owner)
+    staff = await staff_of(client)
+    url = f"/api/projects/{staff['project_id']}/stages/1/folders/{action}"
+    body = {"row_version": staff["row_version"], "name": "Plantas", "new_name": "Renders"}
+    assert (await client.post(url, json=body, headers=ALINEA)).status_code in (401, 403)
+    norte = await sign_in_as(client, db_session, "dona@norte.example", Role.OWNER, NORTE, "norte")
+    response = await client.post(url, json=body, headers=norte)
+    assert (response.status_code, response.json()["error"]) == (404, "project_not_found")
+    assert (folders / "01 - Briefing" / "Plantas").is_dir()

@@ -359,7 +359,15 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
   margin: 0; font-size: var(--text-sm); font-weight: 500; letter-spacing: normal; text-transform: none; color: inherit;
 }
 .client .file-section__count { font-size: var(--text-xs); opacity: .65; }
-.client .file-section__head > :last-child { margin-left: auto; transition: transform .2s ease; }
+.client .file-section__count { margin-right: auto; }
+.client .file-section__head > :last-child { transition: transform .2s ease; }
+/* A section's "⋯" (edit mode): like a file's, quiet until pointed at. */
+.client .section-menu__button {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: var(--r-pill);
+  background: transparent; color: inherit; cursor: pointer;
+}
+.client .section-menu__button:hover, .client .section-menu.is-open .section-menu__button { background: color-mix(in srgb, currentColor 10%, transparent); }
+.client .section-menu .menu__list { left: auto; right: 0; color: var(--ink); }
 .client .file-section:not([open]) .file-section__head > :last-child { transform: rotate(-90deg); }
 .client .file-section .files { margin-top: 0; }
 .client .drop--section { min-height: 64px; margin-top: 12px; padding: 10px 14px; font-size: var(--text-sm); }
@@ -463,4 +471,12 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
   .client .proposal-next { padding: 24px 20px; }
   .client .proposal-next__actions { min-width: 0; }
   .client .proposal-section, .client .proposal-next { margin-top: 44px; }
+}
+
+/* Dragging a file card onto a stage or section moves it there (fileDrag): the
+   card says it can be picked up, and the place it would land is outlined. */
+.client.editing .file.is-draggable { cursor: grab; }
+.client.editing .file.is-draggable:active { cursor: grabbing; }
+.client .stage.is-drop-target, .client .file-section.is-drop-target {
+  outline: 2px dashed currentColor; outline-offset: -4px; background-color: color-mix(in srgb, currentColor 6%, transparent);
 }

@@ -530,6 +530,191 @@
         }
       }
     },
+    "/api/office-signup/check": {
+      "post": {
+        "summary": "Check",
+        "operationId": "check_api_office_signup_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/backend__web__office_signup__CheckIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/backend__web__office_signup__CheckOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/office-signup/create": {
+      "post": {
+        "summary": "Create",
+        "operationId": "create_api_office_signup_create_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/signup-links": {
+      "post": {
+        "summary": "Make Link",
+        "description": "\"Link para criar escritório\": one-time, for 7 days, shown only now.",
+        "operationId": "make_link_api_admin_signup_links_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupLinkOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/session": {
       "post": {
         "summary": "Sign In",
@@ -5042,7 +5227,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CheckIn"
+                "$ref": "#/components/schemas/backend__web__page_uploads__CheckIn"
               }
             }
           }
@@ -5053,7 +5238,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CheckOut"
+                  "$ref": "#/components/schemas/backend__web__page_uploads__CheckOut"
                 }
               }
             }
@@ -5200,6 +5385,192 @@
               }
             },
             "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/stages/{position}/folders/rename": {
+      "post": {
+        "summary": "Rename Section",
+        "description": "\"Renomear seção\": its folder in Drive takes the new name.",
+        "operationId": "rename_section_api_projects__project_id__stages__position__folders_rename_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionRenameIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/stages/{position}/folders/hide": {
+      "post": {
+        "summary": "Hide Section",
+        "description": "\"Ocultar seção\": the folder stays in Drive with its files, renamed \"_name\",\nwhich the page never shows (A05), to staff or clients.",
+        "operationId": "hide_section_api_projects__project_id__stages__position__folders_hide_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionChangeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -5919,56 +6290,6 @@
         ],
         "title": "Body_upload_logo_api_office_logo_put"
       },
-      "CheckIn": {
-        "properties": {
-          "row_version": {
-            "type": "integer",
-            "title": "Row Version"
-          },
-          "names": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 100,
-            "title": "Names"
-          },
-          "folder": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 255
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Folder"
-          }
-        },
-        "type": "object",
-        "required": [
-          "row_version",
-          "names"
-        ],
-        "title": "CheckIn"
-      },
-      "CheckOut": {
-        "properties": {
-          "matches": {
-            "items": {
-              "$ref": "#/components/schemas/MatchOut"
-            },
-            "type": "array",
-            "title": "Matches"
-          }
-        },
-        "type": "object",
-        "required": [
-          "matches"
-        ],
-        "title": "CheckOut"
-      },
       "ChoosePasswordIn": {
         "properties": {
           "token": {
@@ -6094,6 +6415,45 @@
           "row_version"
         ],
         "title": "ContentIn"
+      },
+      "CreateIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Token"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "name",
+          "address"
+        ],
+        "title": "CreateIn"
+      },
+      "CreateOut": {
+        "properties": {
+          "owner_url": {
+            "type": "string",
+            "title": "Owner Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owner_url"
+        ],
+        "title": "CreateOut"
       },
       "CreateTenantIn": {
         "properties": {
@@ -6375,6 +6735,9 @@
           "operator_action_conflict",
           "operator_action_failed",
           "operator_actions_unavailable",
+          "signup_link_invalid",
+          "office_address_taken",
+          "invalid_office_address",
           "not_signed_in",
           "csrf_token_missing_or_wrong",
           "invalid_credentials",
@@ -6430,6 +6793,7 @@
           "invalid_folder_name",
           "folder_exists",
           "folder_not_found",
+          "folder_not_ours",
           "upload_failed",
           "file_not_ours",
           "file_not_ours_to_move",
@@ -8593,6 +8957,25 @@
         ],
         "title": "Role"
       },
+      "SectionChangeIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "name"
+        ],
+        "title": "SectionChangeIn"
+      },
       "SectionIn": {
         "properties": {
           "row_version": {
@@ -8611,6 +8994,31 @@
           "name"
         ],
         "title": "SectionIn"
+      },
+      "SectionRenameIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "new_name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "New Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "name",
+          "new_name"
+        ],
+        "title": "SectionRenameIn"
       },
       "Service": {
         "properties": {
@@ -8991,6 +9399,19 @@
           "url"
         ],
         "title": "SigninOut"
+      },
+      "SignupLinkOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "SignupLinkOut"
       },
       "SpaceOut": {
         "properties": {
@@ -9667,6 +10088,56 @@
         ],
         "title": "OfficeOut"
       },
+      "backend__web__office_signup__CheckIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Token"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "CheckIn"
+      },
+      "backend__web__office_signup__CheckOut": {
+        "properties": {
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "address_free": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Free"
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain"
+        ],
+        "title": "CheckOut"
+      },
       "backend__web__page_stages__MoveIn": {
         "properties": {
           "row_version": {
@@ -9688,6 +10159,56 @@
           "direction"
         ],
         "title": "MoveIn"
+      },
+      "backend__web__page_uploads__CheckIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Names"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "names"
+        ],
+        "title": "CheckIn"
+      },
+      "backend__web__page_uploads__CheckOut": {
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/MatchOut"
+            },
+            "type": "array",
+            "title": "Matches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matches"
+        ],
+        "title": "CheckOut"
       },
       "backend__web__page_uploads__MoveIn": {
         "properties": {

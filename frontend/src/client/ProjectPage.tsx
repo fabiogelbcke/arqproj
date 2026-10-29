@@ -11,10 +11,11 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
-import { Toaster, toast } from "../ui/Toast";
+import { Toaster, toast, toastError } from "../ui/Toast";
 import { SiteFooter } from "../ui/UnioMark";
 import { EditButton, openOnClick } from "./EditButton";
 import { useBalancedColumns } from "./balance";
+import { dropTarget, placeId, startDrag, type DraggedFile, type DropPlace } from "./fileDrag";
 import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import type { StageEditParts } from "./StageEditing";
@@ -44,6 +45,7 @@ const StageEditForm = lazy(() => import("./StageEditing").then((m) => ({ default
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
 const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
 const AddSection = lazy(() => import("./StageUploads").then((m) => ({ default: m.AddSection })));
+const SectionMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.SectionMenu })));
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
 // "Compartilhar arquivos" (A37), loaded when it opens.
 const SharePanel = lazy(() => import("./SharePanel").then((m) => ({ default: m.SharePanel })));
@@ -82,6 +84,10 @@ function useStageFiles(slug: string, version: unknown): FilesState | null {
   return state;
 }
 
+/** Edit mode: where file cards can be dropped (fileDrag), and which target the
+ *  pointer is over now. */
+type Moving = { over: string | null; target: (place: DropPlace) => ReturnType<typeof dropTarget> };
+
 /** One stage's files (undefined while loading) and the support code, if any. */
 function filesFor(state: FilesState | null, position: number) {
   if (state === null) return { files: undefined, reference: null };
@@ -96,12 +102,14 @@ function FileCard({
   slug,
   timeZone,
   menu,
+  drag,
   onOpen,
 }: {
   file: FileItem;
   slug: string;
   timeZone: string;
   menu?: ReactNode; // edit mode: the file's "⋯"
+  drag?: DraggedFile; // edit mode: dragged onto a stage or section, it moves there
   onOpen: () => void; // its preview (FilePreview)
 }) {
   // Versions come from the names in Drive (A25): the clean name, its version
@@ -117,7 +125,12 @@ function FileCard({
   // Drive's preview first; for an image without one (local folders), the image itself.
   const src = thumb === "thumb" ? preview : thumb === "original" ? fileSource.address(slug, file.key, "inline") : null;
   return (
-    <div className="file" data-file={file.key}>
+    <div
+      className={`file${drag ? " is-draggable" : ""}`}
+      data-file={file.key}
+      draggable={!!drag}
+      onDragStart={drag && ((event) => startDrag(event, drag))}
+    >
       <button className="file__open" type="button" onClick={onOpen} aria-label={t("page.openFile", { name: file.name })}>
         <span className="file__thumb">
           {src ? (
@@ -184,7 +197,10 @@ function StageFilesList({
   timeZone,
   fileMenu,
   section,
+  sectionMenu,
   uploads,
+  moving,
+  position,
   view,
   onOpen,
   empty,
@@ -195,6 +211,9 @@ function StageFilesList({
   timeZone: string;
   fileMenu?: (file: FileItem, folder: string | null) => ReactNode;
   section?: (folder: string) => ReactNode; // edit mode: a section's drop area, under its files
+  sectionMenu?: (folder: string, count: number) => ReactNode; // edit mode: its "⋯", on its title
+  moving?: Moving;
+  position: number; // the stage's, from 1
   // Edit mode: the stage's own drop area and "Nova seção", at the stage's end, after
   // its sections (each boxed, with its own drop area inside).
   uploads?: ReactNode;
@@ -246,6 +265,7 @@ function StageFilesList({
           slug={slug}
           timeZone={timeZone}
           menu={fileMenu?.(file, group.folder ?? null)}
+          drag={moving && { key: file.key, name: file.name, position, folder: group.folder ?? null }}
           onOpen={() => onOpen(file, group.folder ?? null)}
         />
       ))}
@@ -257,7 +277,12 @@ function StageFilesList({
     <>
       {files.groups.map((group) =>
         group.folder ? (
-          <details key={group.folder} className="file-group file-section" open>
+          <details
+            key={group.folder}
+            className={`file-group file-section${moving?.over === placeId({ position, section: group.folder }) ? " is-drop-target" : ""}`}
+            open
+            {...moving?.target({ position, section: group.folder })}
+          >
             <summary className="file-section__head">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                 <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z" />
@@ -268,6 +293,7 @@ function StageFilesList({
                   ? t("page.fileCount", { count: group.files.length, padded: pad(group.files.length) })
                   : t("page.noFilesShort")}
               </span>
+              {sectionMenu?.(group.folder, group.files.length)}
               <Icon name="down" />
             </summary>
             {group.files.length > 0 ? (
@@ -611,6 +637,8 @@ function Stage({
   uploads,
   fileMenu,
   section,
+  sectionMenu,
+  moving,
   view = "grid",
   progress,
   hidden = false,
@@ -635,6 +663,8 @@ function Stage({
   uploads?: ReactNode; // edit mode: the drop area
   fileMenu?: (file: FileItem, folder: string | null) => ReactNode;
   section?: (folder: string) => ReactNode; // edit mode: each section's drop area
+  sectionMenu?: (folder: string, count: number) => ReactNode; // edit mode: each section's "⋯"
+  moving?: Moving; // edit mode: file cards dragged onto the stage or a section move there
   view?: FileView;
   progress?: ReactNode; // edit mode: "Marcar como concluída" or "Reabrir etapa"
   hidden?: boolean; // a search or filter found nothing here
@@ -784,7 +814,10 @@ function Stage({
             timeZone={page.timezone}
             fileMenu={fileMenu}
             section={section}
+            sectionMenu={sectionMenu}
             uploads={uploads}
+            moving={moving}
+            position={index + 1}
             view={view}
             onOpen={onOpenFile}
             empty={editor ? null : state === "done" ? "done" : "waiting"}
@@ -796,11 +829,14 @@ function Stage({
   );
   return (
     <section
-      className={`stage ${open ? "is-expanded " : ""}${editor?.editing ? "is-editing " : ""}stage--${state}`}
+      className={`stage ${open ? "is-expanded " : ""}${editor?.editing ? "is-editing " : ""}stage--${state}${
+        moving?.over === placeId({ position: index + 1, section: null }) ? " is-drop-target" : ""
+      }`}
       id={`stage-${index}`}
       aria-labelledby={`st-${index}`}
       hidden={hidden}
       onClick={headClick}
+      {...moving?.target({ position: index + 1, section: null })}
     >
       {editor?.editing ? editor.form(layout) : layout()}
     </section>
@@ -994,6 +1030,30 @@ export function ProjectPage({
   });
   const unreadable = (i: number) => Boolean(filesFor(stageFiles, i + 1).files?.unavailable);
   // Each stage's sections (its subfolders), empty ones too: where "Mover para…" can put a file.
+  // A file card dragged onto a stage or section moves there (fileDrag), as "Mover para…" does.
+  const [dropAt, setDropAt] = useState<string | null>(null);
+  const moveTo = async (file: DraggedFile, to: DropPlace) => {
+    const title = page.stages[to.position - 1]!.title;
+    try {
+      const { moveRequest } = await import("./StageUploads");
+      await moveRequest(page, slug, file.key, to);
+      toast(t("edit.fileMoved", { name: file.name, stage: to.section ? `${title} › ${to.section}` : title }));
+      onChanged?.();
+    } catch (failure) {
+      toastError(failure);
+    }
+  };
+  const moving: Moving | undefined = canEdit
+    ? {
+        over: dropAt,
+        target: (place) =>
+          dropTarget(place, {
+            onOver: setDropAt,
+            onLeave: (id) => setDropAt((was) => (was === id ? null : was)),
+            onDrop: (file, to) => void moveTo(file, to),
+          }),
+      }
+    : undefined;
   const sections = page.stages.map(
     (_, i) => filesFor(stageFiles, i + 1).files?.groups.flatMap((g) => (g.folder ? [g.folder] : [])) ?? [],
   );
@@ -1303,6 +1363,23 @@ export function ProjectPage({
                         position={i + 1}
                         folder={`${pad(i + 1)} - ${page.stages[i]!.title}/${section}`}
                         section={section}
+                        onChanged={() => onChanged?.()}
+                      />
+                    </Suspense>
+                  )
+                : undefined
+            }
+            moving={moving}
+            sectionMenu={
+              canEdit
+                ? (section, count) => (
+                    <Suspense fallback={null}>
+                      <SectionMenu
+                        staff={staff!}
+                        position={i + 1}
+                        section={section}
+                        count={count}
+                        sections={sections[i]!}
                         onChanged={() => onChanged?.()}
                       />
                     </Suspense>

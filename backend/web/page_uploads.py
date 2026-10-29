@@ -4,6 +4,8 @@
     POST .../uploads/check                       which names would be a new version (A25)
     POST .../uploads/failed                      the browser's report of one that failed
     POST /api/projects/{id}/stages/{n}/folders   "Nova seção": a subfolder of the stage
+    POST .../folders/rename                      "Renomear seção"
+    POST .../folders/hide                        "Ocultar seção": a leading "_"
     PUT  /api/local-uploads/{token}              local folders only (never deployed): take it
     POST /api/pages/{slug}/files/{key}/hide      "Ocultar do cliente": a leading "_"
     POST /api/pages/{slug}/files/{key}/move      "Mover para outra etapa"
@@ -28,7 +30,9 @@ flags the clash for staff to rename one (plan section 12).
 A section is a subfolder of the stage's folder (one level, as the page lists
 them), named by staff on the page. Uploads, the check and moves name a section
 by that name, never by a Drive id; with two of one name in Drive, the first as
-listed, which is the one the page shows first.
+listed, which is the one the page shows first. A section is renamed or hidden
+(a leading "_", as a file is) only if the app made it: the grant reaches only
+what it created (`folder_not_ours`).
 Hiding renames it with a leading "_", which the page never shows (A05); moving
 puts it in another stage's folder, where the page shows it next. The office's
 grant (drive.file) reaches only files the app created, so a file put straight
@@ -406,6 +410,108 @@ async def create_section(
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
     capture(request, "section_created", {"stage_position": position})
+    return Response(status_code=204)
+
+
+class SectionChangeIn(BaseModel):
+    row_version: int
+    name: str = Field(max_length=255)  # the section's name now, as the page shows it
+
+
+class SectionRenameIn(SectionChangeIn):
+    new_name: str = Field(max_length=SECTION_NAME_MAX)
+
+
+async def _section_to_change(
+    request: Request, db: AsyncSession, tenant: CurrentTenant, project_id, position, body
+) -> tuple[ProjectStage, object, str]:
+    """The stage, its storage view and the section's folder, if the app may
+    rename it (drive.file reaches only what the app made)."""
+    _project, stage, reader = await _stage_for_upload(
+        request, db, tenant, project_id, position, body.row_version
+    )
+    try:
+        folder = await _section(reader, stage, body.name)
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project_id, position) from None
+    return stage, reader, folder
+
+
+async def _rename_section(request, db, tenant, project_id, position, folder, name) -> None:
+    maker, _root = await _folders(request, db)
+    try:
+        if not await maker.can_rename(folder):
+            raise ApiError(409, ErrorCode.FOLDER_NOT_OURS)  # made straight in Drive
+        await maker.rename(folder, name)
+    except ConnectError as error:
+        log.error(
+            "uploads: renaming a section failed for %s/%s, stage %s: %s",
+            tenant.id,
+            project_id,
+            position,
+            error.detail,
+        )
+        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+
+
+@router.post(
+    "/api/projects/{project_id}/stages/{position}/folders/rename",
+    status_code=204,
+    responses=documented(401, 404, 409, 422, 503),
+)
+async def rename_section(
+    request: Request,
+    project_id: uuid.UUID,
+    position: int,
+    body: SectionRenameIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """ "Renomear seção": its folder in Drive takes the new name."""
+    try:
+        new_name = _clean(body.new_name)
+    except ApiError:
+        raise ApiError(422, ErrorCode.INVALID_FOLDER_NAME) from None
+    stage, reader, folder = await _section_to_change(
+        request, db, tenant, project_id, position, body
+    )
+    if new_name == body.name:
+        return Response(status_code=204)
+    try:
+        others = {
+            i.name.casefold()
+            for i in await _list(reader, stage.folder_id)
+            if i.is_folder and not _hidden(i) and i.id != folder
+        }
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project_id, position) from None
+    if new_name.casefold() in others:
+        raise ApiError(409, ErrorCode.FOLDER_EXISTS)
+    await _rename_section(request, db, tenant, project_id, position, folder, new_name)
+    return Response(status_code=204)
+
+
+@router.post(
+    "/api/projects/{project_id}/stages/{position}/folders/hide",
+    status_code=204,
+    responses=documented(401, 404, 409, 503),
+)
+async def hide_section(
+    request: Request,
+    project_id: uuid.UUID,
+    position: int,
+    body: SectionChangeIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """ "Ocultar seção": the folder stays in Drive with its files, renamed "_name",
+    which the page never shows (A05), to staff or clients."""
+    _stage, _reader, folder = await _section_to_change(
+        request, db, tenant, project_id, position, body
+    )
+    await _rename_section(request, db, tenant, project_id, position, folder, f"_{body.name}")
     return Response(status_code=204)
 
 

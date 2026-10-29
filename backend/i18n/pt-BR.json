@@ -273,6 +273,7 @@
     "invalid_folder_name": "Dê um nome à seção, sem começar com _.",
     "folder_exists": "Esta etapa já tem uma seção com esse nome.",
     "folder_not_found": "Essa seção não existe mais. Recarregue a página.",
+    "folder_not_ours": "Esta seção foi criada direto no Google Drive, então a mudança precisa ser feita lá, na pasta da etapa.",
     "file_not_ours": "Este arquivo não foi enviado pelo site. Para ocultá-lo, renomeie-o na pasta da etapa começando com _.",
     "file_not_ours_to_move": "Este arquivo não foi enviado pelo site. Para mudá-lo de etapa, mova-o para a pasta da outra etapa.",
     "invalid_detail": "Confira as informações: não repita campos, use textos de até 40 caracteres, números para áreas e datas válidas.",
@@ -294,7 +295,10 @@
     "wrong_share_password": "Senha incorreta. Confira com quem enviou o link.",
     "operator_action_conflict": "Não foi possível concluir. Confira o endereço, o estado do escritório e a confirmação.",
     "operator_action_failed": "Não foi possível concluir a ação. Tente novamente e, se continuar, informe o código ao suporte.",
-    "operator_actions_unavailable": "As ações de administração ainda não estão disponíveis."
+    "operator_actions_unavailable": "As ações de administração ainda não estão disponíveis.",
+    "signup_link_invalid": "Este link para criar um escritório não vale mais: já foi usado ou passou de 7 dias. Peça um novo à Unio.",
+    "office_address_taken": "Esse endereço já está em uso. Escolha outro.",
+    "invalid_office_address": "Use de 3 a 40 letras minúsculas, números ou hífens, sem começar nem terminar com hífen."
   },
   "projectStatus": {
     "draft": "Rascunho",
@@ -574,6 +578,17 @@
     "sectionAdded": "Seção “{{name}}” criada.",
     "sectionEmpty": "Nenhum arquivo nesta seção ainda. O cliente verá a seção quando houver arquivos.",
     "sendToSection": "Enviar arquivos para a seção {{section}}",
+    "sectionActions": "Ações da seção {{section}}",
+    "renameSection": "Renomear seção",
+    "sectionRenamed": "Seção renomeada para “{{name}}”.",
+    "hideSection": "Ocultar seção",
+    "hideSectionNote": "Os arquivos continuam no Google Drive",
+    "hideSectionAsk": "Ocultar a seção “{{section}}”?",
+    "hideSectionMeans_one": "A seção e o seu arquivo deixarão de aparecer na página, para o cliente e para a equipe. O arquivo continuará no Google Drive, na pasta “_{{section}}”.",
+    "hideSectionMeans_other": "A seção e os seus {{count}} arquivos deixarão de aparecer na página, para o cliente e para a equipe. Os arquivos continuarão no Google Drive, na pasta “_{{section}}”.",
+    "hideSectionEmpty": "A seção deixará de aparecer na página. A pasta continuará no Google Drive, como “_{{section}}”.",
+    "hideSectionUndo": "Para mostrá-la de novo, renomeie a pasta no Google Drive, tirando o _ do início.",
+    "sectionHidden": "Seção “{{name}}” ocultada.",
     "moveFileTo": "Mover “{{name}}” para",
     "fileMoved": "“{{name}}” foi movido para {{stage}}.",
     "menuBack": "Voltar",
@@ -593,7 +608,6 @@
     "removeDetail": "Remover {{name}}",
     "meeting": "Reunião",
     "schedule": "Agendar",
-    "scheduleMeeting": "Agendar reunião",
     "subject": "Assunto",
     "day": "Data",
     "chooseDay": "Escolher no calendário",
@@ -1075,9 +1089,10 @@
       "create": "Criar escritório",
       "name": "Nome do escritório",
       "slug": "Identificador",
-      "hostname": "Endereço",
+      "hostname": "Endereço do escritório no Unio",
+      "hostnameHint": "Onde a equipe e os clientes do escritório vão acessar o Unio.",
       "slugHint": "Preenchido a partir do endereço. Identifica o escritório no PostHog e nos registros e não poderá ser alterado depois.",
-      "hostnameExample": "Ex.: escritorio.myunio.app",
+      "hostnameExample": "Ex.: escritorio",
       "close": "Concluir",
       "createConfirm": "Criar e gerar convite do responsável",
       "ownerLink": "Link de cadastro do responsável",
@@ -1090,6 +1105,10 @@
       "confirm": "Confirmar",
       "cancel": "Cancelar",
       "done": "Ação concluída.",
+      "signupLink": "Link para criar escritório",
+      "signupLinkExplain": "Gere um link para alguém criar o próprio escritório: a pessoa escolhe o nome e o endereço e depois cria a conta de responsável. O link funciona uma vez e vale por 7 dias.",
+      "signupLinkMake": "Gerar link",
+      "signupLinkHelp": "Copie este link e envie a quem vai criar o escritório. Funciona uma vez e vale por 7 dias. Ele não será exibido novamente depois que você fechar esta janela.",
       "explain": {
         "owner_link": "Gerar um novo link de cadastro de responsável para {{name}}?",
         "suspend": "Suspender {{name}}? O painel e as páginas ficarão indisponíveis até a reativação.",
@@ -1300,5 +1319,16 @@
         }
       ]
     }
+  },
+  "signup": {
+    "title": "Crie o seu escritório no Unio",
+    "intro": "Escolha o nome que os seus clientes verão e o endereço das páginas dos projetos. Em seguida, você cria a sua conta de responsável.",
+    "name": "Nome do escritório",
+    "nameHint": "Como aparece para os clientes. Você poderá alterá-lo depois.",
+    "address": "Endereço do seu escritório no Unio",
+    "addressHint": "Onde a sua equipe e os seus clientes vão acessar o Unio. Não poderá ser alterado depois.",
+    "addressFree": "Disponível",
+    "create": "Criar escritório",
+    "next": "Depois, você informa o seu nome, e-mail e senha e confirma o e-mail com um código."
   }
 }

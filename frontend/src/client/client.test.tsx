@@ -1779,6 +1779,165 @@ describe("edit mode", () => {
       expect(within(stage).getByRole("button", { name: "+ Nova seção" })).toBeInTheDocument();
     });
 
+    // Levantamento with sections "Plantas" (Corte.pdf in it) and "Renders" (empty).
+    const withSections = () => {
+      const files = withSection();
+      const corte = { ...files.stages[1]!.groups[0]!.files[0]!, key: "k9", name: "Corte.pdf", older: [] };
+      files.stages[1]!.groups[1] = { folder: "Plantas", files: [corte] } as never;
+      files.stages[1]!.groups.push({ folder: "Renders", files: [] } as never);
+      return files;
+    };
+
+    it("renames a section from its menu, refusing another section's name", async () => {
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }),
+        "POST /api/projects/p-1/stages/2/folders/rename": () => ({ status: 204 }),
+      });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      const box = (await within(stage).findByRole("heading", { name: "Plantas" })).closest("details")!;
+      await userEvent.click(await within(stage).findByRole("button", { name: "Ações da seção Plantas" }));
+      expect(box).toHaveAttribute("open"); // the click opened the menu, not folded the section
+      await userEvent.click(screen.getByRole("menuitem", { name: "Renomear seção" }));
+      const dialog = screen.getByRole("dialog", { name: "Renomear seção" });
+      const field = within(dialog).getByLabelText("Nome da seção");
+      expect(field).toHaveValue("Plantas");
+      await userEvent.clear(field);
+      await userEvent.type(field, "renders");
+      expect(within(dialog).getByText("Esta etapa já tem uma seção com esse nome.")).toBeInTheDocument();
+      expect(within(dialog).getByRole("button", { name: "Salvar" })).toBeDisabled();
+      await userEvent.clear(field);
+      await userEvent.type(field, "Plantas executivas{Enter}");
+      expect(await screen.findByText("Seção renomeada para “Plantas executivas”.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/folders/rename"))?.body).toEqual({
+        row_version: 4,
+        name: "Plantas",
+        new_name: "Plantas executivas",
+      });
+    });
+
+    it("hides a section once confirmed, saying its files stay in Drive", async () => {
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }),
+        "POST /api/projects/p-1/stages/2/folders/hide": () => ({ status: 204 }),
+      });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await userEvent.click(await within(stage).findByRole("button", { name: "Ações da seção Plantas" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar seção/ }));
+      const ask = screen.getByRole("alertdialog", { name: "Ocultar a seção “Plantas”?" });
+      expect(ask).toHaveTextContent("A seção e o seu arquivo deixarão de aparecer na página");
+      expect(ask).toHaveTextContent("continuará no Google Drive, na pasta “_Plantas”");
+      expect(ask).toHaveTextContent("tirando o _ do início");
+      await userEvent.click(within(ask).getByRole("button", { name: "Ocultar seção" }));
+      expect(await screen.findByText("Seção “Plantas” ocultada.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/folders/hide"))?.body).toEqual({ row_version: 4, name: "Plantas" });
+    });
+
+    it("says an empty section's folder stays in Drive too", async () => {
+      asEditor({ "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }) });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await userEvent.click(await within(stage).findByRole("button", { name: "Ações da seção Renders" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar seção/ }));
+      expect(screen.getByRole("alertdialog")).toHaveTextContent("A pasta continuará no Google Drive, como “_Renders”.");
+    });
+
+    it("renames a section while Editar etapa is open without saving or closing the stage", async () => {
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }),
+        "POST /api/projects/p-1/stages/2/folders/rename": () => ({ status: 204 }),
+      });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await userEvent.click(within(stage).getByRole("button", { name: "Editar etapa Levantamento" }));
+      await userEvent.type(await within(stage).findByLabelText("Nome da etapa"), " II");
+      await userEvent.click(await within(stage).findByRole("button", { name: "Ações da seção Plantas" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Renomear seção" }));
+      await userEvent.type(within(screen.getByRole("dialog")).getByLabelText("Nome da seção"), " 2{Enter}");
+      expect(await screen.findByText("Seção renomeada para “Plantas 2”.")).toBeInTheDocument();
+      expect(sent.filter((r) => r.method !== "GET").map((r) => r.path)).toEqual(["/api/projects/p-1/stages/2/folders/rename"]);
+      expect(within(stage).getByLabelText("Nome da etapa")).toHaveValue("Levantamento II");
+      // Escape in the menu's question closes the question only.
+      await userEvent.click(within(stage).getByRole("button", { name: "Ações da seção Plantas" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar seção/ }));
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(within(stage).getByLabelText("Nome da etapa")).toHaveValue("Levantamento II");
+    });
+
+    /** A drag as the browser carries it: what the card put in, read back on the drop. */
+    function dragData() {
+      const data = new Map<string, string>();
+      return {
+        setData: (type: string, value: string) => void data.set(type, value),
+        getData: (type: string) => data.get(type) ?? "",
+        get types() {
+          return [...data.keys()];
+        },
+        files: [] as File[],
+        effectAllowed: "all",
+        dropEffect: "none",
+      };
+    }
+    const card = (name: string) => screen.getByRole("button", { name: `Abrir ${name}` }).closest(".file")!;
+
+    it("moves a file by dragging its card into a section or onto another stage", async () => {
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }),
+        "POST /api/pages/casa-jardim/files/k1/move": () => ({ status: 204 }),
+      });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      const renders = (await within(stage).findByRole("heading", { name: "Renders" })).closest("details")!;
+      const drag = dragData();
+      fireEvent.dragStart(card("Planta.pdf"), { dataTransfer: drag });
+      fireEvent.dragOver(renders, { dataTransfer: drag });
+      expect(renders).toHaveClass("is-drop-target");
+      expect(stage).not.toHaveClass("is-drop-target"); // only the section it's over
+      fireEvent.drop(renders, { dataTransfer: drag });
+      expect(await screen.findByText("“Planta.pdf” foi movido para Levantamento › Renders.")).toBeInTheDocument();
+      expect(renders).not.toHaveClass("is-drop-target");
+      // Onto another stage, closed or not: its top level.
+      const other = dragData();
+      const briefing = screen.getByRole("region", { name: "Briefing" });
+      fireEvent.dragStart(card("Planta.pdf"), { dataTransfer: other });
+      fireEvent.dragOver(briefing, { dataTransfer: other });
+      fireEvent.drop(briefing, { dataTransfer: other });
+      await screen.findByText("“Planta.pdf” foi movido para Briefing.");
+      expect(sent.filter((r) => r.path.endsWith("/k1/move")).map((r) => r.body)).toEqual([
+        { position: 2, row_version: 4, folder: "Renders" },
+        { position: 1, row_version: 4 },
+      ]);
+    });
+
+    it("moves nothing when a card is dropped where it already is, or files come from the computer", async () => {
+      const { sent } = asEditor({ "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }) });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await within(stage).findByRole("heading", { name: "Plantas" });
+      const drag = dragData();
+      fireEvent.dragStart(card("Planta.pdf"), { dataTransfer: drag }); // in the stage itself, no section
+      fireEvent.dragOver(stage, { dataTransfer: drag });
+      fireEvent.drop(stage, { dataTransfer: drag });
+      // A file from the computer carries no card: the stage doesn't take it as a move.
+      const outside = dragData();
+      outside.files = [new File(["%PDF"], "Novo.pdf")];
+      fireEvent.dragOver(stage, { dataTransfer: outside });
+      expect(stage).not.toHaveClass("is-drop-target");
+      fireEvent.drop(stage, { dataTransfer: outside });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(sent.some((r) => r.path.endsWith("/move"))).toBe(false);
+    });
+
+    it("lets file cards be dragged only in edit mode", async () => {
+      asEditor();
+      await screen.findByRole("button", { name: "Abrir Planta.pdf" });
+      expect(card("Planta.pdf")).toHaveAttribute("draggable", "false");
+      await startEditing();
+      expect(card("Planta.pdf")).toHaveAttribute("draggable", "true");
+    });
+
     it("refuses a section name the stage already has, before asking", async () => {
       const { sent } = asEditor({ "GET /api/pages/casa-jardim/files": () => ({ body: withSection() }) });
       await startEditing();

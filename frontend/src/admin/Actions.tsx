@@ -25,6 +25,23 @@ export function slugFromHost(value: string) {
   return (hostOf(value).split(".")[0] ?? "").replace(/[^a-z0-9-]/g, "").replace(/^-+|-+$/g, "").slice(0, 63);
 }
 
+/** The office's part of its address, at most: the same as the signup page's
+ *  (Fabio, 28 Oct 2026). Short enough to type and read in a link. */
+const ADDRESS_MAX = 40;
+
+/** Where a new office is served: `{office}.myunio.app` (A21), or `{office}.localhost`
+ *  on a local run. */
+export function officeDomain(host = window.location.hostname) {
+  return host === "localhost" || host.endsWith(".localhost") ? ".localhost" : ".myunio.app";
+}
+
+/** The office's own part of an address, typed alone or pasted whole
+ *  (https://Horizonte.myunio.app/ → horizonte). */
+export function subdomainOf(value: string, domain: string) {
+  const host = hostOf(value);
+  return host.endsWith(domain) ? host.slice(0, -domain.length) : value;
+}
+
 /** The owner's one-time signup link, shown once, to copy. */
 function OwnerLink({ url, onDone }: { url: string; onDone: () => void }) {
   const { t } = useTranslation();
@@ -54,11 +71,13 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const cache = useQueryClient();
   const [name, setName] = useState("");
-  const [hostname, setHostname] = useState("");
+  const domain = officeDomain();
+  const [subdomain, setSubdomain] = useState("");
+  const hostname = hostOf(subdomain) + domain;
   const [edited, setEdited] = useState<string | null>(null);
   const slug = edited ?? slugFromHost(hostname);
   const create = useMutation({
-    mutationFn: () => call(api.POST("/api/admin/offices", { body: { name, slug, hostname: hostOf(hostname) } })),
+    mutationFn: () => call(api.POST("/api/admin/offices", { body: { name, slug, hostname } })),
     onSuccess: () => void cache.invalidateQueries({ queryKey: ["admin", "offices"] }),
   });
   // Open until the request answers: its owner link is shown only here (Codex, PR #149).
@@ -70,12 +89,51 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
       ) : (
         <Form className={styles.dialogBody} onSubmit={(event) => { event.preventDefault(); create.mutate(); }}>
           <TextField label={t("admin.actions.name")} value={name} onChange={setName} isRequired autoFocus autoComplete="off" />
-          <TextField label={t("admin.actions.hostname")} placeholder={t("admin.actions.hostnameExample")} value={hostname} onChange={setHostname} isRequired autoComplete="off" />
+          <TextField label={t("admin.actions.hostname")} description={t("admin.actions.hostnameHint")} placeholder={t("admin.actions.hostnameExample")} suffix={domain} maxLength={ADDRESS_MAX} value={subdomain} onChange={(value) => setSubdomain(subdomainOf(value, domain))} isRequired autoComplete="off" />
           <TextField label={t("admin.actions.slug")} description={t("admin.actions.slugHint")} value={slug} onChange={setEdited} isRequired autoComplete="off" />
           <ErrorNotice error={create.error} />
           <div className={styles.dialogActions}>
             <Button onPress={close} isDisabled={create.isPending}>{t("admin.actions.cancel")}</Button>
             <Button type="submit" variant="primary" isDisabled={create.isPending}>{t("admin.actions.createConfirm")}</Button>
+          </div>
+        </Form>
+      )}
+    </DialogFrame>
+  );
+}
+
+/** "Link para criar escritório": a one-time link whose holder creates their
+ *  own office (name and address) and then their owner account. Shown once. */
+export function SignupLink() {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return <>
+    <Button onPress={() => setOpen(true)}>{t("admin.actions.signupLink")}</Button>
+    {open && <SignupLinkDialog onClose={() => setOpen(false)} />}
+  </>;
+}
+
+function SignupLinkDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const make = useMutation({ mutationFn: () => call(api.POST("/api/admin/signup-links")) });
+  const close = () => !make.isPending && onClose();
+  return (
+    <DialogFrame title={t("admin.actions.signupLink")} onClose={close}>
+      {make.data ? (
+        <div className={styles.dialogBody} role="status">
+          <p>{t("admin.actions.signupLinkHelp")}</p>
+          <LinkToCopy link={make.data.url} label={t("admin.actions.signupLink")} />
+          <div className={styles.dialogActions}>
+            <Button variant="primary" onPress={onClose}>{t("admin.actions.close")}</Button>
+          </div>
+        </div>
+      ) : (
+        <Form className={styles.dialogBody} onSubmit={(event) => { event.preventDefault(); make.mutate(); }}>
+          <p>{t("admin.actions.signupLinkExplain")}</p>
+          <ErrorNotice error={make.error} />
+          <div className={styles.dialogActions}>
+            <Button onPress={close} isDisabled={make.isPending}>{t("admin.actions.cancel")}</Button>
+            <Button type="submit" variant="primary" isDisabled={make.isPending}>{t("admin.actions.signupLinkMake")}</Button>
           </div>
         </Form>
       )}
