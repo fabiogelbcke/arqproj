@@ -16,7 +16,8 @@ import { SettingsOfficePage } from "../pages/SettingsOfficePage";
 import { SettingsTeamPage } from "../pages/SettingsTeamPage";
 import { SignInPage } from "../pages/SignInPage";
 import { ProposalPage } from "../proposals/ProposalPage";
-import { useMe, useTenant } from "../session/session";
+import { ProposalsPage } from "../proposals/ProposalsPage";
+import { useFeature, useMe, useTenant } from "../session/session";
 import { Toaster } from "../ui/Toast";
 import { UpdateBanner } from "../ui/UpdateBanner";
 import { usePageTitle, type TitleHandle } from "./pageTitle";
@@ -53,6 +54,7 @@ export const routes: RouteObject[] = [
         element: <SignedInLayout />,
         children: [
           { index: true, element: <ProjectsPage />, handle: title("nav.projects") },
+          { path: "propostas", element: <WithProposals />, handle: title("nav.proposals") },
           { path: "projetos/:projectId/proposta", element: <ProposalPage />, handle: title("proposal.generator.title") },
           {
             path: "configuracoes",
@@ -72,3 +74,7 @@ export const routes: RouteObject[] = [
   },
 ];
 
+/** The Propostas tab, where the office has proposals switched on (A40, A42). */
+function WithProposals() {
+  return useFeature("proposals") ? <ProposalsPage /> : <NotFoundPage />;
+}

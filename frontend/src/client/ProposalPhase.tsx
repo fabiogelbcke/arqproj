@@ -1,7 +1,7 @@
 // A project's page while it is a proposal (A42): the proposal presented for the
 // screen (the formal letter is its PDF), the office's contact as the next step,
 // and nothing of the work, which hasn't started. Staff get a bar to change the
-// proposal or mark it accepted.
+// proposal, accept it (it becomes the project) or mark it declined.
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -15,24 +15,25 @@ import { Icon, SiteHeader } from "./ProjectPage";
 function StaffBar({ page, ready, onChanged }: { page: Page; ready: boolean; onChanged?: () => void }) {
   const { t } = useTranslation();
   const staff = page.staff!;
-  const [asking, setAsking] = useState(false);
+  const [asking, setAsking] = useState<"accept" | "decline" | null>(null);
   const [busy, setBusy] = useState(false);
   // Changing or accepting it needs proposals switched on (A40); the page still shows it.
   const open = staff.status === "proposal" && !!staff.features?.includes("proposals");
-  const accept = async () => {
+  const answer = async (accepted: boolean) => {
     setBusy(true);
+    const path = { params: { path: { project_id: staff.project_id } } };
     try {
-      await call(
-        api.POST("/api/projects/{project_id}/accept-proposal", {
-          params: { path: { project_id: staff.project_id } },
-          body: { row_version: staff.row_version },
-        }),
-      );
-      setAsking(false);
-      toast(t("proposal.accept.done"));
+      // Accepted: the same record becomes the project. Declined: archived while a
+      // proposal, so the Propostas tab lists it as "Recusada" (A42).
+      if (accepted)
+        await call(api.POST("/api/projects/{project_id}/accept-proposal", { ...path, body: { row_version: staff.row_version } }));
+      else
+        await call(api.PATCH("/api/projects/{project_id}", { ...path, body: { status: "archived", row_version: staff.row_version } }));
+      setAsking(null);
+      toast(t(accepted ? "proposal.accept.done" : "proposal.accept.declineDone"));
       onChanged?.();
     } catch (failure) {
-      setAsking(false);
+      setAsking(null);
       toastError(failure);
     } finally {
       setBusy(false);
@@ -40,7 +41,7 @@ function StaffBar({ page, ready, onChanged }: { page: Page; ready: boolean; onCh
   };
   return (
     <nav className="dock" aria-label={t("page.staffBar")}>
-      <a className="b" href="/painel/" aria-label={t("page.backToPainel")}>
+      <a className="b" href="/painel/propostas" aria-label={t("page.backToPainel")}>
         <Icon name="left" />
         <span className="hide-sm">{t("page.backToPainel")}</span>
       </a>
@@ -52,7 +53,12 @@ function StaffBar({ page, ready, onChanged }: { page: Page; ready: boolean; onCh
         </a>
       )}
       {open && (
-        <button type="button" className="b b--small b--primary" disabled={!ready} onClick={() => setAsking(true)}>
+        <button type="button" className="b b--small" disabled={!ready} onClick={() => setAsking("decline")}>
+          {t("proposal.accept.decline")}
+        </button>
+      )}
+      {open && (
+        <button type="button" className="b b--small b--primary" disabled={!ready} onClick={() => setAsking("accept")}>
           {t("proposal.accept.action")}
         </button>
       )}
@@ -71,14 +77,24 @@ function StaffBar({ page, ready, onChanged }: { page: Page; ready: boolean; onCh
       >
         <Icon name="link" />
       </button>
-      {asking && (
+      {asking === "accept" && (
         <ConfirmDialog
           title={t("proposal.accept.ask")}
-          text={t("proposal.accept.means")}
+          text={t("proposal.accept.means", { name: page.name })}
           confirm={t("proposal.accept.confirm")}
           busy={busy}
-          onCancel={() => setAsking(false)}
-          onConfirm={() => void accept()}
+          onCancel={() => setAsking(null)}
+          onConfirm={() => void answer(true)}
+        />
+      )}
+      {asking === "decline" && (
+        <ConfirmDialog
+          title={t("proposal.accept.declineAsk")}
+          text={t("proposal.accept.declineMeans")}
+          confirm={t("proposal.accept.declineConfirm")}
+          busy={busy}
+          onCancel={() => setAsking(null)}
+          onConfirm={() => void answer(false)}
         />
       )}
     </nav>

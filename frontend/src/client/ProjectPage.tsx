@@ -432,7 +432,7 @@ function Description({ text }: { text: string }) {
   );
 }
 
-/** Cliente, type, the project's details, who works on it, the accepted proposal (A42) and the last update. */
+/** Cliente, type, the project's details, who works on it, and the last update. */
 function Facts({ page }: { page: Page }) {
   const { t, i18n } = useTranslation();
   const rows: Array<[string, ReactNode]> = [
@@ -441,16 +441,6 @@ function Facts({ page }: { page: Page }) {
     // The project's members (A41), named as its "Responsável".
     ...(page.team.length
       ? [[t("page.responsible", { count: page.team.length }), new Intl.ListFormat(i18n.language).format(page.team)] as [string, string]]
-      : []),
-    ...(page.proposal_url
-      ? [
-          [
-            t("proposal.page.link"),
-            <a key="proposal" href={page.proposal_url} target="_blank" rel="noopener">
-              {t("proposal.page.open")}
-            </a>,
-          ] as [string, ReactNode],
-        ]
       : []),
     [t("page.lastUpdate"), day(page.last_update, i18n.language, page.timezone)],
   ];
@@ -843,6 +833,34 @@ function Stage({
       {...moving?.target({ position: index + 1, section: null })}
     >
       {editor?.editing ? editor.form(layout) : layout()}
+    </section>
+  );
+}
+
+/** The accepted proposal (A42), as a first stage, "Proposta", holding its PDF:
+ *  drawn by the app from the latest version, so a later change shows here too.
+ *  Not one of the project's stages: no number, nothing to complete or upload. */
+function ProposalStage({ page, url }: { page: Page; url: string }) {
+  const { t } = useTranslation();
+  return (
+    <section className="stage is-expanded proposal-stage" aria-labelledby="st-proposal">
+      <span className="stage__n" aria-hidden="true" />
+      <div className="stage__head">
+        <div className="stage__title">
+          <div className="stage__name">
+            <h2 id="st-proposal">{t("proposal.page.stage")}</h2>
+          </div>
+        </div>
+      </div>
+      <div className="stage__body">
+        <a className="proposal-file" href={url} target="_blank" rel="noopener">
+          <span className="proposal-file__kind" aria-hidden="true">
+            PDF
+          </span>
+          <span className="proposal-file__name">{t("proposal.page.fileName", { name: page.name })}</span>
+          <Icon name="download" />
+        </a>
+      </div>
     </section>
   );
 }
@@ -1306,6 +1324,7 @@ export function ProjectPage({
             <StageCompletion page={page} />
           </>
         )}
+        {page.proposal_url && !filtering && <ProposalStage page={page} url={page.proposal_url} />}
         {page.stages.map((_, i) => (
           <Stage
             key={i}

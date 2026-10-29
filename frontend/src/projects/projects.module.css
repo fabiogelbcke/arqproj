@@ -14,12 +14,10 @@
    alone. The sort is a ui/SelectField. */
 .search { flex: 1 1 140px; min-width: 120px; }
 .tools > :not(.search) { flex: none; }
-/* "Nova proposta" and "Novo projeto": pills in small capitals, the project dark. */
-.newButtons { display: flex; gap: 10px; }
 .newButton {
   gap: 10px; border-radius: var(--r-pill); font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase;
 }
-.newFab, .soloPlus { display: none; } /* the + is for phones */
+.newButton > span:first-child { display: none; } /* the + is for phones */
 /* One type of project at a time; a hairline under them closes the head. */
 .typeChips { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 @media (max-width: 720px) {
@@ -44,22 +42,14 @@
   .search svg { left: 20px; width: 21px; height: 21px; } /* Safari's address-bar size */
   .search input { height: 100%; padding: 0 20px 0 52px; border: 0; background: transparent; font-size: 17px; }
   .search input[data-focused] { background: transparent; }
-  /* The two buttons become the round + beside it, opening a menu of the two. */
-  .tools .newButtons { position: fixed; z-index: 40; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); }
-  .tools .newButton { display: none; }
-  .newFab {
-    display: grid; place-items: center; width: var(--control-floating); height: var(--control-floating); padding: 0;
-    border: 0; border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%); cursor: pointer;
-    background: var(--primary, var(--ink)); color: var(--on-primary, var(--bg));
+  /* "Novo projeto" becomes the round + beside it. */
+  .tools .newButton { /* over the Button's own size */
+    position: fixed; z-index: 40; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
+    display: grid; place-items: center; width: var(--control-floating); height: var(--control-floating); min-height: 0; padding: 0; gap: 0;
+    border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
   }
-  .newFab > span { font-size: 36px; font-weight: 300; line-height: 1; translate: 0 -2px; }
-  /* "Novo projeto" alone (no proposals): the button itself becomes the +. */
-  .tools .newSolo {
-    display: grid; place-items: center; width: var(--control-floating); height: var(--control-floating); min-height: 0;
-    padding: 0; gap: 0; border-radius: 50%; box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
-  }
-  .soloPlus { display: block; font-size: 36px; font-weight: 300; line-height: 1; translate: 0 -2px; }
-  .soloLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .newButton > span:first-child { display: block; font-size: 36px; font-weight: 300; line-height: 1; translate: 0 -2px; }
+  .newLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 
 .group { display: grid; gap: 20px; }
@@ -296,3 +286,6 @@
   .groups[data-phone-group="active"] .phoneEmpty[data-group="active"],
   .groups[data-phone-group="completed"] .phoneEmpty[data-group="completed"] { display: block; }
 }
+/* "Outra etapa": a name and "Adicionar", its button on the field's line. */
+.ownStage { display: flex; align-items: flex-end; gap: 10px; }
+.ownStage > :first-child { flex: 1; min-width: 0; }

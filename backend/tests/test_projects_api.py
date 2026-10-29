@@ -104,6 +104,48 @@ async def test_ticked_stages_come_in_the_shared_order_whatever_the_type(client, 
     assert folders == ["01 - Projeto Legal", "02 - Especificações"]
 
 
+async def test_the_offices_own_stages_come_after_the_built_in_ones_as_typed(
+    client, db_session, owner, tmp_path
+):
+    response = await create(
+        client, owner, stages=["survey"], custom_stages=["  Visita técnica ", "Maquete"]
+    )
+    assert response.status_code == 201, response.text
+    folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
+    assert folders == ["01 - Levantamento", "02 - Visita técnica", "03 - Maquete"]
+    stages = list(
+        await db_session.scalars(
+            select(ProjectStage)
+            .where(ProjectStage.project_id == response.json()["id"])
+            .order_by(ProjectStage.position)
+        )
+    )
+    assert [(s.builtin_key, s.title) for s in stages] == [
+        ("survey", None),
+        (None, "Visita técnica"),
+        (None, "Maquete"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "custom",
+    [
+        ["   "],  # blank
+        ["Maquete", "maquete"],  # twice
+        ["levantamento"],  # a built-in stage it already has, by its name
+        ["x" * 81],  # too long
+    ],
+)
+async def test_an_own_stage_that_cant_be_told_apart_is_refused(
+    client, db_session, owner, tmp_path, custom
+):
+    before = await project_count(db_session)
+    response = await create(client, owner, stages=["survey"], custom_stages=custom)
+    assert response.status_code == 422, response.text
+    assert await project_count(db_session) == before
+    assert not (tmp_path / "Casa do Lago").exists()  # no folder left behind
+
+
 async def test_with_every_stage_unticked_only_the_project_folder_is_made(client, owner, tmp_path):
     response = await create(client, owner, stages=[])
     assert (response.json()["stage_count"], response.json()["completed_stage_count"]) == (0, 0)
@@ -236,8 +278,10 @@ async def test_a_database_failure_removes_the_folders_already_made(
     """All or nothing: here the address is taken between the check and the save."""
     real = creation._validate
 
-    async def check_misses_the_clash(db, new):
-        return await real(db, creation.NewProject(**{**new.__dict__, "slug": "ainda-livre"}))
+    async def check_misses_the_clash(db, new, locale):
+        return await real(
+            db, creation.NewProject(**{**new.__dict__, "slug": "ainda-livre"}), locale
+        )
 
     monkeypatch.setattr(creation, "_validate", check_misses_the_clash)
     before = await project_count(db_session)

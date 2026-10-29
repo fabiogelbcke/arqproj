@@ -73,9 +73,16 @@
 .addPayment { justify-self: start; }
 .payments { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .payment { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: 10px; align-items: end; }
+/* "Valor" and "Quando" over the first row only: the rows below line up under them
+   (screen readers still hear each field's name). "Remover" sits in the fields' middle. */
+.payment + .payment label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.removePayment { margin-bottom: calc((var(--control-main) - var(--control-small)) / 2); }
 @media (max-width: 560px) {
   .payment { grid-template-columns: 1fr; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
-  .removePayment { justify-self: start; }
+  .removePayment { justify-self: start; margin-bottom: 0; }
+  .payment + .payment label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
 }
 .warning { font-size: var(--text-sm); color: var(--ink); padding: 10px 12px; border-radius: var(--r-field); background: var(--raise); border-left: 3px solid var(--warm); }
 
@@ -85,3 +92,42 @@
 .versions { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: var(--text-sm); }
 .versions li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
 .versions a { color: var(--ink); }
+
+/* The Propostas tab (A42): "Nova proposta", then the proposals as rows in three
+   groups (open, accepted, declined), each headed like the projects' groups. */
+.listHead { display: grid; gap: 14px; justify-items: start; margin-bottom: 28px; }
+.kicker {
+  font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--muted);
+}
+.group { display: grid; gap: 14px; margin-bottom: 36px; }
+.groupTitle {
+  display: flex; align-items: center; gap: 10px; margin: 0;
+  font: 500 20px/1.2 var(--display-font); letter-spacing: -0.01em; color: var(--ink);
+}
+.groupCount {
+  display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; border-radius: var(--r-pill);
+  background: var(--surface); font: 500 var(--text-2xs) var(--font); color: var(--muted);
+}
+.rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto 36px; align-items: center; gap: 8px 20px;
+  padding: 8px 8px 8px 18px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--raise);
+}
+.rowMain { display: grid; gap: 2px; min-width: 0; padding: 6px 0; color: inherit; text-decoration: none; }
+.rowMain:hover .rowName { text-decoration: underline; }
+.rowName { font-weight: 500; overflow-wrap: anywhere; }
+.rowClient { font-size: var(--text-sm); color: var(--muted); overflow-wrap: anywhere; }
+.rowMeta { font-size: var(--text-sm); color: var(--muted); white-space: nowrap; }
+.rowFee { font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rowMenu {
+  display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink); cursor: pointer;
+}
+.rowMenu[data-hovered] { background: var(--surface); }
+.rowMenu[data-focus-visible] { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 620px) {
+  .row { grid-template-columns: minmax(0, 1fr) 36px; }
+  .rowMain { grid-column: 1; }
+  .rowMeta, .rowFee { grid-column: 1; grid-row: auto; }
+  .rowMenu, .rowMenuSpace { grid-column: 2; grid-row: 1; }
+}

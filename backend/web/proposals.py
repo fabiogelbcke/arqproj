@@ -1,5 +1,6 @@
 """Proposals in the painel (A42): the generator, its versions and presets.
 
+    GET   /api/proposals                       the Propostas tab: open, accepted, declined
     GET   /api/projects/{id}/proposal          what the generator starts from
     POST  /api/projects/{id}/proposal/preview  the PDF of what is on screen, unsaved
     POST  /api/projects/{id}/proposals         save it as the next version
@@ -21,13 +22,15 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import date, datetime
+from enum import StrEnum
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, exists, func, select, update
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -296,6 +299,89 @@ def _today(tenant: CurrentTenant) -> date:
         return datetime.now(ZoneInfo("America/Sao_Paulo")).date()
 
 
+# -- the Propostas tab ------------------------------------------------------------
+
+
+class ProposalState(StrEnum):
+    OPEN = "open"  # still a proposal: "Ativas"
+    ACCEPTED = "accepted"  # "Proposta aceita": a project now
+    DECLINED = "declined"  # "Recusada": archived while a proposal
+
+
+class ProposalRow(BaseModel):
+    project_id: uuid.UUID
+    name: str
+    client_name: str
+    slug: str
+    state: ProposalState
+    # The latest saved version: None while none is saved yet.
+    version: int | None
+    saved_at: datetime | None
+    fee: int | None  # centavos
+    created_at: datetime
+    row_version: int  # for "Recusada" and undoing it, as any project change
+
+
+@router.get("/proposals", responses=documented(401, 409))
+async def proposal_list(
+    _staff: CurrentStaff = Depends(current_staff),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> list[ProposalRow]:
+    """Every proposal: open ones, those accepted (projects now) and those declined;
+    the most recently changed first."""
+    has_one = exists().where(Proposal.project_id == Project.id)
+    rows = (
+        await db.execute(
+            select(Project, ProjectSlug.slug)
+            .join(ProjectSlug, (ProjectSlug.project_id == Project.id) & ProjectSlug.is_current)
+            .where(
+                Project.deleted_at.is_(None),
+                (Project.status == ProjectStatus.PROPOSAL)
+                | (
+                    (Project.status == ProjectStatus.ARCHIVED)
+                    & (Project.archived_from == ProjectStatus.PROPOSAL)
+                )
+                | (Project.status.in_([ProjectStatus.ACTIVE, ProjectStatus.COMPLETED]) & has_one),
+            )
+        )
+    ).all()
+    newest = {
+        found.project_id: found
+        for found in await db.scalars(
+            select(Proposal)
+            .where(Proposal.project_id.in_([project.id for project, _ in rows]))
+            .order_by(Proposal.project_id, Proposal.version.desc())
+            .ext(distinct_on(Proposal.project_id))
+        )
+    }
+
+    def state(project: Project) -> ProposalState:
+        if project.status is ProjectStatus.PROPOSAL:
+            return ProposalState.OPEN
+        if project.status is ProjectStatus.ARCHIVED:
+            return ProposalState.DECLINED
+        return ProposalState.ACCEPTED
+
+    listed = []
+    for project, slug in rows:
+        found = newest.get(project.id)
+        listed.append(
+            ProposalRow(
+                project_id=project.id,
+                name=project.name,
+                client_name=project.client_name,
+                slug=slug,
+                state=state(project),
+                version=found.version if found else None,
+                saved_at=found.created_at if found else None,
+                fee=found.content.get("fee") if found else None,
+                created_at=project.created_at,
+                row_version=project.row_version,
+            )
+        )
+    return sorted(listed, key=lambda row: row.saved_at or row.created_at, reverse=True)
+
+
 @router.get("/projects/{project_id}/proposal", responses=documented(401, 404))
 async def generator(
     project_id: uuid.UUID,
@@ -488,9 +574,12 @@ async def accept(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
-    """ "Proposta aceita": the page shows the project, with a link to the proposal.
-    Accepting twice changes nothing."""
+    """ "Proposta aceita": the same record becomes the project, its page showing
+    the work and the proposal as its "Proposta" stage. Accepting twice changes
+    nothing; a proposal never saved can't be accepted (nothing to show)."""
     project = await _project(db, project_id)
+    if project.status is ProjectStatus.PROPOSAL and await latest(db, project.id) is None:
+        raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
     if project.status is ProjectStatus.PROPOSAL:
         accepted = await db.execute(
             update(Project)

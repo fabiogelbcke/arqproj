@@ -15,14 +15,12 @@ import { useNavigate } from "react-router";
 import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { useConnectDrive, useDrive } from "../drive/drive";
-import { useFeature, useMe } from "../session/session";
+import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
-import { ActionMenu } from "../ui/ActionMenu";
 import { DialogFrame } from "../ui/DialogFrame";
 import { addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
-import { toast } from "../ui/Toast";
 import { suggestedSlug, useCreateProject, useCreationOptions } from "./projects";
 import styles from "./projects.module.css";
 import { RecipientsField } from "./RecipientsField";
@@ -49,6 +47,20 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
   const types = options.data?.types ?? [];
   const type = types.find((option) => option.key === typeKey) ?? types[0];
   const stages = ticked ?? type?.stages ?? [];
+  // The office's own stages, named here, after the built-in ones; unticking one drops it.
+  const [own, setOwn] = useState<string[]>([]);
+  const [newStage, setNewStage] = useState("");
+  const [stageProblem, setStageProblem] = useState<string | null>(null);
+  const OWN = "own:";
+  const addOwn = () => {
+    const title = newStage.trim();
+    if (!title) return;
+    const names = [...(options.data?.stages ?? []).map((s) => s.title), ...own].map((n) => n.toLocaleLowerCase());
+    if (names.includes(title.toLocaleLowerCase())) return setStageProblem(t("newProject.stageExists", { title }));
+    setOwn([...own, title]);
+    setNewStage("");
+    setStageProblem(null);
+  };
   // Follows the name until the address is edited by hand.
   const [typedSlug, setTypedSlug] = useState<string | null>(null);
   const slug = typedSlug ?? suggestedSlug(name);
@@ -79,17 +91,19 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
             client_name: client,
             project_type: type?.key ?? "",
             stages,
+            custom_stages: own,
             slug,
             recipients: list,
             proposal: kind === "proposal",
             creation_key: creationKey,
           },
           {
-            // A proposal's next step is writing it: straight to the proposal's page.
+            // Straight to what comes next: a proposal's generator, to write it; a
+            // project's page (outside the painel), to fill it in (Fabio, 29 Oct 2026).
             onSuccess: (project) => {
               close();
               if (kind === "proposal") navigate(`/projetos/${project.id}/proposta`);
-              else toast(t("newProject.created", { name: project.name }));
+              else window.location.assign(`/${project.slug}`);
             },
           },
         );
@@ -139,11 +153,18 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
           ))}
         </div>
       </RadioGroup>
-      <CheckboxGroup className={styles.stagesField} value={stages} onChange={setTicked}>
+      <CheckboxGroup
+        className={styles.stagesField}
+        value={[...stages, ...own.map((title) => OWN + title)]}
+        onChange={(values) => {
+          setTicked(values.filter((value) => !value.startsWith(OWN)));
+          setOwn(own.filter((title) => values.includes(OWN + title)));
+        }}
+      >
         <Label className={styles.label}>{t("newProject.stages")}</Label>
         <Text slot="description" className={styles.note}>
-          {stages.length
-            ? t("newProject.stagesHint", { count: stages.length })
+          {stages.length + own.length
+            ? t("newProject.stagesHint", { count: stages.length + own.length })
             : t("newProject.noStagesHint")}
         </Text>
         <div className={styles.stageOptions}>
@@ -153,8 +174,40 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
               {stage.title}
             </Checkbox>
           ))}
+          {own.map((title) => (
+            <Checkbox key={OWN + title} value={OWN + title} className={styles.stageOption}>
+              <span className={styles.box} aria-hidden="true" />
+              {title}
+            </Checkbox>
+          ))}
         </div>
       </CheckboxGroup>
+      {/* Another stage, named as the office calls it (Fabio, 29 Oct 2026). */}
+      <div className={styles.ownStage}>
+        <TextField
+          label={t("newProject.ownStage")}
+          value={newStage}
+          onChange={(value) => {
+            setNewStage(value);
+            setStageProblem(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault(); // adds the stage; the form isn't sent yet
+            addOwn();
+          }}
+          maxLength={LIMITS.stageTitle}
+          autoComplete="off"
+        />
+        <Button onPress={addOwn} isDisabled={!newStage.trim()}>
+          {t("newProject.addStage")}
+        </Button>
+      </div>
+      {stageProblem && (
+        <p role="alert" className={styles.problem}>
+          {stageProblem}
+        </p>
+      )}
       <TextField
         label={t("newProject.slug")}
         description={t("newProject.slugHint", { address: `${window.location.host}/${slug || "…"}` })}
@@ -264,53 +317,17 @@ export function NewProjectButton({
   );
 }
 
-/** The toolbar's "Nova proposta" and "Novo projeto"; on phones, the floating +
- *  with a menu of the two. Without proposals (a feature, A40) only "Novo
- *  projeto", and the + opens it straight away. */
+/** The toolbar's "Novo projeto"; on phones, the floating + (proposals start in
+ *  their own tab, A42). */
 export function NewProjectButtons() {
   const { t } = useTranslation();
-  const proposals = useFeature("proposals");
-  const [open, setOpen] = useState<NewKind | null>(null);
   return (
-    <div className={styles.newButtons} data-tour="new-project">
-      {proposals && (
-        <NewProjectButton
-          kind="proposal"
-          label={t("projects.newProposal")}
-          variant="secondary"
-          size="small"
-          className={styles.newButton}
-        />
-      )}
-      {proposals ? (
-        <NewProjectButton kind="project" label={t("projects.new")} size="small" className={styles.newButton} />
-      ) : (
-        // Alone, it becomes the round + on phones.
-        <DialogTrigger>
-          <Button variant="primary" size="small" className={`${styles.newButton} ${styles.newSolo}`}>
-            <span aria-hidden="true" className={styles.soloPlus}>
-              +
-            </span>
-            <span className={styles.soloLabel}>{t("projects.new")}</span>
-          </Button>
-          <NewProjectDialog kind="project" />
-        </DialogTrigger>
-      )}
-      {proposals && (
-        <ActionMenu
-          label={t("projects.newMenu")}
-          className={styles.newFab}
-          placement="top end"
-          items={[
-            { id: "project", label: t("projects.new") },
-            { id: "proposal", label: t("projects.newProposal") },
-          ]}
-          onAction={(id) => setOpen(id as NewKind)}
-        >
-          <span aria-hidden="true">+</span>
-        </ActionMenu>
-      )}
-      {open && <NewProjectDialog kind={open} onClose={() => setOpen(null)} />}
-    </div>
+    <DialogTrigger>
+      <Button variant="primary" size="small" className={styles.newButton} data-tour="new-project">
+        <span aria-hidden="true">+</span>
+        <span className={styles.newLabel}>{t("projects.new")}</span>
+      </Button>
+      <NewProjectDialog kind="project" />
+    </DialogTrigger>
   );
 }

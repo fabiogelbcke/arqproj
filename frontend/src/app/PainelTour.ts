@@ -11,26 +11,14 @@ import "../ui/tour.css";
 
 const at = (name: string) => `[data-tour="${name}"]`;
 
-export function startPainelTour({
-  t,
-  openExample,
-  proposals = false,
-}: {
-  t: TFunction;
-  openExample?: () => void;
-  proposals?: boolean; // "Nova proposta" too (a feature, A40): the step says so
-}) {
+export function startPainelTour({ t, openExample }: { t: TFunction; openExample?: () => void }) {
   const visible = (selector: string) => {
     const element = document.querySelector<HTMLElement>(selector);
     return !!element && element.getClientRects().length > 0;
   };
-  const context = (name: string) => (proposals && name === "new-project" ? { context: "proposals" } : {});
   const step = (name: string): DriveStep => ({
     element: at(name),
-    popover: {
-      title: t(`painelTour.${name}Title`, context(name)),
-      description: t(`painelTour.${name}`, context(name)),
-    },
+    popover: { title: t(`painelTour.${name}Title`), description: t(`painelTour.${name}`) },
   });
   const go = openExample ?? (() => window.location.assign(`/${EXAMPLE_SLUG}`));
   const steps: DriveStep[] = [

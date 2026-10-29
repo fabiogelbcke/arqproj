@@ -173,11 +173,30 @@ describe("a project's page while it is a proposal", () => {
     await waitFor(() => expect(accept).toBeEnabled());
     await userEvent.click(accept);
     const dialog = await screen.findByRole("alertdialog");
+    // Accepting makes the project: the same record, its page showing the work.
+    expect(dialog).toHaveTextContent("Esta proposta vira o projeto “Casa Jardim”");
     expect(dialog).toHaveTextContent("Nenhum e-mail é enviado.");
     expect(accepted).toBe(false);
-    await userEvent.click(within(dialog).getByRole("button", { name: "Marcar como aceita" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
     await waitFor(() => expect(accepted).toBe(true));
     expect(sent.find((r) => r.path.endsWith("accept-proposal"))!.body).toEqual({ row_version: 7 });
+  });
+
+  it("lets staff mark the proposal declined, after asking", async () => {
+    const staffPage = { ...PAGE, staff: { project_id: "p-1", status: "proposal" as const, row_version: 7, recipients: [], features: ["proposals" as const] } };
+    const sent = client(staffPage, {
+      "GET /api/me": () => ({ body: ME }),
+      "PATCH /api/projects/p-1": () => ({ body: {} }),
+    });
+    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    const decline = within(bar).getByRole("button", { name: "Recusada" });
+    await waitFor(() => expect(decline).toBeEnabled());
+    await userEvent.click(decline);
+    const dialog = await screen.findByRole("alertdialog");
+    expect(sent.some((r) => r.method === "PATCH")).toBe(false);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Marcar como recusada" }));
+    await waitFor(() => expect(sent.some((r) => r.method === "PATCH")).toBe(true));
+    expect(sent.find((r) => r.method === "PATCH")!.body).toEqual({ status: "archived", row_version: 7 });
   });
 
   it("offers staff neither when proposals are switched off, though the page still shows it (A40)", async () => {
@@ -191,10 +210,12 @@ describe("a project's page while it is a proposal", () => {
 });
 
 describe("an accepted proposal", () => {
-  it("stays a link among the project's details", async () => {
+  it("once accepted, is the project's first stage, Proposta, holding its PDF", async () => {
     client({ ...PAGE, in_proposal: false, proposal: null, project_type: "Projeto Arquitetônico" });
-    const link = await screen.findByRole("link", { name: "Ver proposta" });
-    expect(link).toHaveAttribute("href", PROPOSAL.pdf_url);
+    const stage = await screen.findByRole("region", { name: "Proposta" });
+    expect(within(stage).getByRole("link", { name: /Proposta – Casa Jardim\.pdf/ })).toHaveAttribute("href", PROPOSAL.pdf_url);
+    // Not one of the project's stages: the details no longer repeat it either.
+    expect(screen.queryByRole("link", { name: "Ver proposta" })).toBeNull();
   });
 });
 
@@ -327,9 +348,9 @@ describe("the proposal generator", () => {
   it("asks before a link in the painel discards unsaved changes", async () => {
     const { router } = generator();
     const crumb = async () =>
-      within(await screen.findByRole("navigation", { name: "Onde você está" })).getByRole("link", { name: "Projetos" });
+      within(await screen.findByRole("navigation", { name: "Onde você está" })).getByRole("link", { name: "Propostas" });
     await userEvent.click(await crumb()); // nothing changed: leaves straight away
-    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/propostas"));
     await router.navigate("/projetos/p-1/proposta");
 
     await editService("Briefing");
@@ -342,7 +363,7 @@ describe("the proposal generator", () => {
 
     await userEvent.click(await crumb());
     await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Sair sem salvar" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/propostas"));
   });
 
   it("keeps what is typed while a save is under way", async () => {
@@ -369,7 +390,7 @@ describe("the proposal generator", () => {
     expect(description().value).toBe("Conversas. E visitas.");
 
     // Still unsaved: leaving asks.
-    await userEvent.click(within(screen.getByRole("navigation", { name: "Onde você está" })).getByRole("link", { name: "Projetos" }));
+    await userEvent.click(within(screen.getByRole("navigation", { name: "Onde você está" })).getByRole("link", { name: "Propostas" }));
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/projetos/p-1/proposta");
   });
@@ -505,11 +526,35 @@ describe("the proposal generator", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
-  it("marks the proposal accepted only after asking", async () => {
-    const sent = generator({ "POST /api/projects/p-1/accept-proposal": () => ({ body: {} }) });
-    await userEvent.click(await screen.findByRole("button", { name: "Proposta aceita" }));
-    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Marcar como aceita" }));
-    await waitFor(() => expect(sent.some((r) => r.path.endsWith("accept-proposal"))).toBe(true));
-    expect(sent.find((r) => r.path.endsWith("accept-proposal"))!.body).toEqual({ row_version: 3 });
+  it("offers only the writing: accepting it and its page come after saving (A42)", async () => {
+    generator();
+    await screen.findByRole("button", { name: "Salvar proposta" });
+    expect(screen.queryByRole("button", { name: "Proposta aceita" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Abrir a página do projeto" })).toBeNull();
+  });
+
+  it("after saving, opens the proposal's page as the client sees it", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    generator({
+      "POST /api/projects/p-1/proposals": () => ({
+        status: 201,
+        body: { version: 1, created_at: "2026-10-28T12:00:00Z", created_by: "Ana" },
+      }),
+    });
+    await userEvent.type(await screen.findByLabelText(/Valor total/), "100000");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/casa-jardim"));
+  });
+
+  it("types amounts as currency, the digits as centavos", async () => {
+    generator();
+    const fee = await screen.findByLabelText(/Valor total/);
+    await userEvent.type(fee, "2");
+    expect(fee).toHaveValue("0,02");
+    await userEvent.type(fee, "900000");
+    expect(fee).toHaveValue("29.000,00");
+    await userEvent.type(fee, "{Backspace}{Backspace}{Backspace}");
+    expect(fee).toHaveValue("29,00");
   });
 });

@@ -983,6 +983,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Proposal List
+         * @description Every proposal: open ones, those accepted (projects now) and those declined;
+         *     the most recently changed first.
+         */
+        get: operations["proposal_list_api_proposals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/proposal": {
         parameters: {
             query?: never;
@@ -1089,8 +1110,9 @@ export interface paths {
         put?: never;
         /**
          * Accept
-         * @description "Proposta aceita": the page shows the project, with a link to the proposal.
-         *     Accepting twice changes nothing.
+         * @description "Proposta aceita": the same record becomes the project, its page showing
+         *     the work and the proposal as its "Proposta" stage. Accepting twice changes
+         *     nothing; a proposal never saved can't be accepted (nothing to show).
          */
         post: operations["accept_api_projects__project_id__accept_proposal_post"];
         delete?: never;
@@ -2457,6 +2479,11 @@ export interface components {
             project_type: string;
             /** Stages */
             stages: string[];
+            /**
+             * Custom Stages
+             * @default []
+             */
+            custom_stages: string[];
             /** Slug */
             slug: string;
             /**
@@ -2641,6 +2668,34 @@ export interface components {
             /** Pdf Url */
             pdf_url: string;
         };
+        /** ProposalRow */
+        ProposalRow: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Name */
+            name: string;
+            /** Client Name */
+            client_name: string;
+            /** Slug */
+            slug: string;
+            state: components["schemas"]["ProposalState"];
+            /** Version */
+            version: number | null;
+            /** Saved At */
+            saved_at: string | null;
+            /** Fee */
+            fee: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Row Version */
+            row_version: number;
+        };
         /**
          * ProposalStart
          * @description What the generator opens with: the latest version, or a new proposal from
@@ -2712,6 +2767,11 @@ export interface components {
              */
             email: string;
         };
+        /**
+         * ProposalState
+         * @enum {string}
+         */
+        ProposalState: "open" | "accepted" | "declined";
         /**
          * ReaderStatus
          * @description The reader identity's access to the office's folder (pages, downloads).
@@ -6475,6 +6535,44 @@ export interface operations {
             };
             /** @description Service Unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    proposal_list_api_proposals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRow"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

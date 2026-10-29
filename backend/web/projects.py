@@ -14,6 +14,7 @@ import logging
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
@@ -33,6 +34,7 @@ from backend.projects.creation import (
 )
 from backend.projects.enums import AccessMode, DetailKey, ProjectStatus
 from backend.projects.models import (
+    STAGE_TITLE_MAX,
     Meeting,
     Project,
     ProjectDetail,
@@ -130,6 +132,10 @@ class ProjectIn(BaseModel):
     client_name: str = Field(max_length=500)
     project_type: str = Field(max_length=100)
     stages: list[str] = Field(max_length=50)
+    # The office's own stages, named as typed: after the built-in ones.
+    custom_stages: list[Annotated[str, Field(max_length=STAGE_TITLE_MAX)]] = Field(
+        default=[], max_length=20
+    )
     slug: str = Field(max_length=200)
     # The client's addresses for updates (A32), optional.
     recipients: list[str] = Field(default=[], max_length=RECIPIENTS_MAX)
@@ -150,11 +156,12 @@ async def summaries(
         .join(ProjectTypeDef, ProjectTypeDef.key == Project.project_type)
         .where(Project.deleted_at.is_(None))
     )
-    # The list leaves archived projects out; one asked for by id is returned as is.
+    # The list leaves archived projects and proposals (their own tab, A42) out; one
+    # asked for by id is returned as is.
     if only is not None:
         query = query.where(Project.id == only)
     else:
-        query = query.where(Project.status != ProjectStatus.ARCHIVED)
+        query = query.where(Project.status.not_in([ProjectStatus.ARCHIVED, ProjectStatus.PROPOSAL]))
     rows = (await db.execute(query)).all()
     ids = [project.id for project, _, _ in rows]
     if not ids:
@@ -345,6 +352,7 @@ async def new_project(
         creation_key=body.creation_key,
         recipients=tuple(body.recipients),
         proposal=body.proposal,
+        custom_stages=tuple(body.custom_stages),
     )
     try:
         project = await create_project(db, maker, root, tenant.locale, new)
@@ -362,7 +370,8 @@ async def new_project(
             "project_created",
             properties={
                 "project_type": project.project_type,
-                "stage_count": len(body.stages),
+                "stage_count": len(body.stages) + len(body.custom_stages),
+                "custom_stage_count": len(body.custom_stages),
                 "recipient_count": len(body.recipients),
                 "proposal": body.proposal,
             },

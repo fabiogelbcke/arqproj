@@ -22,7 +22,7 @@ import {
   parseAmount,
   previewPage,
   previewPdf,
-  useAcceptProposal,
+  typedAmount,
   useGenerator,
   useSaveDefaults,
   useSavePresets,
@@ -170,19 +170,21 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
     edits.current += 1;
   };
   const save = useSaveProposal(data.project_id);
-  const accept = useAcceptProposal(data.project_id);
   const savePresets = useSavePresets(data.project_id);
   const saveDefaults = useSaveDefaults(data.project_id);
   const [problem, setProblem] = useState<string | null>(null);
-  const [accepting, setAccepting] = useState(false);
   const [instalmentCount, setInstalmentCount] = useState("4");
 
   // Leaving with unsaved changes asks first: the browser's own question when the
-  // tab closes or reloads, ours when a link in the painel is followed.
+  // tab closes or reloads, ours when a link in the painel is followed. Not after
+  // a save, which goes to the proposal's page on purpose.
   const leaving = useBlocker(dirty);
+  const saved = useRef(false);
   useEffect(() => {
     if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!saved.current) event.preventDefault();
+    };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
@@ -259,6 +261,7 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
     });
   };
 
+  const pageUrl = `/${data.slug}`;
   const pdfWindow = useRef<Window | null>(null);
   const openPdf = () => {
     const checked = check(draft, locale, t);
@@ -293,28 +296,37 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
     setAskOffice(null);
     const editsSaved = edits.current;
     save.mutate({ content, updateOffice }, {
-      onSuccess: (saved) => {
-        onSaved(saved.version);
-        if (edits.current === editsSaved) {
-          setDirty(false);
-          setDraft((was) => ({ ...was, services: was.services.filter((s) => !s.removed) }));
+      onSuccess: (version) => {
+        onSaved(version.version);
+        if (edits.current !== editsSaved) {
+          // Typed on while it saved: stay, so that isn't lost.
+          toast(t("proposal.generator.saved", { version: version.version }));
+          return;
         }
-        toast(t("proposal.generator.saved", { version: saved.version }));
+        // Saved as shown: on to the proposal's page, as the client sees it (Fabio, 29 Oct 2026).
+        saved.current = true;
+        setDirty(false);
+        window.location.assign(pageUrl);
       },
     });
   };
 
   const isProposal = data.status === "proposal";
   const archived = data.status === "archived";
-  const pageUrl = `/${data.slug}`;
 
   return (
     <div className={styles.page}>
+      {/* Writing it, nothing else: accepting it and opening its page come after,
+          on the proposal's page (Fabio, 29 Oct 2026). */}
       <header className={styles.head}>
         <nav className={styles.crumbs} aria-label={t("proposal.generator.where")}>
-          <Link to="/">{t("nav.projects")}</Link>
+          {isProposal || archived ? (
+            <Link to="/propostas">{t("nav.proposals")}</Link>
+          ) : (
+            <Link to="/">{t("nav.projects")}</Link>
+          )}
           <span aria-hidden="true">/</span>
-          <a href={pageUrl}>{data.project_name}</a>
+          <span>{data.project_name}</span>
         </nav>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{t("proposal.generator.title")}</h1>
@@ -322,16 +334,6 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
         <p className={styles.lead}>
           {isProposal ? t("proposal.generator.leadProposal") : t("proposal.generator.lead")}
         </p>
-        <div className={styles.headActions}>
-          <a className={styles.linkButton} href={pageUrl}>
-            {t("proposal.generator.openPage")}
-          </a>
-          {isProposal && (
-            <Button size="small" onPress={() => setAccepting(true)}>
-              {t("proposal.accept.action")}
-            </Button>
-          )}
-        </div>
         {archived && <p className={styles.note}>{t("proposal.generator.archived")}</p>}
       </header>
 
@@ -370,9 +372,8 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
               label={t("proposal.generator.fee")}
               description={preview?.fee_in_words || t("proposal.generator.feeHint")}
               value={draft.fee}
-              onChange={(value) => change({ fee: value })}
-              onBlur={() => fee && change({ fee: formatAmount(fee, locale) })}
-              inputMode="decimal"
+              onChange={(value) => change({ fee: typedAmount(value, locale) })}
+              inputMode="numeric"
               placeholder="29.000,00"
             />
             <h3 className={styles.subhead}>{t("proposal.generator.payments")}</h3>
@@ -398,10 +399,11 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
                   <TextField
                     label={t("proposal.generator.amount")}
                     value={payment.amount}
-                    inputMode="decimal"
-                    onChange={(amount) =>
-                      change({ payments: draft.payments.map((p, j) => (j === i ? { ...p, amount } : p)) })
-                    }
+                    inputMode="numeric"
+                    onChange={(typed) => {
+                      const amount = typedAmount(typed, locale);
+                      change({ payments: draft.payments.map((p, j) => (j === i ? { ...p, amount } : p)) });
+                    }}
                   />
                   <TextField
                     label={t("proposal.generator.when")}
@@ -700,27 +702,6 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
         />
       )}
 
-      {accepting && (
-        <ConfirmDialog
-          title={t("proposal.accept.ask")}
-          text={t("proposal.accept.means")}
-          confirm={t("proposal.accept.confirm")}
-          busy={accept.isPending}
-          onCancel={() => setAccepting(false)}
-          onConfirm={() =>
-            accept.mutate(data.row_version, {
-              onSuccess: () => {
-                setAccepting(false);
-                toast(t("proposal.accept.done"));
-              },
-              onError: (failure) => {
-                setAccepting(false);
-                toastError(failure);
-              },
-            })
-          }
-        />
-      )}
     </div>
   );
 }

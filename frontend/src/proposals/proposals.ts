@@ -10,7 +10,30 @@ export type ProposalContent = Schemas["ProposalContent"];
 export type ProposalView = Schemas["ProposalOut"];
 export type Preset = Schemas["PresetOut"];
 
+export type ProposalRow = Schemas["ProposalRow"];
+
 export const proposalKey = (projectId: string) => ["proposal", projectId] as const;
+export const PROPOSALS = ["proposals"] as const;
+
+/** The Propostas tab (A42): open, accepted and declined proposals. */
+export function useProposalList() {
+  return useQuery({ queryKey: PROPOSALS, queryFn: () => call(api.GET("/api/proposals")) });
+}
+
+/** "Recusada" (archived while a proposal), or undone back to a proposal. */
+export function useDeclineProposal() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ row, declined }: { row: ProposalRow; declined: boolean }) =>
+      call(
+        api.PATCH("/api/projects/{project_id}", {
+          params: { path: { project_id: row.project_id } },
+          body: { status: declined ? "archived" : "proposal", row_version: row.row_version },
+        }),
+      ),
+    onSuccess: () => void client.invalidateQueries({ queryKey: PROPOSALS }),
+  });
+}
 
 export function useGenerator(projectId: string) {
   return useQuery({
@@ -33,6 +56,7 @@ export function useSaveProposal(projectId: string) {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: proposalKey(projectId) });
       void client.invalidateQueries({ queryKey: OFFICE });
+      void client.invalidateQueries({ queryKey: PROPOSALS });
     },
   });
 }
@@ -50,6 +74,7 @@ export function useAcceptProposal(projectId: string) {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: proposalKey(projectId) });
       void client.invalidateQueries({ queryKey: PROJECTS });
+      void client.invalidateQueries({ queryKey: PROPOSALS });
     },
   });
 }
@@ -89,6 +114,14 @@ export async function previewPdf(projectId: string, body: ProposalContent): Prom
 }
 
 // -- amounts, typed as people write them ------------------------------------------
+
+/** An amount field as it is typed: its digits are centavos, shown as currency
+ *  ("2" → "0,02", "2900000" → "29.000,00"), so the commas and points come by
+ *  themselves. Nothing typed, nothing shown. */
+export function typedAmount(typed: string, locale: string): string {
+  const digits = typed.replace(/\D/g, "").replace(/^0+/, "").slice(0, 11); // up to 999.999.999,99
+  return digits ? formatAmount(Number(digits), locale) : "";
+}
 
 /** Centavos as the field shows them: 2900000 → "29.000,00" (pt-BR). */
 export function formatAmount(centavos: number, locale: string): string {

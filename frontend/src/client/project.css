@@ -480,3 +480,17 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 .client .stage.is-drop-target, .client .file-section.is-drop-target {
   outline: 2px dashed currentColor; outline-offset: -4px; background-color: color-mix(in srgb, currentColor 6%, transparent);
 }
+
+/* An accepted proposal's stage, "Proposta" (A42): the PDF as one card. */
+.client .proposal-stage .stage__body { grid-column: 2; margin-top: 10px; }
+.client .proposal-file {
+  display: flex; align-items: center; gap: 14px; max-width: 520px; padding: 12px 16px;
+  border: 1px solid var(--line); border-radius: var(--r-card); background: var(--raise); color: var(--ink); text-decoration: none;
+}
+.client .proposal-file:hover { border-color: var(--line-strong); }
+.client .proposal-file__kind {
+  display: grid; place-items: center; width: 40px; height: 48px; border-radius: 6px; background: var(--surface);
+  font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; color: var(--muted);
+}
+.client .proposal-file__name { flex: 1; min-width: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.client .proposal-file svg { width: 18px; height: 18px; flex: none; color: var(--muted); }

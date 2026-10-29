@@ -147,14 +147,19 @@ test("create a project → it is listed as a draft; a used address names its pro
   await expect(dialog.getByRole("radio", { name: "Projeto de Interiores" })).toBeChecked();
   await expect(dialog.getByRole("checkbox", { name: "Especificações" })).toBeChecked(); // usual for interiors
   await dialog.getByText("Especificações", { exact: true }).click(); // untick one
+  await dialog.getByLabel("Outra etapa (opcional)").fill("Visita técnica"); // the office's own
+  await dialog.getByLabel("Outra etapa (opcional)").press("Enter");
   await dialog.getByRole("button", { name: "Criar projeto" }).click();
-  await expect(dialog).toBeHidden();
+  // Straight to the new project's page, its own stage after the built-in ones.
+  await expect(page).toHaveURL(/\/casa-jardim-teste$/);
+  await expect(page.getByRole("heading", { name: "Visita técnica" })).toBeVisible();
 
   // Published at once (A35): with the live projects, no drafts group.
+  await page.goto("/painel/");
   const live = page.getByRole("region", { name: "Em andamento" });
   const card = live.getByTestId("project-card").filter({ hasText: "Família Teste" });
   await expect(page.getByRole("region", { name: "Rascunhos" })).toHaveCount(0);
-  await expect(card).toContainText("0 de 6 etapas concluídas"); // a new project: none yet
+  await expect(card).toContainText("0 de 7 etapas concluídas"); // a new project: none yet
   await expect(card).toContainText("Projeto de Interiores");
 
   // Search ignores accents and case.
