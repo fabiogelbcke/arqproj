@@ -388,6 +388,22 @@ async def test_a_byte_range_is_asked_of_google_as_one(drive):
     assert (download.size, fake.requests[0].headers["Range"]) == (4, "bytes=2-5")
 
 
+async def test_a_range_comes_from_the_revision_that_was_checked(drive):
+    """Replaced on Drive between the check and the download, the file's new bytes
+    never join a resumed download of the old one."""
+    storage, fake = drive
+    fake.answers = [
+        (200, {"id": "f1", "name": "Planta.pdf", "mimeType": "application/pdf", "size": "10",
+               "modifiedTime": "2026-10-28T10:00:00Z", "headRevisionId": "rev7"}),
+        (206, b"2345"),
+    ]  # fmt: skip
+    item = await storage.get("f1")
+    await storage.download(item, (2, 5))
+    asked = fake.requests[1]
+    assert asked.url.path.endswith("/files/f1/revisions/rev7")
+    assert asked.headers["Range"] == "bytes=2-5"
+
+
 async def test_a_range_google_answers_with_the_whole_file_is_refused(drive):
     """Sent as the part, the whole file would corrupt a resumed download."""
     storage, fake = drive

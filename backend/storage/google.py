@@ -32,7 +32,10 @@ log = logging.getLogger(__name__)
 
 API = "https://www.googleapis.com/drive/v3"
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
-FIELDS = "id,name,mimeType,size,modifiedTime,md5Checksum,trashed,shortcutDetails(targetId)"
+FIELDS = (
+    "id,name,mimeType,size,modifiedTime,md5Checksum,headRevisionId,trashed,"
+    "shortcutDetails(targetId)"
+)
 # Drive ids are letters, digits, `-` and `_`. Anything else is refused before it
 # can reach the `q` search expression.
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,200}$")
@@ -130,6 +133,9 @@ class GoogleDriveStorage:
         headers = {}
         if byte_range is not None and not item.is_native:
             first, last = byte_range
+            if item.revision:  # the version checked, even if the file is replaced meanwhile
+                url = f"{self._api}/files/{item.id}/revisions/{item.revision}"
+                params = {"alt": "media"}
             headers["Range"] = f"bytes={first}-{last}"  # Drive answers 206 with those bytes
             size = last - first + 1
         response = await self._send("GET", url, params, stream=True, headers=headers)
@@ -299,5 +305,6 @@ def _item(data: dict) -> StorageItem:
         size=int(data["size"]) if data.get("size") is not None else None,
         modified_at=datetime.fromisoformat(data["modifiedTime"].replace("Z", "+00:00")),
         checksum=data.get("md5Checksum"),
+        revision=data.get("headRevisionId"),
         shortcut_target=(data.get("shortcutDetails") or {}).get("targetId"),
     )
