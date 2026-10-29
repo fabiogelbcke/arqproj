@@ -294,6 +294,13 @@ a.brand:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
   background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 30%); transition: transform 0.2s;
 }
 .switch[data-selected] .switchTrack { background: #34c759; }
+/* "Ajuda": its chevron turns down when open; its items sit indented below it. */
+.menuChevron {
+  flex: none; width: 9px; height: 9px; margin-right: 6px; border: solid var(--muted); border-width: 0 2px 2px 0;
+  rotate: -45deg; transition: rotate 0.15s;
+}
+.menuChevronOpen { rotate: 45deg; }
+.menuSubItem { padding-left: 28px; }
 .switch[data-selected] .switchThumb { transform: translateX(18px); }
 @media (prefers-reduced-motion: reduce) { .switchTrack, .switchThumb { transition: none; } }
 @media (max-width: 720px) {

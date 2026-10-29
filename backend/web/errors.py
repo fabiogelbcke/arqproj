@@ -105,6 +105,7 @@ class ErrorCode(StrEnum):
     SHARE_LOCKED = "share_locked"  # the link has a password, not typed on this device
     WRONG_SHARE_PASSWORD = "wrong_share_password"
     PROPOSAL_NOT_FOUND = "proposal_not_found"  # no such version, or none saved yet
+    PROPOSAL_ACCEPTED = "proposal_accepted"  # the project now: its proposal stays as accepted
 
 
 class ErrorOut(BaseModel):

@@ -199,7 +199,7 @@
 .menu { outline: none; display: grid; }
 .menuItem {
   display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: var(--menu-row); padding: 6px 12px;
-  border-radius: var(--r); font-size: var(--text-md); cursor: pointer; outline: none;
+  border-radius: var(--r); font-size: var(--text-md); color: inherit; text-decoration: none; cursor: pointer; outline: none;
 }
 .menuItem[data-focused] { background: var(--surface); }
 .menuItem[data-danger] { color: var(--danger); }
@@ -323,6 +323,13 @@
 .menuItem[data-selected] .menuSwitch { background: var(--ink); }
 .menuItem[data-selected] .menuSwitch::after { translate: 14px 0; }
 .menuSeparator { height: 1px; margin: 6px 0; background: var(--line); }
+/* "Ajuda": its chevron turns down when open; its items sit indented below it. */
+.menuChevron {
+  flex: none; width: 7px; height: 7px; margin-right: 4px; border: solid var(--muted); border-width: 0 1.5px 1.5px 0;
+  rotate: -45deg; transition: rotate 0.15s;
+}
+.menuChevronOpen { rotate: 45deg; }
+.menuSubItem { padding-left: 24px; }
 
 /* ToggleSwitch: a setting's state beside its switch ("Ativada" ●). */
 .toggleSwitch {

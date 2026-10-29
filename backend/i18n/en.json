@@ -17,6 +17,7 @@
     "signOut": "Sign out",
     "settings": "Settings",
     "menu": "Menu",
+    "help": "Help",
     "sections": "Navigation",
     "hello": "Hi, {{name}}",
     "account": "Your account"
@@ -225,6 +226,7 @@
   },
   "errors": {
     "proposal_not_found": "This version of the proposal no longer exists. Reload the page.",
+    "proposal_accepted": "This proposal has been accepted and can no longer be changed.",
     "signin_not_configured": "Signing in with Google isn't set up in this environment.",
     "version_type_mismatch": "The new version must be the same type of file as the current one.",
     "invalid_staff_name": "Give the name (up to 80 characters).",
@@ -1199,6 +1201,7 @@
       "leadProposal": "Put the proposal together and save it: the project page shows the client the latest one. No email is sent; send the link when you're ready.",
       "openPage": "Open the project page",
       "archived": "This project is archived: the proposal can be viewed but not changed.",
+      "accepted": "This proposal has been accepted: it can be viewed but not changed.",
       "to": "Addressed to",
       "client": "Client's name",
       "clientHint": "Shown at the start of the proposal and by the signature.",

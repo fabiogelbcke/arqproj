@@ -1,4 +1,12 @@
-import { Button, Dialog, DialogTrigger, Modal, ModalOverlay, Switch } from "react-aria-components";
+import { useState } from "react";
+import {
+  Button,
+  Dialog,
+  DialogTrigger,
+  Modal,
+  ModalOverlay,
+  Switch,
+} from "react-aria-components";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router";
 
@@ -11,7 +19,7 @@ import styles from "../pages/pages.module.css";
 
 /** Phones: the top bar's ☰ opens a drawer from the right, full height: a
  *  greeting at the top, the painel's sections, then the theme switch, the
- *  painel's tour, the example project and Sair. */
+ *  painel's tour and the example project, folded under "Ajuda", and Sair. */
 export function MobileMenu({
   name,
   onSignOut,
@@ -28,8 +36,9 @@ export function MobileMenu({
   const { t } = useTranslation();
   const proposals = useFeature("proposals"); // their own tab (A40, A42)
   const [theme, setTheme] = useTheme();
+  const [helpOpen, setHelpOpen] = useState(false);
   return (
-    <DialogTrigger>
+    <DialogTrigger onOpenChange={(open) => !open && setHelpOpen(false)}>
       <Button className={styles.menuButton} aria-label={t("nav.menu")}>
         <span aria-hidden="true" className={styles.burger} />
       </Button>
@@ -39,7 +48,9 @@ export function MobileMenu({
             {({ close }) => (
               <>
                 <div className={styles.drawerHead}>
-                  <span className={styles.drawerGreeting}>{t("nav.hello", { name: name.trim().split(/\s+/)[0] })}</span>
+                  <span className={styles.drawerGreeting}>
+                    {t("nav.hello", { name: name.trim().split(/\s+/)[0] })}
+                  </span>
                   <CloseButton onPress={close} />
                 </div>
                 <nav className={styles.menuNav} aria-labelledby="menu-sections">
@@ -61,7 +72,11 @@ export function MobileMenu({
                     {t("account.title")}
                   </NavLink>
                 </nav>
-                <Switch className={styles.switch} isSelected={theme === "dark"} onChange={(dark) => setTheme(dark ? "dark" : "light")}>
+                <Switch
+                  className={styles.switch}
+                  isSelected={theme === "dark"}
+                  onChange={(dark) => setTheme(dark ? "dark" : "light")}
+                >
                   {t("theme.dark")}
                   <span className={styles.switchTrack} aria-hidden="true">
                     <span className={styles.switchThumb} />
@@ -69,17 +84,39 @@ export function MobileMenu({
                 </Switch>
                 <Button
                   className={styles.menuItem}
-                  onPress={() => {
-                    close();
-                    onTour();
-                  }}
+                  aria-expanded={helpOpen}
+                  onPress={() => setHelpOpen((was) => !was)}
                 >
-                  {t("painelTour.again")}
+                  {t("nav.help")}
+                  <span
+                    className={`${styles.menuChevron} ${helpOpen ? styles.menuChevronOpen : ""}`}
+                    aria-hidden="true"
+                  />
                 </Button>
-                <a className={styles.menuItem} href={`/${EXAMPLE_SLUG}`}>
-                  {t("firstSteps.example")}
-                </a>
-                <Button className={styles.menuItem} onPress={onSignOut} isDisabled={signingOut}>
+                {helpOpen && (
+                  <>
+                    <Button
+                      className={`${styles.menuItem} ${styles.menuSubItem}`}
+                      onPress={() => {
+                        close();
+                        onTour();
+                      }}
+                    >
+                      {t("painelTour.again")}
+                    </Button>
+                    <a
+                      className={`${styles.menuItem} ${styles.menuSubItem}`}
+                      href={`/${EXAMPLE_SLUG}`}
+                    >
+                      {t("firstSteps.example")}
+                    </a>
+                  </>
+                )}
+                <Button
+                  className={styles.menuItem}
+                  onPress={onSignOut}
+                  isDisabled={signingOut}
+                >
                   {t("nav.signOut")}
                 </Button>
                 <ErrorNotice error={signOutError} />

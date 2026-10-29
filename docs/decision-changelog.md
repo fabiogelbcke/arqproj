@@ -19,6 +19,18 @@ a new entry too.
 
 ---
 
+## 2026-10-29 — A42: an accepted proposal is fixed
+
+**Was:** the generator saved new versions at any time, and an accepted
+project's staff bar kept a "Proposta" link to it.
+
+**Now:** once accepted, the proposal is shown but not saved again (the API
+answers `proposal_accepted`), and the project's staff bar has no link to it.
+Its PDF stays in the project's "Proposta" stage.
+
+**Why:** Fabio, 29 Oct 2026: after acceptance the proposal is what the client
+agreed to, so it shouldn't change.
+
 ## 2026-10-29 — A42, A24: a Propostas tab; acceptance makes the project; custom stages at creation
 
 **Was:** "Nova proposta" beside "Novo projeto", proposals listed with the
