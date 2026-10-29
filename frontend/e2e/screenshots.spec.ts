@@ -408,7 +408,7 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await shoot(page, "10b-operacao-escritorios");
   await page.getByRole("button", { name: "Criar escritório", exact: true }).click();
   await page.getByLabel("Nome do escritório").fill("Ateliê Horizonte");
-  await page.getByLabel("Endereço", { exact: true }).fill("horizonte.myunio.app");
+  await page.getByLabel("Endereço do escritório no Unio", { exact: true }).fill("horizonte");
   await shoot(page, "10d-operacao-criar");
   await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "Alinea (dev)" }).click();
