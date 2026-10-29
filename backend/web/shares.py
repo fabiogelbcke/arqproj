@@ -875,7 +875,10 @@ async def shared_file(
             return not_satisfiable(item)
         # A resumed download counts only the part it sends: the rest counted already.
         size = item.size if item.size is not None else EXPORT_GUESS
-        await _count(db, link, part[1] - part[0] + 1 if part else size)
+        # A download is one however many parts it takes: only the first counts one.
+        await _count(
+            db, link, part[1] - part[0] + 1 if part else size, new=part is None or part[0] == 0
+        )
         try:
             download = await storage.download(item, part)
         except StorageError as error:
@@ -890,9 +893,10 @@ async def shared_file(
     return answer
 
 
-async def _count(db: AsyncSession, link: ShareLink, size: int) -> None:
+async def _count(db: AsyncSession, link: ShareLink, size: int, new: bool = True) -> None:
     """A download's size against the link's day, before any byte flows: past the
-    daily cap, refused. Counted when it starts, so a cut download still counts.
+    daily cap, refused. Counted when it starts, so a cut download still counts;
+    `new` False for a later part of one (a resume), which adds bytes, not a download.
     One conditional update, so downloads at the same moment can't both slip under
     the cap."""
     today = datetime.now(UTC).date()
@@ -903,7 +907,7 @@ async def _count(db: AsyncSession, link: ShareLink, size: int) -> None:
         .values(
             day=today,
             day_bytes=spent + size,
-            downloads=ShareLink.downloads + 1,
+            downloads=ShareLink.downloads + (1 if new else 0),
             last_download_at=func.now(),
         )
         .returning(ShareLink.id)

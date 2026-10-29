@@ -388,6 +388,16 @@ async def test_a_byte_range_is_asked_of_google_as_one(drive):
     assert (download.size, fake.requests[0].headers["Range"]) == (4, "bytes=2-5")
 
 
+async def test_a_range_google_answers_with_the_whole_file_is_refused(drive):
+    """Sent as the part, the whole file would corrupt a resumed download."""
+    storage, fake = drive
+    item = StorageItem("f1", "Planta.pdf", "application/pdf", 10, None)
+    fake.answers = [(200, b"0123456789")]
+    with pytest.raises(StorageError) as raised:
+        await storage.download(item, (2, 5))
+    assert raised.value.problem == StorageProblem.UNAVAILABLE
+
+
 async def test_a_google_documents_export_ignores_a_range(drive):
     storage, fake = drive
     doc = StorageItem("doc1", "Memorial", "application/vnd.google-apps.document", None, None)

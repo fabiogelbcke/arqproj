@@ -136,6 +136,16 @@ async def test_a_range_past_the_end_is_refused_with_the_size(client, owner, file
         assert refused.headers["content-range"] == f"bytes */{len(PDF)}"
 
 
+def test_an_empty_file_has_no_last_bytes_to_send():
+    from types import SimpleNamespace
+
+    from backend.storage.base import StorageItem
+
+    empty = StorageItem("f1", "Vazio.pdf", "application/pdf", 0, None)
+    with pytest.raises(page_files.RangeNotSatisfiable):  # not bytes 0--1
+        page_files.byte_range(SimpleNamespace(headers={"range": "bytes=-5"}), empty)
+
+
 @pytest.mark.parametrize(
     "asked", ["bytes=0-1,4-5", "items=0-3", "bytes=abc", "bytes=-", "bytes=5-2"]
 )

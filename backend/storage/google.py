@@ -133,6 +133,10 @@ class GoogleDriveStorage:
             headers["Range"] = f"bytes={first}-{last}"  # Drive answers 206 with those bytes
             size = last - first + 1
         response = await self._send("GET", url, params, stream=True, headers=headers)
+        if headers and response.status_code != 206:  # the whole file: never sent as the part
+            await response.aclose()
+            detail = f"{url}: {response.status_code} to a range"
+            raise StorageError(StorageProblem.UNAVAILABLE, detail)
 
         async def chunks():
             try:

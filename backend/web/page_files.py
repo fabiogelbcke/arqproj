@@ -618,7 +618,7 @@ def byte_range(request: Request, item: StorageItem) -> tuple[int, int] | None:
         return None
     first, last = match.groups()
     if first == "":  # the last N bytes
-        if int(last) == 0:
+        if int(last) == 0 or size == 0:  # no bytes to send
             raise RangeNotSatisfiable
         return max(size - int(last), 0), size - 1
     if last and int(last) < int(first):
