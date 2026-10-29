@@ -20,7 +20,7 @@ export function ActionMenu({
   children: ReactNode; // what the button shows (an icon)
   items: MenuAction[];
   onAction: (id: string) => void;
-  placement?: "bottom end" | "bottom start";
+  placement?: "bottom end" | "bottom start" | "top end";
 }) {
   return (
     <MenuTrigger>

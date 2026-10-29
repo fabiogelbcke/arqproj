@@ -351,10 +351,11 @@ function ShareIcon() {
   );
 }
 
-export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left" }) {
+export function Icon({ name }: { name: "down" | "up" | "x" | "moon" | "sun" | "link" | "left" | "download" }) {
   const paths = {
     link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
     left: "M15 6l-6 6 6 6",
+    download: "M12 4v11M7 10l5 5 5-5M5 19h14",
     down: "M6 9l6 6 6-6",
     up: "M6 15l6-6 6 6",
     x: "M6 6l12 12M18 6L6 18",
@@ -431,15 +432,25 @@ function Description({ text }: { text: string }) {
   );
 }
 
-/** Cliente, type, the project's details, who works on it, and the last update. */
+/** Cliente, type, the project's details, who works on it, the accepted proposal (A42) and the last update. */
 function Facts({ page }: { page: Page }) {
   const { t, i18n } = useTranslation();
-  const rows: Array<[string, string]> = [
+  const rows: Array<[string, ReactNode]> = [
     [t("page.client"), page.client_name.toLocaleUpperCase(i18n.language)],
     ...page.details.map((d) => [d.label, detailValue(d, i18n.language)] as [string, string]),
     // The project's members (A41), named as its "Responsável".
     ...(page.team.length
       ? [[t("page.responsible", { count: page.team.length }), new Intl.ListFormat(i18n.language).format(page.team)] as [string, string]]
+      : []),
+    ...(page.proposal_url
+      ? [
+          [
+            t("proposal.page.link"),
+            <a key="proposal" href={page.proposal_url} target="_blank" rel="noopener">
+              {t("proposal.page.open")}
+            </a>,
+          ] as [string, ReactNode],
+        ]
       : []),
     [t("page.lastUpdate"), day(page.last_update, i18n.language, page.timezone)],
   ];
@@ -892,6 +903,12 @@ function StaffBar({
       >
         <Icon name="link" />
       </button>
+      {/* The proposal generator (A42), in the painel, where switched on (A40). */}
+      {!archived && staff.features?.includes("proposals") && (
+        <a className="b b--small hide-sm" href={`/painel/projetos/${staff.project_id}/proposta`}>
+          {t("proposal.page.link")}
+        </a>
+      )}
     </nav>
   );
 }

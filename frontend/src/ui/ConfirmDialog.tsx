@@ -16,6 +16,7 @@ export function ConfirmDialog({
   busy = false,
   onConfirm,
   onCancel,
+  onDismiss,
 }: {
   title: string;
   text: string;
@@ -26,10 +27,11 @@ export function ConfirmDialog({
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  onDismiss?: () => void; // Escape or a click outside, when it isn't the cancel button's choice
 }) {
   const { t } = useTranslation();
   return (
-    <ModalOverlay className={styles.confirmOverlay} isDismissable isOpen onOpenChange={(open) => !open && onCancel()}>
+    <ModalOverlay className={styles.confirmOverlay} isDismissable isOpen onOpenChange={(open) => !open && (onDismiss ?? onCancel)()}>
       <Modal className={styles.confirmModal}>
         <Dialog role="alertdialog" className={styles.confirmDialog}>
           <Heading slot="title" className={styles.confirmTitle}>

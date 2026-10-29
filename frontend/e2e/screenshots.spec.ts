@@ -97,7 +97,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
-  // An iPad, upright and sideways: "Novo projeto" stays on the search's row.
+  // An iPad, upright and sideways: "Nova proposta" and "Novo projeto" stay on the search's row.
   for (const tablet of [{ name: "ipad", width: 820, height: 1180 }, { name: "ipad-wide", width: 1180, height: 820 }]) {
     await page.setViewportSize(tablet);
     await page.screenshot({ path: `${OUT}/03-projetos-${tablet.name}.png` });
@@ -451,8 +451,9 @@ test("@screenshots project members", async ({ page }) => {
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.getByRole("link", { name: "Alinea (dev)" }).click();
   const features = page.getByRole("region", { name: "Funções em teste" });
-  await features.getByRole("button", { name: "Ativar" }).click();
-  await features.getByText("Ativada", { exact: true }).waitFor();
+  const members = features.getByRole("listitem").filter({ hasText: "Equipe do projeto" });
+  await members.getByRole("button", { name: "Ativar" }).click();
+  await members.getByText("Ativada", { exact: true }).waitFor();
   await features.scrollIntoViewIfNeeded();
   await shoot(page, "10f-operacao-funcoes");
 

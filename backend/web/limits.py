@@ -15,6 +15,8 @@ from backend.notifications.models import RECIPIENTS_MAX
 from backend.projects.creation import CLIENT_NAME_LIMIT, SLUG_MAX
 from backend.projects.creation import NAME_MAX as PROJECT_NAME_MAX
 from backend.projects.models import MEETING_LOCATION_MAX, MEETING_TITLE_MAX
+from backend.proposals import content as proposal
+from backend.proposals.models import SERVICE_DESCRIPTION_MAX, SERVICE_TITLE_MAX
 from backend.shares.models import LABEL_MAX as SHARE_LABEL_MAX
 from backend.web.office import NAME_LIMIT as OFFICE_NAME_LIMIT
 from backend.web.page_edit import DESCRIPTION_MAX, DETAIL_TEXT_MAX, NOTES_MAX
@@ -43,4 +45,18 @@ FIELD_LIMITS: dict[str, int] = {
     "recipients": RECIPIENTS_MAX,
     "shareLabel": SHARE_LABEL_MAX,
     "shareBytes": SHARE_BYTES_MAX,
+    # Proposals (A42).
+    "proposalClient": proposal.CLIENT_MAX,
+    "proposalCity": proposal.CITY_MAX,
+    "proposalAddress": proposal.ADDRESS_MAX,
+    "proposalPhone": proposal.PHONE_MAX,
+    "proposalSignatory": proposal.SIGNATORY_MAX,
+    "proposalIntro": proposal.INTRO_MAX,
+    "proposalNotes": proposal.NOTES_MAX,
+    "proposalLine": proposal.LINE_MAX,
+    "proposalServices": proposal.SERVICES_MAX,
+    "proposalPayments": proposal.PAYMENTS_MAX,
+    "proposalNotIncluded": proposal.NOT_INCLUDED_MAX,
+    "serviceTitle": SERVICE_TITLE_MAX,
+    "serviceDescription": SERVICE_DESCRIPTION_MAX,
 }

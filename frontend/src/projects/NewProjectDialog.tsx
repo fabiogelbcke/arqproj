@@ -1,22 +1,39 @@
 import { useState } from "react";
-import { Checkbox, CheckboxGroup, DialogTrigger, Form, Label, Radio, RadioGroup, Text } from "react-aria-components";
+import {
+  Checkbox,
+  CheckboxGroup,
+  DialogTrigger,
+  Form,
+  Label,
+  Radio,
+  RadioGroup,
+  Text,
+} from "react-aria-components";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 
 import { ApiError } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { useConnectDrive, useDrive } from "../drive/drive";
-import { useMe } from "../session/session";
+import { useFeature, useMe } from "../session/session";
 import { Button } from "../ui/Button";
+import { ActionMenu } from "../ui/ActionMenu";
 import { DialogFrame } from "../ui/DialogFrame";
 import { addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
-import { suggestedSlug, useCreateProject, useCreationOptions, type ProjectSummary } from "./projects";
+import { toast } from "../ui/Toast";
+import { suggestedSlug, useCreateProject, useCreationOptions } from "./projects";
 import styles from "./projects.module.css";
 import { RecipientsField } from "./RecipientsField";
 
-function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: ProjectSummary) => void }) {
+/** A project, or one that starts as a proposal (A42): its page shows only the
+ *  proposal until staff mark it accepted. Two ways in, one form. */
+export type NewKind = "project" | "proposal";
+
+function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const options = useCreationOptions();
   const create = useCreateProject();
   // One per dialog: a double click or a retry returns the project already made.
@@ -64,12 +81,15 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
             stages,
             slug,
             recipients: list,
+            proposal: kind === "proposal",
             creation_key: creationKey,
           },
           {
+            // A proposal's next step is writing it: straight to the proposal's page.
             onSuccess: (project) => {
-              onCreated(project);
               close();
+              if (kind === "proposal") navigate(`/projetos/${project.id}/proposta`);
+              else toast(t("newProject.created", { name: project.name }));
             },
           },
         );
@@ -145,7 +165,7 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
         autoComplete="off"
         spellCheck="false"
       />
-      <p className={styles.note}>{t("newProject.publishNote")}</p>
+      <p className={styles.note}>{t(kind === "proposal" ? "newProject.proposalNote" : "newProject.publishNote")}</p>
       {clash ? (
         <p role="alert" className={styles.problem}>
           {clash}
@@ -162,7 +182,9 @@ function CreateForm({ close, onCreated }: { close: () => void; onCreated: (p: Pr
       <div className={styles.actions}>
         <Button onPress={close}>{t("newProject.cancel")}</Button>
         <Button type="submit" variant="primary" isDisabled={create.isPending || !options.data}>
-          {create.isPending ? t("newProject.creating") : t("newProject.create")}
+          {create.isPending
+            ? t("newProject.creating")
+            : t(kind === "proposal" ? "newProject.createProposal" : "newProject.create")}
         </Button>
       </div>
     </Form>
@@ -192,15 +214,9 @@ function NeedsDrive({ close }: { close: () => void }) {
   );
 }
 
-/** The "Novo projeto" button and its dialog. `trigger` replaces the usual button
- *  (the first steps' "Criar projeto"). */
-export function NewProjectDialog({
-  onCreated,
-  trigger,
-}: {
-  onCreated: (p: ProjectSummary) => void;
-  trigger?: { label: string; className: string };
-}) {
+/** The creation dialog: open while rendered with `onClose`, otherwise the dialog
+ *  of the DialogTrigger around it. */
+function NewProjectDialog({ kind, onClose }: { kind: NewKind; onClose?: () => void }) {
   const { t } = useTranslation();
   const drive = useDrive();
   // New folders are made with the office's grant and shown through the reader.
@@ -210,28 +226,91 @@ export function NewProjectDialog({
       drive.data.writer_status === "connected" &&
       drive.data.reader_status === "ok");
   return (
+    <DialogFrame title={t(kind === "proposal" ? "newProject.titleProposal" : "newProject.title")} onClose={onClose}>
+      {(close) =>
+        !drive.data ? (
+          <ErrorNotice error={drive.error} />
+        ) : storageReady ? (
+          <CreateForm kind={kind} close={close} />
+        ) : (
+          <NeedsDrive close={close} />
+        )
+      }
+    </DialogFrame>
+  );
+}
+
+/** A button that opens the creation dialog, e.g. the first steps' "Criar projeto". */
+export function NewProjectButton({
+  kind,
+  label,
+  className,
+  variant = "primary",
+  size,
+}: {
+  kind: NewKind;
+  label: string;
+  className?: string;
+  variant?: "primary" | "secondary";
+  size?: "small";
+}) {
+  return (
     <DialogTrigger>
-      {trigger ? (
-        <Button variant="primary" className={trigger.className}>
-          {trigger.label}
-        </Button>
-      ) : (
-        <Button variant="primary" size="small" className={styles.newButton} data-tour="new-project">
-          <span aria-hidden="true">+</span>
-          <span className={styles.newLabel}>{t("projects.new")}</span>
-        </Button>
-      )}
-      <DialogFrame title={t("newProject.title")}>
-        {(close) =>
-          !drive.data ? (
-            <ErrorNotice error={drive.error} />
-          ) : storageReady ? (
-            <CreateForm close={close} onCreated={onCreated} />
-          ) : (
-            <NeedsDrive close={close} />
-          )
-        }
-      </DialogFrame>
+      <Button variant={variant} size={size} className={className}>
+        {label}
+      </Button>
+      <NewProjectDialog kind={kind} />
     </DialogTrigger>
+  );
+}
+
+/** The toolbar's "Nova proposta" and "Novo projeto"; on phones, the floating +
+ *  with a menu of the two. Without proposals (a feature, A40) only "Novo
+ *  projeto", and the + opens it straight away. */
+export function NewProjectButtons() {
+  const { t } = useTranslation();
+  const proposals = useFeature("proposals");
+  const [open, setOpen] = useState<NewKind | null>(null);
+  return (
+    <div className={styles.newButtons} data-tour="new-project">
+      {proposals && (
+        <NewProjectButton
+          kind="proposal"
+          label={t("projects.newProposal")}
+          variant="secondary"
+          size="small"
+          className={styles.newButton}
+        />
+      )}
+      {proposals ? (
+        <NewProjectButton kind="project" label={t("projects.new")} size="small" className={styles.newButton} />
+      ) : (
+        // Alone, it becomes the round + on phones.
+        <DialogTrigger>
+          <Button variant="primary" size="small" className={`${styles.newButton} ${styles.newSolo}`}>
+            <span aria-hidden="true" className={styles.soloPlus}>
+              +
+            </span>
+            <span className={styles.soloLabel}>{t("projects.new")}</span>
+          </Button>
+          <NewProjectDialog kind="project" />
+        </DialogTrigger>
+      )}
+      {proposals && (
+        <ActionMenu
+          label={t("projects.newMenu")}
+          className={styles.newFab}
+          placement="top end"
+          items={[
+            { id: "project", label: t("projects.new") },
+            { id: "proposal", label: t("projects.newProposal") },
+          ]}
+          onAction={(id) => setOpen(id as NewKind)}
+        >
+          <span aria-hidden="true">+</span>
+        </ActionMenu>
+      )}
+      {open && <NewProjectDialog kind={open} onClose={() => setOpen(null)} />}
+    </div>
   );
 }

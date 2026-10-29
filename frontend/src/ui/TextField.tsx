@@ -3,6 +3,7 @@ import {
   Input,
   Label,
   Text,
+  TextArea,
   TextField as AriaTextField,
   type TextFieldProps,
 } from "react-aria-components";
@@ -39,6 +40,29 @@ export function TextField({ label, description, placeholder, suffix, ...props }:
       ) : (
         <Input className={styles.input} placeholder={placeholder} />
       )}
+      {description && (
+        <Text slot="description" className={styles.hint}>
+          {description}
+        </Text>
+      )}
+      <FieldError className={styles.fieldError} />
+    </AriaTextField>
+  );
+}
+
+/** A labelled multi-line field (a proposal's opening, a service's description).
+ *  The text sets its height, from `rows` up; the limit stops the typing. */
+export function TextAreaField({
+  label,
+  description,
+  placeholder,
+  rows = 3,
+  ...props
+}: Props & { rows?: number }) {
+  return (
+    <AriaTextField {...props} className={styles.field}>
+      <Label className={styles.label}>{label}</Label>
+      <TextArea className={`${styles.input} ${styles.textarea}`} placeholder={placeholder} rows={rows} />
       {description && (
         <Text slot="description" className={styles.hint}>
           {description}

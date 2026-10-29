@@ -21,6 +21,9 @@ class ProjectStatus(StrEnum):
     # Rascunho: staff only, the client page answers "not found". Unused for now:
     # projects are published at once (A35); kept so drafts can return.
     DRAFT = "draft"
+    # Proposta (A42): the client page shows only the proposal, until staff mark it
+    # accepted ("Proposta aceita"), which makes the project active.
+    PROPOSAL = "proposal"
     ACTIVE = "active"
     COMPLETED = "completed"
     ARCHIVED = "archived"  # still viewable; no new uploads or emails (plan section 22)

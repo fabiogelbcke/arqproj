@@ -109,7 +109,7 @@ its affected tests before coding proceeds.
 | A21 | Office address scheme: **office subdomains, `{office}.myunio.app`, behind a global load balancer** (option A) | Agreed 17 Oct 2026 (Fabio), choosing between the two options recorded 14 Oct. Each office is its own origin (cookies, storage and script bugs stay inside one office), addresses read as the office's own, and custom domains fit later. The load balancer (~$18.25/month plus processing; Fabio has credits for the first three months) is a global external Application Load Balancer with a serverless backend for the production service, certificates from Certificate Manager (DNS authorization at GoDaddy) covering `*.myunio.app`, `myunio.app` and each office's own domain (`alineaarquitetos.com`, `www.`) before its DNS moves, and Cloud Run ingress limited to it. It is built before the second office's first client link; `alineaarquitetos.com` and `myunio.app` move behind it then, leaving Cloud Run domain mappings (Preview, "not recommended for production"). Staging keeps its domain mapping (`staging.myunio.app`, one office), so it does not pay for a second balancer. See section 4 and the [changelog](decision-changelog.md) |
 | A22 | Project links are `/{project-slug}` on the office's address; no random token | Agreed 14 Oct 2026, replacing `/p/{public_token}/{slug}`. Readable and shareable, and the first office's existing links keep working unchanged. Guessable by design; privacy comes from the optional password (A06). Slugs are unique per office and stable once shared. See section 6 and the [changelog](decision-changelog.md) |
 | A23 | First office served on its own domain (`alineaarquitetos.com`) as a custom domain of the shared deployment | Agreed 14 Oct 2026. No separate deployment: `tenant_domains` maps the hostname to the office. Custom domains stay deferred for other offices; this one is the exception because it predates the product domain. Hosting settled 15 Oct 2026: the domain and `www` are already free Cloud Run domain mappings (with managed HTTPS) on the `portal` service; the rewrite ships as a new revision of that same service, so the mapping and its cost do not change |
-| A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Revised 20 Oct 2026 (Fabio): it also asks, optionally, for the client's email addresses (A32), so the updates start with the project. Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits the project's settings in the prototype's "Projeto" dialog: name, client, client link and access (with the client page, slice 2) and the client's email addresses (A32). Revised 19 Oct 2026 (Fabio): the card's pencil (a "⋯" since the painel redesign of 22 Oct 2026) opens a short menu instead of the dialog at once: "Trocar foto" (straight to the photo picker and cropper, saved on its own), "Remover foto" (when there is one), "Configurações do projeto" (the dialog, without the cover) and "Arquivar projeto", which asks for confirmation first. No delete for now. Uploads happen per stage on the project page. Revised 18 Oct 2026 (Fabio): the name can also be changed from the title in the project page's edit mode (the same change as the dialog's; the address stays). See section 10 and the [changelog](decision-changelog.md) |
+| A24 | Minimal project creation; content edited on the project page, settings in the painel | Agreed 14 Oct 2026. Creation asks for the project name and the client's name (shown prominently in the painel), plus the project type and its stages (A27). Revised 20 Oct 2026 (Fabio): it also asks, optionally, for the client's email addresses (A32), so the updates start with the project. Narrowed 16 Oct 2026: day-to-day content (description, details including project type, stages, progress and completion, meeting, files) is edited only in the staff edit mode of the project page. The painel edits the project's settings in the prototype's "Projeto" dialog: name, client, client link and access (with the client page, slice 2) and the client's email addresses (A32). Revised 19 Oct 2026 (Fabio): the card's pencil (a "⋯" since the painel redesign of 22 Oct 2026) opens a short menu instead of the dialog at once: "Trocar foto" (straight to the photo picker and cropper, saved on its own), "Remover foto" (when there is one), "Configurações do projeto" (the dialog, without the cover) and "Arquivar projeto", which asks for confirmation first. No delete for now. Uploads happen per stage on the project page. Revised 28 Oct 2026 (Fabio): a second button, "Nova proposta", opens the same form and starts the project as a proposal (A42). Revised 18 Oct 2026 (Fabio): the name can also be changed from the title in the project page's edit mode (the same change as the dialog's; the address stays). See section 10 and the [changelog](decision-changelog.md) |
 | A25 | File versions named `v1, v2, v3`; "send new version" and same-name upload prompt; automatic grouping of clear `vN` names | Agreed 14 Oct 2026, revising A08. Uploading a file with an existing name asks whether it is a new version; if so it is stored as the next `vN`. Existing files are never renamed (the write scope cannot rename files the app did not create); an unnumbered original counts as v1. Refined 15 Oct 2026: the client page shows the clean name with a separate version badge, while the copy in Drive carries the version (`Planta v3.pdf`); grouping only within one folder; clashes are flagged, never merged; current = highest version. Revised 25 Oct 2026 (Fabio): no document index. Versions are worked out from the file names each time a folder is listed, as the page already lists Drive live (A10); nothing about files is stored, not even staff corrections: the names decide, and a wrong grouping is fixed by renaming the file. The current version is always the highest. No label per version for now. Only `v` numbers mark a version, and a file shows its version from v2: v1 appears only in the file's list of versions. See section 12 and the [changelog](decision-changelog.md) |
 | A26 | Built-in options live in code and are translated; office-written content is stored as typed | Agreed 15 Oct 2026. Refined the same day: values the code **acts on** (status, access mode, roles, a detail's value type, languages, error codes) are enums stored with a CHECK; **content the app only displays** (project types, detail types, built-in stages with their descriptions, each type's usual stages) lives in reference tables with its texts per language, referenced by foreign key, and the code keeps enums naming the built-in rows (a test keeps them in step). Interface text lives in one translation catalog per language shared by the server and the staff app. Anything an office writes (custom details, custom stages, notes, descriptions) is stored as text and never translated. "Supports a language" means the product's own text and built-in options are translated. See sections 7 and 16 |
 | A27 | Typed project details; project type chosen at creation, with its usual stages | Agreed 15 Oct 2026 (prototype review). Details are text, choice, area (m²) or date, formatted per language. Project type is a column with four built-in types: Projeto Arquitetônico, Projeto de Interiores, Projeto de Reforma, Projeto de Paisagismo. Revised 16 Oct 2026 (Alinea's partners): creation asks for the type; all 11 built-in stages are listed in one fixed order (12 until 26 Oct 2026, when "Levantamento e Diagnóstico" merged into "Levantamento"), the type's usual ones ticked, and staff tick or untick any. Each type gives its stages its own description; a stage outside its type's list uses a general one. Built-in stages have a description only (no separate deliverables). Stage templates are gone. The pilot offers only built-in details, types and stages; office-defined ones are a later addition. See sections 7 and 10 |
@@ -127,6 +127,7 @@ its affected tests before coding proceeds.
 | A39 | Product analytics with PostHog: staff actions by account id, role and office; clients' and visitors' use without cookies or identity | Agreed 26 Oct 2026 (Fabio), from the PostHog wizard's setup. The backend sends staff actions (sign-in and out, a password set, a project created or its content saved, a meeting set or cleared, a stage added or completed, a project completed, a share link made, renewed or turned off; a stage renamed, moved or removed; a project published or its cover set; the office's settings or logo changed; Drive connected or disconnected; the page tour finished; an upload started or failed, with its size; a section made; a file hidden or moved; how a staff member signed in) to PostHog, each tied to the account's id (never its email or name) with its role, and to the office as a `tenant` property and PostHog group. Clients and suppliers stay personless. Extended 26 Oct 2026: server-side `file_transfer` events record application-emitted bytes, completion and source (preview, project download, share download or zip; thumbnails are not counted, one event each would outnumber everything else), always personless, with no file names. Extended 28 Oct 2026 (Fabio): what clients and other visitors do is recorded too, still without cookies, person profiles or names. The server sends a project page unlocked (or a wrong password), the meeting's calendar file, a share page opened or unlocked, an email address subscribed or unsubscribed, and update emails sent per office (count, for cost; the emails' links carry `utm_source=email`); each visitor event (and each `file_transfer`, with whether staff or a visitor downloaded) carries an anonymous visitor id that changes every day (a keyed hash of the address, browser and date, never stored) and the device kind (phone, tablet, computer), so distinct visitors can be counted but not followed across days. Unhandled server errors are captured too. It runs only where `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` are set: production, not staging, local runs or tests (the old app's `.env` is not read). No PostHog Logs export. In the browser, PostHog starts only for signed-in staff, from the key `/api/me` gives them (one image serves staging and production, each with its own key or none); it is loaded only then, from PostHog's self-contained build (no scripts from PostHog's servers; the Content Security Policy only lets events out), with the same id, role and office, clicks without their text, no session recording, and unhandled errors. On project pages, visitors who aren't signed-in staff get PostHog's cookieless mode (`cookieless_mode: "always"`, no person profiles, nothing stored in the browser; PostHog's own daily hash), from the key `/api/tenant` gives: page views, where they came from (an update email's link says so), clicks without their text and a few named actions on the page; no session recording. No browser event carries a project's or file's name: the page title is dropped, a project page's address (made from the project's name) is sent as `/projeto` with the project's id alongside, and addresses keep only their `utm_` tags (a file's link names it in the query; a sign-in link carries a token). A share link made, renewed or turned off by a client counts as a visitor's event, not staff's. Events the server already sends are not sent again from the browser. The privacy policy names PostHog and says what is measured on project pages. See the [changelog](decision-changelog.md) |
 | A40 | Features switched on per office, from the operator dashboard | Agreed 28 Oct 2026 (Fabio): work Fabio isn't sure about yet must reach staging (and main) without being turned on for every office, so his partners can try it and other deploys never wait for it. A feature is a `Feature` value in code; `tenants.features` lists the ones an office has. Off by default; the operator dashboard switches each on or off per office, audited like the other lifecycle actions, and only the operator role may change the list. The request's tenant carries its features; the API refuses a switched-off feature's changes (`feature_off`) and leaves its data out of responses; `/api/me` gives the screens the list. No CHECK on the stored names, so a feature comes and goes without a migration; one the code no longer knows is ignored. A feature is removed from the code once every office has it. Not PostHog's feature flags: those would put an outside service on the request path and evaluate per person rather than per office. See the [changelog](decision-changelog.md) |
 | A41 | Who works on a project: its members, from the office's staff | Agreed 28 Oct 2026 (Fabio), behind the `project_members` feature (A40). The Projeto dialog ticks any of the office's staff accounts ("Equipe do projeto"), several per project; only accounts of the office, never a typed name. The painel's "Responsável" chips and "Meus projetos" then filter by account. The client page names the members as "Responsável" (or "Responsáveis"), by their account names; the typed "Responsável" detail is neither offered nor shown while the feature is on, and offices without it keep that detail as before. Membership organizes, it doesn't restrict: every staff member still sees and edits every project (section 5). A removed account leaves its projects. See section 5 and the [changelog](decision-changelog.md) |
+| A42 | Proposals: a "Proposta" project status and a generated proposal PDF | Agreed 28 Oct 2026 (Fabio). Behind the `proposals` feature (A40), off until the operator dashboard switches it on for an office: without it there is no "Nova proposta", no "Proposta" in the card's menu or the staff bar, no "Dados para propostas" in Configurações, and the proposal API answers `feature_off`; client pages still show proposals made while it was on, so links already sent keep working. Any staff member generates a proposal PDF for a project from its page, in the office's branding (owners only may come later). A project starts in the new `proposal` status when created from "Nova proposta", a secondary button beside "Novo projeto" (on phones, a menu of the two from the floating +). It opens the same form, no new step, and leads straight to the proposal generator; "Novo projeto" is as before. While in it, the client page shows only the proposal (on the page and "Baixar PDF") and the office's contact details: no stages, files or updates. Staff mark it accepted ("Proposta aceita"), making it `active`, or archive it when declined. A proposal's services are its own list, not the project's stages, and have their own texts, separate from the stage descriptions; the office saves its versions of them as presets. The PDF follows the example proposals: logo, office address/phone/WhatsApp/email footer, city and date, "Prezado(a)" and the client's name, an intro, numbered services with descriptions, fees (the amount also written out in words), payment instalments, services not included, observations, and two signature lines. Office details it needs and lacks are asked once in the generator and saved to the office's settings. Revised 28 Oct 2026 (Fabio): when an owner saves a proposal whose office details differ from the office's, they are asked whether to update the office with them ("Atualizar escritório" / "Só nesta proposta"); members are not asked, and a proposal's changes stay its own. One fixed layout; every text editable per proposal. No online acceptance or negotiation. Generating does not email the client: staff send the page link themselves, as they may present it first. The client sees only the latest version; earlier ones stay for staff. After acceptance a "Proposta" link on the project page leads to it, for staff and client. See section 10 and the [changelog](decision-changelog.md) |
 
 Explicitly deferred: full billing automation, SMS/WhatsApp, custom customer
 domains (except the first office's existing domain, A23), multiple portal templates, SSO, arbitrary custom CSS/HTML, client
@@ -698,7 +699,7 @@ The following is a logical schema specification, not a migration:
 | `password_links` | tenant, user (same tenant), kind (invite/reset), token hash, expiry, used time; one-time links for people to choose their own password (step 1.5b). Reset links also come from "Esqueceu a senha?" on the sign-in screen (18 Oct 2026): emailed from the office's address, built on its stored domain, with the same answer whether or not the account exists, at most one email every 2 minutes per account and 5 requests per device in 15 minutes |
 | `sessions` | tenant, user (same tenant), token hash, CSRF token, last seen, expiry, revoked |
 | `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
-| `projects` | tenant, title, client name (≤ 30 characters entered from 18 Oct 2026; the database allows 48), cover image reference, status (`active` from creation, `completed`, `archived`; `draft` unused for now, A35; see section 10), slugs in `project_slugs`, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), optional professional, access mode/hash/version, current stage (unused from 23 Oct 2026: stages complete on their own, see section 10), last client-visible activity time (A28), row version |
+| `projects` | tenant, title, client name (≤ 30 characters entered from 18 Oct 2026; the database allows 48), cover image reference, status (`active` from creation, or `proposal` when created as one (A42), `completed`, `archived`; `draft` unused for now, A35; see section 10), slugs in `project_slugs`, connection, root/deliverables folder IDs, description, project type (built-in enum, A27), optional professional, access mode/hash/version, current stage (unused from 23 Oct 2026: stages complete on their own, see section 10), last client-visible activity time (A28), row version |
 | `project_slugs` | tenant, project, slug, is current, created; every address a project has had, exactly one current. Unique per tenant across current and old, so a used slug stays with its project (A29); old ones redirect. Reserved paths (`painel`, `api`, …) refused |
 | `project_types` | key, order, label per language. Built-in rows from a migration (A26) |
 | `detail_types` | key, value type (text/area/date), order, label per language. Built-in rows from a migration; offices' own later (A27) |
@@ -713,6 +714,8 @@ The following is a logical schema specification, not a migration:
 | `project_events` | tenant, project, kind (file published, new version, file withdrawn, note changed, stage completed, stage reopened, stage advanced (before 23 Oct 2026), project completed, meeting scheduled/changed/cleared), document/revision or stage reference, source fingerprint, detected/published times. Client-visible activity (A28): feeds the updates panel, the project's last-activity time and email batching; every kind but "note changed" can start an email (A32) |
 | `share_links` | tenant, project, token hash (unique) and the token encrypted (for staff to copy it), "Para quem?" label (≤ 60), optional password hash, who made it (a staff member, or none: the client), expiry, turned off, when its files were last updated, download count and last download, bytes served today (A37) |
 | `share_link_files` | tenant, link, the file's storage identity, order: the exact versions it serves (A37) |
+| `proposals` | tenant, project, version (from 1, unique per project), content (JSON: what staff filled in, checked when saved), who saved it, when: each saved version of a project's proposal, only ever added (A42) |
+| `proposal_service_presets` | tenant, order, title (≤ 80), description (≤ 1000): the services the office offers, as new proposals list them (A42) |
 | `notification_batches` | tenant, project, start/due time, state; events captured in batch-item rows |
 | `notification_deliveries` | tenant, batch, recipient, idempotency key, provider ID, attempt/result timestamps |
 | `operations` / `operation_steps` | tenant, type, request key/hash, state, result IDs, provisioning progress |
@@ -1023,7 +1026,8 @@ addresses 100, the page password 6 to 25. Names saved before a limit stay.
 A new project is published at once (`active`, A35): its client page answers as
 soon as it exists. Later `completed` (all stages done) and `archived` (still
 viewable; no new uploads or emails, section 22). The `draft` status (staff only,
-client page "not found") stays in the schema, unused for now.
+client page "not found") stays in the schema, unused for now. A project created
+from "Nova proposta" starts as `proposal` instead (A42, below).
 
 Editable after creation, by office staff:
 
@@ -1089,6 +1093,86 @@ Changing a stage title or order renames/moves its Drive folder only where the
 write capability allows; otherwise the change is presentation-only and staff are
 told the Drive folder name stays as it was. The client page never reads the Drive
 folder name as the source of truth for a stage title once it is in the database.
+
+### Proposals (A42)
+
+An office can send a client a proposal before the work starts, without adding a
+step to creation. Only offices with the `proposals` feature switched on (A40)
+see any of it; for the others creation is as before, with one "Novo projeto"
+(on phones the + opens it directly):
+
+1. "Nova proposta", a secondary button beside "Novo projeto" (on phones, the
+   floating + opens a menu of the two), opens the same creation form titled
+   "Nova proposta" and starts the project as `proposal`, then opens its
+   generator. Everything else about creation (A24, A07) is unchanged, stages
+   and folders included.
+2. Staff open the proposal generator (`/painel/projetos/{id}/proposta`) from the
+   project card's "⋯" ("Proposta") or the project page's staff bar, on any
+   project. Its form puts what changes most first: the client and date, the fees
+   and instalments, the services, then the texts (not included, opening,
+   observations); last, "Dados do escritório": who signs, address, city, phone,
+   an optional WhatsApp number and email. Saving a proposal fills in those the
+   office lacks, so they are asked for once (any staff member). When an owner
+   saves one with details different from the office's, a question asks whether
+   to update the office too, naming them ("Atualizar escritório" / "Só nesta
+   proposta"); members' changes stay in the proposal, and owners can also change
+   them in Configurações → Escritório. A blank in the proposal never clears one.
+   The services start collapsed, a line each (name and the start of its text),
+   and "Editar" opens one; a removed service leaves "Desfazer" in its place until
+   the proposal is saved.
+3. Staff fill in the proposal beside a live preview of the PDF and "Ver PDF",
+   then save it. Saving makes a new version; staff can
+   download any version. Each version is stored as its content (`proposals`),
+   and the PDF is drawn from it on request, on the server (fpdf2, Helvetica: no
+   browser in the image), with the office's current logo; nothing is written to
+   Drive.
+4. Staff send the client the page's link themselves; nothing is emailed.
+5. While the project is `proposal`, the client page shows the office's branding,
+   the project's name and the latest proposal, presented for the screen rather
+   than as the letter (the letter is the PDF, "Baixar PDF"): the opening text
+   beside a summary (fee, number of instalments, number of services), the
+   services as numbered cards with those not included, the fee and instalments,
+   the observations, and "Próximos passos": the office's contact as the way to
+   accept (call, email, and WhatsApp: the office's WhatsApp number, else its
+   phone when that is a Brazilian mobile). "Baixar proposta em PDF" is the
+   page's main action, beside the title (pinned at the bottom of a phone's
+   screen for clients) and again at the end. Stages,
+   files, the meeting, the updates panel and email sign-up are not shown.
+6. "Proposta aceita" makes the project `active` and the page normal; a
+   "Proposta" row in its details keeps the latest proposal reachable. A declined
+   proposal is archived like any project, and its page still shows the proposal.
+
+In the painel, a proposal is listed with the projects in progress, tagged
+"Proposta" on its card.
+
+What the proposal holds, following the example proposals:
+
+| Part | Source |
+| --- | --- |
+| Logo; footer with address, phone and email | Office settings |
+| City and date | Office's city; the day it is generated, editable |
+| "Prezado(a)" and the client's name | Project's client name (no form of address) |
+| Intro paragraph | Office default text, editable per proposal |
+| Services ("Serviços prestados") | Numbered, each a title and description, picked from the office's presets and editable per proposal |
+| Fees ("Honorários") | An amount in reais, also written out in words |
+| Payment ("Forma de pagamento") | Instalment lines, each an amount and when ("no aceite da proposta", "30 dias após"), with a quick fill for equal instalments |
+| Services not included | Short lines typed per proposal |
+| Observations | Office default text, editable per proposal |
+| Signatures | Client's name; the signing architect |
+
+Service presets belong to the office (`proposal_service_presets`). An office
+without its own is offered a built-in list, from the translation catalogs
+(briefing, schematic design, rendered images, construction documents, lighting,
+plumbing, detailing; texts based on a friendly office's proposals, with
+permission). A service changed in a proposal offers "Salvar como padrão", which
+saves the office's whole list with it (by title: a new title is added); from then
+on the office's list replaces the built-in one. The opening and observations work
+the same way, kept on the office's profile. Presets are separate from stage descriptions (A27): a stage's
+text on the client page never changes because of a proposal.
+
+Customization stays small: the office's logo, accent colour and details, its
+default intro, observations and presets. One layout; no fonts, section order or
+templates.
 
 ## 11. Folders, publication and the staff file manager
 
@@ -1476,7 +1560,9 @@ connection can reach.
 ## 16. Branding, accessibility and language
 
 Office details (P1b, 15 Oct 2026): name, contact email and logo live in a
-per-office `office_profiles` table (not the shared `tenants` registry, which the
+per-office `office_profiles` table (with proposals, A42, also the office's
+address, city, phone, WhatsApp and signing architect, asked in the proposal generator when
+missing and edited in Configurações → Escritório) (not the shared `tenants` registry, which the
 app only reads); the logo is stored in the office's Drive (`_marca`) and served
 so nothing in it can run. Built (18 Oct 2026): a chosen logo opens a crop dialog
 with its empty margins already trimmed, any shape, and "Remover fundo" when it has
@@ -2093,6 +2179,7 @@ choices need an owner before their corresponding feature ships:
 | Cloud identity operations | Reader per office via managed credentials where practical | White-glove onboarding |
 | Account configurations officially supported | Personal My Drive first, add each Workspace type after proof | Each office onboarded |
 | Paid tier limits and archive behavior | Active projects primary; manual billing initially | Paid rollout |
+| Who may generate proposals and see fees | Every staff member for now (A42); owners only may come later | After pilot feedback |
 
 A completed plan is not proof of these features. Keep a release checklist with
 links to test results, live sandbox evidence, migration reports and approval for

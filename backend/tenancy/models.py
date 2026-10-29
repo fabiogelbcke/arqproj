@@ -29,6 +29,7 @@ class Feature(StrEnum):
     Remove a feature from here once every office has it."""
 
     PROJECT_MEMBERS = "project_members"  # who works on each project (A41)
+    PROPOSALS = "proposals"  # the proposal generator and "Nova proposta" (A42)
 
 
 class Locale(StrEnum):

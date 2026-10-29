@@ -948,6 +948,163 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/proposal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Generator */
+        get: operations["generator_api_projects__project_id__proposal_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/proposal/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview
+         * @description What is on screen, as the PDF will be: nothing is saved.
+         */
+        post: operations["preview_api_projects__project_id__proposal_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/proposal/preview-page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Page
+         * @description What is on screen, as the client page will show it (amounts written out in
+         *     the office's language): the generator's live preview. Nothing is saved.
+         */
+        post: operations["preview_page_api_projects__project_id__proposal_preview_page_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save
+         * @description The next version. The client page shows it at once (A42: no email).
+         */
+        post: operations["save_api_projects__project_id__proposals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/proposals/{version}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Version Pdf */
+        get: operations["version_pdf_api_projects__project_id__proposals__version__pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/accept-proposal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept
+         * @description "Proposta aceita": the page shows the project, with a link to the proposal.
+         *     Accepting twice changes nothing.
+         */
+        post: operations["accept_api_projects__project_id__accept_proposal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposal-presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change Presets
+         * @description The office's services, in order ("Salvar como padrão"). An empty list goes
+         *     back to the built-in one.
+         */
+        put: operations["change_presets_api_proposal_presets_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposal-defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change Defaults
+         * @description The opening and observations new proposals start with.
+         */
+        patch: operations["change_defaults_api_proposal_defaults_patch"];
+        trace?: never;
+    };
     "/api/detail-types": {
         parameters: {
             query?: never;
@@ -1403,6 +1560,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcceptIn */
+        AcceptIn: {
+            /** Row Version */
+            row_version: number;
+        };
         /**
          * AccessMode
          * @enum {string}
@@ -1600,6 +1762,20 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageOption"][];
         };
+        /** DefaultsIn */
+        DefaultsIn: {
+            /** Intro */
+            intro?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** DefaultsOut */
+        DefaultsOut: {
+            /** Intro */
+            intro: string;
+            /** Notes */
+            notes: string;
+        };
         /** DetailIn */
         DetailIn: {
             /** Key */
@@ -1658,7 +1834,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password";
+        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -1678,7 +1854,7 @@ export interface components {
          *     Remove a feature from here once every office has it.
          * @enum {string}
          */
-        Feature: "project_members";
+        Feature: "project_members" | "proposals";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -1755,6 +1931,31 @@ export interface components {
              * @default 0
              */
             unknown_sizes: number;
+        };
+        /** GeneratorOut */
+        GeneratorOut: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Project Name */
+            project_name: string;
+            /** Slug */
+            slug: string;
+            status: components["schemas"]["ProjectStatus"];
+            /** Row Version */
+            row_version: number;
+            start: components["schemas"]["ProposalStart"];
+            /** Versions */
+            versions: components["schemas"]["VersionOut"][];
+            /** Presets */
+            presets: components["schemas"]["PresetOut"][];
+            office: components["schemas"]["OfficeDetailsOut"];
+            /** Default Intro */
+            default_intro: string;
+            /** Default Notes */
+            default_notes: string;
         };
         /** GroupOut */
         GroupOut: {
@@ -1997,12 +2198,37 @@ export interface components {
             /** Notes */
             notes: string;
         };
+        /** OfficeDetailsOut */
+        OfficeDetailsOut: {
+            /** Address */
+            address: string;
+            /** City */
+            city: string;
+            /** Phone */
+            phone: string;
+            /** Whatsapp */
+            whatsapp: string;
+            /** Email */
+            email: string;
+            /** Signatory */
+            signatory: string;
+        };
         /** OfficeIn */
         OfficeIn: {
             /** Name */
             name?: string | null;
             /** Contact Email */
             contact_email?: string | null;
+            /** Address */
+            address?: string | null;
+            /** City */
+            city?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Whatsapp */
+            whatsapp?: string | null;
+            /** Signatory */
+            signatory?: string | null;
         };
         /** OnboardingOut */
         OnboardingOut: {
@@ -2097,7 +2323,41 @@ export interface components {
             /** Stages */
             stages: components["schemas"]["StageOut"][];
             next_meeting: components["schemas"]["MeetingOut"] | null;
+            /**
+             * In Proposal
+             * @default false
+             */
+            in_proposal: boolean;
+            proposal?: components["schemas"]["ProposalOut"] | null;
+            /** Proposal Url */
+            proposal_url?: string | null;
             staff?: components["schemas"]["StaffView"] | null;
+        };
+        /** Payment */
+        Payment: {
+            /** Amount */
+            amount: number;
+            /** When */
+            when: string;
+        };
+        /** PaymentOut */
+        PaymentOut: {
+            /** Amount */
+            amount: string;
+            /** When */
+            when: string;
+        };
+        /** PresetOut */
+        PresetOut: {
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+        };
+        /** PresetsIn */
+        PresetsIn: {
+            /** Services */
+            services: components["schemas"]["Service"][];
         };
         /** ProgressIn */
         ProgressIn: {
@@ -2150,6 +2410,11 @@ export interface components {
              * @default []
              */
             recipients: string[];
+            /**
+             * Proposal
+             * @default false
+             */
+            proposal: boolean;
             /** Creation Key */
             creation_key: string;
         };
@@ -2157,7 +2422,7 @@ export interface components {
          * ProjectStatus
          * @enum {string}
          */
-        ProjectStatus: "draft" | "active" | "completed" | "archived";
+        ProjectStatus: "draft" | "proposal" | "active" | "completed" | "archived";
         /** ProjectSummary */
         ProjectSummary: {
             /**
@@ -2217,6 +2482,183 @@ export interface components {
             stages: string[];
         };
         /**
+         * ProposalContent
+         * @description Everything a proposal says. The office's name and logo are not in it:
+         *     the PDF always shows the office's current ones.
+         */
+        ProposalContent: {
+            /** Client Name */
+            client_name: string;
+            /**
+             * City
+             * @default
+             */
+            city: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Intro
+             * @default
+             */
+            intro: string;
+            /** Services */
+            services: components["schemas"]["Service"][];
+            /** Fee */
+            fee: number;
+            /**
+             * Payments
+             * @default []
+             */
+            payments: components["schemas"]["Payment"][];
+            /**
+             * Not Included
+             * @default []
+             */
+            not_included: string[];
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Signatory
+             * @default
+             */
+            signatory: string;
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * Phone
+             * @default
+             */
+            phone: string;
+            /**
+             * Whatsapp
+             * @default
+             */
+            whatsapp: string;
+            /**
+             * Email
+             * @default
+             */
+            email: string;
+        };
+        /**
+         * ProposalOut
+         * @description The latest proposal, ready to show on the page (A42).
+         */
+        ProposalOut: {
+            /** Version */
+            version: number;
+            /** Date Line */
+            date_line: string;
+            /** Client Name */
+            client_name: string;
+            /** Intro */
+            intro: string;
+            /** Services */
+            services: components["schemas"]["ServiceOut"][];
+            /** Fee */
+            fee: string;
+            /** Fee In Words */
+            fee_in_words: string;
+            /** Payments */
+            payments: components["schemas"]["PaymentOut"][];
+            /** Not Included */
+            not_included: string[];
+            /** Notes */
+            notes: string;
+            /** Signatory */
+            signatory: string;
+            /** Address */
+            address: string;
+            /** Phone */
+            phone: string;
+            /** Whatsapp */
+            whatsapp: string;
+            /** Email */
+            email: string;
+            /** Pdf Url */
+            pdf_url: string;
+        };
+        /**
+         * ProposalStart
+         * @description What the generator opens with: the latest version, or a new proposal from
+         *     the office's details and defaults. Without a version, no fee yet.
+         */
+        ProposalStart: {
+            /** Client Name */
+            client_name: string;
+            /**
+             * City
+             * @default
+             */
+            city: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Intro
+             * @default
+             */
+            intro: string;
+            /**
+             * Services
+             * @default []
+             */
+            services: components["schemas"]["Service"][];
+            /** Fee */
+            fee?: number | null;
+            /**
+             * Payments
+             * @default []
+             */
+            payments: components["schemas"]["Payment"][];
+            /**
+             * Not Included
+             * @default []
+             */
+            not_included: string[];
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /**
+             * Signatory
+             * @default
+             */
+            signatory: string;
+            /**
+             * Address
+             * @default
+             */
+            address: string;
+            /**
+             * Phone
+             * @default
+             */
+            phone: string;
+            /**
+             * Whatsapp
+             * @default
+             */
+            whatsapp: string;
+            /**
+             * Email
+             * @default
+             */
+            email: string;
+        };
+        /**
          * ReaderStatus
          * @description The reader identity's access to the office's folder (pages, downloads).
          * @enum {string}
@@ -2268,6 +2710,23 @@ export interface components {
             name: string;
             /** New Name */
             new_name: string;
+        };
+        /** Service */
+        Service: {
+            /** Title */
+            title: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+        };
+        /** ServiceOut */
+        ServiceOut: {
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
         };
         /**
          * ShareExpiry
@@ -2402,6 +2861,11 @@ export interface components {
              * @default []
              */
             recipients: components["schemas"]["RecipientOut"][];
+            /**
+             * Features
+             * @default []
+             */
+            features: components["schemas"]["Feature"][];
         };
         /** StageFilesOut */
         StageFilesOut: {
@@ -2574,6 +3038,18 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VersionOut */
+        VersionOut: {
+            /** Version */
+            version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string | null;
+        };
         /**
          * VisitorAnalyticsOut
          * @description PostHog for project pages' visitors (A39): cookieless, no person profiles.
@@ -2610,6 +3086,16 @@ export interface components {
             logo_needs_png: boolean;
             /** Can Manage */
             can_manage: boolean;
+            /** Address */
+            address: string;
+            /** City */
+            city: string;
+            /** Phone */
+            phone: string;
+            /** Whatsapp */
+            whatsapp: string;
+            /** Signatory */
+            signatory: string;
         };
         /** CheckIn */
         backend__web__office_signup__CheckIn: {
@@ -4145,6 +4631,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5739,6 +6234,432 @@ export interface operations {
             };
             /** @description Service Unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    generator_api_projects__project_id__proposal_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeneratorOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_projects__project_id__proposal_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalContent"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    preview_page_api_projects__project_id__proposal_preview_page_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    save_api_projects__project_id__proposals_post: {
+        parameters: {
+            query?: {
+                update_office?: boolean;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalContent"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    version_pdf_api_projects__project_id__proposals__version__pdf_get: {
+        parameters: {
+            query?: {
+                download?: boolean;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_api_projects__project_id__accept_proposal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectSummary"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    change_presets_api_proposal_presets_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresetsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresetOut"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    change_defaults_api_proposal_defaults_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DefaultsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DefaultsOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

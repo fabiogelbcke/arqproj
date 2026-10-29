@@ -289,14 +289,18 @@ describe("the Projeto dialog", () => {
 
 describe("the card's menu", () => {
   it("offers the photo, the settings and archiving; Remover foto only with a photo", async () => {
-    api({ "GET /api/projects": () => ({ body: [{ ...CASA, cover_url: "/c?v=1" }] }) });
+    api({
+      "GET /api/me": () => ({ body: { ...ME, features: ["proposals"] } }),
+      "GET /api/projects": () => ({ body: [{ ...CASA, cover_url: "/c?v=1" }] }),
+    });
     const items = within(await openMenu()).getAllByRole("menuitem").map((item) => item.textContent);
-    expect(items).toEqual(["Trocar foto", "Remover foto", "Configurações do projeto", "Arquivar projeto"]);
+    expect(items).toEqual(["Trocar foto", "Remover foto", "Configurações do projeto", "Proposta", "Arquivar projeto"]);
   });
 
   it("offers to add a photo when there is none", async () => {
     api();
     const items = within(await openMenu()).getAllByRole("menuitem").map((item) => item.textContent);
+    // No "Proposta": proposals aren't switched on for this office (A40).
     expect(items).toEqual(["Adicionar foto", "Configurações do projeto", "Arquivar projeto"]);
   });
 

@@ -678,7 +678,8 @@ test("on a phone the staff bar holds all its buttons", async ({ page }) => {
     const bar = page.getByRole("navigation", { name: "Ferramentas do escritório" });
     await expect(bar.getByRole("link", { name: "Painel" })).toBeVisible();
     const box = (await bar.boundingBox())!;
-    for (const control of await bar.locator(":scope > a, :scope > button, :scope > .seg button").all()) {
+    // A control hidden on phones (the proposal link) is not measured.
+    for (const control of await bar.locator(":scope > a, :scope > button, :scope > .seg button").filter({ visible: true }).all()) {
       const inner = (await control.boundingBox())!;
       expect(inner.x, `${width}px`).toBeGreaterThanOrEqual(box.x);
       expect(inner.x + inner.width, `${width}px`).toBeLessThanOrEqual(box.x + box.width);

@@ -382,6 +382,97 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 .client .addsection-form__actions { display: flex; justify-content: flex-end; gap: 8px; }
 .client .menu__list .menu__sub { padding-left: 26px; }
 
+/* --- A proposal (A42): presented for the screen, the letter is its PDF ----- */
+.client .proposal-heading { margin-top: 28px; display: grid; gap: 10px; }
+.client .proposal-heading .project-kind { margin: 0; order: -1; color: var(--muted); }
+.client .proposal-for {
+  margin: 0; font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase;
+}
+/* The opening: the date and the office's words; beside them the summary a
+   client looks for first, and the PDF. */
+.client .proposal-opening {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 340px); gap: 28px 56px; align-items: start;
+  margin-top: 36px;
+}
+.client .proposal-date { margin: 0 0 14px; font-size: var(--text-sm); color: var(--muted); }
+.client .proposal-intro { display: grid; gap: 12px; max-width: 62ch; font-size: var(--text-md); line-height: 1.7; }
+.client .proposal-intro p { margin: 0; }
+.client .proposal-opening__side { display: grid; gap: 14px; }
+/* The PDF: the page's main action, beside the title. */
+.client .proposal-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 40px; }
+.client .proposal-download { gap: 10px; min-height: 52px; padding-inline: 28px; font-size: var(--text-md); }
+.client .proposal-download svg { width: 20px; height: 20px; }
+.client .proposal-download--pinned { display: none; }
+/* A section: a small capitals title over a hairline, like the stages'. */
+.client .proposal-section { margin-top: 56px; }
+.client .proposal-section__title {
+  margin: 0 0 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
+  font-size: var(--text-2xs); font-weight: 500; letter-spacing: var(--caps-spacing); text-transform: uppercase;
+}
+/* The services: numbered cards, two side by side where there is room. */
+.client .proposal-services {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px;
+  margin: 0; padding: 0; list-style: none;
+}
+.client .proposal-service {
+  display: grid; align-content: start; gap: 8px; padding: 20px 22px;
+  border: 1px solid var(--line); border-radius: var(--r-card); background: var(--raise);
+}
+.client .proposal-service__n { font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); color: var(--muted); }
+.client .proposal-service h3 { margin: 0; font-size: var(--text-md); font-weight: 500; overflow-wrap: anywhere; }
+.client .proposal-service p { margin: 0; font-size: var(--text-sm); line-height: 1.65; color: var(--muted); }
+.client .proposal-excluded { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+.client .proposal-excluded h3 { margin: 0; font-size: var(--text-sm); font-weight: 500; }
+.client .proposal-excluded ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.client .proposal-excluded li {
+  padding: 4px 12px; border: 1px solid var(--line); border-radius: var(--r-pill); font-size: var(--text-sm); color: var(--muted);
+}
+/* Fees: the amount large, the instalments as a list of rows beside it. */
+.client .proposal-fees {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 24px 56px; align-items: start;
+}
+.client .proposal-fee__amount { margin: 0; font-size: clamp(30px, 5vw, 44px); font-weight: 400; letter-spacing: -0.02em; line-height: 1.1; }
+.client .proposal-fee__words { margin: 8px 0 0; font-size: var(--text-sm); color: var(--muted); }
+.client .proposal-payments { display: grid; margin: 0; padding: 0; list-style: none; }
+.client .proposal-payments li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: baseline;
+  padding: 12px 0; border-bottom: 1px solid var(--line); font-size: var(--text-md);
+}
+.client .proposal-payments li:first-child { padding-top: 0; }
+.client .proposal-payments__n { font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--muted); }
+.client .proposal-payments__when { color: var(--muted); overflow-wrap: anywhere; }
+.client .proposal-payments strong { font-weight: 500; white-space: nowrap; }
+.client .proposal-notes p { max-width: 80ch; margin: 0 0 10px; font-size: var(--text-sm); line-height: 1.7; color: var(--muted); }
+/* Next steps: the way to accept is talking to the office (no online acceptance). */
+.client .proposal-next {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 40px; align-items: center;
+  margin-top: 56px; padding: 28px 32px; border-radius: var(--r-card); background: var(--surface);
+}
+.client .proposal-next h2 { margin: 0 0 8px; font-size: 20px; font-weight: 500; }
+.client .proposal-next__text > p { margin: 0; color: var(--muted); }
+.client .proposal-next__who { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 18px 0 0; }
+.client .proposal-next__who dt {
+  font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--muted);
+}
+.client .proposal-next__who dd { margin: 4px 0 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.client .proposal-next__actions { display: grid; gap: 10px; min-width: 220px; }
+.client .proposal-next__actions .b { min-height: var(--control-main); }
+.client .proposal-none { color: var(--muted); padding: 32px 0; }
+@media (max-width: 860px) {
+  .client .proposal-top { display: grid; }
+  .client .proposal-top .proposal-download { width: 100%; }
+  /* Once scrolled, the PDF stays at the bottom of a phone's screen. */
+  .client .proposal-download--pinned {
+    display: inline-flex; position: fixed; z-index: 40; left: 16px; right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
+  }
+  .client.proposal-phase:has(.proposal-download--pinned) .cwrap { padding-bottom: 88px; }
+  .client .proposal-opening, .client .proposal-fees, .client .proposal-next { grid-template-columns: minmax(0, 1fr); }
+  .client .proposal-next { padding: 24px 20px; }
+  .client .proposal-next__actions { min-width: 0; }
+  .client .proposal-section, .client .proposal-next { margin-top: 44px; }
+}
+
 /* Dragging a file card onto a stage or section moves it there (fileDrag): the
    card says it can be picked up, and the place it would land is outlined. */
 .client.editing .file.is-draggable { cursor: grab; }

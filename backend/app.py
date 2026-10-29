@@ -44,6 +44,7 @@ from backend.web import (
     painel,
     project_settings,
     projects,
+    proposals,
     shares,
     subscribe,
     team,
@@ -256,6 +257,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(subscribe.router)
     app.include_router(shares.router)
     app.include_router(project_settings.router)
+    app.include_router(proposals.router)
     app.include_router(painel.router)
     app.include_router(page_edit.router)
     app.include_router(page_files.router)

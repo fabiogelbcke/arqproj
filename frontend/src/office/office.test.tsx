@@ -35,6 +35,8 @@ const OFFICE: Office = {
 const LOCAL = { kind: "folder", writer_status: "none", reader_status: "unknown", account_email: null, folder_url: null, can_manage: true };
 const NONE = { ...LOCAL, kind: null };
 
+const WITH_PROPOSALS = { ...ME, features: ["proposals"] }; // switched on for the office (A40)
+
 function api(office: Office = OFFICE, drive: object = LOCAL, me = ME, extra = {}) {
   return fakeApi({
     "GET /api/tenant": () => ({ body: TENANT }),
@@ -65,6 +67,39 @@ describe("Configurações → Escritório", () => {
       contact_email: "contato@alinea.com.br",
     });
     expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+  });
+
+  it("saves the details proposals print (A42), apart from the name and email", async () => {
+    const details = { ...OFFICE, address: "", city: "", phone: "", signatory: "" };
+    const sent = api(details, LOCAL, WITH_PROPOSALS, {
+      "PATCH /api/office": (body: unknown) => ({ body: { ...details, ...(body as object) } }),
+    });
+    renderAt("/configuracoes");
+    await userEvent.type(await screen.findByLabelText(/Quem assina/), "Arq. Laura Mendes");
+    await userEvent.type(screen.getByLabelText(/^Cidade/), "Joinville");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar dados para propostas" }));
+    await waitFor(() => expect(sent.some((r) => r.method === "PATCH")).toBe(true));
+    expect(sent.find((r) => r.method === "PATCH")?.body).toEqual({
+      address: "",
+      city: "Joinville",
+      phone: "",
+      signatory: "Arq. Laura Mendes",
+    });
+  });
+
+  it("shows members the details proposals print, without a way to change them", async () => {
+    api({ ...OFFICE, can_manage: false, address: "Rua A, 1", city: "", phone: "", signatory: "" } as Office, LOCAL, WITH_PROPOSALS);
+    renderAt("/configuracoes");
+    expect(await screen.findByLabelText(/^Endereço/)).toHaveValue("Rua A, 1");
+    expect(screen.queryByRole("button", { name: "Salvar dados para propostas" })).toBeNull();
+  });
+
+  it("leaves out the details proposals print where proposals aren't switched on (A40)", async () => {
+    api();
+    renderAt("/configuracoes");
+    expect(await screen.findByLabelText(/Nome do escritório/)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Dados para propostas" })).toBeNull();
+    expect(screen.queryByLabelText(/^Endereço/)).toBeNull();
   });
 
   it("can be filled in from the first steps, without leaving the projects", async () => {
