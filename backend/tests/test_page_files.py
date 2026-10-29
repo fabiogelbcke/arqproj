@@ -273,7 +273,7 @@ async def test_a_failed_file_link_shows_a_translated_page_with_the_code(
     first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
 
     async def down(self, item):
-        raise StorageError(StorageProblem.UNAVAILABLE, "Drive said 500 for item abc")
+        raise StorageError(StorageProblem.UNAVAILABLE, "Drive said 500 for item drive-item-xyz")
 
     monkeypatch.setattr(FolderStorage, "download", down)
     response = await client.get(f"/api/pages/casa-jardim/files/{first[0]['key']}", headers=ALINEA)
@@ -282,7 +282,8 @@ async def test_a_failed_file_link_shows_a_translated_page_with_the_code(
     assert "Não foi possível abrir o arquivo agora" in response.text
     assert response.headers["x-request-id"] in response.text  # the support code
     assert 'href="/casa-jardim"' in response.text
-    assert "files_unavailable" not in response.text and "abc" not in response.text
+    # Not hex, unlike the support code, which once contained "abc" by chance.
+    assert "files_unavailable" not in response.text and "drive-item-xyz" not in response.text
 
 
 async def test_a_stale_file_link_says_so_in_the_offices_language(client, owner, files):

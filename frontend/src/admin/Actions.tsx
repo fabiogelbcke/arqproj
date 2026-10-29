@@ -25,6 +25,23 @@ export function slugFromHost(value: string) {
   return (hostOf(value).split(".")[0] ?? "").replace(/[^a-z0-9-]/g, "").replace(/^-+|-+$/g, "").slice(0, 63);
 }
 
+/** The office's part of its address, at most: the same as the signup page's
+ *  (Fabio, 28 Oct 2026). Short enough to type and read in a link. */
+const ADDRESS_MAX = 40;
+
+/** Where a new office is served: `{office}.myunio.app` (A21), or `{office}.localhost`
+ *  on a local run. */
+export function officeDomain(host = window.location.hostname) {
+  return host === "localhost" || host.endsWith(".localhost") ? ".localhost" : ".myunio.app";
+}
+
+/** The office's own part of an address, typed alone or pasted whole
+ *  (https://Horizonte.myunio.app/ → horizonte). */
+export function subdomainOf(value: string, domain: string) {
+  const host = hostOf(value);
+  return host.endsWith(domain) ? host.slice(0, -domain.length) : value;
+}
+
 /** The owner's one-time signup link, shown once, to copy. */
 function OwnerLink({ url, onDone }: { url: string; onDone: () => void }) {
   const { t } = useTranslation();
@@ -54,11 +71,13 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const cache = useQueryClient();
   const [name, setName] = useState("");
-  const [hostname, setHostname] = useState("");
+  const domain = officeDomain();
+  const [subdomain, setSubdomain] = useState("");
+  const hostname = hostOf(subdomain) + domain;
   const [edited, setEdited] = useState<string | null>(null);
   const slug = edited ?? slugFromHost(hostname);
   const create = useMutation({
-    mutationFn: () => call(api.POST("/api/admin/offices", { body: { name, slug, hostname: hostOf(hostname) } })),
+    mutationFn: () => call(api.POST("/api/admin/offices", { body: { name, slug, hostname } })),
     onSuccess: () => void cache.invalidateQueries({ queryKey: ["admin", "offices"] }),
   });
   // Open until the request answers: its owner link is shown only here (Codex, PR #149).
@@ -70,7 +89,7 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
       ) : (
         <Form className={styles.dialogBody} onSubmit={(event) => { event.preventDefault(); create.mutate(); }}>
           <TextField label={t("admin.actions.name")} value={name} onChange={setName} isRequired autoFocus autoComplete="off" />
-          <TextField label={t("admin.actions.hostname")} placeholder={t("admin.actions.hostnameExample")} value={hostname} onChange={setHostname} isRequired autoComplete="off" />
+          <TextField label={t("admin.actions.hostname")} description={t("admin.actions.hostnameHint")} placeholder={t("admin.actions.hostnameExample")} suffix={domain} maxLength={ADDRESS_MAX} value={subdomain} onChange={(value) => setSubdomain(subdomainOf(value, domain))} isRequired autoComplete="off" />
           <TextField label={t("admin.actions.slug")} description={t("admin.actions.slugHint")} value={slug} onChange={setEdited} isRequired autoComplete="off" />
           <ErrorNotice error={create.error} />
           <div className={styles.dialogActions}>
