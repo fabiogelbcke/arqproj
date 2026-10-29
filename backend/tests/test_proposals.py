@@ -90,6 +90,19 @@ async def make_proposal(db_session, name="Casa Jardim"):
     )
 
 
+async def accept(client, headers, project_id):
+    found = next(
+        r
+        for r in (await client.get("/api/proposals", headers=ALINEA)).json()
+        if r["project_id"] == project_id
+    )
+    return await client.post(
+        f"/api/projects/{project_id}/accept-proposal",
+        json={"row_version": found["row_version"]},
+        headers=headers,
+    )
+
+
 async def save(client, headers, project_id, **changes):
     return await client.post(
         f"/api/projects/{project_id}/proposals", json=content(**changes), headers=headers
@@ -115,11 +128,13 @@ async def test_the_propostas_tab_lists_open_accepted_and_declined_proposals(
     client, db_session, owner
 ):
     lake = (await create(client, owner, proposal=True)).json()
-    garden = await casa_jardim(client)  # a project from before, then a proposal made for it
+    await make_proposal(db_session)
+    garden = await casa_jardim(client)
     assert (await save(client, owner, garden["id"], fee=2_900_000)).status_code == 201
+    assert (await accept(client, owner, garden["id"])).status_code == 200
     listed = (await client.get("/api/proposals", headers=owner)).json()
     assert {row["name"]: (row["state"], row["version"], row["fee"]) for row in listed} == {
-        "Casa Jardim": ("accepted", 1, 2_900_000),  # an active project with a proposal
+        "Casa Jardim": ("accepted", 1, 2_900_000),  # the project now
         "Casa do Lago": ("open", None, None),  # none saved yet
     }
     # Proposals have their own tab: the projects list leaves open ones out.
@@ -163,8 +178,10 @@ async def test_a_proposal_never_saved_cant_be_accepted(client, db_session, owner
 async def test_a_project_archived_after_acceptance_is_no_declined_proposal(
     client, db_session, owner
 ):
+    await make_proposal(db_session)
     garden = await casa_jardim(client)
     await save(client, owner, garden["id"])
+    await accept(client, owner, garden["id"])
     await db_session.execute(
         text("UPDATE projects SET status = 'archived', archived_from = 'active'")
     )
@@ -181,9 +198,9 @@ async def test_a_project_created_without_the_option_is_active_as_before(client, 
 async def test_while_a_proposal_a_client_reaches_nothing_but_the_page_and_its_pdf(
     client, db_session, owner
 ):
+    await make_proposal(db_session)
     found = await casa_jardim(client)
     assert (await save(client, owner, found["id"])).status_code == 201
-    await make_proposal(db_session)
     await client.delete("/api/session", headers=owner)  # now a client
     assert (await client.get("/api/pages/casa-jardim", headers=ALINEA)).status_code == 200
     assert (
@@ -206,9 +223,9 @@ async def test_staff_still_reach_a_proposals_files(client, db_session, owner):
 async def test_accepting_makes_the_project_active_and_keeps_a_link_to_the_proposal(
     client, db_session, owner
 ):
+    await make_proposal(db_session)
     found = await casa_jardim(client)
     await save(client, owner, found["id"])
-    await make_proposal(db_session)
     found = await casa_jardim(client)
     accepted = await client.post(
         f"/api/projects/{found['id']}/accept-proposal",
@@ -230,9 +247,22 @@ async def test_accepting_makes_the_project_active_and_keeps_a_link_to_the_propos
     assert (again.status_code, again.json()["status"]) == (200, "active")
 
 
-async def test_accepting_a_proposal_someone_changed_meanwhile_is_refused(client, db_session, owner):
-    await save(client, owner, (await casa_jardim(client))["id"])
+async def test_an_accepted_proposal_is_no_longer_changed(client, db_session, owner):
+    """What the client agreed to stays as it was (Fabio, 29 Oct 2026)."""
     await make_proposal(db_session)
+    found = await casa_jardim(client)
+    await save(client, owner, found["id"], fee=1_000_000)
+    assert (await accept(client, owner, found["id"])).status_code == 200
+    refused = await save(client, owner, found["id"], fee=2_000_000)
+    assert (refused.status_code, refused.json()["error"]) == (409, "proposal_accepted")
+    generator = (await client.get(f"/api/projects/{found['id']}/proposal", headers=owner)).json()
+    assert [v["version"] for v in generator["versions"]] == [1]
+    assert generator["start"]["fee"] == 1_000_000
+
+
+async def test_accepting_a_proposal_someone_changed_meanwhile_is_refused(client, db_session, owner):
+    await make_proposal(db_session)
+    await save(client, owner, (await casa_jardim(client))["id"])
     found = await casa_jardim(client)
     stale = await client.post(
         f"/api/projects/{found['id']}/accept-proposal",
@@ -304,7 +334,8 @@ async def test_a_first_proposal_starts_from_the_built_in_texts_and_the_offices_d
     assert first["intro"] == start["default_intro"] and first["notes"] == start["default_notes"]
 
 
-async def test_a_saved_proposal_is_where_the_generator_starts_next(client, owner):
+async def test_a_saved_proposal_is_where_the_generator_starts_next(client, db_session, owner):
+    await make_proposal(db_session)
     found = await casa_jardim(client)
     await save(client, owner, found["id"], fee=1_000_000)
     start = (await client.get(f"/api/projects/{found['id']}/proposal", headers=owner)).json()
@@ -313,7 +344,8 @@ async def test_a_saved_proposal_is_where_the_generator_starts_next(client, owner
     assert start["versions"][0]["created_by"] == "Ana"
 
 
-async def test_each_save_is_a_new_version_and_the_client_sees_the_latest(client, owner):
+async def test_each_save_is_a_new_version_and_the_client_sees_the_latest(client, db_session, owner):
+    await make_proposal(db_session)
     found = await casa_jardim(client)
     first = await save(client, owner, found["id"], fee=1_000_000)
     second = await save(client, owner, found["id"], fee=2_000_000)
@@ -343,6 +375,7 @@ async def test_an_incomplete_proposal_is_refused(client, owner, changes):
 
 
 async def test_saving_fills_in_only_the_office_details_it_lacks(client, db_session, owner):
+    await make_proposal(db_session)
     await client.patch("/api/office", json={"phone": "(11) 1111-1111"}, headers=owner)
     found = await casa_jardim(client)
     await save(
@@ -364,6 +397,7 @@ async def test_saving_fills_in_only_the_office_details_it_lacks(client, db_sessi
 
 
 async def test_an_owner_may_update_the_offices_details_when_saving(client, db_session, owner):
+    await make_proposal(db_session)
     await client.patch(
         "/api/office",
         json={"phone": "(11) 1111-1111", "city": "Blumenau", "contact_email": "a@alinea.example"},
@@ -395,6 +429,7 @@ async def test_an_owner_may_update_the_offices_details_when_saving(client, db_se
 
 
 async def test_members_make_proposals_too(client, db_session, owner):
+    await make_proposal(db_session)
     member = await sign_in_as(client, db_session, "membro@alinea.example", Role.MEMBER)
     found = await casa_jardim(client)
     assert (await save(client, member, found["id"])).status_code == 201
@@ -442,7 +477,9 @@ async def test_an_office_without_the_feature_makes_no_proposals(client, db_sessi
         assert (answer.status_code, answer.json()["error"]) == (409, "feature_off"), path
 
     await switch_on(db_session)
+    await make_proposal(db_session)
     assert (await save(client, office_owner, found["id"])).status_code == 201
+    assert (await accept(client, office_owner, found["id"])).status_code == 200
     await db_session.execute(text("UPDATE tenants SET features = '{}'"))
     page = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()
     assert page["proposal_url"]  # a link already sent keeps working
@@ -483,6 +520,7 @@ async def test_a_missing_version_says_so(client, owner):
 
 
 async def test_a_password_protected_pages_proposal_needs_the_password(client, db_session, owner):
+    await make_proposal(db_session)
     found = await casa_jardim(client)
     await save(client, owner, found["id"])
     await client.patch(
@@ -505,7 +543,10 @@ async def test_a_password_protected_pages_proposal_needs_the_password(client, db
     assert unlocked.headers["cache-control"] == "private, no-store"
 
 
-async def test_the_pdf_is_named_after_the_project_and_downloads_on_request(client, owner):
+async def test_the_pdf_is_named_after_the_project_and_downloads_on_request(
+    client, db_session, owner
+):
+    await make_proposal(db_session)
     found = await casa_jardim(client)
     await save(client, owner, found["id"])
     shown = await client.get("/api/pages/casa-jardim/proposal.pdf", headers=ALINEA)
@@ -536,9 +577,9 @@ async def test_previews_save_nothing(client, owner):
 
 
 async def test_the_page_shows_the_proposal_with_its_amounts_written_out(client, db_session, owner):
+    await make_proposal(db_session)
     found = await casa_jardim(client)
     await save(client, owner, found["id"])
-    await make_proposal(db_session)
     shown = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()["proposal"]
     assert shown["fee"] == "R$ 29.000,00"
     assert shown["fee_in_words"] == "vinte e nove mil reais"

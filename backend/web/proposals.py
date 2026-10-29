@@ -513,6 +513,9 @@ async def save(
     project = await _project(db, project_id, lock=True)
     if project.status is ProjectStatus.ARCHIVED:
         raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
+    # Accepted, it is what the client agreed to: no new versions (Fabio, 29 Oct 2026).
+    if project.status is not ProjectStatus.PROPOSAL:
+        raise ApiError(409, ErrorCode.PROPOSAL_ACCEPTED)
     number = (
         await db.scalar(
             select(func.coalesce(func.max(Proposal.version), 0)).where(

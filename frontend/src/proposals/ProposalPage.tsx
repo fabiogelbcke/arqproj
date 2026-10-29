@@ -313,6 +313,7 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
 
   const isProposal = data.status === "proposal";
   const archived = data.status === "archived";
+  const accepted = data.status === "active" || data.status === "completed"; // fixed once accepted
 
   return (
     <div className={styles.page}>
@@ -335,6 +336,7 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
           {isProposal ? t("proposal.generator.leadProposal") : t("proposal.generator.lead")}
         </p>
         {archived && <p className={styles.note}>{t("proposal.generator.archived")}</p>}
+        {accepted && <p className={styles.note}>{t("proposal.generator.accepted")}</p>}
       </header>
 
       <div className={styles.layout}>
@@ -630,7 +632,7 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
             <ErrorNotice error={save.error} />
             <div className={styles.buttons}>
               <Button onPress={openPdf}>{t("proposal.generator.viewPdf")}</Button>
-              <Button type="submit" variant="primary" isDisabled={save.isPending || archived}>
+              <Button type="submit" variant="primary" isDisabled={save.isPending || archived || accepted}>
                 {save.isPending ? t("proposal.generator.saving") : t("proposal.generator.save")}
               </Button>
             </div>

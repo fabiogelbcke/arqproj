@@ -32,8 +32,12 @@ describe("signing in", () => {
     await userEvent.type(screen.getByLabelText(/E-mail/), "ana@alinea.example");
     await userEvent.type(screen.getByLabelText(/Senha/), "a password");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/algum/lugar"));
-    expect(await screen.findByText("Página não encontrada")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/algum/lugar"),
+    );
+    expect(
+      await screen.findByText("Página não encontrada"),
+    ).toBeInTheDocument();
   });
 
   it("shows a wrong password in Portuguese, with the support code, never server text", async () => {
@@ -47,7 +51,10 @@ describe("signing in", () => {
       }),
     });
     renderAt("/entrar");
-    await userEvent.type(await screen.findByLabelText(/E-mail/), "ana@alinea.example");
+    await userEvent.type(
+      await screen.findByLabelText(/E-mail/),
+      "ana@alinea.example",
+    );
     await userEvent.type(screen.getByLabelText(/Senha/), "wrong password");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     const alert = await screen.findByRole("alert");
@@ -56,15 +63,22 @@ describe("signing in", () => {
   });
 
   it("shows the password as typed on request, and says when Caps Lock is on", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+    });
     renderAt("/entrar");
     const password = await screen.findByLabelText(/Senha/);
     await userEvent.type(password, "segredo");
     expect(password).toHaveAttribute("type", "password");
-    await userEvent.click(screen.getByRole("button", { name: "Mostrar senha" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Mostrar senha" }),
+    );
     expect(password).toHaveAttribute("type", "text");
     expect(password).toHaveValue("segredo");
-    await userEvent.click(screen.getByRole("button", { name: "Ocultar senha" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ocultar senha" }),
+    );
     expect(password).toHaveAttribute("type", "password");
 
     expect(screen.queryByTitle("Caps Lock ativado")).toBeNull();
@@ -73,22 +87,39 @@ describe("signing in", () => {
     await user.keyboard("{CapsLock}A");
     expect(screen.getByTitle("Caps Lock ativado")).toBeInTheDocument();
     // Said to screen readers too, not only drawn.
-    expect(screen.getAllByRole("status").some((status) => status.textContent === "Caps Lock ativado")).toBe(true);
+    expect(
+      screen
+        .getAllByRole("status")
+        .some((status) => status.textContent === "Caps Lock ativado"),
+    ).toBe(true);
     await user.keyboard("{CapsLock}a");
     expect(screen.queryByTitle("Caps Lock ativado")).toBeNull();
   });
 
-  const SAFARI = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
-  const CHROME = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+  const SAFARI =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
+  const CHROME =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
   it.each([
     ["leaves it to Apple's own mark in Safari on a Mac", SAFARI, 0, false],
-    ["shows it in Chrome on a Mac, where the system shows none", CHROME, 0, true],
+    [
+      "shows it in Chrome on a Mac, where the system shows none",
+      CHROME,
+      0,
+      true,
+    ],
     ["leaves it to the system on an iPad, in any browser", CHROME, 5, false],
   ])("Caps Lock: %s", async (_, userAgent, touchPoints, shown) => {
     vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     vi.spyOn(navigator, "userAgent", "get").mockReturnValue(userAgent);
-    Object.defineProperty(navigator, "maxTouchPoints", { value: touchPoints, configurable: true }); // not in jsdom
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    Object.defineProperty(navigator, "maxTouchPoints", {
+      value: touchPoints,
+      configurable: true,
+    }); // not in jsdom
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+    });
     renderAt("/entrar");
     const password = await screen.findByLabelText(/Senha/);
     const user = userEvent.setup();
@@ -100,9 +131,14 @@ describe("signing in", () => {
   });
 
   it("uses the office's language before anyone signs in", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: { ...TENANT, locale: "en" } }), "GET /api/me": () => notSignedIn });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: { ...TENANT, locale: "en" } }),
+      "GET /api/me": () => notSignedIn,
+    });
     renderAt("/entrar");
-    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Sign in" }),
+    ).toBeInTheDocument();
   });
 
   it("only returns to addresses inside the painel", () => {
@@ -121,7 +157,9 @@ describe("signed in", () => {
       "DELETE /api/session": () => ({ status: 204 }),
     });
     const router = renderAt("/");
-    expect(await screen.findByRole("heading", { name: "Projetos" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Projetos" }),
+    ).toBeInTheDocument();
     // Sair is in the account menu, under the round initial, with who is signed in.
     await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
     expect(screen.getByText(ME.email)).toBeInTheDocument();
@@ -143,8 +181,12 @@ describe("signed in", () => {
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
     const menu = await screen.findByRole("dialog", { name: "Menu" });
     expect(within(menu).getByText("Olá, Ana")).toBeInTheDocument(); // the first name
-    await userEvent.click(within(menu).getByRole("link", { name: "Configurações" }));
-    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/configuracoes/));
+    await userEvent.click(
+      within(menu).getByRole("link", { name: "Configurações" }),
+    );
+    await waitFor(() =>
+      expect(router.state.location.pathname).toMatch(/^\/configuracoes/),
+    );
     expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull(); // closed on the way
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
     const again = await screen.findByRole("dialog", { name: "Menu" });
@@ -157,25 +199,52 @@ describe("signed in", () => {
     await userEvent.click(within(again).getByRole("button", { name: "Sair" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
   });
-
-
 });
 
 describe("the painel tour", () => {
   it("starts from the account menu and the phone's drawer, never on its own", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+    });
     renderAt("/");
     await screen.findByRole("heading", { name: "Projetos" });
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(startPainelTour).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "Ver o tour do painel" }));
+    // Folded under "Ajuda", with the example project, until opened.
+    expect(
+      screen.queryByRole("menuitem", { name: "Ver o tour do painel" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "Ver um projeto de exemplo" }),
+    ).toBeNull();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Ajuda" }));
+    expect(
+      screen.getByRole("menuitem", { name: "Ver um projeto de exemplo" }),
+    ).toHaveAttribute("href", "/tour-projeto");
+    await userEvent.click(
+      screen.getByRole("menuitem", { name: "Ver o tour do painel" }),
+    );
     await waitFor(() => expect(startPainelTour).toHaveBeenCalledTimes(1));
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
     const drawer = await screen.findByRole("dialog", { name: "Menu" });
-    await userEvent.click(within(drawer).getByRole("button", { name: "Ver o tour do painel" }));
+    expect(
+      within(drawer).queryByRole("button", { name: "Ver o tour do painel" }),
+    ).toBeNull();
+    await userEvent.click(
+      within(drawer).getByRole("button", { name: "Ajuda", expanded: false }),
+    );
+    expect(
+      within(drawer).getByRole("link", { name: "Ver um projeto de exemplo" }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      within(drawer).getByRole("button", { name: "Ver o tour do painel" }),
+    );
     await waitFor(() => expect(startPainelTour).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull()); // out of the tour's way
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull(),
+    ); // out of the tour's way
   });
 });
 
@@ -183,14 +252,21 @@ describe("the theme and the phone drawer", () => {
   it("keeps the account menu's switch and the drawer's in step", async () => {
     localStorage.clear();
     document.documentElement.dataset.theme = "light";
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+    });
     renderAt("/");
     await screen.findByRole("heading", { name: "Projetos" });
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
     const menu = await screen.findByRole("dialog", { name: "Menu" });
-    await userEvent.click(within(menu).getByRole("switch", { name: "Modo escuro" }));
+    await userEvent.click(
+      within(menu).getByRole("switch", { name: "Modo escuro" }),
+    );
     await userEvent.keyboard("{Escape}");
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Menu" })).toBeNull(),
+    );
     // The account menu (desktop) follows: its switch is on.
     await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
     const dark = screen.getByRole("menuitemcheckbox", { name: "Modo escuro" });
@@ -199,14 +275,20 @@ describe("the theme and the phone drawer", () => {
     await userEvent.click(dark);
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(localStorage.getItem("theme")).toBe("light");
-    expect(screen.getByRole("menuitemcheckbox", { name: "Modo escuro" })).not.toBeChecked();
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "Modo escuro" }),
+    ).not.toBeChecked();
   });
 
   it("shows a failed sign-out inside the drawer, not behind it", async () => {
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => ({ body: ME }),
-      "DELETE /api/session": () => ({ status: 500, body: {}, headers: { "X-Request-ID": "req7" } }),
+      "DELETE /api/session": () => ({
+        status: 500,
+        body: {},
+        headers: { "X-Request-ID": "req7" },
+      }),
     });
     renderAt("/");
     await screen.findByRole("heading", { name: "Projetos" });
@@ -218,11 +300,15 @@ describe("the theme and the phone drawer", () => {
 });
 
 describe("choosing a password", () => {
-  function linkApi(choose: (body: unknown) => { status?: number; body?: unknown }) {
+  function linkApi(
+    choose: (body: unknown) => { status?: number; body?: unknown },
+  ) {
     return fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => notSignedIn,
-      "POST /api/password-link": () => ({ body: { email: "maria@alinea.example", name: "Maria", kind: "invite" } }),
+      "POST /api/password-link": () => ({
+        body: { email: "maria@alinea.example", name: "Maria", kind: "invite" },
+      }),
       "POST /api/password": choose,
     });
   }
@@ -231,21 +317,42 @@ describe("choosing a password", () => {
     const sent = linkApi(() => ({ body: { ...ME, name: "Maria" } }));
     window.location.hash = "#token=tok123";
     const router = renderAt("/definir-senha");
-    expect(await screen.findByRole("heading", { name: "Escolha sua senha" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Escolha sua senha" }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Olá, Maria/)).toBeInTheDocument();
     expect(window.location.hash).toBe("");
 
-    await userEvent.type(screen.getByLabelText(/Nova senha/), "a long password");
-    await userEvent.type(screen.getByLabelText(/Repita a senha/), "a different one");
-    await userEvent.click(screen.getByRole("button", { name: "Salvar senha e entrar" }));
-    expect(await screen.findByText("As senhas não são iguais.")).toBeInTheDocument();
-    expect(sent.some((request) => request.path === "/api/password")).toBe(false);
+    await userEvent.type(
+      screen.getByLabelText(/Nova senha/),
+      "a long password",
+    );
+    await userEvent.type(
+      screen.getByLabelText(/Repita a senha/),
+      "a different one",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Salvar senha e entrar" }),
+    );
+    expect(
+      await screen.findByText("As senhas não são iguais."),
+    ).toBeInTheDocument();
+    expect(sent.some((request) => request.path === "/api/password")).toBe(
+      false,
+    );
 
     await userEvent.clear(screen.getByLabelText(/Repita a senha/));
-    await userEvent.type(screen.getByLabelText(/Repita a senha/), "a long password");
-    await userEvent.click(screen.getByRole("button", { name: "Salvar senha e entrar" }));
+    await userEvent.type(
+      screen.getByLabelText(/Repita a senha/),
+      "a long password",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Salvar senha e entrar" }),
+    );
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));
-    expect(sent.find((request) => request.path === "/api/password")?.body).toEqual({
+    expect(
+      sent.find((request) => request.path === "/api/password")?.body,
+    ).toEqual({
       token: "tok123",
       password: "a long password",
     });
@@ -255,12 +362,21 @@ describe("choosing a password", () => {
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => notSignedIn,
-      "POST /api/password-link": () => ({ status: 404, body: { error: "link_invalid" } }),
+      "POST /api/password-link": () => ({
+        status: 404,
+        body: { error: "link_invalid" },
+      }),
     });
     window.location.hash = "#token=old";
     renderAt("/definir-senha");
-    expect(await screen.findByRole("heading", { name: "Este link não funciona mais" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Pedir um novo link" })).toHaveAttribute("href", "/esqueci-a-senha");
+    expect(
+      await screen.findByRole("heading", {
+        name: "Este link não funciona mais",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Pedir um novo link" }),
+    ).toHaveAttribute("href", "/esqueci-a-senha");
   });
 
   it("shows the server's verdict on a short password in the user's language", async () => {
@@ -272,26 +388,46 @@ describe("choosing a password", () => {
     field.removeAttribute("minlength");
     await userEvent.type(field, "short");
     await userEvent.type(screen.getByLabelText(/Repita a senha/), "short");
-    await userEvent.click(screen.getByRole("button", { name: "Salvar senha e entrar" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("A senha precisa ter pelo menos 8 caracteres.");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Salvar senha e entrar" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A senha precisa ter pelo menos 8 caracteres.",
+    );
   });
 });
 
 describe("whose panel this is", () => {
   it("shows Unio with the office's logo", async () => {
     fakeApi({
-      "GET /api/tenant": () => ({ body: { ...TENANT, logo_url: "/api/office/logo?v=1", logo_dark_url: null } }),
+      "GET /api/tenant": () => ({
+        body: {
+          ...TENANT,
+          logo_url: "/api/office/logo?v=1",
+          logo_dark_url: null,
+        },
+      }),
       "GET /api/me": () => notSignedIn,
     });
     renderAt("/entrar");
-    expect(await screen.findByRole("img", { name: "Alinea" })).toHaveAttribute("src", "/api/office/logo?v=1");
-    expect(screen.getAllByRole("img", { name: "Unio" }).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("img", { name: "Alinea" })).toHaveAttribute(
+      "src",
+      "/api/office/logo?v=1",
+    );
+    expect(screen.getAllByRole("img", { name: "Unio" }).length).toBeGreaterThan(
+      0,
+    );
   });
 
   it("or with its name, without a logo", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+    });
     renderAt("/entrar");
-    expect(await screen.findByText("Alinea", { selector: "span" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("Alinea", { selector: "span" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -303,22 +439,41 @@ describe("a forgotten password", () => {
       "POST /api/password-reset": () => ({ status: 204 }),
     });
     renderAt("/entrar");
-    await userEvent.click(await screen.findByRole("link", { name: "Esqueceu a senha?" }));
-    await userEvent.type(await screen.findByLabelText(/E-mail/), "ana@alinea.example");
+    await userEvent.click(
+      await screen.findByRole("link", { name: "Esqueceu a senha?" }),
+    );
+    await userEvent.type(
+      await screen.findByLabelText(/E-mail/),
+      "ana@alinea.example",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Enviar link" }));
-    expect(await screen.findByRole("heading", { name: "Confira seu e-mail" })).toBeInTheDocument();
-    expect(screen.getByText(/Se ana@alinea.example tiver uma conta no painel de Alinea/)).toBeInTheDocument();
-    expect(sent.find((r) => r.path === "/api/password-reset")?.body).toEqual({ email: "ana@alinea.example" });
+    expect(
+      await screen.findByRole("heading", { name: "Confira seu e-mail" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Se ana@alinea.example tiver uma conta no painel de Alinea/,
+      ),
+    ).toBeInTheDocument();
+    expect(sent.find((r) => r.path === "/api/password-reset")?.body).toEqual({
+      email: "ana@alinea.example",
+    });
   });
 
   it("says when to wait, after too many requests", async () => {
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => notSignedIn,
-      "POST /api/password-reset": () => ({ status: 429, body: { error: "too_many_attempts" } }),
+      "POST /api/password-reset": () => ({
+        status: 429,
+        body: { error: "too_many_attempts" },
+      }),
     });
     renderAt("/esqueci-a-senha");
-    await userEvent.type(await screen.findByLabelText(/E-mail/), "ana@alinea.example");
+    await userEvent.type(
+      await screen.findByLabelText(/E-mail/),
+      "ana@alinea.example",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Enviar link" }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
@@ -326,7 +481,10 @@ describe("a forgotten password", () => {
 
 describe("the office's mark in the top bar", () => {
   it("leads back to the projects from anywhere, settings included", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+    });
     const router = renderAt("/configuracoes/escritorio");
     const brand = await screen.findByRole("link", { name: "Alinea" }); // no logo: the office's name
     await userEvent.click(brand);
@@ -336,16 +494,24 @@ describe("the office's mark in the top bar", () => {
 
 describe("each screen's title and the skip link", () => {
   it("names the screen and the office in the browser tab", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+    });
     const router = renderAt("/");
     await screen.findByRole("heading", { name: "Projetos" });
     await waitFor(() => expect(document.title).toBe("Projetos · Alinea"));
     await router.navigate("/configuracoes/equipe");
-    await waitFor(() => expect(document.title).toBe("Equipe · Configurações · Alinea"));
+    await waitFor(() =>
+      expect(document.title).toBe("Equipe · Configurações · Alinea"),
+    );
   });
 
   it("names the sign-in screen before anyone is signed in", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }) });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
+    });
     renderAt("/entrar");
     await screen.findByRole("heading", { name: "Entrar" });
     await waitFor(() => expect(document.title).toBe("Entrar · Alinea"));
@@ -355,7 +521,9 @@ describe("each screen's title and the skip link", () => {
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
-      "POST /api/password-link": () => ({ body: { email: "ana@alinea.example", name: "Ana", kind: "reset" } }),
+      "POST /api/password-link": () => ({
+        body: { email: "ana@alinea.example", name: "Ana", kind: "reset" },
+      }),
     });
     window.location.hash = "#token=abc";
     renderAt("/definir-senha");
@@ -367,7 +535,10 @@ describe("each screen's title and the skip link", () => {
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
-      "POST /api/password-link": () => ({ status: 404, body: { error: "link_invalid" } }),
+      "POST /api/password-link": () => ({
+        status: 404,
+        body: { error: "link_invalid" },
+      }),
     });
     window.location.hash = "#token=old";
     renderAt("/definir-senha");
@@ -376,7 +547,10 @@ describe("each screen's title and the skip link", () => {
   });
 
   it("skips the top bar to the page's content, first thing on Tab", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => ({ body: ME }) });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: ME }),
+    });
     renderAt("/");
     await screen.findByRole("heading", { name: "Projetos" });
     await userEvent.tab();
@@ -394,28 +568,47 @@ describe("signing in with Google", () => {
     const sent = fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => notSignedIn,
-      "POST /api/auth/google/start": () => ({ body: { url: "https://accounts.google.com/o/oauth2/v2/auth?x=1" } }),
+      "POST /api/auth/google/start": () => ({
+        body: { url: "https://accounts.google.com/o/oauth2/v2/auth?x=1" },
+      }),
     });
     renderAt("/entrar");
-    await userEvent.click(await screen.findByRole("button", { name: "Entrar com Google" }));
-    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?x=1"));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Entrar com Google" }),
+    );
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith(
+        "https://accounts.google.com/o/oauth2/v2/auth?x=1",
+      ),
+    );
     expect(sent.some((r) => r.path === "/api/auth/google/start")).toBe(true);
     vi.unstubAllGlobals();
   });
 
   it.each([
-    ["sem-conta", /Não há uma conta neste escritório com esse e-mail do Google/],
+    [
+      "sem-conta",
+      /Não há uma conta neste escritório com esse e-mail do Google/,
+    ],
     ["cancelado", /A entrada foi cancelada no Google/],
     ["outra-coisa", /Não foi possível entrar com o Google agora/],
   ])("says why it didn't sign in (%s)", async (problem, said) => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+    });
     renderAt(`/entrar?google=${problem}`);
     expect(await screen.findByRole("alert")).toHaveTextContent(said);
   });
 
   it("shows the support code of a sign-in that failed", async () => {
-    fakeApi({ "GET /api/tenant": () => ({ body: TENANT }), "GET /api/me": () => notSignedIn });
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+    });
     renderAt("/entrar?google=falhou&ref=abc123");
-    expect(await screen.findByRole("alert")).toHaveTextContent("Código de suporte: abc123");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Código de suporte: abc123",
+    );
   });
 });

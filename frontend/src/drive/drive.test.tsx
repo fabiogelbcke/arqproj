@@ -284,10 +284,12 @@ describe("the painel's first steps", () => {
     expect(screen.queryByRole("region", { name: "Primeiros passos" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Ver um projeto de exemplo" })).toBeNull(); // not on the page
     await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Ajuda" }));
     expect(screen.getByRole("menuitem", { name: "Ver um projeto de exemplo" })).toHaveAttribute("href", "/tour-projeto");
     await userEvent.keyboard("{Escape}");
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
     const drawer = await screen.findByRole("dialog", { name: "Menu" });
+    await userEvent.click(within(drawer).getByRole("button", { name: "Ajuda" }));
     expect(within(drawer).getByRole("link", { name: "Ver um projeto de exemplo" })).toHaveAttribute("href", "/tour-projeto");
   });
 
