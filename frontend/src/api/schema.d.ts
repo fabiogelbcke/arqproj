@@ -1110,8 +1110,9 @@ export interface paths {
         put?: never;
         /**
          * Accept
-         * @description "Proposta aceita": the page shows the project, with a link to the proposal.
-         *     Accepting twice changes nothing.
+         * @description "Proposta aceita": the same record becomes the project, its page showing
+         *     the work and the proposal as its "Proposta" stage. Accepting twice changes
+         *     nothing; a proposal never saved can't be accepted (nothing to show).
          */
         post: operations["accept_api_projects__project_id__accept_proposal_post"];
         delete?: never;

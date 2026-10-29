@@ -4108,7 +4108,7 @@
     "/api/projects/{project_id}/accept-proposal": {
       "post": {
         "summary": "Accept",
-        "description": "\"Proposta aceita\": the page shows the project, with a link to the proposal.\nAccepting twice changes nothing.",
+        "description": "\"Proposta aceita\": the same record becomes the project, its page showing\nthe work and the proposal as its \"Proposta\" stage. Accepting twice changes\nnothing; a proposal never saved can't be accepted (nothing to show).",
         "operationId": "accept_api_projects__project_id__accept_proposal_post",
         "parameters": [
           {
