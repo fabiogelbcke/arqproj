@@ -266,6 +266,7 @@
     "invalid_folder_name": "Give the section a name that doesn't start with _.",
     "folder_exists": "This stage already has a section with that name.",
     "folder_not_found": "That section no longer exists. Reload the page.",
+    "folder_not_ours": "This section was made directly in Google Drive, so make this change there, in the stage's folder.",
     "file_not_ours": "This file wasn't sent through the site. To hide it, rename it in the stage's folder starting with _.",
     "file_not_ours_to_move": "This file wasn't sent through the site. To move it to another stage, move it into that stage's folder.",
     "invalid_detail": "Check the details: use each field once, keep text within 40 characters, enter numbers for areas and valid dates.",
@@ -287,7 +288,10 @@
     "wrong_share_password": "Wrong password. Check with whoever sent the link.",
     "operator_action_conflict": "Could not complete this action. Check the address, office status and confirmation.",
     "operator_action_failed": "Could not complete this action. Try again and contact support with the code if it continues.",
-    "operator_actions_unavailable": "Administration actions are not available yet."
+    "operator_actions_unavailable": "Administration actions are not available yet.",
+    "signup_link_invalid": "This link to create an office no longer works: it was used or is over 7 days old. Ask Unio for a new one.",
+    "office_address_taken": "That address is already in use. Choose another.",
+    "invalid_office_address": "Use 3 to 40 lowercase letters, numbers or hyphens, not starting or ending with a hyphen."
   },
   "projectStatus": {
     "draft": "Draft",
@@ -556,6 +560,17 @@
     "sectionAdded": "Section “{{name}}” created.",
     "sectionEmpty": "No files in this section yet. The client will see it once it has files.",
     "sendToSection": "Send files to the section {{section}}",
+    "sectionActions": "Actions for the section {{section}}",
+    "renameSection": "Rename section",
+    "sectionRenamed": "Section renamed to “{{name}}”.",
+    "hideSection": "Hide section",
+    "hideSectionNote": "Its files stay in Google Drive",
+    "hideSectionAsk": "Hide the section “{{section}}”?",
+    "hideSectionMeans_one": "The section and its file will no longer show on the page, for the client or the team. The file stays in Google Drive, in the folder “_{{section}}”.",
+    "hideSectionMeans_other": "The section and its {{count}} files will no longer show on the page, for the client or the team. The files stay in Google Drive, in the folder “_{{section}}”.",
+    "hideSectionEmpty": "The section will no longer show on the page. The folder stays in Google Drive as “_{{section}}”.",
+    "hideSectionUndo": "To show it again, rename the folder in Google Drive without the leading _.",
+    "sectionHidden": "Section “{{name}}” hidden.",
     "moveFileTo": "Move “{{name}}” to",
     "fileMoved": "“{{name}}” was moved to {{stage}}.",
     "menuBack": "Back",
@@ -575,7 +590,6 @@
     "removeDetail": "Remove {{name}}",
     "meeting": "Meeting",
     "schedule": "Schedule",
-    "scheduleMeeting": "Schedule a meeting",
     "subject": "Subject",
     "day": "Date",
     "chooseDay": "Choose from the calendar",
@@ -1057,9 +1071,10 @@
       "create": "Create office",
       "name": "Office name",
       "slug": "Identifier",
-      "hostname": "Address",
+      "hostname": "Office address on Unio",
+      "hostnameHint": "Where the office's team and clients will open Unio.",
       "slugHint": "Filled in from the address. It identifies the office in PostHog and in the logs and cannot be changed later.",
-      "hostnameExample": "E.g. office.myunio.app",
+      "hostnameExample": "E.g. office",
       "close": "Done",
       "createConfirm": "Create and generate owner invitation",
       "ownerLink": "Owner signup link",
@@ -1072,6 +1087,10 @@
       "confirm": "Confirm",
       "cancel": "Cancel",
       "done": "Action completed.",
+      "signupLink": "Link to create an office",
+      "signupLinkExplain": "Make a link for someone to create their own office: they choose its name and address, then create the owner account. The link works once and lasts 7 days.",
+      "signupLinkMake": "Make link",
+      "signupLinkHelp": "Copy this link and send it to whoever will create the office. It works once and lasts 7 days. It won't be shown again after you close this window.",
       "explain": {
         "owner_link": "Generate a new owner signup link for {{name}}?",
         "suspend": "Suspend {{name}}? Its panel and pages will be unavailable until restored.",
@@ -1079,5 +1098,16 @@
         "delete": "Permanently delete {{name}} data in Unio? Drive files will be preserved. This cannot be undone."
       }
     }
+  },
+  "signup": {
+    "title": "Create your office on Unio",
+    "intro": "Choose the name your clients will see and the address for your project pages. Next, you create your owner account.",
+    "name": "Office name",
+    "nameHint": "As clients see it. You can change it later.",
+    "address": "Your office's address on Unio",
+    "addressHint": "Where your team and clients will open Unio. It can't be changed later.",
+    "addressFree": "Available",
+    "create": "Create office",
+    "next": "Next, you enter your name, email and password and confirm the email with a code."
   }
 }

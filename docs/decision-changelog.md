@@ -19,6 +19,81 @@ a new entry too.
 
 ---
 
+## 2026-10-28 — A31/A34: renaming and hiding sections; dragging files to move them
+
+**Was:** renaming or removing a section stayed in Drive (A31, 26 Oct). Dragging
+a file onto another stage was "a later addition" (A34).
+
+**Now:** "Renomear seção" and "Ocultar seção" on a section's "⋯". Hiding renames
+its folder `_name`: the section and its files leave the page but stay in Drive,
+and the confirmation says so. In edit mode a file card dragged onto a stage or
+into a section moves there, as "Mover para…" does.
+
+**Why:** Fabio, 28 Oct 2026. For a section that still holds files he chose
+hiding over the alternatives:
+- Moving its files up into the stage and trashing the folder fails for any file
+  added through Drive, which `drive.file` can't move.
+- Allowing removal only of empty sections means more clicks.
+Hiding works for every section the app made and loses nothing.
+
+---
+
+## 2026-10-28 — A38 (proposed): a link to create an office, the base for signup
+
+**Was:** only an operator creates an office and its address (the dashboard, or
+`make tenant`); its owner then signs up through a one-time owner link (A36). An
+open signup page was declined (A36, 25 Oct): "links we generate".
+
+**Now (for review):** an operator can make a one-time link to create an office.
+Its holder names the office and picks its `{address}.myunio.app` on Unio's
+address; the office and address are created through the operator's lifecycle
+login, the link is used up in the same transaction, and the browser goes on to
+the new office's existing owner signup. Still no open signup: a link is needed,
+and only an operator makes one.
+
+**Why:** Fabio, 28 Oct 2026: "an office creation page that is only via
+sharable link for now, but in the future we can use as basis for the actual
+sign up page". It lets the person pick their own name and address (a trade-off
+the owner-link flow recorded) without opening signup to anyone. The app's own
+login gains no privilege: creation stays with the lifecycle login, and the new
+table `office_signup_links` is granted to it alone (migration 0040).
+
+**Not yet:** public signup without a link (needs rate limits, abuse checks and
+perhaps payment, A38/section 22). On staging, offices it makes get an address
+under `staging.myunio.app`, which isn't routed (staging serves one office).
+
+---
+
+## 2026-10-28 — A39: clients' and visitors' use of project pages, without cookies
+
+**Was:** PostHog recorded staff only. Clients and suppliers stayed personless,
+their browsers never loaded PostHog, and the privacy policy said visitors of
+project pages are not tracked. The only visitor data was `file_transfer` bytes.
+
+**Now:** the server also records what visitors do (unlocking a page, the
+meeting's calendar file, share pages, email subscriptions, update emails sent
+per office), each with an anonymous visitor id that changes every day and the
+device kind. On project pages, visitors who
+aren't signed-in staff get PostHog in cookieless mode: page views, where they
+came from, clicks without their text, and a few named actions. Still no cookies,
+no person profiles, no names or emails, no session recording. More staff
+actions are sent (stages renamed, moved or removed, publishing, covers, office
+settings, Drive connected, uploads with their size, the tour), and sign-ins say
+how (password, Google, a link, joining). The browser sends no page title and
+no project address (a project page is `/projeto` plus the project's id, Fabio's
+choice: the address is made from the project's name) and keeps only `utm_` tags
+from addresses. The privacy policy says what is measured on project pages and
+shared files.
+
+**Why:** Fabio (28 Oct 2026) wants to know whether offices use the features as
+intended, what they use most, how clients use the project page, and what drives
+costs (downloads, uploads, emails). Staff-only data answered none of the client
+questions. Asked to choose, he took both the server-side anonymous events and
+PostHog's cookieless mode in visitors' browsers now (rather than the browser
+part later), and the daily visitor hash so distinct visitors can be counted.
+Cookieless mode needs no consent banner: nothing is stored in the browser and
+no one can be followed across days.
+
 ## 2026-10-26 — A31: sections in a stage, made from the page
 
 **Was:** a stage's subfolders were shown as titled groups (one level), but only

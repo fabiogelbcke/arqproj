@@ -20,6 +20,9 @@ class ErrorCode(StrEnum):
     OPERATOR_ACTION_CONFLICT = "operator_action_conflict"
     OPERATOR_ACTION_FAILED = "operator_action_failed"
     OPERATOR_ACTIONS_UNAVAILABLE = "operator_actions_unavailable"
+    SIGNUP_LINK_INVALID = "signup_link_invalid"  # an office signup link used, expired or unknown
+    OFFICE_ADDRESS_TAKEN = "office_address_taken"  # another office has that address
+    INVALID_OFFICE_ADDRESS = "invalid_office_address"  # not a usable subdomain, or reserved
     NOT_SIGNED_IN = "not_signed_in"
     CSRF_TOKEN_MISSING_OR_WRONG = "csrf_token_missing_or_wrong"
     INVALID_CREDENTIALS = "invalid_credentials"
@@ -75,6 +78,7 @@ class ErrorCode(StrEnum):
     INVALID_FOLDER_NAME = "invalid_folder_name"  # a section's: blank, or starts with "_"
     FOLDER_EXISTS = "folder_exists"  # the stage already has a section of that name
     FOLDER_NOT_FOUND = "folder_not_found"  # the section is gone from Drive: reload
+    FOLDER_NOT_OURS = "folder_not_ours"  # a section made straight in Drive: change it there
     UPLOAD_FAILED = "upload_failed"  # the browser couldn't finish sending: logged, with the code
     FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
     FILE_NOT_OURS_TO_MOVE = "file_not_ours_to_move"  # put straight into Drive: move it there

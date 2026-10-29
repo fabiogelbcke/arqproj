@@ -50,7 +50,7 @@ UI change to the sign-in screens is high-risk):
 | An extremely simple change (a typo, a one-line copy fix, a doc wording tweak) | None. Say so in the description. |
 | Documentation only, file moves | One local fresh review. A documentation-only change after a clean review needs no other. |
 | UI changes, low-risk and very simple code changes | `@claude review` only, at most 2 rounds (1 for very simple changes). |
-| High-risk changes to anything: security, data isolation, migrations, deploys, money, email sending, sign-in, privacy | `@claude review high-risk` first, then Codex once its findings are fixed, even if it came back clean: a second model catches different things. A later round goes to the reviewer whose findings were just fixed. At most 4 rounds in all. |
+| High-risk changes to anything: security, data isolation, migrations, deploys, money, email sending, sign-in, privacy | Before each Codex round, a Claude review (`@claude review high-risk`) of the same changes, and its findings fixed; then Codex, even if Claude came back clean: a second model catches different things. At most 3 Codex rounds; a 4th only if the 3rd found something critical, such as a data leak or a security hole (Fabio, 28 Oct 2026). |
 
 How many rounds:
 

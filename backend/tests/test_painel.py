@@ -153,9 +153,11 @@ async def test_the_office_name_language_and_logo_are_public(client, tenants):
     response = await client.get("/api/tenant", headers=ALINEA)
     assert response.json() == {
         "name": "Alinea (dev)",
+        "slug": "alinea",
         "locale": "pt-BR",
         "logo_url": None,  # none uploaded yet (test_office covers one)
         "logo_dark_url": None,
+        "analytics": None,  # no PostHog key here (test_analytics covers one)
     }
 
 

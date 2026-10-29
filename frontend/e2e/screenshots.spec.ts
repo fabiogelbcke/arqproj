@@ -37,6 +37,7 @@ async function shoot(page: Page, name: string, theme: "light" | "dark" = "light"
     await page.screenshot({
       path: `${OUT}/${name}-${size.name}${theme === "dark" ? "-dark" : ""}.png`,
       fullPage: !dialog,
+      animations: "disabled", // a dialog or menu still fading in is shot finished, whatever the test forgot
     });
   }
 }
@@ -56,6 +57,7 @@ test("@screenshots owner signup", async ({ page }) => {
 });
 
 test("@screenshots staff app", async ({ page, browser }) => {
+  test.setTimeout(60_000); // one long walk through every screen; the default 30 s is close
   await page.emulateMedia({ reducedMotion: "reduce" }); // no half-faded dialogs
   mkdirSync(OUT, { recursive: true });
   await page.goto("/painel/entrar");
@@ -303,6 +305,12 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.locator("#stage-2").getByRole("button", { name: "+ Nova seção" }).waitFor(); // saved
   await page.locator("#stage-2").getByRole("heading", { name: "Plantas executivas" }).scrollIntoViewIfNeeded();
   await shoot(page, "06s-nova-secao");
+  // A section's "⋯": hiding it says its files stay in Drive (A31).
+  await page.locator("#stage-2").getByRole("button", { name: "Ações da seção Plantas executivas" }).click();
+  await page.getByRole("menuitem", { name: /Ocultar seção/ }).click();
+  await page.getByRole("alertdialog", { name: /Ocultar a seção/ }).waitFor();
+  await shoot(page, "06t-ocultar-secao");
+  await page.keyboard.press("Escape");
   // Reopening a stage says the client will be emailed (A32), as completing does.
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
@@ -397,6 +405,7 @@ test("@screenshots preview page", async ({ page }) => {
 });
 
 test("@screenshots operator dashboard", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" }); // no half-faded dialogs
   mkdirSync(OUT, { recursive: true });
   const unio = `http://localhost:${PORT}`;
   await page.goto(`${unio}/admin`);
@@ -408,9 +417,21 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await shoot(page, "10b-operacao-escritorios");
   await page.getByRole("button", { name: "Criar escritório", exact: true }).click();
   await page.getByLabel("Nome do escritório").fill("Ateliê Horizonte");
-  await page.getByLabel("Endereço", { exact: true }).fill("horizonte.myunio.app");
+  await page.getByLabel("Endereço do escritório no Unio", { exact: true }).fill("horizonte");
   await shoot(page, "10d-operacao-criar");
   await page.keyboard.press("Escape");
+  // A link for someone to create their own office (A38), and its page.
+  await page.getByRole("button", { name: "Link para criar escritório" }).click();
+  await page.getByRole("button", { name: "Gerar link" }).click();
+  const link = await page.getByRole("textbox", { name: "Link para criar escritório" }).inputValue();
+  await shoot(page, "10f-operacao-link-criar");
+  await page.keyboard.press("Escape");
+  const signup = await page.context().newPage();
+  await signup.goto(`${unio}/criar-escritorio#${link.split("#")[1]}`);
+  await signup.getByLabel(/Nome do escritório/).fill("Estúdio Ipê");
+  await signup.getByText("Disponível").waitFor();
+  await shoot(signup, "11-criar-escritorio");
+  await signup.close();
   await page.getByRole("link", { name: "Alinea (dev)" }).click();
   await page.getByRole("heading", { name: "Equipe" }).waitFor();
   await page.getByRole("button", { name: "Carregar estatísticas de arquivos" }).click();

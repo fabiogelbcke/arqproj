@@ -578,11 +578,18 @@ async def page_file(
     # Everything is checked: let the database connection go before the bytes
     # flow, so slow downloads never hold the small pool (plan section 15).
     await db.close()
-    return streamed(project, item, download, inline, request=request)
+    return streamed(project, item, download, inline, request=request, staff=staff is not None)
 
 
 def streamed(
-    project: Project, item: StorageItem, download, inline: bool, *, request=None, source=None
+    project: Project,
+    item: StorageItem,
+    download,
+    inline: bool,
+    *,
+    request=None,
+    source=None,
+    staff: bool = False,
 ) -> StreamingResponse:
     """A checked file's bytes, as they come from Drive; never run on the office's
     address."""
@@ -622,7 +629,11 @@ def streamed(
 
     return StreamingResponse(
         measured(
-            request, project, body(), source or ("preview" if shown_inline else "project_download")
+            request,
+            project,
+            body(),
+            source or ("preview" if shown_inline else "project_download"),
+            staff=staff,
         )
         if request is not None
         else body(),

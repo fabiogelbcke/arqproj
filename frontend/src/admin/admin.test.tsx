@@ -5,7 +5,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "../test/render";
-import { hostOf, slugFromHost } from "./Actions";
+import { hostOf, officeDomain, slugFromHost, subdomainOf } from "./Actions";
 import { adminRoutes } from "./AdminApp";
 import { officeErrorsUrl, supportCodeUrl } from "./logs";
 
@@ -222,6 +222,15 @@ describe("creating an office", () => {
     expect(hostOf("HTTPS://Alinea.MyUnio.app/")).toBe("alinea.myunio.app");
   });
 
+  it("takes only the office's part of the address, the rest fixed: myunio.app, or localhost locally", () => {
+    expect(officeDomain("myunio.app")).toBe(".myunio.app");
+    expect(officeDomain("staging.myunio.app")).toBe(".myunio.app");
+    expect(officeDomain("localhost")).toBe(".localhost");
+    expect(subdomainOf("horizonte", ".myunio.app")).toBe("horizonte");
+    expect(subdomainOf(" https://Horizonte.myunio.app/painel ", ".myunio.app")).toBe("horizonte"); // pasted whole
+    expect(subdomainOf("horizonte.myunio.ap", ".myunio.app")).toBe("horizonte.myunio.ap"); // still typing
+  });
+
   it("creates in a dialog and shows the owner's link to copy", async () => {
     const sent = fakeApi({
       "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),
@@ -232,18 +241,49 @@ describe("creating an office", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Criar escritório" }));
     const dialog = screen.getByRole("dialog");
     await userEvent.type(within(dialog).getByLabelText("Nome do escritório"), "Ateliê Horizonte");
-    await userEvent.type(within(dialog).getByLabelText("Endereço"), "https://Horizonte.myunio.app");
+    const address = within(dialog).getByLabelText("Endereço do escritório no Unio");
+    await userEvent.type(address, "https://Horizonte.localhost"); // pasted whole: the tests run on localhost
+    expect(address).toHaveValue("horizonte");
+    expect(within(dialog).getByText(".localhost")).toBeInTheDocument(); // the fixed rest, beside it
+    expect(within(dialog).getByText("9/40")).toBeInTheDocument(); // the limit, as the signup page's
+    expect(address).toHaveAttribute("maxlength", "40");
     const slug = within(dialog).getByLabelText("Identificador");
     expect(slug).toHaveValue("horizonte");
     await userEvent.clear(slug);
     await userEvent.type(slug, "horizonte-sp");
-    await userEvent.type(within(dialog).getByLabelText("Endereço"), "x"); // no longer follows the address
+    await userEvent.type(address, "x"); // no longer follows the address
     expect(slug).toHaveValue("horizonte-sp");
     await userEvent.click(within(dialog).getByRole("button", { name: "Criar e gerar convite do responsável" }));
     expect(await within(dialog).findByLabelText("Link de cadastro do responsável")).toHaveValue("https://horizonte.myunio.app/painel/entrar-na-equipe#token=abc");
-    expect(sent.find((r) => r.path === "/api/admin/offices" && r.method === "POST")?.body).toEqual({ name: "Ateliê Horizonte", slug: "horizonte-sp", hostname: "horizonte.myunio.appx" });
+    expect(sent.find((r) => r.path === "/api/admin/offices" && r.method === "POST")?.body).toEqual({ name: "Ateliê Horizonte", slug: "horizonte-sp", hostname: "horizontex.localhost" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Concluir" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("makes a link to create an office, shown once to copy", async () => {
+    const url = "https://myunio.app/criar-escritorio#token=novo";
+    const sent = fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+      "POST /api/admin/signup-links": () => ({ body: { url } }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Link para criar escritório" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("funciona uma vez e vale por 7 dias");
+    expect(sent.some((r) => r.path === "/api/admin/signup-links")).toBe(false); // only once asked
+    await userEvent.click(within(dialog).getByRole("button", { name: "Gerar link" }));
+    expect(await within(dialog).findByLabelText("Link para criar escritório")).toHaveValue(url);
+  });
+
+  it("offers the link only when the actions are set up", async () => {
+    fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: false } }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+    });
+    renderAt("/");
+    await screen.findByRole("heading", { name: /Escritórios/ });
+    expect(screen.queryByRole("button", { name: "Link para criar escritório" })).toBeNull();
   });
 
   it("stays open while creating, so the owner link is not lost", async () => {
@@ -263,7 +303,7 @@ describe("creating an office", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Criar escritório" }));
     const dialog = screen.getByRole("dialog");
     await userEvent.type(within(dialog).getByLabelText("Nome do escritório"), "Ateliê Horizonte");
-    await userEvent.type(within(dialog).getByLabelText("Endereço"), "horizonte.myunio.app");
+    await userEvent.type(within(dialog).getByLabelText("Endereço do escritório no Unio"), "horizonte");
     await userEvent.click(within(dialog).getByRole("button", { name: "Criar e gerar convite do responsável" }));
     await userEvent.keyboard("{Escape}");
     await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));

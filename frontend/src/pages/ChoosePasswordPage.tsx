@@ -5,20 +5,13 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router";
 
 import { ApiError, api, call } from "../api/client";
+import { takeToken } from "../api/linkToken";
 import { useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { MIN_PASSWORD_LENGTH, NewPasswordFields } from "../ui/NewPasswordFields";
 import { AuthBrand } from "./AuthBrand";
 import styles from "./pages.module.css";
-
-/** The link's token is in the fragment (#token=…), which browsers never send to
- * servers. Read it once, then take it out of the address bar and history. */
-export function takeToken(): string {
-  const token = new URLSearchParams(window.location.hash.slice(1)).get("token") ?? "";
-  if (token) window.history.replaceState(window.history.state, "", window.location.pathname);
-  return token;
-}
 
 export function ChoosePasswordPage() {
   const { t } = useTranslation();

@@ -41,8 +41,10 @@ UNOWNED_PATHS = frozenset({"/api/drive/callback"})
 # (OPERATOR_HOST) these pass without one, even where that address also serves an
 # office (staging's). Anywhere else they go on as usual, and answer 404.
 OPERATOR_PAGE = "/admin"
-OPERATOR_PATHS = frozenset({OPERATOR_PAGE, "/api/auth/google/callback"})
-OPERATOR_PREFIXES = (OPERATOR_PAGE + "/", "/api/admin/")
+# Creating an office from a link an operator sent (backend/web/office_signup.py).
+SIGNUP_PAGE = "/criar-escritorio"
+OPERATOR_PATHS = frozenset({OPERATOR_PAGE, SIGNUP_PAGE, "/api/auth/google/callback"})
+OPERATOR_PREFIXES = (OPERATOR_PAGE + "/", "/api/admin/", "/api/office-signup/")
 
 
 def operator_path(path: str) -> bool:
