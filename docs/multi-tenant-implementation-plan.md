@@ -1684,7 +1684,10 @@ the reserved address (a migration).
   the reason; features that add no field (a new way to show something) are on
   the author and reviewer.
 - **Who:** signed-in staff see the staff bar, with "Ver como cliente / Editar",
-  so they can try edit mode. Signed out, it's the client's view.
+  so they can try edit mode. Revised 30 Oct 2026 (Fabio): visitors too (from
+  Unio's home, signed out), without the bar's "Painel" link; edit mode offers
+  them the built-in types, stages and details from a copy in the example
+  (`builtins.json`, kept equal to the server's by a test).
 - **Data:** a Portuguese fixture (AGENTS.md: demo data in Brazilian Portuguese)
   in `frontend/src/client/example/`. It has a name and type, description,
   details, who is responsible (A41), the accepted proposal's PDF (A42), a
@@ -1701,8 +1704,9 @@ the reserved address (a migration).
 - **Tour ("explore"):** it starts on every visit and can be skipped (×, Esc,
   "Pular"). It shows where things appear for the client: the title and type,
   the description, the details, the meeting, the stage timeline, a stage's files
-  and their preview, and the updates bell. It ends by pointing back to Primeiros
-  passos. It stores nothing.
+  and their preview, and the updates bell. For staff it ends by pointing back to
+  Primeiros passos; a visitor has no painel, so their tour ends on "Experimente
+  editar" (Fabio, 30 Oct 2026). It stores nothing.
 - **Entry (revised 19 Oct 2026):** an invitation at the top of Primeiros passos,
   above the steps, with the example's cover: "Antes de começar, veja como fica a
   página de um projeto pronto" and "Ver o exemplo". It is not one of the steps

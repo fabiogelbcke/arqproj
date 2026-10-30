@@ -36,8 +36,9 @@ function visit(signedIn: boolean, locale = TENANT.locale) {
     "GET /api/tenant": () => ({ body: { ...TENANT, locale, logo_url: null, logo_dark_url: null } }),
     "GET /api/me": () =>
       signedIn ? { body: { ...ME, page_tour_seen: false, csrf_token: "csrf-123" } } : notSignedIn,
-    "GET /api/detail-types": () => ({ body: [] }),
-    "GET /api/project-types": () => ({ body: { types: [], stages: [] } }),
+    // Only staff are answered; a visitor gets the example's own copy.
+    "GET /api/detail-types": () => (signedIn ? { body: [] } : notSignedIn),
+    "GET /api/project-types": () => (signedIn ? { body: { types: [], stages: [] } } : notSignedIn),
     "DELETE /api/session": () => ({ status: 204 }),
   });
   const view = render(<ExampleApp />);
@@ -64,8 +65,11 @@ describe("the example project", () => {
     expect(within(current).getByRole("button", { name: /2 versões/ })).toBeInTheDocument();
     expect(screen.getByText("Paula Ribeiro")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Proposta – Casa das Araucárias\.pdf/ })).toBeInTheDocument();
-    // A visitor: the client's view, no staff bar.
-    expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
+    // A visitor (from Unio's home, say) gets the staff bar too, to try edit mode,
+    // but no way to a painel they don't have.
+    const bar = screen.getByRole("navigation", { name: "Ferramentas do escritório" });
+    expect(within(bar).getByRole("button", { name: "Editar" })).toBeEnabled();
+    expect(within(bar).queryByRole("link", { name: "Painel" })).toBeNull();
     // Only who is signed in and the office were asked for; nothing about pages.
     expect(sent.map((r) => `${r.method} ${r.path}`).sort()).toEqual(["GET /api/me", "GET /api/tenant"]);
   });
@@ -107,7 +111,8 @@ describe("the example project", () => {
     const { sent, view } = visit(true);
     await screen.findByRole("heading", { level: 1, name: "Casa das Araucárias" });
     expect(setupTour.startTour).not.toHaveBeenCalled(); // the example has its own tour
-    expect(screen.getByRole("navigation", { name: "Ferramentas do escritório" })).toBeInTheDocument();
+    const bar = screen.getByRole("navigation", { name: "Ferramentas do escritório" });
+    expect(within(bar).getByRole("link", { name: "Painel" })).toHaveAttribute("href", "/painel/");
     await userEvent.click(await screen.findByRole("button", { name: "Editar" }));
 
     // A pencil: the description.
@@ -142,6 +147,18 @@ describe("the example project", () => {
     expect(screen.queryByText("Uma casa só nossa.")).toBeNull();
     expect(screen.queryByText("Croqui da sala.png")).toBeNull();
   }, 15_000); // several edits, one after another
+
+  it("lets a visitor edit too, offering the built-in stages without the server", async () => {
+    const { sent } = visit(false);
+    const bar = await screen.findByRole("navigation", { name: "Ferramentas do escritório" });
+    await userEvent.click(within(bar).getByRole("button", { name: "Editar" }));
+    await userEvent.click(await screen.findByRole("button", { name: "+ Adicionar etapa" }));
+    const list = (await screen.findByLabelText("Etapa")) as HTMLSelectElement;
+    await waitFor(() => expect([...list.options].map((o) => o.text)).toContain("Especificações"));
+    await userEvent.selectOptions(list, "Especificações");
+    expect(await screen.findByRole("heading", { name: /Especificações/ })).toBeInTheDocument();
+    expect(sent.filter((r) => r.method !== "GET")).toEqual([]);
+  });
 
   it("hides a file from the client from its menu, in memory", async () => {
     const { sent } = visit(true);
@@ -186,9 +203,10 @@ describe("the explore tour", () => {
     await screen.findByRole("heading", { level: 1, name: "Casa das Araucárias" });
     await waitFor(() => expect(driven.drive).toHaveBeenCalledTimes(2));
     expect(again.sent.some((r) => r.path === "/api/me/tour-seen")).toBe(false);
-    // A visitor has no staff bar: the tour ends where it is.
-    expect(lastTour().steps.at(-1).element).toBeUndefined();
-    expect(lastTour().steps.some((s: { element?: string }) => s.element === '[data-tour="mode"]')).toBe(false);
+    // A visitor is invited to try editing, and isn't sent to a painel they don't have.
+    const visitorTitles = lastTour().steps.map((s: { popover: { title: string } }) => s.popover.title);
+    expect(visitorTitles.at(-1)).toBe("Experimente editar");
+    expect(visitorTitles).not.toContain("Agora, o seu projeto");
   });
 
   it("can be skipped with “Pular”, and runs again from the account menu", async () => {

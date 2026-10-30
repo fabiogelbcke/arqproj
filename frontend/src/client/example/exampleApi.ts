@@ -6,9 +6,16 @@
 import type { Schemas } from "../../api/client";
 import { fileSource, type Page } from "../format";
 import { EXAMPLE_OFFICE, EXAMPLE_SHARE, EXAMPLE_SHARE_KEY, EXAMPLE_SLUG } from "./address";
+import builtins from "./builtins.json";
 import { atOfficeTime, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
 
 const READS = ["/api/me", "/api/tenant", "/api/project-types", "/api/detail-types"];
+// What edit mode offers (types, stages, details), for whoever the server won't
+// answer: a visitor from Unio's home. Kept equal to the server's by test_pages.py.
+const BUILT_IN: Record<string, unknown> = {
+  "/api/project-types": builtins.project_types,
+  "/api/detail-types": builtins.detail_types,
+};
 const PROJECT = `/api/projects/${EXAMPLE_SLUG}`; // the example's project id is its address
 const PAGE = `/api/pages/${EXAMPLE_SLUG}`;
 const UPLOADS = "/exemplo-upload/"; // where the page "sends" a file: ExampleUpload below
@@ -37,6 +44,9 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
   let office: Page["office"] = preview?.office ?? { name: EXAMPLE_OFFICE, logo_url: null, logo_dark_url: null };
   let locale: Page["locale"] = "pt-BR"; // the office's: the page around the (Portuguese) project
   let signedIn = preview?.staff ?? false;
+  // Everyone gets the staff bar, to try edit mode, visitors from Unio's home too;
+  // the preview page chooses.
+  const staffView = preview?.staff ?? true;
   let version = 1; // the page's row version: each change makes a new one
   // The fictional client's address for updates (A32), in the browser like the rest.
   let recipients = preview?.recipients ?? ["marina.andrade@exemplo.com.br"];
@@ -74,8 +84,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     in_proposal: false,
     proposal: null,
     proposal_url: project.proposal_url,
-    // Staff see the staff bar and can try edit mode.
-    staff: signedIn
+    staff: staffView
       ? {
           project_id: EXAMPLE_SLUG,
           features: [], // no proposal link on the example
@@ -438,12 +447,13 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
   async function list<T>(path: string): Promise<T | null> {
     if (preview) return null; // nothing from the server
     const answer = await real(new URL(path, window.location.origin)).catch(() => null);
-    return answer?.ok ? ((await answer.json()) as T) : null;
+    return answer?.ok ? ((await answer.json()) as T) : ((BUILT_IN[path] as T | undefined) ?? null);
   }
 
   /** The server's answer to one of the reads, noting who is signed in and the office. */
   async function read(request: Request, path: string): Promise<Response> {
-    const answer = await real(request);
+    let answer = await real(request);
+    if (!answer.ok && path in BUILT_IN) answer = Response.json(BUILT_IN[path]);
     if (!answer.ok) return answer;
     const body = await answer.clone().json();
     if (path === "/api/tenant") {

@@ -1,6 +1,9 @@
 """The client's project page (slice 2.3): what it shows, what it never shows,
 and the shell the server sends before any script runs."""
 
+import json
+from pathlib import Path
+
 import pytest
 from sqlalchemy import select, text
 
@@ -8,6 +11,8 @@ from backend.identity.models import Role
 from backend.projects.models import ProjectSlug
 from backend.tests import test_office
 from backend.tests.test_office import ALINEA, NORTE, PNG, sign_in_as, tenant_id
+
+EXAMPLE_FOLDER = Path(__file__).resolve().parents[2] / "frontend/src/client/example"
 
 owner = test_office.owner  # fixtures
 
@@ -333,6 +338,20 @@ async def test_the_example_project_is_on_every_offices_address(client, dist, own
     # In capitals, the lowercase address, as for any page.
     moved = await client.get("/Tour-Projeto", headers=host, follow_redirects=False)
     assert (moved.status_code, moved.headers["location"]) == (301, "/tour-projeto")
+
+
+async def test_the_example_carries_the_built_in_lists_its_editors_offer(client, owner):
+    """Visitors from Unio's home try edit mode with no staff session (plan section
+    16), so the example bundles the types, stages and details staff are offered."""
+    bundled = json.loads((EXAMPLE_FOLDER / "builtins.json").read_text("utf-8"))
+    served = {
+        "project_types": (await client.get("/api/project-types", headers=owner)).json(),
+        "detail_types": (await client.get("/api/detail-types", headers=owner)).json(),
+    }
+    assert bundled == served, (
+        "copy /api/project-types and /api/detail-types (pt-BR) into "
+        "frontend/src/client/example/builtins.json"
+    )
 
 
 async def test_staff_see_who_gets_the_projects_updates(client, owner):
