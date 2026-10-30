@@ -184,6 +184,14 @@
   .rowFee[data-empty] { visibility: hidden; }
   .rowMenu, .rowMenuSpace { grid-column: 3; grid-row: 1 / 3; }
 }
+/* Narrow phones: the version and the amount on lines of their own (Codex, PR #171). */
+@media (max-width: 420px) {
+  .row { grid-template-columns: minmax(0, 1fr) 36px; gap: 4px 12px; }
+  .rowMain, .rowMeta, .rowFee { grid-column: 1; grid-row: auto; }
+  .rowFee { text-align: left; }
+  .rowFee[data-empty] { display: none; }
+  .rowMenu, .rowMenuSpace { grid-column: 2; grid-row: 1 / 4; }
+}
 @media (max-width: 720px) {
   .kicker { display: none; }
   .listHead { gap: 12px; margin-bottom: 24px; }
