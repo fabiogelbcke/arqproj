@@ -1218,7 +1218,7 @@
       "date": "Date",
       "intro": "Opening",
       "services": "Services",
-      "servicesHint": "The office's services are listed already. Remove, reorder or edit them for this proposal.",
+      "servicesHint": "The stages chosen for the project are listed as services already. Remove, reorder or edit them for this proposal.",
       "serviceTitle": "Service name",
       "serviceDescription": "Description",
       "moveUp": "Move {{title}} up",

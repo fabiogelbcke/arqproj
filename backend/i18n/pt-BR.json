@@ -1218,7 +1218,7 @@
       "date": "Data",
       "intro": "Abertura",
       "services": "Serviços",
-      "servicesHint": "Os serviços do escritório já vêm listados. Remova, reordene ou edite os desta proposta.",
+      "servicesHint": "As etapas escolhidas para o projeto já vêm listadas como serviços. Remova, reordene ou edite os desta proposta.",
       "serviceTitle": "Nome do serviço",
       "serviceDescription": "Descrição",
       "moveUp": "Mover {{title}} para cima",
