@@ -191,3 +191,43 @@ link that takes in a stage's future files.
   - Apple returns by form POST (cookies behave differently on that hop) and
     gives the name only the first time.
 
+
+## Other professions
+
+- Raised by Fabio, 30 Oct 2026: offer the product to other kinds of offices,
+  each with a very different interface. Examples: nutritionists who upload a
+  plan every week while the patient uploads measurements and photos; designers
+  with projects that never finish; engineers leading projects.
+- The profession belongs to the office (a `vertical` on `Tenant`, chosen when
+  the office is created), not to each login: everyone in an office does the same
+  work, and a login already belongs to one office. It sets which modules are on
+  by default, like the features switched on per office (A40).
+- One app with a shared core, not a copy per profession. Shared: office, users,
+  roles, the client portal at `/{slug}`, files, events, notifications, share
+  links and proposals. Per profession: project types, stages and details (already
+  stored as data; each would be tied to a profession), the home page, the menu
+  and the wording ("Paciente", "Acompanhamento", "Obra"). Code keeps saying
+  "project", as it says "tenant" for "escritório".
+- What the current model lacks:
+  - A client as a record of its own (today `Project.client_name`, one password
+    per project): a patient returns over years, has several projects and needs a
+    login of their own to upload. `Project.client_id` would replace
+    `client_name`. Useful for architects too (one client, several projects), and
+    the base for the rest.
+  - Clients sending things: measurements (client, metric, value, unit, when,
+    entered by client or staff; the metrics defined per profession) and their
+    own uploads, kept apart in the project's folder.
+  - Deliverables published over and over: a weekly plan is a series of versions,
+    not a stage. A generalisation of the proposal's versions.
+  - Projects that never end: a `lifecycle` on the project, `staged` (today) or
+    `ongoing` (a timeline of deliveries and requests, no stages, no completion).
+  - Engineers mostly need what exists (stages, members A41, meetings) plus tasks
+    or milestones with someone responsible.
+- Health data (measurements, body photos) is sensitive personal data under the
+  LGPD: explicit consent, a record of who opened it, deletion on request, and
+  probably a store other than the office's own Google Drive. To be decided
+  before building nutrition.
+- Suggested order: first `Client` and `vertical` (both help architects now),
+  then one second profession, ideally with a real office to try it: design
+  (ongoing projects) is cheapest, nutrition tests the model most. Generalise
+  only what those two turn out to share.
