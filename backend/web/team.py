@@ -186,7 +186,7 @@ async def team(
     staff: CurrentStaff = Depends(current_staff),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> TeamOut:
-    users = list(await db.scalars(select(User)))
+    users = list(await db.scalars(select(User).where(User.support.is_(False))))  # A43
     # People who can sign in first, by name; then pending invites.
     users.sort(key=lambda user: (user.password_hash is None, user.name.lower()))
     on = await db.scalar(select(JoinLink).where(JoinLink.role == Role.MEMBER, *_working()))

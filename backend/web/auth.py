@@ -33,7 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.analytics import capture
 from backend.db.engine import get_tenant_session
-from backend.identity import accounts, links, sessions
+from backend.identity import accounts, links, sessions, support
 from backend.identity.models import LinkKind, LoginSession, Role, User
 from backend.identity.passwords import verify_password
 from backend.notifications.email import Email, EmailError, sender_for
@@ -46,6 +46,8 @@ from backend.web import attempts
 from backend.web.errors import ApiError, ErrorCode, documented
 
 COOKIE = "portal_session"
+# Tags a support session's analytics events, which are dropped (`app.drop_support`).
+SUPPORT_TAG = "unio_support"
 CSRF_HEADER = "X-CSRF-Token"
 # Added to every failed sign-in, to slow down password guessing.
 FAILED_LOGIN_DELAY = 1.0
@@ -70,6 +72,8 @@ class CurrentStaff:
     session_id: uuid.UUID
     csrf_token: str
     email_confirmed: bool = True
+    # When a support session (A43) ends; None for the office's own staff.
+    support_until: datetime | None = None
 
 
 class LoginIn(BaseModel):
@@ -128,6 +132,8 @@ class MeOut(BaseModel):
     # Switched on for the office from the operator dashboard (A40).
     features: list[Feature]
     analytics: AnalyticsOut | None = None
+    # An operator signed in as Suporte Unio (A43): when the session ends.
+    support_until: datetime | None = None
 
 
 def _not_signed_in() -> ApiError:
@@ -158,7 +164,9 @@ async def current_account(
     row, user = found
     await db.commit()  # keeps an extended expiry, if find_active extended it
     posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:  # this request's events are this person's
+    if posthog_client is not None and user.support:
+        posthog_client.tag(SUPPORT_TAG, True)  # dropped before sending (A43)
+    elif posthog_client is not None:  # this request's events are this person's
         posthog_client.identify_context(str(user.id))
         posthog_client.set_context_session(str(row.id))
     # The browser keeps the cookie as long as the session lives, so an active
@@ -172,6 +180,7 @@ async def current_account(
         row.id,
         row.csrf_token,
         user.email_confirmed_at is not None,
+        row.expires_at if user.support else None,
     )
 
 
@@ -405,7 +414,40 @@ async def me(
         seen is not None,
         staff.email_confirmed,
     )
-    out.analytics = analytics_for(request, staff.user_id, tenant)
+    out.support_until = staff.support_until
+    if staff.support_until is None:  # a support session counts for nobody (A43)
+        out.analytics = analytics_for(request, staff.user_id, tenant)
+    return out
+
+
+@router.post("/support-session", responses=documented(404))
+async def support_session(
+    body: LinkIn,
+    request: Request,
+    response: Response,
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> MeOut:
+    """An operator's entry link (A43) spent: this browser is Suporte Unio for an
+    hour. The operator dashboard audited the entry when it made the link."""
+    user = await support.use(db, body.token)
+    if user is None:
+        raise ApiError(404, ErrorCode.LINK_INVALID)
+    token, row = await sessions.start(db, user, support.LIFETIME)
+    await db.commit()
+    _set_cookie(request, response, token, row.expires_at)
+    log.info("support: session started in tenant %s as %s", tenant.id, user.role)
+    out = me_out(
+        user.id,
+        user.email,
+        user.name,
+        user.role,
+        tenant,
+        await display_name(db, tenant),
+        row.csrf_token,
+        tour_seen=True,  # the tour is for the office's people
+    )
+    out.support_until = row.expires_at
     return out
 
 

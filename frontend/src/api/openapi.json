@@ -967,6 +967,55 @@
         }
       }
     },
+    "/api/support-session": {
+      "post": {
+        "summary": "Support Session",
+        "description": "An operator's entry link (A43) spent: this browser is Suporte Unio for an\nhour. The operator dashboard audited the entry when it made the link.",
+        "operationId": "support_session_api_support_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/me/tour-seen": {
       "post": {
         "summary": "Tour Seen",
@@ -7101,6 +7150,7 @@
           "join_link_invalid",
           "account_exists",
           "email_unconfirmed",
+          "support_account",
           "email_code_wrong",
           "email_code_expired",
           "email_code_recent",
@@ -7592,7 +7642,8 @@
         "enum": [
           "invite",
           "reset",
-          "confirm"
+          "confirm",
+          "support"
         ],
         "title": "LinkKind"
       },
@@ -7767,6 +7818,18 @@
                 "type": "null"
               }
             ]
+          },
+          "support_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Until"
           }
         },
         "type": "object",
@@ -10150,7 +10213,9 @@
               "restore",
               "delete",
               "feature_on",
-              "feature_off"
+              "feature_off",
+              "support_owner",
+              "support_member"
             ],
             "title": "Action"
           },
@@ -10188,6 +10253,17 @@
               }
             ],
             "title": "Owner Url"
+          },
+          "support_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Url"
           }
         },
         "type": "object",

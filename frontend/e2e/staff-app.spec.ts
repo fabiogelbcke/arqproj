@@ -152,6 +152,26 @@ test("a chosen logo is cropped in the browser, its empty margins trimmed, and go
   expect(width / height).toBeLessThan(3.2);
 });
 
+test("an operator enters an office as its team from the dashboard, and leaves (A43)", async ({ page }) => {
+  await page.goto(`http://localhost:${PORT}/admin`);
+  await page.getByLabel(/E-mail autorizado/).fill(OPERATOR);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.getByRole("link", { name: "Alinea (dev)" }).click();
+  await page.getByRole("button", { name: "Entrar como equipe" }).click();
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  // The dev server's port in the link, as the other one-time links: this run's instead.
+  const entry = page.getByRole("link", { name: "Abrir o painel do escritório" });
+  await expect(entry).toHaveAttribute("target", "_blank");
+  const painel = await page.context().newPage();
+  await painel.goto((await entry.getAttribute("href"))!.replace(/:\d+\//, `:${PORT}/`));
+  // On the office's own address, signed in as Suporte Unio, with the banner.
+  await expect(painel.getByRole("status").filter({ hasText: "Sessão de suporte do Unio" })).toBeVisible();
+  expect(new URL(painel.url()).hostname).toBe("alinea.localhost");
+  expect(new URL(painel.url()).hash).toBe(""); // the token left the address bar
+  await painel.getByRole("button", { name: "Sair do suporte" }).click();
+  await painel.getByRole("button", { name: "Entrar", exact: true }).waitFor();
+});
+
 test("a session belongs to its office's address", async ({ page }) => {
   const link = invite("outro@alinea.example");
   await page.goto(link);

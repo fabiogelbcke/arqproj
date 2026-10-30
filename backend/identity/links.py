@@ -33,6 +33,8 @@ LIFETIME = {
     LinkKind.INVITE: timedelta(days=7),
     LinkKind.RESET: timedelta(days=1),
     LinkKind.CONFIRM: timedelta(days=1),
+    # Opened at once, in the operator's own browser (A43).
+    LinkKind.SUPPORT: timedelta(minutes=2),
 }
 PATH = "/painel/definir-senha"
 CONFIRM_PATH = "/painel/confirmar-email"

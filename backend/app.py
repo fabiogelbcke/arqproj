@@ -52,6 +52,7 @@ from backend.web import (
     tenant,
     unsubscribe,
 )
+from backend.web.auth import SUPPORT_TAG
 from backend.web.build import BuildIdMiddleware
 from backend.web.errors import ApiError, handle_api_error, handle_invalid_request
 from backend.web.request_id import RequestIdLogFilter, RequestIdMiddleware
@@ -138,6 +139,11 @@ class PostHogContextMiddleware:
                 raise
 
 
+def drop_support(event: dict) -> dict | None:
+    """An operator's support session (A43) is nobody's use of Unio: not sent."""
+    return None if (event.get("properties") or {}).get(SUPPORT_TAG) else event
+
+
 async def verify_runtime_login(engine, settings: Settings) -> None:
     """Refuse to serve unless connected as the restricted login provisioning checked.
 
@@ -185,6 +191,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             settings.posthog_project_token,
             host=settings.posthog_host,
             enable_exception_autocapture=True,
+            before_send=drop_support,
         )
     app.state.posthog = posthog_client
 
