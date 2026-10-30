@@ -1673,9 +1673,10 @@ the reserved address (a migration).
   `slug_not_reserved` check, as `0023_reserve_legal_slugs` did. Check first that
   no project already uses it. Revised 30 Oct 2026 (Fabio): Unio's home links to
   it, so it also opens on Unio's own address, `myunio.app/tour-projeto`, which
-  belongs to no office: the page is served without a tenant
-  (`backend/web/home.py`) and shows a fictional office, "Estúdio Vale
-  Arquitetura"; on an office's address it shows that office.
+  belongs to no office: the page, and the link "shared" from it
+  (`/share/exemplo`), are served without a tenant (`backend/web/home.py`) and
+  show a fictional office, "Estúdio Vale Arquitetura"; on an office's address
+  they show that office.
 - **Kept up to date (Fabio, 30 Oct 2026):** the example shows everything a
   project page can show, so a feature added to the page is added to the example
   in the same pull request. `client/example/coverage.test.ts` fails when the

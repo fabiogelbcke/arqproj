@@ -15,6 +15,7 @@ from starlette.datastructures import Headers
 from starlette.responses import PlainTextResponse, RedirectResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from backend.projects.enums import EXAMPLE_PAGES
 from backend.tenancy.resolve import normalize_host, resolve
 
 # The maintenance pass is every office's: called by the scheduler, never a page.
@@ -43,9 +44,10 @@ UNOWNED_PATHS = frozenset({"/api/drive/callback"})
 OPERATOR_PAGE = "/admin"
 # Creating an office from a link an operator sent (backend/web/office_signup.py).
 SIGNUP_PAGE = "/criar-escritorio"
-# The example project, which Unio's home links to (backend/web/home.py).
-EXAMPLE_PAGE = "/tour-projeto"
-OPERATOR_PATHS = frozenset({OPERATOR_PAGE, SIGNUP_PAGE, EXAMPLE_PAGE, "/api/auth/google/callback"})
+# The example project and its shared link, which Unio's home leads to (home.py).
+OPERATOR_PATHS = frozenset(
+    {OPERATOR_PAGE, SIGNUP_PAGE, *EXAMPLE_PAGES, "/api/auth/google/callback"}
+)
 OPERATOR_PREFIXES = (OPERATOR_PAGE + "/", "/api/admin/", "/api/office-signup/")
 
 

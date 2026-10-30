@@ -2,9 +2,9 @@
 
 Like the legal pages, it needs neither a tenant nor a signed-in session.
 Only the two named assets are served; this is not a general file server.
-The example project (plan section 16) is served here too: its content is in the
-client page's bundle, so its page is the same on Unio's address, which the home
-links to, and on every office's.
+The example project (plan section 16) and the link "shared" from it are served
+here too: their content is in the client page's bundle, so their pages are the
+same on Unio's address, which the home links to, and on every office's.
 """
 
 from pathlib import Path
@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 
-from backend.projects.enums import EXAMPLE_SLUG
+from backend.projects.enums import EXAMPLE_PAGES
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
 
 router = APIRouter(include_in_schema=False)
@@ -43,8 +43,8 @@ def logo() -> FileResponse:
     return FileResponse(PUBLIC / "unio.png", media_type="image/png", headers=HEADERS)
 
 
-@router.get(f"/{EXAMPLE_SLUG}")
 def example(request: Request) -> Response:
+    """The client page's bundle, which draws the example (or its shared link)."""
     shell = Path(request.app.state.settings.frontend_dist) / "client.html"
     if not shell.is_file():
         return PlainTextResponse(
@@ -60,5 +60,10 @@ def example(request: Request) -> Response:
             "Cache-Control": SHELL_CACHE,
             "Content-Security-Policy": CONTENT_SECURITY_POLICY,
             "X-Robots-Tag": "noindex",
+            "Referrer-Policy": "no-referrer",
         },
     )
+
+
+for path in EXAMPLE_PAGES:
+    router.add_api_route(path, example, methods=["GET"], include_in_schema=False)

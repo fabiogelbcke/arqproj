@@ -12,6 +12,7 @@ from backend.settings import Settings
 
 pytestmark = pytest.mark.anyio
 EXAMPLE = "/tour-projeto"
+EXAMPLE_PAGES = (EXAMPLE, "/share/exemplo")
 
 
 class Resources(HTMLParser):
@@ -83,7 +84,15 @@ async def test_public_home_does_not_bypass_tenant_checks_for_other_routes(monkey
     monkeypatch.setattr(middleware, "resolve", unknown_host)
     app = create_app(Settings())
     app.state.sessionmaker = session
-    paths = ("/painel", "/api/projects", "/casa-jardim", "/brand/unknown.png", EXAMPLE)
+    # Any other shared link is an office's, so it is looked up like the rest.
+    paths = (
+        "/painel",
+        "/api/projects",
+        "/casa-jardim",
+        "/brand/unknown.png",
+        "/share/" + "a" * 32,
+        *EXAMPLE_PAGES,
+    )
     async with httpx2.AsyncClient(
         transport=httpx2.ASGITransport(app=app), base_url="https://unknown.example"
     ) as client:
@@ -100,7 +109,9 @@ async def test_the_example_project_opens_from_unios_own_address(tmp_path):
     async with httpx2.AsyncClient(
         transport=httpx2.ASGITransport(app=app), base_url="https://myunio.app"
     ) as client:
-        response = await client.get(EXAMPLE)
-    assert response.status_code == 200
-    assert "<title>Projeto de exemplo</title>" in response.text and "id=page" in response.text
-    assert response.headers["x-robots-tag"] == "noindex"
+        # The example, and the link "shared" from it (its page is in the browser).
+        for path in EXAMPLE_PAGES:
+            response = await client.get(path)
+            assert response.status_code == 200, path
+            assert "id=page" in response.text
+            assert response.headers["x-robots-tag"] == "noindex"

@@ -5,8 +5,8 @@
 // types and details the editors offer. Every other /api request stays here.
 import type { Schemas } from "../../api/client";
 import { fileSource, type Page } from "../format";
-import { EXAMPLE_SHARE, EXAMPLE_SHARE_KEY, EXAMPLE_SLUG } from "./address";
-import { atOfficeTime, EXAMPLE_OFFICE, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
+import { EXAMPLE_OFFICE, EXAMPLE_SHARE, EXAMPLE_SHARE_KEY, EXAMPLE_SLUG } from "./address";
+import { atOfficeTime, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
 
 const READS = ["/api/me", "/api/tenant", "/api/project-types", "/api/detail-types"];
 const PROJECT = `/api/projects/${EXAMPLE_SLUG}`; // the example's project id is its address

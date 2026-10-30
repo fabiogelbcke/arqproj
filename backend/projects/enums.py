@@ -102,3 +102,9 @@ RESERVED_SLUGS = (
 # The example project's address on every office's address (plan section 16): the
 # client page shows a fictional project there, from its own bundle.
 EXAMPLE_SLUG = "tour-projeto"
+# A link "shared" from it (frontend `EXAMPLE_SHARE`): its page is in the browser, at
+# /share/exemplo. A real token is 32 characters, so never this.
+EXAMPLE_SHARE = "exemplo"
+# Both pages need no office, so they open on Unio's own address too (its home links
+# to the example).
+EXAMPLE_PAGES = (f"/{EXAMPLE_SLUG}", f"/share/{EXAMPLE_SHARE}")

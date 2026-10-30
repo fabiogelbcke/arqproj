@@ -11,9 +11,6 @@ import dwg from "./files/planta-exemplo.dwg?url";
 import pdf from "./files/folha-exemplo.pdf?url";
 
 export const EXAMPLE_TIMEZONE = "America/Sao_Paulo"; // without a signed-in office's own
-// The office the example belongs to where no office answers: on Unio's own address,
-// which the home links to. On an office's address, that office's name and logo.
-export const EXAMPLE_OFFICE = "Estúdio Vale Arquitetura";
 
 /** A file as the page lists it, plus where its bytes are (bundled, or uploaded here). */
 export type ExampleFile = Schemas["FileOut"] & { url: string };
