@@ -51,6 +51,7 @@ async def test_an_operator_enters_as_owner_for_an_hour_audited(client, actions_e
     assert entered.status_code == 200, entered.text
     me = (await client.get("/api/me", headers=ALINEA)).json()
     assert (me["name"], me["role"]) == ("Suporte Unio", "owner")
+    assert me["page_tour_seen"]  # the project page's tour is the office's people's
     until = datetime.fromisoformat(me["support_until"])
     assert timedelta(minutes=59) < until - datetime.now(UTC) <= timedelta(hours=1)
     assert me["analytics"] is None

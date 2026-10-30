@@ -776,3 +776,46 @@ def test_survey_assessment_becomes_survey_in_every_office(migrated_url):
             connection.execute(text(f'DROP OWNED BY "{owner}"'))
             connection.execute(text(f'DROP ROLE "{owner}"'))
         engine.dispose()
+
+
+def test_support_accounts_go_on_downgrade_and_what_they_made_stays(migrated_url):
+    """0044's downgrade removes Suporte Unio (A43) though it made a share link,
+    whose maker becomes unknown rather than blocking the downgrade."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    engine = create_engine(migrated_url)
+    try:
+        with engine.begin() as connection:
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES ('alinea', 'Alinea') RETURNING id")
+            )
+            support = connection.scalar(
+                text(
+                    "INSERT INTO users (tenant_id, email, name, role, support) "
+                    "VALUES (:t, 'suporte-owner@unio.invalid', 'Suporte Unio', 'owner', true) "
+                    "RETURNING id"
+                ),
+                {"t": tenant},
+            )
+            project = connection.scalar(
+                text(
+                    "INSERT INTO projects (tenant_id, name, client_name, project_type) "
+                    "SELECT :t, 'Casa', 'Ana', key FROM project_types LIMIT 1 RETURNING id"
+                ),
+                {"t": tenant},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO share_links (tenant_id, project_id, token_hash, created_by) "
+                    "VALUES (:t, :p, 'h', :u)"
+                ),
+                {"t": tenant, "p": project, "u": support},
+            )
+        command.downgrade(alembic_config(migrated_url), "0043")
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT count(*) FROM users")) == 0
+            assert connection.execute(text("SELECT created_by FROM share_links")).all() == [
+                (None,)
+            ]
+    finally:
+        command.upgrade(alembic_config(migrated_url), "head")
+        engine.dispose()

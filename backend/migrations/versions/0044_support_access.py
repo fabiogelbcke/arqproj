@@ -47,7 +47,15 @@ def downgrade() -> None:
         "password_links",
         "kind IN ('invite', 'reset', 'confirm')",
     )
-    op.execute("ALTER TABLE users NO FORCE ROW LEVEL SECURITY")
+    # What they made stays, its maker unknown (`created_by` allows that).
+    for table in ("share_links", "proposals", "users"):
+        op.execute(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY")
+    for table in ("share_links", "proposals"):
+        op.execute(
+            f"UPDATE {table} SET created_by = NULL "
+            "WHERE created_by IN (SELECT id FROM users WHERE support)"
+        )
     op.execute("DELETE FROM users WHERE support")
-    op.execute("ALTER TABLE users FORCE ROW LEVEL SECURITY")
+    for table in ("share_links", "proposals", "users"):
+        op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
     op.drop_column("users", "support")

@@ -411,7 +411,8 @@ async def me(
         tenant,
         office,
         staff.csrf_token,
-        seen is not None,
+        # The tour is for the office's people, not an operator in support (A43).
+        seen is not None or staff.support_until is not None,
         staff.email_confirmed,
     )
     out.support_until = staff.support_until
