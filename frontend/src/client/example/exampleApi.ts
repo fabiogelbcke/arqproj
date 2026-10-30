@@ -6,7 +6,7 @@
 import type { Schemas } from "../../api/client";
 import { fileSource, type Page } from "../format";
 import { EXAMPLE_SHARE, EXAMPLE_SHARE_KEY, EXAMPLE_SLUG } from "./address";
-import { atOfficeTime, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
+import { atOfficeTime, EXAMPLE_OFFICE, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
 
 const READS = ["/api/me", "/api/tenant", "/api/project-types", "/api/detail-types"];
 const PROJECT = `/api/projects/${EXAMPLE_SLUG}`; // the example's project id is its address
@@ -34,7 +34,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
   const real: typeof fetch = (globalThis.fetch as { real?: typeof fetch }).real ?? globalThis.fetch;
   let timeZone = EXAMPLE_TIMEZONE;
   let project: ExampleProject = preview?.project ?? exampleProject(now, timeZone);
-  let office: Page["office"] = preview?.office ?? { name: "", logo_url: null, logo_dark_url: null };
+  let office: Page["office"] = preview?.office ?? { name: EXAMPLE_OFFICE, logo_url: null, logo_dark_url: null };
   let locale: Page["locale"] = "pt-BR"; // the office's: the page around the (Portuguese) project
   let signedIn = preview?.staff ?? false;
   let version = 1; // the page's row version: each change makes a new one
@@ -49,7 +49,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
   const page = (): Page => ({
     id: "00000000-0000-4000-8000-00000000e0e0", // the example project is in no database
     office,
-    team: [],
+    team: project.team,
     locale,
     timezone: timeZone,
     name: project.name,
@@ -70,10 +70,10 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       completed,
     })),
     next_meeting: project.next_meeting,
-    // The example project is under way: no proposal (A42).
+    // The example project is under way, its proposal accepted (A42).
     in_proposal: false,
     proposal: null,
-    proposal_url: null,
+    proposal_url: project.proposal_url,
     // Staff see the staff bar and can try edit mode.
     staff: signedIn
       ? {

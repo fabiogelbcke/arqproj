@@ -11,6 +11,9 @@ import dwg from "./files/planta-exemplo.dwg?url";
 import pdf from "./files/folha-exemplo.pdf?url";
 
 export const EXAMPLE_TIMEZONE = "America/Sao_Paulo"; // without a signed-in office's own
+// The office the example belongs to where no office answers: on Unio's own address,
+// which the home links to. On an office's address, that office's name and logo.
+export const EXAMPLE_OFFICE = "Estúdio Vale Arquitetura";
 
 /** A file as the page lists it, plus where its bytes are (bundled, or uploaded here). */
 export type ExampleFile = Schemas["FileOut"] & { url: string };
@@ -24,6 +27,8 @@ export type ExampleProject = {
   project_type_key: string;
   description: string;
   cover_url: string | null;
+  team: string[]; // "Responsável" (A41)
+  proposal_url: string | null; // the accepted proposal's PDF, before the stages (A42)
   status: "active" | "completed";
   last_update: string;
   details: Detail[];
@@ -83,6 +88,8 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       "- Três suítes e escritório\n" +
       "- Piscina na cota mais baixa do terreno",
     cover_url: house,
+    team: ["Paula Ribeiro"],
+    proposal_url: pdf,
     status: "active",
     last_update: ago(1),
     details: [
@@ -93,13 +100,6 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       { key: "expected_delivery", label: "Previsão de entrega", type: "date", value: inDays(120) },
     ],
     stages: [
-      {
-        title: "Proposta",
-        completed: true,
-        about: "Escopo, condições e planejamento do projeto.",
-        notes: "Proposta aprovada. Obrigado pela confiança!",
-        groups: [{ folder: null, files: [file("Proposta de serviços.pdf", "pdf", pdf, 184_320, 70)] }],
-      },
       {
         title: "Briefing e Levantamento",
         completed: true,
@@ -126,6 +126,13 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
             folder: null,
             files: [
               file("Implantação - estudo A.pdf", "pdf", pdf, 2_412_544, 3),
+              // A document in its second version (A25): "Atualizado", with the first kept.
+              {
+                ...file("Planta baixa - térreo.pdf", "pdf", pdf, 1_310_720, 1),
+                version: 2,
+                updated: true,
+                older: [{ ...file("Planta baixa - térreo.pdf", "pdf", pdf, 1_298_432, 3), version: 1 }],
+              },
               file("Planta baixa - térreo.dwg", "other", dwg, 5_872_025, 3),
               file("Estudo de cobertura.jpg", "image", roof, 1_228_800, 1),
             ],
@@ -169,11 +176,12 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       link: null,
     },
     updates: [
-      { id: "exemplo-u1", kind: "file_published", occurred_at: ago(1), stage_position: 3, name: "Estudo de cobertura.jpg" },
-      { id: "exemplo-u2", kind: "note_changed", occurred_at: ago(3), stage_position: 3 },
-      { id: "exemplo-u3", kind: "file_published", occurred_at: ago(3), stage_position: 3, name: "Implantação - estudo A.pdf" },
+      { id: "exemplo-u1", kind: "file_published", occurred_at: ago(1), stage_position: 2, name: "Estudo de cobertura.jpg" },
+      { id: "exemplo-u6", kind: "file_published", occurred_at: ago(1), stage_position: 2, name: "Planta baixa - térreo.pdf" },
+      { id: "exemplo-u2", kind: "note_changed", occurred_at: ago(3), stage_position: 2 },
+      { id: "exemplo-u3", kind: "file_published", occurred_at: ago(3), stage_position: 2, name: "Implantação - estudo A.pdf" },
       { id: "exemplo-u4", kind: "meeting_scheduled", occurred_at: ago(4), stage_position: null },
-      { id: "exemplo-u5", kind: "stage_completed", occurred_at: ago(20), stage_position: 2 },
+      { id: "exemplo-u5", kind: "stage_completed", occurred_at: ago(20), stage_position: 1 },
     ],
   };
 }

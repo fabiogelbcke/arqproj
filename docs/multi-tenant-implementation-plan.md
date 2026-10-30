@@ -1671,14 +1671,26 @@ the reserved address (a migration).
   with the fixture instead of calling `/api/pages/{slug}`. `tour-projeto` must
   become a reserved slug: add it to `RESERVED_SLUGS`, plus a migration for the
   `slug_not_reserved` check, as `0023_reserve_legal_slugs` did. Check first that
-  no project already uses it.
+  no project already uses it. Revised 30 Oct 2026 (Fabio): Unio's home links to
+  it, so it also opens on Unio's own address, `myunio.app/tour-projeto`, which
+  belongs to no office: the page is served without a tenant
+  (`backend/web/home.py`) and shows a fictional office, "Estúdio Vale
+  Arquitetura"; on an office's address it shows that office.
+- **Kept up to date (Fabio, 30 Oct 2026):** the example shows everything a
+  project page can show, so a feature added to the page is added to the example
+  in the same pull request. `client/example/coverage.test.ts` fails when the
+  page's API gains a field the example leaves empty, unless listed there with
+  the reason; features that add no field (a new way to show something) are on
+  the author and reviewer.
 - **Who:** signed-in staff see the staff bar, with "Ver como cliente / Editar",
   so they can try edit mode. Signed out, it's the client's view.
 - **Data:** a Portuguese fixture (AGENTS.md: demo data in Brazilian Portuguese)
   in `frontend/src/client/example/`. It has a name and type, description,
-  details, a meeting, about seven stages with notes, and files in some stages:
-  images from the bundled placeholder covers, PDFs shown with the sheet
-  thumbnail, one DWG. Updates for the bell. No cover, or a bundled one.
+  details, who is responsible (A41), the accepted proposal's PDF (A42), a
+  meeting, six stages with notes, and files in some stages: images from the
+  bundled placeholder covers, PDFs shown with the sheet thumbnail, one DWG, and
+  a document in its second version, "Atualizado", with the first kept (A25).
+  Updates for the bell. A bundled cover.
 - **Edits:** the page's calls go to an in-browser fake of the API, like the
   tests' `fakeApi`. Pencils, "Marcar etapa como concluída", the file menu and uploads change the
   page in memory, and a reload resets it. A banner says "Projeto de exemplo:
@@ -2061,7 +2073,10 @@ explain delayed backup expiry. Have a human-reviewed privacy/data-processing
 agreement suitable for the actual customers and jurisdictions, including Brazil.
 
 Unio's public homepage is at `/`, with the product logo, a description of the
-project portal and an explanation of its Google Drive access. It is served as
+project portal, a link to the example project and a short note on Google Drive
+(the files stay in the office's Drive; Unio creates and organises the project
+folders), linking to the privacy policy, which explains the access in full
+(revised 30 Oct 2026, Fabio: a line, not a section). It is served as
 static HTML and CSS without sign-in, JavaScript, tracking or a tenant lookup
 (`backend/web/home.py`). Its two named assets also bypass tenant resolution;
 staff and project routes still require it. The page links to the existing legal

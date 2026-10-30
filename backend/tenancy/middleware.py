@@ -43,7 +43,9 @@ UNOWNED_PATHS = frozenset({"/api/drive/callback"})
 OPERATOR_PAGE = "/admin"
 # Creating an office from a link an operator sent (backend/web/office_signup.py).
 SIGNUP_PAGE = "/criar-escritorio"
-OPERATOR_PATHS = frozenset({OPERATOR_PAGE, SIGNUP_PAGE, "/api/auth/google/callback"})
+# The example project, which Unio's home links to (backend/web/home.py).
+EXAMPLE_PAGE = "/tour-projeto"
+OPERATOR_PATHS = frozenset({OPERATOR_PAGE, SIGNUP_PAGE, EXAMPLE_PAGE, "/api/auth/google/callback"})
 OPERATOR_PREFIXES = (OPERATOR_PAGE + "/", "/api/admin/", "/api/office-signup/")
 
 

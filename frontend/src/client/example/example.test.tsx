@@ -54,10 +54,16 @@ describe("the example project", () => {
     expect(screen.getByText("Projeto Arquitetônico")).toBeInTheDocument();
     expect(screen.getByText("Apresentação do estudo")).toBeInTheDocument();
     // The first stage still open is open, with its files: an image, a PDF and a DWG.
-    const current = document.getElementById("stage-2")!;
+    const current = document.getElementById("stage-1")!;
     expect(await within(current).findByText("Estudo de cobertura.jpg")).toBeVisible();
     expect(within(current).getByText("Implantação - estudo A.pdf")).toBeVisible();
     expect(within(current).getByText("Planta baixa - térreo.dwg")).toBeVisible();
+    // The features a real page shows, so the example shows them too: a document's
+    // new version (A25), who is responsible (A41), the accepted proposal (A42).
+    expect(within(current).getByText("Atualizado")).toBeVisible();
+    expect(within(current).getByRole("button", { name: /2 versões/ })).toBeInTheDocument();
+    expect(screen.getByText("Paula Ribeiro")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Proposta – Casa das Araucárias\.pdf/ })).toBeInTheDocument();
     // A visitor: the client's view, no staff bar.
     expect(screen.queryByRole("navigation", { name: "Ferramentas do escritório" })).toBeNull();
     // Only who is signed in and the office were asked for; nothing about pages.
@@ -118,10 +124,10 @@ describe("the example project", () => {
     await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Concluir etapa" })); // asked first
     await waitFor(() => expect(within(later).getByRole("button", { name: "Reabrir etapa" })).toBeInTheDocument());
 
-    // An upload to the open stage (03): it shows there, from this browser.
-    const input = document.getElementById("up-3") as HTMLInputElement;
+    // An upload to the open stage (02): it shows there, from this browser.
+    const input = document.getElementById("up-2") as HTMLInputElement;
     await userEvent.upload(input, new File(["x"], "Croqui da sala.png", { type: "image/png" }));
-    expect(await within(document.getElementById("stage-2")!).findByText("Croqui da sala.png")).toBeInTheDocument();
+    expect(await within(document.getElementById("stage-1")!).findByText("Croqui da sala.png")).toBeInTheDocument();
 
     // Nothing but reads ever reached the server.
     expect(sent.filter((r) => r.method !== "GET")).toEqual([]);
@@ -141,9 +147,10 @@ describe("the example project", () => {
     const { sent } = visit(true);
     await userEvent.click(await screen.findByRole("button", { name: "Editar" }));
     const menu = await screen.findByRole("button", { name: /Estudo de cobertura\.jpg/, expanded: false });
+    expect(document.getElementById("stage-1")!.contains(menu)).toBe(true);
     await userEvent.click(menu);
     await userEvent.click(await screen.findByRole("menuitem", { name: /Ocultar do cliente/ }));
-    const stage = document.getElementById("stage-2")!;
+    const stage = document.getElementById("stage-1")!;
     await waitFor(() => expect(within(stage).queryByText("Estudo de cobertura.jpg")).toBeNull());
     expect(sent.filter((r) => r.method !== "GET")).toEqual([]);
   });
