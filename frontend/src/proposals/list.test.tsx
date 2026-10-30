@@ -73,6 +73,37 @@ describe("the Propostas tab (A42)", () => {
     expect(within(screen.getByRole("region", { name: /Recusadas/ })).getByText("Casa Velha")).toBeInTheDocument();
   });
 
+  it("totals each group's amounts beside its name", async () => {
+    api();
+    renderAt("/propostas");
+    const open = await screen.findByRole("region", { name: /Ativas/ });
+    expect(within(open).getByText("R$ 29.000,00 em aberto")).toBeInTheDocument(); // the unsaved one adds nothing
+    expect(within(screen.getByRole("region", { name: /Aceitas/ })).getByText("R$ 29.000,00 aceitos")).toBeInTheDocument();
+  });
+
+  it("finds a proposal by its name or client, and says when none matches", async () => {
+    api();
+    renderAt("/propostas");
+    const search = await screen.findByRole("searchbox", { name: "Buscar propostas" });
+    await userEvent.type(search, "souza jardim");
+    expect(screen.getByRole("link", { name: /Casa Jardim/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Casa do Lago/ })).toBeNull();
+    expect(screen.queryByRole("region", { name: /Ativas/ })).toBeNull(); // emptied by the search: left out
+    await userEvent.clear(search);
+    await userEvent.type(search, "inexistente");
+    expect(screen.getByText("Nenhuma proposta encontrada para “inexistente”.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Limpar busca" }));
+    expect(await screen.findByRole("link", { name: /Casa do Lago/ })).toBeInTheDocument();
+  });
+
+  it("says what a proposal is while the office has none", async () => {
+    api({ "GET /api/proposals": () => ({ body: [] }) });
+    renderAt("/propostas");
+    expect(await screen.findByText(/Quando ela for aceita, vira um projeto/)).toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.getByRole("button", { name: "Nova proposta" })).toBeInTheDocument();
+  });
+
   it("starts a new proposal from here", async () => {
     api({ "GET /api/drive": () => ({ body: { kind: "folder", writer_status: "none", reader_status: "unknown" } }) });
     renderAt("/propostas");
