@@ -5,7 +5,7 @@ stays out of the office's team, counts and analytics."""
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from backend.app import drop_support
 from backend.identity import support
@@ -171,3 +171,29 @@ async def test_a_support_sessions_events_never_reach_posthog(client, actions_ena
     assert tagged and all(m["properties"][auth.SUPPORT_TAG] for m in tagged)
     assert [drop_support(m) for m in tagged] == [None] * len(tagged)
     assert drop_support({"event": "x", "properties": {"tenant": "alinea"}}) is not None
+
+
+async def test_suporte_unio_is_no_pending_invite_to_send_again(client, actions_enabled):
+    """Codex, PR #173: it has no password, like an invite; a link to choose one
+    would turn it into a 30-day account outside the audit."""
+    headers = await office_headers(client, await entry_url(client))
+    me = (await client.get("/api/me", headers=ALINEA)).json()
+    again = await client.post(f"/api/team/invites/{me['id']}/link", headers=headers)
+    assert again.status_code == 404
+    cancel = await client.delete(f"/api/team/invites/{me['id']}", headers=headers)
+    assert cancel.status_code == 404
+
+
+async def test_no_password_link_works_for_suporte_unio(client, actions_enabled, db_session):
+    """However one came to exist, a link to choose a password never opens it."""
+    from backend.identity import links
+    from backend.identity.models import LinkKind, User
+
+    await enter(client, await entry_url(client))
+    user = await db_session.scalar(select(User).where(User.support))
+    token = await links.create(db_session, user, LinkKind.RESET)
+    client.cookies.clear()
+    chosen = await client.post(
+        "/api/password", json={"token": token, "password": "uma senha nova e boa"}, headers=ALINEA
+    )
+    assert chosen.status_code == 404

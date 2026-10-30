@@ -242,7 +242,7 @@ async def _pending(db: AsyncSession, user_id: uuid.UUID) -> User:
     # Read from the database every time (never this session's copy): called again
     # once a lock is held, it must see an invite used or cancelled meanwhile.
     user = await db.get(User, user_id, populate_existing=True)
-    if user is None:
+    if user is None or user.support:  # Suporte Unio has no password, but isn't invited (A43)
         raise ApiError(404, ErrorCode.NOT_AN_INVITE)
     if user.password_hash is not None:
         raise ApiError(409, ErrorCode.NOT_AN_INVITE)  # already in

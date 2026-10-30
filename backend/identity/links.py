@@ -116,7 +116,15 @@ def _live():
 
 
 def _usable(token: str, kinds: Collection[LinkKind]):
-    return (PasswordLink.token_hash == _hash(token), PasswordLink.kind.in_(kinds), *_live())
+    # A support account (A43) is entered only by its own kind of link: never one
+    # that sets a password or confirms an email, however it came to exist.
+    support = PasswordLink.user_id.in_(select(User.id).where(User.support))
+    return (
+        PasswordLink.token_hash == _hash(token),
+        PasswordLink.kind.in_(kinds),
+        support if set(kinds) == {LinkKind.SUPPORT} else ~support,
+        *_live(),
+    )
 
 
 async def find(
