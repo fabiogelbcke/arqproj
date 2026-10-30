@@ -1148,6 +1148,7 @@
     "list": {
       "kicker": "Proposals",
       "title": "Proposals",
+      "emptyTitle": "No proposals yet",
       "lead": "Create a proposal for a new client. Once accepted, it becomes a project.",
       "open": "Open",
       "accepted": "Accepted",
@@ -1160,7 +1161,15 @@
       "decline": "Mark as declined",
       "reopen": "Reopen proposal",
       "declinedDone": "“{{name}}” marked as declined.",
-      "reopenedDone": "“{{name}}” reopened."
+      "reopenedDone": "“{{name}}” reopened.",
+      "search": "Search proposals",
+      "searchPlaceholder": "Proposal or client",
+      "resultCount_zero": "No proposals found",
+      "resultCount_one": "{{count}} proposal found",
+      "resultCount_other": "{{count}} proposals found",
+      "noResults": "No proposals found for “{{query}}”.",
+      "totalOpen": "{{amount}} open",
+      "totalAccepted": "{{amount}} accepted"
     },
     "pdf": {
       "greeting": "Dear Sir or Madam,",
