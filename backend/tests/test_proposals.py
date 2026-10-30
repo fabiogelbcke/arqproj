@@ -360,6 +360,21 @@ async def test_a_new_proposals_services_are_the_stages_ticked_at_creation(client
     assert services[2]["description"] == ""
 
 
+async def test_a_new_proposal_lists_every_stage_a_project_can_be_created_with(client, owner):
+    every = [
+        s["key"] for s in (await client.get("/api/project-types", headers=owner)).json()["stages"]
+    ]
+    own = [f"Etapa própria {n}" for n in range(1, 21)]  # as many as creation takes
+    created = await create(client, owner, stages=every, custom_stages=own, proposal=True)
+    assert created.status_code == 201, created.text
+    services = await start_of(client, owner, created.json()["id"])
+    assert len(services) == len(every) + len(own)
+    assert services[-1]["title"] == "Etapa própria 20"
+    # And such a proposal can be saved as it starts.
+    saved = await save(client, owner, created.json()["id"], services=services)
+    assert saved.status_code == 201, saved.text
+
+
 async def test_a_new_proposal_without_stages_lists_the_offices_services(client, owner):
     mine = [{"title": "Consultoria", "description": "Uma visita."}]
     await client.put("/api/proposal-presets", json={"services": mine}, headers=owner)

@@ -8583,7 +8583,7 @@
               "$ref": "#/components/schemas/Service"
             },
             "type": "array",
-            "maxItems": 20,
+            "maxItems": 40,
             "title": "Services"
           }
         },
@@ -9035,7 +9035,7 @@
               "$ref": "#/components/schemas/Service"
             },
             "type": "array",
-            "maxItems": 20,
+            "maxItems": 40,
             "minItems": 1,
             "title": "Services"
           },
@@ -9318,7 +9318,7 @@
               "$ref": "#/components/schemas/Service"
             },
             "type": "array",
-            "maxItems": 20,
+            "maxItems": 40,
             "title": "Services",
             "default": []
           },
