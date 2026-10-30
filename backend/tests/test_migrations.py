@@ -810,12 +810,18 @@ def test_support_accounts_go_on_downgrade_and_what_they_made_stays(migrated_url)
                 ),
                 {"t": tenant, "p": project, "u": support},
             )
+            connection.execute(  # the office's shared invite link, turned on in support
+                text(
+                    "INSERT INTO join_links (tenant_id, created_by, token_hash) "
+                    "VALUES (:t, :u, 'j')"
+                ),
+                {"t": tenant, "u": support},
+            )
         command.downgrade(alembic_config(migrated_url), "0043")
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT count(*) FROM users")) == 0
-            assert connection.execute(text("SELECT created_by FROM share_links")).all() == [
-                (None,)
-            ]
+            assert connection.execute(text("SELECT created_by FROM share_links")).all() == [(None,)]
+            assert connection.execute(text("SELECT created_by FROM join_links")).all() == [(None,)]
     finally:
         command.upgrade(alembic_config(migrated_url), "head")
         engine.dispose()

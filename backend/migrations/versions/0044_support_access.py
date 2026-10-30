@@ -48,14 +48,14 @@ def downgrade() -> None:
         "kind IN ('invite', 'reset', 'confirm')",
     )
     # What they made stays, its maker unknown (`created_by` allows that).
-    for table in ("share_links", "proposals", "users"):
+    for table in ("share_links", "proposals", "join_links", "users"):
         op.execute(f"ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY")
-    for table in ("share_links", "proposals"):
+    for table in ("share_links", "proposals", "join_links"):
         op.execute(
             f"UPDATE {table} SET created_by = NULL "
             "WHERE created_by IN (SELECT id FROM users WHERE support)"
         )
     op.execute("DELETE FROM users WHERE support")
-    for table in ("share_links", "proposals", "users"):
+    for table in ("share_links", "proposals", "join_links", "users"):
         op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
     op.drop_column("users", "support")
