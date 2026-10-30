@@ -1148,6 +1148,7 @@
     "list": {
       "kicker": "Propostas",
       "title": "Propostas",
+      "emptyTitle": "Nenhuma proposta ainda",
       "lead": "Crie uma proposta para um novo cliente. Quando ela for aceita, vira um projeto.",
       "open": "Ativas",
       "accepted": "Aceitas",
@@ -1160,7 +1161,15 @@
       "decline": "Marcar como recusada",
       "reopen": "Reabrir proposta",
       "declinedDone": "“{{name}}” marcada como recusada.",
-      "reopenedDone": "“{{name}}” reaberta."
+      "reopenedDone": "“{{name}}” reaberta.",
+      "search": "Buscar propostas",
+      "searchPlaceholder": "Proposta ou cliente",
+      "resultCount_zero": "Nenhuma proposta encontrada",
+      "resultCount_one": "{{count}} proposta encontrada",
+      "resultCount_other": "{{count}} propostas encontradas",
+      "noResults": "Nenhuma proposta encontrada para “{{query}}”.",
+      "totalOpen": "{{amount}} em aberto",
+      "totalAccepted": "{{amount}} aceitos"
     },
     "pdf": {
       "greeting": "Prezado(a) Senhor(a),",

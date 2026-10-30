@@ -519,7 +519,7 @@ test("@screenshots proposals", async ({ page }) => {
   await page.request.post("/api/me/tour-seen", { headers: { "X-CSRF-Token": me.csrf_token } });
 
   await page.getByRole("link", { name: "Propostas" }).first().click();
-  await page.getByRole("region", { name: /Ativas/ }).waitFor();
+  await page.getByText(/Quando ela for aceita, vira um projeto/).waitFor(); // none yet: what a proposal is
   await shoot(page, "11-propostas-vazia");
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("button", { name: "Nova proposta" }).click();
