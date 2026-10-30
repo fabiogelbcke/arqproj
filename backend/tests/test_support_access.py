@@ -7,9 +7,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select, text
 
-from backend.app import drop_support
+from backend.app import posthog_for
 from backend.identity import support
 from backend.identity.models import Role
+from backend.settings import Settings
 from backend.tests import test_admin, test_analytics, test_operator_actions
 from backend.tests.test_office import ALINEA, NORTE
 from backend.web import auth
@@ -169,8 +170,15 @@ async def test_a_support_sessions_events_never_reach_posthog(client, actions_ena
     assert (await client.post("/api/me/tour-seen", headers=headers)).status_code == 204
     tagged = [m for m in sent if m.get("event") == "page_tour_seen"]
     assert tagged and all(m["properties"][auth.SUPPORT_TAG] for m in tagged)
-    assert [drop_support(m) for m in tagged] == [None] * len(tagged)
-    assert drop_support({"event": "x", "properties": {"tenant": "alinea"}}) is not None
+    # The app's own client drops them before sending (`send=False`: no network).
+    settings = Settings(posthog_project_token="phc_test", posthog_host="http://posthog.invalid")
+    posthog = posthog_for(settings, send=False)
+    try:
+        assert all(posthog._enqueue(m, True) is None for m in tagged)  # noqa: SLF001
+        office_event = {"event": "x", "distinct_id": "a", "timestamp": None, "properties": {}}
+        assert posthog._enqueue(office_event, True) is not None  # noqa: SLF001
+    finally:
+        posthog.shutdown()
 
 
 async def test_suporte_unio_is_no_pending_invite_to_send_again(client, actions_enabled):
