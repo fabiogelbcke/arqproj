@@ -72,7 +72,7 @@ spec:
             - name: OPERATOR_HOST
               value: myunio.app
             - name: OPERATOR_EMAILS
-              value: fabio.gelbcke@gmail.com,brunocallado1@gmail.com,arqdevproj@gmail.com,mariana.mo.maciel@gmail.com
+              value: fabio.gelbcke@gmail.com,brunocallado1@gmail.com,arqdevproj@gmail.com,mariana.mo.maciel@gmail.com,alineaarquitetos@gmail.com
             - name: GOOGLE_SIGNIN_REDIRECT_URI
               value: https://myunio.app/api/auth/google/callback
             - name: DRIVE_READER_IDENTITY
