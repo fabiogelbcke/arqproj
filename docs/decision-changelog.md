@@ -19,6 +19,23 @@ a new entry too.
 
 ---
 
+## 2026-10-30 — A38, A43: operators can enter an office's painel
+
+**Was:** the operator dashboard showed counts and health only: no file names,
+project texts or client details, and no way into an office's painel.
+
+**Now:** an operator can enter an office as its owner or a member for 1 hour,
+through a hidden "Suporte Unio" account (A43), and then sees what that role
+sees. The dashboard itself still shows counts and health only. Each entry is
+audited. The app doesn't ask the office's permission or tell the office.
+
+**Why:** Fabio needs to debug problems an office reports, and to check what
+owners and members each see while building. He asks the owner first, outside
+Unio. Section 5 already allowed operators "explicit audited support action
+only". This is that action.
+
+---
+
 ## 2026-10-30 — A42: a new proposal's services are the project's stages
 
 **Was:** a new proposal listed every service the office offers (its presets, or

@@ -26,12 +26,14 @@ export function MobileMenu({
   signingOut,
   signOutError,
   onTour,
+  account = true,
 }: {
   name: string; // the staff member's, as entered
   onSignOut: () => void;
   signingOut: boolean;
   signOutError: unknown; // shown here: the drawer covers the page's own notice
   onTour: () => void; // the painel's tour, once the drawer has gone
+  account?: boolean; // "Minha conta"; not in a support session (A43)
 }) {
   const { t } = useTranslation();
   const proposals = useFeature("proposals"); // their own tab (A40, A42)
@@ -68,9 +70,11 @@ export function MobileMenu({
                   <NavLink to="/configuracoes" onClick={close}>
                     {t("nav.settings")}
                   </NavLink>
-                  <NavLink to="/conta" onClick={close}>
-                    {t("account.title")}
-                  </NavLink>
+                  {account && (
+                    <NavLink to="/conta" onClick={close}>
+                      {t("account.title")}
+                    </NavLink>
+                  )}
                 </nav>
                 <Switch
                   className={styles.switch}

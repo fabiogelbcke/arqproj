@@ -23,7 +23,7 @@ export function SignedInLayout() {
 }
 
 function Painel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const me = useMe();
   const office = useOffice(); // the logo, once uploaded (Configurações → Escritório)
   const location = useLocation();
@@ -40,6 +40,10 @@ function Painel() {
   // The painel's tour, on demand only (plan section 16): from the account menu and the phone's drawer. Loaded when asked for.
   // Proposals have their own tab, where switched on (A40, A42).
   const proposals = me.data?.features.includes("proposals") ?? false;
+  // An operator in a support session (A43): until when, in the viewer's own time.
+  const support = me.data?.support_until
+    ? new Date(me.data.support_until).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })
+    : null;
   const startTour = () => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }));
 
   if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
@@ -72,7 +76,8 @@ function Painel() {
           <div className={styles.barActions}>
             <HeaderMenu
               person={me.data}
-              onAccount={() => void navigate("/conta")}
+              // Suporte Unio's own details belong to no one (A43).
+              onAccount={support ? undefined : () => void navigate("/conta")}
               onSignOut={() => signOut.mutate()}
               signingOut={signOut.isPending}
               onTour={startTour}
@@ -85,9 +90,18 @@ function Painel() {
             signingOut={signOut.isPending}
             signOutError={signOut.error}
             onTour={startTour}
+            account={!support}
           />
         </div>
       </header>
+      {support && (
+        <p className={styles.supportBanner} role="status">
+          {t("support.banner", { time: support })}
+          <button type="button" onClick={() => signOut.mutate()} disabled={signOut.isPending}>
+            {t("support.leave")}
+          </button>
+        </p>
+      )}
       <main id="content" tabIndex={-1} className={styles.main}>
         <ErrorNotice error={signOut.error} />
         <Outlet />

@@ -281,6 +281,27 @@ export interface paths {
         patch: operations["rename_me_api_me_patch"];
         trace?: never;
     };
+    "/api/support-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Support Session
+         * @description An operator's entry link (A43) spent: this browser is Suporte Unio for an
+         *     hour. The operator dashboard audited the entry when it made the link.
+         */
+        post: operations["support_session_api_support_session_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/tour-seen": {
         parameters: {
             query?: never;
@@ -1898,7 +1919,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted";
+        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -2088,7 +2109,7 @@ export interface components {
          * LinkKind
          * @enum {string}
          */
-        LinkKind: "invite" | "reset" | "confirm";
+        LinkKind: "invite" | "reset" | "confirm" | "support";
         /** LinkOnOut */
         LinkOnOut: {
             /** Link */
@@ -2163,6 +2184,8 @@ export interface components {
             /** Features */
             features: components["schemas"]["Feature"][];
             analytics?: components["schemas"]["AnalyticsOut"] | null;
+            /** Support Until */
+            support_until?: string | null;
         };
         /** MeetingIn */
         MeetingIn: {
@@ -3042,7 +3065,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "owner_link" | "suspend" | "restore" | "delete" | "feature_on" | "feature_off";
+            action: "owner_link" | "suspend" | "restore" | "delete" | "feature_on" | "feature_off" | "support_owner" | "support_member";
             /**
              * Confirmation
              * @default
@@ -3054,6 +3077,8 @@ export interface components {
         TenantActionOut: {
             /** Owner Url */
             owner_url?: string | null;
+            /** Support Url */
+            support_url?: string | null;
         };
         /** TenantOut */
         TenantOut: {
@@ -4152,6 +4177,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    support_session_api_support_session_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

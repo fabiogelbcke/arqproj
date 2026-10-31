@@ -4,7 +4,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 
-import { type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import { E2E_ENV, OPERATOR, PORT } from "../playwright.config";
 
@@ -443,6 +443,30 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await shoot(page, "10c-operacao-escritorio");
   await page.getByRole("button", { name: "Suspender", exact: true }).click();
   await shoot(page, "10e-operacao-suspender");
+});
+
+test("@screenshots support access", async ({ page }) => {
+  // A43: the dashboard's entry, then the office's painel in a support session.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  mkdirSync(OUT, { recursive: true });
+  await page.goto(`http://localhost:${PORT}/admin`);
+  await page.getByLabel(/E-mail autorizado/).fill(OPERATOR);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await page.getByRole("link", { name: "Alinea (dev)" }).click();
+  await page.getByRole("button", { name: "Entrar como administrador(a)" }).click();
+  await shoot(page, "10g-operacao-suporte-perguntar");
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await page.getByRole("link", { name: "Abrir o painel do escritório" }).waitFor();
+  await shoot(page, "10h-operacao-suporte-link");
+  // The dev server's port in the link, as the other one-time links: this run's instead.
+  const entry = page.getByRole("link", { name: "Abrir o painel do escritório" });
+  await expect(entry).toHaveAttribute("target", "_blank");
+  const painel = await page.context().newPage();
+  await painel.goto((await entry.getAttribute("href"))!.replace(/:\d+\//, `:${PORT}/`));
+  await painel.emulateMedia({ reducedMotion: "reduce" });
+  await painel.getByRole("region", { name: "Em andamento" }).waitFor();
+  await shoot(painel, "12-suporte-painel");
+  await shoot(painel, "12-suporte-painel", "dark");
 });
 
 test("@screenshots project members", async ({ page }) => {

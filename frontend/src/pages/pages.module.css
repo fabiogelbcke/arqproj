@@ -40,6 +40,16 @@
 .small { font-size: var(--text-sm); color: var(--muted); }
 
 .topbar { border-bottom: 1px solid var(--line); }
+/* Support access (A43): the operator sees, on every screen, that this isn't the office's own session. */
+.supportBanner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px;
+  margin: 0; padding: 8px 16px; background: color-mix(in srgb, var(--warm) 18%, var(--bg)); color: var(--ink);
+  border-bottom: 1px solid var(--line); font-size: var(--text-sm); text-align: center;
+}
+.supportBanner button {
+  border: 0; background: none; padding: 0; color: inherit; font: inherit; font-weight: 600;
+  text-decoration: underline; cursor: pointer;
+}
 /* "Pular para o conteúdo": off screen until a Tab lands on it. */
 .skipLink {
   position: absolute; z-index: 100; top: 8px; left: 8px; padding: 10px 16px; border-radius: var(--r-pill);

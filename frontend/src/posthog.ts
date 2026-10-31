@@ -77,7 +77,13 @@ let signIns = 0;
  *  on every sign-in, as signing out and back in keeps the page. */
 export async function startAnalytics(me: Me): Promise<void> {
   const analytics = me.analytics;
-  if (!analytics) return;
+  if (!analytics) {
+    // No key: this server has none, or the session is now an operator's support
+    // session (A43), which replaced a staff member's in every tab. Whatever was
+    // collecting for them, or still starting, stops.
+    resetAnalytics();
+    return;
+  }
   const mine = signIns;
   loading ??= import("posthog-js/full/no-external").then(({ default: posthog }) => {
     posthog.init(analytics.token, {
