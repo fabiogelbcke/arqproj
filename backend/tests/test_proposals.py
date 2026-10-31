@@ -307,7 +307,7 @@ async def test_an_archived_proposal_still_shows_the_proposal_and_restores_to_one
 # -- the generator ------------------------------------------------------------------
 
 
-async def test_a_first_proposal_starts_from_the_built_in_texts_and_the_offices_details(
+async def test_a_first_proposal_starts_from_the_default_texts_and_the_offices_details(
     client, owner
 ):
     await client.patch(
@@ -330,8 +330,56 @@ async def test_a_first_proposal_starts_from_the_built_in_texts_and_the_offices_d
         "a@b.example",
     )
     assert first["fee"] is None
-    assert [s["title"] for s in first["services"]][:2] == ["Briefing", "Anteprojeto"]
     assert first["intro"] == start["default_intro"] and first["notes"] == start["default_notes"]
+
+
+async def start_of(client, headers, project_id):
+    reply = await client.get(f"/api/projects/{project_id}/proposal", headers=headers)
+    return reply.json()["start"]["services"]
+
+
+async def test_a_new_proposals_services_are_the_stages_ticked_at_creation(client, owner):
+    mine = [
+        {"title": "Briefing", "description": "Nossa conversa inicial."},
+        {"title": "Imagens renderizadas", "description": "Perspectivas."},
+    ]
+    await client.put("/api/proposal-presets", json={"services": mine}, headers=owner)
+    created = await create(
+        client,
+        owner,
+        stages=["briefing", "survey"],
+        custom_stages=["Maquete física"],
+        proposal=True,
+    )
+    services = await start_of(client, owner, created.json()["id"])
+    # In the stages' order, the office's own last; the office's text for a service
+    # of the same name, else the stage's description, else nothing.
+    assert [s["title"] for s in services] == ["Briefing", "Levantamento", "Maquete física"]
+    assert services[0]["description"] == "Nossa conversa inicial."
+    assert services[1]["description"]  # the built-in stage's own words
+    assert services[2]["description"] == ""
+
+
+async def test_a_new_proposal_lists_every_stage_a_project_can_be_created_with(client, owner):
+    every = [
+        s["key"] for s in (await client.get("/api/project-types", headers=owner)).json()["stages"]
+    ]
+    own = [f"Etapa própria {n}" for n in range(1, 21)]  # as many as creation takes
+    created = await create(client, owner, stages=every, custom_stages=own, proposal=True)
+    assert created.status_code == 201, created.text
+    services = await start_of(client, owner, created.json()["id"])
+    assert len(services) == len(every) + len(own)
+    assert services[-1]["title"] == "Etapa própria 20"
+    # And such a proposal can be saved as it starts.
+    saved = await save(client, owner, created.json()["id"], services=services)
+    assert saved.status_code == 201, saved.text
+
+
+async def test_a_new_proposal_without_stages_lists_the_offices_services(client, owner):
+    mine = [{"title": "Consultoria", "description": "Uma visita."}]
+    await client.put("/api/proposal-presets", json={"services": mine}, headers=owner)
+    created = await create(client, owner, stages=[], proposal=True)
+    assert await start_of(client, owner, created.json()["id"]) == mine
 
 
 async def test_a_saved_proposal_is_where_the_generator_starts_next(client, db_session, owner):
@@ -597,7 +645,7 @@ async def test_the_offices_services_replace_the_built_in_ones_until_emptied(clie
     assert saved.json() == mine
     found = await casa_jardim(client)
     start = (await client.get(f"/api/projects/{found['id']}/proposal", headers=owner)).json()
-    assert start["presets"] == mine and start["start"]["services"] == mine
+    assert start["presets"] == mine
     emptied = await client.put("/api/proposal-presets", json={"services": []}, headers=owner)
     assert emptied.json()[0]["title"] == "Briefing"  # the built-in list again
 

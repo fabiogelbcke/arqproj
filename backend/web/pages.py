@@ -57,11 +57,9 @@ from backend.projects.models import (
     ProjectDetail,
     ProjectMember,
     ProjectSlug,
-    ProjectStage,
     ProjectTypeDef,
-    ProjectTypeStage,
-    StageDef,
 )
+from backend.projects.stages import stage_texts
 from backend.proposals.content import ProposalContent
 from backend.security import keys
 from backend.storage.models import StorageConnection
@@ -293,39 +291,16 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         if members
         else []
     )
-    stages = []
-    for stage, titles, general, own in await db.execute(
-        select(ProjectStage, StageDef.titles, StageDef.about, ProjectTypeStage.about)
-        .outerjoin(StageDef, StageDef.key == ProjectStage.builtin_key)
-        .outerjoin(
-            ProjectTypeStage,
-            (ProjectTypeStage.stage_key == ProjectStage.builtin_key)
-            & (ProjectTypeStage.project_type == project.project_type),
+    stages = [
+        StageOut(
+            position=row.stage.position,
+            title=row.title,
+            about=row.about,
+            notes=row.stage.notes,
+            completed=row.stage.completed_at is not None,
         )
-        .where(ProjectStage.project_id == project.id)
-        .order_by(ProjectStage.position)
-    ):
-        if stage.builtin_key is None:  # written by the office, shown as typed
-            stages.append(
-                StageOut(
-                    position=stage.position,
-                    title=stage.title,
-                    about=stage.about,
-                    notes=stage.notes,
-                    completed=stage.completed_at is not None,
-                )
-            )
-        else:
-            about = own or general  # the type's own words, else the general text
-            stages.append(
-                StageOut(
-                    position=stage.position,
-                    title=_text(titles, locale),
-                    about=_text(about, locale),
-                    notes=stage.notes,
-                    completed=stage.completed_at is not None,
-                )
-            )
+        for row in await stage_texts(db, project, locale)
+    ]
     meeting = await db.scalar(
         select(Meeting)
         .where(Meeting.project_id == project.id, Meeting.ends_at > datetime.now(UTC))

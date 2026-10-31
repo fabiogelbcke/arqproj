@@ -19,6 +19,24 @@ a new entry too.
 
 ---
 
+## 2026-10-30 — A42: a new proposal's services are the project's stages
+
+**Was:** a new proposal listed every service the office offers (its presets, or
+the built-in list), whatever stages were ticked when it was created; the
+office's own stages named in the creation form never reached it.
+
+**Now:** a new proposal starts from the stages ticked at creation, the office's
+own included, in their order. Each takes the office's text for a service of the
+same name, else the stage's description; an office's own stage starts blank. A
+project without stages starts from the office's services, as before. The list
+stays the proposal's own after that, and texts stay separate from the stage
+descriptions on the client page.
+
+**Why:** Fabio, 30 Oct 2026: the creation form asks for the stages, and the
+proposal ignored them, custom ones included. Saving a proposal's edited texts into
+the project's stages on acceptance was raised too and left as a possible
+follow-up.
+
 ## 2026-10-29 — A42: an accepted proposal is fixed
 
 **Was:** the generator saved new versions at any time, and an accepted

@@ -23,7 +23,9 @@ SIGNATORY_MAX = 80
 INTRO_MAX = 1500
 NOTES_MAX = 3000
 LINE_MAX = 80  # a payment's "when", a service not included
-SERVICES_MAX = 20
+# Room for every stage a project can be created with (12 built-in, 20 of the office's
+# own): a new proposal lists them all (A42).
+SERVICES_MAX = 40
 PAYMENTS_MAX = 24
 NOT_INCLUDED_MAX = 20
 # R$ 99.999.999,99: far beyond any proposal, and still words in a line or two.
