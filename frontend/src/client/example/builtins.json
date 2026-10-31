@@ -1,0 +1,142 @@
+{
+  "project_types": {
+    "types": [
+      {
+        "key": "architecture",
+        "label": "Projeto Arquitetônico",
+        "stages": [
+          "briefing",
+          "survey",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "coordination"
+        ]
+      },
+      {
+        "key": "interiors",
+        "label": "Projeto de Interiores",
+        "stages": [
+          "briefing",
+          "survey",
+          "preliminary_study",
+          "schematic_design",
+          "construction_documents",
+          "detailing",
+          "specifications"
+        ]
+      },
+      {
+        "key": "renovation",
+        "label": "Projeto de Reforma",
+        "stages": [
+          "briefing",
+          "survey",
+          "feasibility_study",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "coordination"
+        ]
+      },
+      {
+        "key": "landscaping",
+        "label": "Projeto de Paisagismo",
+        "stages": [
+          "briefing",
+          "survey",
+          "preliminary_study",
+          "schematic_design",
+          "construction_documents",
+          "complementary_projects",
+          "specifications"
+        ]
+      }
+    ],
+    "stages": [
+      {
+        "key": "briefing",
+        "title": "Briefing"
+      },
+      {
+        "key": "survey",
+        "title": "Levantamento"
+      },
+      {
+        "key": "feasibility_study",
+        "title": "Estudo de Viabilidade"
+      },
+      {
+        "key": "preliminary_study",
+        "title": "Estudo Preliminar"
+      },
+      {
+        "key": "schematic_design",
+        "title": "Anteprojeto"
+      },
+      {
+        "key": "permit_documents",
+        "title": "Projeto Legal"
+      },
+      {
+        "key": "construction_documents",
+        "title": "Projeto Executivo"
+      },
+      {
+        "key": "detailing",
+        "title": "Detalhamentos"
+      },
+      {
+        "key": "coordination",
+        "title": "Compatibilização"
+      },
+      {
+        "key": "complementary_projects",
+        "title": "Projetos Complementares"
+      },
+      {
+        "key": "specifications",
+        "title": "Especificações"
+      }
+    ]
+  },
+  "detail_types": [
+    {
+      "key": "location",
+      "label": "Localização",
+      "type": "text"
+    },
+    {
+      "key": "site_area",
+      "label": "Área do terreno",
+      "type": "area"
+    },
+    {
+      "key": "built_area",
+      "label": "Área construída",
+      "type": "area"
+    },
+    {
+      "key": "total_area",
+      "label": "Área total",
+      "type": "area"
+    },
+    {
+      "key": "start_date",
+      "label": "Início",
+      "type": "date"
+    },
+    {
+      "key": "expected_delivery",
+      "label": "Previsão de entrega",
+      "type": "date"
+    },
+    {
+      "key": "responsible",
+      "label": "Responsável",
+      "type": "text"
+    }
+  ]
+}

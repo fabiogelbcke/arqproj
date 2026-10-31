@@ -871,11 +871,13 @@ function ProposalStage({ page, url }: { page: Page; url: string }) {
 function StaffBar({
   page,
   ready,
+  painel,
   editing,
   onMode,
 }: {
   page: Page;
   ready: boolean;
+  painel: boolean;
   editing: boolean;
   onMode: (editing: boolean) => void;
 }) {
@@ -884,11 +886,15 @@ function StaffBar({
   const archived = staff.status === "archived"; // viewable, not editable (section 22)
   return (
     <nav className="dock" aria-label={t("page.staffBar")}>
-      <a className="b" href="/painel/" aria-label={t("page.backToPainel")}>
-        <Icon name="left" />
-        <span className="hide-sm">{t("page.backToPainel")}</span>
-      </a>
-      <span className="dock__sep" />
+      {painel && (
+        <>
+          <a className="b" href="/painel/" aria-label={t("page.backToPainel")}>
+            <Icon name="left" />
+            <span className="hide-sm">{t("page.backToPainel")}</span>
+          </a>
+          <span className="dock__sep" />
+        </>
+      )}
       <span className="dock__title">{page.name}</span>
       {/* The prototype's switch: the page as the client sees it, or with controls. */}
       <div className="seg" role="group" aria-label={t("edit.mode")} data-on={editing ? "edit" : "view"} data-tour="mode">
@@ -968,9 +974,11 @@ export function ProjectPage({
   person,
   onSignOut,
   sharing = true,
+  painel = true,
 }: {
   page: Page;
   slug: string;
+  painel?: boolean; // the staff bar's way back to the painel; not for the example's visitors
   sharing?: boolean; // "Compartilhar arquivos" (A37); not on the example project
   person?: { name: string; email: string } | null; // staff signed in
   onSignOut?: () => void;
@@ -1460,6 +1468,7 @@ export function ProjectPage({
         <StaffBar
           page={page}
           ready={ready}
+          painel={painel}
           editing={editing}
           onMode={(next) => {
             setEditing(next);

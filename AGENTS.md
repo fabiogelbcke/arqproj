@@ -25,6 +25,10 @@ Before finishing:
 - Follow existing code conventions.
 - Avoid unnecessary refactoring.
 - Explain significant architectural changes before making them.
+- A change that adds something to the client's project page adds it to the
+  example project too (`frontend/src/client/example/fixture.ts`), in the same
+  pull request: Unio's home links to it, so it shows everything a page can
+  (plan section 16, "Kept up to date").
 - Keep safeguards proportional to the real risk in our setup (Cloud Run,
   Cloud SQL, a handful of offices, a small team). Prefer one simple check that
   covers the real failure over many checks for unusual configurations.

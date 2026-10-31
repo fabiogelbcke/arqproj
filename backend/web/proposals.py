@@ -41,6 +41,7 @@ from backend.office.models import LogoType, OfficeProfile
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Project, ProjectSlug
+from backend.projects.stages import stage_texts
 from backend.proposals.content import (
     AMOUNT_MAX,
     INTRO_MAX,
@@ -51,7 +52,11 @@ from backend.proposals.content import (
     in_words,
     money,
 )
-from backend.proposals.models import Proposal, ProposalServicePreset
+from backend.proposals.models import (
+    SERVICE_DESCRIPTION_MAX,
+    Proposal,
+    ProposalServicePreset,
+)
 from backend.proposals.pdf import date_line, fill, render, texts
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
@@ -382,6 +387,27 @@ async def proposal_list(
     return sorted(listed, key=lambda row: row.saved_at or row.created_at, reverse=True)
 
 
+async def _first_services(
+    db: AsyncSession, project: Project, locale: Locale, offered: list[PresetOut]
+) -> list[Service]:
+    """A new proposal's services: the stages ticked when it was created, the
+    office's own among them (A42). Each in the office's words for a service of that
+    name, else the stage's description. Without stages, the office's services."""
+    stages = await stage_texts(db, project, locale)
+    if not stages:
+        return [Service(title=p.title, description=p.description) for p in offered]
+    by_title = {p.title.strip().casefold(): p.description for p in offered}
+    return [
+        Service(
+            title=row.title,
+            description=by_title.get(row.title.strip().casefold(), row.about or "")[
+                :SERVICE_DESCRIPTION_MAX
+            ],
+        )
+        for row in stages[:SERVICES_MAX]
+    ]
+
+
 @router.get("/projects/{project_id}/proposal", responses=documented(401, 404))
 async def generator(
     project_id: uuid.UUID,
@@ -403,7 +429,7 @@ async def generator(
             city=office.city,
             date=_today(tenant),
             intro=intro,
-            services=[Service(title=p.title, description=p.description) for p in offered],
+            services=await _first_services(db, project, tenant.locale, offered),
             notes=notes,
             signatory=office.signatory,
             address=office.address,

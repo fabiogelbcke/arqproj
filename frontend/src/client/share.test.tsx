@@ -377,6 +377,21 @@ describe("the supplier's page", () => {
     expect(screen.queryByRole("link", { name: /Baixar tudo/ })).toBeNull();
   });
 
+  it("names the example's fictional office on Unio's own address, where no office answers", async () => {
+    localStorage.setItem(
+      "example-share",
+      JSON.stringify({
+        project: "Casa Exemplo",
+        files: [{ name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z", stage: "01 Briefing", url: "/painel/assets/planta.pdf" }],
+      }),
+    );
+    fakeApi({ "GET /api/tenant": () => ({ status: 404, body: { error: "not_found" } }) });
+    render(<SharePage token="exemplo" />);
+    expect(
+      await screen.findByText("Arquivos do projeto Casa Exemplo, compartilhados por Estúdio Vale Arquitetura."),
+    ).toBeInTheDocument();
+  });
+
   it("says when a link no longer works", async () => {
     fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),

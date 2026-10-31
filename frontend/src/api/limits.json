@@ -25,7 +25,7 @@
   "proposalIntro": 1500,
   "proposalNotes": 3000,
   "proposalLine": 80,
-  "proposalServices": 20,
+  "proposalServices": 40,
   "proposalPayments": 24,
   "proposalNotIncluded": 20,
   "serviceTitle": 80,

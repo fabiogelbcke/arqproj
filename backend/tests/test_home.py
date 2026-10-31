@@ -11,6 +11,8 @@ from backend.app import create_app
 from backend.settings import Settings
 
 pytestmark = pytest.mark.anyio
+EXAMPLE = "/tour-projeto"
+EXAMPLE_PAGES = (EXAMPLE, "/share/exemplo")
 
 
 class Resources(HTMLParser):
@@ -40,8 +42,10 @@ async def test_home_and_all_its_resources_are_public_without_tenant_or_login(hos
         assert "set-cookie" not in response.headers
         page = Resources()
         page.feed(response.text)
-        assert {"/privacidade", "/termos"} <= page.links
-        for path in page.assets | {link for link in page.links if link.startswith("/")}:
+        assert {"/privacidade", "/termos", EXAMPLE} <= page.links
+        # The example's page is the client page's build: tested below.
+        local = {link for link in page.links if link.startswith("/")} - {EXAMPLE}
+        for path in page.assets | local:
             resource = await client.get(path)
             assert resource.status_code == 200, path
             assert "location" not in resource.headers
@@ -80,10 +84,34 @@ async def test_public_home_does_not_bypass_tenant_checks_for_other_routes(monkey
     monkeypatch.setattr(middleware, "resolve", unknown_host)
     app = create_app(Settings())
     app.state.sessionmaker = session
-    paths = ("/painel", "/api/projects", "/casa-jardim", "/brand/unknown.png")
+    # Any other shared link is an office's, so it is looked up like the rest.
+    paths = (
+        "/painel",
+        "/api/projects",
+        "/casa-jardim",
+        "/brand/unknown.png",
+        "/share/" + "a" * 32,
+        *EXAMPLE_PAGES,
+    )
     async with httpx2.AsyncClient(
         transport=httpx2.ASGITransport(app=app), base_url="https://unknown.example"
     ) as client:
         for path in paths:
             assert (await client.get(path)).status_code == 404
     assert len(looked_up) == len(paths)
+
+
+async def test_the_example_project_opens_from_unios_own_address(tmp_path):
+    """The home links to it (plan section 16): on Unio's address it needs no office."""
+    (tmp_path / "client.html").write_text("<head><!--page-head--></head><div id=page>")
+    settings = Settings(operator_host="myunio.app", frontend_dist=str(tmp_path))
+    app = create_app(settings)  # no database: a tenant lookup would fail
+    async with httpx2.AsyncClient(
+        transport=httpx2.ASGITransport(app=app), base_url="https://myunio.app"
+    ) as client:
+        # The example, and the link "shared" from it (its page is in the browser).
+        for path in EXAMPLE_PAGES:
+            response = await client.get(path)
+            assert response.status_code == 200, path
+            assert "id=page" in response.text
+            assert response.headers["x-robots-tag"] == "noindex"

@@ -17,9 +17,11 @@ for (const width of [320, 390, 1440]) {
       expect(await logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth))
         .toBeLessThanOrEqual(width);
-      await page.getByRole("link", { name: "Google Drive", exact: true }).click();
-      await expect(page.locator("#drive-titulo")).toBeInViewport();
-      await page.getByRole("link", { name: "Leia a Política de Privacidade" }).click();
+      await expect(page.getByRole("link", { name: "Projeto de exemplo", exact: true }))
+        .toHaveAttribute("href", "/tour-projeto");
+      await expect(page.getByRole("link", { name: "Ver um projeto de exemplo" }))
+        .toHaveAttribute("href", "/tour-projeto");
+      await page.getByRole("link", { name: "Como usamos o Google Drive" }).click();
       await expect(page.getByRole("heading", { name: "Política de Privacidade", exact: true }))
         .toBeVisible();
       await page.getByRole("link", { name: "Unio", exact: true }).click();

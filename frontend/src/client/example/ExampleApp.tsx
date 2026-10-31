@@ -1,7 +1,8 @@
 // The example project at /tour-projeto (plan section 16, "Onboarding help"): a project
 // page filled with fictional content in the browser. Nothing is in the office's
 // Drive and nothing is saved (exampleApi.ts); it works before Drive is connected.
-// Signed-in staff get the staff bar, to try edit mode; others, the client's view.
+// Everyone gets the staff bar, to try edit mode; only signed-in staff, its way back
+// to the painel.
 // To remove it: this folder, its line in main.tsx and in Primeiros passos, and the
 // reserved address (RESERVED_SLUGS).
 import "./example.css";
@@ -65,7 +66,8 @@ export function ExampleApp() {
       <ProjectPage
         page={page}
         slug={EXAMPLE_SLUG}
-        ready={signedIn === true}
+        ready
+        painel={signedIn === true}
         person={person}
         onSignOut={signOut}
         onChanged={() => setVersion((v) => v + 1)}

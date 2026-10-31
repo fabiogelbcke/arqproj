@@ -9,7 +9,7 @@ import { type Locale, useOfficeLocale } from "../i18n";
 import { SiteFooter } from "../ui/UnioMark";
 import { extension, fileSize } from "./FileTools";
 import { day } from "./format";
-import { EXAMPLE_SHARE, EXAMPLE_SHARE_KEY } from "./example/address";
+import { EXAMPLE_OFFICE, EXAMPLE_SHARE, EXAMPLE_SHARE_KEY } from "./example/address";
 import { PasswordGate } from "./PasswordGate";
 import { PageMessage, SiteHeader } from "./ProjectPage";
 
@@ -25,10 +25,14 @@ export function SharePage({ token }: { token: string }) {
   const [office, setOffice] = useState<Schemas["TenantOut"] | null>(null);
   const [version, setVersion] = useState(0); // bumped once the password is typed
   useEffect(() => {
-    call(api.GET("/api/tenant")).then(setOffice, () => setOffice(null));
-    // The example project's link (A37): what it picked, from this browser.
+    const tenant = call(api.GET("/api/tenant")).then(
+      (found) => (setOffice(found), found),
+      () => (setOffice(null), null),
+    );
+    // The example project's link (A37): what it picked, from this browser, once
+    // the office is known (none on Unio's own address).
     if (token === EXAMPLE_SHARE) {
-      setState({ kind: "shown", shared: exampleShared() });
+      void tenant.then((found) => setState({ kind: "shown", shared: exampleShared(found) }));
       return;
     }
     call(api.GET("/api/share/{token}", { params: { path: { token } } })).then(
@@ -81,8 +85,7 @@ export function SharePage({ token }: { token: string }) {
       />
     );
   }
-  // The example's page has the office as the server tells it.
-  const shared = state.shared.office.name || !office ? state.shared : { ...state.shared, office };
+  const shared = state.shared;
   const date = (value: string) => day(value, i18n.language, shared.timezone);
   return (
     <div className="client share-page">
@@ -157,7 +160,7 @@ const exampleUrls = new Map<string, string>();
 
 /** The example's supplier page: the files its "Gerar link" picked in this browser.
  *  A file uploaded into the example lived only on its page, so it's gone here. */
-function exampleShared(): Shared {
+function exampleShared(office: Schemas["TenantOut"] | null): Shared {
   let kept: {
     project?: string;
     label?: string | null;
@@ -172,7 +175,10 @@ function exampleShared(): Shared {
   const files = (kept.files ?? []).filter((file) => !file.url.startsWith("blob:"));
   files.forEach((file, i) => exampleUrls.set(`exemplo-${i}`, file.url));
   return {
-    office: { name: "", logo_url: null, logo_dark_url: null },
+    // The office whose address this is; on Unio's own, the example's fictional one.
+    office: office
+      ? { name: office.name, logo_url: office.logo_url, logo_dark_url: office.logo_dark_url }
+      : { name: EXAMPLE_OFFICE, logo_url: null, logo_dark_url: null },
     locale: "pt-BR",
     timezone: "America/Sao_Paulo",
     project: kept.project ?? "",

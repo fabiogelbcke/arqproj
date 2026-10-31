@@ -44,7 +44,6 @@ from backend.notifications.models import ProjectRecipient, RecipientStatus
 from backend.office.profile import logo_urls
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import (
-    EXAMPLE_SLUG,
     RESERVED_SLUGS,
     AccessMode,
     DetailKey,
@@ -58,11 +57,9 @@ from backend.projects.models import (
     ProjectDetail,
     ProjectMember,
     ProjectSlug,
-    ProjectStage,
     ProjectTypeDef,
-    ProjectTypeStage,
-    StageDef,
 )
+from backend.projects.stages import stage_texts
 from backend.proposals.content import ProposalContent
 from backend.security import keys
 from backend.storage.models import StorageConnection
@@ -294,39 +291,16 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         if members
         else []
     )
-    stages = []
-    for stage, titles, general, own in await db.execute(
-        select(ProjectStage, StageDef.titles, StageDef.about, ProjectTypeStage.about)
-        .outerjoin(StageDef, StageDef.key == ProjectStage.builtin_key)
-        .outerjoin(
-            ProjectTypeStage,
-            (ProjectTypeStage.stage_key == ProjectStage.builtin_key)
-            & (ProjectTypeStage.project_type == project.project_type),
+    stages = [
+        StageOut(
+            position=row.stage.position,
+            title=row.title,
+            about=row.about,
+            notes=row.stage.notes,
+            completed=row.stage.completed_at is not None,
         )
-        .where(ProjectStage.project_id == project.id)
-        .order_by(ProjectStage.position)
-    ):
-        if stage.builtin_key is None:  # written by the office, shown as typed
-            stages.append(
-                StageOut(
-                    position=stage.position,
-                    title=stage.title,
-                    about=stage.about,
-                    notes=stage.notes,
-                    completed=stage.completed_at is not None,
-                )
-            )
-        else:
-            about = own or general  # the type's own words, else the general text
-            stages.append(
-                StageOut(
-                    position=stage.position,
-                    title=_text(titles, locale),
-                    about=_text(about, locale),
-                    notes=stage.notes,
-                    completed=stage.completed_at is not None,
-                )
-            )
+        for row in await stage_texts(db, project, locale)
+    ]
     meeting = await db.scalar(
         select(Meeting)
         .where(Meeting.project_id == project.id, Meeting.ends_at > datetime.now(UTC))
@@ -652,14 +626,13 @@ async def shell(
         headers = {"Cache-Control": "no-cache", **PAGE_HEADERS}
         return RedirectResponse(f"/{to}{query}", status_code=301, headers=headers)
 
-    example = slug == EXAMPLE_SLUG
-    if slug.lower() in RESERVED_SLUGS and not example:
+    if slug.lower() in RESERVED_SLUGS:
         # Addresses are lowercase: `/Painel` typed in capitals goes to `/painel`.
         if slug != slug.lower():
             return moved(slug.lower())
         return PlainTextResponse("Not found", status_code=404)
     # An old address, or one typed in capitals, redirects before anything else.
-    project, current = (None, slug) if example else await _find(db, slug, staff)
+    project, current = await _find(db, slug, staff)
     if project is not None and current != slug:
         return moved(current)
 
@@ -670,10 +643,7 @@ async def shell(
         )
     office = (await _office(db, tenant)).name
     tags = {"robots": "noindex"}
-    if example:
-        # The example project (plan section 16): its content is in the page's bundle.
-        status, title = 200, office
-    elif project is None:
+    if project is None:
         status, title = 404, office
     elif await _offline(db):
         # Nothing of the project in its link preview either.

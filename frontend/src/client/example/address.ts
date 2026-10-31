@@ -2,6 +2,10 @@
 // backend reserves it (RESERVED_SLUGS) and serves the client page there.
 export const EXAMPLE_SLUG = "tour-projeto";
 
+// The office the example belongs to where no office answers: on Unio's own address,
+// which the home links to. On an office's address, that office's name and logo.
+export const EXAMPLE_OFFICE = "Estúdio Vale Arquitetura";
+
 // A link "shared" from the example project (A37): its supplier's page shows what
 // was picked, from this browser, at /share/exemplo. Real tokens are 32 characters.
 export const EXAMPLE_SHARE = "exemplo";
