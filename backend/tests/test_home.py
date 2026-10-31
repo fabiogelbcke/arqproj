@@ -31,7 +31,8 @@ class Resources(HTMLParser):
 
 @pytest.mark.parametrize("host", ["myunio.app", "staging.myunio.app", "alinea.localhost"])
 async def test_home_and_all_its_resources_are_public_without_tenant_or_login(host):
-    # No lifespan/database: any accidental tenant lookup or auth dependency fails.
+    # No lifespan/database: any auth dependency fails, and the office's portfolio
+    # (looked up on an office's address) can't be read, so the home must still show.
     app = create_app(Settings())
     async with httpx2.AsyncClient(
         transport=httpx2.ASGITransport(app=app), base_url=f"https://{host}"

@@ -12,6 +12,9 @@ from backend.commands import local_db
 from backend.commands.provision import app_role_for, provision_url
 from backend.tests.conftest import RUNTIME_ROLE, alembic_config, default_login
 
+PORTFOLIO_TABLES = ("portfolios", "portfolio_entries", "portfolio_photos")
+CRUD = ("SELECT", "INSERT", "UPDATE", "DELETE")
+
 
 def _grants(url: str, grantee: str) -> set[tuple[str, str]]:
     engine = create_engine(url)
@@ -135,6 +138,8 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("proposal_service_presets", "DELETE"),
         ("proposals", "SELECT"),
         ("proposals", "INSERT"),
+        # The portfolio: the office's to change, all of it.
+        *((table, privilege) for table in PORTFOLIO_TABLES for privilege in CRUD),
     }
     assert _column_grants(migrated_url, group) == {
         ("users", "password_hash", "UPDATE"),

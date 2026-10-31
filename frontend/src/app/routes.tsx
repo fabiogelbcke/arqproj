@@ -15,6 +15,8 @@ import { SettingsLayout } from "../pages/SettingsLayout";
 import { SettingsOfficePage } from "../pages/SettingsOfficePage";
 import { SettingsTeamPage } from "../pages/SettingsTeamPage";
 import { SignInPage } from "../pages/SignInPage";
+import { PortfolioEntryPage } from "../portfolio/PortfolioEntryPage";
+import { PortfolioPage } from "../portfolio/PortfolioPage";
 import { ProposalPage } from "../proposals/ProposalPage";
 import { ProposalsPage } from "../proposals/ProposalsPage";
 import { useFeature, useMe, useTenant } from "../session/session";
@@ -55,6 +57,8 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, element: <ProjectsPage />, handle: title("nav.projects") },
           { path: "propostas", element: <WithProposals />, handle: title("nav.proposals") },
+          { path: "portfolio", element: <WithPortfolio />, handle: title("nav.portfolio") },
+          { path: "portfolio/:entryId", element: <WithPortfolio entry />, handle: title("nav.portfolio") },
           { path: "projetos/:projectId/proposta", element: <ProposalPage />, handle: title("proposal.generator.title") },
           {
             path: "configuracoes",
@@ -77,4 +81,9 @@ export const routes: RouteObject[] = [
 /** The Propostas tab, where the office has proposals switched on (A40, A42). */
 function WithProposals() {
   return useFeature("proposals") ? <ProposalsPage /> : <NotFoundPage />;
+}
+
+function WithPortfolio({ entry = false }: { entry?: boolean }) {
+  if (!useFeature("portfolio")) return <NotFoundPage />;
+  return entry ? <PortfolioEntryPage /> : <PortfolioPage />;
 }

@@ -93,6 +93,21 @@ async def test_delete_populated_tenant_preserves_other_tenant(client, actions_en
             "VALUES (1, 'Briefing', '')"
         )
     )
+    # A portfolio drawn from a project, with a photo: deleted with the office too.
+    await db_session.execute(text("INSERT INTO portfolios (published, intro) VALUES (true, '')"))
+    await db_session.execute(
+        text(
+            "INSERT INTO portfolio_entries (position, title, place, description, project_id) "
+            "SELECT 1, 'Casa', '', '', id FROM projects WHERE tenant_id = :t LIMIT 1"
+        ),
+        {"t": str(alinea)},
+    )
+    await db_session.execute(
+        text(
+            "INSERT INTO portfolio_photos (entry_id, position, file_id, image_type) "
+            "SELECT id, 1, 'x', 'image/jpeg' FROM portfolio_entries"
+        )
+    )
     path = "/api/admin/offices/alinea/actions"
     assert (await client.post(path, json={"action": "suspend"}, headers=headers)).status_code == 200
     assert (
@@ -117,7 +132,13 @@ async def test_delete_populated_tenant_preserves_other_tenant(client, actions_en
         )
         == 2
     )
-    for table in ("proposals", "proposal_service_presets"):
+    for table in (
+        "proposals",
+        "proposal_service_presets",
+        "portfolios",
+        "portfolio_entries",
+        "portfolio_photos",
+    ):
         left = await db_session.scalar(
             text(f"SELECT count(*) FROM {table} WHERE tenant_id = :t"), {"t": alinea}
         )

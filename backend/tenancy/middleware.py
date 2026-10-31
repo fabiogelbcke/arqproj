@@ -19,11 +19,13 @@ from backend.projects.enums import EXAMPLE_PAGES
 from backend.tenancy.resolve import normalize_host, resolve
 
 # The maintenance pass is every office's: called by the scheduler, never a page.
-# Unio's public home, its assets and legal pages belong to no office (A33).
+# Unio's public home, its assets and legal pages belong to no office (A33); an
+# office's portfolio at `/` looks its office up itself (portfolio_page.py).
 EXEMPT_PATHS = frozenset(
     {
         "/",
         "/brand/landing.css",
+        "/brand/portfolio.css",
         "/brand/unio.png",
         "/health",
         "/api/docs",

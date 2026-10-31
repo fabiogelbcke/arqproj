@@ -1,10 +1,11 @@
 """Public product home for visitors and Google's OAuth consent screen.
 
 Like the legal pages, it needs neither a tenant nor a signed-in session.
-Only the two named assets are served; this is not a general file server.
+Only the named assets are served; this is not a general file server.
 The example project (plan section 16) and the link "shared" from it are served
 here too: their content is in the client page's bundle, so their pages are the
 same on Unio's address, which the home links to, and on every office's.
+An office with a published portfolio shows that at `/` instead (portfolio_page.py).
 """
 
 from pathlib import Path
@@ -13,6 +14,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 
 from backend.projects.enums import EXAMPLE_PAGES
+from backend.web import portfolio_page
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
 
 router = APIRouter(include_in_schema=False)
@@ -29,13 +31,21 @@ HEADERS = {
 
 
 @router.api_route("/", methods=["GET", "HEAD"])
-def home() -> FileResponse:
+async def home(request: Request) -> Response:
+    portfolio = await portfolio_page.page(request)
+    if portfolio is not None:
+        return portfolio
     return FileResponse(PUBLIC / "index.html", media_type="text/html", headers=HEADERS)
 
 
 @router.api_route("/brand/landing.css", methods=["GET", "HEAD"])
 def stylesheet() -> FileResponse:
     return FileResponse(PUBLIC / "landing.css", media_type="text/css", headers=HEADERS)
+
+
+@router.api_route("/brand/portfolio.css", methods=["GET", "HEAD"])
+def portfolio_stylesheet() -> FileResponse:
+    return FileResponse(PUBLIC / "portfolio.css", media_type="text/css", headers=HEADERS)
 
 
 @router.api_route("/brand/unio.png", methods=["GET", "HEAD"])

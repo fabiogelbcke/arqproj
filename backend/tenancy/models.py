@@ -30,6 +30,7 @@ class Feature(StrEnum):
 
     PROJECT_MEMBERS = "project_members"  # who works on each project (A41)
     PROPOSALS = "proposals"  # the proposal generator and "Nova proposta" (A42)
+    PORTFOLIO = "portfolio"  # the office's portfolio at its address's root
 
 
 class Locale(StrEnum):
