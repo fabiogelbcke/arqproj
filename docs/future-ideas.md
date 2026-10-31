@@ -227,7 +227,19 @@ link that takes in a stage's future files.
   LGPD: explicit consent, a record of who opened it, deletion on request, and
   probably a store other than the office's own Google Drive. To be decided
   before building nutrition.
-- Suggested order: first `Client` and `vertical` (both help architects now),
-  then one second profession, ideally with a real office to try it: design
-  (ongoing projects) is cheapest, nutrition tests the model most. Generalise
-  only what those two turn out to share.
+- Research done 30 Oct 2026: [other-professions-research.md](other-professions-research.md).
+  It revises the order above. Unio fits professions that work in projects with
+  stages and an end: interior designers (38k firms, no Brazilian studio tool
+  found), landscape offices led by architects and offices designing structures
+  and building systems (no client-facing tool found; architects already hire
+  them). Event planners and consulting law firms fit partly. Accountants,
+  photographers, nutritionists, trainers and psychologists do not: ongoing work,
+  cheap specialist tools (R$ 0-140/month) and, for health, LGPD sensitive data.
+- Suggested order after the research: `vertical` with built-in types per
+  profession; `Client` with login as an option next to the project password;
+  client uploads and approval of each file version (R0/R1, "emitido para
+  aprovação"); then for engineers ART/RRT records, a pending-issues list and
+  guest collaborators inside the architect's project (a way to reach them).
+  `lifecycle` and measurements come last, if at all; tasks are replaced by the
+  pending-issues list. Validate with 3-5 interior and 2-3 engineering offices
+  first (questions in the research).
