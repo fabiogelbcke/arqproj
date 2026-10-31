@@ -375,7 +375,7 @@ function ImagePicker({
             isDisabled={chosen.length === 0}
             onPress={() => onAdd(images.filter((file) => chosen.includes(file.key)))}
           >
-            {t("portfolio.pickAdd", { count: chosen.length })}
+            {chosen.length ? t("portfolio.pickAdd", { count: chosen.length }) : t("portfolio.pickAddNone")}
           </Button>
         </div>
       </div>

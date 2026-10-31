@@ -1484,6 +1484,7 @@
     "pickNone": "This project has no images.",
     "pickAdd_one": "Add {{count}} photo",
     "pickAdd_other": "Add {{count}} photos",
+    "pickAddNone": "Add photos",
     "pickProject": "Choose another project",
     "public": {
       "staff": "Staff sign-in",
