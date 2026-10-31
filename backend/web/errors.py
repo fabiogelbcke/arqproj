@@ -106,6 +106,8 @@ class ErrorCode(StrEnum):
     WRONG_SHARE_PASSWORD = "wrong_share_password"
     PROPOSAL_NOT_FOUND = "proposal_not_found"  # no such version, or none saved yet
     PROPOSAL_ACCEPTED = "proposal_accepted"  # the project now: its proposal stays as accepted
+    PORTFOLIO_FULL = "portfolio_full"  # as many works, or photos in one, as it holds
+    PORTFOLIO_ENTRY_NOT_FOUND = "portfolio_entry_not_found"  # removed meanwhile: reload
 
 
 class ErrorOut(BaseModel):

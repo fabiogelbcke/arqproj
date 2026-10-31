@@ -19,6 +19,24 @@ a new entry too.
 
 ---
 
+## 2026-10-31 — A43: an office's address can show its portfolio at `/`
+
+**Was:** `/` showed Unio's home on every address, an office's own included
+(future ideas, "What an office's own address shows at its root"), and Unio's home
+never touched the database.
+
+**Now:** behind the `portfolio` feature, an office with a published portfolio
+shows it at `/` on its own address. Unio's address, and every office without
+the feature or without a published portfolio, keeps Unio's home. Looking the
+office up from `/` falls back to the home on any failure, so the home still never
+depends on the database.
+
+**Why:** Fabio, 31 Oct 2026: "What if we created a portfolio page for the
+address at the root? Let's do it to test", with works either uploaded or drawn
+from existing projects with chosen images. Of the options in future ideas (a
+redirect to the office's site, to the painel sign-in, or a simple page of its
+own), this is the third, grown into a portfolio.
+
 ## 2026-10-30 — A42: a new proposal's services are the project's stages
 
 **Was:** a new proposal listed every service the office offers (its presets, or
