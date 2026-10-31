@@ -14,6 +14,7 @@ import { SettingsDrivePage } from "../pages/SettingsDrivePage";
 import { SettingsLayout } from "../pages/SettingsLayout";
 import { SettingsOfficePage } from "../pages/SettingsOfficePage";
 import { SettingsTeamPage } from "../pages/SettingsTeamPage";
+import { SupportEntryPage } from "../pages/SupportEntryPage";
 import { SignInPage } from "../pages/SignInPage";
 import { ProposalPage } from "../proposals/ProposalPage";
 import { ProposalsPage } from "../proposals/ProposalsPage";
@@ -50,6 +51,7 @@ export const routes: RouteObject[] = [
       { path: "esqueci-a-senha", element: <ForgotPasswordPage />, handle: title("forgot.title") },
       { path: "entrar-na-equipe", element: <JoinPage />, handle: title("join.pageTitle") },
       { path: "confirmar-email", element: <ConfirmLinkPage />, handle: title("confirmEmail.pageTitle") },
+      { path: "suporte", element: <SupportEntryPage />, handle: title("support.title") },
       {
         element: <SignedInLayout />,
         children: [

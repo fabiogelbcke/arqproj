@@ -303,6 +303,7 @@
     "share_daily_limit": "This link has reached today's download limit. Try again tomorrow.",
     "account_exists": "There is already an account with this email. Sign in, or use “Forgot your password?”.",
     "email_unconfirmed": "Confirm your email to continue. Reload the page.",
+    "support_account": "This is a support session: this account's details can't be changed.",
     "email_code_wrong": "Wrong code. Check the email and try again.",
     "email_code_expired": "This code no longer works. Ask for a new one.",
     "email_code_recent": "We sent a code a moment ago. Wait 2 minutes to ask for another.",
@@ -1125,6 +1126,10 @@
       "ownerLink": "Owner signup link",
       "ownerHelp": "Copy this link and send it to the owner. It works once and expires in 7 days. It will not be shown again after you close this window.",
       "owner_link": "New owner invitation",
+      "support_owner": "Enter as administrator",
+      "support_member": "Enter as team",
+      "supportHelp": "The link works once, for 2 minutes. The support session lasts 1 hour.",
+      "supportOpen": "Open the office's painel",
       "suspend": "Suspend",
       "restore": "Restore",
       "delete": "Delete office",
@@ -1138,6 +1143,8 @@
       "signupLinkHelp": "Copy this link and send it to whoever will create the office. It works once and lasts 7 days. It won't be shown again after you close this window.",
       "explain": {
         "owner_link": "Generate a new owner signup link for {{name}}?",
+        "support_owner": "Enter {{name}}'s painel as an administrator, in a 1-hour support session? You'll see and be able to do what an administrator does, and your changes will show as made by Suporte Unio. The entry is recorded. Ask the owner's permission first.",
+        "support_member": "Enter {{name}}'s painel as team, in a 1-hour support session? You'll see and be able to do what the team does, and your changes will show as made by Suporte Unio. The entry is recorded. Ask the owner's permission first.",
         "suspend": "Suspend {{name}}? Its panel and pages will be unavailable until restored.",
         "restore": "Restore {{name}} and make its panel and pages available again?",
         "delete": "Permanently delete {{name}} data in Unio? Drive files will be preserved. This cannot be undone."
@@ -1391,6 +1398,12 @@
     "addressFree": "Available",
     "create": "Create office",
     "next": "Next, you enter your name, email and password and confirm the email with a code."
+  },
+  "support": {
+    "title": "Support session",
+    "entering": "Entering the office's painel…",
+    "banner": "Unio support session: your changes show as made by Suporte Unio. Ends at {{time}}.",
+    "leave": "Leave support"
   },
   "account": {
     "title": "My account",

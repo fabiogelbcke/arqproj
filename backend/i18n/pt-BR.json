@@ -303,6 +303,7 @@
     "share_daily_limit": "Este link atingiu o limite de downloads de hoje. Tente novamente amanhã.",
     "account_exists": "Já existe uma conta com este e-mail. Entre no painel ou use “Esqueceu a senha?”.",
     "email_unconfirmed": "Confirme seu e-mail para continuar. Recarregue a página.",
+    "support_account": "Esta é uma sessão de suporte: os dados desta conta não podem ser alterados.",
     "email_code_wrong": "Código incorreto. Confira o e-mail e tente de novo.",
     "email_code_expired": "Este código não vale mais. Peça um novo código.",
     "email_code_recent": "Enviamos um código há pouco. Aguarde 2 minutos para pedir outro.",
@@ -1125,6 +1126,10 @@
       "ownerLink": "Link de cadastro do responsável",
       "ownerHelp": "Copie este link e envie ao responsável. Funciona uma vez e vale por 7 dias. Ele não será exibido novamente depois que você fechar esta janela.",
       "owner_link": "Novo convite do responsável",
+      "support_owner": "Entrar como administrador(a)",
+      "support_member": "Entrar como equipe",
+      "supportHelp": "O link funciona uma vez e vale por 2 minutos. A sessão de suporte dura 1 hora.",
+      "supportOpen": "Abrir o painel do escritório",
       "suspend": "Suspender",
       "restore": "Reativar",
       "delete": "Excluir escritório",
@@ -1138,6 +1143,8 @@
       "signupLinkHelp": "Copie este link e envie a quem vai criar o escritório. Funciona uma vez e vale por 7 dias. Ele não será exibido novamente depois que você fechar esta janela.",
       "explain": {
         "owner_link": "Gerar um novo link de cadastro de responsável para {{name}}?",
+        "support_owner": "Entrar no painel de {{name}} como administrador(a), em uma sessão de suporte de 1 hora? Você verá e poderá fazer o que um administrador faz, e suas alterações aparecerão como feitas por Suporte Unio. A entrada fica registrada. Peça permissão ao responsável antes.",
+        "support_member": "Entrar no painel de {{name}} como equipe, em uma sessão de suporte de 1 hora? Você verá e poderá fazer o que a equipe faz, e suas alterações aparecerão como feitas por Suporte Unio. A entrada fica registrada. Peça permissão ao responsável antes.",
         "suspend": "Suspender {{name}}? O painel e as páginas ficarão indisponíveis até a reativação.",
         "restore": "Reativar {{name}} e liberar novamente o painel e as páginas?",
         "delete": "Excluir definitivamente os dados de {{name}} no Unio? Os arquivos no Drive serão preservados. Esta ação não pode ser desfeita."
@@ -1391,6 +1398,12 @@
     "addressFree": "Disponível",
     "create": "Criar escritório",
     "next": "Depois, você informa o seu nome, e-mail e senha e confirma o e-mail com um código."
+  },
+  "support": {
+    "title": "Sessão de suporte",
+    "entering": "Entrando no painel do escritório…",
+    "banner": "Sessão de suporte do Unio: suas alterações aparecem como feitas por Suporte Unio. Termina às {{time}}.",
+    "leave": "Sair do suporte"
   },
   "account": {
     "title": "Minha conta",

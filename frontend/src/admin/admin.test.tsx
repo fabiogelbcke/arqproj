@@ -243,6 +243,40 @@ describe("usage additions", () => {
   });
 });
 
+describe("support access (A43)", () => {
+  it("asks first, then offers the office's painel to open in a new tab", async () => {
+    const url = "https://alinea.myunio.app/painel/suporte#token=t0k3n";
+    const sent = fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),
+      "GET /api/admin/offices/alinea": () => ({ body: ALINEA }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+      "POST /api/admin/offices/alinea/actions": () => ({ body: { owner_url: null, support_url: url } }),
+    });
+    renderAt("/escritorios/alinea");
+    expect(await screen.findByRole("button", { name: "Entrar como administrador(a)" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Entrar como equipe" }));
+    const dialog = screen.getByRole("dialog", { name: "Entrar como equipe" });
+    expect(dialog).toHaveTextContent("Peça permissão ao responsável antes.");
+    expect(sent.some(r => r.path.endsWith("/actions"))).toBe(false); // nothing until confirmed
+    await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar" }));
+    const open = await screen.findByRole("link", { name: "Abrir o painel do escritório" });
+    expect(open).toHaveAttribute("href", url);
+    expect(open).toHaveAttribute("target", "_blank");
+    expect(sent.find(r => r.path.endsWith("/actions"))?.body).toMatchObject({ action: "support_member" });
+  });
+
+  it("isn't offered for a suspended office", async () => {
+    fakeApi({
+      "GET /api/admin/me": () => ({ body: { ...ME, actions_enabled: true } }),
+      "GET /api/admin/offices/alinea": () => ({ body: { ...ALINEA, status: "suspended" } }),
+      "GET /api/admin/offices": () => ({ body: [] }),
+    });
+    renderAt("/escritorios/alinea");
+    await screen.findByRole("button", { name: "Reativar" });
+    expect(screen.queryByRole("button", { name: /Entrar como/ })).toBeNull();
+  });
+});
+
 describe("creating an office", () => {
   it("suggests the identifier from the address until it is edited", () => {
     expect(slugFromHost("alinea.myunio.app")).toBe("alinea");

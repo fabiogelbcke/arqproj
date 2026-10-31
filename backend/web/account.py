@@ -40,6 +40,14 @@ from backend.web.team import _name
 router = APIRouter(prefix="/api")
 
 
+async def own_account(staff: CurrentStaff = Depends(require_csrf)) -> CurrentStaff:
+    """The signed-in person changing their own account: never Suporte Unio (A43),
+    whose details belong to no one."""
+    if staff.support_until is not None:
+        raise ApiError(403, ErrorCode.SUPPORT_ACCOUNT)
+    return staff
+
+
 class NameIn(BaseModel):
     name: str = Field(max_length=200)
 
@@ -47,7 +55,7 @@ class NameIn(BaseModel):
 @router.patch("/me", status_code=204, responses=documented(401, 403, 422))
 async def rename_me(
     body: NameIn,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(own_account),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
     await db.execute(update(User).where(User.id == staff.user_id).values(name=_name(body.name)))
@@ -68,7 +76,7 @@ async def change_password(
     body: PasswordChangeIn,
     request: Request,
     response: Response,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(own_account),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
@@ -124,7 +132,7 @@ async def _check_current(
 async def change_email(
     body: EmailChangeIn,
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(own_account),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:

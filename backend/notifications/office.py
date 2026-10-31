@@ -42,7 +42,11 @@ async def office_of(db: AsyncSession, settings: Settings, tenant_id: uuid.UUID) 
         )
     )
     base = f"https://{host}" if settings.deployed else f"http://{host}:{settings.local_site_port}"
-    users = (await db.execute(select(User.email, User.role).order_by(User.created_at))).all()
+    users = (
+        await db.execute(
+            select(User.email, User.role).where(User.support.is_(False)).order_by(User.created_at)
+        )
+    ).all()
     owner = next((email for email, role in users if role is Role.OWNER), None)
     name = profile.display_name if profile else tenant.name
     # Its own domain once verified, else the product's; until either, Resend's

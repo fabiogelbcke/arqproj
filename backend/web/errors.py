@@ -92,6 +92,7 @@ class ErrorCode(StrEnum):
     JOIN_LINK_INVALID = "join_link_invalid"  # turned off, replaced, or another office's
     ACCOUNT_EXISTS = "account_exists"  # joining or correcting to an address with an account
     EMAIL_UNCONFIRMED = "email_unconfirmed"  # joined by the shared link: confirm the email first
+    SUPPORT_ACCOUNT = "support_account"  # Suporte Unio's own name, email or password (A43)
     EMAIL_CODE_WRONG = "email_code_wrong"  # another try is left
     EMAIL_CODE_EXPIRED = "email_code_expired"  # expired, or too many wrong: ask for a new one
     EMAIL_CODE_RECENT = "email_code_recent"  # one went in the last 2 minutes: wait
