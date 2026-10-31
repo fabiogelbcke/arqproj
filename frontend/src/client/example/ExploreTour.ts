@@ -42,7 +42,9 @@ export async function startExploreTour(t: TFunction) {
     step(".client-notifications", "updates"),
     step('[data-tour="mode"]', "edit"),
   ].filter((s) => shown(s.element as string));
-  steps.push(step(document.querySelector(back) ? back : undefined, "end"));
+  // Staff end on their way back to Primeiros passos; a visitor (from Unio's home)
+  // has no painel to go to.
+  if (shown(back)) steps.push(step(back, "end"));
   const tour = driver({
     showProgress: true,
     allowClose: true,

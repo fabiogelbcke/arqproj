@@ -109,9 +109,6 @@ OWNER_DAYS = 3650  # the owner key lasts as long as the device keeps it
 TOKEN_PURPOSE = "share-token"  # the token, encrypted, for staff to copy the link
 UNLOCK_PURPOSE = "share-unlock"
 UNLOCK_DAYS = 90  # as a project page's (plan section 6)
-# The example project's link (frontend `EXAMPLE_SHARE`): its page is in the
-# browser. A real token is 32 characters, so never this.
-EXAMPLE_TOKEN = "exemplo"
 # The supplier's page sends no referrer: the link itself is the secret.
 SHARE_HEADERS = {**PAGE_HEADERS, "Referrer-Policy": "no-referrer"}
 
@@ -933,8 +930,7 @@ async def share_shell(
             "The client page is not built. Run `make build` (or `make dev`).", status_code=503
         )
     try:
-        if token != EXAMPLE_TOKEN:  # the example project's, shown from the browser
-            await _open_link(db, token)
+        await _open_link(db, token)  # the example project's is served by home.py
         status = 200
     except ApiError as error:
         status = error.status_code

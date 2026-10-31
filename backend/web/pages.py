@@ -44,7 +44,6 @@ from backend.notifications.models import ProjectRecipient, RecipientStatus
 from backend.office.profile import logo_urls
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import (
-    EXAMPLE_SLUG,
     RESERVED_SLUGS,
     AccessMode,
     DetailKey,
@@ -652,14 +651,13 @@ async def shell(
         headers = {"Cache-Control": "no-cache", **PAGE_HEADERS}
         return RedirectResponse(f"/{to}{query}", status_code=301, headers=headers)
 
-    example = slug == EXAMPLE_SLUG
-    if slug.lower() in RESERVED_SLUGS and not example:
+    if slug.lower() in RESERVED_SLUGS:
         # Addresses are lowercase: `/Painel` typed in capitals goes to `/painel`.
         if slug != slug.lower():
             return moved(slug.lower())
         return PlainTextResponse("Not found", status_code=404)
     # An old address, or one typed in capitals, redirects before anything else.
-    project, current = (None, slug) if example else await _find(db, slug, staff)
+    project, current = await _find(db, slug, staff)
     if project is not None and current != slug:
         return moved(current)
 
@@ -670,10 +668,7 @@ async def shell(
         )
     office = (await _office(db, tenant)).name
     tags = {"robots": "noindex"}
-    if example:
-        # The example project (plan section 16): its content is in the page's bundle.
-        status, title = 200, office
-    elif project is None:
+    if project is None:
         status, title = 404, office
     elif await _offline(db):
         # Nothing of the project in its link preview either.
