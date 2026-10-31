@@ -74,8 +74,9 @@ PHOTO_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; sandbox",
     "X-Content-Type-Options": "nosniff",
 }
-# A photo never changes under its address (a new photo is a new row).
-PUBLIC_PHOTO = {**PHOTO_HEADERS, "Cache-Control": "public, max-age=86400"}
+# A photo never changes under its address (a new photo is a new row), but it can
+# be removed or the portfolio unpublished: kept for minutes, not a day.
+PUBLIC_PHOTO = {**PHOTO_HEADERS, "Cache-Control": "public, max-age=300"}
 PRIVATE_PHOTO = {**PHOTO_HEADERS, "Cache-Control": "private, max-age=86400"}
 
 
@@ -205,14 +206,14 @@ async def _trash(request: Request, db: AsyncSession, file_ids: list[str]) -> Non
     recovered (locally, deleted). Best effort: the portfolio has already let go."""
     if not file_ids:
         return
-    connection = await storage_connection(request, db)
-    if connection is None:
-        return
-    if connection.kind is StorageKind.FOLDER:
-        for file_id in file_ids:
-            (local_root(request, connection) / file_id).unlink(missing_ok=True)
-        return
     try:
+        connection = await storage_connection(request, db)
+        if connection is None:
+            return
+        if connection.kind is StorageKind.FOLDER:
+            for file_id in file_ids:
+                (local_root(request, connection) / file_id).unlink(missing_ok=True)
+            return
         _connection, writer = await writer_for(request, db)
         for file_id in file_ids:
             await writer.trash(file_id)

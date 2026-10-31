@@ -85,7 +85,7 @@ class TenantMiddleware:
             await PlainTextResponse("Not found", status_code=404)(scope, receive, send)
             return
         if resolution.redirect_host:
-            target = _redirect_url(scope, host, resolution.redirect_host, state.settings.deployed)
+            target = redirect_url(scope, host, resolution.redirect_host, state.settings.deployed)
             # 301 for page loads; 308 keeps a POST a POST.
             status = 301 if scope["method"] in ("GET", "HEAD") else 308
             response = RedirectResponse(
@@ -100,9 +100,7 @@ class TenantMiddleware:
         await self.app(scope, receive, send)
 
 
-def _redirect_url(
-    scope: Scope, requested_host: str | None, target_host: str, deployed: bool
-) -> str:
+def redirect_url(scope: Scope, requested_host: str | None, target_host: str, deployed: bool) -> str:
     # Deployed traffic always arrives over HTTPS at Google's front end, even though
     # the app itself sees plain HTTP. Locally, keep the scheme and the dev port.
     scheme = "https" if deployed else scope.get("scheme", "http")

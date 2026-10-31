@@ -226,3 +226,39 @@ async def test_one_offices_works_are_out_of_anothers_reach(client, db_session, s
     assert (
         await client.delete(f"/api/portfolio/entries/{entry['id']}", headers=norte)
     ).status_code == 404
+
+
+async def test_an_alias_of_the_offices_address_moves_to_it_first(client, staff):
+    entry = await add(client, staff)
+    await photo(client, staff, entry)
+    await publish(client, staff)
+    moved = await client.get("/?projeto=x", headers={"host": "www.alinea.localhost"})
+    assert moved.status_code == 301
+    assert moved.headers["location"].startswith("http://alinea.localhost")
+    assert moved.headers["location"].endswith("/?projeto=x")
+
+
+async def test_an_unconfirmed_account_gets_no_preview(client, db_session, staff):
+    entry = await add(client, staff, title="Casa Jardim")
+    await photo(client, staff, entry)
+    await db_session.execute(
+        text("UPDATE users SET email_confirmed_at = NULL WHERE email = 'dona@alinea.example'")
+    )
+    assert "Casa Jardim" not in (await client.get("/?previa=1", headers=ALINEA)).text
+
+
+async def test_removing_succeeds_even_when_storage_cant_take_the_files(client, staff, monkeypatch):
+    from backend.web import portfolio
+    from backend.web.errors import ApiError, ErrorCode
+
+    entry = await add(client, staff)
+    url = (await photo(client, staff, entry)).json()["entries"][0]["photos"][0]["url"]
+
+    async def unreadable(request, db):
+        raise ApiError(409, ErrorCode.DRIVE_UNREADABLE)
+
+    monkeypatch.setattr(portfolio, "storage_connection", unreadable)
+    removed = await client.delete(f"/api/portfolio/photos/{url.rsplit('/', 1)[1]}", headers=staff)
+    assert removed.status_code == 200 and removed.json()["entries"][0]["photos"] == []
+    gone = await client.delete(f"/api/portfolio/entries/{entry['id']}", headers=staff)
+    assert gone.status_code == 200 and gone.json()["entries"] == []

@@ -21,7 +21,7 @@ from html import escape
 from pathlib import Path
 
 from fastapi import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import select
 
 from backend.db.isolation import scope_to_tenant
@@ -29,6 +29,7 @@ from backend.identity import sessions
 from backend.office.models import OfficeProfile
 from backend.office.profile import logo_urls
 from backend.portfolio.models import Portfolio, PortfolioEntry, PortfolioPhoto
+from backend.tenancy.middleware import REDIRECT_MAX_AGE, redirect_url
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, normalize_host, resolve
 from backend.web.auth import COOKIE
@@ -44,6 +45,7 @@ HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
 }
+REDIRECT_HEADERS = {"Cache-Control": f"public, max-age={REDIRECT_MAX_AGE}"}
 PUBLISHED = {**HEADERS, "Cache-Control": "public, max-age=60"}
 PREVIEW = {**HEADERS, "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex"}
 
@@ -81,7 +83,7 @@ def _meta(entry: PortfolioEntry) -> str:
     return " · ".join(part for part in (entry.place, str(entry.year or "")) if part)
 
 
-async def page(request: Request) -> HTMLResponse | None:
+async def page(request: Request) -> Response | None:
     """The portfolio for this address, or None: Unio's home is shown instead,
     also when the portfolio can't be read: the home never depends on the database."""
     try:
@@ -91,7 +93,7 @@ async def page(request: Request) -> HTMLResponse | None:
         return None
 
 
-async def _page(request: Request) -> HTMLResponse | None:
+async def _page(request: Request) -> Response | None:
     settings = request.app.state.settings
     host = request.headers.get("host")
     if normalize_host(host) == settings.operator_host:
@@ -100,6 +102,11 @@ async def _page(request: Request) -> HTMLResponse | None:
         resolution = await resolve(session, host)
     if resolution is None or not resolution.tenant.has(Feature.PORTFOLIO):
         return None
+    if resolution.redirect_host:
+        # An alias or `www.`: to the office's own address first, as every other
+        # path is (the photos and logo would be redirected there, off this page).
+        target = redirect_url(request.scope, host, resolution.redirect_host, settings.deployed)
+        return RedirectResponse(target, status_code=301, headers=REDIRECT_HEADERS)
     tenant = resolution.tenant
     async with request.app.state.sessionmaker() as db:
         scope_to_tenant(db.sync_session, tenant.id)
@@ -109,7 +116,10 @@ async def _page(request: Request) -> HTMLResponse | None:
             token = request.cookies.get(COOKIE)
             if "previa" not in request.query_params or not token:
                 return None
-            if await sessions.find_active(db, token) is None:
+            signed_in = await sessions.find_active(db, token)
+            # Confirmed staff only, as everywhere else (an account from the shared
+            # office link has a session before its email is confirmed).
+            if signed_in is None or signed_in[1].email_confirmed_at is None:
                 return None
             await db.commit()
             preview = True
