@@ -79,6 +79,10 @@ decision in the [decision changelog](decision-changelog.md).
   (costs, provider, whose number, consent, effort).
 - Decide whether recipients choose one channel or can receive both, and how to
   avoid unwanted duplicate notifications.
+- A **file bot** on the same number: staff forward files they received in other
+  WhatsApp chats to Unio, pick the project and stage, and the files land in the
+  office's Drive. Raised by Fabio, 1 Nov 2026; how it would work and its cost
+  are in [whatsapp-updates.md](whatsapp-updates.md#the-file-bot).
 
 
 ## What an office's own address shows at its root
