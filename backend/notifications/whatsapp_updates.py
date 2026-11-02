@@ -14,7 +14,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,7 +56,10 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 5  # as an email's: then that number is given up on for this message
-STAGES_LISTED = 3  # more changed stages read as "e mais 2 etapas"
+STAGES_LISTED = 3
+NEVER = datetime(
+    1970, 1, 1, tzinfo=UTC
+)  # a choice recorded before any SAIR  # more changed stages read as "e mais 2 etapas"
 
 
 def _w(locale: Locale, key: str, count: int | None = None, **values) -> str:
@@ -184,7 +187,9 @@ async def opted_out(db: AsyncSession, settings: Settings, phones: set[str]) -> s
         return set()
     by_hash = {opt_out_hash(settings, p): p for p in phones}
     found = await db.scalars(
-        select(WhatsAppOptOut.phone_hash).where(WhatsAppOptOut.phone_hash.in_(by_hash))
+        select(WhatsAppOptOut.phone_hash).where(
+            WhatsAppOptOut.phone_hash.in_(by_hash), WhatsAppOptOut.in_force()
+        )
     )
     return {by_hash[h] for h in found}
 
@@ -192,16 +197,16 @@ async def opted_out(db: AsyncSession, settings: Settings, phones: set[str]) -> s
 async def opt_out(
     db: AsyncSession, settings: Settings, phone: str, sent_at: datetime | None = None
 ) -> None:
-    """Each SAIR dates the stop anew, by when the client sent it (`sent_at`, so a
-    SAIR Meta delivers late keeps its place), keeping the later date: an answer
-    tapped before it must not lift it, nor one after it be undone (`opt_back_in`)."""
+    """A SAIR, dated by when the client sent it (`sent_at`: Meta may deliver it
+    late), keeping the latest: it stops the updates only if newer than their
+    latest choice to have them (`opt_back_in`)."""
     when = sent_at or datetime.now(UTC)
-    query = insert(WhatsAppOptOut).values(phone_hash=opt_out_hash(settings, phone), created_at=when)
+    query = insert(WhatsAppOptOut).values(phone_hash=opt_out_hash(settings, phone), stopped_at=when)
     await db.execute(
         query.on_conflict_do_update(
             index_elements=[WhatsAppOptOut.phone_hash],
             set_={
-                "created_at": func.greatest(WhatsAppOptOut.created_at, query.excluded.created_at)
+                "stopped_at": func.greatest(WhatsAppOptOut.stopped_at, query.excluded.stopped_at)
             },
         )
     )
@@ -210,12 +215,21 @@ async def opt_out(
 async def opt_back_in(
     db: AsyncSession, settings: Settings, phone: str, chosen_at: datetime | None = None
 ) -> None:
-    """The client chose the updates again: their own choice lifts their SAIR, if
-    it came after it (`chosen_at`: when they tapped; Meta may deliver it late)."""
-    query = delete(WhatsAppOptOut).where(WhatsAppOptOut.phone_hash == opt_out_hash(settings, phone))
-    if chosen_at is not None:
-        query = query.where(WhatsAppOptOut.created_at < chosen_at)
-    await db.execute(query)
+    """The client chose the updates again (`chosen_at`: when; Meta may deliver
+    a tap late): it lifts a SAIR sent before it, and a SAIR sent before it that
+    arrives later stays lifted. Kept as the latest such time."""
+    when = chosen_at or datetime.now(UTC)
+    # Kept even with no SAIR yet, so one sent before it that arrives later
+    # finds it (a row with no SAIR newer than its choice stops nothing).
+    query = insert(WhatsAppOptOut).values(
+        phone_hash=opt_out_hash(settings, phone), stopped_at=NEVER, resumed_at=when
+    )
+    await db.execute(
+        query.on_conflict_do_update(
+            index_elements=[WhatsAppOptOut.phone_hash],
+            set_={"resumed_at": func.greatest(WhatsAppOptOut.resumed_at, when)},
+        )
+    )
 
 
 async def first_time(db: AsyncSession, message_id: str) -> bool:

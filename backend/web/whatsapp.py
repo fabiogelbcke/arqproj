@@ -180,8 +180,12 @@ async def _answer(request: Request, phone: str, found, message_id: str, sent_at:
         if recipient is None or recipient.phone not in forms(phone):
             await db.commit()  # handled: nothing to change
             return  # removed by staff meanwhile, or not this number's button
+        if recipient.answered_at is not None and sent_at <= recipient.answered_at:
+            await db.commit()  # an older answer delivered late: the newer one stands
+            return
         project = await db.scalar(select(Project).where(Project.id == recipient.project_id))
         locale = await db.scalar(select(Tenant.locale).where(Tenant.id == found.tenant_id))
+        recipient.answered_at = sent_at
         if found.action == "yes":
             recipient.status = WhatsAppStatus.SUBSCRIBED
             # Their own choice lifts a SAIR sent before it, not one sent after.

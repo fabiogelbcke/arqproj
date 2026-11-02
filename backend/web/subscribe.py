@@ -12,6 +12,7 @@ same unsubscribe link every update carries. Rate-limited per device.
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from pydantic import BaseModel, Field
@@ -191,7 +192,8 @@ async def subscribe_whatsapp(
     else:
         recipient.status, recipient.source = WhatsAppStatus.SUBSCRIBED, WhatsAppSource.CLIENT
         recipient.greeted_at = None  # welcomed again
-    await whatsapp_updates.opt_back_in(db, settings, phone)
+    recipient.answered_at = datetime.now(UTC)  # their latest choice
+    await whatsapp_updates.opt_back_in(db, settings, phone, recipient.answered_at)
     await db.flush()
     recipient_id = recipient.id
     await db.commit()

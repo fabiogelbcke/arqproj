@@ -286,7 +286,9 @@ async def summaries(
             stopped = {
                 by_hash[h]
                 for h in await db.scalars(
-                    select(WhatsAppOptOut.phone_hash).where(WhatsAppOptOut.phone_hash.in_(by_hash))
+                    select(WhatsAppOptOut.phone_hash).where(
+                        WhatsAppOptOut.phone_hash.in_(by_hash), WhatsAppOptOut.in_force()
+                    )
                 )
             }
         for number in numbers:

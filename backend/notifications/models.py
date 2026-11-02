@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    or_,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -98,16 +99,27 @@ class ProjectWhatsApp(IdMixin, TimestampsMixin, TenantOwned, Base):
     # When it was sent the welcome (client) or the question (staff); None until
     # then, and the maintenance pass tries again.
     greeted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the client made the choice it stands at (signed up, or tapped "Quero
+    # receber" / "Não quero"): an answer sent before it, delivered late, is ignored.
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-class WhatsAppOptOut(CreatedAtMixin, Base):
+class WhatsAppOptOut(Base):
     """A number that replied SAIR: no WhatsApp updates from any project of any
     office, since they all come from the one Unio number (A44). No office's, so
-    it holds no number, only its keyed hash."""
+    it holds no number, only its keyed hash. Dated by the client's own messages,
+    so whichever Meta delivers last, the latest choice stands: stopped while the
+    latest SAIR is newer than the latest time they chose the updates again."""
 
     __tablename__ = "whatsapp_opt_outs"
 
     phone_hash: Mapped[str] = mapped_column(Text, primary_key=True)
+    stopped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    @classmethod
+    def in_force(cls):
+        return or_(cls.resumed_at.is_(None), cls.stopped_at > cls.resumed_at)
 
 
 class WhatsAppMessageSeen(CreatedAtMixin, Base):

@@ -118,7 +118,6 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("whatsapp_opt_outs", "SELECT"),  # SAIR, for every office (A44)
         ("whatsapp_opt_outs", "INSERT"),
         ("whatsapp_opt_outs", "UPDATE"),  # each SAIR dates the stop anew
-        ("whatsapp_opt_outs", "DELETE"),
         ("whatsapp_messages_seen", "SELECT"),  # Meta's messages handled once (A44)
         ("whatsapp_messages_seen", "INSERT"),
         ("maintenance_runs", "SELECT"),

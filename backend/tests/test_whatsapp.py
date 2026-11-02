@@ -854,7 +854,7 @@ async def test_a_second_sair_outlasts_an_answer_tapped_before_it(
     question = await asked(client, db_session, owner, meta)
     await post(client, sair("wamid.sair-1"))
     await db_session.execute(
-        text("UPDATE whatsapp_opt_outs SET created_at = now() - interval '2 hours'")
+        text("UPDATE whatsapp_opt_outs SET stopped_at = now() - interval '2 hours'")
     )
     tapped = datetime.now(ZoneInfo("UTC")) - timedelta(hours=1)  # between the two SAIRs
     await post(client, sair("wamid.sair-2"))
@@ -880,5 +880,40 @@ async def test_a_sair_delivered_after_a_later_answer_doesnt_undo_it(
         }
     )
     await post(client, late)
-    stop = await db_session.scalar(text("SELECT created_at FROM whatsapp_opt_outs"))
-    assert stop < now  # dated when the client sent it, before their answer
+    assert not await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+
+
+async def test_a_sair_delivered_after_a_page_sign_up_doesnt_undo_it(
+    client, app, db_session, meta, visitor
+):
+    """Sent SAIR, then signed up again on the page; the SAIR arrived last."""
+    before = datetime.now(ZoneInfo("UTC")) - timedelta(minutes=5)
+    await sign_up(client, CLIENT)
+    late = incoming(
+        {
+            "from": CLIENT,
+            "id": "wamid.sair-before-signup",
+            "timestamp": str(int(before.timestamp())),
+            "type": "text",
+            "text": {"body": "SAIR"},
+        }
+    )
+    await post(client, late)
+    assert not await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    # A SAIR sent now stops it again.
+    await post(client, sair("wamid.sair-now"))
+    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+
+
+async def test_an_older_answer_delivered_last_doesnt_undo_the_newer_one(
+    client, db_session, owner, meta
+):
+    """Tapped "Quero receber", then "Não quero"; the yes arrived last."""
+    question = await asked(client, db_session, owner, meta)
+    now = datetime.now(ZoneInfo("UTC"))
+    await post(client, tap(question.buttons[1], "wamid.no-later", at=now))
+    await post(client, tap(question.buttons[0], "wamid.yes-earlier", at=now - timedelta(minutes=1)))
+    assert (await number(db_session))[0] == "declined"
+    # And the other way round: a newer yes after an older no.
+    await post(client, tap(question.buttons[0], "wamid.yes-newest", at=now + timedelta(minutes=1)))
+    assert (await number(db_session))[0] == "subscribed"
