@@ -32,7 +32,7 @@ The cost of building each is in [one-time.md](one-time.md#building-the-extras).
 | Own storage on Google Cloud Storage instead | ~US$5.90 for 100 GB stored and 20 GB downloaded (also replacing the downloads above) | same |
 | **More cloud providers** (OneDrive, Dropbox) | ~US$0 | [storage-strategy.md](../storage-strategy.md#b-more-cloud-providers) |
 | **WhatsApp updates** (Meta Cloud API) | ~US$1.30–2.60 for a busy office (160–320 utility messages at ~US$0.008 each); +US$0.005 a message through Twilio. The simulation uses US$2. | [whatsapp-updates.md](../whatsapp-updates.md#cost) |
-| **WhatsApp file bot** (same number) | ~US$0: messages to us are free, and all offices share the number's 1,000 free replies a month (~3 per forward); beyond them, ~US$0.007 a reply. Not in the simulation. | [whatsapp-updates.md](../whatsapp-updates.md#cost) |
+| **WhatsApp file bot** (same number) | ~US$0: messages to us are free, and all offices share the number's 1,000 free replies a month (~3 per forward); beyond them, the rate card's price, not checked (assumed ~US$0.007 a reply, like utility). Not in the simulation. | [whatsapp-updates.md](../whatsapp-updates.md#cost) |
 | **AI assistant in the panel** | ~US$0.10–0.50 (1,000 questions a month across all offices cost US$10–20). The simulation uses US$0.30. | [ai-for-the-business.md](../ai-for-the-business.md#1-customer-support) |
 | **The office's own domain** for its pages | ~US$0 (an hour of setup, [one-time.md](one-time.md)) | — |
 

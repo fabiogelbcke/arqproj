@@ -73,7 +73,7 @@ receive.
 **Cloud.** Downloading a file from Meta is inbound traffic (free) and uploading
 it to Drive goes to a Google API. A 100 MB file is about 20 seconds of Cloud
 Run; 1,000 files a month stay inside Cloud Run's and Cloud Tasks' free
-allowances. A prepaid SIM for the number costs ~R$20 once. Meta business
+allowances. The number costs ~R$17–50 a month (see [the number](#the-number)). Meta business
 verification is free.
 
 That's small enough to include in a plan, or to sell as an extra (see
@@ -231,11 +231,13 @@ template, and the webhook.
 
 ### What staff see
 
-1. **Once, in the painel:** "Conectar WhatsApp" shows a code and a link
-   (`wa.me/<Unio number>?text=Unio 4821`; a QR code on a computer). Tapping it
-   opens a chat with Unio with the code typed; sending it links that phone
-   number to the staff account and saves Unio in their chats. The code expires
-   in 15 minutes and only its hash is kept.
+1. **Once, in the painel:** "Conectar WhatsApp" shows a link
+   (`wa.me/<Unio number>?text=Unio K7QF-2MXR-9TCD`; a QR code on a computer).
+   Tapping it opens a chat with Unio with the code typed; sending it links that
+   phone number to the staff account and saves Unio in their chats. Nobody types
+   the code, so it can be long: random, at least 60 bits, single use, expiring
+   in 15 minutes, only its hash kept (as owner links are). Wrong codes are
+   limited per sending number, and the painel shows which number was linked.
 2. A client sends them a PDF in another chat. They tap **Encaminhar** and pick
    Unio, several files at once if they like.
 3. The bot: "Recebi 3 arquivos. Para qual projeto?", with a list of their
@@ -367,7 +369,9 @@ About **1–2 weeks** of work:
    in Brazil), and whether their staff would forward files to a bot.
 2. Decide one Unio number vs offices' own.
 3. Decide whether each is in every plan or a paid extra.
-4. For the bot: approve Cloud Tasks (a change to A09).
+4. For the bot: approve Cloud Tasks (a change to A09), and record in the
+   register that the bot's uploads pass through Cloud Run (A31 says page
+   uploads never do; the bot's bytes come from Meta, not a browser).
 5. Get the number (above) in Unio's name; verification waits for the CNPJ.
 
 ## Sources
