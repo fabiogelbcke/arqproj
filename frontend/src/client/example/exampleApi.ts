@@ -84,6 +84,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     in_proposal: false,
     proposal: null,
     proposal_url: project.proposal_url,
+    whatsapp: false, // the example office sends no messages
     staff: staffView
       ? {
           project_id: EXAMPLE_SLUG,

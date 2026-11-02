@@ -32,6 +32,7 @@ const PAGE: Page = {
   in_proposal: false,
   proposal: null,
   proposal_url: null,
+  whatsapp: false,
 };
 
 const file = (key: string, name: string, size: number) => ({

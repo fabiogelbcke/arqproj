@@ -1,6 +1,8 @@
-"""Clients sign themselves up for a project's emails (A32, 20 Oct 2026).
+"""Clients sign themselves up for a project's emails (A32, 20 Oct 2026) or
+WhatsApp messages (A44).
 
     POST /api/pages/{slug}/subscribe   from the project page: listed at once, and welcomed
+    POST /api/pages/{slug}/whatsapp    the same for a WhatsApp number, if the office has it
 
 No confirmation step (Fabio, 20 Oct 2026): the address is listed straight away and
 gets a welcome email saying so, with a small "Não foi você?" link to stop them, the
@@ -19,13 +21,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.analytics import capture_visit
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import is_email, tidy_email
+from backend.notifications import whatsapp_updates
 from backend.notifications.digest import unsubscribe_token
 from backend.notifications.email import Email, EmailError, sender_for
-from backend.notifications.models import RECIPIENTS_MAX, ProjectRecipient, RecipientStatus
+from backend.notifications.models import (
+    RECIPIENTS_MAX,
+    ProjectRecipient,
+    ProjectWhatsApp,
+    RecipientStatus,
+    WhatsAppSource,
+    WhatsAppStatus,
+)
 from backend.notifications.office import office_of
 from backend.notifications.subscribe import welcome_email
+from backend.notifications.whatsapp import PHONE_MAX, parse_phone
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Project
+from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
 from backend.web.auth import CurrentStaff, optional_staff
@@ -40,6 +52,10 @@ router = APIRouter()
 
 class SubscribeIn(BaseModel):
     email: str = Field(max_length=500)
+
+
+class WhatsAppIn(BaseModel):
+    phone: str = Field(max_length=PHONE_MAX)
 
 
 async def _send(request: Request, tenant: CurrentTenant, email: Email) -> None:
@@ -114,3 +130,75 @@ async def subscribe(
         f"{office.base}/api/emails/unsubscribe/{stop}",
     )
     background.add_task(_send, request, tenant, welcome)
+
+
+@router.post(
+    "/api/pages/{slug}/whatsapp", status_code=204, responses=documented(403, 404, 409, 422, 429)
+)
+async def subscribe_whatsapp(
+    slug: str,
+    body: WhatsAppIn,
+    request: Request,
+    background: BackgroundTasks,
+    staff: CurrentStaff | None = Depends(optional_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> None:
+    """Listed at once and sent the welcome, as an email is (A44). Signing up is
+    the client's own choice, so it also lifts a SAIR they sent before."""
+    if not tenant.has(Feature.WHATSAPP_UPDATES):
+        raise ApiError(404, ErrorCode.FEATURE_OFF)
+    project = await _readable(db, slug, staff, request)
+    if project.status is ProjectStatus.ARCHIVED:
+        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
+    who = attempts.device(request)
+    if not attempts.admit(TRIES, who):
+        raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
+    attempts.failed(TRIES, who)
+    phone = parse_phone(body.phone)
+    if phone is None:
+        raise ApiError(422, ErrorCode.INVALID_PHONE)
+    settings = request.app.state.settings
+    # Locked as staff edits lock it: one change to its numbers at a time.
+    project = await db.scalar(select(Project).where(Project.id == project.id).with_for_update())
+    if project.status is ProjectStatus.ARCHIVED:
+        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
+    recipient = await db.scalar(
+        select(ProjectWhatsApp).where(
+            ProjectWhatsApp.project_id == project.id, ProjectWhatsApp.phone == phone
+        )
+    )
+    stopped = bool(await whatsapp_updates.opted_out(db, settings, {phone}))
+    if recipient is not None and recipient.status is WhatsAppStatus.SUBSCRIBED and not stopped:
+        return  # already in: nothing new to say
+    if recipient is None:
+        count = await db.scalar(
+            select(func.count()).where(ProjectWhatsApp.project_id == project.id)
+        )
+        if count >= RECIPIENTS_MAX:
+            raise ApiError(409, ErrorCode.WHATSAPP_FULL)
+        recipient = ProjectWhatsApp(
+            project_id=project.id,
+            phone=phone,
+            status=WhatsAppStatus.SUBSCRIBED,
+            source=WhatsAppSource.CLIENT,
+        )
+        db.add(recipient)
+    else:
+        recipient.status, recipient.source = WhatsAppStatus.SUBSCRIBED, WhatsAppSource.CLIENT
+        recipient.greeted_at = None  # welcomed again
+    await whatsapp_updates.opt_back_in(db, settings, phone)
+    await db.flush()
+    recipient_id = recipient.id
+    await db.commit()
+    log.info("whatsapp: a number signed itself up for project %s", project.id)
+    if staff is None:
+        capture_visit(request, tenant.id, "client_whatsapp_subscribed", {})
+    background.add_task(
+        whatsapp_updates.greet_now,
+        request.app.state.sessionmaker,
+        settings,
+        getattr(request.app.state, "http", None),
+        tenant.id,
+        [recipient_id],
+    )

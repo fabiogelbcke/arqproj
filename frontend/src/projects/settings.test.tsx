@@ -44,6 +44,7 @@ const CASA: ProjectSummary = {
   access_mode: "public",
   recipients: [],
   members: [],
+  whatsapp: [],
 };
 const PATH = `/api/projects/${CASA.id}`;
 
@@ -253,6 +254,67 @@ describe("the Projeto dialog", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
     await screen.findByText("Salvo.");
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ recipients: ["ana@example.com", "joao@example.com"] });
+  });
+
+  describe("WhatsApp do cliente (A44)", () => {
+    const on = { ...ME, features: ["whatsapp_updates"] };
+
+    it("adds a number as people write it and sends it in international digits", async () => {
+      const sent = api({
+        "GET /api/me": () => ({ body: on }),
+        [`PATCH ${PATH}`]: (body: unknown) => ({ body: { ...CASA, row_version: 5, ...(body as object), whatsapp: [] } }),
+      });
+      const dialog = await openSettings();
+      const field = within(dialog).getByLabelText("Novo número");
+      await userEvent.type(field, "(11) 98765-4321{Enter}");
+      expect(within(dialog).getByText("(11) 98765-4321")).toBeInTheDocument();
+      await userEvent.type(field, "+55 21 99876-5432"); // typed, not added: saved too
+      await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+      expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+      expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({
+        whatsapp: ["5511987654321", "5521998765432"],
+      });
+    });
+
+    it("doesn't save while the box isn't a mobile number, and says so", async () => {
+      const sent = api({ "GET /api/me": () => ({ body: on }) });
+      const dialog = await openSettings();
+      await userEvent.type(within(dialog).getByLabelText("Novo número"), "3456-7890");
+      expect(within(dialog).queryByRole("alert")).toBeNull(); // not while typing
+      await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+      expect(within(dialog).getByRole("alert")).toHaveTextContent("Informe um celular com DDD");
+      expect(sent.some((r) => r.method === "PATCH")).toBe(false);
+    });
+
+    it("shows where each number stands; one that said no can't be removed", async () => {
+      api({
+        "GET /api/me": () => ({ body: on }),
+        "GET /api/projects": () => ({
+          body: [
+            {
+              ...CASA,
+              whatsapp: [
+                { phone: "5511987654321", state: "invited" },
+                { phone: "5521998765432", state: "declined" },
+                { phone: "5531991234567", state: "stopped" },
+              ],
+            },
+          ],
+        }),
+      });
+      const dialog = await openSettings();
+      expect(within(dialog).getByText(/Aguardando confirmação/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Não quis receber/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Pediu para sair/)).toBeInTheDocument();
+      expect(within(dialog).getByRole("button", { name: "Remover (11) 98765-4321" })).toBeInTheDocument();
+      expect(within(dialog).queryByRole("button", { name: "Remover (21) 99876-5432" })).toBeNull();
+    });
+
+    it("isn't there while the office doesn't have the feature", async () => {
+      api();
+      const dialog = await openSettings();
+      expect(within(dialog).queryByLabelText("Novo número")).toBeNull();
+    });
   });
 
   it("shows who unsubscribed, and staff can't remove them to add them back", async () => {

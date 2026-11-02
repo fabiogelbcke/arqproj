@@ -120,6 +120,7 @@ const PAGE: Page = {
   in_proposal: true,
   proposal: PROPOSAL,
   proposal_url: PROPOSAL.pdf_url,
+  whatsapp: false,
   team: [],
 };
 

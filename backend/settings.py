@@ -90,6 +90,19 @@ class Settings(BaseSettings):
     email_domain: str | None = None
     # Offices that send from their own verified domain, as JSON: {"alinea": "alineaarquitetos.com"}.
     email_office_domains: dict[str, str] = {}
+    # Client updates by WhatsApp (A44), through Meta's Cloud API: the Unio number's
+    # id and a permanent access token. Without them, messages are written to
+    # `email_outbox` locally and not sent at all when deployed.
+    whatsapp_token: str | None = None
+    whatsapp_phone_number_id: str | None = None
+    whatsapp_api_version: str = "v23.0"
+    # Meta's webhook: the app secret signs its requests, and the verify token is
+    # the one typed in Meta's settings when registering the address.
+    whatsapp_app_secret: str | None = None
+    whatsapp_verify_token: str | None = None
+    # Outside production, the only numbers sent real messages, comma separated in
+    # international digits (5511912345678).
+    whatsapp_test_numbers: str = ""
     # Where links in locally written emails point: `make dev`'s port (`make serve`
     # sets 8000).
     local_site_port: int = 5173
@@ -160,6 +173,12 @@ class Settings(BaseSettings):
     @property
     def operator_allowlist(self) -> frozenset[str]:
         return frozenset(e.strip().lower() for e in self.operator_emails.split(",") if e.strip())
+
+    @property
+    def whatsapp_test_list(self) -> frozenset[str]:
+        return frozenset(
+            re.sub(r"\D", "", n) for n in self.whatsapp_test_numbers.split(",") if n.strip()
+        )
 
     @property
     def deployed(self) -> bool:

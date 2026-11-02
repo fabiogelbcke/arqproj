@@ -19,6 +19,7 @@ from backend.projects.enums import EXAMPLE_PAGES
 from backend.tenancy.resolve import normalize_host, resolve
 
 # The maintenance pass is every office's: called by the scheduler, never a page.
+# Meta's WhatsApp webhook too: one Unio number serves every office (A44).
 # Unio's public home, its assets and legal pages belong to no office (A33).
 EXEMPT_PATHS = frozenset(
     {
@@ -29,6 +30,7 @@ EXEMPT_PATHS = frozenset(
         "/api/docs",
         "/api/openapi.json",
         "/internal/maintenance",
+        "/api/whatsapp/webhook",
         "/privacidade",
         "/termos",
     }

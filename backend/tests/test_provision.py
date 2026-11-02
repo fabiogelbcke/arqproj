@@ -108,6 +108,16 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("notification_deliveries", "SELECT"),
         ("notification_deliveries", "INSERT"),
         ("notification_deliveries", "UPDATE"),
+        ("project_whatsapp_recipients", "SELECT"),  # client WhatsApp numbers (A44)
+        ("project_whatsapp_recipients", "INSERT"),
+        ("project_whatsapp_recipients", "UPDATE"),
+        ("project_whatsapp_recipients", "DELETE"),
+        ("whatsapp_deliveries", "SELECT"),
+        ("whatsapp_deliveries", "INSERT"),
+        ("whatsapp_deliveries", "UPDATE"),
+        ("whatsapp_opt_outs", "SELECT"),  # SAIR, for every office (A44)
+        ("whatsapp_opt_outs", "INSERT"),
+        ("whatsapp_opt_outs", "DELETE"),
         ("maintenance_runs", "SELECT"),
         ("maintenance_runs", "INSERT"),
         ("maintenance_runs", "UPDATE"),

@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
@@ -24,7 +25,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity.models import User
-from backend.notifications.models import RECIPIENTS_MAX, ProjectRecipient, RecipientStatus
+from backend.notifications.models import (
+    RECIPIENTS_MAX,
+    ProjectRecipient,
+    ProjectWhatsApp,
+    RecipientStatus,
+    WhatsAppOptOut,
+    WhatsAppStatus,
+)
+from backend.notifications.whatsapp import opt_out_hash
 from backend.projects.creation import (
     CreationProblem,
     FolderMaker,
@@ -45,6 +54,7 @@ from backend.projects.models import (
     ProjectTypeStage,
     StageDef,
 )
+from backend.settings import Settings
 from backend.storage.google_connect import ConnectError
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
 from backend.tenancy.models import Feature, Locale
@@ -71,6 +81,21 @@ class RecipientOut(BaseModel):
     # False once the client followed the email's unsubscribe link: they get
     # nothing more, and staff can't undo it (A32, section 14).
     subscribed: bool
+
+
+class WhatsAppState(StrEnum):
+    """Where a client's number stands, as the painel shows it (A44)."""
+
+    INVITED = "invited"  # asked, no answer yet: "Aguardando confirmação"
+    SUBSCRIBED = "subscribed"
+    DECLINED = "declined"  # answered "Não quero"
+    STOPPED = "stopped"  # replied SAIR, to any project
+    UNREACHABLE = "unreachable"  # no WhatsApp on that number
+
+
+class WhatsAppOut(BaseModel):
+    phone: str  # international digits: 5511912345678
+    state: WhatsAppState
 
 
 class MemberRef(BaseModel):
@@ -107,6 +132,9 @@ class ProjectSummary(BaseModel):
     responsible: str | None = None
     # Who works on it, by name (A41); empty unless the office has the feature (A40).
     members: list[MemberRef] = []
+    # The client's WhatsApp numbers (A44), in the order they were added; empty
+    # unless the office has the feature (A40).
+    whatsapp: list[WhatsAppOut] = []
 
 
 class StageOption(BaseModel):
@@ -147,8 +175,13 @@ class ProjectIn(BaseModel):
 
 
 async def summaries(
-    db: AsyncSession, tenant: CurrentTenant, only: uuid.UUID | None = None
+    db: AsyncSession,
+    tenant: CurrentTenant,
+    only: uuid.UUID | None = None,
+    settings: Settings | None = None,
 ) -> list[ProjectSummary]:
+    """The painel's cards. With `settings`, a WhatsApp number that replied SAIR
+    shows as stopped (its hash needs the app's secret)."""
     locale = tenant.locale
     query = (
         select(Project, ProjectSlug.slug, ProjectTypeDef.labels)
@@ -238,6 +271,31 @@ async def summaries(
                 subscribed=recipient.status is RecipientStatus.SUBSCRIBED,
             )
         )
+    whatsapp: dict[uuid.UUID, list[WhatsAppOut]] = {}
+    if tenant.has(Feature.WHATSAPP_UPDATES):
+        numbers = list(
+            await db.scalars(
+                select(ProjectWhatsApp)
+                .where(ProjectWhatsApp.project_id.in_(ids))
+                .order_by(ProjectWhatsApp.created_at, ProjectWhatsApp.phone)
+            )
+        )
+        stopped: set[str] = set()
+        if settings is not None and numbers:
+            by_hash = {opt_out_hash(settings, n.phone): n.phone for n in numbers}
+            stopped = {
+                by_hash[h]
+                for h in await db.scalars(
+                    select(WhatsAppOptOut.phone_hash).where(WhatsAppOptOut.phone_hash.in_(by_hash))
+                )
+            }
+        for number in numbers:
+            state = WhatsAppState(number.status.value)
+            if number.phone in stopped and number.status is not WhatsAppStatus.DECLINED:
+                state = WhatsAppState.STOPPED
+            whatsapp.setdefault(number.project_id, []).append(
+                WhatsAppOut(phone=number.phone, state=state)
+            )
     return [
         ProjectSummary(
             id=project.id,
@@ -268,6 +326,7 @@ async def summaries(
             recipients=recipients.get(project.id, []),
             responsible=responsible.get(project.id),
             members=members.get(project.id, []),
+            whatsapp=whatsapp.get(project.id, []),
         )
         for project, slug, labels in rows
     ]
@@ -282,11 +341,12 @@ def cover_url(project: Project) -> str | None:
 
 @router.get("/projects", responses=documented(401))
 async def projects(
+    request: Request,
     _staff: CurrentStaff = Depends(current_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> list[ProjectSummary]:
-    return await summaries(db, tenant)
+    return await summaries(db, tenant, settings=request.app.state.settings)
 
 
 @router.get("/project-types", responses=documented(401))

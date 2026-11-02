@@ -16,7 +16,7 @@ import { SiteFooter } from "../ui/UnioMark";
 import { EditButton, openOnClick } from "./EditButton";
 import { useBalancedColumns } from "./balance";
 import { dropTarget, placeId, startDrag, type DraggedFile, type DropPlace } from "./fileDrag";
-import { Subscribe } from "./Subscribe";
+import { Subscribe, SubscribeWhatsApp } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import type { StageEditParts } from "./StageEditing";
 import {
@@ -1157,6 +1157,14 @@ export function ProjectPage({
           <div key="subscribe" data-movable="1">
             <Subscribe slug={slug} />
           </div>,
+          // And to WhatsApp, where the office has it (A44).
+          ...(page.whatsapp
+            ? [
+                <div key="subscribe-whatsapp" data-movable="1">
+                  <SubscribeWhatsApp slug={slug} />
+                </div>,
+              ]
+            : []),
         ]
       : []),
   ];

@@ -15,6 +15,7 @@
   "pagePassword": 25,
   "pagePasswordMin": 6,
   "recipients": 20,
+  "phone": 40,
   "shareLabel": 60,
   "shareBytes": 314572800,
   "proposalClient": 80,

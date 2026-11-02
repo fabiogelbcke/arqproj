@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse, Response
 
 from backend.notifications.email import sender_for
 from backend.notifications.scan import run_maintenance
+from backend.notifications.whatsapp import whatsapp_sender_for
 
 log = logging.getLogger(__name__)
 router = APIRouter(include_in_schema=False)
@@ -64,6 +65,7 @@ async def maintenance(request: Request) -> Response:
         getattr(request.app.state, "google", None),
         sender_for(settings, request.app.state.http),
         budget=BUDGET_SECONDS,
+        whatsapp=whatsapp_sender_for(settings, request.app.state.http),
     )
     client = getattr(request.app.state, "posthog", None)
     for tenant_id, sent in report.emails_by_tenant.items() if client is not None else ():

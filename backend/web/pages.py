@@ -203,6 +203,8 @@ class PageOut(BaseModel):
     # when the project never had one).
     proposal: ProposalOut | None = None
     proposal_url: str | None = None
+    # Clients may sign up for WhatsApp updates too (A44): the office has them.
+    whatsapp: bool = False
     staff: StaffView | None = None
 
 
@@ -327,6 +329,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         last_update=project.last_activity_at or project.created_at,
         details=details,
         team=team,
+        whatsapp=tenant.has(Feature.WHATSAPP_UPDATES),
         stages=stages,
         next_meeting=(
             MeetingOut(
