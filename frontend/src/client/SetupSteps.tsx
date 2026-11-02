@@ -29,11 +29,13 @@ function Actions({
   last,
   onSkip,
   saving,
+  ready = true,
 }: {
   busy: boolean;
   last: boolean;
   onSkip: () => void;
   saving?: string; // what the button says while saving, if more than "Salvando…"
+  ready?: boolean; // false: nothing to save yet (still loading, or it failed); "Pular" still works
 }) {
   const { t } = useTranslation();
   return (
@@ -41,7 +43,7 @@ function Actions({
       <Button onPress={onSkip} isDisabled={busy}>
         {t("setup.skip")}
       </Button>
-      <Button type="submit" variant="primary" isDisabled={busy}>
+      <Button type="submit" variant="primary" isDisabled={busy || !ready}>
         {busy ? (saving ?? t("setup.saving")) : t(last ? "setup.finish" : "setup.next")}
       </Button>
     </div>
@@ -144,9 +146,11 @@ function StagesStep({ page, staff, version, onSaved, onSkip, last }: StepProps) 
       )}
       <Problem text={save.problem} />
       <Actions
-        busy={save.busy || !options || services === null}
+        busy={save.busy}
+        ready={!!options && services !== null}
         last={last}
-        onSkip={onSkip}
+        // Some stages made before a failure: the next steps need the version they left.
+        onSkip={() => (saved.current !== version ? onSaved(saved.current) : onSkip())}
         saving={making ? t("setup.makingStages", making) : undefined}
       />
     </form>

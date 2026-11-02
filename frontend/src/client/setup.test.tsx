@@ -179,6 +179,33 @@ describe("a new project's setup steps", () => {
     expect(writes(sent).map((r) => r.body)).toEqual([{ row_version: 1, builtin_key: "permit_documents" }]);
   });
 
+  it("can be skipped when the types can't load", async () => {
+    arrive({ "GET /api/project-types": () => ({ status: 503, body: { error: "unexpected" } }) });
+    const dialog = await screen.findByRole("dialog", { name: "Etapas" });
+    await within(dialog).findByText("Não foi possível concluir a ação. Tente novamente em instantes.");
+    expect(within(dialog).getByRole("button", { name: "Continuar" })).toBeDisabled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Pular" }));
+    expect(await screen.findByRole("dialog", { name: "Descrição e informações" })).toBeInTheDocument();
+  });
+
+  it("skipped after a failure part way, go on with the version the stages made left", async () => {
+    let calls = 0;
+    const sent = arrive({
+      "POST /api/projects/p-1/stages": () => (++calls === 2 ? { status: 503, body: { error: "drive_connect_failed" } } : { status: 204 }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    const stages = await screen.findByRole("dialog", { name: "Etapas" });
+    await within(stages).findByRole("checkbox", { name: "Briefing" });
+    await userEvent.click(within(stages).getByRole("button", { name: "Continuar" }));
+    await within(stages).findByRole("alert");
+    await userEvent.click(within(stages).getByRole("button", { name: "Pular" })); // Briefing was made
+    const details = await screen.findByRole("dialog", { name: "Descrição e informações" });
+    await userEvent.type(within(details).getByLabelText("Descrição"), "Casa de campo.");
+    await userEvent.click(within(details).getByRole("button", { name: "Continuar" }));
+    await screen.findByRole("dialog", { name: "Foto de capa" });
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ row_version: 2 });
+  });
+
   it("refuse an own stage named like one listed", async () => {
     arrive();
     const dialog = await screen.findByRole("dialog", { name: "Etapas" });
