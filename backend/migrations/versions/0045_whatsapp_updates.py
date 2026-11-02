@@ -7,7 +7,8 @@ for emails. Both are isolated per office like every project table.
 
 `whatsapp_opt_outs` belongs to no office: a number that replied SAIR gets no
 WhatsApp updates from any project, since they all come from one Unio number. It
-holds only a keyed hash of the number. The app reads, adds and removes rows.
+holds only a keyed hash of the number, dated by the latest SAIR. The app reads,
+adds, re-dates and removes rows.
 `whatsapp_messages_seen`, no office's either, holds the ids of messages Meta's
 webhook brought that were handled, so one delivered again is handled once.
 
@@ -57,7 +58,8 @@ def upgrade() -> None:
     )
     op.execute(
         "DO $$ BEGIN EXECUTE format("
-        "'GRANT SELECT, INSERT, DELETE ON whatsapp_opt_outs TO %I', current_database() || '_app'"
+        "'GRANT SELECT, INSERT, UPDATE, DELETE ON whatsapp_opt_outs TO %I', "
+        "current_database() || '_app'"
         "); END $$"
     )
     op.create_table(

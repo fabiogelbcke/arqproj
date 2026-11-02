@@ -14,7 +14,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -190,10 +190,13 @@ async def opted_out(db: AsyncSession, settings: Settings, phones: set[str]) -> s
 
 
 async def opt_out(db: AsyncSession, settings: Settings, phone: str) -> None:
+    """Each SAIR dates the stop anew: an answer tapped before it, delivered late,
+    must not lift it (`opt_back_in`)."""
+    query = insert(WhatsAppOptOut).values(phone_hash=opt_out_hash(settings, phone))
     await db.execute(
-        insert(WhatsAppOptOut)
-        .values(phone_hash=opt_out_hash(settings, phone))
-        .on_conflict_do_nothing()
+        query.on_conflict_do_update(
+            index_elements=[WhatsAppOptOut.phone_hash], set_={"created_at": func.now()}
+        )
     )
 
 

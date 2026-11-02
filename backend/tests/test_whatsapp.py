@@ -846,3 +846,17 @@ async def test_a_first_message_failing_for_a_day_is_given_up(app, db_session, su
     )
     report = await run(app, Outbox(), phone)
     assert phone.to(OTHER) == [] and report.greeted == 0
+
+
+async def test_a_second_sair_outlasts_an_answer_tapped_before_it(
+    client, app, db_session, owner, meta
+):
+    question = await asked(client, db_session, owner, meta)
+    await post(client, sair("wamid.sair-1"))
+    await db_session.execute(
+        text("UPDATE whatsapp_opt_outs SET created_at = now() - interval '2 hours'")
+    )
+    tapped = datetime.now(ZoneInfo("UTC")) - timedelta(hours=1)  # between the two SAIRs
+    await post(client, sair("wamid.sair-2"))
+    await post(client, tap(question.buttons[0], "wamid.yes-between", at=tapped))  # arrives late
+    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
