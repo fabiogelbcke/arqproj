@@ -21,7 +21,7 @@ import logging
 import random
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert
@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.db.isolation import scope_to_tenant
 from backend.documents.versions import shown_name
-from backend.notifications import digest
+from backend.notifications import digest, whatsapp_updates
 from backend.notifications.email import EmailSender
 from backend.notifications.events import CLIENT_VISIBLE, record
 from backend.notifications.models import (
@@ -39,6 +39,7 @@ from backend.notifications.models import (
     ProjectFileSeen,
 )
 from backend.notifications.office import office_of
+from backend.notifications.whatsapp import WhatsAppSender
 from backend.projects.models import Project, ProjectStage
 from backend.storage.base import StorageError, StorageProblem
 from backend.tenancy.models import Tenant, TenantStatus
@@ -46,6 +47,12 @@ from backend.web.page_files import _in_project, stage_groups, storage_view
 
 log = logging.getLogger(__name__)
 
+# A number added less than this ago may still be getting its first message from
+# the request that added it: the pass leaves it alone.
+GREETING_GRACE = timedelta(minutes=10)
+# A first message still failing a day later (a template Meta hasn't approved, a
+# number that replied SAIR since) is no longer tried.
+GREETING_TRIES = timedelta(days=1)
 MAINTENANCE_LOCK = 7_202_611  # next to the migrations' (backend/migrations/registry.py)
 _LOCK_PROJECT = text("SELECT pg_try_advisory_xact_lock(:key, hashtext(:project))")
 _WAIT_FOR_PROJECT = text("SELECT pg_advisory_xact_lock(:key, hashtext(:project))")
@@ -60,6 +67,7 @@ class Report:
     busy: int = 0  # being scanned by another pass just then
     emails: int = 0
     emails_by_tenant: dict[str, int] = field(default_factory=dict)  # for analytics
+    greeted: int = 0  # WhatsApp numbers sent their first message, left over by a request
     unfinished: int = 0  # not reached before the time budget ran out: the next pass
 
 
@@ -123,9 +131,11 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
     return 0 if first else len(new)
 
 
-async def _project_pass(db, settings, sender, storage, office, project, report) -> None:
+async def _project_pass(
+    db, settings, sender, storage, office, project, report, whatsapp=None
+) -> None:
     """One project, under its lock (taken by the caller), in one transaction: its
-    new files, then its email if one is due."""
+    new files, WhatsApp first messages that didn't go, then its email if one is due."""
     if project.status not in CLIENT_VISIBLE:
         # Archived (or back to draft) while an email waited: it is never sent,
         # even if the project comes back later (section 14).
@@ -135,11 +145,21 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
     if storage is not None and project.folder_id is not None:
         report.new_files += await scan_project(db, storage, project)
     now = datetime.now(UTC)
+    if office.whatsapp and whatsapp is not None:
+        waiting = await whatsapp_updates.ungreeted(
+            db, project.id, now - GREETING_GRACE, now - GREETING_TRIES
+        )
+        for recipient in waiting:
+            report.greeted += await whatsapp_updates.greet(
+                db, settings, whatsapp, office, project.tenant_id, project, recipient, now
+            )
     # Batches that came due, or are being retried, go as they were: changes made
     # after start the next one, with its own quiet period (section 14).
     for due in await digest.to_send(db, project, now) if sender is not None else []:
         try:
-            sent = await digest.deliver(db, settings, sender, storage, office, project, due, now)
+            sent = await digest.deliver(
+                db, settings, sender, storage, office, project, due, now, whatsapp
+            )
             report.emails += sent
             if sent:
                 tenant = str(project.tenant_id)
@@ -152,7 +172,7 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
 
 
 async def _scan_office(
-    sessionmaker, settings, google, sender, tenant_id, report: Report, deadline: float
+    sessionmaker, settings, google, sender, tenant_id, report: Report, deadline: float, whatsapp
 ) -> None:
     async with sessionmaker() as db:
         scope_to_tenant(db.sync_session, tenant_id)
@@ -191,7 +211,9 @@ async def _scan_office(
                 storage = await storage_view(db, settings, google)
                 project = await db.scalar(select(Project).where(Project.id == project_id))
                 if project is not None:
-                    await _project_pass(db, settings, sender, storage, office, project, report)
+                    await _project_pass(
+                        db, settings, sender, storage, office, project, report, whatsapp
+                    )
             except Busy:
                 report.busy += 1
             except StorageError as error:
@@ -222,9 +244,11 @@ async def run_maintenance(
     google,
     sender: EmailSender | None = None,
     budget: float | None = None,
+    whatsapp: WhatsAppSender | None = None,
 ) -> Report:
     """One pass over every active office: new files, then the emails that are due
-    (none without a `sender`). With a `budget` in seconds, no new project starts
+    (none without a `sender`) and their WhatsApp messages (none without
+    `whatsapp`). With a `budget` in seconds, no new project starts
     after it: each project's work is saved as it finishes, and the rest is the
     next pass's (section 4: bounded work)."""
     async with sessionmaker() as db:
@@ -235,7 +259,9 @@ async def run_maintenance(
     deadline = time.monotonic() + budget if budget is not None else float("inf")
     random.shuffle(offices)
     for tenant_id in offices:
-        await _scan_office(sessionmaker, settings, google, sender, tenant_id, report, deadline)
+        await _scan_office(
+            sessionmaker, settings, google, sender, tenant_id, report, deadline, whatsapp
+        )
     log.info("maintenance: %s", report)
     await _record(sessionmaker, report)
     return report

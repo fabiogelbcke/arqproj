@@ -30,6 +30,7 @@ class Feature(StrEnum):
 
     PROJECT_MEMBERS = "project_members"  # who works on each project (A41)
     PROPOSALS = "proposals"  # the proposal generator and "Nova proposta" (A42)
+    WHATSAPP_UPDATES = "whatsapp_updates"  # client updates by WhatsApp too (A44)
 
 
 class Locale(StrEnum):

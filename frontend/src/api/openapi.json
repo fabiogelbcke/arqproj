@@ -2852,6 +2852,89 @@
         }
       }
     },
+    "/api/pages/{slug}/whatsapp": {
+      "post": {
+        "summary": "Subscribe Whatsapp",
+        "description": "Listed at once and sent the welcome, as an email is (A44). Signing up is\nthe client's own choice, so it also lifts a SAIR they sent before; staff signed\nin can't make it for them (they add the number in the painel, and the client\nis asked).",
+        "operationId": "subscribe_whatsapp_api_pages__slug__whatsapp_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhatsAppIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        }
+      }
+    },
     "/api/pages/{slug}/shares": {
       "post": {
         "summary": "Make Share",
@@ -7126,6 +7209,10 @@
           "wrong_page_password",
           "too_many_attempts",
           "recipients_full",
+          "invalid_phone",
+          "whatsapp_full",
+          "whatsapp_refused",
+          "whatsapp_staff",
           "password_required",
           "invalid_detail",
           "invalid_stage",
@@ -7210,7 +7297,8 @@
         "type": "string",
         "enum": [
           "project_members",
-          "proposals"
+          "proposals",
+          "whatsapp_updates"
         ],
         "title": "Feature",
         "description": "Work merged but switched on only for some offices, from the operator\ndashboard (A40): staging and main deploy it switched off for everyone else.\nRemove a feature from here once every office has it."
@@ -8530,6 +8618,11 @@
             ],
             "title": "Proposal Url"
           },
+          "whatsapp": {
+            "type": "boolean",
+            "title": "Whatsapp",
+            "default": false
+          },
           "staff": {
             "anyOf": [
               {
@@ -8784,6 +8877,21 @@
               }
             ],
             "title": "Members"
+          },
+          "whatsapp": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp"
           }
         },
         "type": "object",
@@ -9017,6 +9125,14 @@
             },
             "type": "array",
             "title": "Members",
+            "default": []
+          },
+          "whatsapp": {
+            "items": {
+              "$ref": "#/components/schemas/WhatsAppOut"
+            },
+            "type": "array",
+            "title": "Whatsapp",
             "default": []
           }
         },
@@ -10607,6 +10723,49 @@
         ],
         "title": "VisitorAnalyticsOut",
         "description": "PostHog for project pages' visitors (A39): cookieless, no person profiles.\nOnly where the server has PostHog set (production)."
+      },
+      "WhatsAppIn": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "title": "WhatsAppIn"
+      },
+      "WhatsAppOut": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "state": {
+            "$ref": "#/components/schemas/WhatsAppState"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone",
+          "state"
+        ],
+        "title": "WhatsAppOut"
+      },
+      "WhatsAppState": {
+        "type": "string",
+        "enum": [
+          "invited",
+          "subscribed",
+          "declined",
+          "stopped",
+          "unreachable"
+        ],
+        "title": "WhatsAppState",
+        "description": "Where a client's number stands, as the painel shows it (A44)."
       },
       "WriterStatus": {
         "type": "string",

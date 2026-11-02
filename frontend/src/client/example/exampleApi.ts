@@ -84,6 +84,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     in_proposal: false,
     proposal: null,
     proposal_url: project.proposal_url,
+    whatsapp: true, // the sign-up shows; nothing is sent (below)
     staff: staffView
       ? {
           project_id: EXAMPLE_SLUG,
@@ -199,6 +200,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     ["POST", /^\/api\/me\/tour-seen$/, () => done], // the example's tour stores nothing
     // "Novidades por e-mail": as if signed up; nothing leaves the browser.
     ["POST", new RegExp(`^${PAGE}/subscribe$`), () => done],
+    ["POST", new RegExp(`^${PAGE}/whatsapp$`), () => done], // likewise "Atualizações pelo WhatsApp"
     ["POST", new RegExp(`^${PAGE}/shares$`), (_, body) => ({ status: 201, body: shareLink(body) })],
     ["GET", new RegExp(`^${PAGE}/shares$`), () => ({ body: links.map((l) => l.link) })],
     [

@@ -15,6 +15,7 @@ import { TextField } from "../ui/TextField";
 import { toast } from "../ui/Toast";
 import { useChangeProject, type ProjectSummary } from "./projects";
 import { RecipientsField } from "./RecipientsField";
+import { addPhone, WhatsAppField } from "./WhatsAppField";
 import styles from "./projects.module.css";
 
 const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -22,8 +23,9 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 
 /** The project's settings (A24), after the prototype's "Projeto" dialog, opened
  *  from the card's menu ("Configurações do projeto"): name, client, client link,
- *  access, the client's email addresses and, where the office has the feature
- *  (A40), who works on it (A41), saved together by Salvar. The photo
+ *  access, the client's email addresses and, where the office has the features
+ *  (A40), their WhatsApp numbers (A44) and who works on it (A41), saved together
+ *  by Salvar. The photo
  *  and archiving are in the menu itself (ProjectMenu). */
 export function ProjectDialog({ project, onClose }: { project: ProjectSummary; onClose: () => void }) {
   const { t } = useTranslation();
@@ -40,7 +42,14 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
   const [recipients, setRecipients] = useState(() => project.recipients.map((r) => r.email));
   const [newRecipient, setNewRecipient] = useState("");
   const unsubscribed = new Set(saved.recipients.filter((r) => !r.subscribed).map((r) => r.email));
-  const withMembers = useMe().data?.features.includes("project_members") ?? false;
+  const features = useMe().data?.features ?? [];
+  const withMembers = features.includes("project_members");
+  // The client's WhatsApp numbers (A44), where the office has them: the whole list.
+  const withWhatsApp = features.includes("whatsapp_updates");
+  const [phones, setPhones] = useState(() => project.whatsapp.map((n) => n.phone));
+  const [newPhone, setNewPhone] = useState("");
+  const [phoneChecked, setPhoneChecked] = useState(false);
+  const phoneStates = new Map(saved.whatsapp.map((n) => [n.phone, n.state]));
   const [members, setMembers] = useState(() => project.members.map((m) => m.id));
   const saving = change.isPending;
 
@@ -56,6 +65,18 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
         setNewRecipient(left.join(", "));
         return;
       }
+      // Likewise a number typed and not added; one that isn't a number stops it.
+      const { list: wantedPhones, left: leftPhone } = addPhone(phones, newPhone);
+      if (leftPhone) {
+        setPhoneChecked(true);
+        return;
+      }
+      const whatsappChanged =
+        withWhatsApp &&
+        !sameList(
+          wantedPhones,
+          saved.whatsapp.map((n) => n.phone),
+        );
       const recipientsChanged = !sameList(
         wanted,
         saved.recipients.map((r) => r.email),
@@ -72,7 +93,8 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
         linkChanged ||
         accessChanged ||
         recipientsChanged ||
-        membersChanged
+        membersChanged ||
+        whatsappChanged
       ) {
         setSaved(
           await change.mutateAsync({
@@ -84,6 +106,8 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
             ...(accessChanged ? { access_mode: access, ...(password ? { password } : {}) } : {}),
             ...(recipientsChanged ? { recipients: wanted } : {}),
             ...(membersChanged ? { members } : {}),
+            // With their +: the server reads any country's number as typed.
+            ...(whatsappChanged ? { whatsapp: wantedPhones.map((phone) => `+${phone}`) } : {}),
           }),
         );
         capture("project_settings_saved", {
@@ -93,6 +117,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           access_changed: accessChanged,
           recipients_changed: recipientsChanged,
           members_changed: membersChanged,
+          whatsapp_changed: whatsappChanged,
           access_mode: access,
           recipient_count: wanted.length,
         });
@@ -100,6 +125,8 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
         // Saved now: keep it listed, so a retry doesn't remove it.
         setRecipients(wanted);
         setNewRecipient("");
+        setPhones(wantedPhones);
+        setNewPhone("");
       }
       toast(t("projectSettings.saved"));
       onClose();
@@ -198,6 +225,19 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           onDraft={setNewRecipient}
           unsubscribed={unsubscribed}
         />
+        {withWhatsApp && (
+          <WhatsAppField
+            phones={phones}
+            onChange={setPhones}
+            draft={newPhone}
+            onDraft={(draft) => {
+              setPhoneChecked(false);
+              setNewPhone(draft);
+            }}
+            states={phoneStates}
+            checked={phoneChecked}
+          />
+        )}
         {withMembers && <TeamField value={members} onChange={setMembers} />}
 
         {nameTaken ? (

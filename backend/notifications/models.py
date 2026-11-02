@@ -1,5 +1,5 @@
-"""Client email updates: who receives them (A32, plan section 14), and the
-client-visible changes they are made of (A28)."""
+"""Client updates by email (A32) and WhatsApp (A44): who receives them (plan
+section 14), and the client-visible changes they are made of (A28)."""
 
 from __future__ import annotations
 
@@ -15,12 +15,13 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    or_,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from backend.db.base import Base, IdMixin, TimestampsMixin
+from backend.db.base import Base, CreatedAtMixin, IdMixin, TimestampsMixin
 from backend.db.isolation import TenantOwned
 from backend.db.types import TextEnum, enum_check
 from backend.identity.emails import EMAIL_MAX
@@ -55,6 +56,80 @@ class ProjectRecipient(IdMixin, TimestampsMixin, TenantOwned, Base):
     status: Mapped[RecipientStatus] = mapped_column(
         TextEnum(RecipientStatus), server_default=text("'subscribed'")
     )
+
+
+class WhatsAppStatus(StrEnum):
+    """Where a number stands for a project's WhatsApp updates (A44)."""
+
+    # Staff added it: the client was asked ("Quero receber" / "Não quero") and
+    # gets nothing more until they answer yes.
+    INVITED = "invited"
+    SUBSCRIBED = "subscribed"
+    # Answered "Não quero": staff can't invite it again, only the client can sign
+    # up again on the page. Replying SAIR is kept apart, for every project
+    # (`WhatsAppOptOut`).
+    DECLINED = "declined"
+    UNREACHABLE = "unreachable"  # Meta says the number has no WhatsApp
+
+
+class WhatsAppSource(StrEnum):
+    CLIENT = "client"  # signed up on the project page
+    STAFF = "staff"  # added in the painel
+
+
+class ProjectWhatsApp(IdMixin, TimestampsMixin, TenantOwned, Base):
+    """A client's number for this project's WhatsApp updates (A44)."""
+
+    __tablename__ = "project_whatsapp_recipients"
+    __table_args__ = (
+        _project_fk("project_whatsapp_recipients"),
+        UniqueConstraint(
+            "project_id", "phone", name="uq_project_whatsapp_recipients_project_id_phone"
+        ),
+        enum_check("status", WhatsAppStatus),
+        enum_check("source", WhatsAppSource),
+        # International form, digits only: country code first (55 for Brazil).
+        CheckConstraint("phone ~ '^[1-9][0-9]{7,14}$'", name="phone_format"),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    phone: Mapped[str] = mapped_column(Text)
+    status: Mapped[WhatsAppStatus] = mapped_column(TextEnum(WhatsAppStatus))
+    source: Mapped[WhatsAppSource] = mapped_column(TextEnum(WhatsAppSource))
+    # When it was sent the welcome (client) or the question (staff); None until
+    # then, and the maintenance pass tries again.
+    greeted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the client made the choice it stands at (signed up, or tapped "Quero
+    # receber" / "Não quero"): an answer sent before it, delivered late, is ignored.
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class WhatsAppOptOut(Base):
+    """A number that replied SAIR: no WhatsApp updates from any project of any
+    office, since they all come from the one Unio number (A44). No office's, so
+    it holds no number, only its keyed hash. Dated by the client's own messages,
+    so whichever Meta delivers last, the latest choice stands: stopped while the
+    latest SAIR is newer than the latest time they chose the updates again."""
+
+    __tablename__ = "whatsapp_opt_outs"
+
+    phone_hash: Mapped[str] = mapped_column(Text, primary_key=True)
+    stopped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    @classmethod
+    def in_force(cls):
+        return or_(cls.resumed_at.is_(None), cls.stopped_at > cls.resumed_at)
+
+
+class WhatsAppMessageSeen(CreatedAtMixin, Base):
+    """A message Meta's webhook brought that was handled (A44): Meta delivers a
+    message again when it isn't sure we got it, and an answer handled twice
+    could undo a later SAIR. No office's: one Unio number serves them all."""
+
+    __tablename__ = "whatsapp_messages_seen"
+
+    message_id: Mapped[str] = mapped_column(Text, primary_key=True)  # Meta's wamid
 
 
 class EventKind(StrEnum):
@@ -190,6 +265,30 @@ class NotificationDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
     email: Mapped[str] = mapped_column(Text)
     status: Mapped[DeliveryStatus] = mapped_column(TextEnum(DeliveryStatus))
     provider_id: Mapped[str | None] = mapped_column(Text)  # Resend's id for the email
+    attempts: Mapped[int] = mapped_column(server_default=text("0"))
+
+
+class WhatsAppDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
+    """A batch's WhatsApp message to one number (A44), as `NotificationDelivery`
+    is its email to one address. Meta has no idempotency key: a message is
+    marked sent once Meta accepts it, and a failure Meta reported is tried again."""
+
+    __tablename__ = "whatsapp_deliveries"
+    __table_args__ = (
+        UniqueConstraint("batch_id", "phone", name="uq_whatsapp_deliveries_batch_id_phone"),
+        enum_check("status", DeliveryStatus),
+        ForeignKeyConstraint(
+            ["tenant_id", "batch_id"],
+            ["notification_batches.tenant_id", "notification_batches.id"],
+            name="fk_whatsapp_deliveries_batch",
+            ondelete="CASCADE",
+        ),
+    )
+
+    batch_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    phone: Mapped[str] = mapped_column(Text)
+    status: Mapped[DeliveryStatus] = mapped_column(TextEnum(DeliveryStatus))
+    provider_id: Mapped[str | None] = mapped_column(Text)  # Meta's message id
     attempts: Mapped[int] = mapped_column(server_default=text("0"))
 
 

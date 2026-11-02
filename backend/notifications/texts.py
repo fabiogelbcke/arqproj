@@ -1,5 +1,5 @@
-"""The email's and the unsubscribe page's words, from the site's translation files
-(backend/i18n), so they change where every other text does."""
+"""The emails', WhatsApp messages' and unsubscribe page's words, from the site's
+translation files (backend/i18n), so they change where every other text does."""
 
 from __future__ import annotations
 
@@ -13,13 +13,13 @@ _FOLDER = Path(__file__).resolve().parent.parent / "i18n"
 
 
 @cache
-def _texts(locale: Locale) -> dict:
-    return json.loads((_FOLDER / f"{locale.value}.json").read_text("utf-8"))["email"]
+def _texts(locale: Locale, section: str) -> dict:
+    return json.loads((_FOLDER / f"{locale.value}.json").read_text("utf-8"))[section]
 
 
-def t(locale: Locale, key: str, count: int | None = None, **values) -> str:
+def t(locale: Locale, key: str, count: int | None = None, section: str = "email", **values) -> str:
     """As the site's `t`: `{{name}}` filled in; `_one`/`_other` by `count`."""
-    texts = _texts(locale)
+    texts = _texts(locale, section)
     if count is not None:
         key = f"{key}_{'one' if count == 1 else 'other'}"
         values["count"] = count
