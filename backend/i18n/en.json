@@ -248,6 +248,7 @@
     "invalid_phone": "Enter a mobile number with its area code, like (11) 91234-5678.",
     "whatsapp_full": "This project already has the most WhatsApp numbers it can. Talk to the office.",
     "whatsapp_refused": "This number asked not to receive messages. Only the client can sign up again, on the project page.",
+    "whatsapp_staff": "To add a client's WhatsApp, use the project's settings in the dashboard: the client gets a message to confirm.",
     "not_signed_in": "Your session has ended. Please sign in again.",
     "csrf_token_missing_or_wrong": "We could not confirm this action. Reload the page and try again.",
     "invalid_credentials": "Incorrect email or password.",

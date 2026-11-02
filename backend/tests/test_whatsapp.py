@@ -811,3 +811,38 @@ async def test_a_failure_asks_meta_to_send_it_again(client, app, db_session, met
     monkeypatch.setattr(whatsapp_updates, "opt_out", real)
     assert (await post(client, sair())).status_code == 200
     assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+
+
+async def test_staff_signed_in_cant_sign_a_client_up_on_the_page(client, db_session, owner, phone):
+    """It would skip the client's confirmation, or lift their SAIR (A44)."""
+    await switch_on(db_session)
+    attempts.reset()
+    response = await sign_up(client, CLIENT)
+    assert response.status_code == 403 and response.json()["error"] == "whatsapp_staff"
+    assert await number(db_session) is None and phone.sent == []
+
+
+@pytest.mark.parametrize(
+    ("reported", "typed"),
+    [("5215512345678", "525512345678"), ("5491112345678", "541112345678")],
+)
+async def test_sair_from_a_number_meta_reports_another_way_stops_it(
+    client, app, db_session, meta, reported, typed
+):
+    message = {
+        "from": reported,
+        "id": f"wamid.{reported}",
+        "type": "text",
+        "text": {"body": "SAIR"},
+    }
+    await post(client, incoming(message))
+    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {typed})
+
+
+async def test_a_first_message_failing_for_a_day_is_given_up(app, db_session, subscribed, phone):
+    await add_number(db_session, OTHER, greeted=False)
+    await db_session.execute(
+        text("UPDATE project_whatsapp_recipients SET created_at = now() - interval '2 days'")
+    )
+    report = await run(app, Outbox(), phone)
+    assert phone.to(OTHER) == [] and report.greeted == 0

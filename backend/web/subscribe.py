@@ -145,9 +145,13 @@ async def subscribe_whatsapp(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
     """Listed at once and sent the welcome, as an email is (A44). Signing up is
-    the client's own choice, so it also lifts a SAIR they sent before."""
+    the client's own choice, so it also lifts a SAIR they sent before; staff signed
+    in can't make it for them (they add the number in the painel, and the client
+    is asked)."""
     if not tenant.has(Feature.WHATSAPP_UPDATES):
         raise ApiError(404, ErrorCode.FEATURE_OFF)
+    if staff is not None:
+        raise ApiError(403, ErrorCode.WHATSAPP_STAFF)
     project = await _readable(db, slug, staff, request)
     if project.status is ProjectStatus.ARCHIVED:
         raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)

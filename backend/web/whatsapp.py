@@ -41,6 +41,7 @@ from backend.notifications.whatsapp import (
     NOT_ON_WHATSAPP,
     WhatsAppError,
     canonical,
+    forms,
     may_receive,
     read_token,
     whatsapp_sender_for,
@@ -150,7 +151,8 @@ async def _message(request: Request, message: dict) -> None:
         async with request.app.state.sessionmaker() as db:
             if not await whatsapp_updates.first_time(db, message_id):
                 return
-            await whatsapp_updates.opt_out(db, settings, phone)
+            for form in forms(phone):  # however it was typed where it was added
+                await whatsapp_updates.opt_out(db, settings, form)
             await db.commit()
         log.info("whatsapp: a number replied SAIR")
         await _send(request, whatsapp_updates.reply(Locale.PT_BR, phone, "stopped"))
@@ -175,7 +177,7 @@ async def _answer(request: Request, phone: str, found, message_id: str, sent_at:
         recipient = await db.scalar(
             select(ProjectWhatsApp).where(ProjectWhatsApp.id == found.recipient_id)
         )
-        if recipient is None or recipient.phone != phone:
+        if recipient is None or recipient.phone not in forms(phone):
             await db.commit()  # handled: nothing to change
             return  # removed by staff meanwhile, or not this number's button
         project = await db.scalar(select(Project).where(Project.id == recipient.project_id))
@@ -183,7 +185,8 @@ async def _answer(request: Request, phone: str, found, message_id: str, sent_at:
         if found.action == "yes":
             recipient.status = WhatsAppStatus.SUBSCRIBED
             # Their own choice lifts a SAIR sent before it, not one sent after.
-            await whatsapp_updates.opt_back_in(db, settings, phone, sent_at)
+            for form in forms(phone):
+                await whatsapp_updates.opt_back_in(db, settings, form, sent_at)
         else:
             recipient.status = WhatsAppStatus.DECLINED
         await db.commit()

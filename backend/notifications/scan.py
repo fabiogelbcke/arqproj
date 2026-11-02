@@ -50,6 +50,9 @@ log = logging.getLogger(__name__)
 # A number added less than this ago may still be getting its first message from
 # the request that added it: the pass leaves it alone.
 GREETING_GRACE = timedelta(minutes=10)
+# A first message still failing a day later (a template Meta hasn't approved, a
+# number that replied SAIR since) is no longer tried.
+GREETING_TRIES = timedelta(days=1)
 MAINTENANCE_LOCK = 7_202_611  # next to the migrations' (backend/migrations/registry.py)
 _LOCK_PROJECT = text("SELECT pg_try_advisory_xact_lock(:key, hashtext(:project))")
 _WAIT_FOR_PROJECT = text("SELECT pg_advisory_xact_lock(:key, hashtext(:project))")
@@ -143,7 +146,10 @@ async def _project_pass(
         report.new_files += await scan_project(db, storage, project)
     now = datetime.now(UTC)
     if office.whatsapp and whatsapp is not None:
-        for recipient in await whatsapp_updates.ungreeted(db, project.id, now - GREETING_GRACE):
+        waiting = await whatsapp_updates.ungreeted(
+            db, project.id, now - GREETING_GRACE, now - GREETING_TRIES
+        )
+        for recipient in waiting:
             report.greeted += await whatsapp_updates.greet(
                 db, settings, whatsapp, office, project.tenant_id, project, recipient, now
             )

@@ -82,6 +82,19 @@ def canonical(wa_id: str) -> str:
     return wa_id
 
 
+def forms(wa_id: str) -> set[str]:
+    """Every way the number Meta reports may have been typed and stored. Mexican
+    and Argentine mobiles come with a 1 or a 9 after the country code that people
+    often leave out."""
+    number = canonical(wa_id)
+    found = {number}
+    if re.fullmatch(r"521\d{10}", number):
+        found.add("52" + number[3:])
+    if re.fullmatch(r"549\d{10}", number):
+        found.add("54" + number[3:])
+    return found
+
+
 def opt_out_hash(settings: Settings, phone: str) -> str:
     """How a number that replied SAIR is kept: not the number itself."""
     return keys.keyed_hash(settings.app_secret, "whatsapp-opt-out", phone)

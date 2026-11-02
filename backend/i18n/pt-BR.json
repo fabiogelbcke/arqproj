@@ -248,6 +248,7 @@
     "invalid_phone": "Informe um celular com DDD, como (11) 91234-5678.",
     "whatsapp_full": "Este projeto já tem o número máximo de WhatsApps. Fale com o escritório.",
     "whatsapp_refused": "Este número pediu para não receber mensagens. Só o cliente pode se cadastrar de novo, na página do projeto.",
+    "whatsapp_staff": "Para cadastrar o WhatsApp de um cliente, use as configurações do projeto no painel: o cliente recebe uma mensagem para confirmar.",
     "not_signed_in": "Sua sessão terminou. Entre novamente.",
     "csrf_token_missing_or_wrong": "Não foi possível confirmar esta ação. Recarregue a página e tente novamente.",
     "invalid_credentials": "E-mail ou senha incorretos.",

@@ -278,9 +278,12 @@ async def greet_now(
         await db.commit()
 
 
-async def ungreeted(db: AsyncSession, project_id: uuid.UUID, before: datetime) -> list:
-    """Numbers whose first message hasn't gone yet, added before `before` (so a
-    request still sending it isn't raced)."""
+async def ungreeted(
+    db: AsyncSession, project_id: uuid.UUID, before: datetime, since: datetime
+) -> list:
+    """Numbers whose first message hasn't gone yet, added between `since` (older
+    ones are given up on: logged at each failure) and `before` (so a request still
+    sending it isn't raced)."""
     return list(
         await db.scalars(
             select(ProjectWhatsApp).where(
@@ -288,6 +291,7 @@ async def ungreeted(db: AsyncSession, project_id: uuid.UUID, before: datetime) -
                 ProjectWhatsApp.greeted_at.is_(None),
                 ProjectWhatsApp.status.in_((WhatsAppStatus.INVITED, WhatsAppStatus.SUBSCRIBED)),
                 ProjectWhatsApp.created_at < before,
+                ProjectWhatsApp.created_at >= since,
             )
         )
     )
