@@ -1004,15 +1004,19 @@ A fault injected after database commit must not lose the creation job.
 
 Creating a project must take seconds. The form asks for the **project name** and
 the **client's name** (both required, both editable later), the **project
-type**, and its stages: all built-in stages listed in order, the type's usual
-ones ticked, any of them ticked or unticked (A27). The client name (at most 30
+type** (or "Outro" with its name) and the page's address, shown whole with the
+office's part fixed. Since 1–2 Nov 2026 (trial), the stages, description and
+details, cover photo and the client's emails come after, in setup steps on the
+new project's page, each skippable; the stages step lists the stages that suit
+the type, its usual ones ticked, any of them ticked or unticked (A27). Before,
+the form asked for the stages and the client's emails itself. The client name (at most 30
 characters for now, so it fits the page on a phone; the database allows 48, and a
 name saved before the limit stays) is the main label in the painel. The office's
 name follows the same rule at 28 characters (the database allows 80). The slug is derived from the name and editable, at most 55 characters (the name's limit plus 5; 80 until 1 Nov 2026); duplicates of an
 existing name or slug in the office are refused with the conflicting project
-named. The **client's email addresses** for updates (A32) are asked too,
-optionally (20 Oct 2026): checked as they're typed, several at once, the same
-list as the Projeto dialog's. Everything else starts empty or from office
+named. The **client's email addresses** for updates (A32) are asked in the
+last setup step, optionally: checked as they're typed, several at once, the
+same list as the Projeto dialog's. Everything else starts empty or from office
 defaults and is edited later.
 
 Every text field's length limit is written once, in the constant the server
