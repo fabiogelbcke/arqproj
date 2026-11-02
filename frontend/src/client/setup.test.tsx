@@ -158,6 +158,27 @@ describe("a new project's setup steps", () => {
     ]);
   });
 
+  it("don't add again a stage the project already has (a proposal from before 2 Nov 2026)", async () => {
+    const sent = arrive({
+      "GET /api/pages/casa-do-lago": () => ({
+        body: {
+          ...NEW,
+          proposal_url: "/api/pages/casa-do-lago/proposal.pdf?v=2",
+          stages: [{ position: 1, title: "Briefing", about: null, notes: "", completed: false }],
+        },
+      }),
+      "GET /api/projects/p-1/proposal": () => ({
+        body: { start: { services: [{ title: "Briefing" }, { title: "Projeto Legal" }] } },
+      }),
+      "POST /api/projects/p-1/stages": () => ({ status: 204 }),
+    });
+    const dialog = await screen.findByRole("dialog", { name: "Etapas" });
+    expect(await within(dialog).findByRole("checkbox", { name: "Projeto Legal" })).toBeChecked();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Continuar" }));
+    expect(await screen.findByRole("dialog", { name: "Descrição e informações" })).toBeInTheDocument();
+    expect(writes(sent).map((r) => r.body)).toEqual([{ row_version: 1, builtin_key: "permit_documents" }]);
+  });
+
   it("refuse an own stage named like one listed", async () => {
     arrive();
     const dialog = await screen.findByRole("dialog", { name: "Etapas" });

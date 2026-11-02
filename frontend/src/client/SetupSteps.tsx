@@ -111,10 +111,14 @@ function StagesStep({ page, staff, version, onSaved, onSkip, last }: StepProps) 
         event.preventDefault();
         void save.run(async () => {
           // One at a time, in order: each makes its folder in the office's Drive.
+          // A stage the project already has (a proposal from before 2 Nov 2026
+          // got its stages at creation) is not added again.
+          const has = new Set(page.stages.map((stage) => stage.title.toLocaleLowerCase()));
+          const titleOf = (key: string) => options?.stages.find((stage) => stage.key === key)?.title ?? key;
           const wanted = [
-            ...choice.stages.map((key) => ({ id: key, body: { builtin_key: key } })),
-            ...choice.own.map((title) => ({ id: `own:${title}`, body: { title } })),
-          ];
+            ...choice.stages.map((key) => ({ id: key, title: titleOf(key), body: { builtin_key: key } })),
+            ...choice.own.map((title) => ({ id: `own:${title}`, title, body: { title } })),
+          ].filter((stage) => !has.has(stage.title.toLocaleLowerCase()));
           for (const [done, stage] of wanted.entries()) {
             setMaking({ done: done + 1, total: wanted.length });
             if (added.current.has(stage.id)) continue;
