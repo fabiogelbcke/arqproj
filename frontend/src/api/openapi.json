@@ -2855,7 +2855,7 @@
     "/api/pages/{slug}/whatsapp": {
       "post": {
         "summary": "Subscribe Whatsapp",
-        "description": "Listed at once and sent the welcome, as an email is (A44). Signing up is\nthe client's own choice, so it also lifts a SAIR they sent before.",
+        "description": "Listed at once and sent the welcome, as an email is (A44). Signing up is\nthe client's own choice, so it also lifts a SAIR they sent before; staff signed\nin can't make it for them (they add the number in the painel, and the client\nis asked).",
         "operationId": "subscribe_whatsapp_api_pages__slug__whatsapp_post",
         "parameters": [
           {
@@ -7212,6 +7212,7 @@
           "invalid_phone",
           "whatsapp_full",
           "whatsapp_refused",
+          "whatsapp_staff",
           "password_required",
           "invalid_detail",
           "invalid_stage",

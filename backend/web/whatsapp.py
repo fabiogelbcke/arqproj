@@ -152,7 +152,7 @@ async def _message(request: Request, message: dict) -> None:
             if not await whatsapp_updates.first_time(db, message_id):
                 return
             for form in forms(phone):  # however it was typed where it was added
-                await whatsapp_updates.opt_out(db, settings, form)
+                await whatsapp_updates.opt_out(db, settings, form, _sent_at(message))
             await db.commit()
         log.info("whatsapp: a number replied SAIR")
         await _send(request, whatsapp_updates.reply(Locale.PT_BR, phone, "stopped"))

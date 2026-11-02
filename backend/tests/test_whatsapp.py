@@ -860,3 +860,25 @@ async def test_a_second_sair_outlasts_an_answer_tapped_before_it(
     await post(client, sair("wamid.sair-2"))
     await post(client, tap(question.buttons[0], "wamid.yes-between", at=tapped))  # arrives late
     assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+
+
+async def test_a_sair_delivered_after_a_later_answer_doesnt_undo_it(
+    client, app, db_session, owner, meta
+):
+    """The client sent SAIR, then tapped "Quero receber"; Meta delivered the SAIR
+    last (a retry). Their last choice stands."""
+    question = await asked(client, db_session, owner, meta)
+    now = datetime.now(ZoneInfo("UTC"))
+    await post(client, tap(question.buttons[0], "wamid.yes-last", at=now))
+    late = incoming(
+        {
+            "from": CLIENT,
+            "id": "wamid.sair-first",
+            "timestamp": str(int((now - timedelta(minutes=5)).timestamp())),
+            "type": "text",
+            "text": {"body": "SAIR"},
+        }
+    )
+    await post(client, late)
+    stop = await db_session.scalar(text("SELECT created_at FROM whatsapp_opt_outs"))
+    assert stop < now  # dated when the client sent it, before their answer

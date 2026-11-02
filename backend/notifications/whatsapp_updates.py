@@ -189,13 +189,20 @@ async def opted_out(db: AsyncSession, settings: Settings, phones: set[str]) -> s
     return {by_hash[h] for h in found}
 
 
-async def opt_out(db: AsyncSession, settings: Settings, phone: str) -> None:
-    """Each SAIR dates the stop anew: an answer tapped before it, delivered late,
-    must not lift it (`opt_back_in`)."""
-    query = insert(WhatsAppOptOut).values(phone_hash=opt_out_hash(settings, phone))
+async def opt_out(
+    db: AsyncSession, settings: Settings, phone: str, sent_at: datetime | None = None
+) -> None:
+    """Each SAIR dates the stop anew, by when the client sent it (`sent_at`, so a
+    SAIR Meta delivers late keeps its place), keeping the later date: an answer
+    tapped before it must not lift it, nor one after it be undone (`opt_back_in`)."""
+    when = sent_at or datetime.now(UTC)
+    query = insert(WhatsAppOptOut).values(phone_hash=opt_out_hash(settings, phone), created_at=when)
     await db.execute(
         query.on_conflict_do_update(
-            index_elements=[WhatsAppOptOut.phone_hash], set_={"created_at": func.now()}
+            index_elements=[WhatsAppOptOut.phone_hash],
+            set_={
+                "created_at": func.greatest(WhatsAppOptOut.created_at, query.excluded.created_at)
+            },
         )
     )
 
