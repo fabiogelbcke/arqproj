@@ -40,9 +40,32 @@
 }
 .client .client-email-notice p { margin: 0; flex: 1 1 24ch; } /* the whole row, beside the button */
 
-/* --- The opening: the name, its type, the cover ------------------------- */
-.client .project-opening { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); gap: 24px 40px; align-items: start; margin-top: 28px; }
+/* --- The opening: the name, its type, the cover, on a band ---------------- */
+/* With a cover, the opening sits on a dark band across the whole page: the cover
+   itself again, blurred wide and darkened, so each project opens in its own
+   colours (the photo's), the name in white on it. Without one: the plain page. */
+.client { overflow-x: clip; } /* the band reaches past the page's own width */
+.client .project-opening {
+  position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  gap: 24px 40px; align-items: start; margin-top: 28px; padding: 0;
+}
 .client .project-opening:not(:has(.banner)) { grid-template-columns: minmax(0, 1fr); }
+.client .project-opening--cover { align-items: center; margin-top: 0; padding: clamp(36px, 5vw, 64px) 0; color: #fff; }
+.client .project-opening__backdrop {
+  position: absolute; z-index: -1; top: 0; bottom: 0; left: calc(50% - 50vw); width: 100vw;
+  overflow: hidden; background: #1f2124;
+}
+.client .project-opening__backdrop img {
+  width: 100%; height: 100%; object-fit: cover; transform: scale(1.25);
+  filter: blur(48px) saturate(1.5) brightness(0.72);
+}
+/* A dark veil over the blur, lighter where the name is: its colours still show,
+   the white reads. */
+.client .project-opening__backdrop::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, rgb(16 17 19 / 72%) 0%, rgb(16 17 19 / 52%) 45%, rgb(16 17 19 / 30%) 100%);
+}
+:root[data-theme="dark"] .client .project-opening__backdrop img { filter: blur(48px) saturate(1.4) brightness(0.6); }
 /* The letters' own side space at this size (about 0.07em for H, M, R) would
    leave the title indented from the line below it: pulled back to line up. */
 .client .project-title {
@@ -53,14 +76,32 @@
   margin: 10px 0 0; font-size: var(--text-2xs); font-weight: 500; letter-spacing: var(--caps-spacing);
   text-transform: uppercase; color: var(--ink);
 }
-/* The cover: a rounded panel; without one, in edit mode, a dashed one to add it. */
+.client .project-opening--cover .project-title { color: #fff; }
+.client .project-opening--cover .project-kind { color: rgb(255 255 255 / 76%); }
+/* The cover: a rounded panel; on the band, lifted off it by a shadow and a faint
+   edge. Without one, in edit mode, a dashed panel to add it. */
 .client .banner { margin: 0; }
 .client .banner__img { height: auto; aspect-ratio: 16 / 10; border-radius: var(--r-panel); background: var(--surface); }
+.client .project-opening--cover .banner__img {
+  box-shadow: 0 1px 0 rgb(255 255 255 / 14%) inset, 0 24px 48px -12px rgb(0 0 0 / 55%), 0 2px 6px rgb(0 0 0 / 25%);
+}
 .client .banner__img img { width: 100%; height: 100%; object-fit: cover; }
 .client .cover-empty {
   width: 100%; border: 1px dashed var(--line-strong); border-radius: var(--r-panel); background: var(--surface);
   color: var(--muted);
 }
+/* Edit mode on the band: the pencils as they are on a photo, light, and the
+   corners that mark what can be edited in white. */
+.client .project-opening--cover .editbtn { background: var(--on-photo); color: var(--on-photo-ink); }
+.client .project-opening--cover [data-editable]::before { --c: #fff; }
+/* Phones: the details fold between the name and the cover, on the band too:
+   light text, faint lines. */
+.client .project-opening--cover .mobile-project-summary { border-top-color: rgb(255 255 255 / 22%); color: #fff; }
+.client .project-opening--cover .mobile-project-summary .details-list > div {
+  border-color: rgb(255 255 255 / 16%); background: rgb(255 255 255 / 8%); color: #fff;
+}
+.client .project-opening--cover .mobile-project-summary dt { color: rgb(255 255 255 / 70%); }
+.client .project-opening--cover .mobile-project-summary .facts-summary-label { color: #fff; }
 
 /* --- Two columns: the description and the stages; the details and the meeting */
 .client .project-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); gap: 32px 40px; margin-top: 24px; align-items: start; }
