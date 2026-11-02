@@ -417,7 +417,8 @@ async def deliver(
         )
         if not settings.email_staff_only or r.email in office.staff
     }
-    phones = await whatsapp_updates.receivers(db, settings, office, project)
+    # No WhatsApp sender (not set up): no messages are started that can't go.
+    phones = await whatsapp_updates.receivers(db, settings, office, project) if whatsapp else set()
     if batch.state is BatchState.OPEN:
         if not summary or not (allowed or phones):
             batch.state, batch.closed_at = BatchState.DROPPED, now

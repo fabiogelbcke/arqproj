@@ -31,7 +31,7 @@ from backend.notifications.whatsapp import (
 from backend.settings import Environment, Settings
 from backend.tenancy.models import Locale
 from backend.tests import test_office
-from backend.tests.test_client_emails import Outbox, make_due, new_file
+from backend.tests.test_client_emails import Outbox, as_production, make_due, new_file
 from backend.tests.test_maintenance_scan import CASA, casa, folders  # noqa: F401
 from backend.tests.test_office import ALINEA
 from backend.tests.test_project_settings import change, project
@@ -281,8 +281,12 @@ def test_the_project_and_meetings_follow_the_stages():
     )
 
 
-def test_files_in_a_stage_removed_meanwhile_are_left_out():
-    assert news(StageNews(None, 2, None)) == ""
+def test_files_in_a_stage_removed_meanwhile_are_counted_without_a_stage():
+    """Never an empty line: Meta refuses an empty part, and each number would fail."""
+    assert news(StageNews(None, 2, None)) == "2 arquivos novos"
+    assert news(StageNews("Anteprojeto", 0, "completed"), StageNews(None, 1, None)) == (
+        "a etapa Anteprojeto foi concluída; 1 arquivo novo"
+    )
 
 
 # -- a batch's message ----------------------------------------------------------------
@@ -370,6 +374,27 @@ async def test_a_failed_message_is_retried_and_never_sent_twice(app, db_session,
     await run(app, outbox, phone)
     assert len(phone.to(CLIENT)) == 1 and len(phone.to(OTHER)) == 1
     assert await db_session.scalar(text("SELECT state FROM notification_batches")) == "sent"
+
+
+async def test_without_whatsapp_set_up_the_email_isnt_held_for_it(
+    app, db_session, subscribed, monkeypatch
+):
+    """Deployed without Meta's settings there is no sender: the batch goes by email
+    and is done, rather than waiting on messages that can't go."""
+    await db_session.execute(
+        text(
+            "INSERT INTO project_recipients (tenant_id, project_id, email) "
+            f"SELECT tenant_id, id, 'cliente@exemplo.com.br' FROM projects WHERE id = {CASA}"
+        )
+    )
+    as_production(monkeypatch)  # the client's address may be emailed
+    outbox = Outbox()
+    await new_file(app, outbox, subscribed)
+    await make_due(db_session)
+    await run(app, outbox, None)
+    assert len(outbox.sent) == 1
+    assert await db_session.scalar(text("SELECT state FROM notification_batches")) == "sent"
+    assert await db_session.scalar(text("SELECT count(*) FROM whatsapp_deliveries")) == 0
 
 
 async def test_outside_production_only_test_numbers_get_a_batch(
@@ -543,6 +568,23 @@ async def test_a_number_that_replied_sair_shows_as_stopped(client, app, db_sessi
     assert numbers(await project(client)) == [(CLIENT, "stopped")]
     # Left out of the list, it is removed (the SAIR stays, for every project).
     assert numbers((await change(client, owner, found, whatsapp=[])).json()) == []
+
+
+async def test_a_full_list_can_swap_a_number(client, db_session, owner, phone):
+    """The limit counts the list as saved, not numbers this save removes."""
+    await switch_on(db_session)
+    full = [f"55119{n:08d}" for n in range(10000000, 10000020)]
+    found = (await change(client, owner, await project(client), whatsapp=full)).json()
+    assert len(found["whatsapp"]) == 20
+    swapped = await change(client, owner, found, whatsapp=[*full[1:], CLIENT])
+    assert swapped.status_code == 200, swapped.text
+    # One that said no stays listed (never asked again), so it still counts.
+    await db_session.execute(
+        text("UPDATE project_whatsapp_recipients SET status = 'declined' WHERE phone = :p"),
+        {"p": full[1]},
+    )
+    too_many = await change(client, owner, swapped.json(), whatsapp=[*full[2:], CLIENT, OTHER])
+    assert too_many.status_code == 409 and too_many.json()["error"] == "whatsapp_full"
 
 
 async def test_staff_numbers_are_checked(client, db_session, owner, phone):

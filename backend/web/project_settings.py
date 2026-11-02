@@ -178,7 +178,8 @@ async def _set_whatsapp(
             db.add(recipient)
             added.append(recipient)
             changed = True
-    if len(set(have) | set(wanted)) > RECIPIENTS_MAX:
+    kept = {p for p, r in have.items() if p in wanted or r.status is WhatsAppStatus.DECLINED}
+    if len(kept | set(wanted)) > RECIPIENTS_MAX:
         raise ApiError(409, ErrorCode.WHATSAPP_FULL)
     await db.flush()
     return changed, added

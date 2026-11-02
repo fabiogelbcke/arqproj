@@ -77,6 +77,8 @@ def news_line(locale: Locale, summary: Summary) -> str:
     stages in page order, then the project, then the meeting, as the email."""
     parts: list[str] = []
     stages = [s for s in summary.news if s.name]
+    # Files in a stage removed meanwhile are on the page under no stage.
+    loose = sum(s.files for s in summary.news if not s.name)
     if len(stages) == 1:
         [stage] = stages
         files = _w(locale, "filesNew", count=stage.files) if stage.files else None
@@ -99,6 +101,8 @@ def news_line(locale: Locale, summary: Summary) -> str:
             parts.append(_w(locale, "stageList", stage=stage.name, changes=", ".join(changes)))
         if len(stages) > STAGES_LISTED:
             parts.append(_w(locale, "moreStages", count=len(stages) - STAGES_LISTED))
+    if loose:
+        parts.append(_w(locale, "filesNew", count=loose))
     if summary.project_completed:
         parts.append(_w(locale, "projectCompleted"))
     if summary.meeting is not None:
@@ -325,9 +329,11 @@ async def send_batch(
     ]
     if not due:
         return 0, False
-    if sender is None:
-        return 0, True  # WhatsApp unavailable just now: the next pass tries again
     news = news_line(office.locale, summary)
+    if sender is None or not news:
+        # WhatsApp not set up here (deployed without Meta's settings), or nothing
+        # it can say: the email goes on its own, and the batch isn't held for it.
+        return 0, False
     recipients = {
         r.phone: r.id
         for r in await db.scalars(
