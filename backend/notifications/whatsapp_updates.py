@@ -24,6 +24,7 @@ from backend.notifications.models import (
     NotificationBatch,
     ProjectWhatsApp,
     WhatsAppDelivery,
+    WhatsAppMessageSeen,
     WhatsAppOptOut,
     WhatsAppSource,
     WhatsAppStatus,
@@ -196,11 +197,29 @@ async def opt_out(db: AsyncSession, settings: Settings, phone: str) -> None:
     )
 
 
-async def opt_back_in(db: AsyncSession, settings: Settings, phone: str) -> None:
-    """The client signed up again on a page: their own choice lifts their SAIR."""
-    await db.execute(
-        delete(WhatsAppOptOut).where(WhatsAppOptOut.phone_hash == opt_out_hash(settings, phone))
+async def opt_back_in(
+    db: AsyncSession, settings: Settings, phone: str, chosen_at: datetime | None = None
+) -> None:
+    """The client chose the updates again: their own choice lifts their SAIR, if
+    it came after it (`chosen_at`: when they tapped; Meta may deliver it late)."""
+    query = delete(WhatsAppOptOut).where(WhatsAppOptOut.phone_hash == opt_out_hash(settings, phone))
+    if chosen_at is not None:
+        query = query.where(WhatsAppOptOut.created_at < chosen_at)
+    await db.execute(query)
+
+
+async def first_time(db: AsyncSession, message_id: str) -> bool:
+    """Whether this webhook message is new: recorded as handled in the caller's
+    transaction, so it counts only if what it changed is saved too."""
+    if not message_id:
+        return True
+    found = await db.scalar(
+        insert(WhatsAppMessageSeen)
+        .values(message_id=message_id)
+        .on_conflict_do_nothing()
+        .returning(WhatsAppMessageSeen.message_id)
     )
+    return found is not None
 
 
 # -- greeting a new number ------------------------------------------------------------

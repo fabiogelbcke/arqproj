@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -123,6 +123,12 @@ PHONES = json.loads(
 @pytest.mark.parametrize(("typed", "stored"), PHONES["valid"])
 def test_numbers_are_kept_in_international_digits(typed, stored):
     assert parse_phone(typed) == stored
+
+
+@pytest.mark.parametrize(("typed", "stored"), PHONES["valid"])
+def test_what_the_screens_send_reads_back_the_same(typed, stored):
+    """The screens send the number they read with its +: any country's."""
+    assert parse_phone(f"+{stored}") == stored
 
 
 @pytest.mark.parametrize("typed", PHONES["invalid"])
@@ -491,6 +497,12 @@ async def test_a_number_that_isnt_a_mobile_is_refused(client, db_session, visito
     assert await number(db_session, "551134567890") is None
 
 
+async def test_a_client_abroad_signs_up_with_their_country_code(client, db_session, visitor):
+    response = await sign_up(client, "+351912345678")
+    assert response.status_code == 204, response.text
+    assert (await number(db_session, "351912345678"))[0] == "subscribed"
+
+
 async def test_signing_up_twice_welcomes_once(client, db_session, visitor):
     await sign_up(client, CLIENT)
     await sign_up(client, "+55 11 98765-4321")
@@ -585,6 +597,13 @@ async def test_a_full_list_can_swap_a_number(client, db_session, owner, phone):
     )
     too_many = await change(client, owner, swapped.json(), whatsapp=[*full[2:], CLIENT, OTHER])
     assert too_many.status_code == 409 and too_many.json()["error"] == "whatsapp_full"
+
+
+async def test_staff_add_a_number_abroad(client, db_session, owner, phone):
+    await switch_on(db_session)
+    response = await change(client, owner, await project(client), whatsapp=["+351912345678"])
+    assert response.status_code == 200, response.text
+    assert numbers(response.json()) == [("351912345678", "invited")]
 
 
 async def test_staff_numbers_are_checked(client, db_session, owner, phone):
@@ -730,3 +749,65 @@ async def test_another_failure_leaves_the_number_alone(client, db_session, owner
     }
     await post(client, incoming(status=status))
     assert (await number(db_session))[0] == "invited"
+
+
+def tap(payload, message_id, at=None):
+    message = {"from": CLIENT, "id": message_id, "type": "button", "button": {"payload": payload}}
+    if at is not None:
+        message["timestamp"] = str(int(at.timestamp()))
+    return incoming(message)
+
+
+def sair(message_id="wamid.sair"):
+    return incoming({"from": CLIENT, "id": message_id, "type": "text", "text": {"body": "SAIR"}})
+
+
+async def test_an_answer_delivered_again_after_sair_doesnt_undo_it(
+    client, app, db_session, owner, meta
+):
+    question = await asked(client, db_session, owner, meta)
+    await post(client, tap(question.buttons[0], "wamid.yes"))
+    await post(client, sair())
+    await post(client, tap(question.buttons[0], "wamid.yes"))  # Meta, unsure we got it
+    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+
+
+async def test_an_answer_delivered_late_doesnt_undo_a_later_sair(
+    client, app, db_session, owner, meta
+):
+    question = await asked(client, db_session, owner, meta)
+    await post(client, sair())
+    an_hour_ago = datetime.now(ZoneInfo("UTC")) - timedelta(hours=1)
+    await post(client, tap(question.buttons[0], "wamid.old-yes", at=an_hour_ago))
+    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    # Tapped after the SAIR: their new choice lifts it.
+    await post(
+        client,
+        tap(
+            question.buttons[0],
+            "wamid.new-yes",
+            at=datetime.now(ZoneInfo("UTC")) + timedelta(minutes=1),
+        ),
+    )
+    assert not await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+
+
+async def test_a_message_handled_once_even_if_meta_sends_it_again(client, db_session, meta):
+    for _ in range(2):
+        await post(client, sair("wamid.same"))
+    assert len(meta.to(CLIENT)) == 1  # one "Pronto", not two
+
+
+async def test_a_failure_asks_meta_to_send_it_again(client, app, db_session, meta, monkeypatch):
+    """Answered 500, Meta sends it again; nothing was recorded, so it is handled then."""
+    real = whatsapp_updates.opt_out
+
+    async def broken(*args):
+        raise RuntimeError("database gone")
+
+    monkeypatch.setattr(whatsapp_updates, "opt_out", broken)
+    assert (await post(client, sair())).status_code == 500
+    assert not await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    monkeypatch.setattr(whatsapp_updates, "opt_out", real)
+    assert (await post(client, sair())).status_code == 200
+    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})

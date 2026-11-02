@@ -106,7 +106,8 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
             ...(accessChanged ? { access_mode: access, ...(password ? { password } : {}) } : {}),
             ...(recipientsChanged ? { recipients: wanted } : {}),
             ...(membersChanged ? { members } : {}),
-            ...(whatsappChanged ? { whatsapp: wantedPhones } : {}),
+            // With their +: the server reads any country's number as typed.
+            ...(whatsappChanged ? { whatsapp: wantedPhones.map((phone) => `+${phone}`) } : {}),
           }),
         );
         capture("project_settings_saved", {

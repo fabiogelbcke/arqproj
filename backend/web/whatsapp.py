@@ -14,8 +14,10 @@ the app's secret; anything unsigned gets a 404, as if nothing were here.
 - A message Meta couldn't deliver because the number has no WhatsApp marks that
   number unreachable, through the token our message carried.
 
-Meta resends what doesn't get a 200, so each message is handled on its own and a
-failure is logged, never returned.
+Meta resends what doesn't get a 200: a message whose handling failed answers 500
+so it comes again, and each message's id is recorded as handled in the same
+transaction as what it changed, so one that comes again is handled once. An
+answer Meta delivers late doesn't undo a SAIR the client sent after it.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ import json
 import logging
 import time
 import unicodedata
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, Response
@@ -90,6 +93,7 @@ async def webhook(request: Request) -> Response:
         payload = json.loads(body)
     except ValueError:
         return Response(status_code=400)
+    failed = False
     for entry in payload.get("entry") or []:
         for change in entry.get("changes") or []:
             value = change.get("value") or {}
@@ -97,13 +101,16 @@ async def webhook(request: Request) -> Response:
                 try:
                     await _message(request, message)
                 except Exception:
+                    failed = True
                     log.exception("whatsapp webhook: handling a message failed")
             for status in value.get("statuses") or []:
                 try:
                     await _status(request, status)
                 except Exception:
+                    failed = True
                     log.exception("whatsapp webhook: handling a status failed")
-    return Response(status_code=200)
+    # Meta sends it all again: what was handled is skipped by its id.
+    return Response(status_code=500 if failed else 200)
 
 
 async def _send(request: Request, message) -> None:
@@ -117,9 +124,18 @@ async def _send(request: Request, message) -> None:
         log.error("whatsapp webhook: replying failed: route=%s %s", PATH, error.detail)
 
 
+def _sent_at(message: dict) -> datetime:
+    """When the client sent it (Meta's Unix time), else now."""
+    try:
+        return datetime.fromtimestamp(int(message["timestamp"]), UTC)
+    except (KeyError, TypeError, ValueError):
+        return datetime.now(UTC)
+
+
 async def _message(request: Request, message: dict) -> None:
     settings = request.app.state.settings
     phone = canonical(str(message.get("from", "")))
+    message_id = str(message.get("id") or "")
     kind = message.get("type")
     payload = None
     if kind == "button":
@@ -128,36 +144,46 @@ async def _message(request: Request, message: dict) -> None:
         payload = ((message.get("interactive") or {}).get("button_reply") or {}).get("id")
     found = read_token(settings, payload) if payload else None
     if found is not None and found.action in ("yes", "no"):
-        await _answer(request, phone, found)
+        await _answer(request, phone, found, message_id, _sent_at(message))
         return
     if kind == "text" and _word((message.get("text") or {}).get("body", "")) in STOP_WORDS:
         async with request.app.state.sessionmaker() as db:
+            if not await whatsapp_updates.first_time(db, message_id):
+                return
             await whatsapp_updates.opt_out(db, settings, phone)
             await db.commit()
         log.info("whatsapp: a number replied SAIR")
         await _send(request, whatsapp_updates.reply(Locale.PT_BR, phone, "stopped"))
         return
+    async with request.app.state.sessionmaker() as db:
+        if not await whatsapp_updates.first_time(db, message_id):
+            return
+        await db.commit()
     now = time.monotonic()
     if now - _auto_replied.get(phone, -AUTO_REPLY_EVERY) >= AUTO_REPLY_EVERY:
         _auto_replied[phone] = now
         await _send(request, whatsapp_updates.reply(Locale.PT_BR, phone, "autoReply"))
 
 
-async def _answer(request: Request, phone: str, found) -> None:
+async def _answer(request: Request, phone: str, found, message_id: str, sent_at: datetime) -> None:
     """ "Quero receber" or "Não quero", from the number the question went to."""
     settings = request.app.state.settings
     async with request.app.state.sessionmaker() as db:
         scope_to_tenant(db.sync_session, found.tenant_id)
+        if not await whatsapp_updates.first_time(db, message_id):
+            return
         recipient = await db.scalar(
             select(ProjectWhatsApp).where(ProjectWhatsApp.id == found.recipient_id)
         )
         if recipient is None or recipient.phone != phone:
+            await db.commit()  # handled: nothing to change
             return  # removed by staff meanwhile, or not this number's button
         project = await db.scalar(select(Project).where(Project.id == recipient.project_id))
         locale = await db.scalar(select(Tenant.locale).where(Tenant.id == found.tenant_id))
         if found.action == "yes":
             recipient.status = WhatsAppStatus.SUBSCRIBED
-            await whatsapp_updates.opt_back_in(db, settings, phone)  # their own choice
+            # Their own choice lifts a SAIR sent before it, not one sent after.
+            await whatsapp_updates.opt_back_in(db, settings, phone, sent_at)
         else:
             recipient.status = WhatsAppStatus.DECLINED
         await db.commit()

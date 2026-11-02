@@ -8,6 +8,8 @@ for emails. Both are isolated per office like every project table.
 `whatsapp_opt_outs` belongs to no office: a number that replied SAIR gets no
 WhatsApp updates from any project, since they all come from one Unio number. It
 holds only a keyed hash of the number. The app reads, adds and removes rows.
+`whatsapp_messages_seen`, no office's either, holds the ids of messages Meta's
+webhook brought that were handled, so one delivered again is handled once.
 
 Revision: 0045
 Previous: 0044
@@ -56,6 +58,22 @@ def upgrade() -> None:
     op.execute(
         "DO $$ BEGIN EXECUTE format("
         "'GRANT SELECT, INSERT, DELETE ON whatsapp_opt_outs TO %I', current_database() || '_app'"
+        "); END $$"
+    )
+    op.create_table(
+        "whatsapp_messages_seen",
+        sa.Column("message_id", sa.Text(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("message_id", name=op.f("pk_whatsapp_messages_seen")),
+    )
+    op.execute(
+        "DO $$ BEGIN EXECUTE format("
+        "'GRANT SELECT, INSERT ON whatsapp_messages_seen TO %I', current_database() || '_app'"
         "); END $$"
     )
     op.create_table(
@@ -195,4 +213,5 @@ def downgrade() -> None:
         op.f("ix_project_whatsapp_recipients_project_id"), table_name="project_whatsapp_recipients"
     )
     op.drop_table("project_whatsapp_recipients")
+    op.drop_table("whatsapp_messages_seen")
     op.drop_table("whatsapp_opt_outs")

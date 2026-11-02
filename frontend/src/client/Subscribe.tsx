@@ -89,7 +89,8 @@ export function Subscribe({ slug }: { slug: string }) {
 }
 
 // "Atualizações pelo WhatsApp" (A44), where the office has them: the number is
-// signed up at once and gets a welcome message saying how to stop (SAIR).
+// signed up at once and gets a welcome message saying how to stop (SAIR). Sent
+// with its +, so the server reads any country's number as this page did.
 export function SubscribeWhatsApp({ slug }: { slug: string }) {
   const { t } = useTranslation();
   const id = useId();
@@ -104,7 +105,7 @@ export function SubscribeWhatsApp({ slug }: { slug: string }) {
     setProblem(null);
     setState("sending");
     try {
-      await call(api.POST("/api/pages/{slug}/whatsapp", { params: { path: { slug } }, body: { phone } }));
+      await call(api.POST("/api/pages/{slug}/whatsapp", { params: { path: { slug } }, body: { phone: `+${phone}` } }));
       setSent(phone);
       setState("sent");
     } catch (failure) {

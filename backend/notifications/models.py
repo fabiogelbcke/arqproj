@@ -110,6 +110,16 @@ class WhatsAppOptOut(CreatedAtMixin, Base):
     phone_hash: Mapped[str] = mapped_column(Text, primary_key=True)
 
 
+class WhatsAppMessageSeen(CreatedAtMixin, Base):
+    """A message Meta's webhook brought that was handled (A44): Meta delivers a
+    message again when it isn't sure we got it, and an answer handled twice
+    could undo a later SAIR. No office's: one Unio number serves them all."""
+
+    __tablename__ = "whatsapp_messages_seen"
+
+    message_id: Mapped[str] = mapped_column(Text, primary_key=True)  # Meta's wamid
+
+
 class EventKind(StrEnum):
     """What a client can notice on the page (A28). All but a note email (A32)."""
 

@@ -166,7 +166,7 @@ describe("the client page", () => {
     await userEvent.type(field, "(11) 98765-4321");
     await userEvent.click(within(box).getByRole("button", { name: "Assinar" }));
     expect(await within(box).findByRole("status")).toHaveTextContent("Enviamos uma mensagem para (11) 98765-4321.");
-    expect(sent.find((r) => r.path.endsWith("/whatsapp"))?.body).toEqual({ phone: "5511987654321" });
+    expect(sent.find((r) => r.path.endsWith("/whatsapp"))?.body).toEqual({ phone: "+5511987654321" });
   });
 
   it("offers no WhatsApp sign-up where the office doesn't have it", async () => {

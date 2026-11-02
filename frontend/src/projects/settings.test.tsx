@@ -272,7 +272,7 @@ describe("the Projeto dialog", () => {
       await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
       expect(await screen.findByText("Salvo.")).toBeInTheDocument();
       expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({
-        whatsapp: ["5511987654321", "5521998765432"],
+        whatsapp: ["+5511987654321", "+5521998765432"],
       });
     });
 
