@@ -575,7 +575,12 @@ test("@screenshots proposals", async ({ page }) => {
   await setup.getByRole("checkbox").first().waitFor();
   await shoot(page, "11f-etapas-da-proposta");
   await page.setViewportSize(SIZES[0]!);
-  await setup.getByRole("button", { name: "Fechar" }).click();
+  await setup.getByRole("button", { name: "Continuar" }).click();
+  const details = page.getByRole("dialog", { name: "Descrição e informações" });
+  await details.getByLabel("Descrição").fill("Residência de campo com vista para o lago.");
+  await shoot(page, "11f2-descricao-do-projeto");
+  await page.setViewportSize(SIZES[0]!);
+  await details.getByRole("button", { name: "Fechar" }).click();
   await page.getByRole("region", { name: "Proposta" }).waitFor();
   await shoot(page, "11g-projeto-com-proposta");
   await page.setViewportSize(SIZES[0]!);
