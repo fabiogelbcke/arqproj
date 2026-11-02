@@ -8,6 +8,10 @@ reads it, kept for the outbox and the logs. A reply to something the client
 wrote (SAIR, "Quero receber") is free text, allowed for 24 hours after it.
 
 Meta has no idempotency key: a message counts as sent once Meta accepts it.
+That record is part of the project's maintenance transaction, so if something
+later in the same pass rolls it back (a Drive failure on a second due batch),
+the next pass sends the message again: a rare duplicate, accepted rather than
+committing mid-pass, which would release the project's lock (scan.py).
 """
 
 from __future__ import annotations
