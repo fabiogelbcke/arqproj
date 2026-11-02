@@ -1,6 +1,6 @@
-// The project type and its stages, as a new project chooses them: both in the
-// "Nova proposta" form; the type in "Novo projeto" and the stages in the first of
-// a new project's setup steps on its page.
+// The project type and its stages, as a new project chooses them: the type in
+// the creation form ("Novo projeto" and "Nova proposta"), the stages in the first
+// of the project's setup steps on its page (an accepted proposal's too).
 import { useState } from "react";
 import { Checkbox, CheckboxGroup, Label, Radio, RadioGroup, Text } from "react-aria-components";
 import { useTranslation } from "react-i18next";
@@ -16,8 +16,8 @@ const OWN = "own:";
 /** The type the office names itself, per project (2 Nov 2026). */
 export const OTHER_TYPE = "other";
 
-/** Lowercase, without accents, punctuation or a word's plural "s":
- *  "Detalhamentos – Executivos" → "detalhamento executivo". */
+/** Lowercase, without accents, punctuation or a word's plural:
+ *  "Detalhamentos – Especificações" → "detalhamento especificacao". */
 function plain(text: string): string {
   return text
     .normalize("NFD")
@@ -26,8 +26,18 @@ function plain(text: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .split(" ")
-    .map((word) => (word.length > 3 && word.endsWith("s") ? word.slice(0, -1) : word))
+    .map(singular)
     .join(" ");
+}
+
+/** A Portuguese word without its plural, accents already gone: ões and ães →
+ *  ão ("especificacoes" → "especificacao"), ais → al, eis → el, else a final s. */
+function singular(word: string): string {
+  if (word.length <= 3) return word;
+  if (word.endsWith("oes") || word.endsWith("aes")) return `${word.slice(0, -3)}ao`;
+  if (word.endsWith("ais")) return `${word.slice(0, -3)}al`;
+  if (word.endsWith("eis")) return `${word.slice(0, -3)}el`;
+  return word.endsWith("s") ? word.slice(0, -1) : word;
 }
 
 /** An accepted proposal's services as the project's stages, one each (2 Nov

@@ -778,11 +778,13 @@ describe("helpers", () => {
       { key: "permit_documents", title: "Projeto Legal" },
       { key: "revisions", title: "Revisões" },
       { key: "detailing", title: "Detalhamentos" },
+      { key: "specifications", title: "Especificações" },
     ];
     expect(
       stagesFromServices(stages, [
-        "Revisões", // the same name, however short
+        "Revisão", // the same name, however short, its plural aside (ões → ão)
         "Detalhamento executivo", // a plural aside
+        "Especificação de Materiais", // ões → ão
         "Projeto Executivo de Arquitetura", // contains a stage's name
         "projeto legal", // case and accents aside
         "Imagens renderizadas", // no stage: the office's own
@@ -791,7 +793,7 @@ describe("helpers", () => {
         "  ",
       ]),
     ).toEqual({
-      builtin: ["revisions", "detailing", "construction_documents", "permit_documents"],
+      builtin: ["revisions", "detailing", "specifications", "construction_documents", "permit_documents"],
       own: ["Imagens renderizadas", "Projeto"],
     });
   });

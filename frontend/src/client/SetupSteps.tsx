@@ -356,13 +356,19 @@ export function SetupSteps({
   const name = SETUP_STEPS[step]!;
   const Step = STEPS[name];
   const last = step === SETUP_STEPS.length - 1;
+  // Closed at any point: the page behind loads again, so it has whatever a step
+  // saved, even part of one (stages made before a failure), and its row version.
+  const close = () => {
+    onChanged();
+    onClose();
+  };
   const next = () => {
     if (!last) return setStep(step + 1);
     toast(t("setup.done"));
-    onClose();
+    close();
   };
   return (
-    <DialogFrame title={t(`setup.title.${name}`)} onClose={onClose} outsideCloses={false}>
+    <DialogFrame title={t(`setup.title.${name}`)} onClose={close} outsideCloses={false}>
       <div className={projectStyles.form}>
         <SetupProgress step={step} />
         <Step

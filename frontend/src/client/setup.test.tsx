@@ -206,6 +206,15 @@ describe("a new project's setup steps", () => {
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ row_version: 2 });
   });
 
+  it("reload the page behind when closed, so it has what was saved so far", async () => {
+    const sent = arrive();
+    const dialog = await screen.findByRole("dialog", { name: "Etapas" });
+    const loads = () => sent.filter((r) => r.method === "GET" && r.path === "/api/pages/casa-do-lago").length;
+    const before = loads();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(loads()).toBe(before + 1));
+  });
+
   it("refuse an own stage named like one listed", async () => {
     arrive();
     const dialog = await screen.findByRole("dialog", { name: "Etapas" });
