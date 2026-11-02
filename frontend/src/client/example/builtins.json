@@ -12,6 +12,19 @@
           "permit_documents",
           "construction_documents",
           "coordination"
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "feasibility_study",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
+          "specifications"
         ]
       },
       {
@@ -24,6 +37,17 @@
           "schematic_design",
           "construction_documents",
           "detailing",
+          "specifications"
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "preliminary_study",
+          "schematic_design",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
           "specifications"
         ]
       },
@@ -39,6 +63,19 @@
           "permit_documents",
           "construction_documents",
           "coordination"
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "feasibility_study",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
+          "specifications"
         ]
       },
       {
@@ -52,6 +89,62 @@
           "construction_documents",
           "complementary_projects",
           "specifications"
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "feasibility_study",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
+          "specifications"
+        ]
+      },
+      {
+        "key": "visualization",
+        "label": "Visualização Arquitetônica",
+        "stages": [
+          "briefing",
+          "preview_delivery",
+          "documentation",
+          "final_delivery"
+        ],
+        "offered": [
+          "briefing",
+          "preview_delivery",
+          "documentation",
+          "revisions",
+          "final_delivery",
+          "post_production"
+        ]
+      },
+      {
+        "key": "other",
+        "label": "Outro",
+        "stages": [
+          "briefing"
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "feasibility_study",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
+          "specifications",
+          "preview_delivery",
+          "documentation",
+          "revisions",
+          "final_delivery",
+          "post_production"
         ]
       }
     ],
@@ -99,6 +192,26 @@
       {
         "key": "specifications",
         "title": "Especificações"
+      },
+      {
+        "key": "preview_delivery",
+        "title": "Entrega Prévia"
+      },
+      {
+        "key": "documentation",
+        "title": "Documentação"
+      },
+      {
+        "key": "revisions",
+        "title": "Revisões"
+      },
+      {
+        "key": "final_delivery",
+        "title": "Entrega Final"
+      },
+      {
+        "key": "post_production",
+        "title": "Pós-Produção"
       }
     ]
   },

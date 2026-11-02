@@ -32,7 +32,13 @@ from backend.projects.creation import (
     NewProject,
     create_project,
 )
-from backend.projects.enums import AccessMode, DetailKey, ProjectStatus
+from backend.projects.enums import (
+    AccessMode,
+    BuiltinStage,
+    DetailKey,
+    ProjectStatus,
+    ProjectType,
+)
 from backend.projects.models import (
     STAGE_TITLE_MAX,
     Meeting,
@@ -85,6 +91,7 @@ class ProjectSummary(BaseModel):
     slug: str
     status: ProjectStatus
     project_type: str
+    # A built-in type's label in the office's language; "Outro"'s name as typed.
     project_type_label: str
     stage_count: int
     completed_stage_count: int  # stages marked as completed, in any order (0032)
@@ -119,6 +126,9 @@ class ProjectTypeOption(BaseModel):
     label: str
     # Its usual stages, ticked when it is chosen.
     stages: list[str]
+    # The stages listed when it is chosen, its usual ones among them; the rest stay
+    # behind "Mostrar todas as etapas".
+    offered: list[str]
 
 
 class CreationOptions(BaseModel):
@@ -131,6 +141,8 @@ class ProjectIn(BaseModel):
     name: str = Field(max_length=500)
     client_name: str = Field(max_length=500)
     project_type: str = Field(max_length=100)
+    # "Outro"'s name (2 Nov 2026); ignored for a built-in type.
+    custom_type: str | None = Field(default=None, max_length=500)
     stages: list[str] = Field(max_length=50)
     # The office's own stages, named as typed: after the built-in ones.
     custom_stages: list[Annotated[str, Field(max_length=STAGE_TITLE_MAX)]] = Field(
@@ -144,6 +156,24 @@ class ProjectIn(BaseModel):
     # Made by the screen once per dialog: a retried or double-sent request
     # returns the project already created.
     creation_key: str = Field(min_length=16, max_length=100)
+
+
+# The stages each type lists when chosen, its usual ones among them (A27, trial
+# since 1 Nov 2026): an interiors project has no permit or feasibility study, a
+# visualization project none of the building stages but Briefing. Data for the
+# reference tables if it stays.
+_S = BuiltinStage
+_BUILDING = frozenset(BuiltinStage) - {
+    _S.PREVIEW_DELIVERY, _S.DOCUMENTATION, _S.REVISIONS, _S.FINAL_DELIVERY, _S.POST_PRODUCTION
+}  # fmt: skip
+OFFERED_STAGES: dict[str, frozenset[str]] = {
+    ProjectType.ARCHITECTURE: _BUILDING,
+    ProjectType.INTERIORS: _BUILDING - {_S.FEASIBILITY_STUDY, _S.PERMIT_DOCUMENTS},
+    ProjectType.RENOVATION: _BUILDING,
+    ProjectType.LANDSCAPING: _BUILDING,
+    ProjectType.VISUALIZATION: frozenset(BuiltinStage) - _BUILDING | {_S.BRIEFING},
+    ProjectType.OTHER: frozenset(BuiltinStage),  # anything: the office named the type
+}
 
 
 async def summaries(
@@ -246,7 +276,7 @@ async def summaries(
             slug=slug,
             status=project.status,
             project_type=project.project_type,
-            project_type_label=_text(labels, locale),
+            project_type_label=project.custom_type or _text(labels, locale),
             stage_count=counts.get(project.id, 0),
             completed_stage_count=completed.get(project.id, 0),
             current_position=(
@@ -307,6 +337,12 @@ async def project_types(
                 key=kind.key,
                 label=_text(kind.labels, tenant.locale),
                 stages=[stage.key for stage in stages if stage.key in usual.get(kind.key, set())],
+                offered=[
+                    stage.key
+                    for stage in stages
+                    if stage.key in OFFERED_STAGES.get(kind.key, frozenset())
+                    or stage.key in usual.get(kind.key, set())
+                ],
             )
             for kind in await db.scalars(select(ProjectTypeDef).order_by(ProjectTypeDef.position))
         ],
@@ -347,6 +383,7 @@ async def new_project(
         name=body.name,
         client_name=body.client_name,
         project_type=body.project_type,
+        custom_type=body.custom_type,
         stages=tuple(body.stages),
         slug=body.slug.strip().lower(),
         creation_key=body.creation_key,

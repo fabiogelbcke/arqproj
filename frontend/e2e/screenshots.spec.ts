@@ -550,8 +550,6 @@ test("@screenshots proposals", async ({ page }) => {
   const dialog = page.getByRole("dialog", { name: "Nova proposta" });
   await dialog.getByLabel("Nome do projeto").fill("Casa do Lago");
   await dialog.getByLabel("Cliente").fill("Família Souza");
-  await dialog.getByLabel("Outra etapa (opcional)").fill("Visita técnica");
-  await dialog.getByLabel("Outra etapa (opcional)").press("Enter");
   await shoot(page, "11b-nova-proposta");
   await page.setViewportSize(SIZES[0]!);
   await dialog.getByRole("button", { name: "Criar proposta" }).click();
@@ -572,10 +570,16 @@ test("@screenshots proposals", async ({ page }) => {
   await shoot(page, "11e-aceitar-proposta");
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("alertdialog").getByRole("button", { name: "Criar projeto" }).click();
+  // The project's setup steps, the proposal's services as its stages (2 Nov 2026).
+  const setup = page.getByRole("dialog", { name: "Etapas" });
+  await setup.getByRole("checkbox").first().waitFor();
+  await shoot(page, "11f-etapas-da-proposta");
+  await page.setViewportSize(SIZES[0]!);
+  await setup.getByRole("button", { name: "Fechar" }).click();
   await page.getByRole("region", { name: "Proposta" }).waitFor();
-  await shoot(page, "11f-projeto-com-proposta");
+  await shoot(page, "11g-projeto-com-proposta");
   await page.setViewportSize(SIZES[0]!);
   await page.goto("/painel/propostas");
   await page.getByRole("region", { name: /Aceitas/ }).waitFor();
-  await shoot(page, "11g-propostas");
+  await shoot(page, "11h-propostas");
 });

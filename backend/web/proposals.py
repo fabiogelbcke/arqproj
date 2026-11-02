@@ -390,9 +390,10 @@ async def proposal_list(
 async def _first_services(
     db: AsyncSession, project: Project, locale: Locale, offered: list[PresetOut]
 ) -> list[Service]:
-    """A new proposal's services: the stages ticked when it was created, the
-    office's own among them (A42). Each in the office's words for a service of that
-    name, else the stage's description. Without stages, the office's services."""
+    """A new proposal's services: the project's stages, the office's own among
+    them (A42). Each in the office's words for a service of that name, else the
+    stage's description. Without stages (every new proposal since 2 Nov 2026,
+    created without them), the office's services."""
     stages = await stage_texts(db, project, locale)
     if not stages:
         return [Service(title=p.title, description=p.description) for p in offered]

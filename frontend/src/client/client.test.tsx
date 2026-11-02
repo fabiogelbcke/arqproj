@@ -1346,6 +1346,66 @@ describe("edit mode", () => {
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ project_type: "renovation" });
   });
 
+  it("names an Outro type, renames it alone, and sends no name for a built-in type", async () => {
+    const { sent } = asStaff({
+      "GET /api/detail-types": () => ({ body: [] }),
+      "GET /api/project-types": () => ({
+        body: {
+          types: [
+            { key: "architecture", label: "Projeto Arquitetônico" },
+            { key: "other", label: "Outro" },
+          ],
+        },
+      }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    const type = await screen.findByLabelText("Tipo de projeto");
+    await screen.findByRole("option", { name: "Outro" });
+    expect(screen.queryByLabelText("Qual é o tipo de projeto?")).toBeNull(); // a built-in type
+    await userEvent.selectOptions(type, "other");
+    await userEvent.type(screen.getByLabelText("Qual é o tipo de projeto?"), "Maquete física");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({
+      project_type: "other",
+      custom_type: "Maquete física",
+    });
+  });
+
+  it("an Outro project's editor starts from its name and sends only a new one", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: {
+          ...PAGE,
+          project_type: "Maquete física",
+          project_type_key: "other",
+          staff: { project_id: "p-1", status: "active", row_version: 4 },
+        },
+      }),
+      "GET /api/detail-types": () => ({ body: [] }),
+      "GET /api/project-types": () => ({ body: { types: [{ key: "other", label: "Outro" }] } }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    render(<ClientApp />);
+    expect(await screen.findByText("Maquete física")).toBeInTheDocument(); // in place of a label
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    const name = await screen.findByLabelText("Qual é o tipo de projeto?");
+    expect(name).toHaveValue("Maquete física");
+    await userEvent.clear(name);
+    await userEvent.type(name, "Maquete");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    const body = sent.find((r) => r.method === "PATCH")?.body as Record<string, unknown>;
+    expect(body).toMatchObject({ custom_type: "Maquete" });
+    expect(body).not.toHaveProperty("project_type"); // unchanged
+  });
+
   it("adds a detail from a menu, and areas are typed with no steppers", async () => {
     const { sent } = asStaff({
       "GET /api/detail-types": () => ({

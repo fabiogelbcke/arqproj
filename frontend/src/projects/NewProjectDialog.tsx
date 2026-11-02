@@ -1,14 +1,5 @@
 import { useState } from "react";
-import {
-  Checkbox,
-  CheckboxGroup,
-  DialogTrigger,
-  Form,
-  Label,
-  Radio,
-  RadioGroup,
-  Text,
-} from "react-aria-components";
+import { DialogTrigger, Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 
@@ -18,12 +9,12 @@ import { useConnectDrive, useDrive } from "../drive/drive";
 import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
-import { addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextField } from "../ui/TextField";
 import { suggestedSlug, useCreateProject, useCreationOptions } from "./projects";
 import styles from "./projects.module.css";
-import { RecipientsField } from "./RecipientsField";
+import { SETUP_PARAM } from "./setup";
+import { TypeChoiceField, useStageChoice } from "./StageChoice";
 
 /** A project, or one that starts as a proposal (A42): its page shows only the
  *  proposal until staff mark it accepted. Two ways in, one form. */
@@ -38,29 +29,10 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
   const [creationKey] = useState(() => crypto.randomUUID());
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
-  // The client's addresses for updates (A32, asked here too since 20 Oct 2026).
-  const [recipients, setRecipients] = useState<string[]>([]);
-  const [newRecipient, setNewRecipient] = useState("");
-  const [typeKey, setTypeKey] = useState<string | null>(null);
-  // null: the chosen type's usual stages; a list once staff tick or untick one.
-  const [ticked, setTicked] = useState<string[] | null>(null);
-  const types = options.data?.types ?? [];
-  const type = types.find((option) => option.key === typeKey) ?? types[0];
-  const stages = ticked ?? type?.stages ?? [];
-  // The office's own stages, named here, after the built-in ones; unticking one drops it.
-  const [own, setOwn] = useState<string[]>([]);
-  const [newStage, setNewStage] = useState("");
-  const [stageProblem, setStageProblem] = useState<string | null>(null);
-  const OWN = "own:";
-  const addOwn = () => {
-    const title = newStage.trim();
-    if (!title) return;
-    const names = [...(options.data?.stages ?? []).map((s) => s.title), ...own].map((n) => n.toLocaleLowerCase());
-    if (names.includes(title.toLocaleLowerCase())) return setStageProblem(t("newProject.stageExists", { title }));
-    setOwn([...own, title]);
-    setNewStage("");
-    setStageProblem(null);
-  };
+  // Only what it can't do without, and its type: the project's page then walks
+  // staff through the rest, an accepted proposal's too (trial, Fabio, 1–2 Nov 2026).
+  const proposal = kind === "proposal";
+  const choice = useStageChoice(options.data);
   // Follows the name until the address is edited by hand.
   const [typedSlug, setTypedSlug] = useState<string | null>(null);
   const slug = typedSlug ?? suggestedSlug(name);
@@ -80,30 +52,27 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
       className={styles.form}
       onSubmit={(event) => {
         event.preventDefault();
-        // One typed but not added counts too; one that can't be added stops it.
-        const { list, left } = addEmails(recipients, newRecipient, LIMITS.recipients);
-        setRecipients(list);
-        setNewRecipient(left.join(", "));
-        if (left.length) return;
         create.mutate(
           {
             name,
             client_name: client,
-            project_type: type?.key ?? "",
-            stages,
-            custom_stages: own,
+            // The stages come in its setup steps, from its type's (a proposal's, once accepted).
+            project_type: choice.type?.key ?? "",
+            custom_type: choice.typed,
+            stages: [],
+            custom_stages: [],
+            recipients: [],
             slug,
-            recipients: list,
-            proposal: kind === "proposal",
+            proposal,
             creation_key: creationKey,
           },
           {
             // Straight to what comes next: a proposal's generator, to write it; a
-            // project's page (outside the painel), to fill it in (Fabio, 29 Oct 2026).
+            // project's page (outside the painel), to set it up step by step.
             onSuccess: (project) => {
               close();
-              if (kind === "proposal") navigate(`/projetos/${project.id}/proposta`);
-              else window.location.assign(`/${project.slug}`);
+              if (proposal) navigate(`/projetos/${project.id}/proposta`);
+              else window.location.assign(`/${project.slug}?${SETUP_PARAM}`);
             },
           },
         );
@@ -127,90 +96,12 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
         maxLength={LIMITS.clientName}
         autoComplete="off"
       />
-      <RecipientsField
-        label={t("newProject.recipients")}
-        description={t("newProject.recipientsHint")}
-        emails={recipients}
-        onChange={setRecipients}
-        draft={newRecipient}
-        onDraft={setNewRecipient}
-      />
-      <RadioGroup
-        className={styles.types}
-        value={type?.key ?? null}
-        onChange={(key) => {
-          setTypeKey(key);
-          setTicked(null); // the new type's usual stages
-        }}
-        isRequired
-      >
-        <Label className={styles.label}>{t("newProject.type")}</Label>
-        <div className={styles.typeOptions}>
-          {types.map((option) => (
-            <Radio key={option.key} value={option.key} className={styles.choice}>
-              {option.label}
-            </Radio>
-          ))}
-        </div>
-      </RadioGroup>
-      <CheckboxGroup
-        className={styles.stagesField}
-        value={[...stages, ...own.map((title) => OWN + title)]}
-        onChange={(values) => {
-          setTicked(values.filter((value) => !value.startsWith(OWN)));
-          setOwn(own.filter((title) => values.includes(OWN + title)));
-        }}
-      >
-        <Label className={styles.label}>{t("newProject.stages")}</Label>
-        <Text slot="description" className={styles.note}>
-          {stages.length + own.length
-            ? t("newProject.stagesHint", { count: stages.length + own.length })
-            : t("newProject.noStagesHint")}
-        </Text>
-        <div className={styles.stageOptions}>
-          {(options.data?.stages ?? []).map((stage) => (
-            <Checkbox key={stage.key} value={stage.key} className={styles.stageOption}>
-              <span className={styles.box} aria-hidden="true" />
-              {stage.title}
-            </Checkbox>
-          ))}
-          {own.map((title) => (
-            <Checkbox key={OWN + title} value={OWN + title} className={styles.stageOption}>
-              <span className={styles.box} aria-hidden="true" />
-              {title}
-            </Checkbox>
-          ))}
-        </div>
-      </CheckboxGroup>
-      {/* Another stage, named as the office calls it (Fabio, 29 Oct 2026). */}
-      <div className={styles.ownStage}>
-        <TextField
-          label={t("newProject.ownStage")}
-          value={newStage}
-          onChange={(value) => {
-            setNewStage(value);
-            setStageProblem(null);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter") return;
-            event.preventDefault(); // adds the stage; the form isn't sent yet
-            addOwn();
-          }}
-          maxLength={LIMITS.stageTitle}
-          autoComplete="off"
-        />
-        <Button onPress={addOwn} isDisabled={!newStage.trim()}>
-          {t("newProject.addStage")}
-        </Button>
-      </div>
-      {stageProblem && (
-        <p role="alert" className={styles.problem}>
-          {stageProblem}
-        </p>
-      )}
+      <TypeChoiceField choice={choice} />
       <TextField
         label={t("newProject.slug")}
-        description={t("newProject.slugHint", { address: `${window.location.host}/${slug || "…"}` })}
+        description={t("newProject.slugHint")}
+        // The whole address, the office's part fixed (as "Novo escritório" shows its domain).
+        prefix={`${window.location.host}/`}
         value={slug}
         onChange={(value) => setTypedSlug(value.toLowerCase())}
         isRequired
@@ -218,7 +109,7 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
         autoComplete="off"
         spellCheck="false"
       />
-      <p className={styles.note}>{t(kind === "proposal" ? "newProject.proposalNote" : "newProject.publishNote")}</p>
+      <p className={styles.note}>{t(proposal ? "newProject.proposalNote" : "newProject.publishNote")}</p>
       {clash ? (
         <p role="alert" className={styles.problem}>
           {clash}
@@ -232,12 +123,12 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
           <Button onPress={() => void options.refetch()}>{t("newProject.retry")}</Button>
         </div>
       )}
-      <div className={styles.actions}>
+      <div className={styles.setupActions}>
         <Button onPress={close}>{t("newProject.cancel")}</Button>
         <Button type="submit" variant="primary" isDisabled={create.isPending || !options.data}>
           {create.isPending
             ? t("newProject.creating")
-            : t(kind === "proposal" ? "newProject.createProposal" : "newProject.create")}
+            : t(proposal ? "newProject.createProposal" : "newProject.createAndContinue")}
         </Button>
       </div>
     </Form>

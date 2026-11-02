@@ -138,7 +138,7 @@
     "client": "Cliente",
     "clientHint": "Como aparece na página do cliente.",
     "slug": "Endereço da página",
-    "slugHint": "Letras minúsculas, números e hífens. A página será {{address}}",
+    "slugHint": "Letras minúsculas, números e hífens.",
     "slugTakenBy": "Este endereço já é do projeto “{{name}}”. Escolha outro.",
     "publishNote": "O projeto é publicado na hora: o cliente já pode abrir o link. As pastas são criadas no Google Drive do escritório.",
     "create": "Criar projeto",
@@ -149,15 +149,42 @@
     "nameTakenBy": "Já existe o projeto “{{name}}”. Escolha outro nome.",
     "type": "Tipo de projeto",
     "stages": "Etapas",
+    "stagesCount_one": "{{count}} etapa marcada.",
+    "stagesCount_other": "{{count}} etapas marcadas.",
     "stagesHint_one": "{{count}} etapa marcada. As etapas sugeridas para este tipo já estão selecionadas. Ajuste a seleção conforme o projeto.",
     "stagesHint_other": "{{count}} etapas marcadas. As etapas sugeridas para este tipo já estão selecionadas. Ajuste a seleção conforme o projeto.",
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "customType": "Qual é o tipo de projeto?",
+    "customTypeHint": "Como aparece na página do projeto e nos filtros do painel.",
+    "customTypeExample": "Ex.: Maquete física",
+    "createAndContinue": "Criar e continuar",
+    "allStages": "Mostrar todas as etapas",
+    "fewerStages": "Mostrar só as etapas deste tipo"
+  },
+  "setup": {
+    "progress": "Passo {{n}} de {{total}}",
+    "title": {
+      "stages": "Etapas",
+      "details": "Descrição e informações",
+      "cover": "Foto de capa",
+      "emails": "E-mails do cliente"
+    },
+    "stagesHintProposal": "Cada serviço da proposta vira uma etapa: os que correspondem a uma etapa conhecida usam essa etapa, e os demais mantêm o nome do serviço. Cada etapa ganha uma pasta no Google Drive do escritório.",
+    "stagesHint": "As etapas usuais deste tipo de projeto já vêm marcadas. Cada etapa ganha uma pasta no Google Drive do escritório, e você poderá mudá-las depois no modo de edição.",
+    "coverHint": "A foto aparece no topo da página do projeto e no cartão do painel.",
+    "makingStages": "Criando etapas ({{done}} de {{total}})…",
+    "done": "Projeto configurado. Você poderá alterar essas informações no modo de edição.",
+    "skip": "Pular",
+    "next": "Continuar",
+    "finish": "Concluir",
+    "saving": "Salvando…"
   },
   "projectTypeShort": {
     "architecture": "Arquitetônico",
     "interiors": "Interiores",
     "renovation": "Reforma",
-    "landscaping": "Paisagismo"
+    "landscaping": "Paisagismo",
+    "visualization": "Visualização"
   },
   "clientEmails": {
     "title": "E-mails do cliente",
@@ -271,6 +298,7 @@
     "cover_wrong_type": "Escolha uma imagem JPG, PNG ou WebP.",
     "cover_too_large": "Escolha uma imagem de até 10 MB.",
     "project_archived": "Este projeto está arquivado e não pode ser alterado. Desarquive-o antes.",
+    "invalid_custom_type": "Informe o tipo de projeto, com até 40 caracteres.",
     "unknown_project_type": "Escolha um tipo de projeto.",
     "unknown_stage": "Uma das etapas escolhidas não existe mais. Recarregue a página e tente novamente.",
     "unknown_member": "Uma das pessoas escolhidas não faz mais parte da equipe. Recarregue a página e tente novamente.",
