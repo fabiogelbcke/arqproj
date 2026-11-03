@@ -13,25 +13,38 @@ import styles from "./ui.module.css";
 
 // `placeholder`: an example of what to type ("Ex.: Marcenaria Silva"), never the
 // field's only label (plan section 16, "Interface voice and wording").
-// `suffix`: fixed text after what is typed, inside the field (".myunio.app").
-type Props = TextFieldProps & { label: string; description?: string; placeholder?: string; suffix?: string };
+// `suffix`: fixed text after what is typed, inside the field (".myunio.app");
+// `prefix`: before it ("alinea.myunio.app/"), so the whole address reads as one.
+type Props = TextFieldProps & {
+  label: string;
+  description?: string;
+  placeholder?: string;
+  suffix?: string;
+  prefix?: string;
+};
 
 /** A labelled input with its hint and validation message; with `maxLength`, the
- *  "12/28" counter in the input's right edge (ui/TextInput's); with `suffix`, that
- *  text in its right edge, not editable, and the counter just before it. */
-export function TextField({ label, description, placeholder, suffix, ...props }: Props) {
+ *  "12/28" counter in the input's right edge (ui/TextInput's); with `suffix` or
+ *  `prefix`, that text in its right or left edge, not editable, and the counter
+ *  just before the suffix. */
+export function TextField({ label, description, placeholder, suffix, prefix, ...props }: Props) {
   return (
     <AriaTextField {...props} className={styles.field}>
       <Label className={styles.label}>{label}</Label>
-      {suffix ? (
+      {suffix || prefix ? (
         <div className={styles.affixed}>
+          {prefix && (
+            <span className={styles.prefix}>
+              <bdi dir="ltr">{prefix}</bdi>
+            </span>
+          )}
           <Input placeholder={placeholder} />
           {props.maxLength && (
             <span className={styles.affixCounter} aria-hidden="true">
               {(props.value ?? "").length}/{props.maxLength}
             </span>
           )}
-          <span className={styles.suffix}>{suffix}</span>
+          {suffix && <span className={styles.suffix}>{suffix}</span>}
         </div>
       ) : props.maxLength ? (
         <LengthCounter length={(props.value ?? "").length} max={props.maxLength}>

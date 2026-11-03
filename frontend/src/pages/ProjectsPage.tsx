@@ -16,6 +16,7 @@ import {
   matches,
   peopleOf,
   projectTypes,
+  typeGroup,
   responsibles,
   saveSort,
   useProjects,
@@ -190,7 +191,7 @@ export function ProjectsPage() {
   const types = useMemo(
     () =>
       projectTypes(projects.data ?? [], i18n.language, (key, label) =>
-        t(`projectTypeShort.${key}`, { defaultValue: label }),
+        key.startsWith("other/") ? label : t(`projectTypeShort.${key}`, { defaultValue: label }),
       ),
     [projects.data, i18n.language, t],
   );
@@ -225,7 +226,7 @@ export function ProjectsPage() {
         .filter(
           (project) =>
             matches(project, query) &&
-            (type === ALL_TYPES || project.project_type === type) &&
+            (type === ALL_TYPES || typeGroup(project) === type) &&
             (person === EVERYONE ||
               (person === MINE
                 ? isMine(project, myself, byMembers)

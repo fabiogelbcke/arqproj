@@ -47,10 +47,13 @@ const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.F
 const AddSection = lazy(() => import("./StageUploads").then((m) => ({ default: m.AddSection })));
 const SectionMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.SectionMenu })));
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
+// A new project's setup steps, opened by the painel's "Novo projeto" (trial, 1 Nov 2026).
+const SetupSteps = lazy(() => import("./SetupSteps").then((m) => ({ default: m.SetupSteps })));
 // "Compartilhar arquivos" (A37), loaded when it opens.
 const SharePanel = lazy(() => import("./SharePanel").then((m) => ({ default: m.SharePanel })));
 import { capitalized, day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 import { capture } from "../posthog";
+import { SETUP_PARAM } from "../projects/setup";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -1001,6 +1004,15 @@ export function ProjectPage({
   const moved = useBalancedColumns(mainColumn, sideColumn);
   const stageFiles = useStageFiles(slug, page);
   const [editing, setEditing] = useState(false);
+  // Straight from "Novo projeto": the setup steps open over the page, once (a
+  // reload of the address doesn't open them again).
+  const [settingUp, setSettingUp] = useState(() => new URLSearchParams(window.location.search).has(SETUP_PARAM));
+  useEffect(() => {
+    if (!settingUp) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(SETUP_PARAM);
+    window.history.replaceState(window.history.state, "", url);
+  }, []); // on arrival only
   // The guided tour (Tour.ts, loaded only for staff): once per account, then from the account menu
   // (not on an archived page, which can't be edited).
   const tour = (first: boolean) =>
@@ -1009,10 +1021,11 @@ export function ProjectPage({
     );
   useEffect(() => {
     const archived = page.staff?.status === "archived";
-    if (!page.staff || !ready || tourSeen || archived || tourOffered) return;
+    // After the setup steps, not over them.
+    if (!page.staff || !ready || tourSeen || archived || tourOffered || settingUp) return;
     tourOffered = true; // once per visit, even if the page mounts again
     tour(true);
-  }, [ready, tourSeen, page.staff]); // once, when the session is ready
+  }, [ready, tourSeen, page.staff, settingUp]); // once, when the session is ready
   const [openEditor, setOpenEditor] = useState<string | null>(null);
   const staff = page.staff;
   // Stage controls wait for the reloaded page after each change (a new row version).
@@ -1489,6 +1502,11 @@ export function ProjectPage({
         />
       )}
       {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}
+      {settingUp && page.staff && ready && page.staff.status !== "archived" && (
+        <Suspense fallback={null}>
+          <SetupSteps page={page} onChanged={() => onChanged?.()} onClose={() => setSettingUp(false)} />
+        </Suspense>
+      )}
       {shareFrom !== undefined && (
         <Suspense fallback={null}>
           <SharePanel

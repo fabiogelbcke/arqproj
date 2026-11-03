@@ -1,7 +1,8 @@
 {
   "projectName": 50,
   "clientName": 30,
-  "slug": 80,
+  "slug": 55,
+  "customType": 40,
   "description": 600,
   "stageTitle": 80,
   "stageNotes": 120,
