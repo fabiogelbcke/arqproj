@@ -19,6 +19,17 @@ a new entry too.
 
 ---
 
+## 2026-11-02 — A27: Visualização without Pós-Produção, all its stages ticked
+
+**Was:** Visualização Arquitetônica had five stages of its own (Entrega Prévia,
+Documentação, Revisões, Entrega Final, Pós-Produção) after Briefing, ticking all
+but Revisões and Pós-Produção, with draft descriptions.
+
+**Now:** no Pós-Produção stage. Its five (Briefing and its own four) are all
+ticked, each described in the texts Alinea uses in its proposals.
+
+**Why:** Fabio, the same night, with Alinea's texts for these services.
+
 ## 2026-11-02 — A42: a new proposal chooses its services first
 
 **Was:** with the short creation form (same day), a new proposal had no stages,
