@@ -236,11 +236,12 @@ test("create a project → it is listed as a draft; a used address names its pro
   const details = page.getByRole("dialog", { name: "Descrição e informações" });
   await details.getByLabel("Descrição").fill("Apartamento reformado para uma família de quatro.");
   await details.getByRole("button", { name: "Continuar" }).click();
-  await page.getByRole("dialog", { name: "Foto de capa" }).getByRole("button", { name: "Pular" }).click();
+  // No cover step (3 Nov 2026): it already has one, a suggested photo picked at creation.
   const emails = page.getByRole("dialog", { name: "E-mails do cliente" });
   await emails.getByLabel("Novo e-mail").fill("familia.teste@exemplo.com.br");
   await emails.getByRole("button", { name: "Concluir" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator('img[src*="/api/pages/casa-jardim-teste/cover"]').first()).toBeVisible();
   // Its own stage after the built-in ones, and the description, on the page.
   await expect(
     page.getByRole("heading", { name: "Visita técnica" }),
@@ -287,10 +288,12 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   const menu = (name: string) =>
     page.getByRole("button", { name: `Opções do projeto ${name}` }).click();
   await menu("Refúgio da Mantiqueira");
-  // The photo straight from the menu, cropped to the cover's shape first.
+  // The photo from the menu: one's own, cropped to the cover's shape first...
+  await page.getByRole("menuitem", { name: "Adicionar foto" }).click();
+  const picker = page.getByRole("dialog", { name: "Escolher foto de capa" });
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.getByRole("menuitem", { name: "Adicionar foto" }).click(),
+    picker.getByRole("button", { name: "Enviar do computador" }).click(),
   ]);
   await chooser.setFiles({
     name: "obra.png",
@@ -302,6 +305,18 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
     .getByRole("button", { name: "Usar recorte" })
     .click();
   await expect(page.getByText("Foto atualizada.")).toBeVisible();
+
+  // ...or one of the suggested photos, set at once.
+  const card = page.getByTestId("project-card").filter({ hasText: "Refúgio da Mantiqueira" });
+  const uploaded = await card.locator("img").getAttribute("src");
+  await menu("Refúgio da Mantiqueira");
+  await page.getByRole("menuitem", { name: "Trocar foto" }).click();
+  await picker.getByRole("button", { name: "Foto 3", exact: true }).click();
+  await expect(picker).toHaveCount(0);
+  await expect(card.locator("img")).not.toHaveAttribute("src", uploaded!);
+  await expect
+    .poll(async () => (await page.request.get((await card.locator("img").getAttribute("src"))!)).status())
+    .toBe(200);
 
   await menu("Refúgio da Mantiqueira");
   await expect(
@@ -855,9 +870,13 @@ test("staff edit the page in place and the client sees it", async ({
 
   // A cover added from the page: "Trocar capa" and "Remover capa" side by side on it,
   // each readable, then removed again.
+  await page.getByRole("button", { name: /Adicionar foto de capa/ }).click();
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.getByRole("button", { name: /Adicionar foto de capa/ }).click(),
+    page
+      .getByRole("dialog", { name: "Escolher foto de capa" })
+      .getByRole("button", { name: "Enviar do computador" })
+      .click(),
   ]);
   await chooser.setFiles({
     name: "obra.png",

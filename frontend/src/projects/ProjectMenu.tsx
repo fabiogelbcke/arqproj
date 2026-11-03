@@ -9,12 +9,14 @@ import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { MoreIcon } from "../ui/MoreIcon";
 import { toast, toastError } from "../ui/Toast";
 import ui from "../ui/ui.module.css";
+import { CoverPhotoDialog } from "./CoverPhotoDialog";
 import { ProjectDialog } from "./ProjectDialog";
 import {
   COVER_MAX_BYTES,
   COVER_TYPES,
   PROJECTS,
   useChangeProject,
+  useChooseStockCover,
   useRemoveCover,
   useUploadCover,
   type ProjectSummary,
@@ -22,18 +24,19 @@ import {
 import styles from "./projects.module.css";
 
 /** The card's "⋯" (A24, revised 19 Oct 2026; a pencil until 22 Oct): a short menu. The photo is
- *  changed straight from it (picker, then the 3:2 crop) or removed; "Configurações
+ *  changed from it (CoverPhotoDialog: an upload, then the 3:2 crop, or a bundled photo) or removed; "Configurações
  *  do projeto" opens the "Projeto" dialog; archiving asks first, then offers
  *  "Desfazer". */
 export function ProjectMenu({ project }: { project: ProjectSummary }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const upload = useUploadCover();
+  const stock = useChooseStockCover();
   const remove = useRemoveCover();
   const archive = useChangeProject();
   const chooser = useRef<HTMLInputElement>(null);
   const [cropping, setCropping] = useState<string | null>(null);
-  const [open, setOpen] = useState<"settings" | "archive" | null>(null);
+  const [open, setOpen] = useState<"photo" | "settings" | "archive" | null>(null);
 
   const stopCropping = () => {
     if (cropping) URL.revokeObjectURL(cropping);
@@ -99,9 +102,8 @@ export function ProjectMenu({ project }: { project: ProjectSummary }) {
         className={`${ui.photoAction} ${styles.menuButton}`}
         items={items}
         onAction={(id) => {
-          if (id === "photo") chooser.current?.click();
-          else if (id === "removePhoto") removePhoto();
-          else setOpen(id as "settings" | "archive");
+          if (id === "removePhoto") removePhoto();
+          else setOpen(id as "photo" | "settings" | "archive");
         }}
       >
         <MoreIcon />
@@ -127,6 +129,21 @@ export function ProjectMenu({ project }: { project: ProjectSummary }) {
           onCropped={(file) => {
             stopCropping();
             savePhoto(file);
+          }}
+        />
+      )}
+      {open === "photo" && (
+        <CoverPhotoDialog
+          onClose={() => setOpen(null)}
+          onUpload={() => chooser.current?.click()}
+          onPick={async (name) => {
+            try {
+              await stock.mutateAsync({ id: project.id, name });
+              toast(t("projectSettings.photoSaved"));
+            } catch (failure) {
+              toastError(failure);
+              throw failure;
+            }
           }}
         />
       )}

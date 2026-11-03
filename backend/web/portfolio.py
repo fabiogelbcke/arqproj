@@ -84,17 +84,13 @@ from backend.storage.models import StorageConnection, StorageKind
 from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, optional_staff, require_csrf
+from backend.web.covers import COVER_MAX_BYTES, local_root, storage_connection
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.office import image_type
 from backend.web.page_files import RangeNotSatisfiable, byte_range, etag
 from backend.web.page_uploads import UploadFailedIn, local_upload_url, upload_origin
-from backend.web.project_settings import (
-    COVER_MAX_BYTES,
-    local_root,
-    serve_stored_image,
-    storage_connection,
-)
+from backend.web.project_settings import serve_stored_image
 
 log = logging.getLogger(__name__)
 

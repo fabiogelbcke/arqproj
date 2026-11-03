@@ -28,6 +28,7 @@ from backend.web import (
     admin,
     admin_settings,
     auth,
+    covers,
     drive,
     email_confirmation,
     google_signin,
@@ -275,6 +276,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(subscribe.router)
     app.include_router(shares.router)
     app.include_router(project_settings.router)
+    app.include_router(covers.router)
     app.include_router(proposals.router)
     app.include_router(portfolio.router)
     app.include_router(painel.router)

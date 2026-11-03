@@ -146,6 +146,21 @@ describe("the project list", () => {
     expect(within(empty!).queryByRole("progressbar")).toBeNull(); // nothing to fill
   });
 
+  it("shows a project's own cover, or one of the suggested photos while it has none", async () => {
+    const photos = ["a", "b", "c"].map((name) => ({ name, small_url: `/api/cover-photos/${name}/small` }));
+    api(LOCAL, {
+      "GET /api/projects": () => ({
+        body: [project({ cover_url: "/api/projects/1/cover?v=1" }), project({ id: "5", name: "Sem capa", slug: "sem-capa", cover_url: null })],
+      }),
+      "GET /api/cover-photos": () => ({ body: photos }),
+    });
+    renderAt("/");
+    const [own, none] = await screen.findAllByTestId("project-card");
+    expect(own!.querySelector("img")).toHaveAttribute("src", "/api/projects/1/cover?v=1");
+    const placeholder = photos[coverIndex("5", photos.length)]!.small_url;
+    await waitFor(() => expect(none!.querySelector("img")).toHaveAttribute("src", placeholder));
+  });
+
   it("gives each Outro name its own chip, whatever its capitals", async () => {
     const outro = (id: string, name: string, label: string) =>
       project({ id, name, slug: name.toLowerCase(), project_type: "other", project_type_label: label });

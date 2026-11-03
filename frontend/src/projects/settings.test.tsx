@@ -46,6 +46,14 @@ const CASA: ProjectSummary = {
   members: [],
 };
 const PATH = `/api/projects/${CASA.id}`;
+const PHOTOS = {
+  "GET /api/cover-photos": () => ({
+    body: [
+      { name: "capa-01", small_url: "/api/cover-photos/capa-01/small" },
+      { name: "capa-02", small_url: "/api/cover-photos/capa-02/small" },
+    ],
+  }),
+};
 
 function api(extra = {}) {
   return fakeApi({
@@ -301,12 +309,50 @@ describe("the card's menu", () => {
   });
 
   it("uploads a chosen photo at once, cropped to 3:2", async () => {
-    const sent = api({ [`PUT ${PATH}/cover`]: () => ({ body: { ...CASA, cover_url: "/c?v=2" } }) });
+    const sent = api({ [`PUT ${PATH}/cover`]: () => ({ body: { ...CASA, cover_url: "/c?v=2" } }), ...PHOTOS });
+    const click = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
     await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Adicionar foto" }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(within(picker).getByRole("button", { name: "Enviar do computador" }));
+    expect(click).toHaveBeenCalled(); // the file chooser
+    click.mockRestore();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Escolher foto de capa" })).toBeNull());
     await chooseCover();
     expect(await screen.findByText("Foto atualizada.")).toBeInTheDocument();
     const request = sent.find((r) => r.method === "PUT");
     expect(request?.headers.get("Content-Type")).toMatch(/^multipart\/form-data/);
+  });
+
+  it("sets one of the suggested photos at once", async () => {
+    const sent = api({ [`PUT ${PATH}/cover/stock`]: () => ({ body: { ...CASA, cover_url: "/c?v=3" } }), ...PHOTOS });
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Adicionar foto" }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    const photos = await within(picker).findAllByRole("button", { name: /^Foto \d+$/ });
+    expect(photos.map((photo) => photo.querySelector("img")?.getAttribute("src"))).toEqual([
+      "/api/cover-photos/capa-01/small",
+      "/api/cover-photos/capa-02/small",
+    ]);
+    await userEvent.click(within(picker).getByRole("button", { name: "Foto 2" }));
+    expect(await screen.findByText("Foto atualizada.")).toBeInTheDocument();
+    expect(sent.find((r) => r.method === "PUT")).toMatchObject({ path: `${PATH}/cover/stock`, body: { name: "capa-02" } });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Escolher foto de capa" })).toBeNull());
+  });
+
+  it("keeps the photos open when a suggested one fails, saying why", async () => {
+    api({ [`PUT ${PATH}/cover/stock`]: () => ({ status: 503, body: { error: "drive_connect_failed" }, headers: { "X-Request-ID": "abc123" } }), ...PHOTOS });
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Adicionar foto" }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(await within(picker).findByRole("button", { name: "Foto 1" }));
+    expect(await screen.findByText(/Não foi possível conectar o Google Drive.*Código de suporte: abc123/)).toBeInTheDocument();
+    expect(within(picker).getByRole("button", { name: "Foto 1" })).toBeEnabled(); // another try
+  });
+
+  it("still offers an upload when the suggested photos can't be loaded", async () => {
+    api({ "GET /api/cover-photos": () => ({ status: 503, body: { error: "drive_connect_failed" } }) });
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Adicionar foto" }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    expect(await within(picker).findByRole("alert")).toHaveTextContent("Não foi possível carregar as fotos.");
+    expect(within(picker).getByRole("button", { name: "Enviar do computador" })).toBeEnabled();
   });
 
   it("says why a photo failed, with the support code", async () => {

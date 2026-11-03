@@ -167,12 +167,10 @@
     "title": {
       "stages": "Etapas",
       "details": "Descrição e informações",
-      "cover": "Foto de capa",
       "emails": "E-mails do cliente"
     },
     "stagesHintProposal": "Cada serviço da proposta vira uma etapa: os que correspondem a uma etapa conhecida usam essa etapa, e os demais mantêm o nome do serviço. Cada etapa ganha uma pasta no Google Drive do escritório.",
     "stagesHint": "As etapas usuais deste tipo de projeto já vêm marcadas. Cada etapa ganha uma pasta no Google Drive do escritório, e você poderá mudá-las depois no modo de edição.",
-    "coverHint": "A foto aparece no topo da página do projeto e no cartão do painel.",
     "makingStages": "Criando etapas ({{done}} de {{total}})…",
     "done": "Projeto configurado. Você poderá alterar essas informações no modo de edição.",
     "skip": "Pular",
@@ -302,6 +300,7 @@
     "project_has_no_folder": "Este projeto ainda não tem uma pasta no Google Drive, então não pode receber uma foto.",
     "cover_wrong_type": "Escolha uma imagem JPG, PNG ou WebP.",
     "cover_too_large": "Escolha uma imagem de até 10 MB.",
+    "cover_photo_not_found": "Essa foto não está mais disponível. Escolha outra.",
     "project_archived": "Este projeto está arquivado e não pode ser alterado. Desarquive-o antes.",
     "invalid_custom_type": "Informe o tipo de projeto, com até 40 caracteres.",
     "unknown_project_type": "Escolha um tipo de projeto.",
@@ -493,6 +492,14 @@
     "unreadable": "Não foi possível abrir esta imagem. Escolha um arquivo PNG, JPG, WebP ou SVG.",
     "cancel": "Cancelar",
     "apply": "Usar recorte"
+  },
+  "coverPhotos": {
+    "title": "Escolher foto de capa",
+    "upload": "Enviar do computador",
+    "uploadHint": "JPG, PNG ou WebP, até 10 MB. Você poderá ajustar o enquadramento.",
+    "gallery": "Ou escolha uma destas fotos",
+    "photo": "Foto {{number}}",
+    "unavailable": "Não foi possível carregar as fotos. Tente novamente em alguns instantes."
   },
   "tour": {
     "stageTitle": "Concluir uma etapa",
@@ -691,7 +698,7 @@
     "completed": "Projeto concluído.",
     "clientsNotified": "Clientes inscritos neste projeto serão notificados por e-mail.",
     "addCover": "Adicionar foto de capa",
-    "addCoverHint": "JPG, PNG ou WebP. Depois de escolher, você ajusta o recorte.",
+    "addCoverHint": "Envie uma foto sua ou escolha uma das sugeridas.",
     "changeCover": "Trocar capa",
     "coverSaved": "Capa atualizada.",
     "removeCover": "Remover capa",

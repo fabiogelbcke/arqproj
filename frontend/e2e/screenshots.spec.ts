@@ -132,6 +132,13 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("button", { name: "Opções do projeto Casa Jardim" }).click();
   await page.getByRole("menu").waitFor();
   await shoot(page, "03f-menu-do-projeto");
+  await page.getByRole("menuitem", { name: /^(Adicionar|Trocar) foto$/ }).click();
+  const picker = page.getByRole("dialog", { name: "Escolher foto de capa" });
+  await expect(picker.getByRole("button", { name: "Foto 1", exact: true })).toBeVisible();
+  await page.waitForFunction(() => [...document.querySelectorAll("[role=dialog] img")].slice(0, 9).every((img) => (img as HTMLImageElement).complete));
+  await shoot(page, "03j-escolher-capa");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Opções do projeto Casa Jardim" }).click();
   await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();
   await page.getByRole("dialog", { name: "Projeto" }).waitFor();
   await shoot(page, "03c-projeto");

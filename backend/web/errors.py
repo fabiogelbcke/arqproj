@@ -67,6 +67,7 @@ class ErrorCode(StrEnum):
     PROJECT_ARCHIVED = "project_archived"  # viewable, not changed (plan section 22)
     COVER_WRONG_TYPE = "cover_wrong_type"
     COVER_TOO_LARGE = "cover_too_large"
+    COVER_PHOTO_NOT_FOUND = "cover_photo_not_found"
     PAGE_NOT_FOUND = "page_not_found"  # unknown address, draft or deleted: never told apart
     PAGE_LOCKED = "page_locked"  # protected by a password
     PAGE_UNAVAILABLE = "page_unavailable"  # Drive disconnected: back once reconnected

@@ -90,6 +90,16 @@ export function useUploadCover() {
   });
 }
 
+/** One of the bundled photos as the cover (backend/projects/covers). */
+export function useChooseStockCover() {
+  const store = useStoreProject();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      call(api.PUT("/api/projects/{project_id}/cover/stock", { params: { path: { project_id: id } }, body: { name } })),
+    onSuccess: store,
+  });
+}
+
 export function useRemoveCover() {
   const store = useStoreProject();
   return useMutation({

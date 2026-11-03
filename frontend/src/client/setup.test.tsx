@@ -90,7 +90,7 @@ describe("a new project's setup steps", () => {
   it("open over the page straight from Novo projeto, once, and hold the tour back", async () => {
     arrive();
     const dialog = await screen.findByRole("dialog", { name: "Etapas" });
-    expect(within(dialog).getByRole("progressbar", { name: "Passo 1 de 4" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("progressbar", { name: "Passo 1 de 3" })).toBeInTheDocument();
     // A reload of the address doesn't open them again.
     expect(window.location.search).toBe("");
     expect(tour.startTour).not.toHaveBeenCalled();
@@ -212,7 +212,7 @@ describe("a new project's setup steps", () => {
     const details = await screen.findByRole("dialog", { name: "Descrição e informações" });
     await userEvent.type(within(details).getByLabelText("Descrição"), "Casa de campo.");
     await userEvent.click(within(details).getByRole("button", { name: "Continuar" }));
-    await screen.findByRole("dialog", { name: "Foto de capa" });
+    await screen.findByRole("dialog", { name: "E-mails do cliente" });
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ row_version: 2 });
   });
 
@@ -269,11 +269,8 @@ describe("a new project's setup steps", () => {
     await userEvent.type(within(dialog).getByLabelText("Localização"), "Nova Lima");
     await userEvent.click(within(dialog).getByRole("button", { name: "Continuar" }));
 
-    dialog = await screen.findByRole("dialog", { name: "Foto de capa" });
-    await userEvent.click(within(dialog).getByRole("button", { name: "Continuar" })); // no photo: as skipping
-
     dialog = await screen.findByRole("dialog", { name: "E-mails do cliente" });
-    expect(within(dialog).getByRole("progressbar", { name: "Passo 4 de 4" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("progressbar", { name: "Passo 3 de 3" })).toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText("Novo e-mail"), "ana@souza.com.br");
     await userEvent.click(within(dialog).getByRole("button", { name: "Concluir" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -289,32 +286,23 @@ describe("a new project's setup steps", () => {
     ]);
   });
 
-  it("upload the cover once it's cropped, and only on Continuar", async () => {
-    const sent = arrive({ "PUT /api/projects/p-1/cover": () => ({ body: { row_version: 1 } }) });
-    let dialog = await screen.findByRole("dialog", { name: "Etapas" });
-    await userEvent.click(within(dialog).getByRole("button", { name: "Pular" }));
-    dialog = await screen.findByRole("dialog", { name: "Descrição e informações" });
-    await userEvent.click(within(dialog).getByRole("button", { name: "Pular" }));
-    dialog = await screen.findByRole("dialog", { name: "Foto de capa" });
-    await userEvent.click(within(dialog).getByRole("button", { name: /Adicionar foto de capa/ }));
-    const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
-    const crop = await screen.findByRole("dialog", { name: "Ajustar a capa" });
-    await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
-    expect(await within(dialog).findByRole("button", { name: "Trocar capa" })).toBeInTheDocument();
-    expect(writes(sent)).toEqual([]);
-    await userEvent.click(within(dialog).getByRole("button", { name: "Continuar" }));
-    expect(await screen.findByRole("dialog", { name: "E-mails do cliente" })).toBeInTheDocument();
-    expect(writes(sent).map((r) => [r.method, r.path])).toEqual([["PUT", "/api/projects/p-1/cover"]]);
+  it("ask for no cover: a new project already has one", async () => {
+    arrive();
+    for (const name of ["Etapas", "Descrição e informações"]) {
+      await userEvent.click(within(await screen.findByRole("dialog", { name })).getByRole("button", { name: "Pular" }));
+    }
+    const last = await screen.findByRole("dialog", { name: "E-mails do cliente" });
+    expect(within(last).getByRole("progressbar", { name: "Passo 3 de 3" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Foto de capa" })).toBeNull();
   });
 
   it("stay open on a click outside, and say once finished that it can all change later", async () => {
     arrive();
     const dialog = await screen.findByRole("dialog", { name: "Etapas" });
-    expect(within(dialog).getByText("Passo 1 de 4")).toBeInTheDocument(); // the title names the step
+    expect(within(dialog).getByText("Passo 1 de 3")).toBeInTheDocument(); // the title names the step
     await userEvent.click(document.body); // a stray click on the page behind
     expect(screen.getByRole("dialog", { name: "Etapas" })).toBeInTheDocument();
-    for (const name of ["Etapas", "Descrição e informações", "Foto de capa", "E-mails do cliente"]) {
+    for (const name of ["Etapas", "Descrição e informações", "E-mails do cliente"]) {
       const step = await screen.findByRole("dialog", { name });
       await userEvent.click(within(step).getByRole("button", { name: name === "E-mails do cliente" ? "Concluir" : "Pular" }));
     }
@@ -326,7 +314,6 @@ describe("a new project's setup steps", () => {
     await userEvent.click(within(await screen.findByRole("dialog", { name: "Etapas" })).getByRole("button", { name: "Pular" }));
     const details = await screen.findByRole("dialog", { name: "Descrição e informações" });
     await userEvent.click(within(details).getByRole("button", { name: "Continuar" }));
-    await userEvent.click(within(await screen.findByRole("dialog", { name: "Foto de capa" })).getByRole("button", { name: "Continuar" }));
     const emails = await screen.findByRole("dialog", { name: "E-mails do cliente" });
     await userEvent.click(within(emails).getByRole("button", { name: "Concluir" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -335,7 +322,7 @@ describe("a new project's setup steps", () => {
 
   it("can be skipped step by step, changing nothing", async () => {
     const sent = arrive();
-    for (const name of ["Etapas", "Descrição e informações", "Foto de capa", "E-mails do cliente"]) {
+    for (const name of ["Etapas", "Descrição e informações", "E-mails do cliente"]) {
       const dialog = await screen.findByRole("dialog", { name });
       await userEvent.click(within(dialog).getByRole("button", { name: "Pular" }));
     }

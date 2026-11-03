@@ -674,12 +674,28 @@ describe("edit mode", () => {
     expect(screen.queryByRole("button", { name: /Adicionar foto de capa/ })).toBeNull(); // not for clients
     await startEditing();
     await userEvent.click(await screen.findByRole("button", { name: /Adicionar foto de capa/ }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(within(picker).getByRole("button", { name: "Enviar do computador" }));
     const input = document.querySelector('.client input[type="file"][hidden]') as HTMLInputElement;
     await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
     const crop = await screen.findByRole("dialog", { name: "Ajustar a capa" });
     await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
     expect(await screen.findByText("Capa atualizada.")).toBeInTheDocument();
     expect(sent.some((r) => r.method === "PUT" && r.path === "/api/projects/p-1/cover")).toBe(true);
+  });
+
+  it("in edit mode, one of the suggested photos can be the cover", async () => {
+    const { sent } = asStaff({
+      "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
+      "GET /api/cover-photos": () => ({ body: [{ name: "capa-07", small_url: "/api/cover-photos/capa-07/small" }] }),
+      "PUT /api/projects/p-1/cover/stock": () => ({ body: {} }),
+    });
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: /Adicionar foto de capa/ }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(await within(picker).findByRole("button", { name: "Foto 1" }));
+    expect(await screen.findByText("Capa atualizada.")).toBeInTheDocument();
+    expect(sent.find((r) => r.method === "PUT")).toMatchObject({ path: "/api/projects/p-1/cover/stock", body: { name: "capa-07" } });
   });
 
   it("in edit mode, a cover can be changed from the page", async () => {
