@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import styles from "./projects.module.css";
 import { SETUP_STEPS } from "./setup";
 
-/** "Passo 2 de 4", with a bar of the steps done and the one under way; the
+/** "Passo 2 de 3", with a bar of the steps done and the one under way; the
  *  dialog's title names the step. */
 export function SetupProgress({ step }: { step: number }) {
   const { t } = useTranslation();

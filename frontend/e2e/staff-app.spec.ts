@@ -236,15 +236,12 @@ test("create a project → it is listed as a draft; a used address names its pro
   const details = page.getByRole("dialog", { name: "Descrição e informações" });
   await details.getByLabel("Descrição").fill("Apartamento reformado para uma família de quatro.");
   await details.getByRole("button", { name: "Continuar" }).click();
-  // It already has a cover: one of the suggested photos, picked at creation.
-  const cover = page.getByRole("dialog", { name: "Foto de capa" });
-  await expect(cover.locator("img")).toBeVisible();
-  await expect(cover.getByRole("button", { name: "Trocar capa" })).toBeVisible();
-  await cover.getByRole("button", { name: "Pular" }).click();
+  // No cover step (3 Nov 2026): it already has one, a suggested photo picked at creation.
   const emails = page.getByRole("dialog", { name: "E-mails do cliente" });
   await emails.getByLabel("Novo e-mail").fill("familia.teste@exemplo.com.br");
   await emails.getByRole("button", { name: "Concluir" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator('img[src*="/api/pages/casa-jardim-teste/cover"]').first()).toBeVisible();
   // Its own stage after the built-in ones, and the description, on the page.
   await expect(
     page.getByRole("heading", { name: "Visita técnica" }),

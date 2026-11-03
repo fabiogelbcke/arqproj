@@ -1,14 +1,14 @@
 // A new project's setup on its page, one step at a time in a dialog, after the
 // painel's "Novo projeto" asked only for the name, client, type and address
-// (trial, Fabio, 1 Nov 2026): stages, description and details, cover photo, the
-// client's emails. Each step saves on "Continuar" or is skipped; everything
-// stays editable in edit mode afterwards.
+// (trial, Fabio, 1 Nov 2026): stages, description and details, the client's
+// emails (the cover step went on 3 Nov 2026: a new project starts with one).
+// Each step saves on "Continuar" or is skipped; everything stays editable in
+// edit mode afterwards.
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call } from "../api/client";
 import { LIMITS } from "../api/limits";
-import { CoverPhotoDialog } from "../projects/CoverPhotoDialog";
 import { type CreationOptions } from "../projects/projects";
 import projectStyles from "../projects/projects.module.css";
 import { SETUP_STEPS } from "../projects/setup";
@@ -17,7 +17,6 @@ import { StageChoiceFields, stagesFromServices, useStageChoice } from "../projec
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { EmailListField, addEmails } from "../ui/EmailListField";
-import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { toast } from "../ui/Toast";
 import { DetailRows, useDetailTypes, useSave, type DetailRow } from "./Editors";
 import type { Page } from "./format";
@@ -209,108 +208,6 @@ function DetailsStep({ page, staff, version, onSaved, onSkip, last }: StepProps)
   );
 }
 
-const PHOTOS = "image/jpeg,image/png,image/webp";
-
-function CoverStep({ page, staff, version, onSaved, onSkip, last }: StepProps) {
-  const { t } = useTranslation();
-  const input = useRef<HTMLInputElement>(null);
-  const [cropping, setCropping] = useState<string | null>(null);
-  const [choosing, setChoosing] = useState(false);
-  // The photo just cropped, or the bundled one picked, shown until the page behind has it.
-  const [chosen, setChosen] = useState<{ file: File; url: string } | { stock: string; url: string } | null>(null);
-  useEffect(() => () => {
-    if (chosen && "file" in chosen) URL.revokeObjectURL(chosen.url);
-  }, [chosen]);
-  // The cover doesn't change the row version.
-  const save = useSave(() => onSaved(version), { quiet: true });
-  const shown = chosen?.url ?? page.cover_url;
-  return (
-    <form
-      className={projectStyles.form}
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!chosen) return onSkip();
-        if ("stock" in chosen) {
-          void save.run(() =>
-            call(
-              api.PUT("/api/projects/{project_id}/cover/stock", {
-                params: { path: { project_id: staff.project_id } },
-                body: { name: chosen.stock },
-              }),
-            ),
-          );
-          return;
-        }
-        void save.run(() =>
-          call(
-            api.PUT("/api/projects/{project_id}/cover", {
-              params: { path: { project_id: staff.project_id } },
-              // OpenAPI describes an uploaded file as a binary string; it is the File.
-              body: { file: chosen.file as unknown as string },
-              bodySerializer: (body) => {
-                const form = new FormData();
-                form.append("file", body.file as unknown as Blob, chosen.file.name);
-                return form;
-              },
-            }),
-          ),
-        );
-      }}
-    >
-      <p className={`${projectStyles.note} ${projectStyles.setupHint}`}>{t("setup.coverHint")}</p>
-      {shown ? (
-        <img className={projectStyles.setupCover} src={shown} alt="" />
-      ) : (
-        <button type="button" className={projectStyles.setupCoverEmpty} onClick={() => setChoosing(true)}>
-          <strong>{t("edit.addCover")}</strong>
-          <span>{t("edit.addCoverHint")}</span>
-        </button>
-      )}
-      {shown && (
-        <Button onPress={() => setChoosing(true)} isDisabled={save.busy}>
-          {t("edit.changeCover")}
-        </Button>
-      )}
-      <input
-        ref={input}
-        type="file"
-        hidden
-        accept={PHOTOS}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = ""; // the same photo can be chosen again
-          if (file) setCropping(URL.createObjectURL(file));
-        }}
-      />
-      {choosing && (
-        <CoverPhotoDialog
-          onClose={() => setChoosing(false)}
-          onUpload={() => input.current?.click()}
-          onPick={(name, url) => setChosen({ stock: name, url })}
-        />
-      )}
-      {cropping && (
-        <ImageCropDialog
-          source={cropping}
-          kind="cover"
-          name="capa.jpg"
-          onCancel={() => {
-            URL.revokeObjectURL(cropping);
-            setCropping(null);
-          }}
-          onCropped={(file) => {
-            URL.revokeObjectURL(cropping);
-            setCropping(null);
-            setChosen({ file, url: URL.createObjectURL(file) });
-          }}
-        />
-      )}
-      <Problem text={save.problem} />
-      <Actions busy={save.busy} last={last} onSkip={onSkip} />
-    </form>
-  );
-}
-
 function EmailsStep({ staff, version, onSaved, onSkip, last }: StepProps) {
   const { t } = useTranslation();
   const [emails, setEmails] = useState(() => staff.recipients.map((recipient) => recipient.email));
@@ -358,7 +255,7 @@ function EmailsStep({ staff, version, onSaved, onSkip, last }: StepProps) {
   );
 }
 
-const STEPS = { stages: StagesStep, details: DetailsStep, cover: CoverStep, emails: EmailsStep } as const;
+const STEPS = { stages: StagesStep, details: DetailsStep, emails: EmailsStep } as const;
 
 export function SetupSteps({
   page,

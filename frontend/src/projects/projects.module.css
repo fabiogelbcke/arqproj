@@ -313,18 +313,6 @@
   margin: 0 calc(-1 * var(--dialog-pad)) calc(-1 * var(--dialog-pad));
   padding: 16px var(--dialog-pad) var(--dialog-pad); background: var(--raise);
 }
-/* The cover step: the photo as it will show, 3:2. */
-.setupCover {
-  width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: var(--r-card);
-  background: var(--surface);
-}
-.setupCoverEmpty {
-  display: grid; place-items: center; align-content: center; gap: 4px; width: 100%; aspect-ratio: 3 / 2; padding: 16px;
-  border: 1px dashed var(--line-strong); border-radius: var(--r-card); background: var(--surface);
-  color: var(--muted); font: inherit; cursor: pointer; text-align: center;
-}
-.setupCoverEmpty:hover { color: var(--ink); border-color: var(--ink); }
-
 /* Choosing a cover (CoverPhotoDialog): upload one's own, or one of the bundled photos. */
 .coverUpload { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .coverGallery { display: grid; gap: 12px; }

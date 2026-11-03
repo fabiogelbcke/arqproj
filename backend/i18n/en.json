@@ -167,12 +167,10 @@
     "title": {
       "stages": "Stages",
       "details": "Description and details",
-      "cover": "Cover photo",
       "emails": "Client's emails"
     },
     "stagesHintProposal": "Each of the proposal's services becomes a stage: those matching a known stage use it, and the others keep the service's name. Each stage gets a folder in the office's Google Drive.",
     "stagesHint": "This project type's usual stages come ticked. Each stage gets a folder in the office's Google Drive, and you can change them later in edit mode.",
-    "coverHint": "The photo shows at the top of the project page and on its card in the painel. You can upload your own or choose one of the suggested photos.",
     "makingStages": "Creating stages ({{done}} of {{total}})…",
     "done": "Project set up. You can change any of this in edit mode.",
     "skip": "Skip",

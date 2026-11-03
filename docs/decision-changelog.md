@@ -32,7 +32,9 @@ plus 43 Fabio chose, in a mixed order) as its real cover, stored in its `_capa` 
 upload, so clients see it too. Wherever staff choose a cover, a dialog offers an
 upload or another bundled photo. "Remover foto" leaves the project without a
 cover (no new photo is picked); the painel placeholder and the empty client hero
-stay as they were for that case and for projects created before.
+stay as they were for that case and for projects created before. The new
+project's setup steps lose their cover step ("Passo 1 de 3" now): the project
+already has one, changed later from the "⋯" or edit mode.
 
 **Why:** Fabio, 3 Nov 2026: new projects should look finished from the start
 instead of waiting for a photo. Asked whether clients should see the stock
@@ -40,7 +42,11 @@ photo or only the painel, he chose clients too; asked about removal, he chose
 "no photo after removing"; he then added the choice of a bundled photo when
 picking a cover. Storing the photo like an upload (rather than a reference to a
 bundled file) keeps one cover path for the client page, its preview tags and
-removal, with no schema change.
+removal, with no schema change. The cover step went because showing the stock
+photo there looked done, and showing an empty slot would hide a cover the
+client already sees; Fabio, the same day, also noted an office may have no
+photos at the start.
+
 ## 2026-11-03 — A44 (new), A27: types and stages edited from the operator dashboard
 
 **Was:** the built-in project types, stages and their texts changed only through

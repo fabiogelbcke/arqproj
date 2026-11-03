@@ -167,12 +167,10 @@
     "title": {
       "stages": "Etapas",
       "details": "Descrição e informações",
-      "cover": "Foto de capa",
       "emails": "E-mails do cliente"
     },
     "stagesHintProposal": "Cada serviço da proposta vira uma etapa: os que correspondem a uma etapa conhecida usam essa etapa, e os demais mantêm o nome do serviço. Cada etapa ganha uma pasta no Google Drive do escritório.",
     "stagesHint": "As etapas usuais deste tipo de projeto já vêm marcadas. Cada etapa ganha uma pasta no Google Drive do escritório, e você poderá mudá-las depois no modo de edição.",
-    "coverHint": "A foto aparece no topo da página do projeto e no cartão do painel. Você poderá enviar uma foto sua ou escolher uma das sugeridas.",
     "makingStages": "Criando etapas ({{done}} de {{total}})…",
     "done": "Projeto configurado. Você poderá alterar essas informações no modo de edição.",
     "skip": "Pular",

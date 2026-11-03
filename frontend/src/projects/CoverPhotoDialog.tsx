@@ -1,6 +1,6 @@
 // Choosing a cover (plan section 10): upload one's own photo (then the 3:2 crop),
 // or one of the bundled photos, set at once. Opened from the painel card's "⋯",
-// the project page's edit mode and its first-steps cover step.
+// and the project page's edit mode.
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
