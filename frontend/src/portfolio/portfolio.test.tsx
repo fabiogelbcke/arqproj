@@ -114,6 +114,19 @@ describe("the Portfólio tab", () => {
     );
   });
 
+  it("offers archived projects too, marked, since finished work is what a portfolio shows", async () => {
+    const sent = api({
+      "GET /api/projects": () => ({
+        body: [{ id: "p-9", name: "Casa Serra", client_name: "Família Prado", slug: "casa-serra", status: "archived", cover_url: null }],
+      }),
+    });
+    renderAt("/portfolio");
+    await userEvent.click(await screen.findByRole("button", { name: "Adicionar de um projeto" }));
+    const dialog = await screen.findByRole("dialog", { name: "Escolher projeto" });
+    expect(await within(dialog).findByText("Família Prado · Arquivado")).toBeInTheDocument();
+    expect(sent.find((call) => call.path === "/api/projects")?.query).toBe("?archived=true");
+  });
+
   it("moves a work down by sending the whole new order", async () => {
     const sent = api({ "PUT /api/portfolio/order": () => ({ body: PORTFOLIO }) });
     renderAt("/portfolio");

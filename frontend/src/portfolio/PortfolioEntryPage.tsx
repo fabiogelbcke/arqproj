@@ -479,7 +479,7 @@ function ProjectPhotos({
   onClose: () => void;
   onAdd: (slug: string, files: ImageFile[]) => void;
 }) {
-  const projects = useProjects();
+  const projects = useProjects(true); // archived ones too: finished work
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [choosing, setChoosing] = useState(false);
   const shown = project ?? projects.data?.find((item) => item.id === entry.project_id) ?? null;

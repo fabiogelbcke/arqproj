@@ -177,7 +177,11 @@ OFFERED_STAGES: dict[str, frozenset[str]] = {
 
 
 async def summaries(
-    db: AsyncSession, tenant: CurrentTenant, only: uuid.UUID | None = None
+    db: AsyncSession,
+    tenant: CurrentTenant,
+    only: uuid.UUID | None = None,
+    *,
+    archived: bool = False,
 ) -> list[ProjectSummary]:
     locale = tenant.locale
     query = (
@@ -186,12 +190,14 @@ async def summaries(
         .join(ProjectTypeDef, ProjectTypeDef.key == Project.project_type)
         .where(Project.deleted_at.is_(None))
     )
-    # The list leaves archived projects and proposals (their own tab, A42) out; one
-    # asked for by id is returned as is.
+    # The list leaves proposals (their own tab, A42) out, and archived projects
+    # unless asked for them (the portfolio draws on finished work, A44); one asked
+    # for by id is returned as is.
     if only is not None:
         query = query.where(Project.id == only)
     else:
-        query = query.where(Project.status.not_in([ProjectStatus.ARCHIVED, ProjectStatus.PROPOSAL]))
+        left_out = [ProjectStatus.PROPOSAL] + ([] if archived else [ProjectStatus.ARCHIVED])
+        query = query.where(Project.status.not_in(left_out))
     rows = (await db.execute(query)).all()
     ids = [project.id for project, _, _ in rows]
     if not ids:
@@ -312,11 +318,13 @@ def cover_url(project: Project) -> str | None:
 
 @router.get("/projects", responses=documented(401))
 async def projects(
+    archived: bool = False,
     _staff: CurrentStaff = Depends(current_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> list[ProjectSummary]:
-    return await summaries(db, tenant)
+    """The office's projects; with `archived=true`, the archived ones too."""
+    return await summaries(db, tenant, archived=archived)
 
 
 @router.get("/project-types", responses=documented(401))

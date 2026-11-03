@@ -322,7 +322,7 @@ export function ProjectChoice({
   title?: string;
 }) {
   const { t } = useTranslation();
-  const projects = useProjects();
+  const projects = useProjects(true); // archived ones too: finished work
   const [query, setQuery] = useState("");
   const shown = useMemo(() => {
     const words = plain(query).trim().split(/\s+/).filter(Boolean);
@@ -365,6 +365,7 @@ export function ProjectChoice({
                     <span className={styles.workTitle}>{project.name}</span>
                     <span className={styles.workMeta}>
                       {project.client_name}
+                      {project.status === "archived" ? ` · ${t("projectStatus.archived")}` : ""}
                       {taken.has(project.id) ? ` · ${t("portfolio.alreadyIn")}` : ""}
                     </span>
                   </span>

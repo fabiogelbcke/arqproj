@@ -88,7 +88,7 @@ from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.office import image_type
 from backend.web.page_files import RangeNotSatisfiable, byte_range, etag
-from backend.web.page_uploads import local_upload_url, upload_origin
+from backend.web.page_uploads import UploadFailedIn, local_upload_url, upload_origin
 from backend.web.project_settings import (
     COVER_MAX_BYTES,
     local_root,
@@ -664,6 +664,34 @@ async def _room_for_video(db: AsyncSession, entry: PortfolioEntry) -> int:
     if count >= VIDEOS_MAX:
         raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
     return (last or 0) + 1
+
+
+@router.post(
+    "/portfolio/entries/{entry_id}/videos/uploads/failed",
+    status_code=502,
+    responses=documented(401, 502),
+)
+async def video_upload_failed(
+    request: Request,
+    entry_id: uuid.UUID,
+    body: UploadFailedIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+) -> Response:
+    """The video's bytes go from the browser to the storage, past the app; when
+    sending fails for good, the browser reports it here (as a stage's upload does),
+    so it is logged with the office and the work, and staff get the support code."""
+    log.error(
+        "portfolio videos: sending failed for %s, work %s: %r (%s bytes), status %s: %s",
+        tenant.id,
+        entry_id,
+        body.name,
+        body.size,
+        body.status,
+        body.detail,
+    )
+    capture(request, "portfolio_video_upload_failed", {"bytes": body.size})
+    raise ApiError(502, ErrorCode.UPLOAD_FAILED)
 
 
 @router.post(

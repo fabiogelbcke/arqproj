@@ -785,7 +785,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Projects */
+        /**
+         * Projects
+         * @description The office's projects; with `archived=true`, the archived ones too.
+         */
         get: operations["projects_api_projects_get"];
         put?: never;
         /** New Project */
@@ -1285,6 +1288,28 @@ export interface paths {
         post?: never;
         /** Remove Photo */
         delete: operations["remove_photo_api_portfolio_photos__photo_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/entries/{entry_id}/videos/uploads/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Video Upload Failed
+         * @description The video's bytes go from the browser to the storage, past the app; when
+         *     sending fails for good, the browser reports it here (as a stage's upload does),
+         *     so it is logged with the office and the work, and staff get the support code.
+         */
+        post: operations["video_upload_failed_api_portfolio_entries__entry_id__videos_uploads_failed_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6079,7 +6104,9 @@ export interface operations {
     };
     projects_api_projects_get: {
         parameters: {
-            query?: never;
+            query?: {
+                archived?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -6102,6 +6129,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -7848,6 +7884,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    video_upload_failed_api_portfolio_entries__entry_id__videos_uploads_failed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadFailedIn"];
+            };
+        };
+        responses: {
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Successful Response */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };

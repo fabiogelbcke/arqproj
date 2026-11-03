@@ -2,7 +2,7 @@
 // published. Every change answers with the whole portfolio, which replaces ours.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError, call, type Schemas } from "../api/client";
+import { api, call, type Schemas } from "../api/client";
 import { sendFile, UploadBroke } from "../client/StageUploads";
 import { COVER_OUTPUT, cropToFile, loadImage } from "../ui/imageCrop";
 
@@ -171,9 +171,16 @@ export async function sendVideo(
       body: { size: file.size, mime_type: file.type },
     }),
   );
-  await sendFile(opened.upload_url, file, onProgress).catch((failure) => {
-    throw failure instanceof UploadBroke ? new ApiError("upload_failed") : failure;
-  });
+  await sendFile(opened.upload_url, file, onProgress).catch((broke) =>
+    broke instanceof UploadBroke
+      ? call(
+          api.POST("/api/portfolio/entries/{entry_id}/videos/uploads/failed", {
+            params: { path },
+            body: { name: file.name, size: file.size, status: broke.status, detail: broke.detail },
+          }),
+        ) // always an error: "upload_failed", with the support code
+      : Promise.reject(broke),
+  );
   return call(
     api.POST("/api/portfolio/entries/{entry_id}/videos", {
       params: { path },

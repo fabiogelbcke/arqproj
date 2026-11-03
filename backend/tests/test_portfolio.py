@@ -101,6 +101,42 @@ async def test_every_project_type_has_a_public_label(db_session):
         assert set(_texts(locale)["types"]) == keys, locale
 
 
+async def test_an_archived_project_can_be_drawn_on_though_the_painel_lists_it_no_more(
+    client, db_session, staff
+):
+    """Finished work is what a portfolio shows, and finished projects get archived."""
+    casa = await project_id(client)
+    await db_session.execute(
+        text("UPDATE projects SET status = 'archived', archived_from = 'completed' WHERE id = :p"),
+        {"p": casa},
+    )
+    await db_session.commit()
+    listed = [p["id"] for p in (await client.get("/api/projects", headers=ALINEA)).json()]
+    assert casa not in listed
+    with_archived = await client.get("/api/projects?archived=true", headers=ALINEA)
+    assert casa in [p["id"] for p in with_archived.json()]
+    drawn = await add(client, staff, project_id=casa)
+    assert (drawn["project_name"], drawn["status"]) == ("Casa Jardim", "completed")
+
+
+async def test_a_failed_video_send_is_logged_with_its_context_and_answers_with_the_code(
+    client, staff, caplog
+):
+    """The bytes never pass through the app: the painel reports a send that failed."""
+    entry = await add(client, staff, title="Casa")
+    response = await client.post(
+        f"/api/portfolio/entries/{entry['id']}/videos/uploads/failed",
+        json={"name": "obra.mp4", "size": 9, "status": 403, "detail": "storageQuotaExceeded"},
+        headers=staff,
+    )
+    assert (response.status_code, response.json()) == (502, {"error": "upload_failed"})
+    assert response.headers["x-request-id"]  # the code the log line carries too
+    logged = [r for r in caplog.records if "sending failed" in r.getMessage()]
+    assert logged and logged[0].levelname == "ERROR"
+    message = logged[0].getMessage()
+    assert entry["id"] in message and "storageQuotaExceeded" in message
+
+
 async def test_only_staff_read_and_change_the_portfolio(client, staff):
     client.cookies.clear()
     assert (await client.get("/api/portfolio", headers=ALINEA)).status_code == 401
