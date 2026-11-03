@@ -254,7 +254,7 @@ describe("a new project's setup steps", () => {
 
     dialog = await screen.findByRole("dialog", { name: "Descrição e informações" });
     await userEvent.type(within(dialog).getByLabelText("Descrição"), "Casa de campo.");
-    await userEvent.click(await within(dialog).findByRole("button", { name: /Adicionar informação/ }));
+    await userEvent.click(await within(dialog).findByRole("button", { name: /Adicionar detalhes/ }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Localização" }));
     await userEvent.type(within(dialog).getByLabelText("Localização"), "Nova Lima");
     await userEvent.click(within(dialog).getByRole("button", { name: "Continuar" }));

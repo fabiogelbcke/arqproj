@@ -159,7 +159,7 @@ export function useDetailTypes() {
   return types;
 }
 
-/** The details being edited, one row each, and "Adicionar informação" for the rest.
+/** The details being edited, one row each, and "Adicionar detalhes" for the rest.
  *  `before` comes first in the list (the details editor's project type). */
 export function DetailRows({
   page,

@@ -652,7 +652,7 @@
     "descriptionHint": "Cada linha vira um parágrafo. Comece com “- ” para fazer uma lista.",
     "noDescription": "Adicione uma breve descrição do projeto para o cliente.",
     "details": "Informações",
-    "addDetail": "Adicionar informação",
+    "addDetail": "Adicionar detalhes",
     "removeDetail": "Remover {{name}}",
     "meeting": "Reunião",
     "schedule": "Agendar",

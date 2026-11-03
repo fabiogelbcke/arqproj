@@ -652,7 +652,7 @@
     "descriptionHint": "Each line becomes a paragraph. Start with “- ” for a list.",
     "noDescription": "Add a brief project description for the client.",
     "details": "Details",
-    "addDetail": "Add a detail",
+    "addDetail": "Add details",
     "removeDetail": "Remove {{name}}",
     "meeting": "Meeting",
     "schedule": "Schedule",

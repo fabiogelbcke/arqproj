@@ -1420,7 +1420,7 @@ describe("edit mode", () => {
     await startEditing();
     await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
     // A menu, not a select: nothing in it is marked as chosen.
-    await userEvent.click(await screen.findByRole("button", { name: "Adicionar informação" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Adicionar detalhes" }));
     const added = await screen.findByRole("menuitem", { name: "Área construída" });
     expect(screen.queryByRole("option")).toBeNull();
     await userEvent.click(added);
