@@ -415,6 +415,8 @@ async def new_project(
             },
         )
     project_id = project.id  # giving the cover expires the loaded rows
-    if project.cover_file_id is None:  # not when this was a resent creation that has one
+    # Only a project that never had a cover: not a resent creation, even one whose
+    # cover was removed since (removing keeps the `_capa` folder).
+    if project.cover_folder_id is None:
         await give_default_cover(request, db, tenant, project)
     return (await summaries(db, tenant, only=project_id))[0]

@@ -104,6 +104,13 @@ async def test_a_removed_default_cover_stays_removed(client, owner, tmp_path):
     assert list((tmp_path / "Casa do Lago" / "_capa").iterdir()) == []
 
 
+async def test_a_resent_creation_after_removing_the_cover_picks_none(client, owner, tmp_path):
+    created = (await create(client, owner)).json()
+    await client.delete(f"/api/projects/{created['id']}/cover", headers=owner)
+    again = await create(client, owner)
+    assert again.status_code == 201 and again.json()["cover_url"] is None
+
+
 # -- choosing a stock photo -----------------------------------------------------------
 
 
