@@ -14,6 +14,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 
 from backend.projects.enums import EXAMPLE_PAGES
+from backend.tenancy.resolve import normalize_host
 from backend.web import portfolio_page
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
 
@@ -28,6 +29,10 @@ HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
 }
+# On an office's address the home can give way to the portfolio any minute (it
+# is published, or staff sign in for the preview), so a browser asks each time;
+# the answer is a 304 while the file hasn't changed.
+HOME_ON_OFFICE_ADDRESS = {**HEADERS, "Cache-Control": "no-cache"}
 
 
 @router.api_route("/", methods=["GET", "HEAD"])
@@ -35,7 +40,9 @@ async def home(request: Request) -> Response:
     portfolio = await portfolio_page.page(request)
     if portfolio is not None:
         return portfolio
-    return FileResponse(PUBLIC / "index.html", media_type="text/html", headers=HEADERS)
+    unios = normalize_host(request.headers.get("host")) == request.app.state.settings.operator_host
+    headers = HEADERS if unios else HOME_ON_OFFICE_ADDRESS
+    return FileResponse(PUBLIC / "index.html", media_type="text/html", headers=headers)
 
 
 @router.api_route("/brand/landing.css", methods=["GET", "HEAD"])

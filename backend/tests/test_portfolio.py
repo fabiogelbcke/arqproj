@@ -77,6 +77,18 @@ async def test_without_the_feature_the_portfolio_is_refused_and_the_root_stays_u
     assert root.status_code == 200 and "UNIO" in root.text
 
 
+async def test_unios_home_on_an_office_address_is_not_kept_by_the_browser(client, staff):
+    """Published, or previewed after signing in, the portfolio shows at once: the
+    home shown there until then was never cached (on Unio's own address it is)."""
+    client.cookies.clear()
+    before = await client.get("/", headers=ALINEA)
+    assert before.status_code == 200 and "UNIO" in before.text
+    assert before.headers["cache-control"] == "no-cache"
+    unios = await client.get("/", headers={"host": "localhost"})  # Unio's own address
+    assert unios.status_code == 200 and "UNIO" in unios.text
+    assert unios.headers["cache-control"] == "public, max-age=3600"
+
+
 async def test_only_staff_read_and_change_the_portfolio(client, staff):
     client.cookies.clear()
     assert (await client.get("/api/portfolio", headers=ALINEA)).status_code == 401
