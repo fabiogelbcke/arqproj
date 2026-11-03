@@ -243,6 +243,9 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
           const chosen = types.find((type) => type.key === body.project_type);
           if (chosen) [project.project_type_key, project.project_type] = [chosen.key, chosen.label];
         }
+        // "Outro": its name, as typed, in place of the label.
+        if (typeof body.custom_type === "string" && project.project_type_key === "other")
+          project.project_type = body.custom_type.trim();
         return changed();
       },
     ],

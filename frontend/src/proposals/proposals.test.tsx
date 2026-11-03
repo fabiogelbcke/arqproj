@@ -255,6 +255,8 @@ describe("a project's page while it is a proposal", () => {
     expect(sent.find((r) => r.path.endsWith("accept-proposal"))!.body).toEqual({
       row_version: 7,
     });
+    // The project's page opens its setup steps, the services as its stages (2 Nov 2026).
+    expect(new URLSearchParams(window.location.search).has("configurar")).toBe(true);
   });
 
   it("lets staff mark the proposal declined, after asking", async () => {

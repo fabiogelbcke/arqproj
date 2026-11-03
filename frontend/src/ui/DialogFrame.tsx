@@ -5,22 +5,25 @@ import { CloseButton } from "./CloseButton";
 import styles from "./ui.module.css";
 
 /** A dialog's frame: the dimmed page, the box, its title and ×; Esc and a click
- *  outside close it too. With `onClose` it is open while rendered; without, it
- *  is the dialog of the DialogTrigger around it. */
+ *  outside close it too, unless `outsideCloses` is false (a dialog of several
+ *  steps, which a stray click shouldn't end). With `onClose` it is open while
+ *  rendered; without, it is the dialog of the DialogTrigger around it. */
 export function DialogFrame({
   title,
   onClose,
   role,
+  outsideCloses = true,
   children,
 }: {
   title: ReactNode;
   onClose?: () => void;
   role?: DialogProps["role"];
+  outsideCloses?: boolean;
   children: ReactNode | ((close: () => void) => ReactNode);
 }) {
   const open = onClose ? { isOpen: true, onOpenChange: (isOpen: boolean) => !isOpen && onClose() } : {};
   return (
-    <ModalOverlay className={styles.dialogOverlay} isDismissable {...open}>
+    <ModalOverlay className={styles.dialogOverlay} isDismissable={outsideCloses} {...open}>
       <Modal className={styles.dialogModal}>
         <Dialog className={styles.dialog} role={role}>
           {({ close }) => (

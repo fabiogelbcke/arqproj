@@ -47,10 +47,13 @@ class ProjectType(StrEnum):
     INTERIORS = "interiors"
     RENOVATION = "renovation"
     LANDSCAPING = "landscaping"
+    VISUALIZATION = "visualization"  # renderings (2 Nov 2026)
+    OTHER = "other"  # named by the office, per project (`Project.custom_type`)
 
 
 class BuiltinStage(StrEnum):
-    """The 11 built-in stages (A27), in the order every project lists them."""
+    """The 16 built-in stages (A27), in the order every project lists them: the
+    building ones, then Visualização's own (2 Nov 2026)."""
 
     BRIEFING = "briefing"
     SURVEY = "survey"
@@ -63,6 +66,11 @@ class BuiltinStage(StrEnum):
     COORDINATION = "coordination"
     COMPLEMENTARY_PROJECTS = "complementary_projects"
     SPECIFICATIONS = "specifications"
+    PREVIEW_DELIVERY = "preview_delivery"
+    DOCUMENTATION = "documentation"
+    REVISIONS = "revisions"
+    FINAL_DELIVERY = "final_delivery"
+    POST_PRODUCTION = "post_production"
 
 
 class DetailType(StrEnum):

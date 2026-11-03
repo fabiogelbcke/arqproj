@@ -6731,6 +6731,18 @@
               }
             ],
             "title": "Project Type"
+          },
+          "custom_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Type"
           }
         },
         "type": "object",
@@ -7107,6 +7119,7 @@
           "invalid_project_name",
           "invalid_client_name",
           "unknown_project_type",
+          "invalid_custom_type",
           "unknown_stage",
           "unknown_member",
           "feature_off",
@@ -8822,6 +8835,18 @@
             "maxLength": 100,
             "title": "Project Type"
           },
+          "custom_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Type"
+          },
           "stages": {
             "items": {
               "type": "string"
@@ -9059,13 +9084,21 @@
             },
             "type": "array",
             "title": "Stages"
+          },
+          "offered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Offered"
           }
         },
         "type": "object",
         "required": [
           "key",
           "label",
-          "stages"
+          "stages",
+          "offered"
         ],
         "title": "ProjectTypeOption"
       },

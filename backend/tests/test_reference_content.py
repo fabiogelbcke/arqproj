@@ -78,7 +78,8 @@ async def usual_stages(session) -> dict[str, list[str]]:
 
 async def test_each_type_ticks_the_stages_alineas_partners_listed(db_session):
     """What a new project gets ticked for each type, in order (A27, 16 Oct 2026;
-    Reforma surveys with "Levantamento" since 26 Oct 2026):
+    Reforma surveys with "Levantamento" since 26 Oct 2026; Visualização since
+    2 Nov 2026):
     behaviour creation relies on."""
     stages = await usual_stages(db_session)
     s = BuiltinStage
@@ -99,6 +100,11 @@ async def test_each_type_ticks_the_stages_alineas_partners_listed(db_session):
             s.BRIEFING, s.SURVEY, s.PRELIMINARY_STUDY, s.SCHEMATIC_DESIGN,
             s.CONSTRUCTION_DOCUMENTS, s.COMPLEMENTARY_PROJECTS, s.SPECIFICATIONS,
         ],
+        # Fabio, 2 Nov 2026: Revisões and Pós-Produção offered, not ticked.
+        ProjectType.VISUALIZATION: [
+            s.BRIEFING, s.PREVIEW_DELIVERY, s.DOCUMENTATION, s.FINAL_DELIVERY,
+        ],
+        ProjectType.OTHER: [s.BRIEFING],  # named by the office (2 Nov 2026)
     }  # fmt: skip
 
 

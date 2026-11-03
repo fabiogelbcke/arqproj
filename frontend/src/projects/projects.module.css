@@ -289,3 +289,38 @@
 /* "Outra etapa": a name and "Adicionar", its button on the field's line. */
 .ownStage { display: flex; align-items: flex-end; gap: 10px; }
 .ownStage > :first-child { flex: 1; min-width: 0; }
+
+/* A new project's setup steps: a bar of segments over the dialog's form, filled
+   up to the current step (trial, 1 Nov 2026). */
+.setupProgress { display: grid; gap: 8px; }
+/* The project page's stylesheet spaces paragraphs; the dialog's gaps do it here. */
+.setupProgress > p, .setupHint { margin: 0; }
+.setupBar { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.setupBar > span { height: 4px; border-radius: 999px; background: var(--line); }
+.setupBar > [data-state="done"] { background: var(--ink); }
+/* "Mostrar todas as etapas": a quiet link under the list. */
+.moreStages {
+  justify-self: start; padding: 4px 0; border: 0; background: none; color: var(--muted);
+  font: inherit; font-size: var(--text-sm); text-decoration: underline; cursor: pointer;
+}
+.moreStages:hover { color: var(--ink); }
+.moreStages:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* The setup's two buttons side by side, sharing the dialog's width, and kept at
+   the dialog's foot while a long step (16 stages on a phone) scrolls under them. */
+.setupActions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  position: sticky; bottom: 0; z-index: 1;
+  margin: 0 calc(-1 * var(--dialog-pad)) calc(-1 * var(--dialog-pad));
+  padding: 16px var(--dialog-pad) var(--dialog-pad); background: var(--raise);
+}
+/* The cover step: the photo as it will show, 3:2. */
+.setupCover {
+  width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: var(--r-card);
+  background: var(--surface);
+}
+.setupCoverEmpty {
+  display: grid; place-items: center; align-content: center; gap: 4px; width: 100%; aspect-ratio: 3 / 2; padding: 16px;
+  border: 1px dashed var(--line-strong); border-radius: var(--r-card); background: var(--surface);
+  color: var(--muted); font: inherit; cursor: pointer; text-align: center;
+}
+.setupCoverEmpty:hover { color: var(--ink); border-color: var(--ink); }

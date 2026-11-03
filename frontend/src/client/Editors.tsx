@@ -10,12 +10,13 @@ import { ActionMenu } from "../ui/ActionMenu";
 import { EmailListField, addEmails } from "../ui/EmailListField";
 import { TextInput } from "../ui/TextInput";
 import { toast } from "../ui/Toast";
+import { OTHER_TYPE } from "../projects/StageChoice";
 import type { Page } from "./format";
 import { DayField, TimeOfDayField } from "./WhenFields";
 
 type Staff = NonNullable<Page["staff"]>;
 
-function useSave(onSaved: () => void) {
+export function useSave(onSaved: () => void, { quiet = false } = {}) {
   const { t, i18n } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -24,7 +25,7 @@ function useSave(onSaved: () => void) {
     setProblem(null);
     try {
       await work();
-      toast(t("projectSettings.saved"));
+      if (!quiet) toast(t("projectSettings.saved"));
       onSaved();
     } catch (failure) {
       const error = failure instanceof ApiError ? failure : new ApiError("unexpected");
@@ -147,60 +148,45 @@ export function DescriptionEditor({ page, staff, onDone }: { page: Page; staff: 
 }
 
 type DetailType = Schemas["DetailTypeOut"];
+export type DetailRow = { key: string; value: string };
 
-export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
-  const { t } = useTranslation();
+/** The built-in details staff may add; empty until loaded, or if they can't be. */
+export function useDetailTypes() {
   const [types, setTypes] = useState<DetailType[]>([]);
-  const [projectTypes, setProjectTypes] = useState<Schemas["ProjectTypeOption"][]>([]);
-  const [projectType, setProjectType] = useState(page.project_type_key);
-  const [rows, setRows] = useState(() => page.details.map((d) => ({ key: d.key, value: String(d.value) })));
-  const save = useSave(() => onDone(true));
   useEffect(() => {
     call(api.GET("/api/detail-types")).then(setTypes, () => setTypes([]));
-    call(api.GET("/api/project-types")).then((found) => setProjectTypes(found.types), () => setProjectTypes([]));
   }, []);
+  return types;
+}
+
+/** The details being edited, one row each, and "Adicionar detalhes" for the rest.
+ *  `before` comes first in the list (the details editor's project type). */
+export function DetailRows({
+  page,
+  types,
+  rows,
+  onChange,
+  before,
+}: {
+  page: Page;
+  types: DetailType[];
+  rows: DetailRow[];
+  onChange: (rows: DetailRow[]) => void;
+  before?: ReactNode;
+}) {
+  const { t } = useTranslation();
   const typeOf = (key: string) => types.find((type) => type.key === key);
   const unused = types.filter((type) => !rows.some((row) => row.key === type.key));
   return (
-    <Editor
-      title={t("edit.details")}
-      {...save}
-      onCancel={() => onDone(false)}
-      onSubmit={() =>
-        save.run(() =>
-          call(
-            api.PATCH("/api/projects/{project_id}/content", {
-              params: { path: { project_id: staff.project_id } },
-              body: {
-                row_version: staff.row_version,
-                details: rows.filter((row) => row.value.trim() !== ""),
-                ...(projectType !== page.project_type_key ? { project_type: projectType } : {}),
-              },
-            }),
-          ),
-        )
-      }
-    >
+    <>
       <ul className="facts-edit">
-        <li>
-          <label className="lbl" htmlFor="fv-project-type">
-            {t("page.projectType")}
-          </label>
-          <select className="select" id="fv-project-type" value={projectType} onChange={(e) => setProjectType(e.target.value)}>
-            {(projectTypes.length ? projectTypes : [{ key: page.project_type_key, label: page.project_type }]).map((option) => (
-              <option key={option.key} value={option.key}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <span />
-        </li>
+        {before}
         {rows.map((row, i) => {
           const type = typeOf(row.key) ?? page.details.find((d) => d.key === row.key);
           const label = type && "label" in type ? type.label : row.key;
           const kind = type?.type ?? "text";
           const id = `fv-${row.key}`;
-          const set = (value: string) => setRows(rows.map((r, j) => (j === i ? { ...r, value } : r)));
+          const set = (value: string) => onChange(rows.map((r, j) => (j === i ? { ...r, value } : r)));
           return (
             <li key={row.key}>
               <label className="lbl" htmlFor={id}>
@@ -218,7 +204,7 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
                 className="iconbtn"
                 type="button"
                 aria-label={t("edit.removeDetail", { name: label })}
-                onClick={() => setRows(rows.filter((_, j) => j !== i))}
+                onClick={() => onChange(rows.filter((_, j) => j !== i))}
               >
                 ×
               </button>
@@ -233,11 +219,89 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
           label={t("edit.addDetail")}
           placement="bottom start"
           items={unused.map((type) => ({ id: type.key, label: type.label }))}
-          onAction={(key) => setRows([...rows, { key, value: "" }])}
+          onAction={(key) => onChange([...rows, { key, value: "" }])}
         >
           + {t("edit.addDetail")}
         </ActionMenu>
       )}
+    </>
+  );
+}
+
+export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staff; onDone: (saved: boolean) => void }) {
+  const { t } = useTranslation();
+  const types = useDetailTypes();
+  const [projectTypes, setProjectTypes] = useState<Schemas["ProjectTypeOption"][]>([]);
+  const [projectType, setProjectType] = useState(page.project_type_key);
+  // "Outro"'s name (2 Nov 2026): the page shows it in place of a type's label.
+  const wasOther = page.project_type_key === OTHER_TYPE;
+  const [customType, setCustomType] = useState(wasOther ? page.project_type : "");
+  const [rows, setRows] = useState<DetailRow[]>(() => page.details.map((d) => ({ key: d.key, value: String(d.value) })));
+  const save = useSave(() => onDone(true));
+  useEffect(() => {
+    call(api.GET("/api/project-types")).then((found) => setProjectTypes(found.types), () => setProjectTypes([]));
+  }, []);
+  const other = projectType === OTHER_TYPE;
+  const renamed = other && customType.trim() !== (wasOther ? page.project_type : "");
+  return (
+    <Editor
+      title={t("edit.details")}
+      {...save}
+      onCancel={() => onDone(false)}
+      onSubmit={() =>
+        save.run(() =>
+          call(
+            api.PATCH("/api/projects/{project_id}/content", {
+              params: { path: { project_id: staff.project_id } },
+              body: {
+                row_version: staff.row_version,
+                details: rows.filter((row) => row.value.trim() !== ""),
+                ...(projectType !== page.project_type_key ? { project_type: projectType } : {}),
+                ...(renamed ? { custom_type: customType } : {}),
+              },
+            }),
+          ),
+        )
+      }
+    >
+      <DetailRows
+        page={page}
+        types={types}
+        rows={rows}
+        onChange={setRows}
+        before={
+          <li>
+            <label className="lbl" htmlFor="fv-project-type">
+              {t("page.projectType")}
+            </label>
+            <select className="select" id="fv-project-type" value={projectType} onChange={(e) => setProjectType(e.target.value)}>
+              {(projectTypes.length ? projectTypes : [{ key: page.project_type_key, label: page.project_type }]).map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <span />
+            {other && (
+              <>
+                <label className="lbl" htmlFor="fv-custom-type">
+                  {t("newProject.customType")}
+                </label>
+                <TextInput
+                  className="input"
+                  id="fv-custom-type"
+                  value={customType}
+                  maxLength={LIMITS.customType}
+                  placeholder={t("newProject.customTypeExample")}
+                  onChange={(e) => setCustomType(e.target.value)}
+                  required
+                />
+                <span />
+              </>
+            )}
+          </li>
+        }
+      />
     </Editor>
   );
 }
