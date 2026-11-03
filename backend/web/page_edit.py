@@ -171,7 +171,10 @@ async def change_content(
     if body.description is not None:
         values["description"] = body.description.strip()
     if body.project_type is not None:
-        if await db.get(ProjectTypeDef, body.project_type) is None:
+        # A hidden type stays with the projects that have it, but none switch to it (A44).
+        kind = await db.get(ProjectTypeDef, body.project_type)
+        current = await db.scalar(select(Project.project_type).where(Project.id == project_id))
+        if kind is None or (kind.hidden and kind.key != current):
             raise ApiError(422, ErrorCode.UNKNOWN_PROJECT_TYPE)
         values["project_type"] = body.project_type
         values["custom_type"] = _custom_type(body.project_type, body.custom_type)

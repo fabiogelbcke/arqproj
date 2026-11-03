@@ -64,6 +64,8 @@ class ProjectTypeDef(Base):
     key: Mapped[str] = mapped_column(Text, primary_key=True)
     position: Mapped[int] = mapped_column()
     labels: Mapped[dict[str, str]] = mapped_column(JSONB)
+    # Not offered for new projects; those that have it keep it (A44).
+    hidden: Mapped[bool] = mapped_column(server_default=text("false"))
 
 
 class DetailTypeDef(Base):
@@ -94,11 +96,14 @@ class StageDef(Base):
     position: Mapped[int] = mapped_column()
     titles: Mapped[dict[str, str]] = mapped_column(JSONB)
     about: Mapped[dict[str, str]] = mapped_column(JSONB)
+    # Not offered for new projects; those that have it keep it (A44).
+    hidden: Mapped[bool] = mapped_column(server_default=text("false"))
 
 
 class ProjectTypeStage(Base):
-    """A project type's usual stages (ticked at creation), each described in the
-    type's own words (A27)."""
+    """A stage a project type lists (A27): ticked at creation if `usual`, described
+    in the type's own words if it has them, else by the stage's general text.
+    "Outro" lists every stage; only its ticked ones are here (A44)."""
 
     __tablename__ = "project_type_stages"
     __table_args__ = (_in_every_language("about"),)
@@ -109,7 +114,9 @@ class ProjectTypeStage(Base):
     stage_key: Mapped[str] = mapped_column(
         Text, ForeignKey("stage_definitions.key", ondelete="CASCADE"), primary_key=True
     )
-    about: Mapped[dict[str, str]] = mapped_column(JSONB)
+    usual: Mapped[bool] = mapped_column(server_default=text("true"))
+    # SQL NULL, not JSON null, when it has no words of its own.
+    about: Mapped[dict[str, str] | None] = mapped_column(JSONB(none_as_null=True))
 
 
 # -- projects -------------------------------------------------------------------

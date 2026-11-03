@@ -530,6 +530,496 @@
         }
       }
     },
+    "/api/admin/settings/types-and-stages": {
+      "get": {
+        "summary": "Types And Stages",
+        "operationId": "types_and_stages_api_admin_settings_types_and_stages_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteCatalogOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/settings/types": {
+      "post": {
+        "summary": "New Type",
+        "operationId": "new_type_api_admin_settings_types_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSiteTypeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteCatalogOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/settings/types/{key}": {
+      "put": {
+        "summary": "Change Type",
+        "operationId": "change_type_api_admin_settings_types__key__put",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteTypeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteCatalogOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/admin/settings/stages": {
+      "post": {
+        "summary": "New Stage",
+        "operationId": "new_stage_api_admin_settings_stages_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSiteStageIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteCatalogOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/settings/stages/{key}": {
+      "put": {
+        "summary": "Change Stage",
+        "operationId": "change_stage_api_admin_settings_stages__key__put",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteStageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteCatalogOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/admin/settings/order": {
+      "put": {
+        "summary": "Change Order",
+        "operationId": "change_order_api_admin_settings_order_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteOrderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteCatalogOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/office-signup/check": {
       "post": {
         "summary": "Check",
@@ -7090,6 +7580,9 @@
           "operator_action_conflict",
           "operator_action_failed",
           "operator_actions_unavailable",
+          "invalid_setting_text",
+          "setting_name_taken",
+          "setting_not_found",
           "signup_link_invalid",
           "office_address_taken",
           "invalid_office_address",
@@ -8066,6 +8559,34 @@
           "name"
         ],
         "title": "NameIn"
+      },
+      "NewSiteStageIn": {
+        "properties": {
+          "titles": {
+            "$ref": "#/components/schemas/SiteTexts"
+          },
+          "about": {
+            "$ref": "#/components/schemas/SiteTexts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "titles",
+          "about"
+        ],
+        "title": "NewSiteStageIn"
+      },
+      "NewSiteTypeIn": {
+        "properties": {
+          "labels": {
+            "$ref": "#/components/schemas/SiteTexts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "labels"
+        ],
+        "title": "NewSiteTypeIn"
       },
       "NewStageIn": {
         "properties": {
@@ -10039,6 +10560,270 @@
           "url"
         ],
         "title": "SignupLinkOut"
+      },
+      "SiteCatalogOut": {
+        "properties": {
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/SiteTypeOut"
+            },
+            "type": "array",
+            "title": "Types"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/SiteStageOut"
+            },
+            "type": "array",
+            "title": "Stages"
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Limits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "types",
+          "stages",
+          "can_change",
+          "limits"
+        ],
+        "title": "SiteCatalogOut"
+      },
+      "SiteOrderIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "types",
+              "stages"
+            ],
+            "title": "Kind"
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Keys"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "keys"
+        ],
+        "title": "SiteOrderIn"
+      },
+      "SiteStageIn": {
+        "properties": {
+          "titles": {
+            "$ref": "#/components/schemas/SiteTexts"
+          },
+          "about": {
+            "$ref": "#/components/schemas/SiteTexts"
+          },
+          "hidden": {
+            "type": "boolean",
+            "title": "Hidden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "titles",
+          "about",
+          "hidden"
+        ],
+        "title": "SiteStageIn"
+      },
+      "SiteStageOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "titles": {
+            "$ref": "#/components/schemas/SiteTexts"
+          },
+          "about": {
+            "$ref": "#/components/schemas/SiteTexts"
+          },
+          "hidden": {
+            "type": "boolean",
+            "title": "Hidden"
+          },
+          "projects": {
+            "type": "integer",
+            "title": "Projects"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "titles",
+          "about",
+          "hidden",
+          "projects"
+        ],
+        "title": "SiteStageOut"
+      },
+      "SiteTexts": {
+        "properties": {
+          "pt": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Pt"
+          },
+          "en": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "En",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "pt"
+        ],
+        "title": "SiteTexts"
+      },
+      "SiteTypeIn": {
+        "properties": {
+          "labels": {
+            "$ref": "#/components/schemas/SiteTexts"
+          },
+          "hidden": {
+            "type": "boolean",
+            "title": "Hidden"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/SiteTypeStageIn"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Stages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "labels",
+          "hidden",
+          "stages"
+        ],
+        "title": "SiteTypeIn"
+      },
+      "SiteTypeOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/SiteTexts"
+          },
+          "hidden": {
+            "type": "boolean",
+            "title": "Hidden"
+          },
+          "lists_every_stage": {
+            "type": "boolean",
+            "title": "Lists Every Stage"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/SiteTypeStageOut"
+            },
+            "type": "array",
+            "title": "Stages"
+          },
+          "projects": {
+            "type": "integer",
+            "title": "Projects"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "labels",
+          "hidden",
+          "lists_every_stage",
+          "stages",
+          "projects"
+        ],
+        "title": "SiteTypeOut"
+      },
+      "SiteTypeStageIn": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Key"
+          },
+          "usual": {
+            "type": "boolean",
+            "title": "Usual"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SiteTexts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "usual"
+        ],
+        "title": "SiteTypeStageIn"
+      },
+      "SiteTypeStageOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "usual": {
+            "type": "boolean",
+            "title": "Usual"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SiteTexts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projects": {
+            "type": "integer",
+            "title": "Projects"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "usual",
+          "about",
+          "projects"
+        ],
+        "title": "SiteTypeStageOut"
       },
       "SpaceOut": {
         "properties": {

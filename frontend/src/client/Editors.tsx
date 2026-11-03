@@ -275,7 +275,13 @@ export function DetailsEditor({ page, staff, onDone }: { page: Page; staff: Staf
               {t("page.projectType")}
             </label>
             <select className="select" id="fv-project-type" value={projectType} onChange={(e) => setProjectType(e.target.value)}>
-              {(projectTypes.length ? projectTypes : [{ key: page.project_type_key, label: page.project_type }]).map((option) => (
+              {/* The project's own type stays listed even when hidden for new projects (A44). */}
+              {[
+                ...(projectTypes.some((option) => option.key === page.project_type_key)
+                  ? []
+                  : [{ key: page.project_type_key, label: page.project_type }]),
+                ...projectTypes,
+              ].map((option) => (
                 <option key={option.key} value={option.key}>
                   {option.label}
                 </option>

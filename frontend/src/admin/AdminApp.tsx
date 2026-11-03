@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient
 import { useState, type ReactNode } from "react";
 import { Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { createBrowserRouter, Link, Outlet, RouterProvider, useParams } from "react-router";
+import { createBrowserRouter, Link, Navigate, NavLink, Outlet, RouterProvider, useLocation, useParams } from "react-router";
 
 import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { Button } from "../ui/Button";
@@ -16,6 +16,8 @@ import { UnioMark } from "../ui/UnioMark";
 import { officeErrorsUrl, SUPPORT_CODE, supportCodeUrl, type LogsTarget } from "./logs";
 import styles from "./admin.module.css";
 import { CreateTenant, Features, SignupLink, TenantActions } from "./Actions";
+import { SettingsLayout } from "./Settings";
+import { StagePage, StagesPage, TypePage, TypesPage } from "./SettingsEditors";
 import { AnalyticsLink, FileStatistics, Usage } from "./Usage";
 
 type Operator = Schemas["OperatorOut"];
@@ -102,10 +104,12 @@ function SignIn() {
   );
 }
 
-/** The bar on every page: Unio, the operator, Sair. */
+/** The bar on every page: Unio, its sections (Escritórios, Configurações, A44),
+ *  the operator, Sair. */
 function Layout({ me }: { me: Operator }) {
   const { t } = useTranslation();
   const client = useQueryClient();
+  const inSettings = useLocation().pathname.startsWith("/configuracoes");
   const signOut = useMutation({
     mutationFn: () => call(api.POST("/api/admin/signout")),
     onSuccess: () => {
@@ -120,6 +124,13 @@ function Layout({ me }: { me: Operator }) {
           <UnioMark className={styles.barMark} />
           <span>{t("admin.title")}</span>
         </Link>
+        <nav className={styles.tabs} aria-label={t("admin.nav.where")}>
+          {/* An office's page is under Escritórios too. */}
+          <NavLink to="/" className={() => (inSettings ? undefined : "active")} aria-current={inSettings ? undefined : "page"}>
+            {t("admin.nav.offices")}
+          </NavLink>
+          <NavLink to="/configuracoes">{t("admin.nav.settings")}</NavLink>
+        </nav>
         <span className={styles.operatorEmail}>{me.email}</span>
         <Button size="small" variant="ghost" onPress={() => signOut.mutate()} isDisabled={signOut.isPending}>
           {t("nav.signOut")}
@@ -402,6 +413,17 @@ export const adminRoutes = [
     children: [
       { index: true, element: <Offices /> },
       { path: "escritorios/:slug", element: <OfficePage /> },
+      {
+        path: "configuracoes",
+        element: <SettingsLayout />,
+        children: [
+          { index: true, element: <Navigate to="tipos" replace /> },
+          { path: "tipos", element: <TypesPage /> },
+          { path: "tipos/:key", element: <TypePage /> },
+          { path: "etapas", element: <StagesPage /> },
+          { path: "etapas/:key", element: <StagePage /> },
+        ],
+      },
     ],
   },
 ];

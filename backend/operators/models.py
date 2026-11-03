@@ -16,8 +16,9 @@ class OperatorAuditEvent(IdMixin, CreatedAtMixin, Base):
     actor: Mapped[str] = mapped_column(Text)
     action: Mapped[str] = mapped_column(Text)
     # Deliberately no FK: deleting a tenant must not erase its audit history.
-    target_tenant_id: Mapped[uuid.UUID] = mapped_column(index=True)
-    target_slug: Mapped[str] = mapped_column(Text)
+    # None: a change to the whole site, such as its types and stages (A44).
+    target_tenant_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
+    target_slug: Mapped[str | None] = mapped_column(Text)
     request_id: Mapped[str] = mapped_column(Text)
 
 

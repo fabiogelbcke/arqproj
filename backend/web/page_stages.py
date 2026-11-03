@@ -181,7 +181,9 @@ async def add_stage(
     independently)."""
     stages = await _stages(db, project_id)
     if body.builtin_key is not None:
-        titles = await db.scalar(select(StageDef.titles).where(StageDef.key == body.builtin_key))
+        titles = await db.scalar(  # a hidden one isn't offered any more (A44)
+            select(StageDef.titles).where(StageDef.key == body.builtin_key, ~StageDef.hidden)
+        )
         if titles is None or any(s.builtin_key == body.builtin_key for s in stages):
             raise ApiError(422, ErrorCode.INVALID_STAGE)
         title, values = _text(titles, tenant.locale), {"builtin_key": body.builtin_key}
