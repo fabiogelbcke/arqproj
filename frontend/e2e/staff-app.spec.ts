@@ -873,9 +873,13 @@ test("staff edit the page in place and the client sees it", async ({
 
   // A cover added from the page: "Trocar capa" and "Remover capa" side by side on it,
   // each readable, then removed again.
+  await page.getByRole("button", { name: /Adicionar foto de capa/ }).click();
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.getByRole("button", { name: /Adicionar foto de capa/ }).click(),
+    page
+      .getByRole("dialog", { name: "Escolher foto de capa" })
+      .getByRole("button", { name: "Enviar do computador" })
+      .click(),
   ]);
   await chooser.setFiles({
     name: "obra.png",
