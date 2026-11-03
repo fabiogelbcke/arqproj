@@ -392,19 +392,37 @@ async def serve_cover(
 ) -> Response:
     """The cover through the office's storage, shrunk by Drive to `size` pixels
     where it can; otherwise the original. 404 when there is none to show."""
+    if project is None or project.cover_file_id is None:
+        return Response(status_code=404)
+    return await serve_stored_image(
+        request, db, project.cover_file_id, project.cover_type, size, headers
+    )
+
+
+async def serve_stored_image(
+    request: Request,
+    db: AsyncSession,
+    file_id: str,
+    media_type: CoverType,
+    size: int,
+    headers: dict[str, str],
+) -> Response:
+    """A photo kept in the office's storage (a cover, a portfolio photo), shrunk
+    by Drive to `size` pixels where it can; otherwise the original. 404 when it
+    can't be read."""
     connection = await db.scalar(select(StorageConnection))
-    if project is None or project.cover_file_id is None or connection is None:
+    if connection is None:
         return Response(status_code=404)
     try:
         google = getattr(request.app.state, "google", None)  # set up at app start
         storage = storage_for(connection, request.app.state.settings, google)
-        item = await storage.get(project.cover_file_id)
+        item = await storage.get(file_id)
         small = await storage.thumbnail(item, size)
         if small is not None and (kind := image_type(small)) in set(CoverType):
             return Response(small, media_type=kind, headers=headers)
         download = await storage.download(item)
     except StorageError as error:
-        log.warning("cover unavailable: %s %s", error.problem, error.detail)
+        log.warning("photo unavailable: %s %s", error.problem, error.detail)
         return Response(status_code=404)
 
     async def body():
@@ -414,6 +432,5 @@ async def serve_cover(
         finally:
             await download.aclose()
 
-    media_type = project.cover_type.value
     await db.close()  # before streaming: never hold a database connection meanwhile
-    return StreamingResponse(body(), media_type=media_type, headers=headers)
+    return StreamingResponse(body(), media_type=media_type.value, headers=headers)

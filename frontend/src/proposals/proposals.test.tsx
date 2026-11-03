@@ -102,6 +102,7 @@ const PROPOSAL: ProposalView = {
 
 const PAGE: Page = {
   id: "6f1c1d1e-0000-4000-8000-0000000000b1",
+  features: [],
   office: { name: "Alinea", logo_url: null, logo_dark_url: null },
   locale: "pt-BR",
   timezone: "America/Sao_Paulo",
@@ -216,12 +217,12 @@ describe("a project's page while it is a proposal", () => {
   it("lets staff change the proposal or mark it accepted, after asking", async () => {
     const staffPage = {
       ...PAGE,
+      features: ["proposals" as const],
       staff: {
         project_id: "p-1",
         status: "proposal" as const,
         row_version: 7,
         recipients: [],
-        features: ["proposals" as const],
       },
     };
     let accepted = false;
@@ -262,12 +263,12 @@ describe("a project's page while it is a proposal", () => {
   it("lets staff mark the proposal declined, after asking", async () => {
     const staffPage = {
       ...PAGE,
+      features: ["proposals" as const],
       staff: {
         project_id: "p-1",
         status: "proposal" as const,
         row_version: 7,
         recipients: [],
-        features: ["proposals" as const],
       },
     };
     const sent = client(staffPage, {
@@ -297,12 +298,12 @@ describe("a project's page while it is a proposal", () => {
   it("offers staff neither when proposals are switched off, though the page still shows it (A40)", async () => {
     const staffPage = {
       ...PAGE,
+      features: [],
       staff: {
         project_id: "p-1",
         status: "proposal" as const,
         row_version: 7,
         recipients: [],
-        features: [],
       },
     };
     client(staffPage, { "GET /api/me": () => ({ body: ME }) });
@@ -343,9 +344,8 @@ describe("an accepted proposal", () => {
       status: "active" as const,
       row_version: 7,
       recipients: [],
-      features: ["proposals" as const],
     };
-    client({ ...PAGE, in_proposal: false, proposal: null, staff });
+    client({ ...PAGE, features: ["proposals" as const], in_proposal: false, proposal: null, staff });
     const bar = await screen.findByRole("navigation", {
       name: "Ferramentas do escritório",
     });

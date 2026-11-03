@@ -84,8 +84,8 @@ test("@screenshots staff app", async ({ page, browser }) => {
 
   // A fictional logo, so the header shows one.
   await page.goto("/painel/configuracoes/escritorio");
-  await page.getByRole("button", { name: "Escolher imagem" }).waitFor();
-  await page.locator('input[type="file"]').setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: LOGO });
+  await page.getByRole("button", { name: "Escolher imagem", exact: true }).waitFor();
+  await page.locator('input[type="file"]').first().setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: LOGO });
   // Cropped first, its empty margins trimmed already.
   await page.getByText("Assim ele aparece no topo das páginas").waitFor();
   await shoot(page, "04b-recortar-logo");
@@ -217,6 +217,18 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
+  // The example project (plan section 16) has the cover band on (A40): the
+  // opening on a band made from the cover. Its explore tour closed first.
+  const example = await browser.newPage();
+  await example.emulateMedia({ reducedMotion: "reduce" });
+  await example.goto("/tour-projeto");
+  await example.locator(".driver-popover").waitFor();
+  await example.keyboard.press("Escape");
+  await example.locator(".project-opening__backdrop img").waitFor();
+  await example.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
+  await shoot(example, "06v-exemplo-faixa-da-capa");
+  await shoot(example, "06v-exemplo-faixa-da-capa", "dark");
+  await example.close();
   // Drive disconnected: the page is offline (staff are told to reconnect).
   await page.route("**/api/pages/casa-jardim", (route) =>
     route.fulfill({ status: 503, json: { error: "page_unavailable" } }),
@@ -275,7 +287,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar informações" }).click();
-  await page.getByRole("button", { name: "Adicionar informação" }).click();
+  await page.getByRole("button", { name: "Adicionar detalhes" }).click();
   await page.getByRole("menu").waitFor();
   await shoot(page, "06o-adicionar-informacao");
   await page.keyboard.press("Escape");
@@ -450,6 +462,28 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await shoot(page, "10c-operacao-escritorio");
   await page.getByRole("button", { name: "Suspender", exact: true }).click();
   await shoot(page, "10e-operacao-suspender");
+  await page.setViewportSize(SIZES[0]!);
+  await page.keyboard.press("Escape");
+  // The site's types and stages (A44): the list, one type, and the warning before
+  // a change that reaches existing projects (gone back from, nothing saved).
+  await page.getByRole("link", { name: "Configurações" }).click();
+  await page.getByText("Visualização Arquitetônica").waitFor();
+  await shoot(page, "10g-configuracoes-tipos");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("link", { name: "Editar Projeto Arquitetônico" }).click();
+  await page.getByRole("heading", { name: "Projeto Arquitetônico" }).waitFor();
+  await shoot(page, "10h-configuracoes-tipo");
+  await page.setViewportSize(SIZES[0]!);
+  const name = page.getByLabel("Português").first();
+  await name.fill("Projeto de Arquitetura");
+  await page.getByRole("button", { name: "Salvar alterações" }).click();
+  await page.getByRole("alertdialog").waitFor();
+  await shoot(page, "10i-configuracoes-aviso");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("button", { name: "Voltar e revisar" }).click();
+  await page.getByRole("link", { name: "Etapas" }).click();
+  await page.getByText("Entrega Final").waitFor();
+  await shoot(page, "10j-configuracoes-etapas");
 });
 
 test("@screenshots support access", async ({ page }) => {

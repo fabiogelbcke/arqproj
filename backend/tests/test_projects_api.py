@@ -8,12 +8,11 @@ from sqlalchemy import func, select, text
 
 from backend.identity.models import Role
 from backend.projects import creation
-from backend.projects.enums import ProjectStatus, ProjectType
+from backend.projects.enums import ProjectStatus
 from backend.projects.models import Meeting, Project, ProjectSlug, ProjectStage
 from backend.storage.models import ReaderStatus
 from backend.tests import test_office
 from backend.tests.test_office import ALINEA, NORTE, FakeGoogle, sign_in_as, tenant_id
-from backend.web import projects as projects_web
 
 owner = test_office.owner  # fixtures
 on_google = test_office.on_google
@@ -517,8 +516,3 @@ async def test_a_type_lists_only_the_stages_that_suit_it(client, owner):
     other = next(kind for kind in options["types"] if kind["key"] == "other")
     assert other["offered"] == [stage["key"] for stage in options["stages"]]
     assert other["stages"] == ["briefing"]
-
-
-def test_every_type_says_which_stages_it_lists():
-    """A type left out of OFFERED_STAGES would list only its usual stages."""
-    assert set(projects_web.OFFERED_STAGES) == set(ProjectType)

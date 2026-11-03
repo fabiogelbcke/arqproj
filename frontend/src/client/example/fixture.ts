@@ -27,6 +27,7 @@ export type ExampleProject = {
   project_type_key: string;
   description: string;
   cover_url: string | null;
+  features: Schemas["Feature"][]; // switched on for the example (A40)
   team: string[]; // "Responsável" (A41)
   proposal_url: string | null; // the accepted proposal's PDF, before the stages (A42)
   status: "active" | "completed";
@@ -88,6 +89,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       "- Três suítes e escritório\n" +
       "- Piscina na cota mais baixa do terreno",
     cover_url: house,
+    features: ["cover_band"], // the opening on a band (A40); the example shows everything
     team: ["Paula Ribeiro"],
     proposal_url: pdf,
     status: "active",

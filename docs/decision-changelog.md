@@ -41,6 +41,23 @@ photo or only the painel, he chose clients too; asked about removal, he chose
 picking a cover. Storing the photo like an upload (rather than a reference to a
 bundled file) keeps one cover path for the client page, its preview tags and
 removal, with no schema change.
+## 2026-11-03 — A44 (new), A27: types and stages edited from the operator dashboard
+
+**Was:** the built-in project types, stages and their texts changed only through
+a migration, and which stages each type lists was a table in the code
+(`OFFERED_STAGES`). Office-defined types and stages were a later addition.
+
+**Now:** Unio's operators edit them in the operator dashboard's new
+"Configurações" tab: names and descriptions in both languages, which stages each
+type lists and ticks, order, new types and stages, and hiding (no delete). The
+one list still serves every office. Edits apply live, existing projects
+included, after a red warning with how many projects change.
+
+**Why:** Fabio, 3 Nov 2026: texts like Visualização's took a pull request and a
+migration each time (three that night). Considered and set aside: per-office
+lists (much bigger: every office would get its own copy); changes reaching only
+new projects (each project would need its own copy, and a typo fix would never
+reach existing ones); Portuguese only (offices may be set to English).
 
 ## 2026-11-03 — A27: Visualização's Documentação before Entrega Prévia
 
@@ -130,6 +147,57 @@ types for that project (no list of the office's own types yet), listing every
 stage with Briefing ticked. Why: an office whose work fits none of the five
 types shouldn't have to pick a wrong one; a per-project name is the smallest
 step, and a reusable list of the office's types can follow if they repeat.
+
+---
+
+## 2026-10-31 — A45: an office's address can show its portfolio at `/`
+
+**Was:** `/` showed Unio's home on every address, an office's own included
+(future ideas, "What an office's own address shows at its root"), and Unio's home
+never touched the database.
+
+**Now:** behind the `portfolio` feature, an office with a published portfolio
+shows it at `/` on its own address. Unio's address, and every office without
+the feature or without a published portfolio, keeps Unio's home. Looking the
+office up from `/` falls back to the home on any failure, so the home still never
+depends on the database.
+
+**Why:** Fabio, 31 Oct 2026: "What if we created a portfolio page for the
+address at the root? Let's do it to test", with works either uploaded or drawn
+from existing projects with chosen images. Of the options in future ideas (a
+redirect to the office's site, to the painel sign-in, or a simple page of its
+own), this is the third, grown into a portfolio.
+
+Later the same day Fabio asked for it to be "a little nicer": a logo for the dev
+office, "a pretty carousel with name/type of project and some menu to access
+projects of different types". Modelled on architecture offices' own sites (a
+full-width carousel of covers, a menu of project types over the grid), works now
+carry a project type, and the page gained one small script of its own for the
+carousel's arrows; it was first drawn with no script at all.
+
+On 1 Nov 2026 Fabio asked to "pull in more data from the projects", "add links
+to social", make images smaller, "specially on smaller screens", and "allow
+opening", and how to allow videos (someone makes architecture videos and
+renderings for Instagram). A work drawn from a project now starts with its area,
+status, year and lead architect, never its client or address, which the office
+may not want public. Works also take photo credits and videos. Videos
+were first links to YouTube, Vimeo or Instagram, played in those services'
+players, so they would stream at those services' cost. Fabio rejected that the
+same day: "if we're showing things we're storing in our storage or on google
+drive then we don't wanna just have a youtube widget or vimeo widget". Videos
+are now files in the office's storage like the photos, sent there by the
+browser directly and streamed through the app in parts; each view's bytes pass
+through Cloud Run, as clients' file downloads already do. They were first
+played on the work's page itself, landscape ones large and 9:16 stories in a row;
+Fabio found them "gigantic": "we can have just an icon or something and
+miniatures and then show a modal with some arrows to cycle through media". So
+a video is a thumbnail among the photos and plays only in the same full-screen
+viewer, whose arrows go through photos and videos alike. The work's page then
+had its cover filling the screen and its text at 19 px across 760 px, which
+Fabio found too large (2 Nov 2026); it now takes the layout of architecture
+offices' own project pages (Snøhetta's, Jacobsen's): the cover at about two
+thirds of the screen, the sheet of facts beside the text in a reading measure.
+The office's social profiles show in the footer. Photos on a work's page are now small and open large over the page.
 
 ---
 

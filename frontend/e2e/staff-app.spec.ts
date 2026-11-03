@@ -127,9 +127,9 @@ test("a chosen logo is cropped in the browser, its empty margins trimmed, and go
       '<text x="70" y="215" font-size="48" fill="#ffffff" font-family="sans-serif">ALINEA</text></svg>',
   );
   await page.goto("/painel/configuracoes/escritorio");
-  await page.getByRole("button", { name: "Escolher imagem" }).waitFor();
+  await page.getByRole("button", { name: "Escolher imagem", exact: true }).waitFor();
   await page
-    .locator('input[type="file"]')
+    .locator('input[type="file"]').first()
     .setInputFiles({
       name: "logo.svg",
       mimeType: "image/svg+xml",

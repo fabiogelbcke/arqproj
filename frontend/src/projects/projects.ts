@@ -13,8 +13,14 @@ export type NewProject = Schemas["ProjectIn"];
 export const PROJECTS = ["projects"] as const;
 const CREATION_OPTIONS = ["project-types"] as const;
 
-export function useProjects() {
-  return useQuery({ queryKey: PROJECTS, queryFn: () => call(api.GET("/api/projects")) });
+/** The office's projects; with `archived`, the archived ones too (the
+ *  portfolio draws on finished work). */
+export function useProjects(archived = false) {
+  return useQuery({
+    queryKey: archived ? [...PROJECTS, "archived"] : PROJECTS,
+    queryFn: () =>
+      call(archived ? api.GET("/api/projects", { params: { query: { archived: true } } }) : api.GET("/api/projects")),
+  });
 }
 
 /** The project types, each with its usual stages, and every built-in stage in order. */

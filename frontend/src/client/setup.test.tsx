@@ -37,6 +37,7 @@ const NEW: Page = {
   project_type_key: "architecture",
   description: "",
   cover_url: null,
+  features: [],
   completed: false,
   current_position: null,
   last_update: "2026-11-01T12:00:00Z",
@@ -46,7 +47,7 @@ const NEW: Page = {
   in_proposal: false,
   proposal: null,
   proposal_url: null,
-  staff: { project_id: "p-1", status: "active", row_version: 1, recipients: [], features: [] },
+  staff: { project_id: "p-1", status: "active", row_version: 1, recipients: [] },
 };
 
 const OPTIONS = {
@@ -121,6 +122,15 @@ describe("a new project's setup steps", () => {
       ["/api/projects/p-1/stages", { row_version: 2, builtin_key: "detailing" }],
       ["/api/projects/p-1/stages", { row_version: 3, title: "Maquete" }],
     ]);
+  });
+
+  it("list the project's own type's stages even when that type is hidden for new projects (A44)", async () => {
+    const hidden = { ...OPTIONS, types: [OPTIONS.types[1], { ...OPTIONS.types[0], hidden: true }] };
+    arrive({ "GET /api/project-types": () => ({ body: hidden }) });
+    const dialog = await screen.findByRole("dialog", { name: "Etapas" });
+    // Projeto Arquitetônico's usual stages, not the first type's (Interiores).
+    expect(await within(dialog).findByRole("checkbox", { name: "Projeto Legal" })).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: "Detalhamentos" })).not.toBeChecked();
   });
 
   it("list only the stages that suit the type, the rest a click away", async () => {

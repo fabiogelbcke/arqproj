@@ -178,13 +178,17 @@ async def _validate(db: AsyncSession, new: NewProject, locale: Locale) -> list[N
         raise CreationProblem("invalid_project_name")
     if not new.client_name.strip() or len(new.client_name.strip()) > CLIENT_NAME_LIMIT:
         raise CreationProblem("invalid_client_name")
-    if await db.get(ProjectTypeDef, new.project_type) is None:
+    # Hidden ones aren't offered for a new project (A44).
+    kind = await db.get(ProjectTypeDef, new.project_type)
+    if kind is None or kind.hidden:
         raise CreationProblem("unknown_project_type")
     custom_type_name(new.project_type, new.custom_type)
     chosen = set(new.stages)
     stages = list(
         await db.scalars(
-            select(StageDef).where(StageDef.key.in_(chosen)).order_by(StageDef.position)
+            select(StageDef)
+            .where(StageDef.key.in_(chosen), ~StageDef.hidden)
+            .order_by(StageDef.position)
         )
     )
     if len(chosen) != len(new.stages) or len(stages) != len(chosen):

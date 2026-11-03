@@ -654,6 +654,15 @@ describe("Novo projeto", () => {
     expect(within(dialog).getByRole("button", { name: "Criar e continuar" })).toBeEnabled();
   });
 
+  it("doesn't offer a type hidden for new projects (A44)", async () => {
+    const hidden = { ...OPTIONS, types: [{ ...OPTIONS.types[0]!, hidden: true }, ...OPTIONS.types.slice(1)] };
+    const { dialog } = await openNewProposal({ "GET /api/project-types": () => ({ body: hidden }) });
+    await within(dialog).findByText("Projeto de Interiores");
+    expect(within(dialog).queryByText("Projeto Arquitetônico")).toBeNull();
+    // The first type that may be chosen is the one selected.
+    expect(within(dialog).getByRole("radio", { name: "Projeto de Interiores" })).toBeChecked();
+  });
+
   it("a proposal is the same short form, and goes on to its generator", async () => {
     const { sent, dialog, router } = await openNewProposal();
     // No stages or emails: they come once it's accepted, in the project's setup steps.

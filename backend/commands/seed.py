@@ -13,12 +13,14 @@ from __future__ import annotations
 import asyncio
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from backend.commands import local_db
 from backend.identity.passwords import hash_password
+from backend.office.models import LogoType, OfficeProfile
 from backend.projects.enums import AccessMode, DetailKey, ProjectStatus, ProjectType
 from backend.projects.models import (
     DetailTypeDef,
@@ -138,6 +140,7 @@ TENANTS = [
         "slug": "alinea",
         "name": "Alinea (dev)",
         "domains": [("alinea.localhost", True), ("alinea-old.localhost", False)],
+        "logo": True,
     },
     {
         "slug": "norte",
@@ -147,7 +150,7 @@ TENANTS = [
 ]
 
 
-async def seed(session: AsyncSession) -> list[str]:
+async def seed(session: AsyncSession, *, with_logo: bool = False) -> list[str]:
     """Create any missing tenants and addresses. Returns what was added."""
     added = []
     for spec in TENANTS:
@@ -171,11 +174,50 @@ async def seed(session: AsyncSession) -> list[str]:
             # Files from the fictional dataset on this machine (folder storage).
             session.add(StorageConnection(tenant_id=tenant.id, kind=StorageKind.FOLDER))
             added.append(f"storage {spec['slug']}")
+        # The logo writes files into the local storage: for a developer's own
+        # setup and the browser tests, not for the test suite.
+        if with_logo and spec.get("logo") and await _add_logo(session, tenant):
+            added.append(f"logo {spec['slug']}")
         for project in PROJECTS.get(spec["slug"], []):
             if await _add_project(session, tenant, project):
                 added.append(f"project {spec['slug']}/{project['slug']}")
     await session.commit()
     return added
+
+
+# A fictional logo (light and dark, and the PNG emails show), drawn for the dev office.
+BRAND = Path(__file__).with_name("brand")
+BRAND_FILES = {
+    "logo-dev.svg": "logo-light.svg",
+    "logo-dev.png": "logo-light.png",
+    "logo-dev-escuro.svg": "logo-dark.svg",
+}
+
+
+async def _add_logo(session: AsyncSession, tenant: Tenant) -> bool:
+    """The logo, unless the office already has one (an uploaded one is kept)."""
+    profile = await session.scalar(
+        select(OfficeProfile).where(OfficeProfile.tenant_id == tenant.id)
+    )
+    if profile is not None and profile.logo_file_id is not None:
+        return False
+    connection = await session.scalar(
+        select(StorageConnection).where(StorageConnection.tenant_id == tenant.id)
+    )
+    if connection is None or connection.kind is not StorageKind.FOLDER:
+        return False
+    folder = Path(Settings().local_storage_root) / connection.root_id / "_marca"
+    folder.mkdir(parents=True, exist_ok=True)
+    for name, source in BRAND_FILES.items():
+        (folder / name).write_bytes((BRAND / source).read_bytes())
+    if profile is None:
+        profile = OfficeProfile(tenant_id=tenant.id, display_name=tenant.name)
+        session.add(profile)
+    profile.logo_file_id, profile.logo_type = "_marca/logo-dev.svg", LogoType.SVG
+    profile.logo_png_file_id = "_marca/logo-dev.png"
+    profile.logo_dark_file_id, profile.logo_dark_type = "_marca/logo-dev-escuro.svg", LogoType.SVG
+    await session.flush()
+    return True
 
 
 async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> bool:
@@ -195,7 +237,7 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
             await session.scalars(
                 select(StageDef.key)
                 .join(ProjectTypeStage, ProjectTypeStage.stage_key == StageDef.key)
-                .where(ProjectTypeStage.project_type == spec["type"])
+                .where(ProjectTypeStage.project_type == spec["type"], ProjectTypeStage.usual)
                 .order_by(StageDef.position)
             )
         )
@@ -288,7 +330,7 @@ async def main() -> None:
     local_db.require_local_server(url)  # before writing anything
     engine = create_async_engine(url)
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        added = await seed(session)
+        added = await seed(session, with_logo=True)
     await engine.dispose()
     print("Added: " + ", ".join(added) if added else "Nothing to add; already seeded.")
 

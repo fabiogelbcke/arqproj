@@ -20,6 +20,10 @@ class ErrorCode(StrEnum):
     OPERATOR_ACTION_CONFLICT = "operator_action_conflict"
     OPERATOR_ACTION_FAILED = "operator_action_failed"
     OPERATOR_ACTIONS_UNAVAILABLE = "operator_actions_unavailable"
+    # The site's types and stages (A44).
+    INVALID_SETTING_TEXT = "invalid_setting_text"  # a name blank or too long, a text too long
+    SETTING_NAME_TAKEN = "setting_name_taken"  # another type (or stage) has that name
+    SETTING_NOT_FOUND = "setting_not_found"  # an unknown type or stage, or a list that isn't whole
     SIGNUP_LINK_INVALID = "signup_link_invalid"  # an office signup link used, expired or unknown
     OFFICE_ADDRESS_TAKEN = "office_address_taken"  # another office has that address
     INVALID_OFFICE_ADDRESS = "invalid_office_address"  # not a usable subdomain, or reserved
@@ -109,6 +113,10 @@ class ErrorCode(StrEnum):
     WRONG_SHARE_PASSWORD = "wrong_share_password"
     PROPOSAL_NOT_FOUND = "proposal_not_found"  # no such version, or none saved yet
     PROPOSAL_ACCEPTED = "proposal_accepted"  # the project now: its proposal stays as accepted
+    PORTFOLIO_FULL = "portfolio_full"  # as many works, or photos in one, as it holds
+    PORTFOLIO_ENTRY_NOT_FOUND = "portfolio_entry_not_found"  # removed meanwhile: reload
+    PORTFOLIO_VIDEO_REFUSED = "portfolio_video_refused"  # not an MP4 or WebM, or over 200 MB
+    PORTFOLIO_LINK_INVALID = "portfolio_link_invalid"  # not a profile on its network
 
 
 class ErrorOut(BaseModel):

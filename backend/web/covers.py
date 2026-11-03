@@ -50,7 +50,7 @@ _EXTENSIONS = {CoverType.PNG: "png", CoverType.JPEG: "jpg", CoverType.WEBP: "web
 PHOTO_HEADERS = {"Cache-Control": "private, max-age=86400"}
 
 
-async def _connection(request: Request, db: AsyncSession) -> StorageConnection | None:
+async def storage_connection(request: Request, db: AsyncSession) -> StorageConnection | None:
     connection = await db.scalar(select(StorageConnection))
     if connection is not None and connection.kind is StorageKind.FOLDER:
         if request.app.state.settings.deployed:
@@ -81,7 +81,7 @@ async def store_cover(
     if project.folder_id is None:
         raise ApiError(409, ErrorCode.PROJECT_HAS_NO_FOLDER)
     name = f"capa.{_EXTENSIONS[cover_type]}"
-    connection = await _connection(request, db)
+    connection = await storage_connection(request, db)
     previous = project.cover_file_id
 
     if connection is not None and connection.kind is StorageKind.FOLDER:
