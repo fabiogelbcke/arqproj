@@ -443,8 +443,8 @@ async def test_with_project_members_the_team_is_the_members_not_a_typed_responsi
     await db_session.execute(
         text(
             "INSERT INTO project_members (tenant_id, project_id, user_id) "
-            "SELECT p.tenant_id, p.id, u.id FROM projects p JOIN users u ON u.tenant_id = p.tenant_id "
-            "WHERE p.name = 'Casa Jardim'"
+            "SELECT p.tenant_id, p.id, u.id FROM projects p "
+            "JOIN users u ON u.tenant_id = p.tenant_id WHERE p.name = 'Casa Jardim'"
         )
     )
     await db_session.commit()
