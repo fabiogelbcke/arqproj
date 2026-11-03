@@ -97,15 +97,16 @@ function TypeForm({ catalog, kind }: { catalog: Catalog; kind: SiteType }) {
     const out: string[] = [];
     if (!sameTexts(labels, kind.labels) && kind.projects)
       out.push(t("admin.settings.warning.typeName", { count: kind.projects }));
-    for (const was of kind.stages) {
-      const row = rows.find((r) => r.key === was.key)!;
+    // Every stage, listed or not: a project may have one its type doesn't list.
+    for (const stage of catalog.stages) {
+      const row = rows.find((r) => r.key === stage.key)!;
+      const was = kind.stages.find((s) => s.key === stage.key)?.about ?? null;
       // "Outro" keeps only its ticked stages: unticking one drops its own words too.
       const kept = kind.lists_every_stage ? row.usual : row.listed;
       const now = kept && row.about.pt.trim() ? row.about : null;
-      if (was.projects && !sameTexts(now, was.about)) {
-        const name = catalog.stages.find((s) => s.key === was.key)?.titles.pt ?? was.key;
-        out.push(t("admin.settings.warning.stageAbout", { name, count: was.projects }));
-      }
+      const count = kind.stage_projects[stage.key] ?? 0;
+      if (count && !sameTexts(now, was))
+        out.push(t("admin.settings.warning.stageAbout", { name: stage.titles.pt, count }));
     }
     return out;
   };

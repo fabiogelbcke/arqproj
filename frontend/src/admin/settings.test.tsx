@@ -24,8 +24,10 @@ const CATALOG: Catalog = {
         { key: "briefing", usual: true, about: { pt: "Conversa sobre as imagens.", en: "A talk." }, projects: 3 },
         { key: "documentation", usual: false, about: null, projects: 1 },
       ],
+      // Levantamento isn't listed, but 2 of its projects added it themselves.
+      stage_projects: { briefing: 3, documentation: 1, survey: 2 },
     },
-    { key: "other", labels: { pt: "Outro", en: "Other" }, hidden: false, lists_every_stage: true, projects: 0, stages: [] },
+    { key: "other", labels: { pt: "Outro", en: "Other" }, hidden: false, lists_every_stage: true, projects: 0, stages: [], stage_projects: {} },
   ],
   stages: [
     { key: "briefing", titles: { pt: "Briefing", en: "Briefing" }, about: { pt: "Conversa inicial.", en: "First talk." }, hidden: false, projects: 9 },
@@ -160,6 +162,17 @@ describe("Configurações (A44)", () => {
     );
   });
 
+  it("warns when listing a stage with its own words reaches projects that added it themselves", async () => {
+    renderAt("/configuracoes/tipos/visualization");
+    await screen.findByRole("heading", { name: "Visualização Arquitetônica" });
+    const survey = screen.getByText("Levantamento").closest("li")!;
+    await userEvent.click(within(survey).getByRole("checkbox", { name: "Listada" }));
+    await userEvent.click(within(survey).getByRole("button", { name: "Escrever descrição própria" }));
+    await userEvent.type(within(survey).getByLabelText(/Português/), "Medidas do local.");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("A descrição de “Levantamento”, em 2 projetos");
+  });
+
   it("for Outro, chooses only the ticked stages: it lists every one", async () => {
     renderAt("/configuracoes/tipos/other");
     await screen.findByRole("heading", { name: "Outro" });
@@ -199,6 +212,7 @@ describe("Configurações (A44)", () => {
       ...CATALOG.types[1]!,
       projects: 2,
       stages: [{ key: "briefing", usual: true, about: { pt: "Conversa sobre o projeto.", en: "A talk." }, projects: 2 }],
+      stage_projects: { briefing: 2 },
     };
     renderAt("/configuracoes/tipos/other", {}, { ...CATALOG, types: [CATALOG.types[0]!, outro] });
     await screen.findByRole("heading", { name: "Outro" });

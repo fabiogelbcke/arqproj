@@ -64,6 +64,9 @@ class SiteTypeOut(BaseModel):
     lists_every_stage: bool
     stages: list[SiteTypeStageOut]  # in the stages' order
     projects: int
+    # Projects of this type that have each stage, listed or not (one may have been
+    # added from "Mostrar todas as etapas"): what its own words for it would reach.
+    stage_projects: dict[str, int]
 
 
 class SiteStageOut(BaseModel):
@@ -106,6 +109,11 @@ async def _catalog(request: Request) -> SiteCatalogOut:
                     for row in by_type.get(kind.key, [])
                 ],
                 projects=used.types[kind.key],
+                stage_projects={
+                    stage: count
+                    for (of_type, stage), count in used.type_stages.items()
+                    if of_type == kind.key
+                },
             )
             for kind in types
         ],

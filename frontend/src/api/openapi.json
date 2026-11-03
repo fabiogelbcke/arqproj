@@ -10754,6 +10754,13 @@
           "projects": {
             "type": "integer",
             "title": "Projects"
+          },
+          "stage_projects": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Stage Projects"
           }
         },
         "type": "object",
@@ -10763,7 +10770,8 @@
           "hidden",
           "lists_every_stage",
           "stages",
-          "projects"
+          "projects",
+          "stage_projects"
         ],
         "title": "SiteTypeOut"
       },

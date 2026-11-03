@@ -3173,6 +3173,10 @@ export interface components {
             stages: components["schemas"]["SiteTypeStageOut"][];
             /** Projects */
             projects: number;
+            /** Stage Projects */
+            stage_projects: {
+                [key: string]: number;
+            };
         };
         /** SiteTypeStageIn */
         SiteTypeStageIn: {

@@ -94,6 +94,8 @@ async def test_lists_types_and_stages_with_the_projects_that_use_them(
     assert not listed["detailing"]["usual"] and listed["detailing"]["about"] is None
     assert listed["briefing"]["projects"] >= 1
     assert stage(found, "briefing")["projects"] >= listed["briefing"]["projects"]
+    # Per stage, listed or not: what this type's own words for it would reach.
+    assert architecture["stage_projects"]["briefing"] == listed["briefing"]["projects"]
     assert kind(found, "other")["lists_every_stage"] is True
     # In order: the stages as every project lists them.
     keys = [s["key"] for s in found["stages"]]
