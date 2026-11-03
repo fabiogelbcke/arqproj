@@ -508,6 +508,50 @@ async def test_starting_afresh_gives_every_project_and_stage_an_empty_folder(
     assert drive_calls[0].endswith("/drive/v3/files") and drive_calls[1].endswith("/permissions")
 
 
+async def test_starting_afresh_drops_the_portfolios_photos_and_videos_but_keeps_its_works(
+    client, db_session, owner, google
+):
+    """They were files in the old account (Codex, 3 Nov 2026); the works' texts
+    stay, and the `_portfolio` folder is made again with the next photo."""
+    from backend.portfolio.models import (
+        Portfolio,
+        PortfolioEntry,
+        PortfolioPhoto,
+        PortfolioVideo,
+        VideoType,
+    )
+    from backend.projects.enums import CoverType
+
+    await other_account(client, db_session, owner, google)
+    tenant_id = (await connection(db_session)).tenant_id
+    portfolio = Portfolio(tenant_id=tenant_id, folder_id="old-folder")
+    db_session.add(portfolio)
+    await db_session.flush()
+    entry = PortfolioEntry(tenant_id=tenant_id, position=1, title="Casa Jardim")
+    db_session.add(entry)
+    await db_session.flush()
+    old = {"tenant_id": tenant_id, "entry_id": entry.id, "position": 1}
+    db_session.add(PortfolioPhoto(**old, file_id="old-photo", image_type=CoverType.JPEG))
+    db_session.add(
+        PortfolioVideo(
+            **old,
+            file_id="old-video",
+            video_type=VideoType.MP4,
+            poster_file_id="old-poster",
+            poster_type=CoverType.JPEG,
+        )
+    )
+    await db_session.commit()
+
+    done = await come_back(client, await start(client, owner, fresh=True))
+    assert done.headers["location"].endswith("resultado=conectado")
+    db_session.expire_all()
+    assert (await db_session.scalar(select(Portfolio.folder_id))) is None
+    assert (await db_session.scalar(select(PortfolioEntry.title))) == "Casa Jardim"
+    assert (await db_session.scalars(select(PortfolioPhoto))).all() == []
+    assert (await db_session.scalars(select(PortfolioVideo))).all() == []
+
+
 async def test_a_failure_while_starting_afresh_changes_nothing(client, db_session, owner, google):
     await other_account(client, db_session, owner, google)
     before = await folders_of(db_session)

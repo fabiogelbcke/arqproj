@@ -8,13 +8,16 @@ import { defineConfig, type Plugin } from "vite";
 // the browser's Host header so the backend picks the right office and the
 // sign-in cookie belongs to the address in the address bar.
 // The deployed app answers on /painel and /painel/ alike; Vite's dev server only
-// knows /painel/, so send the bare addresses there.
+// knows /painel/, so send the bare addresses there. On an office's address `/`
+// is the backend's (its portfolio, A45, or Unio's home), with its assets under
+// /brand: forwarded like /api, so the painel's "Ver prévia" works here too.
 export const devRedirects: Plugin = {
   name: "painel-dev-redirects",
   configureServer(server) {
     server.middlewares.use((request, response, next) => {
       const [path, query] = (request.url ?? "").split("?");
-      if (path === "/" || path === "/painel") {
+      const unios = (request.headers.host ?? "").split(":")[0] === "localhost";
+      if ((path === "/" && unios) || path === "/painel") {
         response.statusCode = 302;
         response.setHeader("Location", "/painel/" + (query ? `?${query}` : ""));
         response.end();
@@ -74,7 +77,12 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     allowedHosts: [".localhost"],
-    proxy: { "/api": { target: "http://127.0.0.1:8000", changeOrigin: false } },
+    proxy: {
+      "/api": { target: "http://127.0.0.1:8000", changeOrigin: false },
+      "/brand": { target: "http://127.0.0.1:8000", changeOrigin: false },
+      // `/` itself (with any query), not every path.
+      "^/(\\?.*)?$": { target: "http://127.0.0.1:8000", changeOrigin: false },
+    },
     // The translation catalogs live in backend/i18n, shared with the server.
     fs: { allow: [".", "../backend/i18n"] },
   },

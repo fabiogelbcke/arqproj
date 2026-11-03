@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 60" width="236" height="60">
+  <title>Alinea Arquitetura (fictícia)</title>
+  <g fill="#1d1d1b">
+    <rect x="0" y="6" width="3" height="48"/>
+    <rect x="9" y="10" width="38" height="8"/>
+    <rect x="9" y="26" width="26" height="8"/>
+    <rect x="9" y="42" width="14" height="8"/>
+  </g>
+  <text x="62" y="36" fill="#1d1d1b" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="33" font-weight="500" letter-spacing="-0.6">alinea</text>
+  <text x="63" y="53" fill="#6b6a64" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="9" font-weight="600" letter-spacing="3.6">ARQUITETURA</text>
+</svg>
