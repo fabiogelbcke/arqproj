@@ -123,6 +123,15 @@ describe("a new project's setup steps", () => {
     ]);
   });
 
+  it("list the project's own type's stages even when that type is hidden for new projects (A44)", async () => {
+    const hidden = { ...OPTIONS, types: [OPTIONS.types[1], { ...OPTIONS.types[0], hidden: true }] };
+    arrive({ "GET /api/project-types": () => ({ body: hidden }) });
+    const dialog = await screen.findByRole("dialog", { name: "Etapas" });
+    // Projeto Arquitetônico's usual stages, not the first type's (Interiores).
+    expect(await within(dialog).findByRole("checkbox", { name: "Projeto Legal" })).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: "Detalhamentos" })).not.toBeChecked();
+  });
+
   it("list only the stages that suit the type, the rest a click away", async () => {
     arrive({ "GET /api/pages/casa-do-lago": () => ({ body: { ...NEW, project_type_key: "interiors" } }) });
     const dialog = await screen.findByRole("dialog", { name: "Etapas" });

@@ -9625,6 +9625,11 @@
             },
             "type": "array",
             "title": "Offered"
+          },
+          "hidden": {
+            "type": "boolean",
+            "title": "Hidden",
+            "default": false
           }
         },
         "type": "object",

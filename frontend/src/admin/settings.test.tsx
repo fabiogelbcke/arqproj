@@ -194,6 +194,40 @@ describe("Configurações (A44)", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
+  it("warns that unticking an Outro stage with its own words changes its projects", async () => {
+    const outro = {
+      ...CATALOG.types[1]!,
+      projects: 2,
+      stages: [{ key: "briefing", usual: true, about: { pt: "Conversa sobre o projeto.", en: "A talk." }, projects: 2 }],
+    };
+    renderAt("/configuracoes/tipos/other", {}, { ...CATALOG, types: [CATALOG.types[0]!, outro] });
+    await screen.findByRole("heading", { name: "Outro" });
+    const briefing = screen.getByText("Briefing", { selector: "strong" }).closest("li")!;
+    await userEvent.click(within(briefing).getByRole("checkbox", { name: "Já vem marcada" }));
+    await userEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("A descrição de “Briefing”, em 2 projetos");
+  });
+
+  it("leaves English blank where it is the Portuguese, so a Portuguese fix reaches it", async () => {
+    const copied = { ...CATALOG.stages[1]!, titles: { pt: "Documentaçao", en: "Documentaçao" } };
+    const sent = renderAt(
+      "/configuracoes/etapas/documentation",
+      { "PUT /api/admin/settings/stages/documentation": () => ({ body: CATALOG }) },
+      { ...CATALOG, stages: [CATALOG.stages[0]!, copied, CATALOG.stages[2]!] },
+    );
+    await screen.findByRole("heading", { name: "Documentaçao" });
+    const [name] = screen.getAllByLabelText(/Português/);
+    const [english] = screen.getAllByLabelText(/Inglês/);
+    expect(english).toHaveValue("");
+    await userEvent.clear(name!);
+    await userEvent.type(name!, "Documentação");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Alterar mesmo assim" }));
+    await waitFor(() =>
+      expect(body(sent, "/api/admin/settings/stages/documentation")?.titles).toEqual({ pt: "Documentação", en: "" }),
+    );
+  });
+
   it("only shows the lists where the operator's login isn't set up", async () => {
     renderAt("/configuracoes/etapas/briefing", {}, { ...CATALOG, can_change: false });
     expect(await screen.findByText(/as listas podem ser vistas, mas não alteradas/)).toBeInTheDocument();

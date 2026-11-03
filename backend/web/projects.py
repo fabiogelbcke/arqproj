@@ -128,6 +128,9 @@ class ProjectTypeOption(BaseModel):
     # The stages listed when it is chosen, its usual ones among them; the rest stay
     # behind "Mostrar todas as etapas".
     offered: list[str]
+    # Not offered for a new choice, but a project that has it still finds its
+    # stages here (A44).
+    hidden: bool = False
 
 
 class CreationOptions(BaseModel):
@@ -306,8 +309,9 @@ async def project_types(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> CreationOptions:
-    # Only what may be chosen for a new project: hidden types and stages stay with
-    # the projects that have them (A44).
+    # Hidden stages may not be chosen any more (A44); hidden types are listed,
+    # marked, for the projects that have them, and the screens offer them for no
+    # new choice.
     stages = list(
         await db.scalars(select(StageDef).where(~StageDef.hidden).order_by(StageDef.position))
     )
@@ -333,12 +337,9 @@ async def project_types(
                     if stage.key
                     in (every if kind.key == ProjectType.OTHER else listed.get(kind.key, set()))
                 ],
+                hidden=kind.hidden,
             )
-            for kind in await db.scalars(
-                select(ProjectTypeDef)
-                .where(~ProjectTypeDef.hidden)
-                .order_by(ProjectTypeDef.position)
-            )
+            for kind in await db.scalars(select(ProjectTypeDef).order_by(ProjectTypeDef.position))
         ],
         stages=[
             StageOption(key=stage.key, title=_text(stage.titles, tenant.locale)) for stage in stages

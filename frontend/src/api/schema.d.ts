@@ -2707,6 +2707,11 @@ export interface components {
             stages: string[];
             /** Offered */
             offered: string[];
+            /**
+             * Hidden
+             * @default false
+             */
+            hidden: boolean;
         };
         /**
          * ProposalContent

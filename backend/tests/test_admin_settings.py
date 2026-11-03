@@ -285,7 +285,10 @@ async def test_a_hidden_type_stays_with_its_projects_but_is_no_longer_offered(
         f"{URL}/types/architecture", json=type_body(architecture, hidden=True), headers=headers
     )
     assert hidden.status_code == 200, hidden.text
-    assert "architecture" not in [t["key"] for t in (await options(client, owner))["types"]]
+    # Still listed, marked, for the projects that have it; the screens offer it for
+    # no new choice.
+    listed = {t["key"]: t for t in (await options(client, owner))["types"]}
+    assert listed["architecture"]["hidden"] is True and listed["interiors"]["hidden"] is False
     refused = await create(client, owner, project_type="architecture", slug="nova-casa")
     assert (refused.status_code, refused.json()["error"]) == (422, "unknown_project_type")
     page = (await client.get("/api/pages/casa-jardim", headers=owner)).json()

@@ -46,6 +46,10 @@ function useGuardedSave(save: () => void) {
   };
 }
 
+/** English blank again when it is the Portuguese (as a blank one is stored), so
+ *  a later Portuguese fix reaches it. */
+const editable = (texts: Texts): Texts => (texts.en.trim() === texts.pt.trim() ? { ...texts, en: "" } : texts);
+
 // `writing`: its own-words fields shown (they are when it has some).
 type Row = { key: string; listed: boolean; usual: boolean; about: Texts; writing: boolean };
 
@@ -61,7 +65,7 @@ export function TypePage() {
 function TypeForm({ catalog, kind }: { catalog: Catalog; kind: SiteType }) {
   const { t } = useTranslation();
   const change = useChangeType(kind.key);
-  const [labels, setLabels] = useState<Texts>(kind.labels);
+  const [labels, setLabels] = useState<Texts>(() => editable(kind.labels));
   const [hidden, setHidden] = useState(kind.hidden);
   const [rows, setRows] = useState<Row[]>(() =>
     catalog.stages.map((stage) => {
@@ -70,7 +74,7 @@ function TypeForm({ catalog, kind }: { catalog: Catalog; kind: SiteType }) {
         key: stage.key,
         listed: kind.lists_every_stage || !!listed,
         usual: !!listed?.usual,
-        about: listed?.about ?? { pt: "", en: "" },
+        about: listed?.about ? editable(listed.about) : { pt: "", en: "" },
         writing: !!listed?.about,
       };
     }),
@@ -95,7 +99,9 @@ function TypeForm({ catalog, kind }: { catalog: Catalog; kind: SiteType }) {
       out.push(t("admin.settings.warning.typeName", { count: kind.projects }));
     for (const was of kind.stages) {
       const row = rows.find((r) => r.key === was.key)!;
-      const now = row.listed && row.about.pt.trim() ? row.about : null;
+      // "Outro" keeps only its ticked stages: unticking one drops its own words too.
+      const kept = kind.lists_every_stage ? row.usual : row.listed;
+      const now = kept && row.about.pt.trim() ? row.about : null;
       if (was.projects && !sameTexts(now, was.about)) {
         const name = catalog.stages.find((s) => s.key === was.key)?.titles.pt ?? was.key;
         out.push(t("admin.settings.warning.stageAbout", { name, count: was.projects }));
@@ -211,8 +217,8 @@ export function StagePage() {
 function StageForm({ catalog, stage }: { catalog: Catalog; stage: SiteStage }) {
   const { t } = useTranslation();
   const change = useChangeStage(stage.key);
-  const [titles, setTitles] = useState<Texts>(stage.titles);
-  const [about, setAbout] = useState<Texts>(stage.about);
+  const [titles, setTitles] = useState<Texts>(() => editable(stage.titles));
+  const [about, setAbout] = useState<Texts>(() => editable(stage.about));
   const [hidden, setHidden] = useState(stage.hidden);
   const save = () => change.mutate({ titles, about, hidden }, { onSuccess: () => toast(t("admin.settings.saved")) });
   const guard = useGuardedSave(save);
