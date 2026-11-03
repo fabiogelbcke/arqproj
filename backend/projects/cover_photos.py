@@ -26,7 +26,7 @@ class PhotoSize(StrEnum):
 
 @cache
 def cover_photo_names() -> tuple[str, ...]:
-    """Every photo's name (`capa-07`), in order."""
+    """Every photo's name (`capa-01`), in order."""
     return tuple(sorted(p.stem for p in (PHOTOS_DIR / PhotoSize.FULL).glob("*.jpg")))
 
 

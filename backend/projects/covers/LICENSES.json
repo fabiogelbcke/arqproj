@@ -27,15 +27,6 @@
     "landing": "https://stocksnap.io/photo/modern-design-WCEWXCO0AZ"
   },
   {
-    "file": "capa-04.jpg",
-    "title": "Modern Architecture",
-    "creator": "Matt Bango",
-    "license": "cc0",
-    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-    "source": "stocksnap",
-    "landing": "https://stocksnap.io/photo/modern-architecture-XABHOVA4DD"
-  },
-  {
     "file": "capa-05.jpg",
     "title": "Living Room",
     "creator": "Dan Gold",
@@ -52,33 +43,6 @@
     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
     "source": "stocksnap",
     "landing": "https://stocksnap.io/photo/modern-design-9C2G9JRPLS"
-  },
-  {
-    "file": "capa-07.jpg",
-    "title": "Modern House",
-    "creator": "Matt Bango",
-    "license": "cc0",
-    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-    "source": "stocksnap",
-    "landing": "https://stocksnap.io/photo/modern-house-UIU7D31EDY"
-  },
-  {
-    "file": "capa-08.jpg",
-    "title": "Modern Building",
-    "creator": "Matt Bango",
-    "license": "cc0",
-    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-    "source": "stocksnap",
-    "landing": "https://stocksnap.io/photo/modern-building-JZANRFBXJC"
-  },
-  {
-    "file": "capa-09.jpg",
-    "title": "Modern Design",
-    "creator": "Matt Bango",
-    "license": "cc0",
-    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-    "source": "stocksnap",
-    "landing": "https://stocksnap.io/photo/modern-design-DTZVUDUTRV"
   },
   {
     "file": "capa-10.jpg",
@@ -106,24 +70,6 @@
     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
     "source": "stocksnap",
     "landing": "https://stocksnap.io/photo/modern-city-SECHXFKSCR"
-  },
-  {
-    "file": "capa-13.jpg",
-    "title": "Home House",
-    "creator": "Breather",
-    "license": "cc0",
-    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-    "source": "stocksnap",
-    "landing": "https://stocksnap.io/photo/home-house-87ONRC5PWV"
-  },
-  {
-    "file": "capa-14.jpg",
-    "title": "House Interior",
-    "creator": "Tim Wright",
-    "license": "cc0",
-    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-    "source": "stocksnap",
-    "landing": "https://stocksnap.io/photo/house-interior-XCOZ3XTV7M"
   },
   {
     "file": "capa-15.jpg",
@@ -187,15 +133,6 @@
     "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
     "source": "rawpixel",
     "landing": "https://www.rawpixel.com/image/6042800/photo-image-public-domain-minimal-house"
-  },
-  {
-    "file": "capa-22.jpg",
-    "title": "Furniture Patio",
-    "creator": "World Travel Adventures",
-    "license": "cc0",
-    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-    "source": "stocksnap",
-    "landing": "https://stocksnap.io/photo/furniture-patio-KOIAWLY3SU"
   },
   {
     "file": "capa-23.jpg",
@@ -478,15 +415,6 @@
     "license_url": "https://www.pexels.com/license/",
     "source": "pexels",
     "landing": "https://www.pexels.com/photo/5627424/"
-  },
-  {
-    "file": "capa-55.jpg",
-    "original": "pexels-da-na-461418424-29340177.jpg",
-    "creator": "da-na-461418424",
-    "license": "pexels",
-    "license_url": "https://www.pexels.com/license/",
-    "source": "pexels",
-    "landing": "https://www.pexels.com/photo/29340177/"
   },
   {
     "file": "capa-56.jpg",

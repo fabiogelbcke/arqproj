@@ -123,12 +123,12 @@ async def choose(client, headers, found, name):
 async def test_a_stock_photo_can_replace_an_uploaded_cover(client, owner, tmp_path):
     found = await project(client)
     uploaded = (await upload(client, owner, found, PNG)).json()
-    response = await choose(client, owner, found, "capa-55")
+    response = await choose(client, owner, found, "capa-56")
     assert response.status_code == 200, response.text
     assert response.json()["cover_url"] != uploaded["cover_url"]
     capa = tmp_path / "Casa Jardim" / "_capa"
     assert [p.name for p in capa.iterdir()] == ["capa.jpg"]  # the upload is gone
-    assert (capa / "capa.jpg").read_bytes() == full("capa-55")
+    assert (capa / "capa.jpg").read_bytes() == full("capa-56")
 
 
 async def test_each_new_cover_gets_a_new_address_even_under_the_same_file_name(

@@ -27,8 +27,8 @@ placeholder photo from a small bundled set (26 CC0 photos) meanwhile, and
 no hero without one. "Trocar foto" opened the file picker and the cropper
 straight away.
 
-**Now:** at creation, a project gets one of the bundled photos (now 70: the 26
-plus 44 Fabio chose) as its real cover, stored in its `_capa` folder like an
+**Now:** at creation, a project gets one of the bundled photos (now 62: 19 of the 26
+plus 43 Fabio chose) as its real cover, stored in its `_capa` folder like an
 upload, so clients see it too. Wherever staff choose a cover, a dialog offers an
 upload or another bundled photo. "Remover foto" leaves the project without a
 cover (no new photo is picked); the painel placeholder and the empty client hero
