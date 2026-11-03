@@ -279,6 +279,29 @@ describe("a new project's setup steps", () => {
     ]);
   });
 
+  it("set a suggested photo as the cover only on Continuar", async () => {
+    const sent = arrive({
+      "GET /api/cover-photos": () => ({ body: [{ name: "capa-12", small_url: "/api/cover-photos/capa-12/small" }] }),
+      "PUT /api/projects/p-1/cover/stock": () => ({ body: { row_version: 1 } }),
+    });
+    let dialog = await screen.findByRole("dialog", { name: "Etapas" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Pular" }));
+    dialog = await screen.findByRole("dialog", { name: "Descrição e informações" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Pular" }));
+    dialog = await screen.findByRole("dialog", { name: "Foto de capa" });
+    await userEvent.click(within(dialog).getByRole("button", { name: /Adicionar foto de capa/ }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(await within(picker).findByRole("button", { name: "Foto 1" }));
+    expect(await within(dialog).findByRole("button", { name: "Trocar capa" })).toBeInTheDocument();
+    expect(dialog.querySelector("img")).toHaveAttribute("src", "/api/cover-photos/capa-12/small");
+    expect(writes(sent)).toEqual([]);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Continuar" }));
+    expect(await screen.findByRole("dialog", { name: "E-mails do cliente" })).toBeInTheDocument();
+    expect(writes(sent).map((r) => [r.method, r.path, r.body])).toEqual([
+      ["PUT", "/api/projects/p-1/cover/stock", { name: "capa-12" }],
+    ]);
+  });
+
   it("upload the cover once it's cropped, and only on Continuar", async () => {
     const sent = arrive({ "PUT /api/projects/p-1/cover": () => ({ body: { row_version: 1 } }) });
     let dialog = await screen.findByRole("dialog", { name: "Etapas" });
@@ -287,6 +310,8 @@ describe("a new project's setup steps", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Pular" }));
     dialog = await screen.findByRole("dialog", { name: "Foto de capa" });
     await userEvent.click(within(dialog).getByRole("button", { name: /Adicionar foto de capa/ }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(within(picker).getByRole("button", { name: "Enviar do computador" }));
     const input = dialog.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
     const crop = await screen.findByRole("dialog", { name: "Ajustar a capa" });

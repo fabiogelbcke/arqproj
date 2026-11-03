@@ -56,6 +56,7 @@ from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
+from backend.web.covers import give_default_cover
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
 
@@ -413,4 +414,7 @@ async def new_project(
                 "proposal": body.proposal,
             },
         )
-    return (await summaries(db, tenant, only=project.id))[0]
+    project_id = project.id  # giving the cover expires the loaded rows
+    if project.cover_file_id is None:  # not when this was a resent creation that has one
+        await give_default_cover(request, db, tenant, project)
+    return (await summaries(db, tenant, only=project_id))[0]

@@ -2,13 +2,16 @@
 // Brazilian Portuguese like all demo data. Dates are counted from today, so the
 // meeting is always ahead and the files are recent.
 import type { Schemas } from "../../api/client";
-import roof from "../../projects/covers/capa-01.jpg";
 import house from "./images/capa-exemplo.jpg";
-import pool from "../../projects/covers/capa-07.jpg";
-import facade from "../../projects/covers/capa-09.jpg";
+import facade from "./images/fachada-exemplo.jpg";
+import pool from "./images/piscina-exemplo.jpg";
+import roof from "./images/telhado-exemplo.jpg";
 import type { Detail } from "../format";
 import dwg from "./files/planta-exemplo.dwg?url";
 import pdf from "./files/folha-exemplo.pdf?url";
+
+/** What the cover picker offers on the example page, which reaches no server. */
+export const EXAMPLE_COVER_PHOTOS = { "exemplo-casa": house, "exemplo-telhado": roof, "exemplo-piscina": pool, "exemplo-fachada": facade };
 
 export const EXAMPLE_TIMEZONE = "America/Sao_Paulo"; // without a signed-in office's own
 

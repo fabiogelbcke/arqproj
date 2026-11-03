@@ -19,6 +19,29 @@ a new entry too.
 
 ---
 
+## 2026-11-03 — A24 and section 10: a new project starts with a stock cover, which clients see
+
+**Was:** a project had no cover until staff uploaded one. The painel showed a
+placeholder photo from a small bundled set (26 CC0 photos) meanwhile, and
+**clients only ever saw a cover the architect uploaded**: the client page showed
+no hero without one. "Trocar foto" opened the file picker and the cropper
+straight away.
+
+**Now:** at creation, a project gets one of the bundled photos (now 70: the 26
+plus 44 Fabio chose) as its real cover, stored in its `_capa` folder like an
+upload, so clients see it too. Wherever staff choose a cover, a dialog offers an
+upload or another bundled photo. "Remover foto" leaves the project without a
+cover (no new photo is picked); the painel placeholder and the empty client hero
+stay as they were for that case and for projects created before.
+
+**Why:** Fabio, 3 Nov 2026: new projects should look finished from the start
+instead of waiting for a photo. Asked whether clients should see the stock
+photo or only the painel, he chose clients too; asked about removal, he chose
+"no photo after removing"; he then added the choice of a bundled photo when
+picking a cover. Storing the photo like an upload (rather than a reference to a
+bundled file) keeps one cover path for the client page, its preview tags and
+removal, with no schema change.
+
 ## 2026-11-03 — A27: Visualização's Documentação before Entrega Prévia
 
 **Was:** Entrega Prévia, Documentação, Revisões, Entrega Final.

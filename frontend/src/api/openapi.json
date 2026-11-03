@@ -3737,6 +3737,122 @@
         }
       }
     },
+    "/api/projects/{project_id}/cover/stock": {
+      "put": {
+        "summary": "Choose Stock Cover",
+        "description": "One of the bundled photos as the cover, stored like an uploaded one.",
+        "operationId": "choose_stock_cover_api_projects__project_id__cover_stock_put",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockCoverChoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cover-photos": {
+      "get": {
+        "summary": "Cover Photos",
+        "operationId": "cover_photos_api_cover_photos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CoverPhoto"
+                  },
+                  "type": "array",
+                  "title": "Response Cover Photos Api Cover Photos Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/api/proposals": {
       "get": {
         "summary": "Proposal List",
@@ -6751,6 +6867,24 @@
         ],
         "title": "ContentIn"
       },
+      "CoverPhoto": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "small_url": {
+            "type": "string",
+            "title": "Small Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "small_url"
+        ],
+        "title": "CoverPhoto"
+      },
       "CreateIn": {
         "properties": {
           "token": {
@@ -7133,6 +7267,7 @@
           "project_archived",
           "cover_wrong_type",
           "cover_too_large",
+          "cover_photo_not_found",
           "page_not_found",
           "page_locked",
           "page_unavailable",
@@ -10201,6 +10336,20 @@
           "url"
         ],
         "title": "StartOut"
+      },
+      "StockCoverChoice": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "StockCoverChoice"
       },
       "StorageKind": {
         "type": "string",

@@ -48,6 +48,11 @@ async def create(client, headers, **changes):
     return await client.post("/api/projects", json=body(**changes), headers=headers)
 
 
+def stage_folders(project_folder):
+    """The folders in a project's folder, leaving out its cover's `_capa`."""
+    return sorted(p.name for p in project_folder.iterdir() if p.name != "_capa")
+
+
 async def project_count(db, slug="alinea"):
     t = await tenant_id(db, slug)
     await db.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(t)})
@@ -71,7 +76,7 @@ async def test_a_new_project_is_published_with_its_type_ticked_stages_and_folder
     assert created["project_type"] == "architecture"
     assert created["completed_stage_count"] == 0
 
-    folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
+    folders = stage_folders(tmp_path / "Casa do Lago")
     assert len(folders) == 7 and folders[0] == "01 - Briefing"
     assert folders[-1] == "07 - Compatibilização"
     stages = list(
@@ -101,7 +106,7 @@ async def test_ticked_stages_come_in_the_shared_order_whatever_the_type(client, 
     )
     assert response.status_code == 201, response.text
     assert (response.json()["project_type"], response.json()["stage_count"]) == ("interiors", 2)
-    folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
+    folders = stage_folders(tmp_path / "Casa do Lago")
     assert folders == ["01 - Projeto Legal", "02 - Especificações"]
 
 
@@ -112,7 +117,7 @@ async def test_the_offices_own_stages_come_after_the_built_in_ones_as_typed(
         client, owner, stages=["survey"], custom_stages=["  Visita técnica ", "Maquete"]
     )
     assert response.status_code == 201, response.text
-    folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
+    folders = stage_folders(tmp_path / "Casa do Lago")
     assert folders == ["01 - Levantamento", "02 - Visita técnica", "03 - Maquete"]
     stages = list(
         await db_session.scalars(
@@ -150,7 +155,7 @@ async def test_an_own_stage_that_cant_be_told_apart_is_refused(
 async def test_with_every_stage_unticked_only_the_project_folder_is_made(client, owner, tmp_path):
     response = await create(client, owner, stages=[])
     assert (response.json()["stage_count"], response.json()["completed_stage_count"]) == (0, 0)
-    assert list((tmp_path / "Casa do Lago").iterdir()) == []
+    assert stage_folders(tmp_path / "Casa do Lago") == []
 
 
 async def test_outro_keeps_the_name_the_office_typed(client, owner):
@@ -340,7 +345,8 @@ async def test_on_drive_folders_go_inside_the_offices_folder(client, owner, on_g
     fake, _ = on_google
     response = await create(client, owner)
     assert response.status_code == 201, response.text
-    assert fake.calls.count("POST /drive/v3/files") == 1 + 7  # project + stages
+    assert fake.calls.count("POST /drive/v3/files") == 1 + 7 + 1  # project, stages, _capa
+    assert fake.calls.count("POST /upload/drive/v3/files") == 1  # the default cover
 
 
 class FailsOnThirdFolder(FakeGoogle):

@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 
 import { api, call } from "../api/client";
 import { LIMITS } from "../api/limits";
+import { CoverPhotoDialog } from "../projects/CoverPhotoDialog";
 import { type CreationOptions } from "../projects/projects";
 import projectStyles from "../projects/projects.module.css";
 import { SETUP_STEPS } from "../projects/setup";
@@ -214,10 +215,11 @@ function CoverStep({ page, staff, version, onSaved, onSkip, last }: StepProps) {
   const { t } = useTranslation();
   const input = useRef<HTMLInputElement>(null);
   const [cropping, setCropping] = useState<string | null>(null);
-  // The photo just cropped, shown until the page behind has it.
-  const [chosen, setChosen] = useState<{ file: File; url: string } | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  // The photo just cropped, or the bundled one picked, shown until the page behind has it.
+  const [chosen, setChosen] = useState<{ file: File; url: string } | { stock: string; url: string } | null>(null);
   useEffect(() => () => {
-    if (chosen) URL.revokeObjectURL(chosen.url);
+    if (chosen && "file" in chosen) URL.revokeObjectURL(chosen.url);
   }, [chosen]);
   // The cover doesn't change the row version.
   const save = useSave(() => onSaved(version), { quiet: true });
@@ -228,6 +230,17 @@ function CoverStep({ page, staff, version, onSaved, onSkip, last }: StepProps) {
       onSubmit={(event) => {
         event.preventDefault();
         if (!chosen) return onSkip();
+        if ("stock" in chosen) {
+          void save.run(() =>
+            call(
+              api.PUT("/api/projects/{project_id}/cover/stock", {
+                params: { path: { project_id: staff.project_id } },
+                body: { name: chosen.stock },
+              }),
+            ),
+          );
+          return;
+        }
         void save.run(() =>
           call(
             api.PUT("/api/projects/{project_id}/cover", {
@@ -248,13 +261,13 @@ function CoverStep({ page, staff, version, onSaved, onSkip, last }: StepProps) {
       {shown ? (
         <img className={projectStyles.setupCover} src={shown} alt="" />
       ) : (
-        <button type="button" className={projectStyles.setupCoverEmpty} onClick={() => input.current?.click()}>
+        <button type="button" className={projectStyles.setupCoverEmpty} onClick={() => setChoosing(true)}>
           <strong>{t("edit.addCover")}</strong>
           <span>{t("edit.addCoverHint")}</span>
         </button>
       )}
       {shown && (
-        <Button onPress={() => input.current?.click()} isDisabled={save.busy}>
+        <Button onPress={() => setChoosing(true)} isDisabled={save.busy}>
           {t("edit.changeCover")}
         </Button>
       )}
@@ -269,6 +282,13 @@ function CoverStep({ page, staff, version, onSaved, onSkip, last }: StepProps) {
           if (file) setCropping(URL.createObjectURL(file));
         }}
       />
+      {choosing && (
+        <CoverPhotoDialog
+          onClose={() => setChoosing(false)}
+          onUpload={() => input.current?.click()}
+          onPick={(name, url) => setChosen({ stock: name, url })}
+        />
+      )}
       {cropping && (
         <ImageCropDialog
           source={cropping}

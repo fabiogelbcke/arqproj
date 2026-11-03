@@ -171,7 +171,7 @@
     },
     "stagesHintProposal": "Each of the proposal's services becomes a stage: those matching a known stage use it, and the others keep the service's name. Each stage gets a folder in the office's Google Drive.",
     "stagesHint": "This project type's usual stages come ticked. Each stage gets a folder in the office's Google Drive, and you can change them later in edit mode.",
-    "coverHint": "The photo shows at the top of the project page and on its card in the painel.",
+    "coverHint": "The photo shows at the top of the project page and on its card in the painel. You can upload your own or choose one of the suggested photos.",
     "makingStages": "Creating stages ({{done}} of {{total}})…",
     "done": "Project set up. You can change any of this in edit mode.",
     "skip": "Skip",
@@ -297,6 +297,7 @@
     "project_has_no_folder": "This project doesn't have a Google Drive folder yet, so it can't take a photo.",
     "cover_wrong_type": "Choose a JPG, PNG or WebP image.",
     "cover_too_large": "Choose an image of up to 10 MB.",
+    "cover_photo_not_found": "That photo is no longer available. Choose another one.",
     "project_archived": "This project is archived and can't be changed. Restore it first.",
     "invalid_custom_type": "Enter the project type, in up to 40 characters.",
     "unknown_project_type": "Choose a project type.",
@@ -485,6 +486,14 @@
     "unreadable": "This image couldn't be opened. Choose a PNG, JPG, WebP or SVG file.",
     "cancel": "Cancel",
     "apply": "Use crop"
+  },
+  "coverPhotos": {
+    "title": "Choose a cover photo",
+    "upload": "Upload from your computer",
+    "uploadHint": "JPG, PNG or WebP, up to 10 MB. You can adjust the framing.",
+    "gallery": "Or choose one of these photos",
+    "photo": "Photo {{number}}",
+    "unavailable": "The photos couldn't be loaded. Try again in a moment."
   },
   "tour": {
     "stageTitle": "Finishing a stage",
@@ -683,7 +692,7 @@
     "completed": "Project completed.",
     "clientsNotified": "Clients subscribed to this project will be notified by email.",
     "addCover": "Add a cover photo",
-    "addCoverHint": "JPG, PNG or WebP. After choosing, you adjust the crop.",
+    "addCoverHint": "Upload your own photo or choose one of the suggested ones.",
     "changeCover": "Change cover",
     "coverSaved": "Cover updated.",
     "removeCover": "Remove cover",
