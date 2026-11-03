@@ -17,6 +17,7 @@ from backend.web.errors import ApiError, ErrorCode
 # Child tables first. Explicit list: a new dependency fails closed until reviewed.
 TENANT_TABLES = (
     "portfolio_photos",
+    "portfolio_videos",
     "portfolio_entries",
     "portfolios",
     "share_link_files",

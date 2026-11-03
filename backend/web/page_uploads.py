@@ -211,6 +211,32 @@ async def _as_new_version(
     return found["f"], versions.next_name(documents, document)
 
 
+def local_upload_url(
+    request: Request, tenant: CurrentTenant, folder: str, name: str, size: int
+) -> str:
+    """Local folders: where the browser sends the file (receive_local_upload), as
+    it would to Google's session. `folder`: relative to the office's local root."""
+    token = keys.encrypt(
+        request.app.state.settings.app_secret,
+        LOCAL_PURPOSE,
+        json.dumps(
+            {
+                "t": str(tenant.id),
+                "f": folder,
+                "n": name,
+                "s": size,
+                "exp": int(time.time()) + LOCAL_SECONDS,
+            }
+        ),
+    )
+    return f"/api/local-uploads/{token}"
+
+
+def upload_origin(request: Request, tenant: CurrentTenant) -> str:
+    """The browser's own origin, so Google lets that page send the bytes (CORS)."""
+    return request.headers.get("origin") or _origin(request, tenant)
+
+
 @router.post(
     "/api/projects/{project_id}/stages/{position}/uploads",
     responses=documented(401, 404, 409, 422, 503),
@@ -244,25 +270,14 @@ async def start_upload(
             raise _listing_failed(error, tenant, project_id, position) from None
     maker, _root = await _folders(request, db)
     if isinstance(maker, LocalFolders):
-        token = keys.encrypt(
-            request.app.state.settings.app_secret,
-            LOCAL_PURPOSE,
-            json.dumps(
-                {
-                    "t": str(tenant.id),
-                    "f": folder,
-                    "n": name,
-                    "s": body.size,
-                    "exp": int(time.time()) + LOCAL_SECONDS,
-                }
-            ),
-        )
-        return UploadOut(upload_url=f"/api/local-uploads/{token}")
-    # The browser's own origin, so Google lets that page send the bytes (CORS).
-    origin = request.headers.get("origin") or _origin(request, tenant)
+        return UploadOut(upload_url=local_upload_url(request, tenant, folder, name, body.size))
     try:
         url = await maker.start_upload(
-            name, folder, body.size, body.mime_type or "application/octet-stream", origin
+            name,
+            folder,
+            body.size,
+            body.mime_type or "application/octet-stream",
+            upload_origin(request, tenant),
         )
     except ConnectError as error:
         log.error(

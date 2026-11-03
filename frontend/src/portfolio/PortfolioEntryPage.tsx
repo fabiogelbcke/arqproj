@@ -1,34 +1,45 @@
-// One work of the portfolio: /painel/portfolio/:entryId. Its texts, and its
+// One work of the portfolio: /painel/portfolio/:entryId. Its texts, its
 // photos in order (the first is its cover): sent from the computer, or picked
 // from a project's images. Either way the browser shrinks each to a JPEG of at
-// most 2400 px and uploads it; the portfolio keeps its own copy.
-import { useQuery } from "@tanstack/react-query";
+// most 2400 px and uploads it; the portfolio keeps its own copy. And its videos,
+// sent from the computer straight to the office's storage.
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router";
 
-import { api, call } from "../api/client";
+import { api, ApiError, call } from "../api/client";
 import { fileSource } from "../client/format";
-import { useProjects, type ProjectSummary } from "../projects/projects";
+import { useCreationOptions, useProjects, type ProjectSummary } from "../projects/projects";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { IconButton } from "../ui/IconButton";
 import { Panel } from "../ui/Panel";
+import { SelectField } from "../ui/SelectField";
 import { TextAreaField, TextField } from "../ui/TextField";
-import { toast, toastError } from "../ui/Toast";
+import { toast, toastError, toastProblem } from "../ui/Toast";
 import {
   LIMITS,
+  PORTFOLIO,
+  VIDEO_TYPES,
+  areaText,
   moved,
+  parsedArea,
   resized,
+  sendVideo,
   useAddPhoto,
   useChangeEntry,
   usePortfolio,
   useRemovePhoto,
+  useRemoveVideo,
+  videoPoster,
   type Entry,
 } from "./portfolio";
 import { ProjectChoice } from "./PortfolioPage";
 import styles from "./portfolio.module.css";
+
+const STATUSES = ["completed", "in_progress"] as const;
 
 export function PortfolioEntryPage() {
   const { t } = useTranslation();
@@ -55,6 +66,7 @@ export function PortfolioEntryPage() {
         <>
           <Details key={entry.id} entry={entry} />
           <Photos entry={entry} />
+          <Videos entry={entry} />
         </>
       )}
     </div>
@@ -68,18 +80,43 @@ function Details({ entry }: { entry: Entry }) {
   const [place, setPlace] = useState(entry.place);
   const [year, setYear] = useState(entry.year ? String(entry.year) : "");
   const [description, setDescription] = useState(entry.description);
+  const [kind, setKind] = useState(entry.project_type ?? "");
+  const [area, setArea] = useState(areaText(entry.area));
+  const [status, setStatus] = useState<string>(entry.status ?? "");
+  const [team, setTeam] = useState(entry.team);
+  const [credits, setCredits] = useState(entry.credits);
+  const types = useCreationOptions().data?.types ?? [];
   const yearNumber = year.trim() ? Number(year.trim()) : null;
   const yearOk = yearNumber === null || (Number.isInteger(yearNumber) && yearNumber >= 1900 && yearNumber <= 2100);
+  const areaNumber = parsedArea(area);
+  const areaOk = areaNumber !== undefined;
   const changed =
     title.trim() !== entry.title ||
     place.trim() !== entry.place ||
     yearNumber !== entry.year ||
-    description.trim() !== entry.description;
+    description.trim() !== entry.description ||
+    kind !== (entry.project_type ?? "") ||
+    (areaOk && areaNumber !== (entry.area == null ? null : Number(entry.area))) ||
+    status !== (entry.status ?? "") ||
+    team.trim() !== entry.team ||
+    credits.trim() !== entry.credits;
   return (
     <Panel className={styles.section} aria-labelledby="portfolio-details">
       <h2 id="portfolio-details">{t("portfolio.details")}</h2>
       {entry.project_name && <p className={styles.hint}>{t("portfolio.linked", { name: entry.project_name })}</p>}
       <TextField label={t("portfolio.titleLabel")} value={title} onChange={setTitle} maxLength={LIMITS.title} isRequired />
+      <div>
+        <SelectField
+          label={t("portfolio.type")}
+          value={kind}
+          options={[
+            { value: "", label: t("portfolio.typeNone") },
+            ...types.map((type) => ({ value: type.key, label: t(`portfolio.types.${type.key}`, type.label) })),
+          ]}
+          onChange={setKind}
+        />
+        <p className={styles.hint}>{t("portfolio.typeHint")}</p>
+      </div>
       <div className={styles.pair}>
         <TextField
           label={t("portfolio.place")}
@@ -99,6 +136,34 @@ function Details({ entry }: { entry: Entry }) {
           validationBehavior="aria"
         />
       </div>
+      <div className={styles.pair}>
+        <TextField
+          label={t("portfolio.area")}
+          placeholder="180"
+          inputMode="decimal"
+          value={area}
+          onChange={setArea}
+          isInvalid={!areaOk}
+          validate={() => (areaOk ? null : t("portfolio.areaInvalid"))}
+          validationBehavior="aria"
+        />
+        <SelectField
+          label={t("portfolio.status")}
+          value={status}
+          options={[
+            { value: "", label: t("portfolio.statusNone") },
+            ...STATUSES.map((value) => ({ value, label: t(`portfolio.statuses.${value}`) })),
+          ]}
+          onChange={setStatus}
+        />
+      </div>
+      <TextField
+        label={t("portfolio.team")}
+        placeholder={t("portfolio.teamPlaceholder")}
+        value={team}
+        onChange={setTeam}
+        maxLength={LIMITS.team}
+      />
       <TextAreaField
         label={t("portfolio.description")}
         description={t("portfolio.descriptionHint")}
@@ -107,13 +172,31 @@ function Details({ entry }: { entry: Entry }) {
         maxLength={LIMITS.description}
         rows={5}
       />
+      <TextField
+        label={t("portfolio.credits")}
+        placeholder={t("portfolio.creditsPlaceholder")}
+        value={credits}
+        onChange={setCredits}
+        maxLength={LIMITS.credits}
+      />
       <Button
         size="small"
         className={styles.save}
-        isDisabled={!changed || !title.trim() || !yearOk || change.isPending}
+        isDisabled={!changed || !title.trim() || !yearOk || !areaOk || change.isPending}
         onPress={() =>
           change.mutate(
-            { id: entry.id, title: title.trim(), place, year: yearNumber, description },
+            {
+              id: entry.id,
+              title: title.trim(),
+              place,
+              year: yearNumber,
+              description,
+              project_type: kind || null,
+              area: areaNumber ?? null,
+              status: (status || null) as Entry["status"],
+              team,
+              credits,
+            },
             { onSuccess: () => toast(t("portfolio.saved")), onError: (failure) => toastError(failure) },
           )
         }
@@ -253,6 +336,130 @@ function Photos({ entry }: { entry: Entry }) {
             );
           }}
         />
+      )}
+    </section>
+  );
+}
+
+function Videos({ entry }: { entry: Entry }) {
+  const { t } = useTranslation();
+  const client = useQueryClient();
+  const change = useChangeEntry();
+  const remove = useRemoveVideo();
+  const input = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState<{ n: number; total: number; percent: number } | null>(null);
+  const room = LIMITS.videos - entry.videos.length;
+
+  /** Each in turn: its poster first, which also shows the browser can play it. */
+  async function upload(files: File[]) {
+    const chosen = files.slice(0, Math.max(0, room));
+    let added = 0;
+    try {
+      for (const [index, file] of chosen.entries()) {
+        if (!VIDEO_TYPES.includes(file.type) || file.size > LIMITS.videoMb * 1024 * 1024) {
+          throw new ApiError("portfolio_video_refused");
+        }
+        setProgress({ n: index + 1, total: chosen.length, percent: 0 });
+        const poster = await videoPoster(file).catch(() => null);
+        if (!poster) {
+          toastProblem(t("portfolio.videoUnreadable", { name: file.name }));
+          break;
+        }
+        const portfolio = await sendVideo(entry.id, file, poster, (fraction) =>
+          setProgress({ n: index + 1, total: chosen.length, percent: Math.round(fraction * 100) }),
+        );
+        client.setQueryData(PORTFOLIO, portfolio);
+        added += 1;
+      }
+      if (added) toast(t("portfolio.videosAdded", { count: added }));
+      if (files.length > chosen.length) toast(t("portfolio.tooManyVideos", { count: LIMITS.videos }));
+    } catch (failure) {
+      toastError(failure);
+    } finally {
+      setProgress(null);
+    }
+  }
+
+  const move = (index: number, step: number) =>
+    change.mutate({ id: entry.id, videos: moved(entry.videos, index, step) }, { onError: (failure) => toastError(failure) });
+
+  return (
+    <section className={styles.section} aria-labelledby="portfolio-videos">
+      <div className={styles.sectionHead}>
+        <h2 id="portfolio-videos">
+          {t("portfolio.videos")} <span className={styles.count}>{entry.videos.length}</span>
+        </h2>
+        <div className={styles.actions}>
+          <Button size="small" isDisabled={!!progress || room <= 0} onPress={() => input.current?.click()}>
+            {t("portfolio.uploadVideos")}
+          </Button>
+          <input
+            ref={input}
+            type="file"
+            accept={VIDEO_TYPES.join(",")}
+            multiple
+            hidden
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              event.target.value = "";
+              void upload(files);
+            }}
+          />
+        </div>
+      </div>
+      <p className={styles.hint}>{t("portfolio.videosHint")}</p>
+      {progress && (
+        <p className={styles.hint} role="status">
+          {t("portfolio.videoUploading", progress)}
+        </p>
+      )}
+      {entry.videos.length === 0 ? (
+        <p className={styles.empty}>{t("portfolio.noVideosYet")}</p>
+      ) : (
+        <ol className={styles.photos}>
+          {entry.videos.map((video, index) => (
+            <li key={video.id} className={styles.photo}>
+              {/* Whole, not cropped: a 9:16 story stays recognisable. */}
+              <img
+                className={styles.poster}
+                src={video.poster_url}
+                alt={t("portfolio.videoAlt", { n: index + 1 })}
+                loading="lazy"
+              />
+              <span className={styles.playTag} aria-hidden="true">
+                ▶
+              </span>
+              <span className={styles.photoTools}>
+                <IconButton
+                  label={t("portfolio.movePhotoLeft")}
+                  isDisabled={index === 0 || change.isPending}
+                  onPress={() => move(index, -1)}
+                >
+                  ←
+                </IconButton>
+                <IconButton
+                  label={t("portfolio.movePhotoRight")}
+                  isDisabled={index === entry.videos.length - 1 || change.isPending}
+                  onPress={() => move(index, 1)}
+                >
+                  →
+                </IconButton>
+                <IconButton
+                  label={t("portfolio.removeVideo")}
+                  isDisabled={remove.isPending}
+                  onPress={() =>
+                    remove.mutate(video.id, {
+                      onSuccess: () => toast(t("portfolio.videoRemoved")),
+                      onError: (failure) => toastError(failure),
+                    })
+                  }
+                >
+                  ×
+                </IconButton>
+              </span>
+            </li>
+          ))}
+        </ol>
       )}
     </section>
   );

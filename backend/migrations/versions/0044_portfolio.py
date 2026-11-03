@@ -1,11 +1,15 @@
 """The office's portfolio (behind the `portfolio` feature, A40), 31 Oct 2026.
 
 - `portfolios`: one row per office, whether its address shows the portfolio at
-  `/` and the page's opening text, and the storage folder holding the photos.
-- `portfolio_entries`: each work shown, in order, optionally drawn from a project.
+  `/`, the page's opening text, the office's social network profiles, and the
+  storage folder holding the photos.
+- `portfolio_entries`: each work shown, in order, with its type (the public page's
+  menu), area, status, team and photo credits, optionally drawn from a project.
 - `portfolio_photos`: each entry's photos, in order (copies in the office's storage).
+- `portfolio_videos`: each entry's videos, in order, with a frame shown before
+  they play (both in the office's storage).
 
-All three are isolated per office like every office table; the app reads and
+All four are isolated per office like every office table; the app reads and
 changes them, and the operator role deletes them with the office (A38).
 
 Revision: 0044
@@ -16,13 +20,14 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "0044"
 down_revision: str | None = "0043"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-TABLES = ("portfolios", "portfolio_entries", "portfolio_photos")
+TABLES = ("portfolios", "portfolio_entries", "portfolio_photos", "portfolio_videos")
 
 
 def upgrade() -> None:
@@ -30,6 +35,12 @@ def upgrade() -> None:
         "portfolios",
         sa.Column("published", sa.Boolean(), nullable=False),
         sa.Column("intro", sa.Text(), nullable=False),
+        sa.Column(
+            "links",
+            postgresql.JSONB(astext_type=sa.Text()),
+            server_default=sa.text("'{}'::jsonb"),
+            nullable=False,
+        ),
         sa.Column("folder_id", sa.Text(), nullable=True),
         sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column(
@@ -48,6 +59,9 @@ def upgrade() -> None:
             "tenant_id", sa.Uuid(), server_default=sa.text("current_tenant_id()"), nullable=False
         ),
         sa.CheckConstraint("length(intro) <= 600", name=op.f("ck_portfolios_intro_length")),
+        sa.CheckConstraint(
+            "jsonb_typeof(links) = 'object'", name=op.f("ck_portfolios_links_object")
+        ),
         sa.ForeignKeyConstraint(
             ["tenant_id"], ["tenants.id"], name=op.f("fk_portfolios_tenant_id_tenants")
         ),
@@ -62,7 +76,12 @@ def upgrade() -> None:
         sa.Column("place", sa.Text(), nullable=False),
         sa.Column("year", sa.Integer(), nullable=True),
         sa.Column("description", sa.Text(), nullable=False),
+        sa.Column("project_type", sa.Text(), nullable=True),
         sa.Column("project_id", sa.Uuid(), nullable=True),
+        sa.Column("area", sa.Numeric(precision=12, scale=2), nullable=True),
+        sa.Column("status", sa.Text(), nullable=True),
+        sa.Column("team", sa.Text(), server_default=sa.text("''"), nullable=False),
+        sa.Column("credits", sa.Text(), server_default=sa.text("''"), nullable=False),
         sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column(
             "updated_at",
@@ -80,6 +99,16 @@ def upgrade() -> None:
             "tenant_id", sa.Uuid(), server_default=sa.text("current_tenant_id()"), nullable=False
         ),
         sa.CheckConstraint(
+            "area > 0 AND area < 10000000", name=op.f("ck_portfolio_entries_area_range")
+        ),
+        sa.CheckConstraint(
+            "status IN ('completed', 'in_progress')", name=op.f("ck_portfolio_entries_status_known")
+        ),
+        sa.CheckConstraint("length(team) <= 200", name=op.f("ck_portfolio_entries_team_length")),
+        sa.CheckConstraint(
+            "length(credits) <= 120", name=op.f("ck_portfolio_entries_credits_length")
+        ),
+        sa.CheckConstraint(
             "length(btrim(title)) BETWEEN 1 AND 80", name=op.f("ck_portfolio_entries_title_length")
         ),
         sa.CheckConstraint(
@@ -89,6 +118,9 @@ def upgrade() -> None:
         sa.CheckConstraint("position >= 1", name=op.f("ck_portfolio_entries_position_positive")),
         sa.CheckConstraint(
             "year BETWEEN 1900 AND 2100", name=op.f("ck_portfolio_entries_year_range")
+        ),
+        sa.ForeignKeyConstraint(
+            ["project_type"], ["project_types.key"], name="fk_portfolio_entries_project_type"
         ),
         sa.ForeignKeyConstraint(
             ["tenant_id", "project_id"],
@@ -145,6 +177,50 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_portfolio_photos_tenant_id"), "portfolio_photos", ["tenant_id"], unique=False
     )
+    op.create_table(
+        "portfolio_videos",
+        sa.Column("entry_id", sa.Uuid(), nullable=False),
+        sa.Column("position", sa.Integer(), nullable=False),
+        sa.Column("file_id", sa.Text(), nullable=False),
+        sa.Column("video_type", sa.Text(), nullable=False),
+        sa.Column("poster_file_id", sa.Text(), nullable=False),
+        sa.Column("poster_type", sa.Text(), nullable=False),
+        sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "tenant_id", sa.Uuid(), server_default=sa.text("current_tenant_id()"), nullable=False
+        ),
+        sa.CheckConstraint(
+            "poster_type IN ('image/png', 'image/jpeg', 'image/webp')",
+            name=op.f("ck_portfolio_videos_poster_type_known"),
+        ),
+        sa.CheckConstraint(
+            "video_type IN ('video/mp4', 'video/webm')",
+            name=op.f("ck_portfolio_videos_video_type_known"),
+        ),
+        sa.CheckConstraint("position >= 1", name=op.f("ck_portfolio_videos_position_positive")),
+        sa.ForeignKeyConstraint(
+            ["tenant_id", "entry_id"],
+            ["portfolio_entries.tenant_id", "portfolio_entries.id"],
+            name="fk_portfolio_videos_entry",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["tenant_id"], ["tenants.id"], name=op.f("fk_portfolio_videos_tenant_id_tenants")
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_portfolio_videos")),
+    )
+    op.create_index(
+        op.f("ix_portfolio_videos_entry_id"), "portfolio_videos", ["entry_id"], unique=False
+    )
+    op.create_index(
+        op.f("ix_portfolio_videos_tenant_id"), "portfolio_videos", ["tenant_id"], unique=False
+    )
 
     for table in TABLES:
         # Tenant isolation (from backend/migrations/snippets.py, pasted as it was).
@@ -167,15 +243,19 @@ def upgrade() -> None:
                 operator_role text := current_database() || '_operator';
         BEGIN
             EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON portfolios, '
-                           'portfolio_entries, portfolio_photos TO %I', app_role);
+                           'portfolio_entries, portfolio_photos, portfolio_videos TO %I',
+                           app_role);
             EXECUTE format('GRANT SELECT, DELETE ON portfolios, portfolio_entries, '
-                           'portfolio_photos TO %I', operator_role);
+                           'portfolio_photos, portfolio_videos TO %I', operator_role);
         END $$
         """
     )
 
 
 def downgrade() -> None:
+    op.drop_index(op.f("ix_portfolio_videos_tenant_id"), table_name="portfolio_videos")
+    op.drop_index(op.f("ix_portfolio_videos_entry_id"), table_name="portfolio_videos")
+    op.drop_table("portfolio_videos")
     op.drop_index(op.f("ix_portfolio_photos_tenant_id"), table_name="portfolio_photos")
     op.drop_index(op.f("ix_portfolio_photos_entry_id"), table_name="portfolio_photos")
     op.drop_table("portfolio_photos")

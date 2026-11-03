@@ -37,6 +37,37 @@ from existing projects with chosen images. Of the options in future ideas (a
 redirect to the office's site, to the painel sign-in, or a simple page of its
 own), this is the third, grown into a portfolio.
 
+Later the same day Fabio asked for it to be "a little nicer": a logo for the dev
+office, "a pretty carousel with name/type of project and some menu to access
+projects of different types". Modelled on architecture offices' own sites (a
+full-width carousel of covers, a menu of project types over the grid), works now
+carry a project type, and the page gained one small script of its own for the
+carousel's arrows; it was first drawn with no script at all.
+
+On 1 Nov 2026 Fabio asked to "pull in more data from the projects", "add links
+to social", make images smaller, "specially on smaller screens", and "allow
+opening", and how to allow videos (someone makes architecture videos and
+renderings for Instagram). A work drawn from a project now starts with its area,
+status, year and lead architect, never its client or address, which the office
+may not want public. Works also take photo credits and videos. Videos
+were first links to YouTube, Vimeo or Instagram, played in those services'
+players, so they would stream at those services' cost. Fabio rejected that the
+same day: "if we're showing things we're storing in our storage or on google
+drive then we don't wanna just have a youtube widget or vimeo widget". Videos
+are now files in the office's storage like the photos, sent there by the
+browser directly and streamed through the app in parts; each view's bytes pass
+through Cloud Run, as clients' file downloads already do. They were first
+played on the work's page itself, landscape ones large and 9:16 stories in a row;
+Fabio found them "gigantic": "we can have just an icon or something and
+miniatures and then show a modal with some arrows to cycle through media". So
+a video is a thumbnail among the photos and plays only in the same full-screen
+viewer, whose arrows go through photos and videos alike. The work's page then
+had its cover filling the screen and its text at 19 px across 760 px, which
+Fabio found too large (2 Nov 2026); it now takes the layout of architecture
+offices' own project pages (Snøhetta's, Jacobsen's): the cover at about two
+thirds of the screen, the sheet of facts beside the text in a reading measure.
+The office's social profiles show in the footer. Photos on a work's page are now small and open large over the page.
+
 ## 2026-10-30 — A42: a new proposal's services are the project's stages
 
 **Was:** a new proposal listed every service the office offers (its presets, or

@@ -108,6 +108,13 @@ async def test_delete_populated_tenant_preserves_other_tenant(client, actions_en
             "SELECT id, 1, 'x', 'image/jpeg' FROM portfolio_entries"
         )
     )
+    await db_session.execute(
+        text(
+            "INSERT INTO portfolio_videos "
+            "(entry_id, position, file_id, video_type, poster_file_id, poster_type) "
+            "SELECT id, 1, 'v', 'video/mp4', 'p', 'image/jpeg' FROM portfolio_entries"
+        )
+    )
     path = "/api/admin/offices/alinea/actions"
     assert (await client.post(path, json={"action": "suspend"}, headers=headers)).status_code == 200
     assert (
@@ -138,6 +145,7 @@ async def test_delete_populated_tenant_preserves_other_tenant(client, actions_en
         "portfolios",
         "portfolio_entries",
         "portfolio_photos",
+        "portfolio_videos",
     ):
         left = await db_session.scalar(
             text(f"SELECT count(*) FROM {table} WHERE tenant_id = :t"), {"t": alinea}

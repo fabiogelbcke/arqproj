@@ -4797,6 +4797,288 @@
         }
       }
     },
+    "/api/portfolio/entries/{entry_id}/videos/uploads": {
+      "post": {
+        "summary": "Start Video Upload",
+        "description": "Where the browser sends a video: an upload session in the office's Drive\n(locally, the app's stand-in), under a name of our choosing.",
+        "operationId": "start_video_upload_api_portfolio_entries__entry_id__videos_uploads_post",
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoUploadIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoUploadOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolio/entries/{entry_id}/videos": {
+      "post": {
+        "summary": "Add Video",
+        "description": "A video the browser has sent to the office's storage, by the name it was\ngiven, with a frame of it. Only a file of that name in the portfolio's folder\nis taken: never another of the office's files, which this would make public.",
+        "operationId": "add_video_api_portfolio_entries__entry_id__videos_post",
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_video_api_portfolio_entries__entry_id__videos_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolio/videos/{video_id}": {
+      "delete": {
+        "summary": "Remove Video",
+        "operationId": "remove_video_api_portfolio_videos__video_id__delete",
+        "parameters": [
+          {
+            "name": "video_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Video Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/detail-types": {
       "get": {
         "summary": "Detail Types",
@@ -7033,6 +7315,26 @@
         ],
         "title": "Body_add_photo_api_portfolio_entries__entry_id__photos_post"
       },
+      "Body_add_video_api_portfolio_entries__entry_id__videos_post": {
+        "properties": {
+          "poster": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Poster"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "poster",
+          "name"
+        ],
+        "title": "Body_add_video_api_portfolio_entries__entry_id__videos_post"
+      },
       "Body_upload_cover_api_projects__project_id__cover_put": {
         "properties": {
           "file": {
@@ -7598,6 +7900,84 @@
             ],
             "title": "Description"
           },
+          "project_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Type"
+          },
+          "area": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 10000000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team"
+          },
+          "credits": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credits"
+          },
+          "videos": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array",
+                "maxItems": 6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Videos"
+          },
           "photos": {
             "anyOf": [
               {
@@ -7651,6 +8031,18 @@
             "title": "Description",
             "default": ""
           },
+          "project_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Type"
+          },
           "project_id": {
             "anyOf": [
               {
@@ -7700,6 +8092,53 @@
             "type": "string",
             "title": "Description"
           },
+          "project_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Type"
+          },
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "team": {
+            "type": "string",
+            "title": "Team"
+          },
+          "credits": {
+            "type": "string",
+            "title": "Credits"
+          },
+          "videos": {
+            "items": {
+              "$ref": "#/components/schemas/VideoOut"
+            },
+            "type": "array",
+            "title": "Videos"
+          },
           "project_id": {
             "anyOf": [
               {
@@ -7738,6 +8177,12 @@
           "place",
           "year",
           "description",
+          "project_type",
+          "area",
+          "status",
+          "team",
+          "credits",
+          "videos",
           "project_id",
           "project_name",
           "photos"
@@ -7836,7 +8281,9 @@
           "proposal_not_found",
           "proposal_accepted",
           "portfolio_full",
-          "portfolio_entry_not_found"
+          "portfolio_entry_not_found",
+          "portfolio_video_refused",
+          "portfolio_link_invalid"
         ],
         "title": "ErrorCode"
       },
@@ -9303,6 +9750,23 @@
               }
             ],
             "title": "Intro"
+          },
+          "links": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "$ref": "#/components/schemas/SocialNetwork"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Links"
           }
         },
         "type": "object",
@@ -9318,6 +9782,16 @@
             "type": "string",
             "title": "Intro"
           },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/SocialNetwork"
+            },
+            "type": "object",
+            "title": "Links"
+          },
           "entries": {
             "items": {
               "$ref": "#/components/schemas/EntryOut"
@@ -9330,6 +9804,7 @@
         "required": [
           "published",
           "intro",
+          "links",
           "entries"
         ],
         "title": "PortfolioOut"
@@ -10707,6 +11182,21 @@
         ],
         "title": "SignupLinkOut"
       },
+      "SocialNetwork": {
+        "type": "string",
+        "enum": [
+          "instagram",
+          "linkedin",
+          "pinterest",
+          "youtube",
+          "vimeo",
+          "behance",
+          "facebook",
+          "tiktok"
+        ],
+        "title": "SocialNetwork",
+        "description": "The networks the page links to, in the footer's order."
+      },
       "SpaceOut": {
         "properties": {
           "used": {
@@ -11283,6 +11773,68 @@
         ],
         "title": "VersionOut"
       },
+      "VideoOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "poster_url": {
+            "type": "string",
+            "title": "Poster Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "poster_url"
+        ],
+        "title": "VideoOut"
+      },
+      "VideoUploadIn": {
+        "properties": {
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Size"
+          },
+          "mime_type": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Mime Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "size",
+          "mime_type"
+        ],
+        "title": "VideoUploadIn"
+      },
+      "VideoUploadOut": {
+        "properties": {
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload_url",
+          "name"
+        ],
+        "title": "VideoUploadOut"
+      },
       "VisitorAnalyticsOut": {
         "properties": {
           "token": {
@@ -11307,6 +11859,15 @@
         ],
         "title": "VisitorAnalyticsOut",
         "description": "PostHog for project pages' visitors (A39): cookieless, no person profiles.\nOnly where the server has PostHog set (production)."
+      },
+      "WorkStatus": {
+        "type": "string",
+        "enum": [
+          "completed",
+          "in_progress"
+        ],
+        "title": "WorkStatus",
+        "description": "Where a work stands, as the public page says it."
       },
       "WriterStatus": {
         "type": "string",

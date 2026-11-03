@@ -108,6 +108,8 @@ class ErrorCode(StrEnum):
     PROPOSAL_ACCEPTED = "proposal_accepted"  # the project now: its proposal stays as accepted
     PORTFOLIO_FULL = "portfolio_full"  # as many works, or photos in one, as it holds
     PORTFOLIO_ENTRY_NOT_FOUND = "portfolio_entry_not_found"  # removed meanwhile: reload
+    PORTFOLIO_VIDEO_REFUSED = "portfolio_video_refused"  # not an MP4 or WebM, or over 200 MB
+    PORTFOLIO_LINK_INVALID = "portfolio_link_invalid"  # not a profile on its network
 
 
 class ErrorOut(BaseModel):

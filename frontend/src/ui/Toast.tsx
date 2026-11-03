@@ -29,6 +29,12 @@ export function toast(message: string, undo?: () => void): void {
   show({ message, kind: "success", undo }, 5);
 }
 
+/** A problem the page found itself, in words already written for the reader
+ *  ("Não foi possível abrir “obra.mov” no navegador…"). */
+export function toastProblem(message: string): void {
+  show({ message, kind: "error" }, 8);
+}
+
 /** A request failed: its message in the user's language and the support code, as
  *  ErrorNotice shows them. `values` fill the message (e.g. a size limit). */
 export function toastError(failure: unknown, values?: Record<string, unknown>): void {

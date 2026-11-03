@@ -48,6 +48,11 @@ def portfolio_stylesheet() -> FileResponse:
     return FileResponse(PUBLIC / "portfolio.css", media_type="text/css", headers=HEADERS)
 
 
+@router.api_route("/brand/portfolio.js", methods=["GET", "HEAD"])
+def portfolio_script() -> FileResponse:
+    return FileResponse(PUBLIC / "portfolio.js", media_type="text/javascript", headers=HEADERS)
+
+
 @router.api_route("/brand/unio.png", methods=["GET", "HEAD"])
 def logo() -> FileResponse:
     return FileResponse(PUBLIC / "unio.png", media_type="image/png", headers=HEADERS)

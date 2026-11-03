@@ -3,7 +3,7 @@
 `/` (backend/web/portfolio_page.py) instead of Unio's home.
 
     GET    /api/portfolio                       the whole portfolio, for staff
-    PATCH  /api/portfolio                       published, opening text
+    PATCH  /api/portfolio                       published, opening text, social links
     POST   /api/portfolio/entries               add a work (from a project, or not)
     PATCH  /api/portfolio/entries/{id}          its texts, or its photos' order
     DELETE /api/portfolio/entries/{id}          remove it, photos to the Drive trash
@@ -11,6 +11,11 @@
     POST   /api/portfolio/entries/{id}/photos   add a photo (resized in the browser)
     DELETE /api/portfolio/photos/{id}           remove a photo
     GET    /api/portfolio/photos/{id}           the photo: public once published
+    POST   /api/portfolio/entries/{id}/videos/uploads   open a video's upload
+    POST   /api/portfolio/entries/{id}/videos   the video, once sent, with its poster
+    DELETE /api/portfolio/videos/{id}           remove a video
+    GET    /api/portfolio/videos/{id}           the video (in parts): public once published
+    GET    /api/portfolio/videos/{id}/poster    the frame shown before it plays
 
 Every change answers with the whole portfolio, which is small. Any staff member
 edits it, as they edit project pages, which clients see too.
@@ -18,45 +23,65 @@ edits it, as they edit project pages, which clients see too.
 Photos are copies in the office's storage, in a `_portfolio` folder inside its
 root: chosen from a project's files, the browser downloads, resizes and uploads
 them, so the portfolio never depends on a project's files staying as they are.
+Videos are too large to pass through the app: the browser sends each straight to
+the office's storage, as clients' uploads go (A31), then registers it here with a
+frame it took from it, the poster.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import uuid
+from decimal import Decimal
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request, UploadFile
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, Form, Request, UploadFile
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.analytics import capture
 from backend.db.engine import get_tenant_session
+from backend.portfolio.links import profile
 from backend.portfolio.models import (
+    AREA_MAX,
+    CREDITS_MAX,
     DESCRIPTION_MAX,
     ENTRIES_MAX,
     INTRO_MAX,
+    LINK_MAX,
     PHOTOS_MAX,
     PLACE_MAX,
+    TEAM_MAX,
     TITLE_MAX,
+    VIDEO_MAX_BYTES,
+    VIDEOS_MAX,
     YEAR_MAX,
     YEAR_MIN,
     Portfolio,
     PortfolioEntry,
     PortfolioPhoto,
+    PortfolioVideo,
+    SocialNetwork,
+    VideoType,
+    WorkStatus,
 )
-from backend.projects.enums import CoverType
-from backend.projects.models import Project
+from backend.projects.enums import CoverType, DetailKey, ProjectStatus
+from backend.projects.models import Project, ProjectDetail, ProjectStage, ProjectTypeDef
+from backend.storage.base import StorageError, StorageProblem
+from backend.storage.connections import storage_for
 from backend.storage.google_connect import ConnectError
-from backend.storage.models import StorageKind
+from backend.storage.models import StorageConnection, StorageKind
 from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, optional_staff, require_csrf
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.office import image_type
+from backend.web.page_files import RangeNotSatisfiable, byte_range, etag
+from backend.web.page_uploads import local_upload_url, upload_origin
 from backend.web.project_settings import (
     COVER_MAX_BYTES,
     local_root,
@@ -93,12 +118,34 @@ class PhotoOut(BaseModel):
     url: str
 
 
+class VideoOut(BaseModel):
+    id: uuid.UUID
+    url: str
+    poster_url: str
+
+
+class VideoUploadIn(BaseModel):
+    size: int = Field(gt=0)
+    mime_type: str = Field(max_length=100)
+
+
+class VideoUploadOut(BaseModel):
+    upload_url: str  # where the browser sends the file, as for clients' uploads
+    name: str  # the file's name in storage: sent back once it's there
+
+
 class EntryOut(BaseModel):
     id: uuid.UUID
     title: str
     place: str
     year: int | None
     description: str
+    project_type: str | None
+    area: Decimal | None  # m²
+    status: WorkStatus | None
+    team: str
+    credits: str
+    videos: list[VideoOut]
     # The project it was drawn from, if any (staff only: never on the public page).
     project_id: uuid.UUID | None
     project_name: str | None
@@ -108,12 +155,15 @@ class EntryOut(BaseModel):
 class PortfolioOut(BaseModel):
     published: bool
     intro: str
+    links: dict[SocialNetwork, str]
     entries: list[EntryOut]
 
 
 class PortfolioIn(BaseModel):
     published: bool | None = None
     intro: str | None = Field(default=None, max_length=INTRO_MAX)
+    # Every profile, replacing those kept: "@name" or an address on the network.
+    links: dict[SocialNetwork, str] | None = None
 
 
 class EntryIn(BaseModel):
@@ -121,6 +171,8 @@ class EntryIn(BaseModel):
     place: str = Field(default="", max_length=PLACE_MAX)
     year: int | None = Field(default=None, ge=YEAR_MIN, le=YEAR_MAX)
     description: str = Field(default="", max_length=DESCRIPTION_MAX)
+    # None: the project's own type, for a work drawn from one.
+    project_type: str | None = Field(default=None, max_length=100)
     project_id: uuid.UUID | None = None
 
 
@@ -129,6 +181,13 @@ class EntryChange(BaseModel):
     place: str | None = Field(default=None, max_length=PLACE_MAX)
     year: int | None = Field(default=None, ge=YEAR_MIN, le=YEAR_MAX)
     description: str | None = Field(default=None, max_length=DESCRIPTION_MAX)
+    project_type: str | None = Field(default=None, max_length=100)
+    area: Decimal | None = Field(default=None, gt=0, lt=AREA_MAX, decimal_places=2)
+    status: WorkStatus | None = None
+    team: str | None = Field(default=None, max_length=TEAM_MAX)
+    credits: str | None = Field(default=None, max_length=CREDITS_MAX)
+    # Every one of its videos, in their new order.
+    videos: list[uuid.UUID] | None = Field(default=None, max_length=VIDEOS_MAX)
     # Every one of its photos, in their new order.
     photos: list[uuid.UUID] | None = Field(default=None, max_length=PHOTOS_MAX)
 
@@ -138,8 +197,26 @@ class OrderIn(BaseModel):
     entries: list[uuid.UUID] = Field(max_length=ENTRIES_MAX)
 
 
+def links(found: Portfolio | None) -> dict[str, str]:
+    """The office's profiles in the footer's order (the database keeps none)."""
+    kept = found.links if found else {}
+    return {network.value: kept[network] for network in SocialNetwork if network in kept}
+
+
 def photo_url(photo: PortfolioPhoto) -> str:
     return f"/api/portfolio/photos/{photo.id}"
+
+
+def video_url(video: PortfolioVideo) -> str:
+    return f"/api/portfolio/videos/{video.id}"
+
+
+async def videos_by_entry(db: AsyncSession) -> dict[uuid.UUID, list[PortfolioVideo]]:
+    """Every work's videos, in order."""
+    found: dict[uuid.UUID, list[PortfolioVideo]] = {}
+    for video in (await db.scalars(select(PortfolioVideo).order_by(PortfolioVideo.position))).all():
+        found.setdefault(video.entry_id, []).append(video)
+    return found
 
 
 async def entries_with_photos(
@@ -157,6 +234,7 @@ async def entries_with_photos(
 async def _out(db: AsyncSession) -> PortfolioOut:
     found = await db.scalar(select(Portfolio))
     works = await entries_with_photos(db)
+    videos = await videos_by_entry(db)
     linked = {entry.project_id for entry, _ in works if entry.project_id}
     names = (
         dict(
@@ -168,6 +246,7 @@ async def _out(db: AsyncSession) -> PortfolioOut:
     return PortfolioOut(
         published=found.published if found else False,
         intro=found.intro if found else "",
+        links=links(found),
         entries=[
             EntryOut(
                 id=entry.id,
@@ -175,6 +254,19 @@ async def _out(db: AsyncSession) -> PortfolioOut:
                 place=entry.place,
                 year=entry.year,
                 description=entry.description,
+                project_type=entry.project_type,
+                area=entry.area,
+                status=entry.status,
+                team=entry.team,
+                credits=entry.credits,
+                videos=[
+                    VideoOut(
+                        id=video.id,
+                        url=video_url(video),
+                        poster_url=f"{video_url(video)}/poster",
+                    )
+                    for video in videos.get(entry.id, [])
+                ],
                 project_id=entry.project_id,
                 project_name=names.get(entry.project_id),
                 photos=[PhotoOut(id=photo.id, url=photo_url(photo)) for photo in photos],
@@ -199,6 +291,65 @@ async def _entry(db: AsyncSession, entry_id: uuid.UUID) -> PortfolioEntry:
     if entry is None:
         raise ApiError(404, ErrorCode.PORTFOLIO_ENTRY_NOT_FOUND)
     return entry
+
+
+async def _known_type(db: AsyncSession, key: str | None) -> str | None:
+    if key is not None and not await db.scalar(
+        select(ProjectTypeDef.key).where(ProjectTypeDef.key == key)
+    ):
+        raise ApiError(422, ErrorCode.INVALID_REQUEST)  # the painel offers only known ones
+    return key
+
+
+def _profiles(given: dict[SocialNetwork, str]) -> dict[str, str]:
+    kept = {}
+    for network in SocialNetwork:  # in the footer's order
+        value = given.get(network, "").strip()
+        if not value:
+            continue
+        address = profile(network, value) if len(value) <= LINK_MAX else None
+        if address is None:
+            raise ApiError(422, ErrorCode.PORTFOLIO_LINK_INVALID)
+        kept[network.value] = address
+    return kept
+
+
+async def _project_facts(db: AsyncSession, project: Project) -> dict:
+    """What a work drawn from `project` starts with, besides its name and type:
+    its area, status, year and team. Never its client, nor its address, which
+    the office may not want public: staff add the place themselves."""
+    details = {
+        detail.key: detail
+        for detail in (
+            await db.scalars(select(ProjectDetail).where(ProjectDetail.project_id == project.id))
+        ).all()
+    }
+
+    def number(key: DetailKey) -> Decimal | None:
+        detail = details.get(key)
+        return detail.value_number if detail and detail.value_number else None
+
+    area = number(DetailKey.BUILT_AREA) or number(DetailKey.TOTAL_AREA)
+    status = {
+        ProjectStatus.COMPLETED: WorkStatus.COMPLETED,
+        ProjectStatus.ACTIVE: WorkStatus.IN_PROGRESS,
+    }.get(project.archived_from or project.status)
+    if status is WorkStatus.COMPLETED:
+        finished = await db.scalar(
+            select(func.max(ProjectStage.completed_at)).where(ProjectStage.project_id == project.id)
+        )
+        year = finished.year if finished else None
+    else:
+        delivery = details.get(DetailKey.EXPECTED_DELIVERY)
+        year = delivery.value_date.year if delivery and delivery.value_date else None
+    responsible = details.get(DetailKey.RESPONSIBLE)
+    team = responsible.value_text if responsible and responsible.value_text else ""
+    return {
+        "area": area if area is not None and area < AREA_MAX else None,
+        "status": status,
+        "year": year if year and YEAR_MIN <= year <= YEAR_MAX else None,
+        "team": team[:TEAM_MAX],
+    }
 
 
 async def _trash(request: Request, db: AsyncSession, file_ids: list[str]) -> None:
@@ -239,6 +390,8 @@ async def change_portfolio(
     found = await _portfolio(db)
     if body.intro is not None:
         found.intro = body.intro.strip()
+    if body.links is not None:
+        found.links = _profiles(body.links)
     if body.published is not None and body.published != found.published:
         found.published = body.published
         capture(request, "portfolio_published" if body.published else "portfolio_unpublished")
@@ -256,10 +409,17 @@ async def add_entry(
     if not body.title.strip():
         raise ApiError(422, ErrorCode.INVALID_REQUEST)  # the painel never sends one
     await _portfolio(db)  # locks the office's portfolio: one addition at a time
-    if body.project_id is not None and not await db.scalar(
-        select(Project.id).where(Project.id == body.project_id, Project.deleted_at.is_(None))
-    ):
-        raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
+    kind = await _known_type(db, body.project_type)
+    facts: dict = {"year": body.year, "team": ""}
+    if body.project_id is not None:
+        project = await db.scalar(
+            select(Project).where(Project.id == body.project_id, Project.deleted_at.is_(None))
+        )
+        if project is None:
+            raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
+        kind = kind or project.project_type
+        facts = await _project_facts(db, project)
+        facts["year"] = body.year or facts["year"]
     count, last = (await db.execute(select(func.count(), func.max(PortfolioEntry.position)))).one()
     if count >= ENTRIES_MAX:
         raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
@@ -268,9 +428,11 @@ async def add_entry(
             position=(last or 0) + 1,
             title=body.title.strip(),
             place=body.place.strip(),
-            year=body.year,
             description=body.description.strip(),
+            project_type=kind,
             project_id=body.project_id,
+            credits="",
+            **facts,
         )
     )
     await db.commit()
@@ -296,16 +458,26 @@ async def change_entry(
         entry.year = body.year  # None clears it
     if body.description is not None:
         entry.description = body.description.strip()
-    if body.photos is not None:
-        photos = (
-            await db.scalars(select(PortfolioPhoto).where(PortfolioPhoto.entry_id == entry.id))
-        ).all()
-        by_id = {photo.id: photo for photo in photos}
-        if len(body.photos) != len(by_id) or set(body.photos) != set(by_id):
-            # A photo added or removed meanwhile, elsewhere: reload and try again.
+    if "project_type" in body.model_fields_set:
+        entry.project_type = await _known_type(db, body.project_type)  # None clears it
+    if "area" in body.model_fields_set:
+        entry.area = body.area  # None clears it
+    if "status" in body.model_fields_set:
+        entry.status = body.status  # None clears it
+    if body.team is not None:
+        entry.team = body.team.strip()
+    if body.credits is not None:
+        entry.credits = body.credits.strip()
+    for wanted, model in ((body.photos, PortfolioPhoto), (body.videos, PortfolioVideo)):
+        if wanted is None:
+            continue
+        items = (await db.scalars(select(model).where(model.entry_id == entry.id))).all()
+        by_id = {item.id: item for item in items}
+        if len(wanted) != len(by_id) or set(wanted) != set(by_id):
+            # One added or removed meanwhile, elsewhere: reload and try again.
             raise ApiError(409, ErrorCode.PORTFOLIO_ENTRY_NOT_FOUND)
-        for position, photo_id in enumerate(body.photos, start=1):
-            by_id[photo_id].position = position
+        for position, item_id in enumerate(wanted, start=1):
+            by_id[item_id].position = position
     await db.commit()
     return await _out(db)
 
@@ -325,7 +497,11 @@ async def remove_entry(
             )
         ).all()
     )
-    await db.delete(entry)  # its photos go with it
+    for video in (
+        await db.scalars(select(PortfolioVideo).where(PortfolioVideo.entry_id == entry.id))
+    ).all():
+        files += [video.file_id, video.poster_file_id]
+    await db.delete(entry)  # its photos and videos go with it
     await db.commit()
     await _trash(request, db, files)
     capture(request, "portfolio_entry_removed")
@@ -451,4 +627,237 @@ async def photo(
     headers = PUBLIC_PHOTO if published else PRIVATE_PHOTO
     return await serve_stored_image(
         request, db, found.file_id, found.image_type, SIZES[size], headers
+    )
+
+
+_VIDEO_NAME = re.compile(r"video-[0-9a-f]{32}\.(mp4|webm)")
+_VIDEO_EXTENSIONS = {VideoType.MP4: "mp4", VideoType.WEBM: "webm"}
+
+
+async def _room_for_video(db: AsyncSession, entry: PortfolioEntry) -> int:
+    count, last = (
+        await db.execute(
+            select(func.count(), func.max(PortfolioVideo.position)).where(
+                PortfolioVideo.entry_id == entry.id
+            )
+        )
+    ).one()
+    if count >= VIDEOS_MAX:
+        raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
+    return (last or 0) + 1
+
+
+@router.post(
+    "/portfolio/entries/{entry_id}/videos/uploads",
+    responses=documented(401, 404, 409, 413, 415, 503),
+)
+async def start_video_upload(
+    request: Request,
+    entry_id: uuid.UUID,
+    body: VideoUploadIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> VideoUploadOut:
+    """Where the browser sends a video: an upload session in the office's Drive
+    (locally, the app's stand-in), under a name of our choosing."""
+    try:
+        kind = VideoType(body.mime_type)
+    except ValueError:
+        raise ApiError(415, ErrorCode.PORTFOLIO_VIDEO_REFUSED) from None
+    if body.size > VIDEO_MAX_BYTES:
+        raise ApiError(413, ErrorCode.PORTFOLIO_VIDEO_REFUSED)
+    found = await _portfolio(db)
+    await _room_for_video(db, await _entry(db, entry_id))
+    name = f"video-{uuid.uuid4().hex}.{_VIDEO_EXTENSIONS[kind]}"
+    connection = await storage_connection(request, db)
+    if connection is None:
+        raise ApiError(409, ErrorCode.DRIVE_NOT_CONNECTED)
+    if connection.kind is StorageKind.FOLDER:
+        (local_root(request, connection) / FOLDER).mkdir(parents=True, exist_ok=True)
+        url = local_upload_url(request, tenant, FOLDER, name, body.size)
+    else:
+        connection, writer = await writer_for(request, db)
+        try:
+            if not (found.folder_id and await writer.can_open(found.folder_id)):
+                found.folder_id = await writer.create_folder(FOLDER, connection.root_id)
+            url = await writer.start_upload(
+                name, found.folder_id, body.size, kind.value, upload_origin(request, tenant)
+            )
+        except ConnectError as error:
+            log.error(
+                "portfolio video upload to Drive failed for %s: %s", tenant.slug, error.detail
+            )
+            raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    await db.commit()  # the folder, if it was just made
+    return VideoUploadOut(upload_url=url, name=name)
+
+
+@router.post(
+    "/portfolio/entries/{entry_id}/videos", responses=documented(401, 404, 409, 413, 415, 503)
+)
+async def add_video(
+    request: Request,
+    entry_id: uuid.UUID,
+    poster: UploadFile,
+    name: str = Form(max_length=60),
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """A video the browser has sent to the office's storage, by the name it was
+    given, with a frame of it. Only a file of that name in the portfolio's folder
+    is taken: never another of the office's files, which this would make public."""
+    content = await poster.read(COVER_MAX_BYTES + 1)
+    if len(content) > COVER_MAX_BYTES:
+        raise ApiError(413, ErrorCode.COVER_TOO_LARGE)
+    try:
+        poster_type = CoverType(image_type(content))
+    except ValueError:
+        raise ApiError(415, ErrorCode.COVER_WRONG_TYPE) from None
+    if not _VIDEO_NAME.fullmatch(name):
+        raise ApiError(422, ErrorCode.INVALID_REQUEST)  # the painel sends back what it was given
+    found = await _portfolio(db)  # locked: positions are counted one at a time
+    entry = await _entry(db, entry_id)
+    position = await _room_for_video(db, entry)
+    connection = await db.scalar(select(StorageConnection))
+    folder = FOLDER if connection and connection.kind is StorageKind.FOLDER else found.folder_id
+    if connection is None or folder is None:
+        raise ApiError(409, ErrorCode.UPLOAD_FAILED)
+    try:
+        storage = storage_for(
+            connection, request.app.state.settings, getattr(request.app.state, "google", None)
+        )
+        sent = next((item for item in await storage.list_folder(folder) if item.name == name), None)
+    except StorageError as error:
+        if error.problem is not StorageProblem.NOT_FOUND:  # no folder: nothing ever arrived
+            log.error(
+                "portfolio video unlisted for %s: %s %s", tenant.slug, error.problem, error.detail
+            )
+            raise ApiError(503, ErrorCode.FILES_UNAVAILABLE) from None
+        sent = None
+    if sent is None:
+        log.error("portfolio video %s never arrived for %s", name, tenant.slug)
+        raise ApiError(409, ErrorCode.UPLOAD_FAILED)
+    try:
+        kind = VideoType(sent.mime_type)
+    except ValueError:
+        kind = None
+    if kind is None or not sent.size or sent.size > VIDEO_MAX_BYTES:
+        raise ApiError(415, ErrorCode.PORTFOLIO_VIDEO_REFUSED)
+    video = PortfolioVideo(
+        entry_id=entry.id,
+        position=position,
+        file_id=sent.id,
+        video_type=kind,
+    )
+    video.id = uuid.uuid4()
+    video.poster_type = poster_type
+    video.poster_file_id = await _store(
+        request,
+        db,
+        tenant,
+        found,
+        f"{name.rsplit('.', 1)[0]}-capa.{_EXTENSIONS[poster_type]}",
+        content,
+        poster_type,
+    )
+    db.add(video)
+    await db.commit()
+    capture(request, "portfolio_video_added", {"bytes": sent.size})
+    return await _out(db)
+
+
+@router.delete("/portfolio/videos/{video_id}", responses=documented(401, 404))
+async def remove_video(
+    request: Request,
+    video_id: uuid.UUID,
+    _staff: CurrentStaff = Depends(require_csrf),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    video = await db.scalar(select(PortfolioVideo).where(PortfolioVideo.id == video_id))
+    if video is None:
+        raise ApiError(404, ErrorCode.PORTFOLIO_ENTRY_NOT_FOUND)
+    files = [video.file_id, video.poster_file_id]
+    await db.execute(delete(PortfolioVideo).where(PortfolioVideo.id == video_id))
+    await db.commit()
+    await _trash(request, db, files)
+    return await _out(db)
+
+
+async def _shown_video(
+    db: AsyncSession, video_id: uuid.UUID, staff: CurrentStaff | None
+) -> tuple[PortfolioVideo | None, dict[str, str]]:
+    """The video, if this viewer may see it (anyone once published, else staff),
+    with the headers its answer carries."""
+    found = await db.scalar(select(PortfolioVideo).where(PortfolioVideo.id == video_id))
+    published = await db.scalar(select(Portfolio.published))
+    if found is None or not (published or staff):
+        return None, {}
+    return found, PUBLIC_PHOTO if published else PRIVATE_PHOTO
+
+
+@router.get("/portfolio/videos/{video_id}/poster", include_in_schema=False)
+async def video_poster(
+    request: Request,
+    video_id: uuid.UUID,
+    size: str = "full",
+    staff: CurrentStaff | None = Depends(optional_staff),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    found, headers = await _shown_video(db, video_id, staff)
+    if found is None or size not in SIZES:
+        return Response(status_code=404)
+    return await serve_stored_image(
+        request, db, found.poster_file_id, found.poster_type, SIZES[size], headers
+    )
+
+
+@router.get("/portfolio/videos/{video_id}", include_in_schema=False)
+async def video(
+    request: Request,
+    video_id: uuid.UUID,
+    staff: CurrentStaff | None = Depends(optional_staff),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """The video's bytes as they come from storage, in the parts the browser asks
+    for (Range): it plays from any point without loading the whole file."""
+    found, headers = await _shown_video(db, video_id, staff)
+    connection = await db.scalar(select(StorageConnection))
+    if found is None or connection is None:
+        return Response(status_code=404)
+    try:
+        storage = storage_for(
+            connection, request.app.state.settings, getattr(request.app.state, "google", None)
+        )
+        item = await storage.get(found.file_id)
+        try:
+            part = byte_range(request, item)
+        except RangeNotSatisfiable:
+            return Response(status_code=416, headers={"Content-Range": f"bytes */{item.size}"})
+        download = await storage.download(item, part)
+    except StorageError as error:
+        log.warning("portfolio video unavailable: %s %s", error.problem, error.detail)
+        return Response(status_code=404)
+    headers = {**headers, "Accept-Ranges": "bytes", "ETag": etag(item)}
+    if download.size is not None:
+        headers["Content-Length"] = str(download.size)
+    if part is not None:
+        headers["Content-Range"] = f"bytes {part[0]}-{part[1]}/{item.size}"
+
+    async def body():
+        try:
+            async for chunk in download.chunks:
+                yield chunk
+        except StorageError as error:  # storage gave up partway: the player sees a cut
+            log.warning("portfolio video broke off: %s %s", error.problem, error.detail)
+        finally:
+            await download.aclose()
+
+    await db.close()  # before streaming: never hold a database connection meanwhile
+    return StreamingResponse(
+        body(),
+        status_code=206 if part is not None else 200,
+        media_type=found.video_type.value,
+        headers=headers,
     )

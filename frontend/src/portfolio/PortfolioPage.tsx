@@ -1,6 +1,6 @@
 // The Portfólio tab: /painel/portfolio, behind the `portfolio` feature (A40).
-// Whether the office's address shows the portfolio, its opening text, and the
-// works in order; each opens in its editor (PortfolioEntryPage). A work starts
+// Whether the office's address shows the portfolio, its opening text, the
+// works in order, and the office's social networks; each work opens in its editor (PortfolioEntryPage). A work starts
 // from one of the office's projects or from nothing.
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,11 +16,12 @@ import { IconButton } from "../ui/IconButton";
 import { NameDialog } from "../ui/NameDialog";
 import { Panel } from "../ui/Panel";
 import { SearchBox } from "../ui/SearchBox";
-import { TextAreaField } from "../ui/TextField";
+import { TextAreaField, TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import { ToggleSwitch } from "../ui/ToggleSwitch";
 import {
   LIMITS,
+  NETWORKS,
   moved,
   useAddEntry,
   useOrderEntries,
@@ -56,6 +57,7 @@ export function PortfolioPage() {
         <>
           <Publishing portfolio={portfolio.data} />
           <Works portfolio={portfolio.data} />
+          <Social portfolio={portfolio.data} />
         </>
       )}
     </div>
@@ -103,6 +105,51 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
         className={styles.save}
         isDisabled={save.isPending || intro.trim() === portfolio.intro}
         onPress={() => change({ intro }, t("portfolio.saved"))}
+      >
+        {t("portfolio.save")}
+      </Button>
+    </Panel>
+  );
+}
+
+function Social({ portfolio }: { portfolio: Portfolio }) {
+  const { t } = useTranslation();
+  const save = useSavePortfolio();
+  const [links, setLinks] = useState<Record<string, string>>(portfolio.links);
+  const changed = NETWORKS.some((network) => (links[network] ?? "").trim() !== (portfolio.links[network] ?? ""));
+  return (
+    <Panel className={styles.section} aria-labelledby="portfolio-social">
+      <h2 id="portfolio-social">{t("portfolio.links")}</h2>
+      <p className={styles.hint}>{t("portfolio.linksHint")}</p>
+      <div className={styles.networks}>
+        {NETWORKS.map((network) => (
+          <TextField
+            key={network}
+            label={t(`portfolio.networks.${network}`)}
+            placeholder={network === "linkedin" ? "https://www.linkedin.com/company/…" : "@"}
+            value={links[network] ?? ""}
+            onChange={(value) => setLinks({ ...links, [network]: value })}
+            maxLength={LIMITS.link}
+          />
+        ))}
+      </div>
+      <Button
+        size="small"
+        className={styles.save}
+        isDisabled={save.isPending || !changed}
+        onPress={() =>
+          save.mutate(
+            { links },
+            {
+              // As the server wrote them: "@alinea" becomes the profile's address.
+              onSuccess: (saved) => {
+                setLinks(saved.links);
+                toast(t("portfolio.saved"));
+              },
+              onError: (failure) => toastError(failure),
+            },
+          )
+        }
       >
         {t("portfolio.save")}
       </Button>

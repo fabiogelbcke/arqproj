@@ -26,6 +26,7 @@ EXEMPT_PATHS = frozenset(
         "/",
         "/brand/landing.css",
         "/brand/portfolio.css",
+        "/brand/portfolio.js",
         "/brand/unio.png",
         "/health",
         "/api/docs",

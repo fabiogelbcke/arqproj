@@ -2,7 +2,8 @@
 // published. Every change answers with the whole portfolio, which replaces ours.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, call, type Schemas } from "../api/client";
+import { api, ApiError, call, type Schemas } from "../api/client";
+import { sendFile, UploadBroke } from "../client/StageUploads";
 import { COVER_OUTPUT, cropToFile, loadImage } from "../ui/imageCrop";
 
 export type Portfolio = Schemas["PortfolioOut"];
@@ -11,7 +12,49 @@ export type Entry = Schemas["EntryOut"];
 export const PORTFOLIO = ["portfolio"] as const;
 
 // As the server allows (backend/portfolio/models.py).
-export const LIMITS = { intro: 600, title: 80, place: 80, description: 2000, entries: 60, photos: 30 };
+export const LIMITS = {
+  intro: 600,
+  title: 80,
+  place: 80,
+  description: 2000,
+  entries: 60,
+  photos: 30,
+  team: 200,
+  credits: 120,
+  link: 300,
+  videos: 6,
+  videoMb: 200,
+};
+
+/** What every browser plays (the server checks it too). */
+export const VIDEO_TYPES = ["video/mp4", "video/webm"];
+
+/** The networks the page links to, in its footer's order. */
+export const NETWORKS = [
+  "instagram",
+  "linkedin",
+  "pinterest",
+  "youtube",
+  "vimeo",
+  "behance",
+  "facebook",
+  "tiktok",
+] as const satisfies readonly Schemas["SocialNetwork"][];
+
+/** An area as typed ("1.250,5", "180 m²"): its number, null when empty, or
+ * undefined when it isn't one the server keeps. */
+export function parsedArea(text: string): number | null | undefined {
+  let written = text.replace(/\s|m²|m2/gi, "");
+  if (!written) return null;
+  if (written.includes(",")) written = written.replace(/\./g, "").replace(",", ".");
+  const area = Number(written);
+  return Number.isFinite(area) && area > 0 && area < 10_000_000 ? Math.round(area * 100) / 100 : undefined;
+}
+
+/** An area as the field shows it: "85,5". */
+export function areaText(area: string | number | null | undefined): string {
+  return area == null ? "" : String(Number(area)).replace(".", ",");
+}
 
 export function usePortfolio() {
   return useQuery({ queryKey: PORTFOLIO, queryFn: () => call(api.GET("/api/portfolio")) });
@@ -71,6 +114,80 @@ export const useAddPhoto = () =>
       }),
     ),
   );
+
+export const useRemoveVideo = () =>
+  useChange((id: string) => call(api.DELETE("/api/portfolio/videos/{video_id}", { params: { path: { video_id: id } } })));
+
+/** A frame of the video, about a second in, as a JPEG: its thumbnail, and the
+ *  poster shown until it plays. Rejects when the browser can't play the file,
+ *  which visitors' browsers then couldn't either. */
+export function videoPoster(file: File, wait = 20000): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const address = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    const done = (outcome: () => void) => {
+      clearTimeout(timer);
+      URL.revokeObjectURL(address);
+      outcome();
+    };
+    const timer = setTimeout(() => done(() => reject(new Error("video"))), wait);
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.onerror = () => done(() => reject(new Error("video")));
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(1, (video.duration || 0) / 10);
+    };
+    video.onseeked = () => {
+      const scale = Math.min(1, 1600 / Math.max(video.videoWidth, video.videoHeight, 1));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      if (!canvas.width || !canvas.height) return done(() => reject(new Error("video")));
+      canvas.getContext("2d")!.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) =>
+          done(() => (blob ? resolve(new File([blob], "capa.jpg", { type: "image/jpeg" })) : reject(new Error("video")))),
+        "image/jpeg",
+        0.85,
+      );
+    };
+    video.src = address;
+  });
+}
+
+/** A video: straight to the office's storage (as clients' uploads go), then
+ *  registered with its poster. */
+export async function sendVideo(
+  entry: string,
+  file: File,
+  poster: File,
+  onProgress: (fraction: number) => void,
+): Promise<Portfolio> {
+  const path = { entry_id: entry };
+  const opened = await call(
+    api.POST("/api/portfolio/entries/{entry_id}/videos/uploads", {
+      params: { path },
+      body: { size: file.size, mime_type: file.type },
+    }),
+  );
+  await sendFile(opened.upload_url, file, onProgress).catch((failure) => {
+    throw failure instanceof UploadBroke ? new ApiError("upload_failed") : failure;
+  });
+  return call(
+    api.POST("/api/portfolio/entries/{entry_id}/videos", {
+      params: { path },
+      // OpenAPI describes an uploaded file as a binary string; it is the File.
+      body: { name: opened.name, poster: poster as unknown as string },
+      bodySerializer: (body: { name: string; poster: string }) => {
+        const form = new FormData();
+        form.append("name", body.name);
+        form.append("poster", body.poster as unknown as Blob, "capa.jpg");
+        return form;
+      },
+    }),
+  );
+}
 
 /** Moves `items[index]` by `step` (−1 up, +1 down); the ids in their new order. */
 export function moved<T extends { id: string }>(items: T[], index: number, step: number): string[] {

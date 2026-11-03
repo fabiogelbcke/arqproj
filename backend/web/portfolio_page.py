@@ -6,16 +6,22 @@ and so does an office without the `portfolio` feature (A40) or with the
 portfolio unpublished. `/?projeto={id}` shows one work with all its photos.
 Signed-in staff see an unpublished portfolio with `/?previa=1`.
 
-The page is plain HTML drawn here, with no script: quick to load, read by
-search engines, and nothing to run in a visitor's browser.
+The page is plain HTML drawn here: quick to load and read by search engines.
+One small script of ours, `portfolio.js`, adds the carousel's arrows and opens
+photos and videos large over the page; without it, the carousel still scrolls
+and each opens on its own. Videos, from the office's storage like the photos,
+play only there, in the browser's own player.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
 import uuid
+from collections.abc import Callable
+from decimal import Decimal
 from functools import cache
 from html import escape
 from pathlib import Path
@@ -28,18 +34,26 @@ from backend.db.isolation import scope_to_tenant
 from backend.identity import sessions
 from backend.office.models import OfficeProfile
 from backend.office.profile import logo_urls
-from backend.portfolio.models import Portfolio, PortfolioEntry, PortfolioPhoto
+from backend.portfolio.models import Portfolio, PortfolioEntry, PortfolioPhoto, PortfolioVideo
 from backend.tenancy.middleware import REDIRECT_MAX_AGE, redirect_url
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, normalize_host, resolve
 from backend.web.auth import COOKIE
-from backend.web.portfolio import entries_with_photos, photo_url
+from backend.web.portfolio import (
+    entries_with_photos,
+    links,
+    photo_url,
+    video_url,
+    videos_by_entry,
+)
 
 log = logging.getLogger(__name__)
 _CATALOGS = Path(__file__).resolve().parent.parent / "i18n"
+_PUBLIC = Path(__file__).with_name("public")  # served by home.py at /brand/
 HEADERS = {
     "Content-Security-Policy": (
-        "default-src 'none'; style-src 'self'; img-src 'self'; "
+        "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; "
+        "media-src 'self'; "
         "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     ),
     "X-Content-Type-Options": "nosniff",
@@ -47,14 +61,34 @@ HEADERS = {
 }
 REDIRECT_HEADERS = {"Cache-Control": f"public, max-age={REDIRECT_MAX_AGE}"}
 PUBLISHED = {**HEADERS, "Cache-Control": "public, max-age=60"}
+Works = list[tuple[PortfolioEntry, list[PortfolioPhoto]]]
+Label = Callable[[PortfolioEntry], str]
 PREVIEW = {**HEADERS, "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex"}
 
 
 @cache
 def _texts(locale: Locale) -> dict:
-    return json.loads((_CATALOGS / f"{locale.value}.json").read_text("utf-8"))["portfolio"][
-        "public"
-    ]
+    texts = json.loads((_CATALOGS / f"{locale.value}.json").read_text("utf-8"))["portfolio"]
+    return {
+        **texts["public"],
+        "types": texts["types"],
+        "statuses": texts["statuses"],
+        "networks": texts["networks"],
+    }
+
+
+@cache
+def _fingerprint(name: str) -> str:
+    return hashlib.sha256((_PUBLIC / name).read_bytes()).hexdigest()[:12]
+
+
+def _asset_url(name: str, deployed: bool) -> str:
+    """`/brand/<name>` with the file's fingerprint, so a browser holding the old
+    file (cached for an hour) asks for the new one as soon as the page changes.
+    Locally, the file is read each time: it changes without a restart."""
+    if not deployed:
+        _fingerprint.cache_clear()
+    return f"/brand/{name}?v={_fingerprint(name)}"
 
 
 def _fill(text: str, **values: object) -> str:
@@ -77,6 +111,20 @@ def _whatsapp(number: str) -> str | None:
     if len(digits) in (10, 11):  # a Brazilian number without the country code
         digits = "55" + digits
     return f"https://wa.me/{digits}" if len(digits) >= 12 else None
+
+
+def _area(area: Decimal, locale: Locale) -> str:
+    """As people write it: "1.250 m²", "85,5 m²" (in English "1,250 m²")."""
+    written = f"{area:,.2f}".rstrip("0").rstrip(".")
+    if locale is Locale.PT_BR:
+        written = written.translate(str.maketrans(",.", ".,"))
+    return f"{written} m²"
+
+
+def _title(text: str) -> str:
+    """Escaped, and never broken onto a new line before a dash ("Apartamento
+    Atlântico — Copacabana" breaks after it, not before)."""
+    return re.sub(r" ([—–-]) ", "\u00a0\\1 ", escape(text))
 
 
 def _meta(entry: PortfolioEntry) -> str:
@@ -133,28 +181,34 @@ async def _page(request: Request) -> Response | None:
             except ValueError:
                 wanted_id = None
             chosen = next((work for work in works if work[0].id == wanted_id), None)
-    document = _document(
-        tenant, office, found.intro if found else "", works, chosen, preview, request
-    )
+        videos = (await videos_by_entry(db)).get(chosen[0].id, []) if chosen else []
+    document = _document(tenant, office, found, works, chosen, videos, preview, request)
     return HTMLResponse(document, headers=PREVIEW if preview else PUBLISHED)
 
 
 def _document(
     tenant: CurrentTenant,
     office: OfficeProfile | None,
-    intro: str,
-    works: list[tuple[PortfolioEntry, list[PortfolioPhoto]]],
+    found: Portfolio | None,
+    works: Works,
     chosen: tuple[PortfolioEntry, list[PortfolioPhoto]] | None,
+    videos: list[PortfolioVideo],
     preview: bool,
     request: Request,
 ) -> str:
     t = _texts(tenant.locale)
+    deployed = request.app.state.settings.deployed
+    intro = found.intro if found else ""
+    types: dict[str, str] = t["types"]
     name = escape(office.display_name if office else tenant.name)
     keep = "previa=1" if preview else ""
     home = f"/?{keep}" if keep else "/"
 
     def link(entry: PortfolioEntry) -> str:
         return f"/?projeto={entry.id}" + (f"&amp;{keep}" if keep else "")
+
+    def kind(entry: PortfolioEntry) -> str:
+        return types.get(entry.project_type or "", "")
 
     light, dark = logo_urls(office)
     if light:
@@ -169,43 +223,56 @@ def _document(
         entry, photos = chosen
         title = f"{escape(entry.title)} · {name}"
         description = entry.description or intro
-        meta = _meta(entry)
-        figures = "".join(
-            f'<figure><img src="{photo_url(photo)}?size=full" '
-            f'alt="{escape(_fill(t["photo"], n=n, title=entry.title))}" '
-            f'loading="{"eager" if n == 1 else "lazy"}" decoding="async"></figure>'
-            for n, photo in enumerate(photos, start=1)
-        )
-        main = (
-            f'<a class="back" href="{home}">← {escape(t["back"])}</a>'
-            f'<article class="work"><header><h1>{escape(entry.title)}</h1>'
-            + (f'<p class="meta">{escape(meta)}</p>' if meta else "")
-            + "</header>"
-            + (
-                f'<div class="text">{_paragraphs(entry.description)}</div>'
-                if entry.description
-                else ""
+        # Type, place and year are on the cover, with the title; the rest below it.
+        facts = "".join(
+            f"<div><dt>{escape(label)}</dt><dd>{escape(value)}</dd></div>"
+            for label, value in (
+                (t["area"], _area(entry.area, tenant.locale) if entry.area else ""),
+                (t["status"], t["statuses"].get(entry.status or "", "")),
+                (t["team"], entry.team),
             )
-            + f'<div class="photos">{figures}</div></article>'
+            if value
+        )
+        index = next(n for n, work in enumerate(works) if work[0].id == entry.id)
+        following = works[(index + 1) % len(works)] if len(works) > 1 else None
+        after = ""
+        if following:
+            upcoming, upcoming_photos = following
+            after = (
+                f'<a class="following" href="{link(upcoming)}">'
+                f'<img src="{photo_url(upcoming_photos[0])}?size=card" alt="" loading="lazy">'
+                f'<span><span class="label">{escape(t["nextWork"])}</span>'
+                f'<span class="title">{_title(upcoming.title)}</span></span></a>'
+            )
+        main = (
+            # The cover across the page, darkened toward its edges so the title,
+            # the work's type, place and year and the way back read over it.
+            f'<article class="work"><header class="hero">'
+            f'<a class="cover zoom" href="{photo_url(photos[0])}?size=full" '
+            f'aria-label="{escape(_fill(t["open"], n=1))}">'
+            f'<img src="{photo_url(photos[0])}?size=full" '
+            f'alt="{escape(_fill(t["photo"], n=1, title=entry.title))}" '
+            f'fetchpriority="high"></a>'
+            f'<div class="hero-top wrap"><a class="back" href="{home}#projetos">'
+            f'← {escape(t["back"])}</a></div><div class="hero-text wrap">'
+            + (f'<p class="label">{escape(kind(entry))}</p>' if kind(entry) else "")
+            + f"<h1>{_title(entry.title)}</h1>"
+            + (f'<p class="meta">{escape(_meta(entry))}</p>' if _meta(entry) else "")
+            + '</div></header><div class="wrap">'
+            + _about(facts, entry.description)
+            + _gallery(t, entry, photos, videos)
+            + f"</div></article>{after}"
         )
         image = photo_url(photos[0])
     else:
         title = name
         description = intro
-        cards = "".join(
-            f'<li><a href="{link(entry)}"><img src="{photo_url(photos[0])}?size=card" alt="" '
-            f'loading="{"eager" if n < 4 else "lazy"}" decoding="async">'
-            f'<span class="title">{escape(entry.title)}</span>'
-            + (f'<span class="meta">{escape(_meta(entry))}</span>' if _meta(entry) else "")
-            + "</a></li>"
-            for n, (entry, photos) in enumerate(works)
+        main = _carousel(t, works, link, kind) + (
+            f'<section class="intro wrap" id="escritorio">{_paragraphs(intro)}</section>'
+            if intro.strip()
+            else ""
         )
-        main = f'<section class="intro"><h1>{name}</h1>{_paragraphs(intro)}</section>' + (
-            f'<section aria-labelledby="works"><h2 id="works" class="label">'
-            f'{escape(t["works"])}</h2><ul class="works">{cards}</ul></section>'
-            if works
-            else f'<p class="empty">{escape(t["empty"])}</p>'
-        )
+        main += _works(t, works, link, kind, keep, request.query_params.get("tipo"))
         image = photo_url(works[0][1][0]) if works else None
 
     contact = []
@@ -220,6 +287,15 @@ def _document(
     if office and (office.address or office.city):
         place = ", ".join(part for part in (office.address, office.city) if part)
         contact.append(f"<span>{escape(place)}</span>")
+    profiles = "".join(
+        f'<a href="{escape(address)}" rel="noopener">{escape(t["networks"][network])}</a>'
+        for network, address in links(found).items()
+    )
+    social = (
+        f'<div><p class="label">{escape(t["follow"])}</p><p class="ways">{profiles}</p></div>'
+        if profiles
+        else ""
+    )
 
     summary = escape(re.sub(r"\s+", " ", description).strip()[:200])
     origin = f"{request.url.scheme}://{request.headers.get('host', '')}"
@@ -227,6 +303,11 @@ def _document(
         f'<meta property="og:image" content="{escape(origin)}{image}?size=card">' if image else ""
     )
     banner = f'<p class="preview">{escape(t["preview"])}</p>' if preview else ""
+    office_link = (
+        f'<a href="{home}#escritorio">{escape(t["office"])}</a>'
+        if intro.strip() and not chosen
+        else ""
+    )
     return f"""<!doctype html>
 <html lang="{tenant.locale.value}">
 <head>
@@ -237,18 +318,158 @@ def _document(
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{summary}">
 {og_image}
-<link rel="stylesheet" href="/brand/portfolio.css">
+<link rel="stylesheet" href="{_asset_url("portfolio.css", deployed)}">
+<script src="{_asset_url("portfolio.js", deployed)}" defer></script>
 </head>
 <body>
 {banner}
 <header class="top wrap"><a class="brand" href="{home}">{brand}</a>
-<nav><a href="#contato">{escape(t["contact"])}</a></nav></header>
-<main class="wrap">{main}</main>
+<nav><a href="{home}#projetos">{escape(t["works"])}</a>{office_link}\
+<a href="#contato">{escape(t["contact"])}</a></nav></header>
+<main>{main}</main>
 <footer id="contato" class="wrap">
 <div><p class="label">{escape(t["contact"])}</p><p class="office">{name}</p>
 <p class="ways">{"".join(contact)}</p></div>
+{social}
 <p class="small"><a href="/painel/">{escape(t["staff"])}</a></p>
 </footer>
 </body>
 </html>
 """
+
+
+CAROUSEL_MAX = 8
+
+
+def _about(facts: str, description: str) -> str:
+    """The work's sheet (area, status, team) beside its text, as architecture
+    sites set them: the sheet narrow on the left, the text in a reading measure."""
+    if not facts and not description.strip():
+        return ""
+    return (
+        f'<section class="about{"" if facts else " solo"}">'
+        + (f'<dl class="facts">{facts}</dl>' if facts else "")
+        + (f'<div class="text">{_paragraphs(description)}</div>' if description.strip() else "")
+        + "</section>"
+    )
+
+
+def _gallery(
+    t: dict, entry: PortfolioEntry, photos: list[PortfolioPhoto], videos: list[PortfolioVideo]
+) -> str:
+    """The work's videos and other photos, small, side by side; a video by its
+    poster with a play mark. Each opens large over the page, the cover too, and
+    the arrows go through them all; a video plays only there (`portfolio.js`;
+    without it, each opens on its own)."""
+    label = escape(_fill(t["gallery"], title=entry.title))
+    films = "".join(
+        f'<li><a class="zoom film" href="{video_url(video)}" '
+        f'data-poster="{video_url(video)}/poster" '
+        f'aria-label="{escape(_fill(t["watch"], n=n))}">'
+        f'<img src="{video_url(video)}/poster?size=card" '
+        f'alt="{escape(_fill(t["video"], n=n, title=entry.title))}" '
+        'loading="lazy" decoding="async"><span class="play" aria-hidden="true"></span></a></li>'
+        for n, video in enumerate(videos, start=1)
+    )
+    figures = "".join(
+        f'<li><a class="zoom" href="{photo_url(photo)}?size=full" '
+        f'aria-label="{escape(_fill(t["open"], n=n))}">'
+        f'<img src="{photo_url(photo)}?size=card" '
+        f'alt="{escape(_fill(t["photo"], n=n, title=entry.title))}" '
+        f'loading="lazy" decoding="async"></a></li>'
+        for n, photo in enumerate(photos[1:], start=2)
+    )
+    credits = (
+        f'<p class="credits">{escape(_fill(t["credits"], names=entry.credits))}</p>'
+        if entry.credits
+        else ""
+    )
+    items = f'<ul class="photos">{films}{figures}</ul>' if films or figures else ""
+    gallery = (
+        f'<section class="gallery" aria-label="{label}">{items}{credits}</section>'
+        if items or credits
+        else ""
+    )
+    return (
+        gallery + f'<dialog class="lightbox" aria-label="{label}">'
+        '<img alt=""><video controls playsinline hidden></video>'
+        '<p class="count" aria-live="polite"></p>'
+        f'<button type="button" class="close" aria-label="{escape(t["close"])}">×</button>'
+        f'<button type="button" class="prev" aria-label="{escape(t["previous"])}">←</button>'
+        f'<button type="button" class="next" aria-label="{escape(t["next"])}">→</button>'
+        "</dialog>"
+    )
+
+
+def _carousel(t: dict, works: Works, link: Label, kind: Label) -> str:
+    """The first works, one cover each, side by side: swiped on a phone, scrolled
+    with the arrows `portfolio.js` adds (without it, the strip still scrolls)."""
+    shown = works[:CAROUSEL_MAX]
+    if not shown:
+        return ""
+    total = len(shown)
+    slides = "".join(
+        f'<li class="slide" aria-label="{escape(_fill(t["slide"], n=n, total=total))}">'
+        f'<a href="{link(entry)}"><img src="{photo_url(photos[0])}?size=full" alt="" '
+        + ('fetchpriority="high"' if n == 1 else 'loading="lazy"')
+        + ' decoding="async"><span class="caption">'
+        + (f'<span class="label">{escape(kind(entry))}</span>' if kind(entry) else "")
+        + f'<span class="title">{_title(entry.title)}</span>'
+        + (f'<span class="meta">{escape(_meta(entry))}</span>' if _meta(entry) else "")
+        + "</span></a></li>"
+        for n, (entry, photos) in enumerate(shown, start=1)
+    )
+    controls = (
+        f'<div class="controls" hidden><span class="count" aria-hidden="true">'
+        f"<b>01</b> / {total:02d}</span>"
+        f'<button type="button" class="prev" aria-label="{escape(t["previous"])}">←</button>'
+        f'<button type="button" class="next" aria-label="{escape(t["next"])}">→</button></div>'
+        if total > 1
+        else ""
+    )
+    return (
+        f'<section class="carousel" aria-roledescription="carousel" '
+        f'aria-label="{escape(t["carousel"])}"><ul class="track" tabindex="0">{slides}</ul>'
+        f"{controls}</section>"
+    )
+
+
+def _works(t: dict, works: Works, link: Label, kind: Label, keep: str, wanted: str | None) -> str:
+    if not works:
+        return f'<p class="empty wrap">{escape(t["empty"])}</p>'
+    present = [key for key in t["types"] if any(e.project_type == key for e, _ in works)]
+    wanted = wanted if wanted in present else None
+    shown = [work for work in works if wanted is None or work[0].project_type == wanted]
+    menu = ""
+    if len(present) > 1:
+        extra = f"&amp;{keep}" if keep else ""
+
+        def item(key: str | None, label: str) -> str:
+            href = (f"/?tipo={key}{extra}" if key else (f"/?{keep}" if keep else "/")) + "#projetos"
+            current = ' aria-current="page"' if key == wanted else ""
+            return f'<li><a href="{href}"{current}>{escape(label)}</a></li>'
+
+        menu = (
+            f'<nav class="types" aria-label="{escape(t["menu"])}"><ul>'
+            + item(None, t["all"])
+            + "".join(item(key, t["types"][key]) for key in present)
+            + "</ul></nav>"
+        )
+
+    def _about(entry: PortfolioEntry) -> str:
+        return " · ".join(part for part in (kind(entry), _meta(entry)) if part)
+
+    cards = "".join(
+        f'<li><a href="{link(entry)}"><span class="frame">'
+        f'<img src="{photo_url(photos[0])}?size=card" alt="" loading="lazy" decoding="async">'
+        "</span>"
+        f'<span class="title">{_title(entry.title)}</span>'
+        + (f'<span class="meta">{escape(_about(entry))}</span>' if _about(entry) else "")
+        + "</a></li>"
+        for entry, photos in shown
+    )
+    return (
+        f'<section class="projects wrap" id="projetos" aria-labelledby="works">'
+        f'<div class="projects-head"><h2 id="works">{escape(t["works"])}</h2>{menu}</div>'
+        f'<ul class="works">{cards}</ul></section>'
+    )
