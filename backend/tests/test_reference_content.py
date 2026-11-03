@@ -102,7 +102,7 @@ async def test_each_type_ticks_the_stages_alineas_partners_listed(db_session):
         ],
         # Fabio, 2 Nov 2026: all five ticked.
         ProjectType.VISUALIZATION: [
-            s.BRIEFING, s.PREVIEW_DELIVERY, s.DOCUMENTATION, s.REVISIONS, s.FINAL_DELIVERY,
+            s.BRIEFING, s.DOCUMENTATION, s.PREVIEW_DELIVERY, s.REVISIONS, s.FINAL_DELIVERY,
         ],
         ProjectType.OTHER: [s.BRIEFING],  # named by the office (2 Nov 2026)
     }  # fmt: skip

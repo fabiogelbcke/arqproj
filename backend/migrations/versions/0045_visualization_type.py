@@ -1,7 +1,7 @@
 """A fifth project type, Visualização Arquitetônica (A27, Fabio, 2 Nov 2026;
 without "Projeto de", so its name fits the creation form's button on one line),
-with four stages of its own after the 11 building ones: Entrega Prévia,
-Documentação, Revisões and Entrega Final. Briefing is shared. All five are its
+with four stages of its own after the 11 building ones: Documentação,
+Entrega Prévia, Revisões and Entrega Final. Briefing is shared. All five are its
 usual stages (ticked at creation), each in this type's words, as Alinea wrote
 them for its proposals (Fabio, 2 Nov 2026).
 
@@ -91,8 +91,8 @@ TYPE_STAGES = {
 # After the 11 building stages, in the order a visualization project lists them;
 # only this type uses them, so their general text is the type's.
 STAGES = [
-    {"key": "preview_delivery", "titles": {"pt-BR": "Entrega Prévia", "en": "Preview Delivery"}},
     {"key": "documentation", "titles": {"pt-BR": "Documentação", "en": "Documentation"}},
+    {"key": "preview_delivery", "titles": {"pt-BR": "Entrega Prévia", "en": "Preview Delivery"}},
     {"key": "revisions", "titles": {"pt-BR": "Revisões", "en": "Revisions"}},
     {"key": "final_delivery", "titles": {"pt-BR": "Entrega Final", "en": "Final Delivery"}},
 ]

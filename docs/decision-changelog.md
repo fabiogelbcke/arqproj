@@ -19,6 +19,14 @@ a new entry too.
 
 ---
 
+## 2026-11-03 — A27: Visualização's Documentação before Entrega Prévia
+
+**Was:** Entrega Prévia, Documentação, Revisões, Entrega Final.
+
+**Now:** Documentação, Entrega Prévia, Revisões, Entrega Final.
+
+**Why:** Fabio asked for it, 3 Nov 2026.
+
 ## 2026-11-02 — A27: Visualização without Pós-Produção, all its stages ticked
 
 **Was:** Visualização Arquitetônica had five stages of its own (Entrega Prévia,
