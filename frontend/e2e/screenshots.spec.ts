@@ -210,6 +210,18 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
+  // The example project (plan section 16) has the cover band on (A40): the
+  // opening on a band made from the cover. Its explore tour closed first.
+  const example = await browser.newPage();
+  await example.emulateMedia({ reducedMotion: "reduce" });
+  await example.goto("/tour-projeto");
+  await example.locator(".driver-popover").waitFor();
+  await example.keyboard.press("Escape");
+  await example.locator(".project-opening__backdrop img").waitFor();
+  await example.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
+  await shoot(example, "06v-exemplo-faixa-da-capa");
+  await shoot(example, "06v-exemplo-faixa-da-capa", "dark");
+  await example.close();
   // Drive disconnected: the page is offline (staff are told to reconnect).
   await page.route("**/api/pages/casa-jardim", (route) =>
     route.fulfill({ status: 503, json: { error: "page_unavailable" } }),

@@ -68,6 +68,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     project_type_key: project.project_type_key,
     description: project.description,
     cover_url: project.cover_url,
+    features: project.features,
     completed: project.status === "completed",
     current_position: null, // the previous release's (A30); this page doesn't read it
     last_update: project.last_update,
@@ -87,7 +88,6 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     staff: staffView
       ? {
           project_id: EXAMPLE_SLUG,
-          features: [], // no proposal link on the example
           status: project.status,
           row_version: version,
           recipients: recipients.map((email) => ({ email, subscribed: true })),
