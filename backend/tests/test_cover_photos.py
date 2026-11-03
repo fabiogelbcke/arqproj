@@ -57,12 +57,12 @@ async def test_the_pick_is_one_of_the_bundled_photos():
 
 
 async def test_a_resent_creation_keeps_the_cover_it_was_given(client, owner, tmp_path, picks):
-    picks.extend(["capa-03", "capa-60"])
+    picks.extend(["capa-03", "capa-50"])
     first = (await create(client, owner)).json()
     again = await create(client, owner)
     assert again.status_code == 201 and again.json()["cover_url"] == first["cover_url"]
     assert (tmp_path / "Casa do Lago" / "_capa" / "capa.jpg").read_bytes() == full("capa-03")
-    assert picks == ["capa-60"]  # never picked a second time
+    assert picks == ["capa-50"]  # never picked a second time
 
 
 async def test_a_failed_cover_still_creates_the_project_without_one(
