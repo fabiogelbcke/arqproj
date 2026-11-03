@@ -2038,6 +2038,12 @@ export interface components {
             versions: components["schemas"]["VersionOut"][];
             /** Presets */
             presets: components["schemas"]["PresetOut"][];
+            /** Project Type */
+            project_type: string;
+            /** Stage About */
+            stage_about: {
+                [key: string]: string;
+            };
             office: components["schemas"]["OfficeDetailsOut"];
             /** Default Intro */
             default_intro: string;

@@ -111,6 +111,7 @@
           "briefing",
           "preview_delivery",
           "documentation",
+          "revisions",
           "final_delivery"
         ],
         "offered": [
@@ -118,8 +119,7 @@
           "preview_delivery",
           "documentation",
           "revisions",
-          "final_delivery",
-          "post_production"
+          "final_delivery"
         ]
       },
       {
@@ -143,8 +143,7 @@
           "preview_delivery",
           "documentation",
           "revisions",
-          "final_delivery",
-          "post_production"
+          "final_delivery"
         ]
       }
     ],
@@ -208,10 +207,6 @@
       {
         "key": "final_delivery",
         "title": "Entrega Final"
-      },
-      {
-        "key": "post_production",
-        "title": "Pós-Produção"
       }
     ]
   },

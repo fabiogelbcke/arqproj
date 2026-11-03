@@ -19,6 +19,34 @@ a new entry too.
 
 ---
 
+## 2026-11-02 — A27: Visualização without Pós-Produção, all its stages ticked
+
+**Was:** Visualização Arquitetônica had five stages of its own (Entrega Prévia,
+Documentação, Revisões, Entrega Final, Pós-Produção) after Briefing, ticking all
+but Revisões and Pós-Produção, with draft descriptions.
+
+**Now:** no Pós-Produção stage. Its five (Briefing and its own four) are all
+ticked, each described in the texts Alinea uses in its proposals.
+
+**Why:** Fabio, the same night, with Alinea's texts for these services.
+
+## 2026-11-02 — A42: a new proposal chooses its services first
+
+**Was:** with the short creation form (same day), a new proposal had no stages,
+so its services started from the office's services: the same list for every
+proposal, whatever its type.
+
+**Now:** right after "Nova proposta", a first step on the generator, "Serviços
+da proposta", lists the type's stages with its usual ones ticked, and the
+office's own by name. Those ticked become the services, one each, with the
+office's text for a service of the same name, else the stage's description in
+the type's words. Skipped, the type's usual stages that way.
+
+**Why:** Fabio, the same night: proposals were all starting with the same
+services. The short form had been agreed on the understanding that a proposal's
+services would still start from its type's stages, and since services map 1:1
+to the stages on acceptance, choosing them is the proposal's own setup step.
+
 ## 2026-11-02 — A24, A42: short creation form; an accepted proposal sets up its stages
 
 **Was:** creation asked for name, client, type, stages and the client's emails,

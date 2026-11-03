@@ -7434,6 +7434,17 @@
             "type": "array",
             "title": "Presets"
           },
+          "project_type": {
+            "type": "string",
+            "title": "Project Type"
+          },
+          "stage_about": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Stage About"
+          },
           "office": {
             "$ref": "#/components/schemas/OfficeDetailsOut"
           },
@@ -7456,6 +7467,8 @@
           "start",
           "versions",
           "presets",
+          "project_type",
+          "stage_about",
           "office",
           "default_intro",
           "default_notes"

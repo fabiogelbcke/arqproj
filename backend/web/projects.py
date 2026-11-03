@@ -164,7 +164,7 @@ class ProjectIn(BaseModel):
 # reference tables if it stays.
 _S = BuiltinStage
 _BUILDING = frozenset(BuiltinStage) - {
-    _S.PREVIEW_DELIVERY, _S.DOCUMENTATION, _S.REVISIONS, _S.FINAL_DELIVERY, _S.POST_PRODUCTION
+    _S.PREVIEW_DELIVERY, _S.DOCUMENTATION, _S.REVISIONS, _S.FINAL_DELIVERY
 }  # fmt: skip
 OFFERED_STAGES: dict[str, frozenset[str]] = {
     ProjectType.ARCHITECTURE: _BUILDING,

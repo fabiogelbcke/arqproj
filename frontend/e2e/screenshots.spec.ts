@@ -553,6 +553,12 @@ test("@screenshots proposals", async ({ page }) => {
   await shoot(page, "11b-nova-proposta");
   await page.setViewportSize(SIZES[0]!);
   await dialog.getByRole("button", { name: "Criar proposta" }).click();
+  // Its services first: the type's stages, its usual ones ticked (2 Nov 2026).
+  const services = page.getByRole("dialog", { name: "Serviços da proposta" });
+  await services.getByRole("checkbox").first().waitFor();
+  await shoot(page, "11b2-servicos-da-proposta");
+  await page.setViewportSize(SIZES[0]!);
+  await services.getByRole("button", { name: "Continuar" }).click();
   await page.getByLabel(/Valor total/).waitFor();
   await page.getByLabel(/Valor total/).pressSequentially("2900000");
   await page.getByLabel("Número de parcelas").fill("3");

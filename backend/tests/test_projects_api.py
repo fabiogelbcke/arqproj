@@ -483,7 +483,7 @@ async def test_the_dialog_gets_every_stage_and_each_types_usual_ones(client, own
         "Outro",
     ]
     assert options["types"][0]["stages"] == ARCHITECTURE
-    assert len(options["stages"]) == 16
+    assert len(options["stages"]) == 15
     assert options["stages"][0] == {"key": "briefing", "title": "Briefing"}
     every = [stage["key"] for stage in options["stages"]]
     for kind in options["types"]:  # each type's stages, in the shared order
@@ -504,10 +504,9 @@ async def test_a_type_lists_only_the_stages_that_suit_it(client, owner):
     assert "coordination" in offered["interiors"]
     assert offered["visualization"] == [
         "briefing", "preview_delivery", "documentation", "revisions", "final_delivery",
-        "post_production",
     ]  # fmt: skip
     for kind in ("architecture", "interiors", "renovation", "landscaping"):
-        assert not set(offered[kind]) & {"preview_delivery", "revisions", "post_production"}
+        assert not set(offered[kind]) & {"preview_delivery", "revisions", "final_delivery"}
     # "Outro": anything, Briefing ticked.
     other = next(kind for kind in options["types"] if kind["key"] == "other")
     assert other["offered"] == [stage["key"] for stage in options["stages"]]

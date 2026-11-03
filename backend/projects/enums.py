@@ -70,7 +70,6 @@ class BuiltinStage(StrEnum):
     DOCUMENTATION = "documentation"
     REVISIONS = "revisions"
     FINAL_DELIVERY = "final_delivery"
-    POST_PRODUCTION = "post_production"
 
 
 class DetailType(StrEnum):
