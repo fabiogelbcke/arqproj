@@ -1180,6 +1180,10 @@
     }
   },
   "proposal": {
+    "services": {
+      "title": "Serviços da proposta",
+      "hint": "As etapas usuais deste tipo de projeto já vêm marcadas. Cada etapa marcada vira um serviço da proposta e, quando ela for aceita, uma etapa do projeto."
+    },
     "list": {
       "kicker": "Propostas",
       "title": "Propostas",

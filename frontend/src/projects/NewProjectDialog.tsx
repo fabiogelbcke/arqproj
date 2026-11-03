@@ -67,11 +67,11 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
             creation_key: creationKey,
           },
           {
-            // Straight to what comes next: a proposal's generator, to write it; a
+            // Straight to what comes next: a proposal's generator, its services first; a
             // project's page (outside the painel), to set it up step by step.
             onSuccess: (project) => {
               close();
-              if (proposal) navigate(`/projetos/${project.id}/proposta`);
+              if (proposal) navigate(`/projetos/${project.id}/proposta?${SETUP_PARAM}`);
               else window.location.assign(`/${project.slug}?${SETUP_PARAM}`);
             },
           },

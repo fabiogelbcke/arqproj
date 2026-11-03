@@ -656,7 +656,9 @@ describe("Novo projeto", () => {
       custom_stages: [],
       recipients: [],
     });
+    // Its services chosen first, on the generator (2 Nov 2026).
     await waitFor(() => expect(router.state.location.pathname).toBe("/projetos/9/proposta"));
+    expect(router.state.location.search).toBe("?configurar");
   });
 
   it("offers only Novo projeto: proposals start in their own tab (A42)", async () => {

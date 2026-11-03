@@ -1180,6 +1180,10 @@
     }
   },
   "proposal": {
+    "services": {
+      "title": "The proposal's services",
+      "hint": "This project type's usual stages come ticked. Each ticked stage becomes one of the proposal's services and, once it is accepted, one of the project's stages."
+    },
     "list": {
       "kicker": "Proposals",
       "title": "Proposals",
