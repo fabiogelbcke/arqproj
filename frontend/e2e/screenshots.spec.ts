@@ -280,7 +280,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar informações" }).click();
-  await page.getByRole("button", { name: "Adicionar informação" }).click();
+  await page.getByRole("button", { name: "Adicionar detalhes" }).click();
   await page.getByRole("menu").waitFor();
   await shoot(page, "06o-adicionar-informacao");
   await page.keyboard.press("Escape");
