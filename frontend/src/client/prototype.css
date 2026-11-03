@@ -705,7 +705,8 @@ button,input,select,textarea{letter-spacing:.025em;}
 .client .project-title__tail{display:block;margin-top:.08em;font-size:1.08em;font-weight:750;font-style:normal;text-transform:none;}
 .client .banner{width:100%;max-width:100%;margin:0;}
 .client .banner__img{overflow:hidden;}
-.client .banner__img img,.client .banner__img svg{height:100%;}
+.client .banner__img img,.client .banner__img svg{height:var(--cover-image-height,100%);object-position:center top;}
+@media(prefers-reduced-motion:reduce){.client .banner__img{height:auto!important;}.client .banner__img img,.client .banner__img svg{height:100%;}}
 .client .hero{grid-template-columns:var(--project-columns);gap:var(--project-gap);padding:clamp(36px,4vw,54px) 0 56px;}
 .client .desc{max-width:100%;color:var(--brand-ink);font-size:12px;line-height:1.7;}
 .client .desc p{max-width:none;}

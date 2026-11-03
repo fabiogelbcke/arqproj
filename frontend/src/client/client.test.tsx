@@ -33,6 +33,7 @@ const PAGE: Page = {
   project_type_key: "architecture",
   description: "Residência no alto.\n- Concreto aparente\n- Brises de madeira",
   cover_url: null,
+  features: [],
   completed: false,
   current_position: null, // the previous release's (A30), unread now
   last_update: "2026-10-15T23:30:00Z", // 20:30 in São Paulo: still the 15th there
@@ -695,6 +696,24 @@ describe("edit mode", () => {
     await startEditing();
     expect(await screen.findByRole("button", { name: "Trocar capa" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Adicionar foto de capa/ })).toBeNull();
+  });
+
+  it("opens on a band made from the cover only with the office's cover_band feature (A40)", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    let features: string[] = [];
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, cover_url: "/api/pages/casa-jardim/cover?v=1", features } }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
+    });
+    const { unmount } = render(<ClientApp />);
+    expect(await screen.findByRole("img", { name: /Capa/ })).toBeInTheDocument();
+    expect(document.querySelector(".project-opening__backdrop")).toBeNull();
+    unmount();
+    features = ["cover_band"];
+    render(<ClientApp />);
+    expect(await screen.findByRole("img", { name: /Capa/ })).toBeInTheDocument();
+    expect(document.querySelector(".project-opening__backdrop img")).toHaveAttribute("src", "/api/pages/casa-jardim/cover?v=1");
   });
 
   it("in edit mode, a cover can be removed from the page", async () => {

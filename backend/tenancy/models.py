@@ -30,6 +30,7 @@ class Feature(StrEnum):
 
     PROJECT_MEMBERS = "project_members"  # who works on each project (A41)
     PROPOSALS = "proposals"  # the proposal generator and "Nova proposta" (A42)
+    COVER_BAND = "cover_band"  # the project page opens on a band made from its cover
 
 
 class Locale(StrEnum):

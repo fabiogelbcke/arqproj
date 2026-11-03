@@ -550,13 +550,19 @@ async def test_without_the_feature_the_office_api_leaves_out_what_proposals_prin
     assert office["city"] == "Joinville"
 
 
-async def test_the_staff_bar_knows_whether_proposals_are_on(client, db_session, office_owner):
+async def test_the_page_knows_the_office_features(client, db_session, office_owner):
+    """The staff bar's "Proposta" needs `proposals`; a client's page shows its
+    office's features too (the cover band), so anyone's page carries them."""
     await casa_jardim(client)
     page = (await client.get("/api/pages/casa-jardim", headers=office_owner)).json()
-    assert page["staff"]["features"] == []
+    assert page["features"] == []
     await switch_on(db_session)
+    await db_session.execute(
+        text("UPDATE tenants SET features = features || '{cover_band}' WHERE slug = 'alinea'")
+    )
     page = (await client.get("/api/pages/casa-jardim", headers=office_owner)).json()
-    assert page["staff"]["features"] == ["proposals"]
+    assert page["features"] == ["cover_band", "proposals"]
+    assert "features" not in page["staff"]  # the page's, not the staff view's
 
 
 async def test_a_missing_version_says_so(client, owner):

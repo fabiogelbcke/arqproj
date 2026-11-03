@@ -18,7 +18,7 @@ function StaffBar({ page, ready, onChanged }: { page: Page; ready: boolean; onCh
   const [asking, setAsking] = useState<"accept" | "decline" | null>(null);
   const [busy, setBusy] = useState(false);
   // Changing or accepting it needs proposals switched on (A40); the page still shows it.
-  const open = staff.status === "proposal" && !!staff.features?.includes("proposals");
+  const open = staff.status === "proposal" && page.features.includes("proposals");
   const answer = async (accepted: boolean) => {
     setBusy(true);
     const path = { params: { path: { project_id: staff.project_id } } };

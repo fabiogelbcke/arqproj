@@ -931,6 +931,35 @@ function StaffBar({
   );
 }
 
+/** The cover shrinks away as the page scrolls (prototype), unless motion is reduced.
+ *  Not with the band behind it (the `cover_band` feature): the cover collapsing to
+ *  a strip while the name stayed looked broken; the opening scrolls as usual. */
+function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const image = ref.current;
+      if (!image || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+      const full = (image.clientWidth * 9) / 16;
+      image.style.setProperty("--cover-image-height", `${full}px`);
+      image.style.height = `${Math.max(0, full - window.scrollY)}px`;
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    update();
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      cancelAnimationFrame(frame);
+    };
+  }, [ref, enabled]);
+}
+
 /** The project's name, in capitals (painel redesign: no more "/casa jardim"). */
 function Title({ name }: { name: string }) {
   return <h1 className="project-title">{name}</h1>;
@@ -963,6 +992,10 @@ export function ProjectPage({
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
+  // The opening on a band made from the cover: the `cover_band` feature (A40).
+  const band = !!page.cover_url && (page.features ?? []).includes("cover_band");
+  const cover = useRef<HTMLDivElement>(null);
+  useCoverWipe(cover, !band);
   const mainColumn = useRef<HTMLDivElement>(null);
   const sideColumn = useRef<HTMLDivElement>(null);
   const moved = useBalancedColumns(mainColumn, sideColumn);
@@ -1174,11 +1207,11 @@ export function ProjectPage({
               </div>
             )
           ))}
-        <div className={`project-opening${page.cover_url ? " project-opening--cover" : ""}`}>
-          {/* The cover again, blurred wide and darkened: the band the opening sits on. */}
-          {page.cover_url && (
+        <div className={`project-opening${band ? " project-opening--band" : ""}`}>
+          {/* The cover again, blurred wide: the band the opening sits on. */}
+          {band && (
             <div className="project-opening__backdrop" aria-hidden="true">
-              <img src={page.cover_url} alt="" />
+              <img src={page.cover_url ?? undefined} alt="" />
             </div>
           )}
           <header className="project-heading">
@@ -1202,7 +1235,7 @@ export function ProjectPage({
           {narrow && <MobileSummary page={page} />}
           {page.cover_url && (
             <figure className="banner">
-              <div className="banner__img">
+              <div className="banner__img" ref={cover}>
                 <img src={page.cover_url} alt={t("page.cover", { name: page.name })} />
               </div>
               {canEdit && (

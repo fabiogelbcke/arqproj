@@ -41,7 +41,8 @@
 .client .client-email-notice p { margin: 0; flex: 1 1 24ch; } /* the whole row, beside the button */
 
 /* --- The opening: the name, its type, the cover, on a band ---------------- */
-/* With a cover, the opening sits on a band across the whole page: the cover
+/* With a cover, and the `cover_band` feature switched on for the office (A40),
+   the opening sits on a band across the whole page: the cover
    itself again, blurred wide under a frosted veil, so each project opens in its
    own colours (the photo's) while the page stays light. The dark theme darkens
    the veil instead and sets the name in white. Without a cover: the plain page. */
@@ -51,7 +52,7 @@
   gap: 24px 40px; align-items: start; margin-top: 28px; padding: 0;
 }
 .client .project-opening:not(:has(.banner)) { grid-template-columns: minmax(0, 1fr); }
-.client .project-opening--cover { align-items: center; margin-top: 0; padding: clamp(36px, 5vw, 64px) 0; }
+.client .project-opening--band { align-items: center; margin-top: 0; padding: clamp(36px, 5vw, 64px) 0; }
 .client .project-opening__backdrop {
   position: absolute; z-index: -1; top: 0; bottom: 0; left: calc(50% - 50vw); width: 100vw;
   overflow: hidden; background: var(--surface);
@@ -80,7 +81,7 @@
    Without one, in edit mode, a dashed panel to add it. */
 .client .banner { margin: 0; }
 .client .banner__img { height: auto; aspect-ratio: 16 / 10; border-radius: var(--r-panel); background: var(--surface); }
-.client .project-opening--cover .banner__img {
+.client .project-opening--band .banner__img {
   box-shadow: 0 20px 40px -12px rgb(36 38 41 / 28%), 0 2px 6px rgb(36 38 41 / 10%);
 }
 .client .banner__img img { width: 100%; height: 100%; object-fit: cover; }
@@ -92,25 +93,25 @@
    lifted by a deeper shadow and a faint light edge; in edit mode, the pencils as
    they are on a photo and the corner marks in white. Phones: the details fold
    between the name and the cover in light text, faint lines. */
-:root[data-theme="dark"] .client .project-opening--cover { color: #fff; }
+:root[data-theme="dark"] .client .project-opening--band { color: #fff; }
 :root[data-theme="dark"] .client .project-opening__backdrop { background: #1f2124; }
 :root[data-theme="dark"] .client .project-opening__backdrop img { filter: blur(48px) saturate(1.4) brightness(0.6); }
 :root[data-theme="dark"] .client .project-opening__backdrop::after {
   background: linear-gradient(100deg, rgb(16 17 19 / 72%) 0%, rgb(16 17 19 / 52%) 45%, rgb(16 17 19 / 30%) 100%);
 }
-:root[data-theme="dark"] .client .project-opening--cover .project-title { color: #fff; }
-:root[data-theme="dark"] .client .project-opening--cover .project-kind { color: rgb(255 255 255 / 76%); }
-:root[data-theme="dark"] .client .project-opening--cover .banner__img {
+:root[data-theme="dark"] .client .project-opening--band .project-title { color: #fff; }
+:root[data-theme="dark"] .client .project-opening--band .project-kind { color: rgb(255 255 255 / 76%); }
+:root[data-theme="dark"] .client .project-opening--band .banner__img {
   box-shadow: 0 1px 0 rgb(255 255 255 / 14%) inset, 0 24px 48px -12px rgb(0 0 0 / 55%), 0 2px 6px rgb(0 0 0 / 25%);
 }
-:root[data-theme="dark"] .client .project-opening--cover .editbtn { background: var(--on-photo); color: var(--on-photo-ink); }
-:root[data-theme="dark"] .client .project-opening--cover [data-editable]::before { --c: #fff; }
-:root[data-theme="dark"] .client .project-opening--cover .mobile-project-summary { border-top-color: rgb(255 255 255 / 22%); color: #fff; }
-:root[data-theme="dark"] .client .project-opening--cover .mobile-project-summary .details-list > div {
+:root[data-theme="dark"] .client .project-opening--band .editbtn { background: var(--on-photo); color: var(--on-photo-ink); }
+:root[data-theme="dark"] .client .project-opening--band [data-editable]::before { --c: #fff; }
+:root[data-theme="dark"] .client .project-opening--band .mobile-project-summary { border-top-color: rgb(255 255 255 / 22%); color: #fff; }
+:root[data-theme="dark"] .client .project-opening--band .mobile-project-summary .details-list > div {
   border-color: rgb(255 255 255 / 16%); background: rgb(255 255 255 / 8%); color: #fff;
 }
-:root[data-theme="dark"] .client .project-opening--cover .mobile-project-summary dt { color: rgb(255 255 255 / 70%); }
-:root[data-theme="dark"] .client .project-opening--cover .mobile-project-summary .facts-summary-label { color: #fff; }
+:root[data-theme="dark"] .client .project-opening--band .mobile-project-summary dt { color: rgb(255 255 255 / 70%); }
+:root[data-theme="dark"] .client .project-opening--band .mobile-project-summary .facts-summary-label { color: #fff; }
 
 /* --- Two columns: the description and the stages; the details and the meeting */
 .client .project-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); gap: 32px 40px; margin-top: 24px; align-items: start; }
