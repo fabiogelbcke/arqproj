@@ -11,6 +11,7 @@ records where each one comes from.
 
 from __future__ import annotations
 
+import hashlib
 import random
 from enum import StrEnum
 from functools import cache
@@ -39,3 +40,12 @@ def cover_photo(name: str, size: PhotoSize = PhotoSize.FULL) -> Path | None:
 
 def random_cover_photo() -> str:
     return random.choice(cover_photo_names())
+
+
+@cache
+def cover_photo_version(name: str, size: PhotoSize) -> str:
+    """A short fingerprint of the file, for its address: browsers keep a photo
+    for a day, so a name that now holds another picture needs a new address."""
+    path = cover_photo(name, size)
+    assert path is not None
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]

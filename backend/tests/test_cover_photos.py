@@ -181,6 +181,39 @@ async def test_staff_get_every_photo_for_the_picker(client, owner):
     assert small.content == cover_photo(photos[0]["name"], PhotoSize.SMALL).read_bytes()
 
 
+@pytest.fixture
+def fresh_photo_caches():
+    """Forget the cached set before and after the test that swaps it."""
+    cover_photo_names.cache_clear()
+    cover_photos.cover_photo_version.cache_clear()
+    yield
+    cover_photo_names.cache_clear()
+    cover_photos.cover_photo_version.cache_clear()
+
+
+async def test_a_photo_replaced_under_the_same_name_gets_a_new_address(
+    client, owner, tmp_path, monkeypatch, fresh_photo_caches
+):
+    """Browsers keep each photo for a day: when the set is renumbered or a file
+    replaced, the picker must not show the old picture under the old address."""
+    other = cover_photo("capa-02", PhotoSize.SMALL).read_bytes()
+    for size in PhotoSize:
+        (tmp_path / size).mkdir()
+        (tmp_path / size / "capa-01.jpg").write_bytes(cover_photo("capa-01", size).read_bytes())
+    monkeypatch.setattr(cover_photos, "PHOTOS_DIR", tmp_path)
+
+    async def address():
+        cover_photo_names.cache_clear()
+        cover_photos.cover_photo_version.cache_clear()
+        return (await client.get("/api/cover-photos", headers=ALINEA)).json()[0]["small_url"]
+
+    before = await address()
+    (tmp_path / "small" / "capa-01.jpg").write_bytes(other)
+    after = await address()
+    assert before != after
+    assert (await client.get(after, headers=ALINEA)).content == other
+
+
 @pytest.mark.parametrize(
     ("path", "status"),
     [("capa-999/small", 404), ("capa-01/huge", 422), ("..%2Ffull%2Fcapa-01/small", 404)],

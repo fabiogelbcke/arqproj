@@ -26,6 +26,7 @@ from backend.projects.cover_photos import (
     PhotoSize,
     cover_photo,
     cover_photo_names,
+    cover_photo_version,
     random_cover_photo,
 )
 from backend.projects.enums import CoverType
@@ -45,7 +46,7 @@ router = APIRouter(prefix="/api")
 COVER_MAX_BYTES = 10 * 1024 * 1024
 COVER_FOLDER = "_capa"
 _EXTENSIONS = {CoverType.PNG: "png", CoverType.JPEG: "jpg", CoverType.WEBP: "webp"}
-# The same files for every office; the name stays with the picture.
+# The same files for every office; the address carries the file's fingerprint.
 PHOTO_HEADERS = {"Cache-Control": "private, max-age=86400"}
 
 
@@ -147,7 +148,11 @@ class CoverPhoto(BaseModel):
 @router.get("/cover-photos", responses={401: {}})
 async def cover_photos(_staff: CurrentStaff = Depends(current_staff)) -> list[CoverPhoto]:
     return [
-        CoverPhoto(name=name, small_url=f"/api/cover-photos/{name}/{PhotoSize.SMALL}")
+        CoverPhoto(
+            name=name,
+            small_url=f"/api/cover-photos/{name}/{PhotoSize.SMALL}"
+            f"?v={cover_photo_version(name, PhotoSize.SMALL)}",
+        )
         for name in cover_photo_names()
     ]
 
