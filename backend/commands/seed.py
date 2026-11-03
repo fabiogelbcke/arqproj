@@ -195,7 +195,7 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
             await session.scalars(
                 select(StageDef.key)
                 .join(ProjectTypeStage, ProjectTypeStage.stage_key == StageDef.key)
-                .where(ProjectTypeStage.project_type == spec["type"])
+                .where(ProjectTypeStage.project_type == spec["type"], ProjectTypeStage.usual)
                 .order_by(StageDef.position)
             )
         )

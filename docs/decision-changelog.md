@@ -19,6 +19,24 @@ a new entry too.
 
 ---
 
+## 2026-11-03 — A44 (new), A27: types and stages edited from the operator dashboard
+
+**Was:** the built-in project types, stages and their texts changed only through
+a migration, and which stages each type lists was a table in the code
+(`OFFERED_STAGES`). Office-defined types and stages were a later addition.
+
+**Now:** Unio's operators edit them in the operator dashboard's new
+"Configurações" tab: names and descriptions in both languages, which stages each
+type lists and ticks, order, new types and stages, and hiding (no delete). The
+one list still serves every office. Edits apply live, existing projects
+included, after a red warning with how many projects change.
+
+**Why:** Fabio, 3 Nov 2026: texts like Visualização's took a pull request and a
+migration each time (three that night). Considered and set aside: per-office
+lists (much bigger: every office would get its own copy); changes reaching only
+new projects (each project would need its own copy, and a typo fix would never
+reach existing ones); Portuguese only (offices may be set to English).
+
 ## 2026-11-03 — A27: Visualização's Documentação before Entrega Prévia
 
 **Was:** Entrega Prévia, Documentação, Revisões, Entrega Final.

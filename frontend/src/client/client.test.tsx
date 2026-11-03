@@ -1365,6 +1365,23 @@ describe("edit mode", () => {
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ project_type: "renovation" });
   });
 
+  it("keeps showing the project's own type when it is hidden for new projects (A44)", async () => {
+    const { sent } = asStaff({
+      "GET /api/detail-types": () => ({ body: [] }),
+      // The page's type, Projeto Arquitetônico, is hidden: the list leaves it out.
+      "GET /api/project-types": () => ({ body: { types: [{ key: "renovation", label: "Projeto de Reforma" }] } }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    const type = (await screen.findByLabelText("Tipo de projeto")) as HTMLSelectElement;
+    await screen.findByRole("option", { name: "Projeto de Reforma" });
+    expect(type.selectedOptions[0]?.textContent).toBe("Projeto Arquitetônico");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).not.toHaveProperty("project_type");
+  });
+
   it("names an Outro type, renames it alone, and sends no name for a built-in type", async () => {
     const { sent } = asStaff({
       "GET /api/detail-types": () => ({ body: [] }),

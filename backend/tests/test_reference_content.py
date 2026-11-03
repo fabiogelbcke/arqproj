@@ -56,7 +56,12 @@ async def test_the_step_check_catches_a_missing_row(db_session):
 
 async def test_every_built_in_text_exists_in_every_language(db_session):
     texts = [row.labels for row in await db_session.scalars(select(ProjectTypeDef))]
-    texts += [row.about for row in await db_session.scalars(select(ProjectTypeStage))]
+    # A listed stage may have no words of its type's: its general text is used (A44).
+    texts += [
+        row.about
+        for row in await db_session.scalars(select(ProjectTypeStage))
+        if row.about is not None
+    ]
     texts += [row.labels for row in await db_session.scalars(select(DetailTypeDef))]
     for stage in await db_session.scalars(select(StageDef)):
         texts += [stage.titles, stage.about]
@@ -68,6 +73,7 @@ async def usual_stages(session) -> dict[str, list[str]]:
     rows = await session.execute(
         select(ProjectTypeStage.project_type, ProjectTypeStage.stage_key)
         .join(StageDef, StageDef.key == ProjectTypeStage.stage_key)
+        .where(ProjectTypeStage.usual)
         .order_by(StageDef.position)
     )
     stages: dict[str, list[str]] = {}

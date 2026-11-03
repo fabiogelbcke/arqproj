@@ -455,6 +455,28 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await shoot(page, "10c-operacao-escritorio");
   await page.getByRole("button", { name: "Suspender", exact: true }).click();
   await shoot(page, "10e-operacao-suspender");
+  await page.setViewportSize(SIZES[0]!);
+  await page.keyboard.press("Escape");
+  // The site's types and stages (A44): the list, one type, and the warning before
+  // a change that reaches existing projects (gone back from, nothing saved).
+  await page.getByRole("link", { name: "Configurações" }).click();
+  await page.getByText("Visualização Arquitetônica").waitFor();
+  await shoot(page, "10g-configuracoes-tipos");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("link", { name: "Editar Projeto Arquitetônico" }).click();
+  await page.getByRole("heading", { name: "Projeto Arquitetônico" }).waitFor();
+  await shoot(page, "10h-configuracoes-tipo");
+  await page.setViewportSize(SIZES[0]!);
+  const name = page.getByLabel("Português").first();
+  await name.fill("Projeto de Arquitetura");
+  await page.getByRole("button", { name: "Salvar alterações" }).click();
+  await page.getByRole("alertdialog").waitFor();
+  await shoot(page, "10i-configuracoes-aviso");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("button", { name: "Voltar e revisar" }).click();
+  await page.getByRole("link", { name: "Etapas" }).click();
+  await page.getByText("Entrega Final").waitFor();
+  await shoot(page, "10j-configuracoes-etapas");
 });
 
 test("@screenshots support access", async ({ page }) => {

@@ -80,7 +80,9 @@ export function useStageChoice(options: CreationOptions | undefined, initialType
   // "Outro"'s name, as typed; sent only with that type.
   const [customType, setCustomType] = useState("");
   const types = options?.types ?? [];
-  const type = types.find((option) => option.key === typeKey) ?? types[0];
+  // The project's own type even when hidden for new projects (A44); else the first
+  // that may be chosen.
+  const type = types.find((option) => option.key === typeKey) ?? types.find((option) => !option.hidden);
   const order = (options?.stages ?? []).map((stage) => stage.key);
   const stages = (ticked ?? type?.stages ?? []).slice().sort((a, b) => order.indexOf(a) - order.indexOf(b));
   const typed = type?.key === OTHER_TYPE ? customType.trim() : null;
@@ -118,7 +120,9 @@ export function TypeChoiceField({ choice }: { choice: StageChoice }) {
       >
         <Label className={styles.label}>{t("newProject.type")}</Label>
         <div className={styles.typeOptions}>
-          {(options?.types ?? []).map((option) => (
+          {(options?.types ?? [])
+            .filter((option) => !option.hidden)
+            .map((option) => (
             <Radio key={option.key} value={option.key} className={styles.choice}>
               {option.label}
             </Radio>

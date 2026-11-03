@@ -34,7 +34,6 @@ from backend.projects.creation import (
 )
 from backend.projects.enums import (
     AccessMode,
-    BuiltinStage,
     DetailKey,
     ProjectStatus,
     ProjectType,
@@ -129,6 +128,9 @@ class ProjectTypeOption(BaseModel):
     # The stages listed when it is chosen, its usual ones among them; the rest stay
     # behind "Mostrar todas as etapas".
     offered: list[str]
+    # Not offered for a new choice, but a project that has it still finds its
+    # stages here (A44).
+    hidden: bool = False
 
 
 class CreationOptions(BaseModel):
@@ -156,24 +158,6 @@ class ProjectIn(BaseModel):
     # Made by the screen once per dialog: a retried or double-sent request
     # returns the project already created.
     creation_key: str = Field(min_length=16, max_length=100)
-
-
-# The stages each type lists when chosen, its usual ones among them (A27, trial
-# since 1 Nov 2026): an interiors project has no permit or feasibility study, a
-# visualization project none of the building stages but Briefing. Data for the
-# reference tables if it stays.
-_S = BuiltinStage
-_BUILDING = frozenset(BuiltinStage) - {
-    _S.PREVIEW_DELIVERY, _S.DOCUMENTATION, _S.REVISIONS, _S.FINAL_DELIVERY
-}  # fmt: skip
-OFFERED_STAGES: dict[str, frozenset[str]] = {
-    ProjectType.ARCHITECTURE: _BUILDING,
-    ProjectType.INTERIORS: _BUILDING - {_S.FEASIBILITY_STUDY, _S.PERMIT_DOCUMENTS},
-    ProjectType.RENOVATION: _BUILDING,
-    ProjectType.LANDSCAPING: _BUILDING,
-    ProjectType.VISUALIZATION: frozenset(BuiltinStage) - _BUILDING | {_S.BRIEFING},
-    ProjectType.OTHER: frozenset(BuiltinStage),  # anything: the office named the type
-}
 
 
 async def summaries(
@@ -325,24 +309,35 @@ async def project_types(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> CreationOptions:
-    stages = list(await db.scalars(select(StageDef).order_by(StageDef.position)))
+    # Hidden stages may not be chosen any more (A44); hidden types are listed,
+    # marked, for the projects that have them, and the screens offer them for no
+    # new choice.
+    stages = list(
+        await db.scalars(select(StageDef).where(~StageDef.hidden).order_by(StageDef.position))
+    )
+    listed: dict[str, set[str]] = {}
     usual: dict[str, set[str]] = {}
-    for kind, stage in await db.execute(
-        select(ProjectTypeStage.project_type, ProjectTypeStage.stage_key)
+    for kind, stage, ticked in await db.execute(
+        select(ProjectTypeStage.project_type, ProjectTypeStage.stage_key, ProjectTypeStage.usual)
     ):
-        usual.setdefault(kind, set()).add(stage)
+        listed.setdefault(kind, set()).add(stage)
+        if ticked:
+            usual.setdefault(kind, set()).add(stage)
+    every = {stage.key for stage in stages}
     return CreationOptions(
         types=[
             ProjectTypeOption(
                 key=kind.key,
                 label=_text(kind.labels, tenant.locale),
                 stages=[stage.key for stage in stages if stage.key in usual.get(kind.key, set())],
+                # "Outro" lists every stage; the others, those set for them.
                 offered=[
                     stage.key
                     for stage in stages
-                    if stage.key in OFFERED_STAGES.get(kind.key, frozenset())
-                    or stage.key in usual.get(kind.key, set())
+                    if stage.key
+                    in (every if kind.key == ProjectType.OTHER else listed.get(kind.key, set()))
                 ],
+                hidden=kind.hidden,
             )
             for kind in await db.scalars(select(ProjectTypeDef).order_by(ProjectTypeDef.position))
         ],

@@ -25,7 +25,8 @@
           "coordination",
           "complementary_projects",
           "specifications"
-        ]
+        ],
+        "hidden": false
       },
       {
         "key": "interiors",
@@ -49,7 +50,8 @@
           "coordination",
           "complementary_projects",
           "specifications"
-        ]
+        ],
+        "hidden": false
       },
       {
         "key": "renovation",
@@ -76,7 +78,8 @@
           "coordination",
           "complementary_projects",
           "specifications"
-        ]
+        ],
+        "hidden": false
       },
       {
         "key": "landscaping",
@@ -102,7 +105,8 @@
           "coordination",
           "complementary_projects",
           "specifications"
-        ]
+        ],
+        "hidden": false
       },
       {
         "key": "visualization",
@@ -120,7 +124,8 @@
           "preview_delivery",
           "revisions",
           "final_delivery"
-        ]
+        ],
+        "hidden": false
       },
       {
         "key": "other",
@@ -144,7 +149,8 @@
           "preview_delivery",
           "revisions",
           "final_delivery"
-        ]
+        ],
+        "hidden": false
       }
     ],
     "stages": [
