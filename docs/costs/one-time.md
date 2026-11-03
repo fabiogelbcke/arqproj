@@ -28,6 +28,7 @@ something else.
 | Our own file storage (R2) | ~2–3 weeks | [storage-strategy.md](../storage-strategy.md#c-our-own-storage) |
 | Each more cloud provider (OneDrive, Dropbox) | ~2–3 weeks | Upkeep as their APIs change |
 | WhatsApp updates | ~1–2 weeks | Template approvals with Meta |
+| WhatsApp file bot | ~3–5 weeks, after the updates | Cloud Tasks queue (a change to A09) |
 | AI assistant in the panel | 1–2 weeks | Keeping its help texts current |
 | Plans, limits and trial end dates in the product | Not estimated | [pricing-and-trials.md](../pricing-and-trials.md#what-the-product-needs-for-this-not-built) |
 | An office's own domain for its pages | An hour per office | — |

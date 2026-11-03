@@ -49,6 +49,7 @@ class ErrorCode(StrEnum):
     INVALID_PROJECT_NAME = "invalid_project_name"
     INVALID_CLIENT_NAME = "invalid_client_name"
     UNKNOWN_PROJECT_TYPE = "unknown_project_type"
+    INVALID_CUSTOM_TYPE = "invalid_custom_type"  # "Outro" needs its name; only it has one
     UNKNOWN_STAGE = "unknown_stage"  # not a built-in stage, or chosen twice
     UNKNOWN_MEMBER = "unknown_member"  # not one of the office's staff (A41)
     FEATURE_OFF = "feature_off"  # not switched on for this office (A40)

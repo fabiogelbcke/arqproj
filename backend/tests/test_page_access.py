@@ -2,6 +2,7 @@
 
 import pytest
 
+from backend.projects.creation import SLUG_MAX
 from backend.tests import test_office
 from backend.tests.test_office import ALINEA
 from backend.web import attempts
@@ -265,7 +266,7 @@ async def test_another_projects_address_is_never_given_away(client, owner):
         )
 
 
-@pytest.mark.parametrize("slug", ["Casa Jardim", "painel", "-casa", "", "a" * 81])
+@pytest.mark.parametrize("slug", ["Casa Jardim", "painel", "-casa", "", "a" * (SLUG_MAX + 1)])
 async def test_a_bad_address_is_refused(client, owner, slug):
     response = await change(client, owner, "casa-jardim", slug=slug)
     assert (response.status_code, response.json()["error"]) == (422, "invalid_slug")

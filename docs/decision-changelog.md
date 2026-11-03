@@ -19,6 +19,97 @@ a new entry too.
 
 ---
 
+## 2026-11-03 — A27: Visualização's Documentação before Entrega Prévia
+
+**Was:** Entrega Prévia, Documentação, Revisões, Entrega Final.
+
+**Now:** Documentação, Entrega Prévia, Revisões, Entrega Final.
+
+**Why:** Fabio asked for it, 3 Nov 2026.
+
+## 2026-11-02 — A27: Visualização without Pós-Produção, all its stages ticked
+
+**Was:** Visualização Arquitetônica had five stages of its own (Entrega Prévia,
+Documentação, Revisões, Entrega Final, Pós-Produção) after Briefing, ticking all
+but Revisões and Pós-Produção, with draft descriptions.
+
+**Now:** no Pós-Produção stage. Its five (Briefing and its own four) are all
+ticked, each described in the texts Alinea uses in its proposals.
+
+**Why:** Fabio, the same night, with Alinea's texts for these services.
+
+## 2026-11-02 — A42: a new proposal chooses its services first
+
+**Was:** with the short creation form (same day), a new proposal had no stages,
+so its services started from the office's services: the same list for every
+proposal, whatever its type.
+
+**Now:** right after "Nova proposta", a first step on the generator, "Serviços
+da proposta", lists the type's stages with its usual ones ticked, and the
+office's own by name. Those ticked become the services, one each, with the
+office's text for a service of the same name, else the stage's description in
+the type's words. Skipped, the type's usual stages that way.
+
+**Why:** Fabio, the same night: proposals were all starting with the same
+services. The short form had been agreed on the understanding that a proposal's
+services would still start from its type's stages, and since services map 1:1
+to the stages on acceptance, choosing them is the proposal's own setup step.
+
+## 2026-11-02 — A24, A42: short creation form; an accepted proposal sets up its stages
+
+**Was:** creation asked for name, client, type, stages and the client's emails,
+for a project and a proposal alike. A proposal's services started from the
+stages ticked at creation; acceptance only switched the status, the stages being
+those from creation.
+
+**Now:** creation asks only for name, client, type and address. A project's page
+then opens setup steps (stages, description and details, cover, client's emails),
+each skippable. A proposal has no stages while a proposal, and its services start
+from the office's services. "Proposta aceita" opens the same setup steps, the
+stages step starting from the services, one stage each: the built-in stage a
+service's name loosely matches, else the office's own stage named as the service.
+Nothing else is ticked; staff tick or untick any stage before it is made.
+
+**Why:** Fabio, 1–2 Nov 2026, trying it locally: a long first form makes creating
+look like work. After going back and forth (a stage is not necessarily a service,
+nor a service a stage), he concluded that an accepted proposal's services map 1:1
+to the project's stages, the setup step still letting staff change the selection.
+
+**Alternatives rejected:**
+- *On acceptance, rebuild the stages from the services automatically* (names
+  and order, unmatched stages removed): it would drop stages that are no service,
+  like Briefing.
+- *Ticking the type's usual stages too*, or *leaving out services that match no
+  stage*: considered the same day; Fabio settled on one stage per service.
+- *Exact name matching*: offices word services freely ("Projeto Executivo de
+  Arquitetura").
+
+---
+
+## 2026-11-02 — A27: a fifth project type, and each type lists only its stages
+
+**Was:** four built-in types, all for building work, and 11 built-in stages; creation
+listed every stage for every type, the type's usual ones ticked.
+
+**Now:** a fifth type, Visualização Arquitetônica, with stages of its
+own (Entrega Prévia, Documentação, Revisões, Entrega Final, Pós-Produção) after
+the 11, Briefing shared. As a trial, each type lists only the stages that suit it,
+its usual ones ticked, the rest behind "Mostrar todas as etapas".
+
+**Why:** Fabio, 2 Nov 2026: a rendering studio's project never has
+Compatibilização or Especificações; showing the building stages to it, or its
+stages to an architecture project, is noise. The list per type is kept in the
+code for the trial and moves to the reference tables if it stays.
+
+Also 2 Nov 2026: **"Outro"**. Was: only built-in types; office-defined types a
+later addition. Now: a project may be of type "Outro" with a name the office
+types for that project (no list of the office's own types yet), listing every
+stage with Briefing ticked. Why: an office whose work fits none of the five
+types shouldn't have to pick a wrong one; a per-project name is the smallest
+step, and a reusable list of the office's types can follow if they repeat.
+
+---
+
 ## 2026-10-30 — A38, A43: operators can enter an office's painel
 
 **Was:** the operator dashboard showed counts and health only: no file names,

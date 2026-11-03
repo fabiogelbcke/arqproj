@@ -204,14 +204,14 @@ test("create a project → it is listed as a draft; a used address names its pro
   await expect(dialog.getByLabel("Endereço da página")).toHaveValue(
     "casa-jardim",
   ); // from the name
-  await dialog.getByRole("button", { name: "Criar projeto" }).click();
+  await dialog.getByRole("button", { name: "Criar e continuar" }).click();
   await expect(dialog.getByRole("alert")).toContainText(
     "Este endereço já é do projeto “Casa Jardim”",
   );
 
   // Changing the address alone is not enough: the name is taken too.
   await dialog.getByLabel("Endereço da página").fill("casa-jardim-teste");
-  await dialog.getByRole("button", { name: "Criar projeto" }).click();
+  await dialog.getByRole("button", { name: "Criar e continuar" }).click();
   await expect(dialog.getByRole("alert")).toContainText(
     "Já existe o projeto “Casa Jardim”",
   );
@@ -220,18 +220,32 @@ test("create a project → it is listed as a draft; a used address names its pro
   await expect(
     dialog.getByRole("radio", { name: "Projeto de Interiores" }),
   ).toBeChecked();
-  await expect(
-    dialog.getByRole("checkbox", { name: "Especificações" }),
-  ).toBeChecked(); // usual for interiors
-  await dialog.getByText("Especificações", { exact: true }).click(); // untick one
-  await dialog.getByLabel("Outra etapa (opcional)").fill("Visita técnica"); // the office's own
-  await dialog.getByLabel("Outra etapa (opcional)").press("Enter");
-  await dialog.getByRole("button", { name: "Criar projeto" }).click();
-  // Straight to the new project's page, its own stage after the built-in ones.
+  await dialog.getByRole("button", { name: "Criar e continuar" }).click();
+
+  // Straight to the new project's page, where the setup steps go on (trial, 1 Nov 2026).
   await expect(page).toHaveURL(/\/casa-jardim-teste$/);
+  const setup = page.getByRole("dialog", { name: "Etapas" });
+  await expect(
+    setup.getByRole("checkbox", { name: "Especificações" }),
+  ).toBeChecked(); // usual for interiors
+  await expect(setup.getByRole("checkbox", { name: "Projeto Legal" })).toHaveCount(0); // not for interiors
+  await setup.getByText("Especificações", { exact: true }).click(); // untick one
+  await setup.getByLabel("Outra etapa (opcional)").fill("Visita técnica"); // the office's own
+  await setup.getByLabel("Outra etapa (opcional)").press("Enter");
+  await setup.getByRole("button", { name: "Continuar" }).click();
+  const details = page.getByRole("dialog", { name: "Descrição e informações" });
+  await details.getByLabel("Descrição").fill("Apartamento reformado para uma família de quatro.");
+  await details.getByRole("button", { name: "Continuar" }).click();
+  await page.getByRole("dialog", { name: "Foto de capa" }).getByRole("button", { name: "Pular" }).click();
+  const emails = page.getByRole("dialog", { name: "E-mails do cliente" });
+  await emails.getByLabel("Novo e-mail").fill("familia.teste@exemplo.com.br");
+  await emails.getByRole("button", { name: "Concluir" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  // Its own stage after the built-in ones, and the description, on the page.
   await expect(
     page.getByRole("heading", { name: "Visita técnica" }),
   ).toBeVisible();
+  await expect(page.getByText("Apartamento reformado para uma família de quatro.").first()).toBeVisible();
 
   // Published at once (A35): with the live projects, no drafts group.
   await page.goto("/painel/");

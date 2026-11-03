@@ -41,7 +41,7 @@ from backend.office.models import LogoType, OfficeProfile
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Project, ProjectSlug
-from backend.projects.stages import stage_texts
+from backend.projects.stages import BuiltinText, builtin_texts, stage_texts
 from backend.proposals.content import (
     AMOUNT_MAX,
     INTRO_MAX,
@@ -252,6 +252,10 @@ class GeneratorOut(BaseModel):
     start: ProposalStart
     versions: list[VersionOut]  # newest first
     presets: list[PresetOut]  # the office's services, or the built-in list
+    project_type: str
+    # Each built-in stage's description in the type's words: a new proposal's first
+    # step makes the stages chosen its services (2 Nov 2026).
+    stage_about: dict[str, str]
     # The office's details as set: a blank one is filled in from the next saved proposal.
     office: OfficeDetailsOut
     # The office's own opening and observations, else the built-in ones.
@@ -388,23 +392,28 @@ async def proposal_list(
 
 
 async def _first_services(
-    db: AsyncSession, project: Project, locale: Locale, offered: list[PresetOut]
+    db: AsyncSession,
+    project: Project,
+    locale: Locale,
+    offered: list[PresetOut],
+    builtins: list[BuiltinText],
 ) -> list[Service]:
-    """A new proposal's services: the stages ticked when it was created, the
-    office's own among them (A42). Each in the office's words for a service of that
-    name, else the stage's description. Without stages, the office's services."""
-    stages = await stage_texts(db, project, locale)
-    if not stages:
-        return [Service(title=p.title, description=p.description) for p in offered]
+    """A new proposal's services: its stages, the office's own among them (A42),
+    each in the office's words for a service of that name, else the stage's
+    description. Without stages (every new proposal since 2 Nov 2026, created
+    without them), its type's usual stages; its first step lets staff choose others."""
     by_title = {p.title.strip().casefold(): p.description for p in offered}
+    stages = [(row.title, row.about) for row in await stage_texts(db, project, locale)]
+    if not stages:
+        stages = [(row.title, row.about) for row in builtins if row.usual]
     return [
         Service(
-            title=row.title,
-            description=by_title.get(row.title.strip().casefold(), row.about or "")[
+            title=title,
+            description=by_title.get(title.strip().casefold(), about or "")[
                 :SERVICE_DESCRIPTION_MAX
             ],
         )
-        for row in stages[:SERVICES_MAX]
+        for title, about in stages[:SERVICES_MAX]
     ]
 
 
@@ -420,6 +429,7 @@ async def generator(
     office = _office(found)
     intro, notes = _defaults(found, tenant.locale)
     offered = await presets(db, tenant.locale)
+    builtins = await builtin_texts(db, project.project_type, tenant.locale)
     newest = await latest(db, project.id)
     if newest is not None:
         start = ProposalStart.model_validate(newest.content)
@@ -429,7 +439,7 @@ async def generator(
             city=office.city,
             date=_today(tenant),
             intro=intro,
-            services=await _first_services(db, project, tenant.locale, offered),
+            services=await _first_services(db, project, tenant.locale, offered, builtins),
             notes=notes,
             signatory=office.signatory,
             address=office.address,
@@ -458,6 +468,8 @@ async def generator(
         start=start,
         versions=versions,
         presets=offered,
+        project_type=project.project_type,
+        stage_about={row.key: row.about for row in builtins},
         office=office,
         default_intro=intro,
         default_notes=notes,

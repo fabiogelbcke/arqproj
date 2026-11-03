@@ -314,7 +314,8 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         timezone=tenant.timezone,
         name=project.name,
         client_name=project.client_name,
-        project_type=_text(type_label, locale),
+        # "Outro"'s name as the office typed it; a built-in type's in the office's language.
+        project_type=project.custom_type or _text(type_label, locale),
         project_type_key=project.project_type,
         description=project.description,
         cover_url=(
