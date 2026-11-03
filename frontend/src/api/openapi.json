@@ -8478,7 +8478,8 @@
         "enum": [
           "project_members",
           "proposals",
-          "portfolio"
+          "portfolio",
+          "cover_band"
         ],
         "title": "Feature",
         "description": "Work merged but switched on only for some offices, from the operator\ndashboard (A40): staging and main deploy it switched off for everyone else.\nRemove a feature from here once every office has it."
@@ -9669,6 +9670,14 @@
             "type": "string",
             "format": "uuid",
             "title": "Id"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            },
+            "type": "array",
+            "title": "Features",
+            "default": []
           },
           "office": {
             "$ref": "#/components/schemas/backend__web__pages__OfficeOut"
@@ -11435,14 +11444,6 @@
             },
             "type": "array",
             "title": "Recipients",
-            "default": []
-          },
-          "features": {
-            "items": {
-              "$ref": "#/components/schemas/Feature"
-            },
-            "type": "array",
-            "title": "Features",
             "default": []
           }
         },

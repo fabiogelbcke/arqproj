@@ -2223,7 +2223,7 @@ export interface components {
          *     Remove a feature from here once every office has it.
          * @enum {string}
          */
-        Feature: "project_members" | "proposals" | "portfolio";
+        Feature: "project_members" | "proposals" | "portfolio" | "cover_band";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -2663,6 +2663,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Features
+             * @default []
+             */
+            features: components["schemas"]["Feature"][];
             office: components["schemas"]["backend__web__pages__OfficeOut"];
             locale: components["schemas"]["Locale"];
             /** Timezone */
@@ -3325,11 +3330,6 @@ export interface components {
              * @default []
              */
             recipients: components["schemas"]["RecipientOut"][];
-            /**
-             * Features
-             * @default []
-             */
-            features: components["schemas"]["Feature"][];
         };
         /** StageFilesOut */
         StageFilesOut: {

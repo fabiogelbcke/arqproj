@@ -210,6 +210,18 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
+  // The example project (plan section 16) has the cover band on (A40): the
+  // opening on a band made from the cover. Its explore tour closed first.
+  const example = await browser.newPage();
+  await example.emulateMedia({ reducedMotion: "reduce" });
+  await example.goto("/tour-projeto");
+  await example.locator(".driver-popover").waitFor();
+  await example.keyboard.press("Escape");
+  await example.locator(".project-opening__backdrop img").waitFor();
+  await example.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
+  await shoot(example, "06v-exemplo-faixa-da-capa");
+  await shoot(example, "06v-exemplo-faixa-da-capa", "dark");
+  await example.close();
   // Drive disconnected: the page is offline (staff are told to reconnect).
   await page.route("**/api/pages/casa-jardim", (route) =>
     route.fulfill({ status: 503, json: { error: "page_unavailable" } }),
@@ -268,7 +280,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar informações" }).click();
-  await page.getByRole("button", { name: "Adicionar informação" }).click();
+  await page.getByRole("button", { name: "Adicionar detalhes" }).click();
   await page.getByRole("menu").waitFor();
   await shoot(page, "06o-adicionar-informacao");
   await page.keyboard.press("Escape");
