@@ -36,6 +36,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from backend.db.isolation import scope_to_tenant
+from backend.identity import links, support
 from backend.identity.models import Role
 from backend.operators import actions, offices
 from backend.operators.google_signin import GoogleSignIn, SignInError, new_verifier
@@ -406,7 +407,16 @@ class CreateTenantIn(BaseModel):
 
 
 class TenantActionIn(BaseModel):
-    action: Literal["owner_link", "suspend", "restore", "delete", "feature_on", "feature_off"]
+    action: Literal[
+        "owner_link",
+        "suspend",
+        "restore",
+        "delete",
+        "feature_on",
+        "feature_off",
+        "support_owner",
+        "support_member",
+    ]
     confirmation: str = ""
     # For "feature_on" and "feature_off" (A40).
     feature: Feature | None = None
@@ -414,6 +424,9 @@ class TenantActionIn(BaseModel):
 
 class TenantActionOut(BaseModel):
     owner_url: str | None = None
+    # "support_owner" / "support_member" (A43): opened at once, it signs this
+    # browser in to the office as Suporte Unio; it works once, for 2 minutes.
+    support_url: str | None = None
 
 
 def _action_sessionmaker(request: Request):
@@ -475,6 +488,8 @@ async def tenant_action(
     operator: dict = Depends(operator_with_csrf),
 ) -> TenantActionOut:
     response.headers["Cache-Control"] = "private, no-store"
+    if body.action in ("support_owner", "support_member"):
+        return await _support_entry(request, slug, body.action, operator)
     try:
         async with _action_sessionmaker(request)() as db:
             tenant = await actions.scoped_tenant(db, slug)
@@ -497,6 +512,41 @@ async def tenant_action(
             return TenantActionOut(owner_url=url)
     except SQLAlchemyError as error:
         raise _action_failure(request, slug, error) from None
+
+
+async def _support_entry(
+    request: Request, slug: str, action: str, operator: dict
+) -> TenantActionOut:
+    """Support access (A43): the entry is audited first, with the operator login;
+    the office's Suporte Unio account and its one-time link are then written with
+    the app's login, scoped to the office like a request, so the operator login
+    needs no privileges on office tables."""
+    role = Role.OWNER if action == "support_owner" else Role.MEMBER
+    try:
+        async with _action_sessionmaker(request)() as db:
+            tenant = await actions.scoped_tenant(db, slug)
+            if tenant.status is not TenantStatus.ACTIVE:
+                raise ApiError(409, ErrorCode.OPERATOR_ACTION_CONFLICT)
+            tenant_id = tenant.id
+            actions.audit(db, operator["email"], f"support:{role}", tenant, current_request_id())
+            await db.commit()
+        async with request.app.state.sessionmaker() as db:
+            scope_to_tenant(db.sync_session, tenant_id)
+            host = await db.scalar(
+                select(TenantDomain.hostname).where(
+                    TenantDomain.tenant_id == tenant_id, TenantDomain.is_primary
+                )
+            )
+            if host is None:
+                raise ApiError(409, ErrorCode.OPERATOR_ACTION_CONFLICT)
+            url = await support.entry_link(db, role, host)
+            await db.commit()
+    except SQLAlchemyError as error:
+        raise _action_failure(request, slug, error) from None
+    port = _settings(request).local_site_port
+    if host.endswith(".localhost"):  # as `actions.owner_link`: the dev server's port
+        url = url.replace(f":{links.LOCAL_PORT}/", f":{port}/", 1)
+    return TenantActionOut(support_url=url)
 
 
 async def _project_page(request: Request) -> Response:

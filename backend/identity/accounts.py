@@ -44,7 +44,9 @@ async def find_user(session: AsyncSession, email: str) -> User | None:
     # that row-level security does not bind (a superuser locally).
     return await session.scalar(
         select(User).where(
-            User.tenant_id == func.current_tenant_id(), User.email == normalize_email(email)
+            User.tenant_id == func.current_tenant_id(),
+            User.email == normalize_email(email),
+            User.support.is_(False),  # Suporte Unio is entered only by an operator (A43)
         )
     )
 

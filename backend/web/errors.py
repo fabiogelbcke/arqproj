@@ -49,6 +49,7 @@ class ErrorCode(StrEnum):
     INVALID_PROJECT_NAME = "invalid_project_name"
     INVALID_CLIENT_NAME = "invalid_client_name"
     UNKNOWN_PROJECT_TYPE = "unknown_project_type"
+    INVALID_CUSTOM_TYPE = "invalid_custom_type"  # "Outro" needs its name; only it has one
     UNKNOWN_STAGE = "unknown_stage"  # not a built-in stage, or chosen twice
     UNKNOWN_MEMBER = "unknown_member"  # not one of the office's staff (A41)
     FEATURE_OFF = "feature_off"  # not switched on for this office (A40)
@@ -92,6 +93,7 @@ class ErrorCode(StrEnum):
     JOIN_LINK_INVALID = "join_link_invalid"  # turned off, replaced, or another office's
     ACCOUNT_EXISTS = "account_exists"  # joining or correcting to an address with an account
     EMAIL_UNCONFIRMED = "email_unconfirmed"  # joined by the shared link: confirm the email first
+    SUPPORT_ACCOUNT = "support_account"  # Suporte Unio's own name, email or password (A43)
     EMAIL_CODE_WRONG = "email_code_wrong"  # another try is left
     EMAIL_CODE_EXPIRED = "email_code_expired"  # expired, or too many wrong: ask for a new one
     EMAIL_CODE_RECENT = "email_code_recent"  # one went in the last 2 minutes: wait

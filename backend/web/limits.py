@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from backend.identity.emails import EMAIL_LIMIT
 from backend.notifications.models import RECIPIENTS_MAX
-from backend.projects.creation import CLIENT_NAME_LIMIT, SLUG_MAX
+from backend.projects.creation import CLIENT_NAME_LIMIT, CUSTOM_TYPE_LIMIT, SLUG_MAX
 from backend.projects.creation import NAME_MAX as PROJECT_NAME_MAX
 from backend.projects.models import MEETING_LOCATION_MAX, MEETING_TITLE_MAX, STAGE_TITLE_MAX
 from backend.proposals import content as proposal
@@ -29,6 +29,7 @@ FIELD_LIMITS: dict[str, int] = {
     "projectName": PROJECT_NAME_MAX,
     "clientName": CLIENT_NAME_LIMIT,
     "slug": SLUG_MAX,
+    "customType": CUSTOM_TYPE_LIMIT,
     "description": DESCRIPTION_MAX,
     "stageTitle": STAGE_TITLE_MAX,
     "stageNotes": NOTES_MAX,

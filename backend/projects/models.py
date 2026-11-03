@@ -33,6 +33,7 @@ from backend.projects.enums import (
     CoverType,
     DetailType,
     ProjectStatus,
+    ProjectType,
 )
 from backend.tenancy.models import Locale
 
@@ -40,6 +41,7 @@ CLIENT_NAME_MAX = 48
 MEETING_TITLE_MAX = 40
 MEETING_LOCATION_MAX = 60
 STAGE_TITLE_MAX = 80  # a stage's name as the office types it
+CUSTOM_TYPE_MAX = 80  # an "Outro" type's name as typed; the screens ask for less
 
 
 # -- built-in content: reference tables shared by all offices (migration 0008) ---
@@ -152,6 +154,15 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
         ),
         enum_check("cover_type", CoverType),
         CheckConstraint("(cover_file_id IS NULL) = (cover_type IS NULL)", name="cover_complete"),
+        # "Outro" (2 Nov 2026): named by the office; a built-in type never is.
+        CheckConstraint(
+            f"(project_type = '{ProjectType.OTHER.value}') = (custom_type IS NOT NULL)",
+            name="custom_type_named",
+        ),
+        CheckConstraint(
+            f"custom_type IS NULL OR length(btrim(custom_type)) BETWEEN 1 AND {CUSTOM_TYPE_MAX}",
+            name="custom_type_length",
+        ),
     )
 
     name: Mapped[str] = mapped_column(Text)
@@ -159,6 +170,8 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
     project_type: Mapped[str] = mapped_column(
         Text, ForeignKey("project_types.key", name="fk_projects_project_type")
     )
+    # The type's name as the office typed it, for "Outro" only.
+    custom_type: Mapped[str | None] = mapped_column(Text)
     description: Mapped[str] = mapped_column(Text, server_default=text("''"))
     status: Mapped[ProjectStatus] = mapped_column(
         TextEnum(ProjectStatus), server_default=text("'draft'")

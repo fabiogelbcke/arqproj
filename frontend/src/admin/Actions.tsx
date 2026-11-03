@@ -57,6 +57,23 @@ function OwnerLink({ url, onDone }: { url: string; onDone: () => void }) {
   );
 }
 
+/** Support access (A43): the office's painel, opened in a new tab by the
+ *  operator's own click (a tab opened after the request would be blocked). The
+ *  link works once, for 2 minutes, so it isn't offered to copy. */
+function SupportEntry({ url, onDone }: { url: string; onDone: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.dialogBody} role="status">
+      <p>{t("admin.actions.supportHelp")}</p>
+      <div className={styles.dialogActions}>
+        <a className={`${ui.button} ${ui.primary}`} href={url} target="_blank" rel="noreferrer" onClick={onDone}>
+          {t("admin.actions.supportOpen")}
+        </a>
+      </div>
+    </div>
+  );
+}
+
 /** "Criar escritório", in a dialog like the painel's: the identifier follows the
  *  address until it is edited, since it can't change afterwards. */
 export function CreateTenant() {
@@ -146,7 +163,9 @@ function SignupLinkDialog({ onClose }: { onClose: () => void }) {
 export function TenantActions({ office }: { office: Schemas["AdminOfficeOut"] }) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<Action | null>(null);
-  const choices = office.status === "active" ? (["owner_link", "suspend"] as const) : (["restore", "delete"] as const);
+  const choices = office.status === "active"
+    ? (["support_owner", "support_member", "owner_link", "suspend"] as const)
+    : (["restore", "delete"] as const);
   return <>
     {choices.map((choice) => (
       <Button key={choice} size="small" onPress={() => setSelected(choice)}>{t(`admin.actions.${choice}`)}</Button>
@@ -164,7 +183,7 @@ function ActionDialog({ office, action, onClose }: { office: Schemas["AdminOffic
     mutationFn: () => call(api.POST("/api/admin/offices/{slug}/actions", { params: { path: { slug: office.slug } }, body: { action, confirmation } })),
     onSuccess: (out) => {
       void cache.invalidateQueries({ queryKey: ["admin"] });
-      if (out.owner_url) return;
+      if (out.owner_url || out.support_url) return;
       toast(t("admin.actions.done"));
       onClose();
       if (action === "delete") void navigate("/");
@@ -176,6 +195,8 @@ function ActionDialog({ office, action, onClose }: { office: Schemas["AdminOffic
     <DialogFrame title={t(`admin.actions.${action}`)} onClose={close}>
       {run.data?.owner_url ? (
         <OwnerLink url={run.data.owner_url} onDone={onClose} />
+      ) : run.data?.support_url ? (
+        <SupportEntry url={run.data.support_url} onDone={onClose} />
       ) : (
         <Form className={styles.dialogBody} onSubmit={(event) => { event.preventDefault(); run.mutate(); }}>
           <p>{t(`admin.actions.explain.${action}`, { name: office.name })}</p>

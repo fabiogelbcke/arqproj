@@ -105,6 +105,25 @@ describe("product analytics in the browser (A39)", () => {
     expect(sdk.opt_out_capturing).toHaveBeenCalled();
   });
 
+  it("stops when the session becomes an operator's support session in this browser (A43)", async () => {
+    const { capture, startAnalytics } = await import("./posthog");
+    await startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
+    // Another tab entered support: this tab's next /api/me has no key.
+    await startAnalytics({ ...ME, name: "Suporte Unio", analytics: null, support_until: "2026-10-30T15:30:00Z" } as unknown as Me);
+    expect(sdk.opt_out_capturing).toHaveBeenCalled();
+    capture("team_member_invited");
+    expect(sdk.capture).not.toHaveBeenCalled();
+  });
+
+  it("a support session that overtakes a start still loading leaves it off", async () => {
+    const { startAnalytics } = await import("./posthog");
+    const starting = startAnalytics({ ...ME, analytics: ANALYTICS } as unknown as Me);
+    await startAnalytics({ ...ME, analytics: null } as unknown as Me);
+    await starting;
+    expect(sdk.opt_in_capturing).not.toHaveBeenCalled();
+    expect(sdk.identify).not.toHaveBeenCalled();
+  });
+
   it("stays off where the server has no key (staging, local runs)", async () => {
     const { startAnalytics } = await import("./posthog");
     await startAnalytics({ ...ME, analytics: null } as unknown as Me);

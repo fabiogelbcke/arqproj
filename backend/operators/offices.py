@@ -83,7 +83,8 @@ async def _tenants(session: AsyncSession) -> list[tuple[Tenant, list[str]]]:
 
 async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, team: bool) -> None:
     """Counts for one office; `session` is scoped to it."""
-    users = list(await session.scalars(select(User)))
+    # Not Suporte Unio (A43): the office's own people and their activity.
+    users = list(await session.scalars(select(User).where(User.support.is_(False))))
     office.staff = len(users)
     office.owners = sum(1 for u in users if u.role is Role.OWNER)
     office.pending = sum(
@@ -92,9 +93,10 @@ async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, tea
     seen = dict(
         (
             await session.execute(
-                select(LoginSession.user_id, func.max(LoginSession.last_seen_at)).group_by(
-                    LoginSession.user_id
-                )
+                select(LoginSession.user_id, func.max(LoginSession.last_seen_at))
+                .join(User, User.id == LoginSession.user_id)
+                .where(User.support.is_(False))
+                .group_by(LoginSession.user_id)
             )
         ).all()
     )

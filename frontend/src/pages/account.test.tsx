@@ -152,3 +152,44 @@ describe("Minha conta", () => {
     expect(await screen.findByText(/A senha atual não confere/)).toBeInTheDocument();
   });
 });
+
+describe("a support session (A43)", () => {
+  const SUPPORT = { ...ME, name: "Suporte Unio", support_until: "2026-10-30T15:30:00Z" };
+
+  it("says so on every screen, with when it ends, and offers no Minha conta", async () => {
+    signedIn({ "GET /api/me": () => ({ body: SUPPORT }) });
+    renderAt("/");
+    const banner = await screen.findByText(/Sessão de suporte do Unio/);
+    expect(banner).toHaveTextContent(new Date(SUPPORT.support_until).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
+    expect(within(banner).getByRole("button", { name: "Sair do suporte" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    expect(screen.queryByRole("menuitem", { name: "Minha conta" })).toBeNull();
+  });
+
+  it("is entered from the dashboard's link once, then shows the projects", async () => {
+    window.history.replaceState(null, "", "/suporte#token=t0k3n");
+    let me: unknown = null;
+    const sent = signedIn({
+      "GET /api/me": () => (me ? { body: me } : { status: 401, body: { error: "not_signed_in" } }),
+      "POST /api/support-session": () => {
+        me = SUPPORT;
+        return { body: SUPPORT };
+      },
+    });
+    const router = renderAt("/suporte");
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    const entries = sent.filter((r) => r.path === "/api/support-session");
+    expect(entries.map((r) => r.body)).toEqual([{ token: "t0k3n" }]);
+    expect(await screen.findByText(/Sessão de suporte do Unio/)).toBeInTheDocument();
+  });
+
+  it("says when the link no longer works", async () => {
+    window.history.replaceState(null, "", "/suporte#token=used");
+    signedIn({
+      "GET /api/me": () => ({ status: 401, body: { error: "not_signed_in" } }),
+      "POST /api/support-session": () => ({ status: 404, body: { error: "link_invalid" } }),
+    });
+    renderAt("/suporte");
+    expect(await screen.findByText(/Este link não funciona mais/)).toBeInTheDocument();
+  });
+});

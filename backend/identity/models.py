@@ -13,6 +13,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKeyConstraint,
@@ -63,6 +64,9 @@ class User(IdMixin, TimestampsMixin, TenantOwned, Base):
     email_confirmed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # An office's hidden "Suporte Unio" account, which an operator enters through
+    # (A43): never signs in otherwise, and isn't one of the office's team.
+    support: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
 
 
 class LoginSession(IdMixin, CreatedAtMixin, TenantOwned, Base):
@@ -92,6 +96,7 @@ class LinkKind(StrEnum):
     INVITE = "invite"  # a new account chooses its first password
     RESET = "reset"  # an existing account chooses a new one
     CONFIRM = "confirm"  # someone who joined through a signup link confirms their email
+    SUPPORT = "support"  # an operator's browser enters the office as Suporte Unio (A43)
 
 
 class PasswordLink(IdMixin, CreatedAtMixin, TenantOwned, Base):

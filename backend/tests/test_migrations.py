@@ -776,3 +776,143 @@ def test_survey_assessment_becomes_survey_in_every_office(migrated_url):
             connection.execute(text(f'DROP OWNED BY "{owner}"'))
             connection.execute(text(f'DROP ROLE "{owner}"'))
         engine.dispose()
+
+
+def test_visualization_loses_post_production_in_every_office(migrated_url):
+    """0047 (staging had run 0045 as first written): Pós-Produção goes, a project
+    that had it keeps it as its own stage; Visualização ticks its five stages,
+    Documentação before Entrega Prévia, in Alinea's words. Run as an owner that
+    tenant isolation binds (Cloud SQL's migration login)."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0047"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0046")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        for slug in ("alinea", "norte"):
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES (:s, 'X') RETURNING id"), {"s": slug}
+            )
+            project = connection.scalar(
+                text(
+                    "INSERT INTO projects (tenant_id, name, client_name, project_type) "
+                    "VALUES (:t, 'Renders', 'C', 'visualization') RETURNING id"
+                ),
+                {"t": tenant},
+            )
+            for position, key in enumerate(["final_delivery", "post_production"], start=1):
+                connection.execute(
+                    text(
+                        "INSERT INTO project_stages "
+                        "(tenant_id, project_id, position, builtin_key, notes) "
+                        "VALUES (:t, :p, :n, :k, 'anotado')"
+                    ),
+                    {"t": tenant, "p": project, "n": position, "k": key},
+                )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    try:
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0047",
+        )
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    "SELECT s.position, s.builtin_key, s.title, s.notes FROM project_stages s "
+                    "ORDER BY s.position, s.tenant_id"
+                )
+            ).all()
+            assert rows == [
+                (1, "final_delivery", None, "anotado"),
+                (1, "final_delivery", None, "anotado"),
+                (2, None, "Pós-Produção", "anotado"),
+                (2, None, "Pós-Produção", "anotado"),
+            ]
+            assert connection.scalars(
+                text("SELECT key FROM stage_definitions WHERE position > 11 ORDER BY position")
+            ).all() == ["documentation", "preview_delivery", "revisions", "final_delivery"]
+            ticked = dict(
+                connection.execute(
+                    text(
+                        "SELECT stage_key, about ->> 'pt-BR' FROM project_type_stages "
+                        "WHERE project_type = 'visualization'"
+                    )
+                ).all()
+            )
+            assert set(ticked) == {
+                "briefing", "documentation", "preview_delivery", "revisions", "final_delivery",
+            }  # fmt: skip
+            assert ticked["revisions"].startswith("Avaliação das considerações")
+            assert connection.scalar(
+                text("SELECT relforcerowsecurity FROM pg_class WHERE relname = 'project_stages'")
+            )
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()
+
+
+def test_support_accounts_go_on_downgrade_and_what_they_made_stays(migrated_url):
+    """0044's downgrade removes Suporte Unio (A43) though it made a share link,
+    whose maker becomes unknown rather than blocking the downgrade."""
+    command.upgrade(alembic_config(migrated_url), "head")
+    engine = create_engine(migrated_url)
+    try:
+        with engine.begin() as connection:
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES ('alinea', 'Alinea') RETURNING id")
+            )
+            support = connection.scalar(
+                text(
+                    "INSERT INTO users (tenant_id, email, name, role, support) "
+                    "VALUES (:t, 'suporte-owner@unio.invalid', 'Suporte Unio', 'owner', true) "
+                    "RETURNING id"
+                ),
+                {"t": tenant},
+            )
+            project = connection.scalar(
+                text(
+                    "INSERT INTO projects (tenant_id, name, client_name, project_type) "
+                    "SELECT :t, 'Casa', 'Ana', key FROM project_types LIMIT 1 RETURNING id"
+                ),
+                {"t": tenant},
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO share_links (tenant_id, project_id, token_hash, created_by) "
+                    "VALUES (:t, :p, 'h', :u)"
+                ),
+                {"t": tenant, "p": project, "u": support},
+            )
+            connection.execute(  # the office's shared invite link, turned on in support
+                text(
+                    "INSERT INTO join_links (tenant_id, created_by, token_hash) "
+                    "VALUES (:t, :u, 'j')"
+                ),
+                {"t": tenant, "u": support},
+            )
+        command.downgrade(alembic_config(migrated_url), "0043")
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT count(*) FROM users")) == 0
+            assert connection.execute(text("SELECT created_by FROM share_links")).all() == [(None,)]
+            assert connection.execute(text("SELECT created_by FROM join_links")).all() == [(None,)]
+    finally:
+        command.upgrade(alembic_config(migrated_url), "head")
+        engine.dispose()

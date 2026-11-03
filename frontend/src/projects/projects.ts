@@ -164,11 +164,21 @@ export function projectTypes(
   locale: string,
   name: (key: string, label: string) => string = (_key, label) => label,
 ): { id: string; label: string }[] {
-  const labels = new Map(projects.map((p) => [p.project_type, p.project_type_label]));
+  // The first spelling of an "Outro" name names its chip.
+  const labels = new Map<string, string>();
+  for (const p of projects) if (!labels.has(typeGroup(p))) labels.set(typeGroup(p), p.project_type_label);
   const text = new Intl.Collator(locale, { sensitivity: "base" });
   return [...labels]
     .map(([id, label]) => ({ id, label: name(id, label) }))
     .sort((a, b) => text.compare(a.label, b.label));
+}
+
+/** What a type chip groups by: the type, or for "Outro" its name as typed (case
+ *  aside), so "Maquete" and "Mobiliário" get a chip each. */
+export function typeGroup(project: ProjectSummary): string {
+  return project.project_type === "other"
+    ? `other/${project.project_type_label.toLocaleLowerCase()}`
+    : project.project_type;
 }
 
 export const SORT_KEYS = ["updated", "created", "name", "client", "type"] as const;

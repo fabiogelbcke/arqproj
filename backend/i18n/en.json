@@ -131,7 +131,7 @@
     "stageExists": "There is already a stage called “{{title}}”.",
     "titleProposal": "New proposal",
     "createProposal": "Create proposal",
-    "proposalNote": "The project page shows only the proposal until you mark it as accepted. Its folders are created in the office's Google Drive.",
+    "proposalNote": "The project page shows only the proposal until you mark it as accepted. Its folder is created in the office's Google Drive.",
     "recipients": "Client's emails (optional)",
     "recipientsHint": "These contacts receive email updates about files, stages and meetings. You can also add them later.",
     "title": "New project",
@@ -139,9 +139,9 @@
     "client": "Client",
     "clientHint": "As shown on the client's page.",
     "slug": "Page address",
-    "slugHint": "Lowercase letters, numbers and hyphens. The page will be {{address}}",
+    "slugHint": "Lowercase letters, numbers and hyphens.",
     "slugTakenBy": "This address already belongs to “{{name}}”. Choose another.",
-    "publishNote": "The project is published at once: the client can open its link right away. Its folders are created in the office's Google Drive.",
+    "publishNote": "The project is published at once: the client can open its link right away. Its folder is created in the office's Google Drive.",
     "create": "Create project",
     "creating": "Creating…",
     "cancel": "Cancel",
@@ -150,15 +150,42 @@
     "nameTakenBy": "There's already a project called “{{name}}”. Choose another name.",
     "type": "Project type",
     "stages": "Stages",
+    "stagesCount_one": "{{count}} stage ticked.",
+    "stagesCount_other": "{{count}} stages ticked.",
     "stagesHint_one": "{{count}} stage ticked. The type's usual stages come ticked; tick or untick as you like.",
     "stagesHint_other": "{{count}} stages ticked. The type's usual stages come ticked; tick or untick as you like.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "customType": "What type of project is it?",
+    "customTypeHint": "As shown on the project page and in the painel's filters.",
+    "customTypeExample": "E.g. Physical model",
+    "createAndContinue": "Create and continue",
+    "allStages": "Show every stage",
+    "fewerStages": "Show only this type's stages"
+  },
+  "setup": {
+    "progress": "Step {{n}} of {{total}}",
+    "title": {
+      "stages": "Stages",
+      "details": "Description and details",
+      "cover": "Cover photo",
+      "emails": "Client's emails"
+    },
+    "stagesHintProposal": "Each of the proposal's services becomes a stage: those matching a known stage use it, and the others keep the service's name. Each stage gets a folder in the office's Google Drive.",
+    "stagesHint": "This project type's usual stages come ticked. Each stage gets a folder in the office's Google Drive, and you can change them later in edit mode.",
+    "coverHint": "The photo shows at the top of the project page and on its card in the painel.",
+    "makingStages": "Creating stages ({{done}} of {{total}})…",
+    "done": "Project set up. You can change any of this in edit mode.",
+    "skip": "Skip",
+    "next": "Continue",
+    "finish": "Finish",
+    "saving": "Saving…"
   },
   "projectTypeShort": {
     "architecture": "Architecture",
     "interiors": "Interiors",
     "renovation": "Renovation",
-    "landscaping": "Landscaping"
+    "landscaping": "Landscaping",
+    "visualization": "Visualization"
   },
   "clientEmails": {
     "title": "Client emails",
@@ -276,6 +303,7 @@
     "cover_wrong_type": "Choose a JPG, PNG or WebP image.",
     "cover_too_large": "Choose an image of up to 10 MB.",
     "project_archived": "This project is archived and can't be changed. Restore it first.",
+    "invalid_custom_type": "Enter the project type, in up to 40 characters.",
     "unknown_project_type": "Choose a project type.",
     "unknown_stage": "One of the chosen stages no longer exists. Reload the page and try again.",
     "unknown_member": "One of the people chosen is no longer on the team. Reload the page and try again.",
@@ -308,6 +336,7 @@
     "share_daily_limit": "This link has reached today's download limit. Try again tomorrow.",
     "account_exists": "There is already an account with this email. Sign in, or use “Forgot your password?”.",
     "email_unconfirmed": "Confirm your email to continue. Reload the page.",
+    "support_account": "This is a support session: this account's details can't be changed.",
     "email_code_wrong": "Wrong code. Check the email and try again.",
     "email_code_expired": "This code no longer works. Ask for a new one.",
     "email_code_recent": "We sent a code a moment ago. Wait 2 minutes to ask for another.",
@@ -628,7 +657,7 @@
     "descriptionHint": "Each line becomes a paragraph. Start with “- ” for a list.",
     "noDescription": "Add a brief project description for the client.",
     "details": "Details",
-    "addDetail": "Add a detail",
+    "addDetail": "Add details",
     "removeDetail": "Remove {{name}}",
     "meeting": "Meeting",
     "schedule": "Schedule",
@@ -1130,6 +1159,10 @@
       "ownerLink": "Owner signup link",
       "ownerHelp": "Copy this link and send it to the owner. It works once and expires in 7 days. It will not be shown again after you close this window.",
       "owner_link": "New owner invitation",
+      "support_owner": "Enter as administrator",
+      "support_member": "Enter as team",
+      "supportHelp": "The link works once, for 2 minutes. The support session lasts 1 hour.",
+      "supportOpen": "Open the office's painel",
       "suspend": "Suspend",
       "restore": "Restore",
       "delete": "Delete office",
@@ -1143,6 +1176,8 @@
       "signupLinkHelp": "Copy this link and send it to whoever will create the office. It works once and lasts 7 days. It won't be shown again after you close this window.",
       "explain": {
         "owner_link": "Generate a new owner signup link for {{name}}?",
+        "support_owner": "Enter {{name}}'s painel as an administrator, in a 1-hour support session? You'll see and be able to do what an administrator does, and your changes will show as made by Suporte Unio. The entry is recorded. Ask the owner's permission first.",
+        "support_member": "Enter {{name}}'s painel as team, in a 1-hour support session? You'll see and be able to do what the team does, and your changes will show as made by Suporte Unio. The entry is recorded. Ask the owner's permission first.",
         "suspend": "Suspend {{name}}? Its panel and pages will be unavailable until restored.",
         "restore": "Restore {{name}} and make its panel and pages available again?",
         "delete": "Permanently delete {{name}} data in Unio? Drive files will be preserved. This cannot be undone."
@@ -1150,6 +1185,10 @@
     }
   },
   "proposal": {
+    "services": {
+      "title": "The proposal's services",
+      "hint": "This project type's usual stages come ticked. Each ticked stage becomes one of the proposal's services and, once it is accepted, one of the project's stages."
+    },
     "list": {
       "kicker": "Proposals",
       "title": "Proposals",
@@ -1396,6 +1435,12 @@
     "addressFree": "Available",
     "create": "Create office",
     "next": "Next, you enter your name, email and password and confirm the email with a code."
+  },
+  "support": {
+    "title": "Support session",
+    "entering": "Entering the office's painel…",
+    "banner": "Unio support session: your changes show as made by Suporte Unio. Ends at {{time}}.",
+    "leave": "Leave support"
   },
   "account": {
     "title": "My account",

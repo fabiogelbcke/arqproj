@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.identity.emails import InvalidEmail, email_list
 from backend.notifications.models import ProjectRecipient
-from backend.projects.enums import RESERVED_SLUGS, ProjectStatus
+from backend.projects.enums import RESERVED_SLUGS, ProjectStatus, ProjectType
 from backend.projects.models import (
     STAGE_TITLE_MAX,
     Project,
@@ -40,7 +40,13 @@ NAME_MAX = 50  # the client page's large heading (Fabio, 20 Oct 2026)
 # The client's name as shown on the page: 30 characters for now (Fabio, 18 Oct
 # 2026). The database allows CLIENT_NAME_MAX (48), so this can grow without a migration.
 CLIENT_NAME_LIMIT = 30
-SLUG_MAX = 80  # the page's address: short enough to read out and to fit a message
+# The page's address: short enough to read out and to fit a message, and a little
+# longer than the name it comes from (Fabio, 1 Nov 2026; it was 80).
+SLUG_MAX = NAME_MAX + 5
+# "Outro"'s name as the office types it: about as long as a built-in type's
+# (2 Nov 2026). The database allows CUSTOM_TYPE_MAX, so this can grow.
+CUSTOM_TYPE_LIMIT = 40
+
 _SLUG = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
 
 
@@ -55,6 +61,17 @@ class CreationProblem(Exception):
         super().__init__(code)
         self.code = code  # an ErrorCode value
         self.conflict_name = conflict_name
+
+
+def custom_type_name(project_type: str, typed: str | None) -> str | None:
+    """The name a project of `project_type` keeps: "Outro"'s as typed (trimmed),
+    a built-in type's none. Raises CreationProblem when "Outro" has no usable name."""
+    if project_type != ProjectType.OTHER:
+        return None
+    name = (typed or "").strip()
+    if not name or len(name) > CUSTOM_TYPE_LIMIT:
+        raise CreationProblem("invalid_custom_type")
+    return name
 
 
 class FolderMaker(Protocol):
@@ -144,6 +161,8 @@ class NewProject:
     proposal: bool = False
     # The office's own stages, named as typed, after the built-in ones.
     custom_stages: tuple[str, ...] = ()
+    # "Outro"'s name as typed (2 Nov 2026); a built-in type has none.
+    custom_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -161,6 +180,7 @@ async def _validate(db: AsyncSession, new: NewProject, locale: Locale) -> list[N
         raise CreationProblem("invalid_client_name")
     if await db.get(ProjectTypeDef, new.project_type) is None:
         raise CreationProblem("unknown_project_type")
+    custom_type_name(new.project_type, new.custom_type)
     chosen = set(new.stages)
     stages = list(
         await db.scalars(
@@ -236,6 +256,7 @@ async def create_project(
             name=new.name.strip(),
             client_name=new.client_name.strip(),
             project_type=new.project_type,
+            custom_type=custom_type_name(new.project_type, new.custom_type),
             status=ProjectStatus.PROPOSAL if new.proposal else ProjectStatus.ACTIVE,
             folder_id=project_folder,
             creation_key=new.creation_key,

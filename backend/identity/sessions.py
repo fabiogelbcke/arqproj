@@ -29,14 +29,16 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-async def start(session: AsyncSession, user: User) -> tuple[str, LoginSession]:
+async def start(
+    session: AsyncSession, user: User, lifetime: timedelta = LIFETIME
+) -> tuple[str, LoginSession]:
     """Create a session; returns the token for the cookie (never stored) and the row."""
     token = secrets.token_urlsafe(32)
     row = LoginSession(
         user_id=user.id,
         token_hash=_hash(token),
         csrf_token=secrets.token_urlsafe(32),
-        expires_at=_now() + LIFETIME,
+        expires_at=_now() + lifetime,
     )
     session.add(row)
     await session.flush()
@@ -60,7 +62,8 @@ async def find_active(session: AsyncSession, token: str) -> tuple[LoginSession, 
     if found is None:
         return None
     row, user = found
-    if now - row.last_seen_at >= TOUCH_EVERY:
+    # A support session ends when it said it would (A43): never extended.
+    if now - row.last_seen_at >= TOUCH_EVERY and not user.support:
         row.last_seen_at = now
         row.expires_at = now + LIFETIME
         await session.flush()
