@@ -44,6 +44,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.analytics import capture
 from backend.db.engine import get_tenant_session
+from backend.identity.models import User
 from backend.portfolio.links import profile
 from backend.portfolio.models import (
     AREA_MAX,
@@ -69,7 +70,13 @@ from backend.portfolio.models import (
     WorkStatus,
 )
 from backend.projects.enums import CoverType, DetailKey, ProjectStatus
-from backend.projects.models import Project, ProjectDetail, ProjectStage, ProjectTypeDef
+from backend.projects.models import (
+    Project,
+    ProjectDetail,
+    ProjectMember,
+    ProjectStage,
+    ProjectTypeDef,
+)
 from backend.storage.base import StorageError, StorageProblem
 from backend.storage.connections import storage_for
 from backend.storage.google_connect import ConnectError
@@ -314,10 +321,11 @@ def _profiles(given: dict[SocialNetwork, str]) -> dict[str, str]:
     return kept
 
 
-async def _project_facts(db: AsyncSession, project: Project) -> dict:
+async def _project_facts(db: AsyncSession, project: Project, members: bool) -> dict:
     """What a work drawn from `project` starts with, besides its name and type:
-    its area, status, year and team. Never its client, nor its address, which
-    the office may not want public: staff add the place themselves."""
+    its area, status, year and team: the project's members where the office has
+    them (A41), else the "Responsável" typed in. Never its client, nor its
+    address, which the office may not want public: staff add the place themselves."""
     details = {
         detail.key: detail
         for detail in (
@@ -342,8 +350,18 @@ async def _project_facts(db: AsyncSession, project: Project) -> dict:
     else:
         delivery = details.get(DetailKey.EXPECTED_DELIVERY)
         year = delivery.value_date.year if delivery and delivery.value_date else None
-    responsible = details.get(DetailKey.RESPONSIBLE)
-    team = responsible.value_text if responsible and responsible.value_text else ""
+    if members:
+        # As the client page shows them; a "Responsável" typed before is stale there.
+        names = await db.scalars(
+            select(User.name)
+            .join(ProjectMember, ProjectMember.user_id == User.id)
+            .where(ProjectMember.project_id == project.id)
+            .order_by(func.lower(User.name), User.id)
+        )
+        team = ", ".join(names)
+    else:
+        responsible = details.get(DetailKey.RESPONSIBLE)
+        team = responsible.value_text if responsible and responsible.value_text else ""
     return {
         "area": area if area is not None and area < AREA_MAX else None,
         "status": status,
@@ -404,6 +422,7 @@ async def add_entry(
     request: Request,
     body: EntryIn,
     _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
     if not body.title.strip():
@@ -418,7 +437,7 @@ async def add_entry(
         if project is None:
             raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
         kind = kind or project.project_type
-        facts = await _project_facts(db, project)
+        facts = await _project_facts(db, project, tenant.has(Feature.PROJECT_MEMBERS))
         facts["year"] = body.year or facts["year"]
     count, last = (await db.execute(select(func.count(), func.max(PortfolioEntry.position)))).one()
     if count >= ENTRIES_MAX:

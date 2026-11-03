@@ -431,6 +431,27 @@ async def test_a_work_drawn_from_a_project_starts_with_its_facts_never_its_clien
     assert "Família Teixeira" not in page and "Acácias" not in page
 
 
+async def test_with_project_members_the_team_is_the_members_not_a_typed_responsible(
+    client, db_session, staff
+):
+    """A41: a "Responsável" typed before the office had members is stale and the
+    client page shows the members instead; so does a work drawn from the project."""
+    await _project_facts(db_session, status="completed", completed=date(2025, 3, 10))
+    await db_session.execute(
+        text("UPDATE tenants SET features = features || '{project_members}' WHERE slug = 'alinea'")
+    )
+    await db_session.execute(
+        text(
+            "INSERT INTO project_members (tenant_id, project_id, user_id) "
+            "SELECT p.tenant_id, p.id, u.id FROM projects p JOIN users u ON u.tenant_id = p.tenant_id "
+            "WHERE p.name = 'Casa Jardim'"
+        )
+    )
+    await db_session.commit()
+    drawn = await add(client, staff, project_id=await project_id(client))
+    assert drawn["team"] == "Ana"  # the office's one member, not "Laura Mendes"
+
+
 async def test_a_work_in_progress_takes_its_expected_year_unless_given_one(
     client, db_session, staff
 ):
