@@ -1076,7 +1076,7 @@
       "hideTypeHint": "Um tipo oculto não aparece para novos projetos e propostas, nem para trocar o tipo de um projeto. Os projetos que já o usam continuam com ele.",
       "stagesOfType": "Etapas deste tipo",
       "stagesOfTypeHint": "Marque as etapas que este tipo lista e as que já vêm marcadas em um novo projeto. A descrição própria do tipo é a que a página do projeto mostra e com que os serviços de uma nova proposta começam; em branco, vale a descrição geral da etapa.",
-      "outroHint": "“Outro” lista todas as etapas que não estão ocultas. Aqui se escolhem só as que já vêm marcadas.",
+      "outroHint": "“Outro” lista todas as etapas que não estão ocultas. Aqui se escolhem só as que já vêm marcadas e a descrição própria delas.",
       "listed": "Listada",
       "usual": "Já vem marcada",
       "ownAbout": "Descrição própria deste tipo",

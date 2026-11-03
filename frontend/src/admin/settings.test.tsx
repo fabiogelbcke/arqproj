@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -179,6 +179,14 @@ describe("Configurações (A44)", () => {
     expect(screen.getByText(/lista todas as etapas que não estão ocultas/)).toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: "Listada" })).toBeNull();
     expect(screen.getAllByRole("checkbox", { name: "Já vem marcada" })).toHaveLength(3);
+    // Its ticked stages have words of their own, edited here too.
+    const outro = { ...CATALOG.types[1]!, stages: [{ key: "briefing", usual: true, about: { pt: "Necessidades e orçamento.", en: "" }, projects: 0 }] };
+    cleanup();
+    renderAt("/configuracoes/tipos/other", {}, { ...CATALOG, types: [CATALOG.types[0]!, outro] });
+    const briefing = (await screen.findByText("Briefing", { selector: "strong" })).closest("li")!;
+    expect(within(briefing).getAllByLabelText(/Português/)[0]).toHaveValue("Necessidades e orçamento.");
+    const survey = screen.getByText("Levantamento", { selector: "strong" }).closest("li")!;
+    expect(within(survey).queryByText(/Descrição geral/)).toBeNull(); // not ticked: not Outro's
   });
 
   it("edits a stage, warning how many projects its name and general text reach, and hides one without a warning", async () => {

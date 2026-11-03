@@ -1076,7 +1076,7 @@
       "hideTypeHint": "A hidden type isn't offered for new projects and proposals, nor when changing a project's type. Projects that already use it keep it.",
       "stagesOfType": "This type's stages",
       "stagesOfTypeHint": "Tick the stages this type lists and those that come ticked for a new project. The type's own description is what the project page shows and what a new proposal's services start with; left blank, the stage's general description applies.",
-      "outroHint": "“Other” lists every stage that isn't hidden. Here you only choose the ones that come ticked.",
+      "outroHint": "“Other” lists every stage that isn't hidden. Here you only choose the ones that come ticked, and their own descriptions.",
       "listed": "Listed",
       "usual": "Comes ticked",
       "ownAbout": "This type's own description",

@@ -165,7 +165,7 @@ function TypeForm({ catalog, kind }: { catalog: Catalog; kind: SiteType }) {
                     {t("admin.settings.usual")}
                   </Checkbox>
                 </div>
-                {row.listed && !kind.lists_every_stage && !row.writing && (
+                {(kind.lists_every_stage ? row.usual : row.listed) && !row.writing && (
                   <div className={styles.generalAbout}>
                     <span className={styles.muted}>{t("admin.settings.generalAbout", { text: stage.about.pt })}</span>
                     {!disabled && (
@@ -175,7 +175,7 @@ function TypeForm({ catalog, kind }: { catalog: Catalog; kind: SiteType }) {
                     )}
                   </div>
                 )}
-                {row.listed && !kind.lists_every_stage && row.writing && (
+                {(kind.lists_every_stage ? row.usual : row.listed) && row.writing && (
                   <TextsFields
                     label={t("admin.settings.ownAbout")}
                     description={t("admin.settings.generalAbout", { text: stage.about.pt })}
