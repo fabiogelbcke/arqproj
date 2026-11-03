@@ -226,7 +226,16 @@ describe("parsedArea", () => {
     expect(parsedArea("")).toBeNull();
     expect(parsedArea("180")).toBe(180);
     expect(parsedArea("85,5 m²")).toBe(85.5);
+    expect(parsedArea("85.5")).toBe(85.5);
     expect(parsedArea("1.250,75")).toBe(1250.75);
+    // A separator before three digits groups thousands, the Brazilian or the English way.
+    expect(parsedArea("1.250")).toBe(1250);
+    expect(parsedArea("12.000")).toBe(12000);
+    expect(parsedArea("1.250.000")).toBe(1250000);
+    expect(parsedArea("1,250")).toBe(1250);
+    expect(parsedArea("1,250.75")).toBe(1250.75);
+    expect(parsedArea("0,5")).toBe(0.5);
+    expect(parsedArea("2,25")).toBe(2.25);
     expect(parsedArea("0")).toBeUndefined();
     expect(parsedArea("abc")).toBeUndefined();
   });

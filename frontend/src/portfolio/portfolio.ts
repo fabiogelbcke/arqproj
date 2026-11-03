@@ -41,12 +41,25 @@ export const NETWORKS = [
   "tiktok",
 ] as const satisfies readonly Schemas["SocialNetwork"][];
 
-/** An area as typed ("1.250,5", "180 m²"): its number, null when empty, or
- * undefined when it isn't one the server keeps. */
+/** An area as typed ("1.250,5", "1.250", "180 m²", or "1,250.5" the English
+ * way): its number, null when empty, or undefined when it isn't one the server
+ * keeps. With both separators, the last one is the decimal one; alone, a
+ * separator before exactly three digits groups thousands ("12.000" is twelve
+ * thousand, not twelve). */
 export function parsedArea(text: string): number | null | undefined {
   let written = text.replace(/\s|m²|m2/gi, "");
   if (!written) return null;
-  if (written.includes(",")) written = written.replace(/\./g, "").replace(",", ".");
+  const comma = written.lastIndexOf(",");
+  const dot = written.lastIndexOf(".");
+  if (comma >= 0 && dot >= 0) {
+    const [group, decimal] = comma > dot ? [".", ","] : [",", "."];
+    written = written.split(group).join("").replace(decimal, ".");
+  } else if (comma >= 0 || dot >= 0) {
+    const separator = comma >= 0 ? "," : ".";
+    const parts = written.split(separator);
+    const grouping = parts.length > 2 || parts[parts.length - 1]!.length === 3;
+    written = grouping ? parts.join("") : parts.join(".");
+  }
   const area = Number(written);
   return Number.isFinite(area) && area > 0 && area < 10_000_000 ? Math.round(area * 100) / 100 : undefined;
 }
