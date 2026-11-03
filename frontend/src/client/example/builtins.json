@@ -109,15 +109,15 @@
         "label": "Visualização Arquitetônica",
         "stages": [
           "briefing",
-          "preview_delivery",
           "documentation",
+          "preview_delivery",
           "revisions",
           "final_delivery"
         ],
         "offered": [
           "briefing",
-          "preview_delivery",
           "documentation",
+          "preview_delivery",
           "revisions",
           "final_delivery"
         ]
@@ -140,8 +140,8 @@
           "coordination",
           "complementary_projects",
           "specifications",
-          "preview_delivery",
           "documentation",
+          "preview_delivery",
           "revisions",
           "final_delivery"
         ]
@@ -193,12 +193,12 @@
         "title": "Especificações"
       },
       {
-        "key": "preview_delivery",
-        "title": "Entrega Prévia"
-      },
-      {
         "key": "documentation",
         "title": "Documentação"
+      },
+      {
+        "key": "preview_delivery",
+        "title": "Entrega Prévia"
       },
       {
         "key": "revisions",

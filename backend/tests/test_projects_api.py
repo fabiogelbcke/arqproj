@@ -503,7 +503,7 @@ async def test_a_type_lists_only_the_stages_that_suit_it(client, owner):
     assert "feasibility_study" not in offered["interiors"]
     assert "coordination" in offered["interiors"]
     assert offered["visualization"] == [
-        "briefing", "preview_delivery", "documentation", "revisions", "final_delivery",
+        "briefing", "documentation", "preview_delivery", "revisions", "final_delivery",
     ]  # fmt: skip
     for kind in ("architecture", "interiors", "renovation", "landscaping"):
         assert not set(offered[kind]) & {"preview_delivery", "revisions", "final_delivery"}

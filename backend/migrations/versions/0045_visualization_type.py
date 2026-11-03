@@ -1,11 +1,11 @@
 """A fifth project type, Visualização Arquitetônica (A27, Fabio, 2 Nov 2026;
 without "Projeto de", so its name fits the creation form's button on one line),
-with four stages of its own after the 11 building ones: Entrega Prévia,
-Documentação, Revisões and Entrega Final. Briefing is shared. All five are its
-usual stages (ticked at creation), each in this type's words, as Alinea wrote
-them for its proposals (Fabio, 2 Nov 2026).
+with five stages of its own after the 11 building ones: Entrega Prévia,
+Documentação, Revisões, Entrega Final and Pós-Produção. Briefing is shared.
+Its usual stages (ticked at creation) are all but Revisões and Pós-Produção.
 
-Reference data only: no schema change, and the app already reads these tables.
+The texts are drafts for Alinea's partners to confirm, like 0013's. Reference
+data only: no schema change, and the app already reads these tables.
 
 Downgrade removes the rows; a project of this type, or with one of these stages,
 stops it (they reference them), as it should.
@@ -31,71 +31,75 @@ TYPE_LABELS = {
     "en": "Architectural visualization",
 }
 
-# Its usual stages, each in this type's words: Briefing (shared), then its own.
+# After the 11 building stages, in the order a visualization project lists them.
+STAGES = [
+    {
+        "key": "preview_delivery",
+        "titles": {"pt-BR": "Entrega Prévia", "en": "Preview Delivery"},
+        "about": {
+            "pt-BR": (
+                "Primeiras imagens para o cliente avaliar enquadramentos, materiais e iluminação."
+            ),
+            "en": "First images for the client to review framing, materials and lighting.",
+        },
+    },
+    {
+        "key": "documentation",
+        "titles": {"pt-BR": "Documentação", "en": "Documentation"},
+        "about": {
+            "pt-BR": (
+                "Arquivos do projeto, referências e especificações de materiais usados nas imagens."
+            ),
+            "en": "The project files, references and material specifications the images use.",
+        },
+    },
+    {
+        "key": "revisions",
+        "titles": {"pt-BR": "Revisões", "en": "Revisions"},
+        "about": {
+            "pt-BR": "Ajustes nas imagens a partir dos comentários do cliente.",
+            "en": "Changes to the images from the client's comments.",
+        },
+    },
+    {
+        "key": "final_delivery",
+        "titles": {"pt-BR": "Entrega Final", "en": "Final Delivery"},
+        "about": {
+            "pt-BR": "Imagens finais em alta resolução.",
+            "en": "The final images in high resolution.",
+        },
+    },
+    {
+        "key": "post_production",
+        "titles": {"pt-BR": "Pós-Produção", "en": "Post-Production"},
+        "about": {
+            "pt-BR": "Tratamento de cor, luz e composição, e versões das imagens para cada uso.",
+            "en": (
+                "Colour, light and composition retouching, and versions of the images for each use."
+            ),
+        },
+    },
+]
+
+# Its usual stages, each in this type's words.
 TYPE_STAGES = {
     "briefing": (
-        (
-            "Levantamento das necessidades, expectativas, referências e preferências do "
-            "contratante, incluindo as ideias e o conceito desejado para o projeto. Também "
-            "compreende a análise das características do imóvel e das informações fornecidas "
-            "para orientar o desenvolvimento das soluções arquitetônicas."
-        ),
-        (
-            "Gathering the client's needs, expectations, references and preferences, "
-            "including the ideas and concept wanted for the project. Also covers analysing "
-            "the property's characteristics and the information provided, to guide the "
-            "architectural solutions."
-        ),
+        "Objetivo das imagens, vistas desejadas, referências e prazo.",
+        "What the images are for, the views wanted, references and deadline.",
     ),
     "preview_delivery": (
-        (
-            "Apresentação das soluções e estudos preliminares para análise e aprovação do "
-            "contratante, conforme a etapa e o escopo contratados."
-        ),
-        (
-            "Presentation of the solutions and preliminary studies for the client's review "
-            "and approval, according to the stage and scope contracted."
-        ),
+        "Primeiras imagens para o cliente avaliar enquadramentos, materiais e iluminação.",
+        "First images for the client to review framing, materials and lighting.",
     ),
     "documentation": (
-        (
-            "Arquivos e documentos necessários ao desenvolvimento e ao registro e elaboração "
-            "do projeto, conforme as informações e definições estabelecidas."
-        ),
-        (
-            "The files and documents needed to develop, record and prepare the project, "
-            "according to the information and decisions established."
-        ),
-    ),
-    "revisions": (
-        (
-            "Avaliação das considerações apresentadas pelo contratante e realização de "
-            "ajustes e adequações nas soluções propostas."
-        ),
-        "Review of the client's comments and adjustments to the proposed solutions.",
+        "Arquivos do projeto, referências e especificações de materiais usados nas imagens.",
+        "The project files, references and material specifications the images use.",
     ),
     "final_delivery": (
-        (
-            "Conclusão e apresentação do projeto em sua versão definitiva, reunindo as "
-            "soluções desenvolvidas, os ajustes realizados e as informações necessárias à sua "
-            "compreensão e utilização."
-        ),
-        (
-            "Completion and presentation of the project in its final version, bringing "
-            "together the solutions developed, the adjustments made and the information "
-            "needed to understand and use it."
-        ),
+        "Imagens finais em alta resolução.",
+        "The final images in high resolution.",
     ),
 }
-
-# After the 11 building stages, in the order a visualization project lists them;
-# only this type uses them, so their general text is the type's.
-STAGES = [
-    {"key": "preview_delivery", "titles": {"pt-BR": "Entrega Prévia", "en": "Preview Delivery"}},
-    {"key": "documentation", "titles": {"pt-BR": "Documentação", "en": "Documentation"}},
-    {"key": "revisions", "titles": {"pt-BR": "Revisões", "en": "Revisions"}},
-    {"key": "final_delivery", "titles": {"pt-BR": "Entrega Final", "en": "Final Delivery"}},
-]
 
 
 def upgrade() -> None:
@@ -115,17 +119,7 @@ def upgrade() -> None:
     )
     op.bulk_insert(
         stage_definitions,
-        [
-            {
-                **stage,
-                "position": n,
-                "about": {
-                    "pt-BR": TYPE_STAGES[stage["key"]][0],
-                    "en": TYPE_STAGES[stage["key"]][1],
-                },
-            }
-            for n, stage in enumerate(STAGES, start=12)
-        ],
+        [{**stage, "position": n} for n, stage in enumerate(STAGES, start=12)],
     )
     type_stages = sa.table(
         "project_type_stages",

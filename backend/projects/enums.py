@@ -66,8 +66,8 @@ class BuiltinStage(StrEnum):
     COORDINATION = "coordination"
     COMPLEMENTARY_PROJECTS = "complementary_projects"
     SPECIFICATIONS = "specifications"
-    PREVIEW_DELIVERY = "preview_delivery"
     DOCUMENTATION = "documentation"
+    PREVIEW_DELIVERY = "preview_delivery"
     REVISIONS = "revisions"
     FINAL_DELIVERY = "final_delivery"
 
