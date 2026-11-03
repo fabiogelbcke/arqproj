@@ -1562,7 +1562,9 @@
       "architecture": "Architecture",
       "interiors": "Interiors",
       "renovation": "Renovation",
-      "landscaping": "Landscape"
+      "landscaping": "Landscape",
+      "visualization": "Visualization",
+      "other": "Other"
     },
     "statuses": {
       "completed": "Completed",

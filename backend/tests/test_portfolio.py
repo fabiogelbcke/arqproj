@@ -89,6 +89,18 @@ async def test_unios_home_on_an_office_address_is_not_kept_by_the_browser(client
     assert unios.headers["cache-control"] == "public, max-age=3600"
 
 
+async def test_every_project_type_has_a_public_label(db_session):
+    """A work of any type shows its type on the public page and in its menu
+    (a type added to `project_types` needs its short public label too)."""
+    from backend.tenancy.models import Locale
+    from backend.web.portfolio_page import _texts
+
+    keys = set(await db_session.scalars(text("SELECT key FROM project_types")))
+    assert keys  # the built-in types are there
+    for locale in Locale:
+        assert set(_texts(locale)["types"]) == keys, locale
+
+
 async def test_only_staff_read_and_change_the_portfolio(client, staff):
     client.cookies.clear()
     assert (await client.get("/api/portfolio", headers=ALINEA)).status_code == 401
