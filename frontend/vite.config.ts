@@ -9,7 +9,7 @@ import { defineConfig, type Plugin } from "vite";
 // sign-in cookie belongs to the address in the address bar.
 // The deployed app answers on /painel and /painel/ alike; Vite's dev server only
 // knows /painel/, so send the bare addresses there. On an office's address `/`
-// is the backend's (its portfolio, A44, or Unio's home), with its assets under
+// is the backend's (its portfolio, A45, or Unio's home), with its assets under
 // /brand: forwarded like /api, so the painel's "Ver prévia" works here too.
 export const devRedirects: Plugin = {
   name: "painel-dev-redirects",

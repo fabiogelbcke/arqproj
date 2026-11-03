@@ -110,7 +110,7 @@ step, and a reusable list of the office's types can follow if they repeat.
 
 ---
 
-## 2026-10-31 — A44: an office's address can show its portfolio at `/`
+## 2026-10-31 — A45: an office's address can show its portfolio at `/`
 
 **Was:** `/` showed Unio's home on every address, an office's own included
 (future ideas, "What an office's own address shows at its root"), and Unio's home

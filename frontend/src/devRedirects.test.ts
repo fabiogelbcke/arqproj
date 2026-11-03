@@ -27,7 +27,7 @@ describe("the dev server's routing", () => {
     expect(routed("/criar-escritorio", "alinea.localhost:5173")).toBe("/painel/client.html");
   });
 
-  it("leaves an office's root and its /brand assets to the backend, where the portfolio is (A44)", () => {
+  it("leaves an office's root and its /brand assets to the backend, where the portfolio is (A45)", () => {
     expect(routed("/", "alinea.localhost:5173")).toBe("/");
     expect(routed("/?previa=1", "alinea.localhost:5173")).toBe("/?previa=1");
     expect(routed("/brand/portfolio.css", "alinea.localhost:5173")).toBe("/brand/portfolio.css");

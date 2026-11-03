@@ -12,8 +12,8 @@
 All four are isolated per office like every office table; the app reads and
 changes them, and the operator role deletes them with the office (A38).
 
-Revision: 0048
-Previous: 0047
+Revision: 0049
+Previous: 0048
 """
 
 from collections.abc import Sequence
@@ -22,8 +22,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0048"
-down_revision: str | None = "0047"
+revision: str = "0049"
+down_revision: str | None = "0048"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

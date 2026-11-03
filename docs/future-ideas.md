@@ -96,7 +96,7 @@ decision in the [decision changelog](decision-changelog.md).
 - `myunio.app` itself keeps the Unio landing page. Raised by Fabio, 17 Oct 2026;
   not urgent.
 - Built 31 Oct 2026 (PR for review), behind the `portfolio` feature: a published
-  portfolio at `/` (A44). The redirects above stay possible for offices without one.
+  portfolio at `/` (A45). The redirects above stay possible for offices without one.
 
 
 ## Account settings in the phone menu

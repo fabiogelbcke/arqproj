@@ -191,7 +191,7 @@ async def summaries(
         .where(Project.deleted_at.is_(None))
     )
     # The list leaves proposals (their own tab, A42) out, and archived projects
-    # unless asked for them (the portfolio draws on finished work, A44); one asked
+    # unless asked for them (the portfolio draws on finished work, A45); one asked
     # for by id is returned as is.
     if only is not None:
         query = query.where(Project.id == only)
