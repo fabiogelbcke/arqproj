@@ -57,6 +57,11 @@ def audit(db, actor: str, action: str, tenant: Tenant, request_id: str) -> None:
     )
 
 
+def audit_site(db, actor: str, action: str, request_id: str) -> None:
+    """A change to the whole site rather than one office, e.g. its types and stages."""
+    db.add(OperatorAuditEvent(actor=actor, action=action, request_id=request_id))
+
+
 async def owner_link(db, tenant: Tenant, local_port: int = 5173) -> str:
     host = await db.scalar(
         select(TenantDomain.hostname).where(

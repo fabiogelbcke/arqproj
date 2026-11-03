@@ -89,16 +89,26 @@ async def test_unios_home_on_an_office_address_is_not_kept_by_the_browser(client
     assert unios.headers["cache-control"] == "public, max-age=3600"
 
 
-async def test_every_project_type_has_a_public_label(db_session):
-    """A work of any type shows its type on the public page and in its menu
-    (a type added to `project_types` needs its short public label too)."""
-    from backend.tenancy.models import Locale
-    from backend.web.portfolio_page import _texts
+async def test_a_type_the_operator_added_is_shown_by_its_own_name(client, staff, db_session):
+    """The built-in types have a short public label ("Arquitetura", not the
+    painel's "Projeto Arquitetônico"); a type added from the operator dashboard
+    (A44) has only its own name, shown as given, where the dashboard ordered it."""
+    await db_session.execute(
+        text("INSERT INTO project_types (key, position, labels) VALUES ('cenografia', 0, :labels)"),
+        {"labels": '{"pt-BR": "Cenografia & Eventos", "en": "Set design"}'},
+    )
+    await db_session.commit()
+    for title, kind in (("Casa Jardim", "architecture"), ("Palco", "cenografia")):
+        entry = await add(client, staff, title=title, project_type=kind)
+        await photo(client, staff, entry)
+    await publish(client, staff)
+    client.cookies.clear()
 
-    keys = set(await db_session.scalars(text("SELECT key FROM project_types")))
-    assert keys  # the built-in types are there
-    for locale in Locale:
-        assert set(_texts(locale)["types"]) == keys, locale
+    page = (await client.get("/", headers=ALINEA)).text
+    menu = page.split('class="types"')[1].split("</nav>")[0]
+    assert "Cenografia &amp; Eventos</a>" in menu and "Arquitetura</a>" in menu
+    assert "Projeto Arquitetônico" not in page
+    assert menu.index("Cenografia") < menu.index("Arquitetura")  # position 0 comes first
 
 
 async def test_an_archived_project_can_be_drawn_on_though_the_painel_lists_it_no_more(

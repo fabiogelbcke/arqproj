@@ -94,3 +94,77 @@
 .features { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .features > li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .features > li > div { display: grid; gap: 2px; flex: 1 1 240px; min-width: 0; }
+
+/* The bar's sections (A44): Escritórios, Configurações. */
+.tabs { display: flex; gap: 4px; margin-right: auto; }
+.tabs a {
+  padding: 6px 12px; border-radius: var(--r-pill); color: var(--muted); font-size: var(--text-sm); text-decoration: none;
+}
+.tabs a:hover { color: var(--ink); }
+.tabs a.active, .tabs a[aria-current="page"] { background: var(--surface); color: var(--ink); }
+
+/* "Configurações": its sections listed at the side, the section beside them. */
+.settings { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: start; }
+.sideNav { display: grid; gap: 2px; position: sticky; top: 16px; }
+.sideNav a { padding: 8px 12px; border-radius: var(--r-field); color: var(--muted); font-size: var(--text-sm); text-decoration: none; }
+.sideNav a:hover { color: var(--ink); }
+.sideNav a.active { background: var(--surface); color: var(--ink); font-weight: 500; }
+/* Always on: these lists are every office's, and edits reach existing projects. */
+.everywhere {
+  margin: 0; padding: 12px 14px; border: 1px solid var(--danger); border-radius: var(--r-card);
+  background: var(--danger-soft); color: var(--danger); font-size: var(--text-sm); line-height: 1.5;
+}
+.settingList { list-style: none; margin: 0; padding: 0; display: grid; }
+.settingRow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.settingRow:first-child { border-top: 0; }
+.settingRow[data-hidden] .settingName > span:first-child { color: var(--muted); }
+.settingName { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.settingName .state { margin-left: 8px; }
+.moveButtons { display: flex; gap: 2px; }
+/* A name or description in both languages, side by side; stacked on a phone. */
+.texts { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.texts legend { padding: 0; margin-bottom: 4px; font-weight: 500; font-size: var(--text-sm); }
+.textsPair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.toggleText { display: grid; gap: 2px; }
+.generalAbout { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+.generalAbout > span { flex: 1 1 280px; }
+/* A type's stages: each with "Listada", "Já vem marcada" and its own words. */
+.typeStages { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.typeStages > li { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--raise, var(--bg)); }
+.typeStages > li[data-off] { background: transparent; }
+.typeStages > li[data-off] strong { color: var(--muted); font-weight: 400; }
+.typeStageHead { display: flex; align-items: center; gap: 8px 20px; flex-wrap: wrap; }
+.typeStageHead strong { flex: 1 1 200px; font-weight: 500; }
+.typeStageHead .state { margin-left: 8px; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-sm); cursor: pointer; }
+.check[data-disabled] { color: var(--muted); cursor: default; }
+.box { width: 18px; height: 18px; border: 1.5px solid var(--line-strong, var(--muted)); border-radius: 4px; display: inline-grid; place-items: center; }
+.check[data-selected] .box { background: var(--ink); border-color: var(--ink); }
+.check[data-selected] .box::after { content: ""; width: 9px; height: 5px; border: 2px solid var(--bg); border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+.check[data-focus-visible] .box { outline: 2px solid var(--ink); outline-offset: 2px; }
+.saveBar { position: sticky; bottom: 0; padding: 12px 0; background: var(--surface); }
+
+/* The warning before a change that reaches existing projects: big, red, signed. */
+.warningOverlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 45%); }
+.warningModal { width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto; border-radius: var(--r-card); }
+.warning {
+  display: grid; gap: 14px; padding: 24px; outline: none; border: 3px solid var(--danger); border-radius: var(--r-card);
+  background: var(--bg);
+}
+.warning p { margin: 0; line-height: 1.5; }
+.warningSign {
+  display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%;
+  background: var(--danger); color: #fff; font-size: 30px; line-height: 1;
+}
+.warningTitle { margin: 0; color: var(--danger); font: 600 22px/1.2 var(--display-font); }
+.warningList { margin: 0; padding: 12px 14px; list-style: none; display: grid; gap: 6px; border-radius: var(--r-field); background: var(--danger-soft); color: var(--danger); font-weight: 500; }
+.warningNote { color: var(--muted); font-size: var(--text-sm); }
+.warningConfirm { background: var(--danger); border-color: var(--danger); color: #fff; }
+.warningConfirm[data-hovered] { border-color: var(--danger); filter: brightness(1.1); }
+
+@media (max-width: 720px) {
+  .settings { grid-template-columns: minmax(0, 1fr); }
+  .sideNav { position: static; display: flex; flex-wrap: wrap; }
+  .textsPair { grid-template-columns: minmax(0, 1fr); }
+  .tabs { order: 3; width: 100%; margin-right: 0; }
+}

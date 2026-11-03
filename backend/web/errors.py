@@ -20,6 +20,10 @@ class ErrorCode(StrEnum):
     OPERATOR_ACTION_CONFLICT = "operator_action_conflict"
     OPERATOR_ACTION_FAILED = "operator_action_failed"
     OPERATOR_ACTIONS_UNAVAILABLE = "operator_actions_unavailable"
+    # The site's types and stages (A44).
+    INVALID_SETTING_TEXT = "invalid_setting_text"  # a name blank or too long, a text too long
+    SETTING_NAME_TAKEN = "setting_name_taken"  # another type (or stage) has that name
+    SETTING_NOT_FOUND = "setting_not_found"  # an unknown type or stage, or a list that isn't whole
     SIGNUP_LINK_INVALID = "signup_link_invalid"  # an office signup link used, expired or unknown
     OFFICE_ADDRESS_TAKEN = "office_address_taken"  # another office has that address
     INVALID_OFFICE_ADDRESS = "invalid_office_address"  # not a usable subdomain, or reserved

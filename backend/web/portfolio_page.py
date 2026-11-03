@@ -35,6 +35,7 @@ from backend.identity import sessions
 from backend.office.models import OfficeProfile
 from backend.office.profile import logo_urls
 from backend.portfolio.models import Portfolio, PortfolioEntry, PortfolioPhoto, PortfolioVideo
+from backend.projects.models import ProjectTypeDef
 from backend.tenancy.middleware import REDIRECT_MAX_AGE, redirect_url
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, normalize_host, resolve
@@ -182,8 +183,22 @@ async def _page(request: Request) -> Response | None:
                 wanted_id = None
             chosen = next((work for work in works if work[0].id == wanted_id), None)
         videos = (await videos_by_entry(db)).get(chosen[0].id, []) if chosen else []
-    document = _document(tenant, office, found, works, chosen, videos, preview, request)
+        kinds = list(await db.scalars(select(ProjectTypeDef).order_by(ProjectTypeDef.position)))
+    types = _type_labels(kinds, tenant.locale)
+    document = _document(tenant, office, found, works, chosen, videos, types, preview, request)
     return HTMLResponse(document, headers=PREVIEW if preview else PUBLISHED)
+
+
+def _type_labels(kinds: list[ProjectTypeDef], locale: Locale) -> dict[str, str]:
+    """The public label of each of the site's project types, in the dashboard's
+    order: a short word for the built-in ones ("Arquitetura", not "Projeto
+    Arquitetônico"), a type the operator added by its own name (A44)."""
+    short = _texts(locale)["types"]
+
+    def own(kind: ProjectTypeDef) -> str:
+        return kind.labels.get(locale.value) or kind.labels[Locale.PT_BR.value]
+
+    return {kind.key: short.get(kind.key) or own(kind) for kind in kinds}
 
 
 def _document(
@@ -193,13 +208,13 @@ def _document(
     works: Works,
     chosen: tuple[PortfolioEntry, list[PortfolioPhoto]] | None,
     videos: list[PortfolioVideo],
+    types: dict[str, str],
     preview: bool,
     request: Request,
 ) -> str:
-    t = _texts(tenant.locale)
+    t = {**_texts(tenant.locale), "types": types}
     deployed = request.app.state.settings.deployed
     intro = found.intro if found else ""
-    types: dict[str, str] = t["types"]
     name = escape(office.display_name if office else tenant.name)
     keep = "previa=1" if preview else ""
     home = f"/?{keep}" if keep else "/"
