@@ -12,8 +12,8 @@
 All four are isolated per office like every office table; the app reads and
 changes them, and the operator role deletes them with the office (A38).
 
-Revision: 0044
-Previous: 0043
+Revision: 0048
+Previous: 0047
 """
 
 from collections.abc import Sequence
