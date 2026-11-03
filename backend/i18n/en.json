@@ -1037,7 +1037,7 @@
     "featuresHint": "Features already released, but switched on only for the offices chosen here. Others don't see them.",
     "featureOn": "On",
     "featureOff": "Off",
-    "feature": {"project_members": {"name": "Project team", "about": "Tick who works on each project, filter the painel by person, and show the names to the client as responsible."}, "proposals": {"name": "Proposals", "about": "Generate the proposal PDF with the office's details, create projects as proposals (\"Nova proposta\") and show the client only the proposal until it is accepted."}},
+    "feature": {"project_members": {"name": "Project team", "about": "Tick who works on each project, filter the painel by person, and show the names to the client as responsible."}, "proposals": {"name": "Proposals", "about": "Generate the proposal PDF with the office's details, create projects as proposals (\"Nova proposta\") and show the client only the proposal until it is accepted."}, "cover_band": {"name": "Cover band", "about": "The project page opens on a band across the whole page, made from the cover photo blurred, with the name and the cover on it."}},
     "signInIntro": "Sign in with an authorized Google account to see the platform's offices.",
     "signInGoogle": "Sign in with Google",
     "devSignIn": "Authorized email (local only)",

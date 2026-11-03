@@ -37,6 +37,7 @@ const NEW: Page = {
   project_type_key: "architecture",
   description: "",
   cover_url: null,
+  features: [],
   completed: false,
   current_position: null,
   last_update: "2026-11-01T12:00:00Z",
@@ -46,7 +47,7 @@ const NEW: Page = {
   in_proposal: false,
   proposal: null,
   proposal_url: null,
-  staff: { project_id: "p-1", status: "active", row_version: 1, recipients: [], features: [] },
+  staff: { project_id: "p-1", status: "active", row_version: 1, recipients: [] },
 };
 
 const OPTIONS = {
