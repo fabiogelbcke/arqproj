@@ -150,7 +150,7 @@ TENANTS = [
 ]
 
 
-async def seed(session: AsyncSession) -> list[str]:
+async def seed(session: AsyncSession, *, with_logo: bool = False) -> list[str]:
     """Create any missing tenants and addresses. Returns what was added."""
     added = []
     for spec in TENANTS:
@@ -174,7 +174,9 @@ async def seed(session: AsyncSession) -> list[str]:
             # Files from the fictional dataset on this machine (folder storage).
             session.add(StorageConnection(tenant_id=tenant.id, kind=StorageKind.FOLDER))
             added.append(f"storage {spec['slug']}")
-        if spec.get("logo") and await _add_logo(session, tenant):
+        # The logo writes files into the local storage: for a developer's own
+        # setup and the browser tests, not for the test suite.
+        if with_logo and spec.get("logo") and await _add_logo(session, tenant):
             added.append(f"logo {spec['slug']}")
         for project in PROJECTS.get(spec["slug"], []):
             if await _add_project(session, tenant, project):
@@ -328,7 +330,7 @@ async def main() -> None:
     local_db.require_local_server(url)  # before writing anything
     engine = create_async_engine(url)
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        added = await seed(session)
+        added = await seed(session, with_logo=True)
     await engine.dispose()
     print("Added: " + ", ".join(added) if added else "Nothing to add; already seeded.")
 
