@@ -127,7 +127,11 @@ def upgrade() -> None:
         END $$
         """
     )
-    # Each work's area and team become the first lines of its sheet.
+    # Each work's area and team become the first lines of its sheet: every
+    # office's, so with the forced policy lifted while the migration login (the
+    # tables' owner, no superuser on Cloud SQL) copies them (snippets.py, 0008).
+    op.execute("ALTER TABLE portfolio_entries NO FORCE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE portfolio_details NO FORCE ROW LEVEL SECURITY")
     op.execute(
         "INSERT INTO portfolio_details "
         "(tenant_id, entry_id, position, key, value_type, value_number) "
@@ -140,6 +144,8 @@ def upgrade() -> None:
         "SELECT tenant_id, id, CASE WHEN area IS NULL THEN 1 ELSE 2 END, "
         "'responsible', 'text', team FROM portfolio_entries WHERE length(btrim(team)) > 0"
     )
+    op.execute("ALTER TABLE portfolio_details FORCE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE portfolio_entries FORCE ROW LEVEL SECURITY")
     op.drop_constraint(op.f("ck_portfolio_entries_area_range"), "portfolio_entries", type_="check")
     op.drop_constraint(op.f("ck_portfolio_entries_team_length"), "portfolio_entries", type_="check")
     op.drop_column("portfolio_entries", "team")
@@ -161,6 +167,8 @@ def downgrade() -> None:
     op.create_check_constraint(
         op.f("ck_portfolio_entries_team_length"), "portfolio_entries", "length(team) <= 200"
     )
+    op.execute("ALTER TABLE portfolio_entries NO FORCE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE portfolio_details NO FORCE ROW LEVEL SECURITY")
     op.execute(
         "UPDATE portfolio_entries e SET area = d.value_number FROM portfolio_details d "
         "WHERE d.entry_id = e.id AND d.key = 'built_area' AND d.value_number > 0"
@@ -169,6 +177,7 @@ def downgrade() -> None:
         "UPDATE portfolio_entries e SET team = left(d.value_text, 200) FROM portfolio_details d "
         "WHERE d.entry_id = e.id AND d.key = 'responsible'"
     )
+    op.execute("ALTER TABLE portfolio_entries FORCE ROW LEVEL SECURITY")
     op.execute("DROP POLICY tenant_isolation ON portfolio_details")
     op.drop_index(op.f("ix_portfolio_details_tenant_id"), table_name="portfolio_details")
     op.drop_index(op.f("ix_portfolio_details_entry_id"), table_name="portfolio_details")

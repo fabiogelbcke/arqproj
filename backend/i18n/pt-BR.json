@@ -1607,6 +1607,7 @@
     "areaInvalid": "Informe a área em m², maior que zero.",
     "detailValue": "Valor",
     "removeDetail": "Remover {{name}}",
+    "detailsFull": "Cada projeto pode ter até {{count}} informações.",
     "noDetails": "Nenhuma informação ainda.",
     "detailInvalid": "Preencha todas as informações, com o nome nas suas.",
     "credits": "Créditos das fotos",

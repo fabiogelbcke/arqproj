@@ -1607,6 +1607,7 @@
     "areaInvalid": "Enter the area in m², above zero.",
     "detailValue": "Value",
     "removeDetail": "Remove {{name}}",
+    "detailsFull": "A project may have up to {{count}} details.",
     "noDetails": "No details yet.",
     "detailInvalid": "Fill in every detail, with a name on your own ones.",
     "credits": "Photo credits",

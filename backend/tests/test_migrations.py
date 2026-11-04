@@ -6,6 +6,8 @@ databases (one migrated, one built from the models) compared through PostgreSQL'
 catalog. Each test uses its own throwaway databases.
 """
 
+from decimal import Decimal
+
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
@@ -303,6 +305,81 @@ def test_data_migrations_run_as_an_owner_that_isolation_binds(migrated_url):
     finally:
         with engine.begin() as connection:
             # This throwaway database is dropped after the test anyway.
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()
+
+
+def test_a_works_area_and_team_become_lines_even_as_an_owner_that_isolation_binds(
+    migrated_url,
+):
+    """0051 turns every office's works' area and team into lines of their sheet,
+    and back on downgrade, as an owner that tenant isolation binds (Cloud SQL's
+    migration login): with the policy forced, it would copy nothing."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0051"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0050")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        tenant = connection.scalar(
+            text("INSERT INTO tenants (slug, name) VALUES ('alinea', 'A') RETURNING id")
+        )
+        connection.execute(
+            text(
+                "INSERT INTO portfolio_entries "
+                "(tenant_id, position, title, place, description, area, team) "
+                "VALUES (:t, 1, 'Casa', '', '', 212.5, 'Laura Mendes')"
+            ),
+            {"t": tenant},
+        )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    as_owner = alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False))
+    try:
+        command.upgrade(as_owner, "0051")
+        with engine.connect() as connection:
+            lines = connection.execute(
+                text(
+                    "SELECT key, position, value_number, value_text FROM portfolio_details "
+                    "ORDER BY position"
+                )
+            ).all()
+            assert [tuple(line) for line in lines] == [
+                ("built_area", 1, Decimal("212.50"), None),
+                ("responsible", 2, None, "Laura Mendes"),
+            ]
+            # The policy is forced again once the copy is done.
+            forced = connection.execute(
+                text(
+                    "SELECT relname FROM pg_class WHERE relname IN "
+                    "('portfolio_entries', 'portfolio_details') AND relforcerowsecurity"
+                )
+            ).all()
+            assert {row[0] for row in forced} == {"portfolio_entries", "portfolio_details"}
+        command.downgrade(as_owner, "0050")
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT area, team FROM portfolio_entries")).one() == (
+                Decimal("212.50"),
+                "Laura Mendes",
+            )
+    finally:
+        with engine.begin() as connection:
             connection.execute(text(f'DROP OWNED BY "{owner}"'))
             connection.execute(text(f'DROP ROLE "{owner}"'))
         engine.dispose()

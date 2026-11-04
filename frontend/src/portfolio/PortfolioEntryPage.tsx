@@ -260,26 +260,30 @@ function Sheet({ lines, onChange }: { lines: SheetLine[]; onChange: (lines: Shee
           })}
         </ul>
       )}
-      <ActionMenu
-        label={t("portfolio.addDetail")}
-        className={`${ui.button} ${ui.secondary} ${ui.small} ${styles.addDetail}`}
-        placement="bottom start"
-        items={[
-          ...unused.map((type) => ({ id: type.key, label: type.label })),
-          { id: "own", label: t("portfolio.ownDetail") },
-        ]}
-        onAction={(id) => {
-          const type = types.find((candidate) => candidate.key === id);
-          onChange([
-            ...lines,
-            type
-              ? { key: type.key, label: type.label, type: type.type, value: "" }
-              : { key: null, label: "", type: "text", value: "" },
-          ]);
-        }}
-      >
-        + {t("portfolio.addDetail")}
-      </ActionMenu>
+      {lines.length >= LIMITS.details ? (
+        <p className={styles.hint}>{t("portfolio.detailsFull", { count: LIMITS.details })}</p>
+      ) : (
+        <ActionMenu
+          label={t("portfolio.addDetail")}
+          className={`${ui.button} ${ui.secondary} ${ui.small} ${styles.addDetail}`}
+          placement="bottom start"
+          items={[
+            ...unused.map((type) => ({ id: type.key, label: type.label })),
+            { id: "own", label: t("portfolio.ownDetail") },
+          ]}
+          onAction={(id) => {
+            const type = types.find((candidate) => candidate.key === id);
+            onChange([
+              ...lines,
+              type
+                ? { key: type.key, label: type.label, type: type.type, value: "" }
+                : { key: null, label: "", type: "text", value: "" },
+            ]);
+          }}
+        >
+          + {t("portfolio.addDetail")}
+        </ActionMenu>
+      )}
     </div>
   );
 }

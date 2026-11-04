@@ -27,6 +27,7 @@ export const LIMITS = {
   photos: 30,
   credits: 120,
   label: 40,
+  details: 20, // lines of a work's sheet
   detail: 200, // a text value: room for a team's names
   link: 300,
   videos: 6,

@@ -237,6 +237,21 @@ describe("a work's editor", () => {
     );
   });
 
+  it("stops at twenty lines, saying so, instead of letting a sheet grow past what the server keeps", async () => {
+    const full = Array.from({ length: 20 }, (_, n) => ({ key: null, label: `Linha ${n + 1}`, type: "text" as const, value: "x" }));
+    api({
+      ...NO_TYPES,
+      ...DETAIL_TYPES,
+      "GET /api/portfolio": () => ({ body: { ...PORTFOLIO, entries: [entry({ details: full })] } }),
+    });
+    renderAt("/portfolio/e-1");
+    const sheet = await screen.findByRole("group", { name: "Informações" });
+    expect(within(sheet).getByText("Cada projeto pode ter até 20 informações.")).toBeInTheDocument();
+    expect(within(sheet).queryByRole("button", { name: "Adicionar informação" })).not.toBeInTheDocument();
+    await userEvent.click(within(sheet).getByRole("button", { name: "Remover Linha 20" }));
+    expect(within(sheet).getByRole("button", { name: "Adicionar informação" })).toBeInTheDocument();
+  });
+
   it("won't save a sheet with an area that isn't one, or an own line without its name", async () => {
     api({ ...NO_TYPES, ...DETAIL_TYPES });
     renderAt("/portfolio/e-1");
