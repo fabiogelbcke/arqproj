@@ -2279,11 +2279,9 @@ export interface components {
             description?: string | null;
             /** Project Type */
             project_type?: string | null;
-            /** Area */
-            area?: number | string | null;
             status?: components["schemas"]["WorkStatus"] | null;
-            /** Team */
-            team?: string | null;
+            /** Details */
+            details?: components["schemas"]["SheetLineIn"][] | null;
             /** Credits */
             credits?: string | null;
             /** Videos */
@@ -2329,11 +2327,9 @@ export interface components {
             description: string;
             /** Project Type */
             project_type: string | null;
-            /** Area */
-            area: string | null;
             status: components["schemas"]["WorkStatus"] | null;
-            /** Team */
-            team: string;
+            /** Details */
+            details: components["schemas"]["SheetLineOut"][];
             /** Credits */
             credits: string;
             /** Videos */
@@ -3460,6 +3456,29 @@ export interface components {
             unavailable: number;
             /** Zip Size */
             zip_size?: number | null;
+        };
+        /** SheetLineIn */
+        SheetLineIn: {
+            /** Key */
+            key?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Value */
+            value: string;
+        };
+        /**
+         * SheetLineOut
+         * @description A line of the work's sheet: one of the built-in details (its `key`, with
+         *     its label in the office's language) or one with the office's own label.
+         */
+        SheetLineOut: {
+            /** Key */
+            key: string | null;
+            /** Label */
+            label: string;
+            type: components["schemas"]["DetailType"];
+            /** Value */
+            value: string;
         };
         /** SigninOut */
         SigninOut: {

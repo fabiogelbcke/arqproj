@@ -19,6 +19,31 @@ a new entry too.
 
 ---
 
+## 2026-11-04 — A45: a work's sheet is a list of details, with the office's own labels
+
+**Was:** a work's sheet had three fixed lines: area in m², status, and team, each
+a column of `portfolio_entries`. A work drawn from a project copied its built
+(else total) area and its lead architect into them.
+
+**Now:** a work's sheet is a list of lines (`portfolio_details`), edited as a
+project's details are (A27): the same built-in details, each once and typed, and
+lines with a label of the office's own, text only, up to 40 characters, in the
+order added. Status stays a fixed line, shown last. A work drawn from a project
+starts with the project's details in their order, never its client or address,
+with "Responsável" as the members' names where the office has them (A41). Each
+existing work's area became its "Área construída" line and its team its
+"Responsável" line (migration 0051).
+
+**Why:** Fabio, 4 Nov 2026: "in the project edit menu for the portfolio, can't we
+allow dynamic details like we do for the normal client facing project page";
+asked whether the sheet should take the project page's list, the office's own
+labels, or both, he chose both. The office's own labels are an exception, for
+the portfolio only, to A27's "custom details are a later addition": a public
+portfolio names things a project's page doesn't (photography, builder), and a
+label typed per work costs nothing to keep.
+
+---
+
 ## 2026-11-04 — A45: a portfolio format for material made for the social networks
 
 **Was:** one layout: one landscape cover per work in a carousel, and a work's page

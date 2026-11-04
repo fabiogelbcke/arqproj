@@ -286,8 +286,9 @@ _VALUE_COLUMNS = {
 }
 
 
-def _value_matches_type() -> str:
-    """Exactly the value column of the row's value type is filled."""
+def value_matches_type() -> str:
+    """Exactly the value column of the row's value type is filled (a check for
+    every table that keeps a detail's value: a project's, a portfolio work's)."""
     cases = []
     for value_type, column in _VALUE_COLUMNS.items():
         filled = [f"{c} IS {'NOT ' if c == column else ''}NULL" for c in _VALUE_COLUMNS.values()]
@@ -316,7 +317,7 @@ class ProjectDetail(IdMixin, TenantOwned, Base):
             name="fk_project_details_detail_type",
         ),
         enum_check("value_type", DetailType),
-        CheckConstraint(_value_matches_type(), name="value_matches_type"),
+        CheckConstraint(value_matches_type(), name="value_matches_type"),
         CheckConstraint(
             "value_text IS NULL OR length(btrim(value_text)) > 0", name="text_not_blank"
         ),

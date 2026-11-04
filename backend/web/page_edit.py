@@ -136,7 +136,9 @@ def _custom_type(project_type: str, typed: str | None) -> str | None:
         raise ApiError(422, ErrorCode.INVALID_CUSTOM_TYPE) from None
 
 
-def _detail_value(value_type: DetailType, value: str) -> dict:
+def detail_value(value_type: DetailType, value: str) -> dict:
+    """A detail's value as typed, checked and in the column of its type (a project's
+    details and a portfolio work's sheet alike); 422 when it isn't one."""
     text = value.strip()
     if value_type is DetailType.TEXT:
         if not text or len(text) > DETAIL_TEXT_MAX:
@@ -205,7 +207,7 @@ async def change_content(
                     "key": detail.key,
                     "value_type": known[detail.key],
                     "position": position,
-                    **_detail_value(known[detail.key], detail.value),
+                    **detail_value(known[detail.key], detail.value),
                 }
             )
     await _change(db, project_id, body.row_version, values)

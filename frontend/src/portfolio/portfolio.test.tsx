@@ -29,9 +29,8 @@ function entry(changes: Partial<Entry>): Entry {
     year: 2024,
     description: "",
     project_type: "architecture",
-    area: null,
     status: null,
-    team: "",
+    details: [],
     credits: "",
     videos: [],
     project_id: "p-1",
@@ -180,29 +179,83 @@ describe("a work's editor", () => {
     );
   });
 
-  it("sends a work's facts with its other texts, the area as a number", async () => {
-    const sent = api({ ...NO_TYPES, "PATCH /api/portfolio/entries/e-1": () => ({ body: PORTFOLIO }) });
+  const DETAIL_TYPES = {
+    "GET /api/detail-types": () => ({
+      body: [
+        { key: "built_area", label: "Área construída", type: "area" },
+        { key: "start_date", label: "Início", type: "date" },
+        { key: "responsible", label: "Responsável", type: "text" },
+      ],
+    }),
+  };
+  const WITH_SHEET = {
+    ...PORTFOLIO,
+    entries: [
+      entry({ details: [{ key: "responsible", label: "Responsável", type: "text", value: "Laura Mendes" }] }),
+    ],
+  };
+
+  it("keeps the work's sheet: built-in details, typed, and lines with the office's own name", async () => {
+    const sent = api({
+      ...NO_TYPES,
+      ...DETAIL_TYPES,
+      "GET /api/portfolio": () => ({ body: WITH_SHEET }),
+      "PATCH /api/portfolio/entries/e-1": () => ({ body: WITH_SHEET }),
+    });
     renderAt("/portfolio/e-1");
-    await userEvent.type(await screen.findByLabelText("Área (m²)"), "1.250,5");
+    const sheet = await screen.findByRole("group", { name: "Informações" });
+    expect(within(sheet).getByLabelText("Responsável")).toHaveValue("Laura Mendes");
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Situação" }), "Concluído");
-    await userEvent.type(screen.getByLabelText("Equipe"), "Laura Mendes");
+    // A built-in detail, once each: the menu offers the ones not yet in the sheet.
+    await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "Área construída",
+      "Início",
+      "Outra informação…",
+    ]);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Área construída" }));
+    await userEvent.type(within(sheet).getByLabelText("Área construída"), "1.250,5");
+    await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Início" }));
+    await userEvent.type(within(sheet).getByLabelText("Início"), "2024-03-02");
+    // A line of the office's own: its name and its value.
+    await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Outra informação…" }));
+    await userEvent.type(within(sheet).getByLabelText("Nome da informação"), "Fotografia");
+    await userEvent.type(within(sheet).getByLabelText("Valor"), "Estúdio Luz");
+    await userEvent.click(within(sheet).getByRole("button", { name: "Remover Responsável" }));
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     await waitFor(() =>
       expect(sent.find((call) => call.method === "PATCH")?.body).toMatchObject({
-        area: 1250.5,
         status: "completed",
-        team: "Laura Mendes",
+        details: [
+          { key: "built_area", value: "1250.5" },
+          { key: "start_date", value: "2024-03-02" },
+          { label: "Fotografia", value: "Estúdio Luz" },
+        ],
       }),
     );
   });
 
-  it("won't save an area that isn't one", async () => {
-    api(NO_TYPES);
+  it("won't save a sheet with an area that isn't one, or an own line without its name", async () => {
+    api({ ...NO_TYPES, ...DETAIL_TYPES });
     renderAt("/portfolio/e-1");
-    const area = await screen.findByLabelText("Área (m²)");
+    const sheet = await screen.findByRole("group", { name: "Informações" });
+    await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Área construída" }));
+    const area = within(sheet).getByLabelText("Área construída");
     await userEvent.type(area, "grande");
     expect(area).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+    await userEvent.clear(area);
+    await userEvent.type(area, "180");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled();
+    await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Outra informação…" }));
+    await userEvent.type(within(sheet).getByLabelText("Valor"), "Estúdio Luz");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled(); // no name yet
+    await userEvent.type(within(sheet).getByLabelText("Nome da informação"), "Fotografia");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled();
   });
 });
 
