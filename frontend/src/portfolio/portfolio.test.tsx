@@ -180,7 +180,7 @@ describe("a work's editor", () => {
   });
 
   const DETAIL_TYPES = {
-    "GET /api/detail-types": () => ({
+    "GET /api/portfolio/detail-types": () => ({
       body: [
         { key: "built_area", label: "Área construída", type: "area" },
         { key: "start_date", label: "Início", type: "date" },

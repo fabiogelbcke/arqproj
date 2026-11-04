@@ -48,11 +48,12 @@ export const SUGGESTED_LINES = [
   "suppliers",
 ] as const;
 
-/** The built-in details a line of the sheet may be, as the project page offers them. */
+/** The built-in details a line of the sheet may be: the project page's, with
+ * "Responsável" even where projects name their members instead. */
 export function useDetailTypes() {
   return useQuery({
-    queryKey: ["detail-types"],
-    queryFn: () => call(api.GET("/api/detail-types")),
+    queryKey: ["portfolio", "detail-types"],
+    queryFn: () => call(api.GET("/api/portfolio/detail-types")),
     staleTime: Infinity,
   });
 }

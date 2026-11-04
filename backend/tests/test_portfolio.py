@@ -598,6 +598,15 @@ async def test_with_project_members_the_team_is_the_members_not_a_typed_responsi
     team = next(line for line in drawn["details"] if line["key"] == "responsible")
     assert team["value"] == "Ana"  # the office's one member, not "Laura Mendes"
     assert "Laura Mendes" not in str(drawn["details"])
+    # The sheet's menu still offers "Responsável" (the project page's doesn't, A41):
+    # a sheet is written by hand, with no members to name instead. Never the client.
+    offered = (await client.get("/api/portfolio/detail-types", headers=staff)).json()
+    assert [t["key"] for t in offered][-1] == "responsible" and offered[-1][
+        "label"
+    ] == "Responsável"
+    assert "client" not in [t["key"] for t in offered]
+    project_page = (await client.get("/api/detail-types", headers=staff)).json()
+    assert "responsible" not in [t["key"] for t in project_page]
 
 
 async def test_a_work_in_progress_takes_its_expected_year_unless_given_one(
