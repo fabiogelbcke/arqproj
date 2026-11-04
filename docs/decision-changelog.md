@@ -27,8 +27,8 @@ a column of `portfolio_entries`. A work drawn from a project copied its built
 
 **Now:** a work's sheet is a list of lines (`portfolio_details`), edited as a
 project's details are (A27): the same built-in details, each once and typed, and
-lines with a label of the office's own, text only, up to 40 characters, in the
-order added. Status stays a fixed line, shown last. A work drawn from a project
+lines with a label of the office's own (up to 40 characters), text only (up to
+200, room for a team's names), in the order added. Status stays a fixed line, shown last. A work drawn from a project
 starts with the project's details in their order, never its client or address,
 with "Responsável" as the members' names where the office has them (A41). Each
 existing work's area became its "Área construída" line and its team its

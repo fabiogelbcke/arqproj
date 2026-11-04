@@ -136,12 +136,13 @@ def _custom_type(project_type: str, typed: str | None) -> str | None:
         raise ApiError(422, ErrorCode.INVALID_CUSTOM_TYPE) from None
 
 
-def detail_value(value_type: DetailType, value: str) -> dict:
+def detail_value(value_type: DetailType, value: str, text_max: int = DETAIL_TEXT_MAX) -> dict:
     """A detail's value as typed, checked and in the column of its type (a project's
-    details and a portfolio work's sheet alike); 422 when it isn't one."""
+    details and a portfolio work's sheet alike, each with its length for a text);
+    422 when it isn't one."""
     text = value.strip()
     if value_type is DetailType.TEXT:
-        if not text or len(text) > DETAIL_TEXT_MAX:
+        if not text or len(text) > text_max:
             raise ApiError(422, ErrorCode.INVALID_DETAIL)
         return {"value_text": text}
     if value_type is DetailType.AREA:

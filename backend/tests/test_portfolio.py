@@ -626,7 +626,10 @@ async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
                 {"label": " Fotografia ", "value": "Estúdio Luz"},
                 {"key": "built_area", "value": "1250,5"},
                 {"key": "start_date", "value": "2024-03-02"},
-                {"key": "responsible", "value": "Laura Mendes e Pedro Alves"},
+                {
+                    "key": "responsible",
+                    "value": "Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho",
+                },
             ],
             "status": "in_progress",
             "credits": "Estúdio Luz",
@@ -642,7 +645,7 @@ async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
             "key": "responsible",
             "label": "Responsável",
             "type": "text",
-            "value": "Laura Mendes e Pedro Alves",
+            "value": "Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho",
         },
     ]
     await publish(client, staff)
@@ -654,7 +657,8 @@ async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
         "<div><dt>Fotografia</dt><dd>Estúdio Luz</dd></div>"
         "<div><dt>Área construída</dt><dd>1.250,5 m²</dd></div>"
         "<div><dt>Início</dt><dd>02/03/2024</dd></div>"
-        "<div><dt>Responsável</dt><dd>Laura Mendes e Pedro Alves</dd></div>"
+        "<div><dt>Responsável</dt>"
+        "<dd>Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho</dd></div>"
         "<div><dt>Situação</dt><dd>Em andamento</dd></div>"
     )
     assert "frame-src" not in answer.headers["content-security-policy"]  # nothing embedded
@@ -685,6 +689,9 @@ async def test_a_line_of_the_sheet_must_be_a_known_detail_or_carry_its_own_name(
         [{"label": "  ", "value": "Estúdio Luz"}],
         [{"label": "Fotografia", "value": "  "}],  # nor without a value
         [{"key": "built_area", "label": "Área", "value": "1"}],  # not both
+        [
+            {"label": "Fotografia", "value": "x" * 201}
+        ],  # a text has room for a team's names, no more
     ):
         refused = await client.patch(url, json={"details": lines}, headers=staff)
         assert refused.status_code == 422, (lines, refused.text)

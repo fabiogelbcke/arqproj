@@ -45,6 +45,7 @@ YEAR_MAX = 2100
 CREDITS_MAX = 120
 DETAILS_MAX = 20
 LABEL_MAX = 40  # an own label, one line beside its value like a built-in's
+DETAIL_VALUE_MAX = 200  # a text value: room for a team's names, as the team field had
 LINK_MAX = 300
 VIDEOS_MAX = 6
 VIDEO_MAX_BYTES = 200 * 1024 * 1024
@@ -195,6 +196,9 @@ class PortfolioDetail(IdMixin, TenantOwned, Base):
         CheckConstraint(value_matches_type(), name="value_matches_type"),
         CheckConstraint(
             "value_text IS NULL OR length(btrim(value_text)) > 0", name="text_not_blank"
+        ),
+        CheckConstraint(
+            f"value_text IS NULL OR length(value_text) <= {DETAIL_VALUE_MAX}", name="text_length"
         ),
         CheckConstraint("value_number IS NULL OR value_number >= 0", name="number_not_negative"),
     )

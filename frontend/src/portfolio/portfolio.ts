@@ -27,7 +27,7 @@ export const LIMITS = {
   photos: 30,
   credits: 120,
   label: 40,
-  detail: 40, // a text value: one line beside its label, as a project's
+  detail: 200, // a text value: room for a team's names
   link: 300,
   videos: 6,
   videoMb: 200,
@@ -77,7 +77,8 @@ export function parsedArea(text: string): number | null | undefined {
     written = grouping ? parts.join("") : parts.join(".");
   }
   const area = Number(written);
-  return Number.isFinite(area) && area > 0 && area < 10_000_000 ? Math.round(area * 100) / 100 : undefined;
+  // What the server keeps for a detail: from zero to under ten billion.
+  return Number.isFinite(area) && area >= 0 && area < 10_000_000_000 ? Math.round(area * 100) / 100 : undefined;
 }
 
 export function usePortfolio() {

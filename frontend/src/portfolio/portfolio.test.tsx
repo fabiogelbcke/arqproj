@@ -307,7 +307,8 @@ describe("parsedArea", () => {
     expect(parsedArea("1,250.75")).toBe(1250.75);
     expect(parsedArea("0,5")).toBe(0.5);
     expect(parsedArea("2,25")).toBe(2.25);
-    expect(parsedArea("0")).toBeUndefined();
+    expect(parsedArea("0")).toBe(0); // as a project's details allow
+    expect(parsedArea("10.000.000")).toBe(10000000);
     expect(parsedArea("abc")).toBeUndefined();
   });
 });

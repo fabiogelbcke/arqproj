@@ -50,6 +50,7 @@ from backend.portfolio.links import profile
 from backend.portfolio.models import (
     CREDITS_MAX,
     DESCRIPTION_MAX,
+    DETAIL_VALUE_MAX,
     DETAILS_MAX,
     ENTRIES_MAX,
     INTRO_MAX,
@@ -198,7 +199,7 @@ class EntryIn(BaseModel):
 class SheetLineIn(BaseModel):
     key: str | None = Field(default=None, max_length=100)  # a built-in detail's
     label: str | None = Field(default=None, max_length=LABEL_MAX)  # or the office's own
-    value: str = Field(max_length=500)  # as typed: text, a number of m², or a date
+    value: str = Field(max_length=500)  # as typed: text (≤ 200), a number of m², or a date
 
 
 class EntryChange(BaseModel):
@@ -423,7 +424,9 @@ async def _project_facts(
         if team:
             sheet.append(
                 PortfolioDetail(
-                    key=DetailKey.RESPONSIBLE, value_type=DetailType.TEXT, value_text=team[:500]
+                    key=DetailKey.RESPONSIBLE,
+                    value_type=DetailType.TEXT,
+                    value_text=team[:DETAIL_VALUE_MAX],
                 )
             )
     for position, detail in enumerate(sheet, start=1):
@@ -464,7 +467,7 @@ async def _sheet(db: AsyncSession, wanted: list[SheetLineIn]) -> list[PortfolioD
                 key=line.key,
                 label=label,
                 value_type=kind,
-                **detail_value(kind, line.value),
+                **detail_value(kind, line.value, text_max=DETAIL_VALUE_MAX),
             )
         )
     return sheet

@@ -67,6 +67,10 @@ def upgrade() -> None:
             name=op.f("ck_portfolio_details_text_not_blank"),
         ),
         sa.CheckConstraint(
+            "value_text IS NULL OR length(value_text) <= 200",
+            name=op.f("ck_portfolio_details_text_length"),
+        ),
+        sa.CheckConstraint(
             VALUE_MATCHES_TYPE, name=op.f("ck_portfolio_details_value_matches_type")
         ),
         sa.CheckConstraint(
