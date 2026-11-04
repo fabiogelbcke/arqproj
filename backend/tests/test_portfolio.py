@@ -739,7 +739,9 @@ def test_a_profile_is_an_address_on_its_own_network(network, value, address):
     assert profile(network, value) == address
 
 
-async def test_the_offices_networks_show_in_the_footer(client, staff):
+async def test_the_offices_networks_show_at_the_top_and_in_the_footer(client, staff):
+    """Each network by its mark beside the page's sections at the top, and with
+    its name in the footer, in the footer's order."""
     entry = await add(client, staff)
     await photo(client, staff, entry)
     saved = await client.patch(
@@ -760,7 +762,16 @@ async def test_the_offices_networks_show_in_the_footer(client, staff):
     ]
     await publish(client, staff)
     page = (await client.get("/", headers=ALINEA)).text
-    assert '<a href="https://www.instagram.com/alinea" rel="noopener">Instagram</a>' in page
+    top = page.split('<div class="follow">')[1].split("</div>")[0]
+    assert top.count("<a ") == 2 and top.count("<svg ") == 2 and "Instagram</span>" not in top
+    assert (
+        '<a href="https://www.instagram.com/alinea" rel="noopener" aria-label="Instagram">'
+        "<svg" in top
+    )
+    assert top.index("instagram.com") < top.index("linkedin.com")
+    nets = page.split('<p class="nets">')[1].split("</p>")[0]
+    assert nets.count("<svg ") == 2 and "<span>Instagram</span></a>" in nets
+    assert "<span>LinkedIn</span></a>" in nets
 
     wrong = await client.patch(
         "/api/portfolio", json={"links": {"facebook": "https://evil.example/x"}}, headers=staff
@@ -772,6 +783,10 @@ async def test_the_offices_networks_show_in_the_footer(client, staff):
     assert unknown.status_code == 422
     kept = (await client.get("/api/portfolio", headers=staff)).json()["links"]
     assert list(kept) == ["instagram", "linkedin"]  # a refused change keeps them all
+
+    await client.patch("/api/portfolio", json={"links": {}}, headers=staff)
+    without = (await client.get("/", headers=ALINEA)).text  # no networks: no marks, no block
+    assert '<div class="follow">' not in without and '<p class="nets">' not in without
 
 
 MP4 = b"\x00\x00\x00\x18ftypmp42" + bytes(range(256)) * 4
