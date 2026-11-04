@@ -34,6 +34,20 @@ export const LIMITS = {
   videoMb: 200,
 };
 
+/** Lines a portfolio's sheet usually names that a project's page doesn't, offered
+ * ready-made as the office's own labels (text): what architecture sites and
+ * ArchDaily's project sheets credit (photography, builder, manufacturers...). */
+export const SUGGESTED_LINES = [
+  "photography",
+  "builder",
+  "woodwork",
+  "landscape",
+  "lighting",
+  "structure",
+  "collaborators",
+  "suppliers",
+] as const;
+
 /** The built-in details a line of the sheet may be, as the project page offers them. */
 export function useDetailTypes() {
   return useQuery({

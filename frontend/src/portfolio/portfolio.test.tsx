@@ -208,9 +208,19 @@ describe("a work's editor", () => {
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Situação" }), "Concluído");
     // A built-in detail, once each: the menu offers the ones not yet in the sheet.
     await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
+    // The project page's details not yet in the sheet, then what a portfolio's
+    // sheet usually names (ready-made own lines), then a line of any name.
     expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
       "Área construída",
       "Início",
+      "Fotografia",
+      "Construtora",
+      "Marcenaria",
+      "Paisagismo",
+      "Iluminação",
+      "Estrutura",
+      "Colaboradores",
+      "Fornecedores",
       "Outra informação…",
     ]);
     await userEvent.click(screen.getByRole("menuitem", { name: "Área construída" }));
@@ -218,11 +228,17 @@ describe("a work's editor", () => {
     await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Início" }));
     await userEvent.type(within(sheet).getByLabelText("Início"), "2024-03-02");
-    // A line of the office's own: its name and its value.
+    // A ready-made own line comes with its name; only its value is typed.
     await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "Outra informação…" }));
-    await userEvent.type(within(sheet).getByLabelText("Nome da informação"), "Fotografia");
+    await userEvent.click(screen.getByRole("menuitem", { name: "Fotografia" }));
+    expect(within(sheet).getByLabelText("Nome da informação")).toHaveValue("Fotografia");
     await userEvent.type(within(sheet).getByLabelText("Valor"), "Estúdio Luz");
+    // Once in the sheet, it isn't offered again; a line of any name always is.
+    await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
+    expect(screen.queryByRole("menuitem", { name: "Fotografia" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Outra informação…" }));
+    await userEvent.type(within(sheet).getAllByLabelText("Nome da informação")[1]!, "Construção");
+    await userEvent.type(within(sheet).getAllByLabelText("Valor")[1]!, "Obra Prima");
     await userEvent.click(within(sheet).getByRole("button", { name: "Remover Responsável" }));
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     await waitFor(() =>
@@ -232,6 +248,7 @@ describe("a work's editor", () => {
           { key: "built_area", value: "1250.5" },
           { key: "start_date", value: "2024-03-02" },
           { label: "Fotografia", value: "Estúdio Luz" },
+          { label: "Construção", value: "Obra Prima" },
         ],
       }),
     );

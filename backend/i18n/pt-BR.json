@@ -1601,6 +1601,7 @@
     "sheet": "Informações",
     "sheetHint": "Aparecem ao lado da descrição, na página deste projeto no portfólio.",
     "addDetail": "Adicionar informação",
+    "suggested": {"photography": "Fotografia", "builder": "Construtora", "woodwork": "Marcenaria", "landscape": "Paisagismo", "lighting": "Iluminação", "structure": "Estrutura", "collaborators": "Colaboradores", "suppliers": "Fornecedores"},
     "ownDetail": "Outra informação…",
     "ownLabel": "Nome da informação",
     "ownLabelPlaceholder": "Ex.: Fotografia",

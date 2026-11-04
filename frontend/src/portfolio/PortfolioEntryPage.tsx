@@ -23,6 +23,7 @@ import { toast, toastError, toastProblem } from "../ui/Toast";
 import {
   LIMITS,
   PORTFOLIO,
+  SUGGESTED_LINES,
   VIDEO_TYPES,
   moved,
   parsedArea,
@@ -210,6 +211,9 @@ function Sheet({ lines, onChange }: { lines: SheetLine[]; onChange: (lines: Shee
   const { t } = useTranslation();
   const types = useDetailTypes().data ?? [];
   const unused = types.filter((type) => !lines.some((line) => line.key === type.key));
+  const suggested = SUGGESTED_LINES.map((id) => ({ id: `suggest:${id}`, label: t(`portfolio.suggested.${id}`) })).filter(
+    (item) => !lines.some((line) => !line.key && line.label.trim() === item.label),
+  );
   const set = (index: number, change: Partial<SheetLine>) =>
     onChange(lines.map((line, i) => (i === index ? { ...line, ...change } : line)));
   return (
@@ -269,15 +273,17 @@ function Sheet({ lines, onChange }: { lines: SheetLine[]; onChange: (lines: Shee
           placement="bottom start"
           items={[
             ...unused.map((type) => ({ id: type.key, label: type.label })),
+            ...suggested,
             { id: "own", label: t("portfolio.ownDetail") },
           ]}
           onAction={(id) => {
             const type = types.find((candidate) => candidate.key === id);
+            const suggestion = suggested.find((item) => item.id === id);
             onChange([
               ...lines,
               type
                 ? { key: type.key, label: type.label, type: type.type, value: "" }
-                : { key: null, label: "", type: "text", value: "" },
+                : { key: null, label: suggestion?.label ?? "", type: "text", value: "" },
             ]);
           }}
         >

@@ -1601,6 +1601,7 @@
     "sheet": "Details",
     "sheetHint": "Shown beside the description on this project's page in the portfolio.",
     "addDetail": "Add a detail",
+    "suggested": {"photography": "Photography", "builder": "Builder", "woodwork": "Woodwork", "landscape": "Landscape design", "lighting": "Lighting design", "structure": "Structural engineering", "collaborators": "Collaborators", "suppliers": "Suppliers"},
     "ownDetail": "Another detail…",
     "ownLabel": "Detail's name",
     "ownLabelPlaceholder": "E.g. Photography",
