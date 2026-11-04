@@ -179,7 +179,7 @@ footer .small{margin-left:auto;font-size:12px;color:var(--muted)}
 .slide.tall img:not(.backdrop),.hero.tall .cover img:not(.backdrop){position:relative;object-fit:contain}
 
 /* The "feed" format: every image in its own shape, as the networks show them.
-   The covers as a mosaic; a work as a column of its images under its title. */
+   The covers as a mosaic; a work as a grid of its images under its title. */
 .feed{list-style:none;margin:0;padding:0;columns:3;column-gap:24px}
 .feed li{break-inside:avoid;margin-bottom:40px}
 /* Laid out by portfolio.js: flex columns filled in the works' order. */
@@ -195,12 +195,8 @@ footer .small{margin-left:auto;font-size:12px;color:var(--muted)}
 .post-head .back{color:var(--muted)}
 .post-head .back:hover{color:var(--ink)}
 .post-head .meta{font-size:15px;color:var(--muted)}
-.posts{list-style:none;margin:0 auto;padding:0;max-width:640px;display:grid;gap:24px}
-.posts a{display:block;position:relative;cursor:zoom-in;background:var(--tint)}
-.posts img{width:100%;height:auto}
-.posts .play{width:64px;height:64px;margin:-32px 0 0 -32px}
-.posts .play::after{left:26px;top:20px;border-width:12px 0 12px 20px}
-.feed-work .credits{max-width:640px;margin-inline:auto}
+.posts li{margin-bottom:24px}
+.posts a{position:relative;cursor:zoom-in;background:var(--tint)}
 @media (max-width:1100px){.feed{columns:2}}
-@media (max-width:820px){.feed{column-gap:12px}.feed[data-columns]{gap:12px}.feed li{margin-bottom:24px}.post-head{padding-block:24px 4px}.posts{gap:12px}}
-@media (max-width:540px){.feed{columns:1}}
+@media (max-width:820px){.feed{column-gap:12px}.feed[data-columns]{gap:12px}.feed li,.posts li{margin-bottom:12px}.post-head{padding-block:24px 4px}}
+@media (max-width:540px){.feed{columns:1}.posts{columns:2}}

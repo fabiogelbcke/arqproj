@@ -27,8 +27,9 @@ shading. Every image was cropped to a landscape frame.
 
 **Now:** the Portfólio tab chooses the portfolio's format. "Obras" is that layout.
 "Feed" shows each image in its own shape, square or upright, as the networks show
-them: the works as a mosaic, a work's page as a column of its images under its
-title, no carousel, hero or shading. In "Obras", an upright cover is no longer
+them: the works as a mosaic, a work's page as a grid of its images under its
+title (a profile on the networks, not a column of posts), no carousel, hero or
+shading. In "Obras", an upright cover is no longer
 cropped: it stands whole on a blurred copy of itself. Photos and posters record
 their pixel size when added, so the page lays them out at their shape before they
 load (a file added before, or one the server can't read, has none and takes its

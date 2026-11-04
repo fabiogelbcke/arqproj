@@ -449,7 +449,7 @@ async def test_an_upright_cover_stands_whole_on_a_blurred_copy_instead_of_croppe
 
 async def test_the_feed_format_shows_every_image_in_its_own_shape(client, staff):
     """For material made for the networks: no carousel, hero or frame; a mosaic of
-    covers, and a work as a column of its images under its title. Each image's
+    covers, and a work as a grid of its images under its title. Each image's
     size is in its tag, so the page keeps its shape while loading."""
     changed = await client.patch("/api/portfolio", json={"format": "feed"}, headers=staff)
     assert (changed.status_code, changed.json()["format"]) == (200, "feed"), changed.text
@@ -474,7 +474,7 @@ async def test_the_feed_format_shows_every_image_in_its_own_shape(client, staff)
     work = (await client.get(f"/?projeto={post['id']}", headers=ALINEA)).text
     assert 'class="hero' not in work and '<header class="post-head wrap">' in work
     assert "<h1>Post</h1>" in work
-    posts = work.split('class="posts"')[1].split("</ul>")[0]
+    posts = work.split('class="feed posts"')[1].split("</ul>")[0]  # the mosaic's grid
     assert posts.count("<li>") == 2  # the cover among them, not above
     assert 'width="1080" height="1350"' in posts and 'width="1080" height="1080"' in posts
     assert 'class="lightbox"' in work  # each still opens large

@@ -93,15 +93,16 @@ if (lightbox && lightbox.showModal) {
   });
 }
 
-// The feed format's mosaic: the works in the order staff set them, left to
-// right then down, in as many columns as fit. Without this, the stylesheet's
-// columns fill top to bottom first.
-const feed = document.querySelector(".feed");
-if (feed) {
+// The feed format's mosaic (the works' covers, or a work's images): in the
+// order staff set them, left to right then down, in as many columns as fit; a
+// work's images keep two on a phone. Without this, the stylesheet's columns
+// fill top to bottom first.
+for (const feed of document.querySelectorAll(".feed")) {
   const works = [...feed.children];
+  const least = feed.classList.contains("posts") ? 2 : 1;
   const lay = () => {
     const width = feed.clientWidth;
-    const count = width > 1020 ? 3 : width > 500 ? 2 : 1;
+    const count = width > 1020 ? 3 : width > 500 ? 2 : least;
     if (feed.dataset.columns === String(count)) return;
     feed.dataset.columns = String(count);
     feed.replaceChildren();

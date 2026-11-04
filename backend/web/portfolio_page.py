@@ -301,7 +301,7 @@ def _document(
             + (f'<p class="meta">{escape(_meta(entry))}</p>' if _meta(entry) else "")
         )
         if feed:
-            # The title above the images, each in its own shape, in a column.
+            # The title above the images, each in its own shape, in a grid.
             main = (
                 f'<article class="work feed-work"><header class="post-head wrap">{back}{heading}'
                 '</header><div class="wrap">'
@@ -461,15 +461,16 @@ def _gallery(
 def _posts(
     t: dict, entry: PortfolioEntry, photos: list[PortfolioPhoto], videos: list[PortfolioVideo]
 ) -> str:
-    """The feed format's work: its videos, then all its photos (the cover too), in
-    a column at a reading width, each in its own shape, as the networks show a
-    post; each opens large over the page like the gallery's."""
+    """The feed format's work: its videos, then all its photos (the cover too), as
+    a grid of images each in its own shape, like a profile on the networks; each
+    opens large over the page like the gallery's. The grid is the mosaic's
+    (`feed`, laid out by `portfolio.js`), in the order the photos were added."""
     label = escape(_fill(t["gallery"], title=entry.title))
     films = "".join(
         f'<li><a class="zoom film" href="{video_url(video)}" '
         f'data-poster="{video_url(video)}/poster" '
         f'aria-label="{escape(_fill(t["watch"], n=n))}">'
-        f'<img src="{video_url(video)}/poster?size=full" '
+        f'<img src="{video_url(video)}/poster?size=card" '
         f'alt="{escape(_fill(t["video"], n=n, title=entry.title))}"{_size(video)} '
         f'{_loading(n == 1)} decoding="async">'
         '<span class="play" aria-hidden="true"></span></a></li>'
@@ -478,7 +479,7 @@ def _posts(
     figures = "".join(
         f'<li><a class="zoom" href="{photo_url(photo)}?size=full" '
         f'aria-label="{escape(_fill(t["open"], n=n))}">'
-        f'<img src="{photo_url(photo)}?size=full" '
+        f'<img src="{photo_url(photo)}?size=card" '
         f'alt="{escape(_fill(t["photo"], n=n, title=entry.title))}"{_size(photo)} '
         f'{_loading(n == 1 and not videos)} decoding="async">'
         "</a></li>"
@@ -490,8 +491,8 @@ def _posts(
         else ""
     )
     return (
-        f'<section class="gallery" aria-label="{label}"><ul class="posts">{films}{figures}</ul>'
-        f"{credits}</section>" + _lightbox(t, label)
+        f'<section class="gallery" aria-label="{label}">'
+        f'<ul class="feed posts">{films}{figures}</ul>{credits}</section>' + _lightbox(t, label)
     )
 
 
