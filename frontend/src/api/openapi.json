@@ -4966,6 +4966,49 @@
         }
       }
     },
+    "/api/portfolio/detail-types": {
+      "get": {
+        "summary": "Detail Types",
+        "description": "The built-in details a line of a work's sheet may be: every one but the\nclient. \"Responsável\" too, whether or not the office names a project's members\n(A41): a work's sheet is written by hand, with no members to name instead.",
+        "operationId": "detail_types_api_portfolio_detail_types_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DetailTypeOut"
+                  },
+                  "type": "array",
+                  "title": "Response Detail Types Api Portfolio Detail Types Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/portfolio": {
       "get": {
         "summary": "Portfolio",
@@ -8681,22 +8724,6 @@
             ],
             "title": "Project Type"
           },
-          "area": {
-            "anyOf": [
-              {
-                "type": "number",
-                "exclusiveMaximum": 10000000.0,
-                "exclusiveMinimum": 0.0
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Area"
-          },
           "status": {
             "anyOf": [
               {
@@ -8707,17 +8734,20 @@
               }
             ]
           },
-          "team": {
+          "details": {
             "anyOf": [
               {
-                "type": "string",
-                "maxLength": 200
+                "items": {
+                  "$ref": "#/components/schemas/SheetLineIn"
+                },
+                "type": "array",
+                "maxItems": 20
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Team"
+            "title": "Details"
           },
           "credits": {
             "anyOf": [
@@ -8872,17 +8902,6 @@
             ],
             "title": "Project Type"
           },
-          "area": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Area"
-          },
           "status": {
             "anyOf": [
               {
@@ -8893,9 +8912,12 @@
               }
             ]
           },
-          "team": {
-            "type": "string",
-            "title": "Team"
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/SheetLineOut"
+            },
+            "type": "array",
+            "title": "Details"
           },
           "credits": {
             "type": "string",
@@ -8947,9 +8969,8 @@
           "year",
           "description",
           "project_type",
-          "area",
           "status",
-          "team",
+          "details",
           "credits",
           "videos",
           "project_id",
@@ -12041,6 +12062,79 @@
           "unavailable"
         ],
         "title": "SharedOut"
+      },
+      "SheetLineIn": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "SheetLineIn"
+      },
+      "SheetLineOut": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "$ref": "#/components/schemas/DetailType"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "type",
+          "value"
+        ],
+        "title": "SheetLineOut",
+        "description": "A line of the work's sheet: one of the built-in details (its `key`, with\nits label in the office's language) or one with the office's own label."
       },
       "SigninOut": {
         "properties": {

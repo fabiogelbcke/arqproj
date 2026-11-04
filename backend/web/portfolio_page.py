@@ -21,6 +21,7 @@ import logging
 import re
 import uuid
 from collections.abc import Callable
+from datetime import date
 from decimal import Decimal
 from functools import cache
 from html import escape
@@ -41,12 +42,15 @@ from backend.portfolio.models import (
     PortfolioPhoto,
     PortfolioVideo,
 )
+from backend.projects.enums import DetailType
 from backend.projects.models import ProjectTypeDef
 from backend.tenancy.middleware import REDIRECT_MAX_AGE, redirect_url
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, normalize_host, resolve
 from backend.web.auth import COOKIE
 from backend.web.portfolio import (
+    SheetLineOut,
+    details_by_entry,
     entries_with_photos,
     links,
     photo_url,
@@ -126,6 +130,17 @@ def _area(area: Decimal, locale: Locale) -> str:
     if locale is Locale.PT_BR:
         written = written.translate(str.maketrans(",.", ".,"))
     return f"{written} m²"
+
+
+def _fact(line: SheetLineOut, locale: Locale) -> str:
+    """A line of the work's sheet as the page writes it: an area in m², a date
+    the way the language writes one ("02/03/2026", in English "03/02/2026"), text as typed."""
+    if line.type is DetailType.AREA:
+        return _area(Decimal(line.value), locale)
+    if line.type is DetailType.DATE:
+        when = date.fromisoformat(line.value)
+        return when.strftime("%d/%m/%Y" if locale is Locale.PT_BR else "%m/%d/%Y")
+    return line.value
 
 
 def _title(text: str) -> str:
@@ -217,9 +232,12 @@ async def _page(request: Request) -> Response | None:
                 wanted_id = None
             chosen = next((work for work in works if work[0].id == wanted_id), None)
         videos = (await videos_by_entry(db)).get(chosen[0].id, []) if chosen else []
+        sheet = (await details_by_entry(db, tenant.locale)).get(chosen[0].id, []) if chosen else []
         kinds = list(await db.scalars(select(ProjectTypeDef).order_by(ProjectTypeDef.position)))
     types = _type_labels(kinds, tenant.locale)
-    document = _document(tenant, office, found, works, chosen, videos, types, preview, request)
+    document = _document(
+        tenant, office, found, works, chosen, videos, sheet, types, preview, request
+    )
     return HTMLResponse(document, headers=PREVIEW if preview else PUBLISHED)
 
 
@@ -242,6 +260,7 @@ def _document(
     works: Works,
     chosen: tuple[PortfolioEntry, list[PortfolioPhoto]] | None,
     videos: list[PortfolioVideo],
+    sheet: list[SheetLineOut],
     types: dict[str, str],
     preview: bool,
     request: Request,
@@ -273,13 +292,13 @@ def _document(
         entry, photos = chosen
         title = f"{escape(entry.title)} · {name}"
         description = entry.description or intro
-        # Type, place and year are on the cover, with the title; the rest below it.
+        # Type, place and year are on the cover, with the title; the sheet below
+        # it: its lines in the office's order, then where the work stands.
         facts = "".join(
             f"<div><dt>{escape(label)}</dt><dd>{escape(value)}</dd></div>"
             for label, value in (
-                (t["area"], _area(entry.area, tenant.locale) if entry.area else ""),
+                *((line.label, _fact(line, tenant.locale)) for line in sheet),
                 (t["status"], t["statuses"].get(entry.status or "", "")),
-                (t["team"], entry.team),
             )
             if value
         )
@@ -407,7 +426,7 @@ CAROUSEL_MAX = 8
 
 
 def _about(facts: str, description: str) -> str:
-    """The work's sheet (area, status, team) beside its text, as architecture
+    """The work's sheet (its details, where it stands) beside its text, as architecture
     sites set them: the sheet narrow on the left, the text in a reading measure."""
     if not facts and not description.strip():
         return ""

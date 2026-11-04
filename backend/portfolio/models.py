@@ -11,11 +11,13 @@ change or go without the portfolio changing; videos as sent from the computer.
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 
 from sqlalchemy import (
     CheckConstraint,
+    Date,
     ForeignKey,
     ForeignKeyConstraint,
     Numeric,
@@ -29,7 +31,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from backend.db.base import Base, CreatedAtMixin, IdMixin, TimestampsMixin
 from backend.db.isolation import TenantOwned
 from backend.db.types import TextEnum, enum_check
-from backend.projects.enums import CoverType
+from backend.projects.enums import CoverType, DetailType
+from backend.projects.models import value_matches_type
 
 INTRO_MAX = 600
 TITLE_MAX = 80
@@ -39,12 +42,13 @@ ENTRIES_MAX = 60
 PHOTOS_MAX = 30
 YEAR_MIN = 1900
 YEAR_MAX = 2100
-TEAM_MAX = 200
 CREDITS_MAX = 120
+DETAILS_MAX = 20
+LABEL_MAX = 40  # an own label, one line beside its value like a built-in's
+DETAIL_VALUE_MAX = 200  # a text value: room for a team's names, as the team field had
 LINK_MAX = 300
 VIDEOS_MAX = 6
 VIDEO_MAX_BYTES = 200 * 1024 * 1024
-AREA_MAX = 10_000_000  # m²
 
 
 class WorkStatus(StrEnum):
@@ -129,9 +133,7 @@ class PortfolioEntry(IdMixin, TimestampsMixin, TenantOwned, Base):
         CheckConstraint(f"length(place) <= {PLACE_MAX}", name="place_length"),
         CheckConstraint(f"length(description) <= {DESCRIPTION_MAX}", name="description_length"),
         CheckConstraint(f"year BETWEEN {YEAR_MIN} AND {YEAR_MAX}", name="year_range"),
-        CheckConstraint(f"area > 0 AND area < {AREA_MAX}", name="area_range"),
         enum_check("status", WorkStatus),
-        CheckConstraint(f"length(team) <= {TEAM_MAX}", name="team_length"),
         CheckConstraint(f"length(credits) <= {CREDITS_MAX}", name="credits_length"),
     )
 
@@ -146,12 +148,69 @@ class PortfolioEntry(IdMixin, TimestampsMixin, TenantOwned, Base):
         Text, ForeignKey("project_types.key", name="fk_portfolio_entries_project_type")
     )
     project_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
-    # Facts a project already knows, copied when the work is drawn from it.
-    area: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))  # m²
     status: Mapped[WorkStatus | None] = mapped_column(TextEnum(WorkStatus))
-    team: Mapped[str] = mapped_column(Text, default="", server_default=text("''"))
     # Who took the photos ("Fotos: ..."), as architecture sites credit them.
     credits: Mapped[str] = mapped_column(Text, default="", server_default=text("''"))
+
+
+class PortfolioDetail(IdMixin, TenantOwned, Base):
+    """A line of a work's sheet, in order: one of the built-in details a project
+    has (`key`, typed and labelled as the project page's), or one with a label
+    of the office's own (`label`, text only): "Fotografia", "Construtora"...
+    A work drawn from a project starts with the project's, except its client."""
+
+    __tablename__ = "portfolio_details"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "entry_id"],
+            ["portfolio_entries.tenant_id", "portfolio_entries.id"],
+            name="fk_portfolio_details_entry",
+            ondelete="CASCADE",
+        ),
+        # A built-in row's value type is its detail type's (key, value_type).
+        ForeignKeyConstraint(
+            ["key", "value_type"],
+            ["detail_types.key", "detail_types.value_type"],
+            name="fk_portfolio_details_detail_type",
+        ),
+        UniqueConstraint("entry_id", "key", name="uq_portfolio_details_entry_id_key"),
+        UniqueConstraint(
+            "entry_id",
+            "position",
+            name="uq_portfolio_details_entry_id_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        CheckConstraint("position >= 1", name="position_positive"),
+        # Built-in (a key, no label) or the office's own (a label, no key, text).
+        CheckConstraint(
+            "(key IS NOT NULL AND label IS NULL) "
+            "OR (key IS NULL AND label IS NOT NULL AND value_type = 'text')",
+            name="built_in_or_own",
+        ),
+        CheckConstraint(
+            f"label IS NULL OR length(btrim(label)) BETWEEN 1 AND {LABEL_MAX}",
+            name="label_length",
+        ),
+        enum_check("value_type", DetailType),
+        CheckConstraint(value_matches_type(), name="value_matches_type"),
+        CheckConstraint(
+            "value_text IS NULL OR length(btrim(value_text)) > 0", name="text_not_blank"
+        ),
+        CheckConstraint(
+            f"value_text IS NULL OR length(value_text) <= {DETAIL_VALUE_MAX}", name="text_length"
+        ),
+        CheckConstraint("value_number IS NULL OR value_number >= 0", name="number_not_negative"),
+    )
+
+    entry_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    position: Mapped[int] = mapped_column()
+    key: Mapped[str | None] = mapped_column(Text)
+    label: Mapped[str | None] = mapped_column(Text)
+    value_type: Mapped[DetailType] = mapped_column(TextEnum(DetailType))
+    value_text: Mapped[str | None] = mapped_column(Text)
+    value_number: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    value_date: Mapped[date | None] = mapped_column(Date)
 
 
 class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
