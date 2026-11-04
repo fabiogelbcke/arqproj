@@ -40,6 +40,7 @@ date and a link to the original, and bringing posts in from Instagram (see
 posts (square and 9:16, text and logos already on the image) looked wrong in a
 layout built for architecture photography. Posts as entries of their own were
 dropped because offices only make the media for their posts, not the text.
+
 ---
 
 ## 2026-11-03 — A24 and section 10: a new project starts with a stock cover, which clients see

@@ -39,7 +39,7 @@ if (lightbox && lightbox.showModal) {
   const show = (index) => {
     shown = (index + links.length) % links.length;
     const link = links[shown];
-    const label = link.querySelector("img")?.alt ?? "";
+    const label = link.querySelector("img:not(.backdrop)")?.alt ?? "";
     const film = link.classList.contains("film");
     stopVideo();
     image.hidden = film;
@@ -91,4 +91,30 @@ if (lightbox && lightbox.showModal) {
     stopVideo();
     image.removeAttribute("src");
   });
+}
+
+// The feed format's mosaic: the works in the order staff set them, left to
+// right then down, in as many columns as fit. Without this, the stylesheet's
+// columns fill top to bottom first.
+const feed = document.querySelector(".feed");
+if (feed) {
+  const works = [...feed.children];
+  const lay = () => {
+    const width = feed.clientWidth;
+    const count = width > 1020 ? 3 : width > 500 ? 2 : 1;
+    if (feed.dataset.columns === String(count)) return;
+    feed.dataset.columns = String(count);
+    feed.replaceChildren();
+    const columns = works.slice(0, count).map(() => {
+      const column = document.createElement("li");
+      column.className = "column";
+      const list = document.createElement("ul");
+      column.append(list);
+      feed.append(column);
+      return list;
+    });
+    works.forEach((work, index) => columns[index % count].append(work));
+  };
+  lay();
+  new ResizeObserver(lay).observe(feed);
 }
