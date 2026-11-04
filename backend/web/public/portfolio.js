@@ -97,6 +97,10 @@ if (lightbox && lightbox.showModal) {
 // order staff set them, left to right then down, in as many columns as fit; a
 // work's images keep two on a phone. Without this, the stylesheet's columns
 // fill top to bottom first.
+// Every work's card, those a filtered address (`/?tipo=…`) hides too, taken
+// before the mosaic leaves the hidden ones out of the page: the menu of types
+// below shows them again.
+const cards = [...document.querySelectorAll(".works > li, .mosaic > li")];
 let relayMosaic = () => {};
 for (const mosaic of document.querySelectorAll(".mosaic")) {
   const works = [...mosaic.children];
@@ -129,14 +133,13 @@ for (const mosaic of document.querySelectorAll(".mosaic")) {
 const types = document.querySelector(".types");
 if (types) {
   const links = [...types.querySelectorAll("a")];
-  const works = [...document.querySelectorAll(".works > li, .mosaic > li, .mosaic .column > ul > li")];
   const key = (href) => new URL(href, location.href).searchParams.get("tipo");
   const show = (wanted) => {
     for (const link of links) {
       if (key(link.href) === wanted) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     }
-    for (const work of works) work.hidden = wanted !== null && work.dataset.type !== wanted;
+    for (const card of cards) card.hidden = wanted !== null && card.dataset.type !== wanted;
     relayMosaic();
   };
   links.forEach((link) =>
