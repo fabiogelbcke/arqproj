@@ -171,7 +171,8 @@ def downgrade() -> None:
     op.execute("ALTER TABLE portfolio_details NO FORCE ROW LEVEL SECURITY")
     op.execute(
         "UPDATE portfolio_entries e SET area = d.value_number FROM portfolio_details d "
-        "WHERE d.entry_id = e.id AND d.key = 'built_area' AND d.value_number > 0"
+        "WHERE d.entry_id = e.id AND d.key = 'built_area' "
+        "AND d.value_number > 0 AND d.value_number < 10000000"  # what the old column takes
     )
     op.execute(
         "UPDATE portfolio_entries e SET team = left(d.value_text, 200) FROM portfolio_details d "

@@ -4966,6 +4966,49 @@
         }
       }
     },
+    "/api/portfolio/detail-types": {
+      "get": {
+        "summary": "Detail Types",
+        "description": "The built-in details a line of a work's sheet may be: every one but the\nclient. \"Responsável\" too, whether or not the office names a project's members\n(A41): a work's sheet is written by hand, with no members to name instead.",
+        "operationId": "detail_types_api_portfolio_detail_types_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DetailTypeOut"
+                  },
+                  "type": "array",
+                  "title": "Response Detail Types Api Portfolio Detail Types Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/portfolio": {
       "get": {
         "summary": "Portfolio",

@@ -93,7 +93,7 @@ from backend.web.covers import COVER_MAX_BYTES, local_root, storage_connection
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.office import image_type
-from backend.web.page_edit import detail_value
+from backend.web.page_edit import DetailTypeOut, detail_value
 from backend.web.page_files import RangeNotSatisfiable, byte_range, etag
 from backend.web.page_uploads import UploadFailedIn, local_upload_url, upload_origin
 from backend.web.project_settings import serve_stored_image
@@ -433,6 +433,26 @@ async def _project_facts(
         detail.position = position
     facts = {"status": status, "year": year if year and YEAR_MIN <= year <= YEAR_MAX else None}
     return facts, sheet
+
+
+@router.get("/portfolio/detail-types", responses=documented(401, 409))
+async def detail_types(
+    _staff: CurrentStaff = Depends(current_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> list[DetailTypeOut]:
+    """The built-in details a line of a work's sheet may be: every one but the
+    client. "Responsável" too, whether or not the office names a project's members
+    (A41): a work's sheet is written by hand, with no members to name instead."""
+    rows = await db.scalars(
+        select(DetailTypeDef)
+        .where(DetailTypeDef.key != DetailKey.CLIENT)
+        .order_by(DetailTypeDef.position)
+    )
+    return [
+        DetailTypeOut(key=row.key, label=_label(row.labels, tenant.locale), type=row.value_type)
+        for row in rows
+    ]
 
 
 async def _sheet(db: AsyncSession, wanted: list[SheetLineIn]) -> list[PortfolioDetail]:
