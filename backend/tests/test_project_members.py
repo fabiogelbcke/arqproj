@@ -173,7 +173,7 @@ async def test_the_operator_switches_a_feature_per_office_audited(
     headers = await test_admin.sign_in(client)
     path = "/api/admin/offices/alinea/actions"
     office = (await client.get("/api/admin/offices/alinea", headers=test_admin.UNIO)).json()
-    assert (office["features"], office["all_features"]) == ([], ["project_members", "proposals"])
+    assert (office["features"], office["all_features"]) == ([], [f.value for f in Feature])
     on = await client.post(
         path, json={"action": "feature_on", "feature": "project_members"}, headers=headers
     )

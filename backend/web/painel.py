@@ -36,6 +36,8 @@ CONTENT_SECURITY_POLICY = "; ".join(
         # blob: previews a photo chosen on this device before it is uploaded.
         "img-src 'self' data: blob:",
         "font-src 'self'",
+        # blob: a video chosen for the portfolio, opened to take its poster frame.
+        "media-src 'self' blob:",
         # Uploads go from the browser straight to Google's upload session (A31).
         # Product analytics (A39): events to PostHog (US), and its settings from
         # its assets host. Only sending: its scripts come bundled in ours.

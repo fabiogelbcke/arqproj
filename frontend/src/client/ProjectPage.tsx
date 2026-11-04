@@ -934,9 +934,12 @@ function StaffBar({
   );
 }
 
-/** The cover shrinks away as the page scrolls (prototype), unless motion is reduced. */
-function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
+/** The cover shrinks away as the page scrolls (prototype), unless motion is reduced.
+ *  Not with the band behind it (the `cover_band` feature): the cover collapsing to
+ *  a strip while the name stayed looked broken; the opening scrolls as usual. */
+function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
   useEffect(() => {
+    if (!enabled) return;
     let frame = 0;
     const update = () => {
       frame = 0;
@@ -957,7 +960,7 @@ function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
       window.removeEventListener("resize", schedule);
       cancelAnimationFrame(frame);
     };
-  }, [ref]);
+  }, [ref, enabled]);
 }
 
 /** The project's name, in capitals (painel redesign: no more "/casa jardim"). */
@@ -992,8 +995,10 @@ export function ProjectPage({
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
+  // The opening on a band made from the cover: the `cover_band` feature (A40).
+  const band = !!page.cover_url && (page.features ?? []).includes("cover_band");
   const cover = useRef<HTMLDivElement>(null);
-  useCoverWipe(cover);
+  useCoverWipe(cover, !band);
   const mainColumn = useRef<HTMLDivElement>(null);
   const sideColumn = useRef<HTMLDivElement>(null);
   const moved = useBalancedColumns(mainColumn, sideColumn);
@@ -1215,7 +1220,13 @@ export function ProjectPage({
               </div>
             )
           ))}
-        <div className="project-opening">
+        <div className={`project-opening${band ? " project-opening--band" : ""}`}>
+          {/* The cover again, blurred wide: the band the opening sits on. */}
+          {band && (
+            <div className="project-opening__backdrop" aria-hidden="true">
+              <img src={page.cover_url ?? undefined} alt="" />
+            </div>
+          )}
           <header className="project-heading">
             {canEdit && openEditor === "name" ? (
               <Suspense fallback={null}>

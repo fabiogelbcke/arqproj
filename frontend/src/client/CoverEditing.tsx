@@ -1,10 +1,12 @@
 // The cover from the project page in edit mode: "Adicionar foto de capa" in the
 // cover's place when there is none, "Trocar capa" and "Remover capa" on one there
-// is (plan section 10). The photo is cropped to 3:2 first (ImageCropDialog).
+// is (plan section 10). Both open CoverPhotoDialog: an upload, cropped to 3:2
+// first (ImageCropDialog), or one of the bundled photos.
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call } from "../api/client";
+import { CoverPhotoDialog } from "../projects/CoverPhotoDialog";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { toast, toastError } from "../ui/Toast";
 import type { Page } from "./format";
@@ -16,6 +18,7 @@ export function CoverPicker({ page, onChanged }: { page: Page; onChanged: () => 
   const input = useRef<HTMLInputElement>(null);
   const [cropping, setCropping] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const stop = () => {
     if (cropping) URL.revokeObjectURL(cropping);
     setCropping(null);
@@ -57,6 +60,21 @@ export function CoverPicker({ page, onChanged }: { page: Page; onChanged: () => 
       setBusy(false);
     }
   };
+  const pick = async (name: string) => {
+    try {
+      await call(
+        api.PUT("/api/projects/{project_id}/cover/stock", {
+          params: { path: { project_id: page.staff!.project_id } },
+          body: { name },
+        }),
+      );
+    } catch (failure) {
+      toastError(failure);
+      throw failure; // the dialog stays open
+    }
+    toast(t("edit.coverSaved"));
+    onChanged();
+  };
   const chooser = (
     <input
       ref={input}
@@ -74,7 +92,7 @@ export function CoverPicker({ page, onChanged }: { page: Page; onChanged: () => 
     <>
       {page.cover_url ? (
         <div className="cover-actions">
-          <button className="editbtn" type="button" disabled={busy} onClick={() => input.current?.click()}>
+          <button className="editbtn" type="button" disabled={busy} onClick={() => setChoosing(true)}>
             {t("edit.changeCover")}
           </button>
           <button className="editbtn" type="button" disabled={busy} onClick={() => void remove()}>
@@ -83,13 +101,16 @@ export function CoverPicker({ page, onChanged }: { page: Page; onChanged: () => 
         </div>
       ) : (
         <figure className="banner">
-          <button className="banner__img cover-empty" type="button" disabled={busy} onClick={() => input.current?.click()}>
+          <button className="banner__img cover-empty" type="button" disabled={busy} onClick={() => setChoosing(true)}>
             <strong>{t("edit.addCover")}</strong>
             <span>{t("edit.addCoverHint")}</span>
           </button>
         </figure>
       )}
       {chooser}
+      {choosing && (
+        <CoverPhotoDialog onClose={() => setChoosing(false)} onUpload={() => input.current?.click()} onPick={pick} />
+      )}
       {cropping && (
         <ImageCropDialog
           source={cropping}

@@ -289,7 +289,8 @@ office. So the painel comes next, then the client page once its design settles:
    (tagged) and completed (folded), accent-insensitive search on name and
    client, sorting by last update, creation date, name, client or type in
    either direction (remembered on the device), cards with a placeholder photo
-   (10 CC0 photos, `frontend/src/projects/covers/LICENSES.json`), the current
+   (CC0 photos, now in `backend/projects/covers/LICENSES.json`; since 3 Nov 2026
+   a new project starts with one as its cover, plan section 10), the current
    stage "N / total", the next meeting and the last update in the office's time
    zone. Copying the client link waits for the client page (slice 2).
 3. **P3 Project settings in the painel** (A24, narrowed 16 Oct 2026): the

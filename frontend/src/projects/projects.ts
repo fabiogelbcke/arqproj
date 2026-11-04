@@ -13,8 +13,14 @@ export type NewProject = Schemas["ProjectIn"];
 export const PROJECTS = ["projects"] as const;
 const CREATION_OPTIONS = ["project-types"] as const;
 
-export function useProjects() {
-  return useQuery({ queryKey: PROJECTS, queryFn: () => call(api.GET("/api/projects")) });
+/** The office's projects; with `archived`, the archived ones too (the
+ *  portfolio draws on finished work). */
+export function useProjects(archived = false) {
+  return useQuery({
+    queryKey: archived ? [...PROJECTS, "archived"] : PROJECTS,
+    queryFn: () =>
+      call(archived ? api.GET("/api/projects", { params: { query: { archived: true } } }) : api.GET("/api/projects")),
+  });
 }
 
 /** The project types, each with its usual stages, and every built-in stage in order. */
@@ -80,6 +86,16 @@ export function useUploadCover() {
           },
         }),
       ),
+    onSuccess: store,
+  });
+}
+
+/** One of the bundled photos as the cover (backend/projects/covers). */
+export function useChooseStockCover() {
+  const store = useStoreProject();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      call(api.PUT("/api/projects/{project_id}/cover/stock", { params: { path: { project_id: id } }, body: { name } })),
     onSuccess: store,
   });
 }

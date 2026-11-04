@@ -26,7 +26,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.analytics import capture
@@ -34,6 +34,7 @@ from backend.db.engine import get_tenant_session
 from backend.db.isolation import scope_to_tenant
 from backend.identity.models import Role
 from backend.office.models import OfficeProfile
+from backend.portfolio.models import Portfolio, PortfolioPhoto, PortfolioVideo
 from backend.projects.models import Project, ProjectStage
 from backend.security import keys
 from backend.storage.base import StorageError
@@ -321,8 +322,9 @@ async def _complete(
 async def _start_afresh(db: AsyncSession, writer: DriveWriter, root: str, locale: Locale) -> None:
     """Another Google account, chosen after the warning: the old account's files
     stay where they are, out of this account's reach. Every project and stage gets
-    an empty folder in the new one; covers and the logo (files in the old account)
-    are dropped, and each project's next scan only notes what is there, so no
+    an empty folder in the new one; covers, the logo and the portfolio's photos
+    and videos (files in the old account) are dropped, the works' texts kept, and
+    each project's next scan only notes what is there, so no
     client is emailed about files moved across by hand (files there get new ids,
     so the old account's in `project_files_seen` never match). Not committed: on a
     failure the caller rolls back and trashes the new folder (with these in it)."""
@@ -351,6 +353,11 @@ async def _start_afresh(db: AsyncSession, writer: DriveWriter, root: str, locale
     if office is not None:
         office.logo_file_id = office.logo_type = office.logo_png_file_id = None
         office.logo_dark_file_id = office.logo_dark_type = office.brand_folder_id = None
+    portfolio = await db.scalar(select(Portfolio))
+    if portfolio is not None:
+        portfolio.folder_id = None  # made again in the new account with the next photo
+        await db.execute(delete(PortfolioVideo))
+        await db.execute(delete(PortfolioPhoto))
 
 
 async def _reader_status(request: Request, root: str) -> ReaderStatus:

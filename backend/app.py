@@ -26,7 +26,9 @@ from backend.tenancy.middleware import TenantMiddleware
 from backend.web import (
     account,
     admin,
+    admin_settings,
     auth,
+    covers,
     drive,
     email_confirmation,
     google_signin,
@@ -43,6 +45,7 @@ from backend.web import (
     page_uploads,
     pages,
     painel,
+    portfolio,
     project_settings,
     projects,
     proposals,
@@ -258,6 +261,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(legal.router)
     app.include_router(maintenance.router)
     app.include_router(admin.router)  # before the pages: /admin is no project's
+    app.include_router(admin_settings.router)
     app.include_router(office_signup.router)  # likewise /criar-escritorio
     app.include_router(auth.router)
     app.include_router(account.router)
@@ -272,7 +276,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(subscribe.router)
     app.include_router(shares.router)
     app.include_router(project_settings.router)
+    app.include_router(covers.router)
     app.include_router(proposals.router)
+    app.include_router(portfolio.router)
     app.include_router(painel.router)
     app.include_router(page_edit.router)
     app.include_router(page_files.router)

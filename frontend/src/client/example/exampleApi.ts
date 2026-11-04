@@ -7,7 +7,7 @@ import type { Schemas } from "../../api/client";
 import { fileSource, type Page } from "../format";
 import { EXAMPLE_OFFICE, EXAMPLE_SHARE, EXAMPLE_SHARE_KEY, EXAMPLE_SLUG } from "./address";
 import builtins from "./builtins.json";
-import { atOfficeTime, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
+import { atOfficeTime, EXAMPLE_COVER_PHOTOS, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
 
 const READS = ["/api/me", "/api/tenant", "/api/project-types", "/api/detail-types"];
 // What edit mode offers (types, stages, details), for whoever the server won't
@@ -68,6 +68,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     project_type_key: project.project_type_key,
     description: project.description,
     cover_url: project.cover_url,
+    features: project.features,
     completed: project.status === "completed",
     current_position: null, // the previous release's (A30); this page doesn't read it
     last_update: project.last_update,
@@ -87,7 +88,6 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     staff: staffView
       ? {
           project_id: EXAMPLE_SLUG,
-          features: [], // no proposal link on the example
           status: project.status,
           row_version: version,
           recipients: recipients.map((email) => ({ email, subscribed: true })),
@@ -433,6 +433,23 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
         const chosen = (await request.formData()).get("file");
         if (!(chosen instanceof Blob)) return refused("invalid_status_change");
         project.cover_url = URL.createObjectURL(chosen);
+        return changed();
+      },
+    ],
+    [
+      "GET",
+      /^\/api\/cover-photos$/,
+      () => ({
+        body: Object.entries(EXAMPLE_COVER_PHOTOS).map(([name, url]) => ({ name, small_url: url })),
+      }),
+    ],
+    [
+      "PUT",
+      new RegExp(`^${PROJECT}/cover/stock$`),
+      (_, body) => {
+        const url = EXAMPLE_COVER_PHOTOS[String(body.name) as keyof typeof EXAMPLE_COVER_PHOTOS];
+        if (!url) return refused("cover_photo_not_found", 404);
+        project.cover_url = url;
         return changed();
       },
     ],
