@@ -16,9 +16,15 @@ img{display:block;max-width:100%;height:auto}
 .top{display:flex;align-items:center;justify-content:space-between;gap:24px;padding-block:28px}
 .brand{display:block;text-decoration:none;font-size:15px;letter-spacing:.12em;text-transform:uppercase}
 .brand img{max-height:48px;max-width:min(220px,42vw);width:auto}
-.top nav{display:flex;gap:28px;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+.top nav{display:flex;gap:28px;margin-left:auto;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
 .top nav a{text-decoration:none;padding-block:4px;border-bottom:1px solid transparent}
 .top nav a:hover{border-bottom-color:currentColor}
+/* The office's networks: their marks after the sections, and with their names in the footer. */
+.top .follow{display:flex;gap:14px;margin-left:12px;padding-left:26px;border-left:1px solid var(--line)}
+.top .follow a,footer .nets a{color:var(--muted);transition:color .2s}
+.top .follow a:hover,footer .nets a:hover{color:var(--ink)}
+.top .follow a{display:flex;padding-block:4px}
+.top .follow svg,footer .nets svg{width:17px;height:17px;fill:currentColor;flex:none}
 
 /* The carousel: one cover per work, full width; swiped, scrolled or moved with the arrows. */
 .carousel{position:relative}
@@ -125,6 +131,9 @@ footer{display:flex;justify-content:space-between;align-items:flex-end;gap:32px 
 footer .office{margin-top:10px;font-size:22px}
 footer .ways{display:flex;flex-wrap:wrap;gap:6px 24px;margin-top:8px;font-size:15px;color:var(--muted)}
 footer .small{margin-left:auto;font-size:12px;color:var(--muted)}
+footer .nets{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:10px;font-size:15px}
+footer .nets a{display:inline-flex;align-items:center;gap:9px;text-decoration:none;color:var(--ink)}
+footer .nets a:hover{text-decoration:underline;text-underline-offset:4px}
 
 @media (max-width:1100px){.works{grid-template-columns:repeat(2,1fr)}}
 /* Narrower than the sheet and a readable text side by side: the sheet above. */
@@ -199,4 +208,4 @@ footer .small{margin-left:auto;font-size:12px;color:var(--muted)}
 .posts a{position:relative;cursor:zoom-in;background:var(--tint)}
 @media (max-width:1100px){.mosaic{columns:2}}
 @media (max-width:820px){.mosaic{column-gap:12px}.mosaic[data-columns]{gap:12px}.mosaic li,.posts li{margin-bottom:12px}.post-head{padding-block:24px 4px}}
-@media (max-width:540px){.mosaic{columns:1}.posts{columns:2}}
+@media (max-width:540px){.mosaic{columns:1}.posts{columns:2}.top .follow{display:none}}  /* phones: the marks in the footer only */

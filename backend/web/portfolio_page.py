@@ -41,6 +41,7 @@ from backend.portfolio.models import (
     PortfolioFormat,
     PortfolioPhoto,
     PortfolioVideo,
+    SocialNetwork,
 )
 from backend.projects.enums import DetailType
 from backend.projects.models import ProjectTypeDef
@@ -57,6 +58,7 @@ from backend.web.portfolio import (
     video_url,
     videos_by_entry,
 )
+from backend.web.portfolio_icons import ICON_PATHS
 
 log = logging.getLogger(__name__)
 _CATALOGS = Path(__file__).resolve().parent.parent / "i18n"
@@ -371,12 +373,36 @@ def _document(
     if office and (office.address or office.city):
         place = ", ".join(part for part in (office.address, office.city) if part)
         contact.append(f"<span>{escape(place)}</span>")
-    profiles = "".join(
-        f'<a href="{escape(address)}" rel="noopener">{escape(t["networks"][network])}</a>'
-        for network, address in links(found).items()
+    # The office's networks: their marks beside the page's sections at the top,
+    # and with their names in the footer. Discreet (the page's own colour, the
+    # text's size), but seen on arriving and on leaving.
+    profiles = list(links(found).items())
+
+    def mark(network: str) -> str:
+        return (
+            '<svg viewBox="0 0 24 24" aria-hidden="true">'
+            f'<path d="{ICON_PATHS[SocialNetwork(network)]}"></path></svg>'
+        )
+
+    follow = (
+        '<div class="follow">'
+        + "".join(
+            f'<a href="{escape(address)}" rel="noopener" '
+            f'aria-label="{escape(t["networks"][network])}">{mark(network)}</a>'
+            for network, address in profiles
+        )
+        + "</div>"
+        if profiles
+        else ""
     )
     social = (
-        f'<div><p class="label">{escape(t["follow"])}</p><p class="ways">{profiles}</p></div>'
+        f'<div><p class="label">{escape(t["follow"])}</p><p class="nets">'
+        + "".join(
+            f'<a href="{escape(address)}" rel="noopener">{mark(network)}'
+            f"<span>{escape(t['networks'][network])}</span></a>"
+            for network, address in profiles
+        )
+        + "</p></div>"
         if profiles
         else ""
     )
@@ -409,7 +435,7 @@ def _document(
 {banner}
 <header class="top wrap"><a class="brand" href="{home}">{brand}</a>
 <nav><a href="{home}#projetos">{escape(t["works"])}</a>{office_link}\
-<a href="#contato">{escape(t["contact"])}</a></nav></header>
+<a href="#contato">{escape(t["contact"])}</a></nav>{follow}</header>
 <main>{main}</main>
 <footer id="contato" class="wrap">
 <div><p class="label">{escape(t["contact"])}</p><p class="office">{name}</p>
