@@ -33,11 +33,12 @@ from __future__ import annotations
 import logging
 import re
 import uuid
-from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
+from PIL import Image
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,30 +48,34 @@ from backend.db.engine import get_tenant_session
 from backend.identity.models import User
 from backend.portfolio.links import profile
 from backend.portfolio.models import (
-    AREA_MAX,
     CREDITS_MAX,
     DESCRIPTION_MAX,
+    DETAIL_VALUE_MAX,
+    DETAILS_MAX,
     ENTRIES_MAX,
     INTRO_MAX,
+    LABEL_MAX,
     LINK_MAX,
     PHOTOS_MAX,
     PLACE_MAX,
-    TEAM_MAX,
     TITLE_MAX,
     VIDEO_MAX_BYTES,
     VIDEOS_MAX,
     YEAR_MAX,
     YEAR_MIN,
     Portfolio,
+    PortfolioDetail,
     PortfolioEntry,
+    PortfolioFormat,
     PortfolioPhoto,
     PortfolioVideo,
     SocialNetwork,
     VideoType,
     WorkStatus,
 )
-from backend.projects.enums import CoverType, DetailKey, ProjectStatus
+from backend.projects.enums import CoverType, DetailKey, DetailType, ProjectStatus
 from backend.projects.models import (
+    DetailTypeDef,
     Project,
     ProjectDetail,
     ProjectMember,
@@ -81,13 +86,14 @@ from backend.storage.base import StorageError, StorageProblem
 from backend.storage.connections import storage_for
 from backend.storage.google_connect import ConnectError
 from backend.storage.models import StorageConnection, StorageKind
-from backend.tenancy.models import Feature
+from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, optional_staff, require_csrf
 from backend.web.covers import COVER_MAX_BYTES, local_root, storage_connection
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.office import image_type
+from backend.web.page_edit import DetailTypeOut, detail_value
 from backend.web.page_files import RangeNotSatisfiable, byte_range, etag
 from backend.web.page_uploads import UploadFailedIn, local_upload_url, upload_origin
 from backend.web.project_settings import serve_stored_image
@@ -137,6 +143,16 @@ class VideoUploadOut(BaseModel):
     name: str  # the file's name in storage: sent back once it's there
 
 
+class SheetLineOut(BaseModel):
+    """A line of the work's sheet: one of the built-in details (its `key`, with
+    its label in the office's language) or one with the office's own label."""
+
+    key: str | None
+    label: str
+    type: DetailType
+    value: str  # as typed: text, a number of m² ("212.5"), or an ISO date
+
+
 class EntryOut(BaseModel):
     id: uuid.UUID
     title: str
@@ -144,9 +160,8 @@ class EntryOut(BaseModel):
     year: int | None
     description: str
     project_type: str | None
-    area: Decimal | None  # m²
     status: WorkStatus | None
-    team: str
+    details: list[SheetLineOut]
     credits: str
     videos: list[VideoOut]
     # The project it was drawn from, if any (staff only: never on the public page).
@@ -157,6 +172,7 @@ class EntryOut(BaseModel):
 
 class PortfolioOut(BaseModel):
     published: bool
+    format: PortfolioFormat
     intro: str
     links: dict[SocialNetwork, str]
     entries: list[EntryOut]
@@ -164,6 +180,7 @@ class PortfolioOut(BaseModel):
 
 class PortfolioIn(BaseModel):
     published: bool | None = None
+    format: PortfolioFormat | None = None
     intro: str | None = Field(default=None, max_length=INTRO_MAX)
     # Every profile, replacing those kept: "@name" or an address on the network.
     links: dict[SocialNetwork, str] | None = None
@@ -179,15 +196,21 @@ class EntryIn(BaseModel):
     project_id: uuid.UUID | None = None
 
 
+class SheetLineIn(BaseModel):
+    key: str | None = Field(default=None, max_length=100)  # a built-in detail's
+    label: str | None = Field(default=None, max_length=LABEL_MAX)  # or the office's own
+    value: str = Field(max_length=500)  # as typed: text (≤ 200), a number of m², or a date
+
+
 class EntryChange(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=TITLE_MAX)
     place: str | None = Field(default=None, max_length=PLACE_MAX)
     year: int | None = Field(default=None, ge=YEAR_MIN, le=YEAR_MAX)
     description: str | None = Field(default=None, max_length=DESCRIPTION_MAX)
     project_type: str | None = Field(default=None, max_length=100)
-    area: Decimal | None = Field(default=None, gt=0, lt=AREA_MAX, decimal_places=2)
     status: WorkStatus | None = None
-    team: str | None = Field(default=None, max_length=TEAM_MAX)
+    # The whole sheet, in order; a line left out is removed.
+    details: list[SheetLineIn] | None = Field(default=None, max_length=DETAILS_MAX)
     credits: str | None = Field(default=None, max_length=CREDITS_MAX)
     # Every one of its videos, in their new order.
     videos: list[uuid.UUID] | None = Field(default=None, max_length=VIDEOS_MAX)
@@ -234,10 +257,42 @@ async def entries_with_photos(
     return [(entry, by_entry.get(entry.id, [])) for entry in entries]
 
 
-async def _out(db: AsyncSession) -> PortfolioOut:
+def _typed(detail: PortfolioDetail) -> str:
+    """The value as the editor shows it: text, "212.5", or "2026-03-02"."""
+    if detail.value_type is DetailType.AREA and detail.value_number is not None:
+        return format(detail.value_number.normalize(), "f")
+    if detail.value_type is DetailType.DATE and detail.value_date is not None:
+        return detail.value_date.isoformat()
+    return detail.value_text or ""
+
+
+async def details_by_entry(db: AsyncSession, locale: Locale) -> dict[uuid.UUID, list[SheetLineOut]]:
+    """Every work's sheet, its lines in order, labelled in the office's language."""
+    rows = await db.execute(
+        select(PortfolioDetail, DetailTypeDef.labels)
+        .outerjoin(DetailTypeDef, DetailTypeDef.key == PortfolioDetail.key)
+        .order_by(PortfolioDetail.position)
+    )
+    found: dict[uuid.UUID, list[SheetLineOut]] = {}
+    for detail, labels in rows.all():
+        label = detail.label if labels is None else _label(labels, locale)
+        found.setdefault(detail.entry_id, []).append(
+            SheetLineOut(
+                key=detail.key, label=label or "", type=detail.value_type, value=_typed(detail)
+            )
+        )
+    return found
+
+
+def _label(labels: dict[str, str], locale: Locale) -> str:
+    return labels.get(locale.value) or labels[Locale.PT_BR.value]
+
+
+async def _out(db: AsyncSession, locale: Locale) -> PortfolioOut:
     found = await db.scalar(select(Portfolio))
     works = await entries_with_photos(db)
     videos = await videos_by_entry(db)
+    details = await details_by_entry(db, locale)
     linked = {entry.project_id for entry, _ in works if entry.project_id}
     names = (
         dict(
@@ -248,6 +303,7 @@ async def _out(db: AsyncSession) -> PortfolioOut:
     )
     return PortfolioOut(
         published=found.published if found else False,
+        format=found.format if found else PortfolioFormat.GALLERY,
         intro=found.intro if found else "",
         links=links(found),
         entries=[
@@ -258,9 +314,8 @@ async def _out(db: AsyncSession) -> PortfolioOut:
                 year=entry.year,
                 description=entry.description,
                 project_type=entry.project_type,
-                area=entry.area,
                 status=entry.status,
-                team=entry.team,
+                details=details.get(entry.id, []),
                 credits=entry.credits,
                 videos=[
                     VideoOut(
@@ -317,23 +372,23 @@ def _profiles(given: dict[SocialNetwork, str]) -> dict[str, str]:
     return kept
 
 
-async def _project_facts(db: AsyncSession, project: Project, members: bool) -> dict:
+async def _project_facts(
+    db: AsyncSession, project: Project, members: bool
+) -> tuple[dict, list[PortfolioDetail]]:
     """What a work drawn from `project` starts with, besides its name and type:
-    its area, status, year and team: the project's members where the office has
-    them (A41), else the "Responsável" typed in. Never its client, nor its
-    address, which the office may not want public: staff add the place themselves."""
-    details = {
-        detail.key: detail
-        for detail in (
-            await db.scalars(select(ProjectDetail).where(ProjectDetail.project_id == project.id))
-        ).all()
-    }
-
-    def number(key: DetailKey) -> Decimal | None:
-        detail = details.get(key)
-        return detail.value_number if detail and detail.value_number else None
-
-    area = number(DetailKey.BUILT_AREA) or number(DetailKey.TOTAL_AREA)
+    its status and year, and its sheet: the project's details in their order,
+    never its client nor its address, which the office may not want public
+    (staff add the place themselves). "Responsável" is the
+    project's members where the office has them (A41), as the client page shows
+    it; a "Responsável" typed before the office had members is stale and left out."""
+    rows = (
+        await db.scalars(
+            select(ProjectDetail)
+            .where(ProjectDetail.project_id == project.id)
+            .order_by(ProjectDetail.position)
+        )
+    ).all()
+    details = {detail.key: detail for detail in rows}
     status = {
         ProjectStatus.COMPLETED: WorkStatus.COMPLETED,
         ProjectStatus.ACTIVE: WorkStatus.IN_PROGRESS,
@@ -346,8 +401,19 @@ async def _project_facts(db: AsyncSession, project: Project, members: bool) -> d
     else:
         delivery = details.get(DetailKey.EXPECTED_DELIVERY)
         year = delivery.value_date.year if delivery and delivery.value_date else None
+    sheet = [
+        PortfolioDetail(
+            key=detail.key,
+            value_type=detail.value_type,
+            value_text=detail.value_text,
+            value_number=detail.value_number,
+            value_date=detail.value_date,
+        )
+        for detail in rows
+        if detail.key not in (DetailKey.CLIENT, DetailKey.LOCATION)
+        and (detail.key != DetailKey.RESPONSIBLE or not members)
+    ]
     if members:
-        # As the client page shows them; a "Responsável" typed before is stale there.
         names = await db.scalars(
             select(User.name)
             .join(ProjectMember, ProjectMember.user_id == User.id)
@@ -355,15 +421,76 @@ async def _project_facts(db: AsyncSession, project: Project, members: bool) -> d
             .order_by(func.lower(User.name), User.id)
         )
         team = ", ".join(names)
-    else:
-        responsible = details.get(DetailKey.RESPONSIBLE)
-        team = responsible.value_text if responsible and responsible.value_text else ""
-    return {
-        "area": area if area is not None and area < AREA_MAX else None,
-        "status": status,
-        "year": year if year and YEAR_MIN <= year <= YEAR_MAX else None,
-        "team": team[:TEAM_MAX],
-    }
+        if team:
+            sheet.append(
+                PortfolioDetail(
+                    key=DetailKey.RESPONSIBLE,
+                    value_type=DetailType.TEXT,
+                    value_text=team[:DETAIL_VALUE_MAX],
+                )
+            )
+    for position, detail in enumerate(sheet, start=1):
+        detail.position = position
+    facts = {"status": status, "year": year if year and YEAR_MIN <= year <= YEAR_MAX else None}
+    return facts, sheet
+
+
+@router.get("/portfolio/detail-types", responses=documented(401, 409))
+async def detail_types(
+    _staff: CurrentStaff = Depends(current_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> list[DetailTypeOut]:
+    """The built-in details a line of a work's sheet may be: every one but the
+    client. "Responsável" too, whether or not the office names a project's members
+    (A41): a work's sheet is written by hand, with no members to name instead."""
+    rows = await db.scalars(
+        select(DetailTypeDef)
+        .where(DetailTypeDef.key != DetailKey.CLIENT)
+        .order_by(DetailTypeDef.position)
+    )
+    return [
+        DetailTypeOut(key=row.key, label=_label(row.labels, tenant.locale), type=row.value_type)
+        for row in rows
+    ]
+
+
+async def _sheet(db: AsyncSession, wanted: list[SheetLineIn]) -> list[PortfolioDetail]:
+    """The work's sheet as sent: each line a built-in detail (one of each, never
+    the client) with a value of its type, or the office's own label with a text."""
+    known = dict(
+        (
+            await db.execute(
+                select(DetailTypeDef.key, DetailTypeDef.value_type).where(
+                    DetailTypeDef.key != DetailKey.CLIENT
+                )
+            )
+        ).all()
+    )
+    keys = [line.key for line in wanted if line.key]
+    if len(set(keys)) != len(keys):
+        raise ApiError(422, ErrorCode.INVALID_DETAIL)
+    sheet = []
+    for position, line in enumerate(wanted, start=1):
+        if line.key:
+            if line.key not in known or line.label:
+                raise ApiError(422, ErrorCode.INVALID_DETAIL)
+            kind, label = known[line.key], None
+        else:
+            label = (line.label or "").strip()
+            if not label:
+                raise ApiError(422, ErrorCode.INVALID_DETAIL)
+            kind = DetailType.TEXT
+        sheet.append(
+            PortfolioDetail(
+                position=position,
+                key=line.key,
+                label=label,
+                value_type=kind,
+                **detail_value(kind, line.value, text_max=DETAIL_VALUE_MAX),
+            )
+        )
+    return sheet
 
 
 async def _trash(request: Request, db: AsyncSession, file_ids: list[str]) -> None:
@@ -389,9 +516,10 @@ async def _trash(request: Request, db: AsyncSession, file_ids: list[str]) -> Non
 @router.get("/portfolio", responses=documented(401))
 async def portfolio(
     _staff: CurrentStaff = Depends(current_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
-    return await _out(db)
+    return await _out(db, tenant.locale)
 
 
 @router.patch("/portfolio", responses=documented(401, 422))
@@ -399,6 +527,7 @@ async def change_portfolio(
     request: Request,
     body: PortfolioIn,
     _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
     found = await _portfolio(db)
@@ -406,11 +535,14 @@ async def change_portfolio(
         found.intro = body.intro.strip()
     if body.links is not None:
         found.links = _profiles(body.links)
+    if body.format is not None and body.format is not found.format:
+        found.format = body.format
+        capture(request, "portfolio_format_changed", {"format": body.format.value})
     if body.published is not None and body.published != found.published:
         found.published = body.published
         capture(request, "portfolio_published" if body.published else "portfolio_unpublished")
     await db.commit()
-    return await _out(db)
+    return await _out(db, tenant.locale)
 
 
 @router.post("/portfolio/entries", responses=documented(401, 404, 409, 422))
@@ -425,7 +557,8 @@ async def add_entry(
         raise ApiError(422, ErrorCode.INVALID_REQUEST)  # the painel never sends one
     await _portfolio(db)  # locks the office's portfolio: one addition at a time
     kind = await _known_type(db, body.project_type)
-    facts: dict = {"year": body.year, "team": ""}
+    facts: dict = {"year": body.year}
+    sheet: list[PortfolioDetail] = []
     if body.project_id is not None:
         project = await db.scalar(
             select(Project).where(Project.id == body.project_id, Project.deleted_at.is_(None))
@@ -433,26 +566,29 @@ async def add_entry(
         if project is None:
             raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
         kind = kind or project.project_type
-        facts = await _project_facts(db, project, tenant.has(Feature.PROJECT_MEMBERS))
+        facts, sheet = await _project_facts(db, project, tenant.has(Feature.PROJECT_MEMBERS))
         facts["year"] = body.year or facts["year"]
     count, last = (await db.execute(select(func.count(), func.max(PortfolioEntry.position)))).one()
     if count >= ENTRIES_MAX:
         raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
-    db.add(
-        PortfolioEntry(
-            position=(last or 0) + 1,
-            title=body.title.strip(),
-            place=body.place.strip(),
-            description=body.description.strip(),
-            project_type=kind,
-            project_id=body.project_id,
-            credits="",
-            **facts,
-        )
+    entry = PortfolioEntry(
+        position=(last or 0) + 1,
+        title=body.title.strip(),
+        place=body.place.strip(),
+        description=body.description.strip(),
+        project_type=kind,
+        project_id=body.project_id,
+        credits="",
+        **facts,
     )
+    db.add(entry)
+    await db.flush()
+    for detail in sheet:
+        detail.entry_id = entry.id
+        db.add(detail)
     await db.commit()
     capture(request, "portfolio_entry_added", {"from_project": body.project_id is not None})
-    return await _out(db)
+    return await _out(db, tenant.locale)
 
 
 @router.patch("/portfolio/entries/{entry_id}", responses=documented(401, 404, 409, 422))
@@ -460,6 +596,7 @@ async def change_entry(
     entry_id: uuid.UUID,
     body: EntryChange,
     _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
     entry = await _entry(db, entry_id)
@@ -475,12 +612,14 @@ async def change_entry(
         entry.description = body.description.strip()
     if "project_type" in body.model_fields_set:
         entry.project_type = await _known_type(db, body.project_type)  # None clears it
-    if "area" in body.model_fields_set:
-        entry.area = body.area  # None clears it
     if "status" in body.model_fields_set:
         entry.status = body.status  # None clears it
-    if body.team is not None:
-        entry.team = body.team.strip()
+    if body.details is not None:
+        sheet = await _sheet(db, body.details)
+        await db.execute(delete(PortfolioDetail).where(PortfolioDetail.entry_id == entry.id))
+        for detail in sheet:
+            detail.entry_id = entry.id
+            db.add(detail)
     if body.credits is not None:
         entry.credits = body.credits.strip()
     for wanted, model in ((body.photos, PortfolioPhoto), (body.videos, PortfolioVideo)):
@@ -494,7 +633,7 @@ async def change_entry(
         for position, item_id in enumerate(wanted, start=1):
             by_id[item_id].position = position
     await db.commit()
-    return await _out(db)
+    return await _out(db, tenant.locale)
 
 
 @router.delete("/portfolio/entries/{entry_id}", responses=documented(401, 404))
@@ -502,6 +641,7 @@ async def remove_entry(
     request: Request,
     entry_id: uuid.UUID,
     _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
     entry = await _entry(db, entry_id)
@@ -520,13 +660,14 @@ async def remove_entry(
     await db.commit()
     await _trash(request, db, files)
     capture(request, "portfolio_entry_removed")
-    return await _out(db)
+    return await _out(db, tenant.locale)
 
 
 @router.put("/portfolio/order", responses=documented(401, 409, 422))
 async def order_entries(
     body: OrderIn,
     _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
     await _portfolio(db)
@@ -536,7 +677,18 @@ async def order_entries(
     for position, entry_id in enumerate(body.entries, start=1):
         entries[entry_id].position = position
     await db.commit()
-    return await _out(db)
+    return await _out(db, tenant.locale)
+
+
+def _image_size(content: bytes) -> tuple[int, int] | tuple[None, None]:
+    """The image's pixels, from its header, so the page lays it out at its shape
+    before it loads; (None, None) for a file PIL can't read, which is stored
+    anyway (the browser may still show it)."""
+    try:
+        with Image.open(BytesIO(content)) as image:
+            return image.size
+    except (OSError, ValueError, Image.DecompressionBombError):
+        return None, None
 
 
 async def _store(
@@ -599,6 +751,7 @@ async def add_photo(
     if count >= PHOTOS_MAX:
         raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
     photo = PortfolioPhoto(entry_id=entry.id, position=(last or 0) + 1, image_type=kind)
+    photo.width, photo.height = _image_size(content)
     photo.id = uuid.uuid4()
     photo.file_id = await _store(
         request, db, tenant, found, f"foto-{photo.id.hex[:12]}.{_EXTENSIONS[kind]}", content, kind
@@ -606,7 +759,7 @@ async def add_photo(
     db.add(photo)
     await db.commit()
     capture(request, "portfolio_photo_added")
-    return await _out(db)
+    return await _out(db, tenant.locale)
 
 
 @router.delete("/portfolio/photos/{photo_id}", responses=documented(401, 404))
@@ -614,6 +767,7 @@ async def remove_photo(
     request: Request,
     photo_id: uuid.UUID,
     _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
     photo = await db.scalar(select(PortfolioPhoto).where(PortfolioPhoto.id == photo_id))
@@ -623,7 +777,7 @@ async def remove_photo(
     await db.execute(delete(PortfolioPhoto).where(PortfolioPhoto.id == photo_id))
     await db.commit()
     await _trash(request, db, [file_id])
-    return await _out(db)
+    return await _out(db, tenant.locale)
 
 
 @router.get("/portfolio/photos/{photo_id}", include_in_schema=False)
@@ -796,6 +950,7 @@ async def add_video(
     )
     video.id = uuid.uuid4()
     video.poster_type = poster_type
+    video.width, video.height = _image_size(content)  # the poster's: the video's shape
     video.poster_file_id = await _store(
         request,
         db,
@@ -808,7 +963,7 @@ async def add_video(
     db.add(video)
     await db.commit()
     capture(request, "portfolio_video_added", {"bytes": sent.size})
-    return await _out(db)
+    return await _out(db, tenant.locale)
 
 
 @router.delete("/portfolio/videos/{video_id}", responses=documented(401, 404))
@@ -816,6 +971,7 @@ async def remove_video(
     request: Request,
     video_id: uuid.UUID,
     _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
     video = await db.scalar(select(PortfolioVideo).where(PortfolioVideo.id == video_id))
@@ -825,7 +981,7 @@ async def remove_video(
     await db.execute(delete(PortfolioVideo).where(PortfolioVideo.id == video_id))
     await db.commit()
     await _trash(request, db, files)
-    return await _out(db)
+    return await _out(db, tenant.locale)
 
 
 async def _shown_video(

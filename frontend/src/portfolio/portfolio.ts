@@ -8,8 +8,14 @@ import { COVER_OUTPUT, cropToFile, loadImage } from "../ui/imageCrop";
 
 export type Portfolio = Schemas["PortfolioOut"];
 export type Entry = Schemas["EntryOut"];
+/** A line of a work's sheet: a built-in detail (its `key`) or one with the office's own label. */
+export type SheetLine = Schemas["SheetLineOut"];
+export type DetailType = Schemas["DetailTypeOut"];
 
 export const PORTFOLIO = ["portfolio"] as const;
+// How the public page lays the works out: landscape covers, or every image in
+// its own shape, as the networks show them (PortfolioFormat).
+export const FORMATS = ["gallery", "mosaic"] as const satisfies readonly Portfolio["format"][];
 
 // As the server allows (backend/portfolio/models.py).
 export const LIMITS = {
@@ -19,12 +25,38 @@ export const LIMITS = {
   description: 2000,
   entries: 60,
   photos: 30,
-  team: 200,
   credits: 120,
+  label: 40,
+  details: 20, // lines of a work's sheet
+  detail: 200, // a text value: room for a team's names
   link: 300,
   videos: 6,
   videoMb: 200,
 };
+
+/** Lines a portfolio's sheet usually names that a project's page doesn't, offered
+ * ready-made as the office's own labels (text): what architecture sites and
+ * ArchDaily's project sheets credit (photography, builder, manufacturers...). */
+export const SUGGESTED_LINES = [
+  "photography",
+  "builder",
+  "woodwork",
+  "landscape",
+  "lighting",
+  "structure",
+  "collaborators",
+  "suppliers",
+] as const;
+
+/** The built-in details a line of the sheet may be: the project page's, with
+ * "Responsável" even where projects name their members instead. */
+export function useDetailTypes() {
+  return useQuery({
+    queryKey: ["portfolio", "detail-types"],
+    queryFn: () => call(api.GET("/api/portfolio/detail-types")),
+    staleTime: Infinity,
+  });
+}
 
 /** What every browser plays (the server checks it too). */
 export const VIDEO_TYPES = ["video/mp4", "video/webm"];
@@ -61,12 +93,8 @@ export function parsedArea(text: string): number | null | undefined {
     written = grouping ? parts.join("") : parts.join(".");
   }
   const area = Number(written);
-  return Number.isFinite(area) && area > 0 && area < 10_000_000 ? Math.round(area * 100) / 100 : undefined;
-}
-
-/** An area as the field shows it: "85,5". */
-export function areaText(area: string | number | null | undefined): string {
-  return area == null ? "" : String(Number(area)).replace(".", ",");
+  // What the server keeps for a detail: from zero to under ten billion.
+  return Number.isFinite(area) && area >= 0 && area < 10_000_000_000 ? Math.round(area * 100) / 100 : undefined;
 }
 
 export function usePortfolio() {

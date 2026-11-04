@@ -19,6 +19,60 @@ a new entry too.
 
 ---
 
+## 2026-11-04 — A45: a work's sheet is a list of details, with the office's own labels
+
+**Was:** a work's sheet had three fixed lines: area in m², status, and team, each
+a column of `portfolio_entries`. A work drawn from a project copied its built
+(else total) area and its lead architect into them.
+
+**Now:** a work's sheet is a list of lines (`portfolio_details`), edited as a
+project's details are (A27): the same built-in details, each once and typed, and
+lines with a label of the office's own (up to 40 characters), text only (up to
+200, room for a team's names), in the order added; the usual portfolio labels a
+project's page lacks (Fotografia, Construtora, Marcenaria, Paisagismo,
+Iluminação, Estrutura, Colaboradores, Fornecedores: ArchDaily's project sheets
+list architects, area, year, photographs and manufacturers; office sites credit
+the builder, woodwork, landscape and lighting) come ready-made in the menu. Status stays a fixed line, shown last. A work drawn from a project
+starts with the project's details in their order, never its client or address,
+with "Responsável" as the members' names where the office has them (A41). Each
+existing work's area became its "Área construída" line and its team its
+"Responsável" line (migration 0051).
+
+**Why:** Fabio, 4 Nov 2026: "in the project edit menu for the portfolio, can't we
+allow dynamic details like we do for the normal client facing project page";
+asked whether the sheet should take the project page's list, the office's own
+labels, or both, he chose both. The office's own labels are an exception, for
+the portfolio only, to A27's "custom details are a later addition": a public
+portfolio names things a project's page doesn't (photography, builder), and a
+label typed per work costs nothing to keep.
+
+---
+
+## 2026-11-04 — A45: a portfolio format for material made for the social networks
+
+**Was:** one layout: one landscape cover per work in a carousel, and a work's page
+opening on its cover at two thirds of the screen with the title over a dark
+shading. Every image was cropped to a landscape frame.
+
+**Now:** the Portfólio tab chooses the portfolio's format, each with a small
+drawing of its layout. "Galeria" is that layout. "Mosaico" shows each image in its own shape, square or upright, as the networks show
+them: the works as a mosaic, a work's page as a grid of its images under its
+title (a profile on the networks, not a column of posts), no carousel, hero or
+shading. In "Galeria", an upright cover is no longer
+cropped: it stands whole on a blurred copy of itself. Photos and posters record
+their pixel size when added, so the page lays them out at their shape before they
+load (a file added before, or one the server can't read, has none and takes its
+shape as it loads). Still deferred: captions, posts as entries of their own with a
+date and a link to the original, and bringing posts in from Instagram (see
+`future-ideas.md`).
+
+**Why:** Fabio, 4 Nov 2026: an office whose material is what it made for its
+posts (square and 9:16, text and logos already on the image) looked wrong in a
+layout built for architecture photography. Posts as entries of their own were
+dropped because offices only make the media for their posts, not the text.
+
+---
+
 ## 2026-11-03 — A24 and section 10: a new project starts with a stock cover, which clients see
 
 **Was:** a project had no cover until staff uploaded one. The painel showed a

@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { api, ApiError, call } from "../api/client";
+import { ActionMenu } from "../ui/ActionMenu";
 import { fileSource } from "../client/format";
 import { useCreationOptions, useProjects, type ProjectSummary } from "../projects/projects";
 import { Button } from "../ui/Button";
@@ -22,22 +23,25 @@ import { toast, toastError, toastProblem } from "../ui/Toast";
 import {
   LIMITS,
   PORTFOLIO,
+  SUGGESTED_LINES,
   VIDEO_TYPES,
-  areaText,
   moved,
   parsedArea,
   resized,
   sendVideo,
   useAddPhoto,
   useChangeEntry,
+  useDetailTypes,
   usePortfolio,
   useRemovePhoto,
   useRemoveVideo,
   videoPoster,
   type Entry,
+  type SheetLine,
 } from "./portfolio";
 import { ProjectChoice } from "./PortfolioPage";
 import styles from "./portfolio.module.css";
+import ui from "../ui/ui.module.css";
 
 const STATUSES = ["completed", "in_progress"] as const;
 
@@ -81,24 +85,22 @@ function Details({ entry }: { entry: Entry }) {
   const [year, setYear] = useState(entry.year ? String(entry.year) : "");
   const [description, setDescription] = useState(entry.description);
   const [kind, setKind] = useState(entry.project_type ?? "");
-  const [area, setArea] = useState(areaText(entry.area));
   const [status, setStatus] = useState<string>(entry.status ?? "");
-  const [team, setTeam] = useState(entry.team);
+  const [sheet, setSheet] = useState<SheetLine[]>(entry.details);
   const [credits, setCredits] = useState(entry.credits);
   const types = useCreationOptions().data?.types ?? [];
   const yearNumber = year.trim() ? Number(year.trim()) : null;
   const yearOk = yearNumber === null || (Number.isInteger(yearNumber) && yearNumber >= 1900 && yearNumber <= 2100);
-  const areaNumber = parsedArea(area);
-  const areaOk = areaNumber !== undefined;
+  const lines = sheet.map(sentLine);
+  const sheetOk = lines.every((line) => line !== null);
   const changed =
     title.trim() !== entry.title ||
     place.trim() !== entry.place ||
     yearNumber !== entry.year ||
     description.trim() !== entry.description ||
     kind !== (entry.project_type ?? "") ||
-    (areaOk && areaNumber !== (entry.area == null ? null : Number(entry.area))) ||
     status !== (entry.status ?? "") ||
-    team.trim() !== entry.team ||
+    JSON.stringify(lines) !== JSON.stringify(entry.details.map(sentLine)) ||
     credits.trim() !== entry.credits;
   return (
     <Panel className={styles.section} aria-labelledby="portfolio-details">
@@ -136,34 +138,16 @@ function Details({ entry }: { entry: Entry }) {
           validationBehavior="aria"
         />
       </div>
-      <div className={styles.pair}>
-        <TextField
-          label={t("portfolio.area")}
-          placeholder="180"
-          inputMode="decimal"
-          value={area}
-          onChange={setArea}
-          isInvalid={!areaOk}
-          validate={() => (areaOk ? null : t("portfolio.areaInvalid"))}
-          validationBehavior="aria"
-        />
-        <SelectField
-          label={t("portfolio.status")}
-          value={status}
-          options={[
-            { value: "", label: t("portfolio.statusNone") },
-            ...STATUSES.map((value) => ({ value, label: t(`portfolio.statuses.${value}`) })),
-          ]}
-          onChange={setStatus}
-        />
-      </div>
-      <TextField
-        label={t("portfolio.team")}
-        placeholder={t("portfolio.teamPlaceholder")}
-        value={team}
-        onChange={setTeam}
-        maxLength={LIMITS.team}
+      <SelectField
+        label={t("portfolio.status")}
+        value={status}
+        options={[
+          { value: "", label: t("portfolio.statusNone") },
+          ...STATUSES.map((value) => ({ value, label: t(`portfolio.statuses.${value}`) })),
+        ]}
+        onChange={setStatus}
       />
+      <Sheet lines={sheet} onChange={setSheet} />
       <TextAreaField
         label={t("portfolio.description")}
         description={t("portfolio.descriptionHint")}
@@ -182,7 +166,7 @@ function Details({ entry }: { entry: Entry }) {
       <Button
         size="small"
         className={styles.save}
-        isDisabled={!changed || !title.trim() || !yearOk || !areaOk || change.isPending}
+        isDisabled={!changed || !title.trim() || !yearOk || !sheetOk || change.isPending}
         onPress={() =>
           change.mutate(
             {
@@ -192,9 +176,8 @@ function Details({ entry }: { entry: Entry }) {
               year: yearNumber,
               description,
               project_type: kind || null,
-              area: areaNumber ?? null,
               status: (status || null) as Entry["status"],
-              team,
+              details: lines.filter((line) => line !== null),
               credits,
             },
             { onSuccess: () => toast(t("portfolio.saved")), onError: (failure) => toastError(failure) },
@@ -204,6 +187,110 @@ function Details({ entry }: { entry: Entry }) {
         {t("portfolio.save")}
       </Button>
     </Panel>
+  );
+}
+
+/** A line of the sheet as the server takes it: a built-in detail's key, or the
+ *  office's own label, with the value as typed (an area as a plain number); null
+ *  when it can't be sent yet: no value, no name on an own line, or an area that
+ *  isn't one. */
+function sentLine(line: SheetLine): { key?: string; label?: string; value: string } | null {
+  const value = line.value.trim();
+  if (!value || (!line.key && !line.label.trim())) return null;
+  if (line.type === "area") {
+    const area = parsedArea(value);
+    return typeof area === "number" ? { key: line.key ?? undefined, value: String(area) } : null;
+  }
+  return line.key ? { key: line.key, value } : { label: line.label.trim(), value };
+}
+
+/** The work's sheet: the built-in details the project page offers (each once,
+ *  typed: an area in m², a date, text) and lines with the office's own label
+ *  ("Fotografia", "Construtora"), in the order added. */
+function Sheet({ lines, onChange }: { lines: SheetLine[]; onChange: (lines: SheetLine[]) => void }) {
+  const { t } = useTranslation();
+  const types = useDetailTypes().data ?? [];
+  const unused = types.filter((type) => !lines.some((line) => line.key === type.key));
+  const suggested = SUGGESTED_LINES.map((id) => ({ id: `suggest:${id}`, label: t(`portfolio.suggested.${id}`) })).filter(
+    (item) => !lines.some((line) => !line.key && line.label.trim() === item.label),
+  );
+  const set = (index: number, change: Partial<SheetLine>) =>
+    onChange(lines.map((line, i) => (i === index ? { ...line, ...change } : line)));
+  return (
+    <div className={styles.sheet} role="group" aria-labelledby="portfolio-sheet">
+      <span id="portfolio-sheet" className={styles.switchLabel}>
+        {t("portfolio.sheet")}
+      </span>
+      <p className={styles.hint}>{t("portfolio.sheetHint")}</p>
+      {lines.length === 0 ? (
+        <p className={styles.hint}>{t("portfolio.noDetails")}</p>
+      ) : (
+        <ul className={styles.sheetRows}>
+          {lines.map((line, index) => {
+            const name = line.key ? line.label : line.label.trim() || t("portfolio.ownLabel");
+            const area = line.type === "area";
+            const areaOk = !area || !line.value.trim() || typeof parsedArea(line.value) === "number";
+            return (
+              <li key={line.key ?? `own-${index}`} className={styles.sheetRow} data-own={line.key ? undefined : true}>
+                {!line.key && (
+                  <TextField
+                    label={t("portfolio.ownLabel")}
+                    placeholder={t("portfolio.ownLabelPlaceholder")}
+                    value={line.label}
+                    onChange={(label) => set(index, { label })}
+                    maxLength={LIMITS.label}
+                  />
+                )}
+                <TextField
+                  label={line.key ? line.label : t("portfolio.detailValue")}
+                  type={line.type === "date" ? "date" : "text"}
+                  inputMode={area ? "decimal" : undefined}
+                  suffix={area ? "m²" : undefined}
+                  value={line.value}
+                  onChange={(value) => set(index, { value })}
+                  maxLength={line.type === "text" ? LIMITS.detail : undefined}
+                  isInvalid={!areaOk}
+                  validate={() => (areaOk ? null : t("portfolio.areaInvalid"))}
+                  validationBehavior="aria"
+                />
+                <IconButton
+                  label={t("portfolio.removeDetail", { name })}
+                  onPress={() => onChange(lines.filter((_, i) => i !== index))}
+                >
+                  ×
+                </IconButton>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {lines.length >= LIMITS.details ? (
+        <p className={styles.hint}>{t("portfolio.detailsFull", { count: LIMITS.details })}</p>
+      ) : (
+        <ActionMenu
+          label={t("portfolio.addDetail")}
+          className={`${ui.button} ${ui.secondary} ${ui.small} ${styles.addDetail}`}
+          placement="bottom start"
+          items={[
+            ...unused.map((type) => ({ id: type.key, label: type.label })),
+            ...suggested,
+            { id: "own", label: t("portfolio.ownDetail") },
+          ]}
+          onAction={(id) => {
+            const type = types.find((candidate) => candidate.key === id);
+            const suggestion = suggested.find((item) => item.id === id);
+            onChange([
+              ...lines,
+              type
+                ? { key: type.key, label: type.label, type: type.type, value: "" }
+                : { key: null, label: suggestion?.label ?? "", type: "text", value: "" },
+            ]);
+          }}
+        >
+          + {t("portfolio.addDetail")}
+        </ActionMenu>
+      )}
+    </div>
   );
 }
 

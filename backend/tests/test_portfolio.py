@@ -22,6 +22,17 @@ JPEG = b"\xff\xd8\xff" + b"\x01" * 64
 UNIO = {"host": "localhost"}
 
 
+def png(width: int, height: int) -> bytes:
+    """A real image, so the server can read its size (JPEG above is a stub it can't)."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (width, height), "white").save(buffer, "PNG")
+    return buffer.getvalue()
+
+
 async def switch_on(db, slug="alinea"):
     await db.execute(
         text("UPDATE tenants SET features = features || '{portfolio}' WHERE slug = :s"),
@@ -396,13 +407,84 @@ async def test_the_menu_shows_the_works_of_one_type(client, staff):
     assert "Paisagismo" not in every  # no work of that type: not in the menu
     assert '<a href="/#projetos" aria-current="page">Todos</a>' in every
 
-    grid = lambda page: page.split('class="works"')[1]  # noqa: E731
+    def grid(page: str) -> dict[str, bool]:
+        """Each work in the grid, by title, with whether it is shown."""
+        cards = page.split('class="works"')[1].split("</ul>")[0].split("<li")[1:]
+        title = lambda card: card.split('class="title">')[1].split("<")[0]  # noqa: E731
+        return {title(card): " hidden" not in card for card in cards}
+
+    assert grid(every) == {"Casa Jardim": True, "Apto Mar": True, "Loja": True}
     one = (await client.get("/?tipo=interiors", headers=ALINEA)).text
-    assert "Apto Mar" in grid(one) and "Casa Jardim" not in grid(one) and "Loja" not in grid(one)
+    # Every work is in the page, the others hidden: the menu switches in place.
+    assert grid(one) == {"Casa Jardim": False, "Apto Mar": True, "Loja": False}
     assert 'aria-current="page">Interiores' in one
     assert one.count('class="slide"') == 3  # the carousel shows them all still
     nonsense = (await client.get("/?tipo=castle", headers=ALINEA)).text
-    assert all(title in grid(nonsense) for title in ("Casa Jardim", "Apto Mar", "Loja"))
+    assert all(grid(nonsense).values())
+
+
+async def test_a_photos_pixel_size_is_recorded_when_the_file_can_be_read(client, staff, db_session):
+    entry = await add(client, staff)
+    sent = await photo(client, staff, entry, content=png(300, 500), name="post.png")
+    assert sent.status_code == 200, sent.text
+    assert (await photo(client, staff, entry)).status_code == 200  # the stub: stored, unsized
+    sizes = await db_session.execute(
+        text("SELECT width, height FROM portfolio_photos ORDER BY position")
+    )
+    assert sizes.all() == [(300, 500), (None, None)]
+
+
+async def test_an_upright_cover_stands_whole_on_a_blurred_copy_instead_of_cropped(client, staff):
+    """A story or a post as a cover of the "gallery" format: the carousel and the
+    hero show it whole, over a blurred copy of itself; a landscape cover fills them."""
+    story = await add(client, staff, title="Story")
+    await photo(client, staff, story, content=png(90, 160), name="story.png")
+    wide = await add(client, staff, title="Casa")
+    await photo(client, staff, wide, content=png(160, 90), name="casa.png")
+    await publish(client, staff)
+    client.cookies.clear()
+
+    home = (await client.get("/", headers=ALINEA)).text
+    slides = home.split('<li class="slide')[1:]
+    assert slides[0].startswith(' tall"') and slides[0].count('class="backdrop"') == 1
+    assert slides[1].startswith('"') and "backdrop" not in slides[1]
+    upright = (await client.get(f"/?projeto={story['id']}", headers=ALINEA)).text
+    assert '<header class="hero tall">' in upright and upright.count('class="backdrop"') == 1
+    landscape = (await client.get(f"/?projeto={wide['id']}", headers=ALINEA)).text
+    assert '<header class="hero">' in landscape and "backdrop" not in landscape
+
+
+async def test_the_mosaic_format_shows_every_image_in_its_own_shape(client, staff):
+    """For material made for the networks: no carousel, hero or frame; a mosaic of
+    covers, and a work as a grid of its images under its title. Each image's
+    size is in its tag, so the page keeps its shape while loading."""
+    changed = await client.patch("/api/portfolio", json={"format": "mosaic"}, headers=staff)
+    assert (changed.status_code, changed.json()["format"]) == (200, "mosaic"), changed.text
+    assert (await client.get("/api/portfolio", headers=staff)).json()["format"] == "mosaic"
+    nonsense = await client.patch("/api/portfolio", json={"format": "grid"}, headers=staff)
+    assert nonsense.status_code == 422
+    post = await add(client, staff, title="Post", project_type="architecture")
+    await photo(client, staff, post, content=png(1080, 1350), name="post.png")
+    await photo(client, staff, post, content=png(1080, 1080), name="square.png")
+    other = await add(client, staff, title="Loja", project_type="interiors")
+    await photo(client, staff, other, content=png(1080, 1920), name="story.png")
+    await publish(client, staff)
+    client.cookies.clear()
+
+    home = (await client.get("/", headers=ALINEA)).text
+    assert 'class="carousel"' not in home and 'class="works"' not in home
+    mosaic = home.split('class="mosaic"')[1].split("</ul>")[0]
+    assert mosaic.count("<li ") == 2 and 'width="1080" height="1350"' in mosaic
+    assert 'class="frame"' not in mosaic  # no fixed frame: the image's own shape
+    assert '<a href="/?tipo=interiors#projetos">Interiores</a>' in home  # the menu stays
+
+    work = (await client.get(f"/?projeto={post['id']}", headers=ALINEA)).text
+    assert 'class="hero' not in work and '<header class="post-head wrap">' in work
+    assert "<h1>Post</h1>" in work
+    posts = work.split('class="mosaic posts"')[1].split("</ul>")[0]  # the mosaic's grid
+    assert posts.count("<li>") == 2  # the cover among them, not above
+    assert 'width="1080" height="1350"' in posts and 'width="1080" height="1080"' in posts
+    assert 'class="lightbox"' in work  # each still opens large
 
 
 async def test_with_a_single_type_there_is_no_menu(client, staff):
@@ -473,19 +555,25 @@ async def test_a_work_drawn_from_a_project_starts_with_its_facts_never_its_clien
 ):
     await _project_facts(db_session, status="completed", completed=date(2025, 3, 10))
     drawn = await add(client, staff, project_id=await project_id(client))
-    assert (drawn["area"], drawn["status"], drawn["year"], drawn["team"], drawn["place"]) == (
-        "212.50",
-        "completed",
-        2025,
-        "Laura Mendes",
-        "",
-    )
+    assert (drawn["status"], drawn["year"], drawn["place"]) == ("completed", 2025, "")
+    # The project's details in its order, labelled as its page shows them; the
+    # seeded project has a few more (its site area, its start) than the fixture adds.
+    lines = {line["key"]: line for line in drawn["details"]}
+    assert "client" not in lines and "location" not in lines
+    assert lines["built_area"] == {
+        "key": "built_area",
+        "label": "Área construída",
+        "type": "area",
+        "value": "212.5",
+    }
+    assert lines["responsible"]["value"] == "Laura Mendes"
+    assert list(lines) == [line["key"] for line in drawn["details"]]  # one of each
     await photo(client, staff, drawn)
     await publish(client, staff)
     page = (await client.get(f"/?projeto={drawn['id']}", headers=ALINEA)).text
-    assert "<dt>Área</dt><dd>212,5 m²</dd>" in page
+    assert "<dt>Área construída</dt><dd>212,5 m²</dd>" in page
+    assert "<dt>Responsável</dt><dd>Laura Mendes</dd>" in page
     assert "<dt>Situação</dt><dd>Concluído</dd>" in page
-    assert "<dt>Equipe</dt><dd>Laura Mendes</dd>" in page
     assert "Família Teixeira" not in page and "Acácias" not in page
 
 
@@ -507,7 +595,18 @@ async def test_with_project_members_the_team_is_the_members_not_a_typed_responsi
     )
     await db_session.commit()
     drawn = await add(client, staff, project_id=await project_id(client))
-    assert drawn["team"] == "Ana"  # the office's one member, not "Laura Mendes"
+    team = next(line for line in drawn["details"] if line["key"] == "responsible")
+    assert team["value"] == "Ana"  # the office's one member, not "Laura Mendes"
+    assert "Laura Mendes" not in str(drawn["details"])
+    # The sheet's menu still offers "Responsável" (the project page's doesn't, A41):
+    # a sheet is written by hand, with no members to name instead. Never the client.
+    offered = (await client.get("/api/portfolio/detail-types", headers=staff)).json()
+    assert [t["key"] for t in offered][-1] == "responsible" and offered[-1][
+        "label"
+    ] == "Responsável"
+    assert "client" not in [t["key"] for t in offered]
+    project_page = (await client.get("/api/detail-types", headers=staff)).json()
+    assert "responsible" not in [t["key"] for t in project_page]
 
 
 async def test_a_work_in_progress_takes_its_expected_year_unless_given_one(
@@ -519,10 +618,12 @@ async def test_a_work_in_progress_takes_its_expected_year_unless_given_one(
     assert (drawn["status"], drawn["year"]) == ("in_progress", 2027)
     assert (await add(client, staff, project_id=project, year=2026))["year"] == 2026
     blank = await add(client, staff, title="Loja")
-    assert (blank["area"], blank["status"], blank["team"]) == (None, None, "")
+    assert (blank["details"], blank["status"]) == ([], None)
 
 
-async def test_a_works_facts_and_photos_show_on_its_page(client, staff):
+async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
+    """The sheet: built-in details (typed: an area as typed with a comma, a date)
+    and the office's own labels, in the order sent, then where the work stands."""
     entry = await add(client, staff, title="Casa Jardim")
     for _ in range(3):
         await photo(client, staff, entry)
@@ -530,30 +631,80 @@ async def test_a_works_facts_and_photos_show_on_its_page(client, staff):
     changed = await client.patch(
         url,
         json={
-            "area": 1250.5,
+            "details": [
+                {"label": " Fotografia ", "value": "Estúdio Luz"},
+                {"key": "built_area", "value": "1250,5"},
+                {"key": "start_date", "value": "2024-03-02"},
+                {
+                    "key": "responsible",
+                    "value": "Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho",
+                },
+            ],
             "status": "in_progress",
-            "team": "Laura Mendes e Pedro Alves",
             "credits": "Estúdio Luz",
         },
         headers=staff,
     )
     assert changed.status_code == 200, changed.text
+    assert changed.json()["entries"][0]["details"] == [
+        {"key": None, "label": "Fotografia", "type": "text", "value": "Estúdio Luz"},
+        {"key": "built_area", "label": "Área construída", "type": "area", "value": "1250.5"},
+        {"key": "start_date", "label": "Início", "type": "date", "value": "2024-03-02"},
+        {
+            "key": "responsible",
+            "label": "Responsável",
+            "type": "text",
+            "value": "Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho",
+        },
+    ]
     await publish(client, staff)
 
     answer = await client.get(f"/?projeto={entry['id']}", headers=ALINEA)
     page = answer.text
-    assert "<dd>1.250,5 m²</dd>" in page and "<dd>Em andamento</dd>" in page
+    facts = page.split('<dl class="facts">')[1].split("</dl>")[0]
+    assert facts == (
+        "<div><dt>Fotografia</dt><dd>Estúdio Luz</dd></div>"
+        "<div><dt>Área construída</dt><dd>1.250,5 m²</dd></div>"
+        "<div><dt>Início</dt><dd>02/03/2024</dd></div>"
+        "<div><dt>Responsável</dt>"
+        "<dd>Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho</dd></div>"
+        "<div><dt>Situação</dt><dd>Em andamento</dd></div>"
+    )
     assert "frame-src" not in answer.headers["content-security-policy"]  # nothing embedded
     assert "Fotos: Estúdio Luz" in page
     # Every photo, the cover too, opens large; the others are shown small.
     assert page.count('class="zoom"') == 2 and 'class="cover zoom"' in page
     assert page.count("?size=card") >= 2 and 'class="lightbox"' in page
 
-    cleared = await client.patch(url, json={"area": None, "status": None}, headers=staff)
-    assert (cleared.json()["entries"][0]["area"], cleared.json()["entries"][0]["status"]) == (
-        None,
+    cleared = await client.patch(url, json={"details": [], "status": None}, headers=staff)
+    assert (cleared.json()["entries"][0]["details"], cleared.json()["entries"][0]["status"]) == (
+        [],
         None,
     )
+    bare = (await client.get(f"/?projeto={entry['id']}", headers=ALINEA)).text
+    assert '<dl class="facts">' not in bare
+
+
+async def test_a_line_of_the_sheet_must_be_a_known_detail_or_carry_its_own_name(client, staff):
+    entry = await add(client, staff, title="Casa Jardim")
+    url = f"/api/portfolio/entries/{entry['id']}"
+    for lines in (
+        [{"key": "castle", "value": "x"}],  # no such detail
+        [{"key": "client", "value": "Família Teixeira"}],  # never the client
+        [{"key": "built_area", "value": "1"}, {"key": "built_area", "value": "2"}],  # one of each
+        [{"key": "built_area", "value": "grande"}],  # not an area
+        [{"key": "start_date", "value": "março"}],  # not a date
+        [{"value": "Estúdio Luz"}],  # an own line without its name
+        [{"label": "  ", "value": "Estúdio Luz"}],
+        [{"label": "Fotografia", "value": "  "}],  # nor without a value
+        [{"key": "built_area", "label": "Área", "value": "1"}],  # not both
+        [
+            {"label": "Fotografia", "value": "x" * 201}
+        ],  # a text has room for a team's names, no more
+    ):
+        refused = await client.patch(url, json={"details": lines}, headers=staff)
+        assert refused.status_code == 422, (lines, refused.text)
+    assert (await client.get("/api/portfolio", headers=staff)).json()["entries"][0]["details"] == []
 
 
 @pytest.mark.parametrize(

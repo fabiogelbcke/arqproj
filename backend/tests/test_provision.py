@@ -12,7 +12,13 @@ from backend.commands import local_db
 from backend.commands.provision import app_role_for, provision_url
 from backend.tests.conftest import RUNTIME_ROLE, alembic_config, default_login
 
-PORTFOLIO_TABLES = ("portfolios", "portfolio_entries", "portfolio_photos", "portfolio_videos")
+PORTFOLIO_TABLES = (
+    "portfolios",
+    "portfolio_entries",
+    "portfolio_details",
+    "portfolio_photos",
+    "portfolio_videos",
+)
 CRUD = ("SELECT", "INSERT", "UPDATE", "DELETE")
 
 

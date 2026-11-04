@@ -1325,6 +1325,28 @@ export interface paths {
         patch: operations["change_defaults_api_proposal_defaults_patch"];
         trace?: never;
     };
+    "/api/portfolio/detail-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Detail Types
+         * @description The built-in details a line of a work's sheet may be: every one but the
+         *     client. "Responsável" too, whether or not the office names a project's members
+         *     (A41): a work's sheet is written by hand, with no members to name instead.
+         */
+        get: operations["detail_types_api_portfolio_detail_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolio": {
         parameters: {
             query?: never;
@@ -2279,11 +2301,9 @@ export interface components {
             description?: string | null;
             /** Project Type */
             project_type?: string | null;
-            /** Area */
-            area?: number | string | null;
             status?: components["schemas"]["WorkStatus"] | null;
-            /** Team */
-            team?: string | null;
+            /** Details */
+            details?: components["schemas"]["SheetLineIn"][] | null;
             /** Credits */
             credits?: string | null;
             /** Videos */
@@ -2329,11 +2349,9 @@ export interface components {
             description: string;
             /** Project Type */
             project_type: string | null;
-            /** Area */
-            area: string | null;
             status: components["schemas"]["WorkStatus"] | null;
-            /** Team */
-            team: string;
+            /** Details */
+            details: components["schemas"]["SheetLineOut"][];
             /** Credits */
             credits: string;
             /** Videos */
@@ -2899,10 +2917,21 @@ export interface components {
             /** Url */
             url: string;
         };
+        /**
+         * PortfolioFormat
+         * @description How the public page lays the works out. GALLERY: one landscape cover per
+         *     work, a carousel and a work's page opening on its cover, as architecture
+         *     sites do. MOSAIC: every image in its own shape, square or upright, as the
+         *     networks show them: for an office whose material is what it made for its
+         *     posts, stories and reels.
+         * @enum {string}
+         */
+        PortfolioFormat: "gallery" | "mosaic";
         /** PortfolioIn */
         PortfolioIn: {
             /** Published */
             published?: boolean | null;
+            format?: components["schemas"]["PortfolioFormat"] | null;
             /** Intro */
             intro?: string | null;
             /** Links */
@@ -2914,6 +2943,7 @@ export interface components {
         PortfolioOut: {
             /** Published */
             published: boolean;
+            format: components["schemas"]["PortfolioFormat"];
             /** Intro */
             intro: string;
             /** Links */
@@ -3448,6 +3478,29 @@ export interface components {
             unavailable: number;
             /** Zip Size */
             zip_size?: number | null;
+        };
+        /** SheetLineIn */
+        SheetLineIn: {
+            /** Key */
+            key?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Value */
+            value: string;
+        };
+        /**
+         * SheetLineOut
+         * @description A line of the work's sheet: one of the built-in details (its `key`, with
+         *     its label in the office's language) or one with the office's own label.
+         */
+        SheetLineOut: {
+            /** Key */
+            key: string | null;
+            /** Label */
+            label: string;
+            type: components["schemas"]["DetailType"];
+            /** Value */
+            value: string;
         };
         /** SigninOut */
         SigninOut: {
@@ -8229,6 +8282,44 @@ export interface operations {
             };
             /** @description Unprocessable Content */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    detail_types_api_portfolio_detail_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetailTypeOut"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

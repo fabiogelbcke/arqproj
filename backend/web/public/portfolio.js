@@ -39,7 +39,7 @@ if (lightbox && lightbox.showModal) {
   const show = (index) => {
     shown = (index + links.length) % links.length;
     const link = links[shown];
-    const label = link.querySelector("img")?.alt ?? "";
+    const label = link.querySelector("img:not(.backdrop)")?.alt ?? "";
     const film = link.classList.contains("film");
     stopVideo();
     image.hidden = film;
@@ -91,4 +91,66 @@ if (lightbox && lightbox.showModal) {
     stopVideo();
     image.removeAttribute("src");
   });
+}
+
+// The mosaic format (the works' covers, or a work's images): in the
+// order staff set them, left to right then down, in as many columns as fit; a
+// work's images keep two on a phone. Without this, the stylesheet's columns
+// fill top to bottom first.
+// Every work's card, those a filtered address (`/?tipo=…`) hides too, taken
+// before the mosaic leaves the hidden ones out of the page: the menu of types
+// below shows them again.
+const cards = [...document.querySelectorAll(".works > li, .mosaic > li")];
+let relayMosaic = () => {};
+for (const mosaic of document.querySelectorAll(".mosaic")) {
+  const works = [...mosaic.children];
+  const least = mosaic.classList.contains("posts") ? 2 : 1;
+  const lay = (again = false) => {
+    const width = mosaic.clientWidth;
+    const count = width > 1020 ? 3 : width > 500 ? 2 : least;
+    if (!again && mosaic.dataset.columns === String(count)) return;
+    mosaic.dataset.columns = String(count);
+    mosaic.replaceChildren();
+    const columns = works.slice(0, count).map(() => {
+      const column = document.createElement("li");
+      column.className = "column";
+      const list = document.createElement("ul");
+      column.append(list);
+      mosaic.append(column);
+      return list;
+    });
+    // A work hidden by the menu of types stays out of the columns.
+    works.filter((work) => !work.hidden).forEach((work, index) => columns[index % count].append(work));
+  };
+  lay();
+  new ResizeObserver(() => lay()).observe(mosaic);
+  if (!mosaic.classList.contains("posts")) relayMosaic = () => lay(true);
+}
+
+// The menu of types switches the works shown in place, as tabs, and keeps the
+// address (`/?tipo=interiors`) so it can be shared and the back button works.
+// Without this script each link reloads the page with that type.
+const types = document.querySelector(".types");
+if (types) {
+  const links = [...types.querySelectorAll("a")];
+  const key = (href) => new URL(href, location.href).searchParams.get("tipo");
+  const show = (wanted) => {
+    for (const link of links) {
+      if (key(link.href) === wanted) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    }
+    for (const card of cards) card.hidden = wanted !== null && card.dataset.type !== wanted;
+    relayMosaic();
+  };
+  links.forEach((link) =>
+    link.addEventListener("click", (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey) return; // a new tab, as asked
+      event.preventDefault();
+      const url = new URL(link.href);
+      url.hash = "";
+      history.pushState(null, "", url);
+      show(key(link.href));
+    }),
+  );
+  addEventListener("popstate", () => show(key(location.href)));
 }

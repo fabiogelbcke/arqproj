@@ -21,6 +21,16 @@
 .save { justify-self: start; }
 .switchLabel { font-weight: 500; }
 .pair { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: start; }
+.sheet { display: grid; gap: 10px; }
+.sheetRows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sheetRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.sheetRow[data-own] { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; }
+.sheetRow > :last-child { margin-bottom: 4px; }
+.addDetail { justify-self: start; }
+@media (max-width: 560px) {
+  .sheetRow[data-own] { grid-template-columns: minmax(0, 1fr) auto; }
+  .sheetRow[data-own] > :nth-child(2) { grid-column: 1; }
+}
 @media (max-width: 560px) { .pair { grid-template-columns: 1fr; } }
 .networks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 560px) { .networks { grid-template-columns: 1fr; } }
@@ -91,3 +101,16 @@
   .kicker { display: none; }
   .thumb { width: 72px; }
 }
+.format { display: grid; gap: 8px; }
+.formats { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 12px; }
+.formatCard {
+  position: relative; display: grid; gap: 4px; padding: 8px; border: 2px solid var(--line); border-radius: var(--r-card);
+  cursor: pointer;
+}
+.formatCard[data-on] { border-color: var(--ink); }
+.formatCard:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sketch { display: block; width: 100%; height: auto; margin-bottom: 6px; border-radius: 6px; background: var(--surface); color: var(--ink); }
+.sketch rect { fill: currentColor; opacity: 0.22; }
+.formatCard[data-on] .sketch rect { opacity: 0.55; }
+.formatName { font-weight: 500; }
+@media (max-width: 560px) { .formats { grid-template-columns: 1fr 1fr; } }
