@@ -12,7 +12,7 @@ export type Entry = Schemas["EntryOut"];
 export const PORTFOLIO = ["portfolio"] as const;
 // How the public page lays the works out: landscape covers, or every image in
 // its own shape, as the networks show them (PortfolioFormat).
-export const FORMATS = ["works", "feed"] as const satisfies readonly Portfolio["format"][];
+export const FORMATS = ["gallery", "mosaic"] as const satisfies readonly Portfolio["format"][];
 
 // As the server allows (backend/portfolio/models.py).
 export const LIMITS = {

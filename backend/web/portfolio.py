@@ -253,7 +253,7 @@ async def _out(db: AsyncSession) -> PortfolioOut:
     )
     return PortfolioOut(
         published=found.published if found else False,
-        format=found.format if found else PortfolioFormat.WORKS,
+        format=found.format if found else PortfolioFormat.GALLERY,
         intro=found.intro if found else "",
         links=links(found),
         entries=[

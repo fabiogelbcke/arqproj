@@ -93,34 +93,34 @@ if (lightbox && lightbox.showModal) {
   });
 }
 
-// The feed format's mosaic (the works' covers, or a work's images): in the
+// The mosaic format (the works' covers, or a work's images): in the
 // order staff set them, left to right then down, in as many columns as fit; a
 // work's images keep two on a phone. Without this, the stylesheet's columns
 // fill top to bottom first.
-let relayFeed = () => {};
-for (const feed of document.querySelectorAll(".feed")) {
-  const works = [...feed.children];
-  const least = feed.classList.contains("posts") ? 2 : 1;
+let relayMosaic = () => {};
+for (const mosaic of document.querySelectorAll(".mosaic")) {
+  const works = [...mosaic.children];
+  const least = mosaic.classList.contains("posts") ? 2 : 1;
   const lay = (again = false) => {
-    const width = feed.clientWidth;
+    const width = mosaic.clientWidth;
     const count = width > 1020 ? 3 : width > 500 ? 2 : least;
-    if (!again && feed.dataset.columns === String(count)) return;
-    feed.dataset.columns = String(count);
-    feed.replaceChildren();
+    if (!again && mosaic.dataset.columns === String(count)) return;
+    mosaic.dataset.columns = String(count);
+    mosaic.replaceChildren();
     const columns = works.slice(0, count).map(() => {
       const column = document.createElement("li");
       column.className = "column";
       const list = document.createElement("ul");
       column.append(list);
-      feed.append(column);
+      mosaic.append(column);
       return list;
     });
     // A work hidden by the menu of types stays out of the columns.
     works.filter((work) => !work.hidden).forEach((work, index) => columns[index % count].append(work));
   };
   lay();
-  new ResizeObserver(() => lay()).observe(feed);
-  if (!feed.classList.contains("posts")) relayFeed = () => lay(true);
+  new ResizeObserver(() => lay()).observe(mosaic);
+  if (!mosaic.classList.contains("posts")) relayMosaic = () => lay(true);
 }
 
 // The menu of types switches the works shown in place, as tabs, and keeps the
@@ -129,7 +129,7 @@ for (const feed of document.querySelectorAll(".feed")) {
 const types = document.querySelector(".types");
 if (types) {
   const links = [...types.querySelectorAll("a")];
-  const works = [...document.querySelectorAll(".works > li, .feed > li, .feed .column > ul > li")];
+  const works = [...document.querySelectorAll(".works > li, .mosaic > li, .mosaic .column > ul > li")];
   const key = (href) => new URL(href, location.href).searchParams.get("tipo");
   const show = (wanted) => {
     for (const link of links) {
@@ -137,7 +137,7 @@ if (types) {
       else link.removeAttribute("aria-current");
     }
     for (const work of works) work.hidden = wanted !== null && work.dataset.type !== wanted;
-    relayFeed();
+    relayMosaic();
   };
   links.forEach((link) =>
     link.addEventListener("click", (event) => {

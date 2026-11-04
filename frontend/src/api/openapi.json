@@ -10567,11 +10567,11 @@
       "PortfolioFormat": {
         "type": "string",
         "enum": [
-          "works",
-          "feed"
+          "gallery",
+          "mosaic"
         ],
         "title": "PortfolioFormat",
-        "description": "How the public page lays the works out. WORKS: one landscape cover per\nwork, a carousel and a work's page opening on its cover, as architecture\nsites do. FEED: every image in its own shape, square or upright, as the\nnetworks show them: for an office whose material is what it made for its\nposts, stories and reels."
+        "description": "How the public page lays the works out. GALLERY: one landscape cover per\nwork, a carousel and a work's page opening on its cover, as architecture\nsites do. MOSAIC: every image in its own shape, square or upright, as the\nnetworks show them: for an office whose material is what it made for its\nposts, stories and reels."
       },
       "PortfolioIn": {
         "properties": {

@@ -435,7 +435,7 @@ async def test_a_photos_pixel_size_is_recorded_when_the_file_can_be_read(client,
 
 
 async def test_an_upright_cover_stands_whole_on_a_blurred_copy_instead_of_cropped(client, staff):
-    """A story or a post as a cover of the "works" format: the carousel and the
+    """A story or a post as a cover of the "gallery" format: the carousel and the
     hero show it whole, over a blurred copy of itself; a landscape cover fills them."""
     story = await add(client, staff, title="Story")
     await photo(client, staff, story, content=png(90, 160), name="story.png")
@@ -454,13 +454,13 @@ async def test_an_upright_cover_stands_whole_on_a_blurred_copy_instead_of_croppe
     assert '<header class="hero">' in landscape and "backdrop" not in landscape
 
 
-async def test_the_feed_format_shows_every_image_in_its_own_shape(client, staff):
+async def test_the_mosaic_format_shows_every_image_in_its_own_shape(client, staff):
     """For material made for the networks: no carousel, hero or frame; a mosaic of
     covers, and a work as a grid of its images under its title. Each image's
     size is in its tag, so the page keeps its shape while loading."""
-    changed = await client.patch("/api/portfolio", json={"format": "feed"}, headers=staff)
-    assert (changed.status_code, changed.json()["format"]) == (200, "feed"), changed.text
-    assert (await client.get("/api/portfolio", headers=staff)).json()["format"] == "feed"
+    changed = await client.patch("/api/portfolio", json={"format": "mosaic"}, headers=staff)
+    assert (changed.status_code, changed.json()["format"]) == (200, "mosaic"), changed.text
+    assert (await client.get("/api/portfolio", headers=staff)).json()["format"] == "mosaic"
     nonsense = await client.patch("/api/portfolio", json={"format": "grid"}, headers=staff)
     assert nonsense.status_code == 422
     post = await add(client, staff, title="Post", project_type="architecture")
@@ -473,7 +473,7 @@ async def test_the_feed_format_shows_every_image_in_its_own_shape(client, staff)
 
     home = (await client.get("/", headers=ALINEA)).text
     assert 'class="carousel"' not in home and 'class="works"' not in home
-    mosaic = home.split('class="feed"')[1].split("</ul>")[0]
+    mosaic = home.split('class="mosaic"')[1].split("</ul>")[0]
     assert mosaic.count("<li ") == 2 and 'width="1080" height="1350"' in mosaic
     assert 'class="frame"' not in mosaic  # no fixed frame: the image's own shape
     assert '<a href="/?tipo=interiors#projetos">Interiores</a>' in home  # the menu stays
@@ -481,7 +481,7 @@ async def test_the_feed_format_shows_every_image_in_its_own_shape(client, staff)
     work = (await client.get(f"/?projeto={post['id']}", headers=ALINEA)).text
     assert 'class="hero' not in work and '<header class="post-head wrap">' in work
     assert "<h1>Post</h1>" in work
-    posts = work.split('class="feed posts"')[1].split("</ul>")[0]  # the mosaic's grid
+    posts = work.split('class="mosaic posts"')[1].split("</ul>")[0]  # the mosaic's grid
     assert posts.count("<li>") == 2  # the cover among them, not above
     assert 'width="1080" height="1350"' in posts and 'width="1080" height="1080"' in posts
     assert 'class="lightbox"' in work  # each still opens large

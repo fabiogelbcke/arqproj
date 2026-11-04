@@ -249,7 +249,7 @@ def _document(
     t = {**_texts(tenant.locale), "types": types}
     deployed = request.app.state.settings.deployed
     intro = found.intro if found else ""
-    feed = found is not None and found.format is PortfolioFormat.FEED
+    mosaic = found is not None and found.format is PortfolioFormat.MOSAIC
     name = escape(office.display_name if office else tenant.name)
     keep = "previa=1" if preview else ""
     home = f"/?{keep}" if keep else "/"
@@ -300,10 +300,10 @@ def _document(
             + f"<h1>{_title(entry.title)}</h1>"
             + (f'<p class="meta">{escape(_meta(entry))}</p>' if _meta(entry) else "")
         )
-        if feed:
+        if mosaic:
             # The title above the images, each in its own shape, in a grid.
             main = (
-                f'<article class="work feed-work"><header class="post-head wrap">{back}{heading}'
+                f'<article class="work mosaic-work"><header class="post-head wrap">{back}{heading}'
                 '</header><div class="wrap">'
                 + _about(facts, entry.description)
                 + _posts(t, entry, photos, videos)
@@ -332,12 +332,12 @@ def _document(
     else:
         title = name
         description = intro
-        main = ("" if feed else _carousel(t, works, link, kind)) + (
+        main = ("" if mosaic else _carousel(t, works, link, kind)) + (
             f'<section class="intro wrap" id="escritorio">{_paragraphs(intro)}</section>'
             if intro.strip()
             else ""
         )
-        main += _works(t, works, link, kind, keep, request.query_params.get("tipo"), feed)
+        main += _works(t, works, link, kind, keep, request.query_params.get("tipo"), mosaic)
         image = photo_url(works[0][1][0]) if works else None
 
     contact = []
@@ -461,10 +461,10 @@ def _gallery(
 def _posts(
     t: dict, entry: PortfolioEntry, photos: list[PortfolioPhoto], videos: list[PortfolioVideo]
 ) -> str:
-    """The feed format's work: its videos, then all its photos (the cover too), as
+    """The mosaic format's work: its videos, then all its photos (the cover too), as
     a grid of images each in its own shape, like a profile on the networks; each
     opens large over the page like the gallery's. The grid is the mosaic's
-    (`feed`, laid out by `portfolio.js`), in the order the photos were added."""
+    (`mosaic`, laid out by `portfolio.js`), in the order the photos were added."""
     label = escape(_fill(t["gallery"], title=entry.title))
     films = "".join(
         f'<li><a class="zoom film" href="{video_url(video)}" '
@@ -492,7 +492,7 @@ def _posts(
     )
     return (
         f'<section class="gallery" aria-label="{label}">'
-        f'<ul class="feed posts">{films}{figures}</ul>{credits}</section>' + _lightbox(t, label)
+        f'<ul class="mosaic posts">{films}{figures}</ul>{credits}</section>' + _lightbox(t, label)
     )
 
 
@@ -543,10 +543,10 @@ def _carousel(t: dict, works: Works, link: Label, kind: Label) -> str:
 
 
 def _works(
-    t: dict, works: Works, link: Label, kind: Label, keep: str, wanted: str | None, feed: bool
+    t: dict, works: Works, link: Label, kind: Label, keep: str, wanted: str | None, mosaic: bool
 ) -> str:
     """The works under the menu of types: a grid of covers cropped to one frame,
-    or, in the feed format, a mosaic of covers each in its own shape. Every work
+    or, in the mosaic format, every cover in its own shape. Every work
     is in the page, those of other types hidden, so the menu switches types in
     place (`portfolio.js`); without the script its links reload the page."""
     if not works:
@@ -574,13 +574,13 @@ def _works(
 
     def cover(photo: PortfolioPhoto) -> str:
         image = (
-            f'<img src="{photo_url(photo)}?size=card" alt=""{_size(photo) if feed else ""} '
+            f'<img src="{photo_url(photo)}?size=card" alt=""{_size(photo) if mosaic else ""} '
             'loading="lazy" decoding="async">'
         )
-        return image if feed else f'<span class="frame">{image}</span>'
+        return image if mosaic else f'<span class="frame">{image}</span>'
 
     cards = "".join(
-        f'<li{"" if wanted in (None, entry.project_type) else " hidden"} '
+        f"<li{'' if wanted in (None, entry.project_type) else ' hidden'} "
         f'data-type="{escape(entry.project_type or "")}">'
         f'<a href="{link(entry)}">{cover(photos[0])}'
         f'<span class="title">{_title(entry.title)}</span>'
@@ -591,5 +591,5 @@ def _works(
     return (
         f'<section class="projects wrap" id="projetos" aria-labelledby="works">'
         f'<div class="projects-head"><h2 id="works">{escape(t["works"])}</h2>{menu}</div>'
-        f'<ul class="{"feed" if feed else "works"}">{cards}</ul></section>'
+        f'<ul class="{"mosaic" if mosaic else "works"}">{cards}</ul></section>'
     )

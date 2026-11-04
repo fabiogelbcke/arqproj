@@ -1,7 +1,7 @@
 """A portfolio's format and its images' pixel sizes (A45), 4 Nov 2026.
 
-- `portfolios.format`: `works` (one landscape cover per work, a carousel and a
-  work's page opening on its cover) or `feed` (every image in its own shape, as
+- `portfolios.format`: `gallery` (one landscape cover per work, a carousel and a
+  work's page opening on its cover) or `mosaic` (every image in its own shape, as
   the social networks show them), for an office whose material was made for its
   posts, stories and reels.
 - `portfolio_photos` and `portfolio_videos`: the photo's and the poster's width
@@ -29,10 +29,10 @@ SIZED = ("portfolio_photos", "portfolio_videos")
 def upgrade() -> None:
     op.add_column(
         "portfolios",
-        sa.Column("format", sa.Text(), server_default=sa.text("'works'"), nullable=False),
+        sa.Column("format", sa.Text(), server_default=sa.text("'gallery'"), nullable=False),
     )
     op.create_check_constraint(
-        op.f("ck_portfolios_format_known"), "portfolios", "format IN ('works', 'feed')"
+        op.f("ck_portfolios_format_known"), "portfolios", "format IN ('gallery', 'mosaic')"
     )
     for table in SIZED:
         op.add_column(table, sa.Column("width", sa.Integer(), nullable=True))

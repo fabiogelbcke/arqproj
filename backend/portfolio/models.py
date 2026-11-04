@@ -76,14 +76,14 @@ class SocialNetwork(StrEnum):
 
 
 class PortfolioFormat(StrEnum):
-    """How the public page lays the works out. WORKS: one landscape cover per
+    """How the public page lays the works out. GALLERY: one landscape cover per
     work, a carousel and a work's page opening on its cover, as architecture
-    sites do. FEED: every image in its own shape, square or upright, as the
+    sites do. MOSAIC: every image in its own shape, square or upright, as the
     networks show them: for an office whose material is what it made for its
     posts, stories and reels."""
 
-    WORKS = "works"
-    FEED = "feed"
+    GALLERY = "gallery"
+    MOSAIC = "mosaic"
 
 
 class Portfolio(IdMixin, TimestampsMixin, TenantOwned, Base):
@@ -100,7 +100,7 @@ class Portfolio(IdMixin, TimestampsMixin, TenantOwned, Base):
 
     published: Mapped[bool] = mapped_column(default=False)
     format: Mapped[PortfolioFormat] = mapped_column(
-        TextEnum(PortfolioFormat), default=PortfolioFormat.WORKS, server_default=text("'works'")
+        TextEnum(PortfolioFormat), default=PortfolioFormat.GALLERY, server_default=text("'gallery'")
     )
     intro: Mapped[str] = mapped_column(Text, default="")
     # {network: profile address} (SocialNetwork), checked by backend/portfolio/links.py.

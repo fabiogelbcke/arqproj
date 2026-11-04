@@ -2901,14 +2901,14 @@ export interface components {
         };
         /**
          * PortfolioFormat
-         * @description How the public page lays the works out. WORKS: one landscape cover per
+         * @description How the public page lays the works out. GALLERY: one landscape cover per
          *     work, a carousel and a work's page opening on its cover, as architecture
-         *     sites do. FEED: every image in its own shape, square or upright, as the
+         *     sites do. MOSAIC: every image in its own shape, square or upright, as the
          *     networks show them: for an office whose material is what it made for its
          *     posts, stories and reels.
          * @enum {string}
          */
-        PortfolioFormat: "works" | "feed";
+        PortfolioFormat: "gallery" | "mosaic";
         /** PortfolioIn */
         PortfolioIn: {
             /** Published */
