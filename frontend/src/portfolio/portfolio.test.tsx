@@ -43,6 +43,7 @@ function entry(changes: Partial<Entry>): Entry {
 
 const PORTFOLIO: Portfolio = {
   published: false,
+  format: "gallery",
   intro: "",
   links: {},
   entries: [entry({}), entry({ id: "e-2", title: "Loja Centro", place: "", year: null, photos: [], project_id: null })],
@@ -93,6 +94,23 @@ describe("the Portfólio tab", () => {
     await userEvent.click(await screen.findByRole("switch", { name: "Mostrar o portfólio no endereço do escritório" }));
     await waitFor(() => expect(sent.find((call) => call.method === "PATCH")?.body).toEqual({ published: true }));
     expect(await screen.findByRole("link", { name: "Ver portfólio" })).toHaveAttribute("href", "/");
+  });
+
+  it("chooses the mosaic format for material made for the networks", async () => {
+    const sent = api({ "PATCH /api/portfolio": () => ({ body: { ...PORTFOLIO, format: "mosaic" } }) });
+    renderAt("/portfolio");
+    const formats = await screen.findByRole("radiogroup", { name: "Formato do portfólio" });
+    // Each format is a card: its name, what it is for, and a drawing of its layout.
+    const cards = within(formats).getAllByRole("radio");
+    expect(cards.map((card) => card.closest("label")?.textContent)).toEqual([
+      "GaleriaCapa grande e carrossel: para fotos de arquitetura na horizontal.",
+      "MosaicoCada imagem no formato original, sem capa grande: para o material feito para posts, stories e reels.",
+    ]);
+    expect(cards.map((card) => card.closest("label")?.querySelector("svg") !== null)).toEqual([true, true]);
+    expect(within(formats).getByRole("radio", { name: /Galeria/ })).toBeChecked();
+    await userEvent.click(within(formats).getByRole("radio", { name: /Mosaico/ }));
+    await waitFor(() => expect(sent.find((call) => call.method === "PATCH")?.body).toEqual({ format: "mosaic" }));
+    expect(await screen.findByText("Alterações salvas.")).toBeInTheDocument();
   });
 
   it("saves the office's social networks", async () => {

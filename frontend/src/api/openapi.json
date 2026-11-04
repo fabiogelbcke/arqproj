@@ -10564,6 +10564,15 @@
         ],
         "title": "PhotoOut"
       },
+      "PortfolioFormat": {
+        "type": "string",
+        "enum": [
+          "gallery",
+          "mosaic"
+        ],
+        "title": "PortfolioFormat",
+        "description": "How the public page lays the works out. GALLERY: one landscape cover per\nwork, a carousel and a work's page opening on its cover, as architecture\nsites do. MOSAIC: every image in its own shape, square or upright, as the\nnetworks show them: for an office whose material is what it made for its\nposts, stories and reels."
+      },
       "PortfolioIn": {
         "properties": {
           "published": {
@@ -10576,6 +10585,16 @@
               }
             ],
             "title": "Published"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "intro": {
             "anyOf": [
@@ -10616,6 +10635,9 @@
             "type": "boolean",
             "title": "Published"
           },
+          "format": {
+            "$ref": "#/components/schemas/PortfolioFormat"
+          },
           "intro": {
             "type": "string",
             "title": "Intro"
@@ -10641,6 +10663,7 @@
         "type": "object",
         "required": [
           "published",
+          "format",
           "intro",
           "links",
           "entries"

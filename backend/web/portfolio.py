@@ -34,10 +34,12 @@ import logging
 import re
 import uuid
 from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
+from PIL import Image
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,6 +65,7 @@ from backend.portfolio.models import (
     YEAR_MIN,
     Portfolio,
     PortfolioEntry,
+    PortfolioFormat,
     PortfolioPhoto,
     PortfolioVideo,
     SocialNetwork,
@@ -157,6 +160,7 @@ class EntryOut(BaseModel):
 
 class PortfolioOut(BaseModel):
     published: bool
+    format: PortfolioFormat
     intro: str
     links: dict[SocialNetwork, str]
     entries: list[EntryOut]
@@ -164,6 +168,7 @@ class PortfolioOut(BaseModel):
 
 class PortfolioIn(BaseModel):
     published: bool | None = None
+    format: PortfolioFormat | None = None
     intro: str | None = Field(default=None, max_length=INTRO_MAX)
     # Every profile, replacing those kept: "@name" or an address on the network.
     links: dict[SocialNetwork, str] | None = None
@@ -248,6 +253,7 @@ async def _out(db: AsyncSession) -> PortfolioOut:
     )
     return PortfolioOut(
         published=found.published if found else False,
+        format=found.format if found else PortfolioFormat.GALLERY,
         intro=found.intro if found else "",
         links=links(found),
         entries=[
@@ -406,6 +412,9 @@ async def change_portfolio(
         found.intro = body.intro.strip()
     if body.links is not None:
         found.links = _profiles(body.links)
+    if body.format is not None and body.format is not found.format:
+        found.format = body.format
+        capture(request, "portfolio_format_changed", {"format": body.format.value})
     if body.published is not None and body.published != found.published:
         found.published = body.published
         capture(request, "portfolio_published" if body.published else "portfolio_unpublished")
@@ -539,6 +548,17 @@ async def order_entries(
     return await _out(db)
 
 
+def _image_size(content: bytes) -> tuple[int, int] | tuple[None, None]:
+    """The image's pixels, from its header, so the page lays it out at its shape
+    before it loads; (None, None) for a file PIL can't read, which is stored
+    anyway (the browser may still show it)."""
+    try:
+        with Image.open(BytesIO(content)) as image:
+            return image.size
+    except (OSError, ValueError, Image.DecompressionBombError):
+        return None, None
+
+
 async def _store(
     request: Request,
     db: AsyncSession,
@@ -599,6 +619,7 @@ async def add_photo(
     if count >= PHOTOS_MAX:
         raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
     photo = PortfolioPhoto(entry_id=entry.id, position=(last or 0) + 1, image_type=kind)
+    photo.width, photo.height = _image_size(content)
     photo.id = uuid.uuid4()
     photo.file_id = await _store(
         request, db, tenant, found, f"foto-{photo.id.hex[:12]}.{_EXTENSIONS[kind]}", content, kind
@@ -796,6 +817,7 @@ async def add_video(
     )
     video.id = uuid.uuid4()
     video.poster_type = poster_type
+    video.width, video.height = _image_size(content)  # the poster's: the video's shape
     video.poster_file_id = await _store(
         request,
         db,

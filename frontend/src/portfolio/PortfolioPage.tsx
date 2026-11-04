@@ -20,6 +20,7 @@ import { TextAreaField, TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import { ToggleSwitch } from "../ui/ToggleSwitch";
 import {
+  FORMATS,
   LIMITS,
   NETWORKS,
   moved,
@@ -64,12 +65,44 @@ export function PortfolioPage() {
   );
 }
 
+// A small drawing of how a format lays the page out: the gallery's wide cover
+// and carousel over a row of framed covers; the mosaic's images in their own
+// shapes, in columns.
+function FormatSketch({ format }: { format: Portfolio["format"] }) {
+  const blocks =
+    format === "gallery"
+      ? [
+          [6, 6, 108, 34],
+          [6, 48, 34, 18],
+          [43, 48, 34, 18],
+          [80, 48, 34, 18],
+          [6, 70, 18, 3],
+          [43, 70, 18, 3],
+          [80, 70, 18, 3],
+        ]
+      : [
+          [6, 6, 34, 26],
+          [6, 36, 34, 38],
+          [43, 6, 34, 34],
+          [43, 44, 34, 30],
+          [80, 6, 34, 20],
+          [80, 30, 34, 44],
+        ];
+  return (
+    <svg className={styles.sketch} viewBox="0 0 120 80" aria-hidden="true">
+      {blocks.map(([x, y, width, height]) => (
+        <rect key={`${x}-${y}`} x={x} y={y} width={width} height={height} rx="1.5" />
+      ))}
+    </svg>
+  );
+}
+
 function Publishing({ portfolio }: { portfolio: Portfolio }) {
   const { t } = useTranslation();
   const save = useSavePortfolio();
   const [intro, setIntro] = useState(portfolio.intro);
   const shown = portfolio.entries.some((entry) => entry.photos.length > 0);
-  const change = (body: { published?: boolean; intro?: string }, done: string) =>
+  const change = (body: { published?: boolean; intro?: string; format?: Portfolio["format"] }, done: string) =>
     save.mutate(body, { onSuccess: () => toast(done), onError: (failure) => toastError(failure) });
   return (
     <Panel className={styles.section} aria-labelledby="portfolio-publishing">
@@ -91,6 +124,29 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
         </a>
       </p>
       {portfolio.published && !shown && <p className={styles.warning}>{t("portfolio.nothingShown")}</p>}
+      <div className={styles.format} role="radiogroup" aria-labelledby="portfolio-format">
+        <span id="portfolio-format" className={styles.switchLabel}>
+          {t("portfolio.format")}
+        </span>
+        <div className={styles.formats}>
+          {FORMATS.map((format) => (
+            <label key={format} className={styles.formatCard} data-on={portfolio.format === format || undefined}>
+              <input
+                type="radio"
+                name="portfolio-format"
+                value={format}
+                className="sr-only"
+                checked={portfolio.format === format}
+                disabled={save.isPending}
+                onChange={() => change({ format }, t("portfolio.saved"))}
+              />
+              <FormatSketch format={format} />
+              <span className={styles.formatName}>{t(`portfolio.formats.${format}`)}</span>
+              <span className={styles.hint}>{t(`portfolio.formatHint.${format}`)}</span>
+            </label>
+          ))}
+        </div>
+      </div>
       <TextAreaField
         label={t("portfolio.intro")}
         description={t("portfolio.introHint")}

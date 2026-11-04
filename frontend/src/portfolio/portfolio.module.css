@@ -91,3 +91,16 @@
   .kicker { display: none; }
   .thumb { width: 72px; }
 }
+.format { display: grid; gap: 8px; }
+.formats { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 12px; }
+.formatCard {
+  position: relative; display: grid; gap: 4px; padding: 8px; border: 2px solid var(--line); border-radius: var(--r-card);
+  cursor: pointer;
+}
+.formatCard[data-on] { border-color: var(--ink); }
+.formatCard:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sketch { display: block; width: 100%; height: auto; margin-bottom: 6px; border-radius: 6px; background: var(--surface); color: var(--ink); }
+.sketch rect { fill: currentColor; opacity: 0.22; }
+.formatCard[data-on] .sketch rect { opacity: 0.55; }
+.formatName { font-weight: 500; }
+@media (max-width: 560px) { .formats { grid-template-columns: 1fr 1fr; } }

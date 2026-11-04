@@ -34,7 +34,13 @@ from backend.db.isolation import scope_to_tenant
 from backend.identity import sessions
 from backend.office.models import OfficeProfile
 from backend.office.profile import logo_urls
-from backend.portfolio.models import Portfolio, PortfolioEntry, PortfolioPhoto, PortfolioVideo
+from backend.portfolio.models import (
+    Portfolio,
+    PortfolioEntry,
+    PortfolioFormat,
+    PortfolioPhoto,
+    PortfolioVideo,
+)
 from backend.projects.models import ProjectTypeDef
 from backend.tenancy.middleware import REDIRECT_MAX_AGE, redirect_url
 from backend.tenancy.models import Feature, Locale
@@ -128,6 +134,34 @@ def _title(text: str) -> str:
     return re.sub(r" ([—–-]) ", "\u00a0\\1 ", escape(text))
 
 
+def _size(item: PortfolioPhoto | PortfolioVideo) -> str:
+    """`width` and `height` for an image's tag, so the page lays it out at its
+    shape before it loads; nothing for a file whose size isn't known."""
+    return f' width="{item.width}" height="{item.height}"' if item.width and item.height else ""
+
+
+def _loading(first: bool) -> str:
+    """The first image fetched at once, the others as they come into view."""
+    return 'fetchpriority="high"' if first else 'loading="lazy"'
+
+
+def _tall(photo: PortfolioPhoto) -> bool:
+    """An upright photo (a post, a story): shown whole where a landscape cover
+    would be cropped."""
+    return bool(photo.width and photo.height and photo.height > photo.width)
+
+
+def _cover_img(photo: PortfolioPhoto, alt: str, attributes: str) -> str:
+    """A cover filling a landscape frame; an upright one whole, over a blurred
+    copy of itself (the frame's element gets the `tall` class)."""
+    backdrop = (
+        f'<img class="backdrop" src="{photo_url(photo)}?size=card" alt="" aria-hidden="true">'
+        if _tall(photo)
+        else ""
+    )
+    return f'{backdrop}<img src="{photo_url(photo)}?size=full" alt="{alt}" {attributes}>'
+
+
 def _meta(entry: PortfolioEntry) -> str:
     return " · ".join(part for part in (entry.place, str(entry.year or "")) if part)
 
@@ -215,6 +249,7 @@ def _document(
     t = {**_texts(tenant.locale), "types": types}
     deployed = request.app.state.settings.deployed
     intro = found.intro if found else ""
+    mosaic = found is not None and found.format is PortfolioFormat.MOSAIC
     name = escape(office.display_name if office else tenant.name)
     keep = "previa=1" if preview else ""
     home = f"/?{keep}" if keep else "/"
@@ -259,35 +294,50 @@ def _document(
                 f'<span><span class="label">{escape(t["nextWork"])}</span>'
                 f'<span class="title">{_title(upcoming.title)}</span></span></a>'
             )
-        main = (
-            # The cover across the page, darkened toward its edges so the title,
-            # the work's type, place and year and the way back read over it.
-            f'<article class="work"><header class="hero">'
-            f'<a class="cover zoom" href="{photo_url(photos[0])}?size=full" '
-            f'aria-label="{escape(_fill(t["open"], n=1))}">'
-            f'<img src="{photo_url(photos[0])}?size=full" '
-            f'alt="{escape(_fill(t["photo"], n=1, title=entry.title))}" '
-            f'fetchpriority="high"></a>'
-            f'<div class="hero-top wrap"><a class="back" href="{home}#projetos">'
-            f'← {escape(t["back"])}</a></div><div class="hero-text wrap">'
-            + (f'<p class="label">{escape(kind(entry))}</p>' if kind(entry) else "")
+        back = f'<a class="back" href="{home}#projetos">← {escape(t["back"])}</a>'
+        heading = (
+            (f'<p class="label">{escape(kind(entry))}</p>' if kind(entry) else "")
             + f"<h1>{_title(entry.title)}</h1>"
             + (f'<p class="meta">{escape(_meta(entry))}</p>' if _meta(entry) else "")
-            + '</div></header><div class="wrap">'
-            + _about(facts, entry.description)
-            + _gallery(t, entry, photos, videos)
-            + f"</div></article>{after}"
         )
+        if mosaic:
+            # The title above the images, each in its own shape, in a grid.
+            main = (
+                f'<article class="work mosaic-work"><header class="post-head wrap">{back}{heading}'
+                '</header><div class="wrap">'
+                + _about(facts, entry.description)
+                + _posts(t, entry, photos, videos)
+                + f"</div></article>{after}"
+            )
+        else:
+            main = (
+                # The cover across the page, darkened toward its edges so the title,
+                # the work's type, place and year and the way back read over it.
+                f'<article class="work"><header class="hero{" tall" if _tall(photos[0]) else ""}">'
+                f'<a class="cover zoom" href="{photo_url(photos[0])}?size=full" '
+                f'aria-label="{escape(_fill(t["open"], n=1))}">'
+                + _cover_img(
+                    photos[0],
+                    escape(_fill(t["photo"], n=1, title=entry.title)),
+                    'fetchpriority="high"',
+                )
+                + f'</a><div class="hero-top wrap">{back}</div><div class="hero-text wrap">'
+                + heading
+                + '</div></header><div class="wrap">'
+                + _about(facts, entry.description)
+                + _gallery(t, entry, photos, videos)
+                + f"</div></article>{after}"
+            )
         image = photo_url(photos[0])
     else:
         title = name
         description = intro
-        main = _carousel(t, works, link, kind) + (
+        main = ("" if mosaic else _carousel(t, works, link, kind)) + (
             f'<section class="intro wrap" id="escritorio">{_paragraphs(intro)}</section>'
             if intro.strip()
             else ""
         )
-        main += _works(t, works, link, kind, keep, request.query_params.get("tipo"))
+        main += _works(t, works, link, kind, keep, request.query_params.get("tipo"), mosaic)
         image = photo_url(works[0][1][0]) if works else None
 
     contact = []
@@ -405,8 +455,50 @@ def _gallery(
         if items or credits
         else ""
     )
+    return gallery + _lightbox(t, label)
+
+
+def _posts(
+    t: dict, entry: PortfolioEntry, photos: list[PortfolioPhoto], videos: list[PortfolioVideo]
+) -> str:
+    """The mosaic format's work: its videos, then all its photos (the cover too), as
+    a grid of images each in its own shape, like a profile on the networks; each
+    opens large over the page like the gallery's. The grid is the mosaic's
+    (`mosaic`, laid out by `portfolio.js`), in the order the photos were added."""
+    label = escape(_fill(t["gallery"], title=entry.title))
+    films = "".join(
+        f'<li><a class="zoom film" href="{video_url(video)}" '
+        f'data-poster="{video_url(video)}/poster" '
+        f'aria-label="{escape(_fill(t["watch"], n=n))}">'
+        f'<img src="{video_url(video)}/poster?size=card" '
+        f'alt="{escape(_fill(t["video"], n=n, title=entry.title))}"{_size(video)} '
+        f'{_loading(n == 1)} decoding="async">'
+        '<span class="play" aria-hidden="true"></span></a></li>'
+        for n, video in enumerate(videos, start=1)
+    )
+    figures = "".join(
+        f'<li><a class="zoom" href="{photo_url(photo)}?size=full" '
+        f'aria-label="{escape(_fill(t["open"], n=n))}">'
+        f'<img src="{photo_url(photo)}?size=card" '
+        f'alt="{escape(_fill(t["photo"], n=n, title=entry.title))}"{_size(photo)} '
+        f'{_loading(n == 1 and not videos)} decoding="async">'
+        "</a></li>"
+        for n, photo in enumerate(photos, start=1)
+    )
+    credits = (
+        f'<p class="credits">{escape(_fill(t["credits"], names=entry.credits))}</p>'
+        if entry.credits
+        else ""
+    )
     return (
-        gallery + f'<dialog class="lightbox" aria-label="{label}">'
+        f'<section class="gallery" aria-label="{label}">'
+        f'<ul class="mosaic posts">{films}{figures}</ul>{credits}</section>' + _lightbox(t, label)
+    )
+
+
+def _lightbox(t: dict, label: str) -> str:
+    return (
+        f'<dialog class="lightbox" aria-label="{label}">'
         '<img alt=""><video controls playsinline hidden></video>'
         '<p class="count" aria-live="polite"></p>'
         f'<button type="button" class="close" aria-label="{escape(t["close"])}">×</button>'
@@ -424,10 +516,11 @@ def _carousel(t: dict, works: Works, link: Label, kind: Label) -> str:
         return ""
     total = len(shown)
     slides = "".join(
-        f'<li class="slide" aria-label="{escape(_fill(t["slide"], n=n, total=total))}">'
-        f'<a href="{link(entry)}"><img src="{photo_url(photos[0])}?size=full" alt="" '
-        + ('fetchpriority="high"' if n == 1 else 'loading="lazy"')
-        + ' decoding="async"><span class="caption">'
+        f'<li class="slide{" tall" if _tall(photos[0]) else ""}" '
+        f'aria-label="{escape(_fill(t["slide"], n=n, total=total))}">'
+        f'<a href="{link(entry)}">'
+        + _cover_img(photos[0], "", _loading(n == 1) + ' decoding="async"')
+        + '<span class="caption">'
         + (f'<span class="label">{escape(kind(entry))}</span>' if kind(entry) else "")
         + f'<span class="title">{_title(entry.title)}</span>'
         + (f'<span class="meta">{escape(_meta(entry))}</span>' if _meta(entry) else "")
@@ -449,12 +542,17 @@ def _carousel(t: dict, works: Works, link: Label, kind: Label) -> str:
     )
 
 
-def _works(t: dict, works: Works, link: Label, kind: Label, keep: str, wanted: str | None) -> str:
+def _works(
+    t: dict, works: Works, link: Label, kind: Label, keep: str, wanted: str | None, mosaic: bool
+) -> str:
+    """The works under the menu of types: a grid of covers cropped to one frame,
+    or, in the mosaic format, every cover in its own shape. Every work
+    is in the page, those of other types hidden, so the menu switches types in
+    place (`portfolio.js`); without the script its links reload the page."""
     if not works:
         return f'<p class="empty wrap">{escape(t["empty"])}</p>'
     present = [key for key in t["types"] if any(e.project_type == key for e, _ in works)]
     wanted = wanted if wanted in present else None
-    shown = [work for work in works if wanted is None or work[0].project_type == wanted]
     menu = ""
     if len(present) > 1:
         extra = f"&amp;{keep}" if keep else ""
@@ -474,17 +572,24 @@ def _works(t: dict, works: Works, link: Label, kind: Label, keep: str, wanted: s
     def _about(entry: PortfolioEntry) -> str:
         return " · ".join(part for part in (kind(entry), _meta(entry)) if part)
 
+    def cover(photo: PortfolioPhoto) -> str:
+        image = (
+            f'<img src="{photo_url(photo)}?size=card" alt=""{_size(photo) if mosaic else ""} '
+            'loading="lazy" decoding="async">'
+        )
+        return image if mosaic else f'<span class="frame">{image}</span>'
+
     cards = "".join(
-        f'<li><a href="{link(entry)}"><span class="frame">'
-        f'<img src="{photo_url(photos[0])}?size=card" alt="" loading="lazy" decoding="async">'
-        "</span>"
+        f"<li{'' if wanted in (None, entry.project_type) else ' hidden'} "
+        f'data-type="{escape(entry.project_type or "")}">'
+        f'<a href="{link(entry)}">{cover(photos[0])}'
         f'<span class="title">{_title(entry.title)}</span>'
         + (f'<span class="meta">{escape(_about(entry))}</span>' if _about(entry) else "")
         + "</a></li>"
-        for entry, photos in shown
+        for entry, photos in works
     )
     return (
         f'<section class="projects wrap" id="projetos" aria-labelledby="works">'
         f'<div class="projects-head"><h2 id="works">{escape(t["works"])}</h2>{menu}</div>'
-        f'<ul class="works">{cards}</ul></section>'
+        f'<ul class="{"mosaic" if mosaic else "works"}">{cards}</ul></section>'
     )

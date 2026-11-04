@@ -19,6 +19,31 @@ a new entry too.
 
 ---
 
+## 2026-11-04 — A45: a portfolio format for material made for the social networks
+
+**Was:** one layout: one landscape cover per work in a carousel, and a work's page
+opening on its cover at two thirds of the screen with the title over a dark
+shading. Every image was cropped to a landscape frame.
+
+**Now:** the Portfólio tab chooses the portfolio's format, each with a small
+drawing of its layout. "Galeria" is that layout. "Mosaico" shows each image in its own shape, square or upright, as the networks show
+them: the works as a mosaic, a work's page as a grid of its images under its
+title (a profile on the networks, not a column of posts), no carousel, hero or
+shading. In "Galeria", an upright cover is no longer
+cropped: it stands whole on a blurred copy of itself. Photos and posters record
+their pixel size when added, so the page lays them out at their shape before they
+load (a file added before, or one the server can't read, has none and takes its
+shape as it loads). Still deferred: captions, posts as entries of their own with a
+date and a link to the original, and bringing posts in from Instagram (see
+`future-ideas.md`).
+
+**Why:** Fabio, 4 Nov 2026: an office whose material is what it made for its
+posts (square and 9:16, text and logos already on the image) looked wrong in a
+layout built for architecture photography. Posts as entries of their own were
+dropped because offices only make the media for their posts, not the text.
+
+---
+
 ## 2026-11-03 — A24 and section 10: a new project starts with a stock cover, which clients see
 
 **Was:** a project had no cover until staff uploaded one. The painel showed a
