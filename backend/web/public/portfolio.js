@@ -97,13 +97,14 @@ if (lightbox && lightbox.showModal) {
 // order staff set them, left to right then down, in as many columns as fit; a
 // work's images keep two on a phone. Without this, the stylesheet's columns
 // fill top to bottom first.
+let relayFeed = () => {};
 for (const feed of document.querySelectorAll(".feed")) {
   const works = [...feed.children];
   const least = feed.classList.contains("posts") ? 2 : 1;
-  const lay = () => {
+  const lay = (again = false) => {
     const width = feed.clientWidth;
     const count = width > 1020 ? 3 : width > 500 ? 2 : least;
-    if (feed.dataset.columns === String(count)) return;
+    if (!again && feed.dataset.columns === String(count)) return;
     feed.dataset.columns = String(count);
     feed.replaceChildren();
     const columns = works.slice(0, count).map(() => {
@@ -114,8 +115,39 @@ for (const feed of document.querySelectorAll(".feed")) {
       feed.append(column);
       return list;
     });
-    works.forEach((work, index) => columns[index % count].append(work));
+    // A work hidden by the menu of types stays out of the columns.
+    works.filter((work) => !work.hidden).forEach((work, index) => columns[index % count].append(work));
   };
   lay();
-  new ResizeObserver(lay).observe(feed);
+  new ResizeObserver(() => lay()).observe(feed);
+  if (!feed.classList.contains("posts")) relayFeed = () => lay(true);
+}
+
+// The menu of types switches the works shown in place, as tabs, and keeps the
+// address (`/?tipo=interiors`) so it can be shared and the back button works.
+// Without this script each link reloads the page with that type.
+const types = document.querySelector(".types");
+if (types) {
+  const links = [...types.querySelectorAll("a")];
+  const works = [...document.querySelectorAll(".works > li, .feed > li, .feed .column > ul > li")];
+  const key = (href) => new URL(href, location.href).searchParams.get("tipo");
+  const show = (wanted) => {
+    for (const link of links) {
+      if (key(link.href) === wanted) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    }
+    for (const work of works) work.hidden = wanted !== null && work.dataset.type !== wanted;
+    relayFeed();
+  };
+  links.forEach((link) =>
+    link.addEventListener("click", (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey) return; // a new tab, as asked
+      event.preventDefault();
+      const url = new URL(link.href);
+      url.hash = "";
+      history.pushState(null, "", url);
+      show(key(link.href));
+    }),
+  );
+  addEventListener("popstate", () => show(key(location.href)));
 }

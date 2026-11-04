@@ -407,13 +407,20 @@ async def test_the_menu_shows_the_works_of_one_type(client, staff):
     assert "Paisagismo" not in every  # no work of that type: not in the menu
     assert '<a href="/#projetos" aria-current="page">Todos</a>' in every
 
-    grid = lambda page: page.split('class="works"')[1]  # noqa: E731
+    def grid(page: str) -> dict[str, bool]:
+        """Each work in the grid, by title, with whether it is shown."""
+        cards = page.split('class="works"')[1].split("</ul>")[0].split("<li")[1:]
+        title = lambda card: card.split('class="title">')[1].split("<")[0]  # noqa: E731
+        return {title(card): " hidden" not in card for card in cards}
+
+    assert grid(every) == {"Casa Jardim": True, "Apto Mar": True, "Loja": True}
     one = (await client.get("/?tipo=interiors", headers=ALINEA)).text
-    assert "Apto Mar" in grid(one) and "Casa Jardim" not in grid(one) and "Loja" not in grid(one)
+    # Every work is in the page, the others hidden: the menu switches in place.
+    assert grid(one) == {"Casa Jardim": False, "Apto Mar": True, "Loja": False}
     assert 'aria-current="page">Interiores' in one
     assert one.count('class="slide"') == 3  # the carousel shows them all still
     nonsense = (await client.get("/?tipo=castle", headers=ALINEA)).text
-    assert all(title in grid(nonsense) for title in ("Casa Jardim", "Apto Mar", "Loja"))
+    assert all(grid(nonsense).values())
 
 
 async def test_a_photos_pixel_size_is_recorded_when_the_file_can_be_read(client, staff, db_session):
@@ -467,7 +474,7 @@ async def test_the_feed_format_shows_every_image_in_its_own_shape(client, staff)
     home = (await client.get("/", headers=ALINEA)).text
     assert 'class="carousel"' not in home and 'class="works"' not in home
     mosaic = home.split('class="feed"')[1].split("</ul>")[0]
-    assert mosaic.count("<li>") == 2 and 'width="1080" height="1350"' in mosaic
+    assert mosaic.count("<li ") == 2 and 'width="1080" height="1350"' in mosaic
     assert 'class="frame"' not in mosaic  # no fixed frame: the image's own shape
     assert '<a href="/?tipo=interiors#projetos">Interiores</a>' in home  # the menu stays
 

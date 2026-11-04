@@ -546,12 +546,13 @@ def _works(
     t: dict, works: Works, link: Label, kind: Label, keep: str, wanted: str | None, feed: bool
 ) -> str:
     """The works under the menu of types: a grid of covers cropped to one frame,
-    or, in the feed format, a mosaic of covers each in its own shape."""
+    or, in the feed format, a mosaic of covers each in its own shape. Every work
+    is in the page, those of other types hidden, so the menu switches types in
+    place (`portfolio.js`); without the script its links reload the page."""
     if not works:
         return f'<p class="empty wrap">{escape(t["empty"])}</p>'
     present = [key for key in t["types"] if any(e.project_type == key for e, _ in works)]
     wanted = wanted if wanted in present else None
-    shown = [work for work in works if wanted is None or work[0].project_type == wanted]
     menu = ""
     if len(present) > 1:
         extra = f"&amp;{keep}" if keep else ""
@@ -579,11 +580,13 @@ def _works(
         return image if feed else f'<span class="frame">{image}</span>'
 
     cards = "".join(
-        f'<li><a href="{link(entry)}">{cover(photos[0])}'
+        f'<li{"" if wanted in (None, entry.project_type) else " hidden"} '
+        f'data-type="{escape(entry.project_type or "")}">'
+        f'<a href="{link(entry)}">{cover(photos[0])}'
         f'<span class="title">{_title(entry.title)}</span>'
         + (f'<span class="meta">{escape(_about(entry))}</span>' if _about(entry) else "")
         + "</a></li>"
-        for entry, photos in shown
+        for entry, photos in works
     )
     return (
         f'<section class="projects wrap" id="projetos" aria-labelledby="works">'
