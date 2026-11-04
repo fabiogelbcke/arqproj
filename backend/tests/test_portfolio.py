@@ -22,6 +22,17 @@ JPEG = b"\xff\xd8\xff" + b"\x01" * 64
 UNIO = {"host": "localhost"}
 
 
+def png(width: int, height: int) -> bytes:
+    """A real image, so the server can read its size (JPEG above is a stub it can't)."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (width, height), "white").save(buffer, "PNG")
+    return buffer.getvalue()
+
+
 async def switch_on(db, slug="alinea"):
     await db.execute(
         text("UPDATE tenants SET features = features || '{portfolio}' WHERE slug = :s"),
@@ -403,6 +414,70 @@ async def test_the_menu_shows_the_works_of_one_type(client, staff):
     assert one.count('class="slide"') == 3  # the carousel shows them all still
     nonsense = (await client.get("/?tipo=castle", headers=ALINEA)).text
     assert all(title in grid(nonsense) for title in ("Casa Jardim", "Apto Mar", "Loja"))
+
+
+async def test_a_photos_pixel_size_is_recorded_when_the_file_can_be_read(client, staff, db_session):
+    entry = await add(client, staff)
+    sent = await photo(client, staff, entry, content=png(300, 500), name="post.png")
+    assert sent.status_code == 200, sent.text
+    assert (await photo(client, staff, entry)).status_code == 200  # the stub: stored, unsized
+    sizes = await db_session.execute(
+        text("SELECT width, height FROM portfolio_photos ORDER BY position")
+    )
+    assert sizes.all() == [(300, 500), (None, None)]
+
+
+async def test_an_upright_cover_stands_whole_on_a_blurred_copy_instead_of_cropped(client, staff):
+    """A story or a post as a cover of the "works" format: the carousel and the
+    hero show it whole, over a blurred copy of itself; a landscape cover fills them."""
+    story = await add(client, staff, title="Story")
+    await photo(client, staff, story, content=png(90, 160), name="story.png")
+    wide = await add(client, staff, title="Casa")
+    await photo(client, staff, wide, content=png(160, 90), name="casa.png")
+    await publish(client, staff)
+    client.cookies.clear()
+
+    home = (await client.get("/", headers=ALINEA)).text
+    slides = home.split('<li class="slide')[1:]
+    assert slides[0].startswith(' tall"') and slides[0].count('class="backdrop"') == 1
+    assert slides[1].startswith('"') and "backdrop" not in slides[1]
+    upright = (await client.get(f"/?projeto={story['id']}", headers=ALINEA)).text
+    assert '<header class="hero tall">' in upright and upright.count('class="backdrop"') == 1
+    landscape = (await client.get(f"/?projeto={wide['id']}", headers=ALINEA)).text
+    assert '<header class="hero">' in landscape and "backdrop" not in landscape
+
+
+async def test_the_feed_format_shows_every_image_in_its_own_shape(client, staff):
+    """For material made for the networks: no carousel, hero or frame; a mosaic of
+    covers, and a work as a column of its images under its title. Each image's
+    size is in its tag, so the page keeps its shape while loading."""
+    changed = await client.patch("/api/portfolio", json={"format": "feed"}, headers=staff)
+    assert (changed.status_code, changed.json()["format"]) == (200, "feed"), changed.text
+    assert (await client.get("/api/portfolio", headers=staff)).json()["format"] == "feed"
+    nonsense = await client.patch("/api/portfolio", json={"format": "grid"}, headers=staff)
+    assert nonsense.status_code == 422
+    post = await add(client, staff, title="Post", project_type="architecture")
+    await photo(client, staff, post, content=png(1080, 1350), name="post.png")
+    await photo(client, staff, post, content=png(1080, 1080), name="square.png")
+    other = await add(client, staff, title="Loja", project_type="interiors")
+    await photo(client, staff, other, content=png(1080, 1920), name="story.png")
+    await publish(client, staff)
+    client.cookies.clear()
+
+    home = (await client.get("/", headers=ALINEA)).text
+    assert 'class="carousel"' not in home and 'class="works"' not in home
+    mosaic = home.split('class="feed"')[1].split("</ul>")[0]
+    assert mosaic.count("<li>") == 2 and 'width="1080" height="1350"' in mosaic
+    assert 'class="frame"' not in mosaic  # no fixed frame: the image's own shape
+    assert '<a href="/?tipo=interiors#projetos">Interiores</a>' in home  # the menu stays
+
+    work = (await client.get(f"/?projeto={post['id']}", headers=ALINEA)).text
+    assert 'class="hero' not in work and '<header class="post-head wrap">' in work
+    assert "<h1>Post</h1>" in work
+    posts = work.split('class="posts"')[1].split("</ul>")[0]
+    assert posts.count("<li>") == 2  # the cover among them, not above
+    assert 'width="1080" height="1350"' in posts and 'width="1080" height="1080"' in posts
+    assert 'class="lightbox"' in work  # each still opens large
 
 
 async def test_with_a_single_type_there_is_no_menu(client, staff):

@@ -91,3 +91,4 @@
   .kicker { display: none; }
   .thumb { width: 72px; }
 }
+.format { display: grid; gap: 8px; justify-items: start; }

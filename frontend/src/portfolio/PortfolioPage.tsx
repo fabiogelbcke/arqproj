@@ -9,6 +9,7 @@ import { Link, useNavigate } from "react-router";
 import { plain, useProjects, type ProjectSummary } from "../projects/projects";
 import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
+import { ChipGroup } from "../ui/ChipGroup";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
@@ -20,6 +21,7 @@ import { TextAreaField, TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import { ToggleSwitch } from "../ui/ToggleSwitch";
 import {
+  FORMATS,
   LIMITS,
   NETWORKS,
   moved,
@@ -69,7 +71,7 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
   const save = useSavePortfolio();
   const [intro, setIntro] = useState(portfolio.intro);
   const shown = portfolio.entries.some((entry) => entry.photos.length > 0);
-  const change = (body: { published?: boolean; intro?: string }, done: string) =>
+  const change = (body: { published?: boolean; intro?: string; format?: Portfolio["format"] }, done: string) =>
     save.mutate(body, { onSuccess: () => toast(done), onError: (failure) => toastError(failure) });
   return (
     <Panel className={styles.section} aria-labelledby="portfolio-publishing">
@@ -91,6 +93,19 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
         </a>
       </p>
       {portfolio.published && !shown && <p className={styles.warning}>{t("portfolio.nothingShown")}</p>}
+      <div className={styles.format}>
+        <span id="portfolio-format" className={styles.switchLabel}>
+          {t("portfolio.format")}
+        </span>
+        <ChipGroup
+          segmented
+          label={t("portfolio.format")}
+          chips={FORMATS.map((format) => ({ id: format, label: t(`portfolio.formats.${format}`) }))}
+          value={portfolio.format}
+          onChange={(format) => change({ format: format as Portfolio["format"] }, t("portfolio.saved"))}
+        />
+        <p className={styles.hint}>{t(`portfolio.formatHint.${portfolio.format}`)}</p>
+      </div>
       <TextAreaField
         label={t("portfolio.intro")}
         description={t("portfolio.introHint")}

@@ -75,18 +75,33 @@ class SocialNetwork(StrEnum):
     TIKTOK = "tiktok"
 
 
+class PortfolioFormat(StrEnum):
+    """How the public page lays the works out. WORKS: one landscape cover per
+    work, a carousel and a work's page opening on its cover, as architecture
+    sites do. FEED: every image in its own shape, square or upright, as the
+    networks show them: for an office whose material is what it made for its
+    posts, stories and reels."""
+
+    WORKS = "works"
+    FEED = "feed"
+
+
 class Portfolio(IdMixin, TimestampsMixin, TenantOwned, Base):
-    """The page's settings: whether the office's address shows it, its text and
-    the office's profiles on social networks."""
+    """The page's settings: whether the office's address shows it, its format,
+    its text and the office's profiles on social networks."""
 
     __tablename__ = "portfolios"
     __table_args__ = (
         UniqueConstraint("tenant_id", name="uq_portfolios_tenant_id"),
+        enum_check("format", PortfolioFormat),
         CheckConstraint(f"length(intro) <= {INTRO_MAX}", name="intro_length"),
         CheckConstraint("jsonb_typeof(links) = 'object'", name="links_object"),
     )
 
     published: Mapped[bool] = mapped_column(default=False)
+    format: Mapped[PortfolioFormat] = mapped_column(
+        TextEnum(PortfolioFormat), default=PortfolioFormat.WORKS, server_default=text("'works'")
+    )
     intro: Mapped[str] = mapped_column(Text, default="")
     # {network: profile address} (SocialNetwork), checked by backend/portfolio/links.py.
     links: Mapped[dict[str, str]] = mapped_column(
@@ -152,6 +167,7 @@ class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
         ),
         CheckConstraint("position >= 1", name="position_positive"),
         enum_check("image_type", CoverType),
+        CheckConstraint("width > 0 AND height > 0", name="size_positive"),
     )
 
     entry_id: Mapped[uuid.UUID] = mapped_column(index=True)
@@ -159,6 +175,10 @@ class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
     # In the office's storage: a Drive file id, or a path in the local folder.
     file_id: Mapped[str] = mapped_column(Text)
     image_type: Mapped[CoverType] = mapped_column(TextEnum(CoverType))
+    # Pixels, read from the file when added, so the page lays the photo out at
+    # its shape before it loads; None when the file couldn't be read.
+    width: Mapped[int | None] = mapped_column()
+    height: Mapped[int | None] = mapped_column()
 
 
 class PortfolioVideo(IdMixin, CreatedAtMixin, TenantOwned, Base):
@@ -177,6 +197,7 @@ class PortfolioVideo(IdMixin, CreatedAtMixin, TenantOwned, Base):
         CheckConstraint("position >= 1", name="position_positive"),
         enum_check("video_type", VideoType),
         enum_check("poster_type", CoverType),
+        CheckConstraint("width > 0 AND height > 0", name="size_positive"),
     )
 
     entry_id: Mapped[uuid.UUID] = mapped_column(index=True)
@@ -186,3 +207,6 @@ class PortfolioVideo(IdMixin, CreatedAtMixin, TenantOwned, Base):
     video_type: Mapped[VideoType] = mapped_column(TextEnum(VideoType))
     poster_file_id: Mapped[str] = mapped_column(Text)
     poster_type: Mapped[CoverType] = mapped_column(TextEnum(CoverType))
+    # The poster's pixels, the video's own shape (a 9:16 story is upright).
+    width: Mapped[int | None] = mapped_column()
+    height: Mapped[int | None] = mapped_column()
