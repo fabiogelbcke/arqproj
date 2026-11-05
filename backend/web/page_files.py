@@ -292,17 +292,18 @@ def _entry(
     return shown
 
 
-def _note_visible(visible: dict, entry, position: int) -> None:
-    """Each file the page shows, older versions too: (stage, name, version,
-    comparison). A comparison's files all go by its title, as its card does."""
+def _note_visible(visible: dict, entry, position: int, folder: str) -> None:
+    """Each file the page shows, older versions too: (stage, name, version, and
+    for a comparison's files its folder). They all go by its title, as its card
+    does; the folder tells apart two comparisons of one title in two sections."""
     if isinstance(entry, comparisons.Comparison):
         for side in (entry.before, entry.after):
             for _number, item in side.versions:
-                visible.setdefault(item.identity, (position, entry.title, None, True))
+                visible.setdefault(item.identity, (position, entry.title, None, folder))
         return
     for number, item in entry.versions:
         version = number if entry.version is not None else None
-        visible.setdefault(item.identity, (position, entry.name, version, False))
+        visible.setdefault(item.identity, (position, entry.name, version, None))
 
 
 async def _storage(request: Request, db: AsyncSession):
@@ -393,7 +394,7 @@ async def page_files(
             ):
                 entries = comparisons.pair(versions.group(files), _is_image)
                 for entry in entries:
-                    _note_visible(visible, entry, position)
+                    _note_visible(visible, entry, position, parent)
                 shown.groups.append(
                     GroupOut(
                         folder=group,
@@ -454,11 +455,12 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
     updates = []
     counted = set()  # the notes, advance and meeting already listed
     async for event in events:  # until 30 survive the filtering, however many it takes
-        position, name, version, comparison = event.stage_position, None, None, False
+        # `compared`: the folder of the comparison a file is in (A46), if it is in one.
+        position, name, version, compared = event.stage_position, None, None, None
         if event.kind is EventKind.FILE_PUBLISHED:
             if event.item_id not in visible:
                 continue
-            position, name, version, comparison = visible[event.item_id]
+            position, name, version, compared = visible[event.item_id]
         elif event.stage_id is not None:
             if event.stage_id not in positions:
                 continue  # its stage was removed
@@ -479,8 +481,8 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
             once = "completed"
         elif event.kind is not EventKind.FILE_PUBLISHED:
             once = "meeting"  # the latest change says what the meeting is now
-        elif comparison:
-            once = ("comparison", position, name)  # its two images are one entry, as one card
+        elif compared:
+            once = ("comparison", compared, name)  # its two images are one entry, as one card
         else:
             once = None
         if once is not None:
@@ -497,7 +499,7 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
                 stage_position=position,
                 name=name,
                 version=version,
-                comparison=comparison or None,
+                comparison=True if compared else None,
             )
         )
         if len(updates) == UPDATES_SHOWN:

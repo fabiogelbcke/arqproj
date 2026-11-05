@@ -95,6 +95,20 @@ async def test_a_new_comparison_is_one_entry_in_the_updates(app, client, owner, 
     ]
 
 
+async def test_two_comparisons_of_one_title_in_two_sections_are_two_updates(
+    app, client, owner, folders
+):
+    from backend.tests.test_maintenance_scan import run
+
+    await run(app)  # notes what's there
+    (folders / "01 - Briefing" / "Renders").mkdir()
+    await upload(client, owner)
+    await upload(client, owner, folder="Renders")
+    await run(app)
+    updates = (await client.get("/api/pages/casa-jardim/files", headers=ALINEA)).json()["updates"]
+    assert [(u["name"], u["comparison"]) for u in updates] == [("Cozinha", True)] * 2
+
+
 # -- "Comparação antes e depois" --------------------------------------------------------
 
 
