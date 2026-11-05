@@ -21,6 +21,14 @@
 .save { justify-self: start; }
 .switchLabel { font-weight: 500; }
 .pair { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: start; }
+/* The rest of a work's words, folded: open when any of it is filled in. */
+.more { border-top: 1px solid var(--line); padding-top: 12px; }
+.more summary { display: grid; gap: 2px; cursor: pointer; font-weight: 500; list-style: none; }
+.more summary::-webkit-details-marker { display: none; }
+.more summary > span:first-child::before { content: "+ "; color: var(--muted); }
+.more[open] summary > span:first-child::before { content: "− "; }
+.more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 4px; }
+.moreBody { display: grid; gap: 16px; padding-top: 16px; }
 .sheet { display: grid; gap: 10px; }
 .sheetRows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .sheetRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }

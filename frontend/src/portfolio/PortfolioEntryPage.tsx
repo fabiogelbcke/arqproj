@@ -68,8 +68,8 @@ export function PortfolioEntryPage() {
         </p>
       ) : (
         <>
-          <Details key={entry.id} entry={entry} />
           <Photos entry={entry} />
+          <Details key={entry.id} entry={entry} />
           <Videos entry={entry} />
         </>
       )}
@@ -77,9 +77,14 @@ export function PortfolioEntryPage() {
   );
 }
 
+/** The work's words: its title, the one text the portfolio needs, and the rest
+ *  (type, place, year, status, sheet, description, credits) folded under "Mais
+ *  informações", open when anything there is filled in. */
 function Details({ entry }: { entry: Entry }) {
   const { t } = useTranslation();
   const change = useChangeEntry();
+  const hasMore =
+    !!entry.place || !!entry.year || !!entry.description || !!entry.project_type || !!entry.status || !!entry.credits || entry.details.length > 0;
   const [title, setTitle] = useState(entry.title);
   const [place, setPlace] = useState(entry.place);
   const [year, setYear] = useState(entry.year ? String(entry.year) : "");
@@ -106,63 +111,78 @@ function Details({ entry }: { entry: Entry }) {
     <Panel className={styles.section} aria-labelledby="portfolio-details">
       <h2 id="portfolio-details">{t("portfolio.details")}</h2>
       {entry.project_name && <p className={styles.hint}>{t("portfolio.linked", { name: entry.project_name })}</p>}
-      <TextField label={t("portfolio.titleLabel")} value={title} onChange={setTitle} maxLength={LIMITS.title} isRequired />
-      <div>
-        <SelectField
-          label={t("portfolio.type")}
-          value={kind}
-          options={[
-            { value: "", label: t("portfolio.typeNone") },
-            ...types.map((type) => ({ value: type.key, label: t(`portfolio.types.${type.key}`, type.label) })),
-          ]}
-          onChange={setKind}
-        />
-        <p className={styles.hint}>{t("portfolio.typeHint")}</p>
-      </div>
-      <div className={styles.pair}>
-        <TextField
-          label={t("portfolio.place")}
-          placeholder={t("portfolio.placePlaceholder")}
-          value={place}
-          onChange={setPlace}
-          maxLength={LIMITS.place}
-        />
-        <TextField
-          label={t("portfolio.year")}
-          placeholder="2025"
-          inputMode="numeric"
-          value={year}
-          onChange={setYear}
-          isInvalid={!yearOk}
-          validate={() => (yearOk ? null : t("portfolio.yearInvalid"))}
-          validationBehavior="aria"
-        />
-      </div>
-      <SelectField
-        label={t("portfolio.status")}
-        value={status}
-        options={[
-          { value: "", label: t("portfolio.statusNone") },
-          ...STATUSES.map((value) => ({ value, label: t(`portfolio.statuses.${value}`) })),
-        ]}
-        onChange={setStatus}
-      />
-      <Sheet lines={sheet} onChange={setSheet} />
-      <TextAreaField
-        label={t("portfolio.description")}
-        description={t("portfolio.descriptionHint")}
-        value={description}
-        onChange={setDescription}
-        maxLength={LIMITS.description}
-        rows={5}
-      />
       <TextField
-        label={t("portfolio.credits")}
-        placeholder={t("portfolio.creditsPlaceholder")}
-        value={credits}
-        onChange={setCredits}
-        maxLength={LIMITS.credits}
+        label={t("portfolio.titleLabel")}
+        description={t("portfolio.titleHint")}
+        value={title}
+        onChange={setTitle}
+        maxLength={LIMITS.title}
+        isRequired
       />
+      <details className={styles.more} open={hasMore}>
+        <summary>
+          <span>{t("portfolio.more")}</span>
+          <span className={styles.hint}>{t("portfolio.moreHint")}</span>
+        </summary>
+        <div className={styles.moreBody}>
+          <div>
+            <SelectField
+              label={t("portfolio.type")}
+              value={kind}
+              options={[
+                { value: "", label: t("portfolio.typeNone") },
+                ...types.map((type) => ({ value: type.key, label: t(`portfolio.types.${type.key}`, type.label) })),
+              ]}
+              onChange={setKind}
+            />
+            <p className={styles.hint}>{t("portfolio.typeHint")}</p>
+          </div>
+          <div className={styles.pair}>
+            <TextField
+              label={t("portfolio.place")}
+              placeholder={t("portfolio.placePlaceholder")}
+              value={place}
+              onChange={setPlace}
+              maxLength={LIMITS.place}
+            />
+            <TextField
+              label={t("portfolio.year")}
+              placeholder="2025"
+              inputMode="numeric"
+              value={year}
+              onChange={setYear}
+              isInvalid={!yearOk}
+              validate={() => (yearOk ? null : t("portfolio.yearInvalid"))}
+              validationBehavior="aria"
+            />
+          </div>
+          <SelectField
+            label={t("portfolio.status")}
+            value={status}
+            options={[
+              { value: "", label: t("portfolio.statusNone") },
+              ...STATUSES.map((value) => ({ value, label: t(`portfolio.statuses.${value}`) })),
+            ]}
+            onChange={setStatus}
+          />
+          <Sheet lines={sheet} onChange={setSheet} />
+          <TextAreaField
+            label={t("portfolio.description")}
+            description={t("portfolio.descriptionHint")}
+            value={description}
+            onChange={setDescription}
+            maxLength={LIMITS.description}
+            rows={5}
+          />
+          <TextField
+            label={t("portfolio.credits")}
+            placeholder={t("portfolio.creditsPlaceholder")}
+            value={credits}
+            onChange={setCredits}
+            maxLength={LIMITS.credits}
+          />
+        </div>
+      </details>
       <Button
         size="small"
         className={styles.save}

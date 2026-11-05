@@ -19,6 +19,36 @@ a new entry too.
 
 ---
 
+## 2026-11-05 — A45: the images are the portfolio's page; a work's words come after its photos
+
+**Was:** the home opened on a full-width carousel of the first eight covers
+with their type, title, place and year, then the office's opening text, then a
+"Projetos" heading and a grid of covers each captioned with its title, type,
+place and year. A work's page opened on its cover at two thirds of the screen,
+with its sheet and text right under it and the other photos as small
+thumbnails after them. In the painel a work's editor opened on eight text
+fields, the photos below.
+
+**Now:** the home is the grid, from the first screen: covers with thin gaps,
+nothing written under them, a title shown over its cover under the pointer
+(always on a phone); the opening text after the grid as "Escritório"; no
+carousel. A work opens in a layer over the grid (its page fetched by
+`portfolio.js`, the address following, the back button, × or Escape closing
+it back to the same place in the grid), and that page is its photos large,
+one after the other, the type, title, place and year over the first, with the
+sheet, text and credits only after the photos under "Sobre o projeto". The
+editor is the photos first, then the title, with the rest folded under "Mais
+informações".
+
+**Why:** Fabio, 5 Nov 2026: "less text on the screen and focused pretty much
+only on images", with two PDF portfolios (a full-bleed render per page, a small
+title over it) and Rojkind's work grid (uniform covers, no captions, the types
+as plain tabs) as the references, and "with the image focus it should make
+creation very simple too". Chosen over its own page for the work ("opens
+something where you can scroll through photos") so the grid stays where it
+was; over always-visible titles (Fabio picked "only on hover"). The title is
+the one text a work needs, so it is the one text asked for.
+
 ## 2026-11-04 — A45: a work's sheet is a list of details, with the office's own labels
 
 **Was:** a work's sheet had three fixed lines: area in m², status, and team, each

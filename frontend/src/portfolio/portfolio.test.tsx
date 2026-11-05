@@ -102,7 +102,7 @@ describe("the Portfólio tab", () => {
     // Each format is a card: its name, what it is for, and a drawing of its layout.
     const cards = within(formats).getAllByRole("radio");
     expect(cards.map((card) => card.closest("label")?.textContent)).toEqual([
-      "GaleriaCapa grande e carrossel: para fotos de arquitetura na horizontal.",
+      "GaleriaCapas na horizontal, no mesmo quadro; cada projeto em fotos grandes, uma após a outra.",
       "MosaicoCada imagem no formato original, sem capa grande: para o material feito para posts, stories e reels.",
     ]);
     expect(cards.map((card) => card.closest("label")?.querySelector("svg") !== null)).toEqual([true, true]);
@@ -156,6 +156,27 @@ describe("the Portfólio tab", () => {
 });
 
 describe("a work's editor", () => {
+  it("opens on the photos, asks for the title, and folds the rest away until something is there", async () => {
+    const bare = { ...PORTFOLIO, entries: [entry({ place: "", year: null, project_type: null, project_id: null })] };
+    api({ ...NO_TYPES, "GET /api/portfolio": () => ({ body: bare }) });
+    renderAt("/portfolio/e-1"); // a bare work: nothing but its title and a photo
+    const title = await screen.findByLabelText("Título");
+    const photos = screen.getByRole("region", { name: /^Fotos/ });
+    expect(photos.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const more = screen.getByText("Mais informações").closest("details")!;
+    expect(more.open).toBe(false);
+    await userEvent.click(screen.getByText("Mais informações"));
+    expect(more.open).toBe(true);
+    expect(screen.getByLabelText("Local")).toHaveValue("");
+  });
+
+  it("shows the rest unfolded where the work already has some of it", async () => {
+    api({ ...NO_TYPES });
+    renderAt("/portfolio/e-1"); // a place, a year and a type
+    await screen.findByLabelText("Título");
+    expect(screen.getByText("Mais informações").closest("details")!.open).toBe(true);
+  });
+
   it("files the work under a type, for the public page's menu", async () => {
     const sent = api({
       "GET /api/project-types": () => ({

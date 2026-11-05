@@ -65,20 +65,22 @@ export function PortfolioPage() {
   );
 }
 
-// A small drawing of how a format lays the page out: the gallery's wide cover
-// and carousel over a row of framed covers; the mosaic's images in their own
-// shapes, in columns.
+// A small drawing of how a format lays the page out: the gallery's covers in
+// one landscape frame, in rows; the mosaic's images in their own shapes, in
+// columns.
 function FormatSketch({ format }: { format: Portfolio["format"] }) {
   const blocks =
     format === "gallery"
       ? [
-          [6, 6, 108, 34],
-          [6, 48, 34, 18],
-          [43, 48, 34, 18],
-          [80, 48, 34, 18],
-          [6, 70, 18, 3],
-          [43, 70, 18, 3],
-          [80, 70, 18, 3],
+          [6, 6, 34, 26],
+          [43, 6, 34, 26],
+          [80, 6, 34, 26],
+          [6, 36, 34, 26],
+          [43, 36, 34, 26],
+          [80, 36, 34, 26],
+          [6, 66, 34, 8],
+          [43, 66, 34, 8],
+          [80, 66, 34, 8],
         ]
       : [
           [6, 6, 34, 26],
