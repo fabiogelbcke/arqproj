@@ -45,6 +45,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.analytics import capture
 from backend.db.engine import get_tenant_session
+from backend.documents.comparisons import LABEL_MAX as COMPARISON_LABEL_MAX
 from backend.identity.models import User
 from backend.portfolio.links import profile
 from backend.portfolio.models import (
@@ -121,9 +122,19 @@ def _switched_on(tenant: CurrentTenant = Depends(current_tenant)) -> None:
 router = APIRouter(prefix="/api", dependencies=[Depends(_switched_on)])
 
 
+class PhotoComparisonOut(BaseModel):
+    """A "before" photo's comparison (A46): its "after" photo, and the slider's
+    words for each side (None: the page's own, "Antes" and "Depois")."""
+
+    after: uuid.UUID
+    before_label: str | None
+    after_label: str | None
+
+
 class PhotoOut(BaseModel):
     id: uuid.UUID
     url: str
+    comparison: PhotoComparisonOut | None = None
 
 
 class VideoOut(BaseModel):
@@ -285,7 +296,9 @@ def _label(labels: dict[str, str], locale: Locale) -> str:
     return labels.get(locale.value) or labels[Locale.PT_BR.value]
 
 
-async def _out(db: AsyncSession, locale: Locale) -> PortfolioOut:
+async def _out(db: AsyncSession, tenant: CurrentTenant) -> PortfolioOut:
+    locale = tenant.locale
+    compare = tenant.has(Feature.BEFORE_AFTER)  # switched off (A40): no comparisons shown
     found = await db.scalar(select(Portfolio))
     works = await entries_with_photos(db)
     videos = await videos_by_entry(db)
@@ -323,11 +336,42 @@ async def _out(db: AsyncSession, locale: Locale) -> PortfolioOut:
                 ],
                 project_id=entry.project_id,
                 project_name=names.get(entry.project_id),
-                photos=[PhotoOut(id=photo.id, url=photo_url(photo)) for photo in photos],
+                photos=[_photo_out(photo, compare) for photo in photos],
             )
             for entry, photos in works
         ],
     )
+
+
+def _photo_out(photo: PortfolioPhoto, compare: bool) -> PhotoOut:
+    comparison = (
+        PhotoComparisonOut(
+            after=photo.compare_photo_id,
+            before_label=photo.before_label,
+            after_label=photo.after_label,
+        )
+        if compare and photo.compare_photo_id
+        else None
+    )
+    return PhotoOut(id=photo.id, url=photo_url(photo), comparison=comparison)
+
+
+def compared(
+    photos: list[PortfolioPhoto], compare: bool = True
+) -> tuple[list[PortfolioPhoto], dict]:
+    """A work's photos as its page shows them (A46): each "after" photo left out,
+    shown with its "before" one; with each "before" photo's id, its "after".
+    Switched off (A40, `compare` false), every photo shows on its own."""
+    if not compare:
+        return photos, {}
+    by_id = {photo.id: photo for photo in photos}
+    pairs = {
+        photo.id: by_id[photo.compare_photo_id]
+        for photo in photos
+        if photo.compare_photo_id in by_id
+    }
+    afters = {after.id for after in pairs.values()}
+    return [photo for photo in photos if photo.id not in afters], pairs
 
 
 async def _portfolio(db: AsyncSession) -> Portfolio:
@@ -512,7 +556,7 @@ async def portfolio(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.patch("/portfolio", responses=documented(401, 422))
@@ -535,7 +579,7 @@ async def change_portfolio(
         found.published = body.published
         capture(request, "portfolio_published" if body.published else "portfolio_unpublished")
     await db.commit()
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.post("/portfolio/entries", responses=documented(401, 404, 409, 422))
@@ -581,7 +625,7 @@ async def add_entry(
         db.add(detail)
     await db.commit()
     capture(request, "portfolio_entry_added", {"from_project": body.project_id is not None})
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.patch("/portfolio/entries/{entry_id}", responses=documented(401, 404, 409, 422))
@@ -624,7 +668,7 @@ async def change_entry(
         for position, item_id in enumerate(wanted, start=1):
             by_id[item_id].position = position
     await db.commit()
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.delete("/portfolio/entries/{entry_id}", responses=documented(401, 404))
@@ -651,7 +695,7 @@ async def remove_entry(
     await db.commit()
     await _trash(request, db, files)
     capture(request, "portfolio_entry_removed")
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.put("/portfolio/order", responses=documented(401, 409, 422))
@@ -668,7 +712,7 @@ async def order_entries(
     for position, entry_id in enumerate(body.entries, start=1):
         entries[entry_id].position = position
     await db.commit()
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 def _image_size(content: bytes) -> tuple[int, int] | tuple[None, None]:
@@ -750,7 +794,7 @@ async def add_photo(
     db.add(photo)
     await db.commit()
     capture(request, "portfolio_photo_added")
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.delete("/portfolio/photos/{photo_id}", responses=documented(401, 404))
@@ -768,7 +812,59 @@ async def remove_photo(
     await db.execute(delete(PortfolioPhoto).where(PortfolioPhoto.id == photo_id))
     await db.commit()
     await _trash(request, db, [file_id])
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
+
+
+def _label_text(label: str | None) -> str | None:
+    """A slider's word as typed, on one line; empty is none. (Kept in its own
+    column, unlike a project's, which is part of a file name.)"""
+    return " ".join((label or "").split()) or None
+
+
+class PhotoComparisonIn(BaseModel):
+    # The work's photo to compare this one with, as its "after"; None: no comparison.
+    after: uuid.UUID | None
+    before_label: str | None = Field(default=None, max_length=COMPARISON_LABEL_MAX)
+    after_label: str | None = Field(default=None, max_length=COMPARISON_LABEL_MAX)
+
+
+@router.put("/portfolio/photos/{photo_id}/comparison", responses=documented(401, 404, 409))
+async def compare_photo(
+    request: Request,
+    photo_id: uuid.UUID,
+    body: PhotoComparisonIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """ "Antes e depois": this photo, the "before", with another of the work's
+    photos, the "after", on one slider (A46). Each photo is in one comparison at
+    most, as one side; asking again with another photo or labels changes it."""
+    if not tenant.has(Feature.BEFORE_AFTER):
+        raise ApiError(409, ErrorCode.FEATURE_OFF)
+    await _portfolio(db)  # locked: two staff pairing the same photos wait in turn
+    photo = await db.scalar(select(PortfolioPhoto).where(PortfolioPhoto.id == photo_id))
+    if photo is None:
+        raise ApiError(404, ErrorCode.PORTFOLIO_ENTRY_NOT_FOUND)
+    if body.after is not None:
+        same_work = select(PortfolioPhoto).where(PortfolioPhoto.entry_id == photo.entry_id)
+        photos = (await db.scalars(same_work)).all()
+        after = next((other for other in photos if other.id == body.after), None)
+        if after is None or after.id == photo.id:
+            raise ApiError(404, ErrorCode.PORTFOLIO_ENTRY_NOT_FOUND)  # another work's, or gone
+        busy = {other.compare_photo_id for other in photos if other.id != photo.id}
+        if (
+            photo.id in busy  # this one is already another photo's "after"
+            or after.id in busy  # that one is already another photo's "after"
+            or after.compare_photo_id is not None  # that one is a "before" already
+        ):
+            raise ApiError(409, ErrorCode.PORTFOLIO_PHOTO_COMPARED)
+    photo.compare_photo_id = body.after
+    photo.before_label = _label_text(body.before_label) if body.after else None
+    photo.after_label = _label_text(body.after_label) if body.after else None
+    await db.commit()
+    capture(request, "portfolio_comparison_set" if body.after else "portfolio_comparison_removed")
+    return await _out(db, tenant)
 
 
 @router.get("/portfolio/photos/{photo_id}", include_in_schema=False)
@@ -954,7 +1050,7 @@ async def add_video(
     db.add(video)
     await db.commit()
     capture(request, "portfolio_video_added", {"bytes": sent.size})
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.delete("/portfolio/videos/{video_id}", responses=documented(401, 404))
@@ -972,7 +1068,7 @@ async def remove_video(
     await db.execute(delete(PortfolioVideo).where(PortfolioVideo.id == video_id))
     await db.commit()
     await _trash(request, db, files)
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 async def _shown_video(

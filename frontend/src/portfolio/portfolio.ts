@@ -126,6 +126,13 @@ export const useRemoveEntry = () =>
 export const useOrderEntries = () =>
   useChange((entries: string[]) => call(api.PUT("/api/portfolio/order", { body: { entries } })));
 
+/** "Antes e depois" (A46): a photo, the "before", with another of the work's
+ *  photos as its "after"; `after: null` undoes it. */
+export const useComparePhoto = () =>
+  useChange(({ photo, ...body }: Schemas["PhotoComparisonIn"] & { photo: string }) =>
+    call(api.PUT("/api/portfolio/photos/{photo_id}/comparison", { params: { path: { photo_id: photo } }, body })),
+  );
+
 export const useRemovePhoto = () =>
   useChange((id: string) => call(api.DELETE("/api/portfolio/photos/{photo_id}", { params: { path: { photo_id: id } } })));
 

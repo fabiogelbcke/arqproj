@@ -4,16 +4,54 @@
 const modified = (event) => event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0;
 
 // A work's photos and videos open large over the page, one after another with
-// the arrows, the keyboard or a swipe; a video plays only here. Without this
-// script each link opens the photo or the video alone. `root` is the page, or
-// a work loaded into the layer below.
+// the arrows, the keyboard or a swipe; a video plays only here, and a
+// before-and-after comparison (A46) on its slider. Without this script each
+// link opens the photo or the video alone (a comparison, its "before" photo).
+// `root` is the page, or a work loaded into the layer below.
 const wireLightbox = (root) => {
   const lightbox = root.querySelector(".lightbox");
   if (!lightbox || !lightbox.showModal) return;
   const links = [...root.querySelectorAll("a.zoom")];
-  const image = lightbox.querySelector("img");
+  const image = lightbox.querySelector(":scope > img");
   const video = lightbox.querySelector("video");
   const count = lightbox.querySelector(".count");
+  const compare = lightbox.querySelector(".compare");
+  const handle = compare.querySelector(".handle");
+  const before = compare.querySelector("img.before");
+  const after = compare.querySelector("img.after");
+  // The handle's place, in % from the left: the "before" photo shows up to it.
+  const slide = (at) => {
+    const kept = Math.round(Math.min(100, Math.max(0, at)));
+    compare.style.setProperty("--at", `${kept}%`);
+    handle.setAttribute("aria-valuenow", String(kept));
+    handle.setAttribute("aria-valuetext", `${kept}% ${compare.dataset.before}, ${100 - kept}% ${compare.dataset.after}`);
+  };
+  const point = (x) => {
+    const box = compare.getBoundingClientRect();
+    if (box.width) slide(((x - box.left) / box.width) * 100);
+  };
+  compare.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    compare.setPointerCapture(event.pointerId);
+    point(event.clientX);
+  });
+  compare.addEventListener("pointermove", (event) => {
+    if (compare.hasPointerCapture(event.pointerId)) point(event.clientX);
+  });
+  handle.addEventListener("keydown", (event) => {
+    const now = Number(handle.getAttribute("aria-valuenow"));
+    const step = event.shiftKey ? 20 : 5;
+    const to = { ArrowLeft: now - step, ArrowDown: now - step, ArrowRight: now + step, ArrowUp: now + step, Home: 0, End: 100 }[event.key];
+    if (to === undefined) return;
+    event.preventDefault();
+    event.stopPropagation(); // the handle's arrows, not the next photo
+    slide(to);
+  });
+  // Both photos fill the "before" photo's shape, so they line up.
+  before.addEventListener("load", () => {
+    if (before.naturalWidth && before.naturalHeight)
+      compare.style.setProperty("--shape", String(before.naturalWidth / before.naturalHeight));
+  });
   let shown = 0;
   const stopVideo = () => {
     video.pause();
@@ -26,10 +64,23 @@ const wireLightbox = (root) => {
     const link = links[shown];
     const label = link.querySelector("img:not(.backdrop)")?.alt ?? "";
     const film = link.classList.contains("film");
+    const pair = link.dataset.after;
     stopVideo();
-    image.hidden = film;
+    image.hidden = film || !!pair;
     video.hidden = !film;
-    if (film) {
+    compare.hidden = !pair;
+    if (pair) {
+      image.removeAttribute("src");
+      compare.style.removeProperty("--shape");
+      before.src = link.href;
+      before.alt = label;
+      after.src = pair;
+      compare.dataset.before = link.dataset.beforeLabel;
+      compare.dataset.after = link.dataset.afterLabel;
+      compare.querySelector(".side.before").textContent = link.dataset.beforeLabel;
+      compare.querySelector(".side.after").textContent = link.dataset.afterLabel;
+      slide(50);
+    } else if (film) {
       image.removeAttribute("src");
       video.poster = link.dataset.poster;
       video.src = link.href;
@@ -64,8 +115,9 @@ const wireLightbox = (root) => {
   });
   let start = null;
   lightbox.addEventListener("touchstart", (event) => {
-    // On a video a swipe may be its timeline being dragged: the arrows move on.
-    start = event.target === video ? null : event.touches[0].clientX;
+    // On a video a swipe may be its timeline being dragged, and on a comparison
+    // it moves the slider: the arrows move on.
+    start = event.target === video || compare.contains(event.target) ? null : event.touches[0].clientX;
   }, { passive: true });
   lightbox.addEventListener("touchend", (event) => {
     const moved = start === null ? 0 : event.changedTouches[0].clientX - start;
@@ -75,6 +127,8 @@ const wireLightbox = (root) => {
   lightbox.addEventListener("close", () => {
     stopVideo();
     image.removeAttribute("src");
+    before.removeAttribute("src");
+    after.removeAttribute("src");
   });
 };
 wireLightbox(document);

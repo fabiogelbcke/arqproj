@@ -42,8 +42,12 @@ async def switch_on(db, slug="alinea"):
 
 @pytest.fixture
 async def staff(office_owner, db_session):
-    """Alinea's owner, with the portfolio switched on for the office."""
+    """Alinea's owner, with the portfolio switched on for the office, and its
+    before-and-after comparisons (A46)."""
     await switch_on(db_session)
+    await db_session.execute(
+        text("UPDATE tenants SET features = features || '{before_after}' WHERE slug = 'alinea'")
+    )
     return office_owner
 
 
@@ -936,3 +940,139 @@ async def test_videos_are_reordered_and_removed_with_their_files(client, staff, 
     assert len(list((tmp_path / "_portfolio").iterdir())) == 2  # the other video and its poster
     await client.delete(f"/api/portfolio/entries/{entry['id']}", headers=staff)
     assert list((tmp_path / "_portfolio").iterdir()) == []
+
+
+# -- Before and after (A46) --------------------------------------------------------------
+
+
+async def three_photos(client, staff, **body):
+    entry = await add(client, staff, title="Casa Jardim", **body)
+    for _ in range(3):
+        answer = await photo(client, staff, entry)
+    return entry["id"], [p["id"] for p in answer.json()["entries"][-1]["photos"]]
+
+
+async def compare(client, headers, before, after, **labels):
+    return await client.put(
+        f"/api/portfolio/photos/{before}/comparison",
+        json={"after": after, **labels},
+        headers=headers,
+    )
+
+
+def slides(page):
+    """A gallery work's photos, as its run shows them, one at a time."""
+    return page.split('class="track"')[1].split("</section>")[0].split('class="slide"')[1:]
+
+
+def photos_of(answer, entry_id):
+    return next(e for e in answer.json()["entries"] if e["id"] == entry_id)["photos"]
+
+
+async def test_switched_off_photos_arent_compared_and_a_pair_shows_as_two_photos(
+    client, db_session, staff
+):
+    entry, (first, second, third) = await three_photos(client, staff)
+    assert (await compare(client, staff, second, third)).status_code == 200
+    await publish(client, staff)
+    await db_session.execute(
+        text("UPDATE tenants SET features = array_remove(features, 'before_after')")
+    )
+    refused = await compare(client, staff, first, second)
+    assert (refused.status_code, refused.json()["error"]) == (409, "feature_off")
+    listed = await client.get("/api/portfolio", headers=staff)
+    assert all(p["comparison"] is None for p in photos_of(listed, entry))
+    client.cookies.clear()
+    page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
+    assert len(slides(page)) == 3  # each photo on its own
+    assert "data-after=" not in page and "compare-tag" not in page
+
+
+async def test_a_photo_is_compared_with_another_of_its_work_and_undone(client, staff):
+    entry, (first, second, third) = await three_photos(client, staff)
+    answer = await compare(client, staff, second, third, before_label=" Obra\n (antes) ")
+    assert answer.status_code == 200, answer.text
+    shown = photos_of(answer, entry)
+    assert shown[1]["comparison"] == {
+        "after": third,
+        "before_label": "Obra (antes)",  # as typed, on one line
+        "after_label": None,
+    }
+    assert shown[0]["comparison"] is None and shown[2]["comparison"] is None
+    undone = await compare(client, staff, second, None)
+    assert all(p["comparison"] is None for p in photos_of(undone, entry))
+
+
+@pytest.mark.parametrize("taken", ["as_after", "as_before", "before_is_after"])
+async def test_a_photo_is_in_one_comparison_at_most(client, staff, taken):
+    _entry, (first, second, third) = await three_photos(client, staff)
+    assert (await compare(client, staff, first, second)).status_code == 200
+    wanted = {
+        "as_after": (third, second),  # second is first's "after" already
+        "as_before": (third, first),  # first is a "before" already
+        "before_is_after": (second, third),  # second, an "after", as a "before"
+    }[taken]
+    answer = await compare(client, staff, *wanted)
+    assert (answer.status_code, answer.json()["error"]) == (409, "portfolio_photo_compared")
+
+
+async def test_a_photo_is_compared_only_with_its_own_works_other_photos(client, staff):
+    _entry, (first, *_rest) = await three_photos(client, staff)
+    _other, (elsewhere, *_more) = await three_photos(client, staff)
+    for after in (elsewhere, first, str(uuid.uuid4())):
+        answer = await compare(client, staff, first, after)
+        assert answer.status_code == 404, after
+
+
+async def test_removing_the_after_photo_undoes_the_comparison(client, staff):
+    entry, (first, second, _third) = await three_photos(client, staff)
+    await compare(client, staff, first, second)
+    removed = await client.delete(f"/api/portfolio/photos/{second}", headers=staff)
+    assert photos_of(removed, entry)[0]["comparison"] is None
+
+
+async def test_only_staff_compare_photos(client, staff):
+    _entry, (first, second, _third) = await three_photos(client, staff)
+    client.cookies.clear()
+    assert (await compare(client, ALINEA, first, second)).status_code in (401, 403)
+
+
+async def test_a_comparison_shows_as_one_photo_opening_on_the_slider(client, staff):
+    entry, (first, second, third) = await three_photos(client, staff)
+    await compare(client, staff, second, third, after_label="Obra pronta")
+    await publish(client, staff)
+    client.cookies.clear()
+    page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
+    # The first photo, then the comparison as one: its "after" in it.
+    first_shown, photos = slides(page)
+    assert f'href="/api/portfolio/photos/{second}?size=full"' in photos
+    assert f'data-after="/api/portfolio/photos/{third}?size=full"' in photos
+    assert 'data-before-label="Antes" data-after-label="Obra pronta"' in photos
+    assert '<span class="compare-tag">Antes e depois</span>' in photos
+    assert 'role="slider"' in page.split('class="lightbox"')[1]
+
+
+async def test_a_comparison_as_the_cover_opens_on_the_slider_and_its_after_is_never_alone(
+    client, staff
+):
+    entry, (first, second, _third) = await three_photos(client, staff, project_type="interiors")
+    await compare(client, staff, first, second)
+    await publish(client, staff)
+    client.cookies.clear()
+    page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
+    cover, rest = slides(page)
+    assert f'data-after="/api/portfolio/photos/{second}?size=full"' in cover
+    assert f"/api/portfolio/photos/{second}" not in rest  # only with its "before"
+    home = (await client.get("/", headers=ALINEA)).text
+    assert f"/api/portfolio/photos/{first}" in home  # the work's cover
+
+
+async def test_the_mosaic_shows_a_comparison_in_its_grid(client, staff):
+    await client.patch("/api/portfolio", json={"format": "mosaic"}, headers=staff)
+    entry, (first, second, third) = await three_photos(client, staff)
+    await compare(client, staff, first, third)
+    await publish(client, staff)
+    client.cookies.clear()
+    page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
+    posts = page.split('class="mosaic posts"')[1].split("</ul>")[0]
+    assert posts.count("<li>") == 2 and 'class="zoom compare"' in posts
