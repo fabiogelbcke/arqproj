@@ -288,6 +288,8 @@ def _entry(
         after_name=after.name,
     )
     shown.name = entry.title
+    # The card dates and sorts by its newer side; each side keeps its own date.
+    shown.modified_at = max(shown.modified_at, after.modified_at)
     shown.updated = shown.updated or after.updated
     return shown
 

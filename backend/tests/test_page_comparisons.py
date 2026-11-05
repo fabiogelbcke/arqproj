@@ -1,6 +1,8 @@
 """Before-and-after comparisons on the project page (A46): listed from names,
 uploaded as a pair, and changed as one."""
 
+import os
+
 import pytest
 from sqlalchemy import text
 
@@ -82,6 +84,15 @@ async def test_two_images_named_for_a_comparison_show_as_one_card(client, owner,
     assert comparison["after_name"] == "Cozinha (depois - Obra).jpg"
     assert (comparison["before_label"], comparison["after_label"]) == (None, "Obra")
     assert comparison["after"]["kind"] == "image"
+
+
+async def test_the_card_is_dated_by_its_newer_side(client, owner, folders):
+    stage = folders / "01 - Briefing"
+    put(stage, "Cozinha (antes).jpg", "Cozinha (depois).jpg")
+    os.utime(stage / "Cozinha (antes).jpg", (1_700_000_000, 1_700_000_000))
+    found = await card(client, "Cozinha")
+    assert found["modified_at"] == found["comparison"]["after"]["modified_at"]
+    assert found["modified_at"] > "2024"
 
 
 async def test_both_sides_open_by_their_keys(client, owner, folders):
