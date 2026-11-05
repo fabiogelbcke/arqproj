@@ -4,8 +4,8 @@
 
 Then open http://alinea.localhost:8000/ and http://norte.localhost:8000/ (browsers
 send every *.localhost address to this machine), and sign in to the painel as
-each office's owner (`STAFF` below: laura@alinea.example, password
-1234). Safe to run repeatedly: it adds what is missing and puts the
+each office's owner (each `TENANTS` entry's `staff`, password
+`STAFF_PASSWORD`: laura@alinea.example, 1234). Safe to run repeatedly: it adds what is missing and puts the
 owners' passwords back, so the documented login always works. Only ever writes
 to a local database. Real addresses (alineaarquitetos.com, the
 staging host) are added to staging and production in step 1.7, not here.
