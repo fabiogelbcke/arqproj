@@ -94,6 +94,33 @@ function Group({
   );
 }
 
+/** Archived projects, out of the way under the groups: "Arquivados (n)" opens them,
+ *  and each card's "⋯" takes one out of the archive. Only with some to show. Declined
+ *  proposals are archived too, but they belong to the Propostas tab (A42). */
+function ArchivedProjects({ sort, timeZone }: { sort: Sort; timeZone: string }) {
+  const { t, i18n } = useTranslation();
+  const projects = useProjects(true);
+  const [open, setOpen] = useState(false);
+  const archived = (projects.data ?? [])
+    .filter((project) => project.status === "archived" && project.archived_from !== "proposal")
+    .sort(compareProjects(sort, i18n.language));
+  if (archived.length === 0) return null;
+  return (
+    <section className={styles.archived}>
+      <Button size="small" aria-expanded={open} onPress={() => setOpen(!open)}>
+        {t("projects.archivedGroup", { count: archived.length })}
+      </Button>
+      {open && (
+        <ul className={styles.rows}>
+          {archived.map((project) => (
+            <ProjectCard key={project.id} project={project} timeZone={timeZone} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /** Before the first project: faded cards where the projects will be, and the way
  *  to make one. The page's tools wait until there is something to search. */
 function NoProjectsYet() {
@@ -374,6 +401,8 @@ export function ProjectsPage() {
           )}
         </div>
       )}
+      {/* Outside the groups: an office with only archived projects still reaches them. */}
+      {!hidden && projects.data && !drive.isPending && <ArchivedProjects sort={sort} timeZone={timeZone} />}
     </>
   );
 }

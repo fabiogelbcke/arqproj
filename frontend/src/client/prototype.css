@@ -1051,9 +1051,9 @@ button,input,select,textarea{letter-spacing:.025em;}
 .client .mobile-project-summary .facts>.mobile-project-description{display:block;padding-top:12px;border-top:1px solid var(--brand-line);}
 .client .mobile-project-summary .mobile-project-description dt{margin-bottom:8px;}
 .client .mobile-project-summary .mobile-project-description dd{white-space:normal;overflow:visible;text-overflow:clip;text-align:justify;font-weight:400;hyphens:auto;}
-.client .mobile-project-summary .mobile-project-description p{margin:0 0 10px;font-size:12px;line-height:1.6;text-align:justify;}
+.client .mobile-project-summary .mobile-project-description p{margin:0 0 10px;font-size:var(--text-sm);line-height:1.6;text-align:justify;}
 .client .mobile-project-summary .mobile-project-description ul{margin:12px 0 0;padding:0;list-style:none;text-align:left;}
-.client .mobile-project-summary .mobile-project-description li{position:relative;margin:0 0 7px;padding-left:14px;font-size:10px;line-height:1.45;letter-spacing:.04em;text-align:left;text-transform:uppercase;}
+.client .mobile-project-summary .mobile-project-description li{position:relative;margin:0 0 7px;padding-left:14px;font-size:var(--text-sm);line-height:1.45;letter-spacing:.04em;text-align:left;text-transform:uppercase;}
 .client .mobile-project-summary .mobile-project-description li::before{content:'/';position:absolute;left:0;top:0;}
 .client .mobile-project-gallery{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;}
 .client .mobile-project-gallery figcaption{padding-top:5px;color:var(--brand-muted);font-size:9px;line-height:1.3;}

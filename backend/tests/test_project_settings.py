@@ -125,6 +125,39 @@ async def test_archiving_hides_the_project_and_undo_brings_it_back(client, owner
     assert (await project(client))["status"] == "active"
 
 
+async def test_an_archived_project_is_listed_on_request_with_what_it_goes_back_to(
+    client, db_session, owner
+):
+    """The painel's "Arquivados" (A24): found again long after the toast's Desfazer."""
+    await db_session.execute(
+        text("UPDATE projects SET status = 'completed' WHERE name = 'Casa das Oliveiras'")
+    )
+    found = next(
+        p
+        for p in (await client.get("/api/projects", headers=ALINEA)).json()
+        if p["name"] == "Casa das Oliveiras"
+    )
+    assert found["archived_from"] is None
+
+    archived = (await change(client, owner, found, status="archived")).json()
+    assert archived["archived_from"] == "completed"
+    assert found["id"] not in [
+        p["id"] for p in (await client.get("/api/projects", headers=ALINEA)).json()
+    ]
+    listed_too = {
+        p["id"]: p for p in (await client.get("/api/projects?archived=true", headers=ALINEA)).json()
+    }
+    assert listed_too[found["id"]]["archived_from"] == "completed"
+
+    # It goes back to what the list said, completed rather than active.
+    back = await change(client, owner, archived, status=archived["archived_from"])
+    assert back.status_code == 200, back.text
+    assert (back.json()["status"], back.json()["archived_from"]) == ("completed", None)
+    assert found["id"] in [
+        p["id"] for p in (await client.get("/api/projects", headers=ALINEA)).json()
+    ]
+
+
 async def as_draft(db_session):
     """No project starts as a draft any more (A35); the status stays in the schema."""
     await db_session.execute(

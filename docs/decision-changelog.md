@@ -85,6 +85,26 @@ first version, Fabio asked for "an arrow based horizontal scroll, or something
 like instagram". The title is the one text a work needs, so it is the one text
 asked for.
 
+---
+
+## 2026-11-05 — A24: archived projects can be found and unarchived in the painel
+
+**Was:** the only way back from the archive was "Desfazer" on the toast right
+after archiving. The painel didn't list archived projects, though the project
+page and an error message told staff to unarchive them there.
+
+**Now:** "Arquivados (n)" under the painel's groups, shown only when there are
+any, opens the archived projects. An archived card's "⋯" offers only "Desarquivar
+projeto", with no confirmation, and the project returns to the status it had
+(`archived_from`, now in the project list). Declined proposals, archived too,
+stay in the Propostas tab (A42).
+
+**Why:** Fabio, 5 Nov 2026: "do we have no mechanism to unarchive projects?" A
+filter or a page of its own would be more than a handful of archived projects
+needs. No confirmation, as archiving it again is as easy.
+
+---
+
 ## 2026-11-04 — A45: a work's sheet is a list of details, with the office's own labels
 
 **Was:** a work's sheet had three fixed lines: area in m², status, and team, each
