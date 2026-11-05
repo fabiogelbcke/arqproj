@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Schemas } from "../api/client";
+import { BeforeAfter } from "../ui/BeforeAfter";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
@@ -309,6 +310,7 @@ export function FilePreview({
   const url = fileSource.address(slug, file.key, "file")!;
   const shown = fileSource.address(slug, file.key, "inline")!;
   const inline = file.kind === "image" || file.kind === "pdf";
+  const comparison = file.comparison;
   const pageUrl = fileLink(slug, place, file.name);
   const message = `${file.name} · ${page.name}\n${pageUrl}`;
   useEffect(() => {
@@ -363,20 +365,52 @@ export function FilePreview({
           <CloseIcon />
         </button>
       </div>
-      <div className="file-preview__content">
-        {file.kind === "image" && !broken ? (
+      <div className={`file-preview__content${comparison ? " file-preview__content--compare" : ""}`}>
+        {comparison && !broken ? (
+          <BeforeAfter
+            title={file.name}
+            before={{ src: shown, label: comparison.before_label ?? t("compare.before") }}
+            after={{
+              src: fileSource.address(slug, comparison.after.key, "inline")!,
+              label: comparison.after_label ?? t("compare.after"),
+            }}
+            onBroken={() => setBroken(true)}
+          />
+        ) : comparison ? (
+          <p>{t("compare.broken")}</p>
+        ) : file.kind === "image" && !broken ? (
           <img src={shown} alt={file.name} onError={() => setBroken(true)} />
         ) : (
           <p>{file.kind === "pdf" ? t("files.pdfHint") : t("files.otherHint")}</p>
         )}
       </div>
       <div className="file-preview__actions">
-        <button type="button" onClick={() => void save()}>
-          {t("files.save")}
-        </button>
-        <a href={inline ? shown : url} {...(inline ? { target: "_blank", rel: "noopener" } : {})}>
-          {t("files.openOriginal")}
-        </a>
+        {comparison ? (
+          // Each image on its own, by its label: "Baixar Antes", "Baixar Depois".
+          (
+            [
+              [url, comparison.before_label ?? t("compare.before"), comparison.before_name],
+              [
+                fileSource.address(slug, comparison.after.key, "file")!,
+                comparison.after_label ?? t("compare.after"),
+                comparison.after_name,
+              ],
+            ] as const
+          ).map(([href, label, name]) => (
+            <a key={name} href={href} download={fileSource.bundled ? name : undefined}>
+              {t("compare.download", { label })}
+            </a>
+          ))
+        ) : (
+          <>
+            <button type="button" onClick={() => void save()}>
+              {t("files.save")}
+            </button>
+            <a href={inline ? shown : url} {...(inline ? { target: "_blank", rel: "noopener" } : {})}>
+              {t("files.openOriginal")}
+            </a>
+          </>
+        )}
         <button
           ref={sendButton}
           type="button"

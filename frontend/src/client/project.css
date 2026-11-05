@@ -545,3 +545,59 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 }
 .client .proposal-file__name { flex: 1; min-width: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
 .client .proposal-file svg { width: 18px; height: 18px; flex: none; color: var(--muted); }
+/* A before-and-after comparison's card (A46): its two images split down the
+   middle, as the slider opens; its preview is wider, for the slider. */
+.client .file__compare { position: absolute; inset: 0; display: block; }
+.client .file__compare img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.client .file__compare .file__compare-before { clip-path: inset(0 50% 0 0); }
+.client .file__compare-handle { position: absolute; top: 0; bottom: 0; left: 50%; border-left: 2px solid #fff; box-shadow: 0 0 4px rgb(0 0 0 / 0.35); }
+.client .file__compare-handle::after {
+  content: ""; position: absolute; top: 50%; left: -1px; width: 18px; height: 18px; border-radius: 50%;
+  transform: translate(-50%, -50%); background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+}
+.client .file__compare-tag { margin-right: 6px; color: var(--ink); font-weight: 500; }
+.client .file-preview:has(.file-preview__content--compare) { width: min(1100px, calc(100vw - 24px)); }
+.client .file-preview__content--compare { --compare-max: calc(100dvh - 200px); }
+/* Edit mode: the "+" card after a stage's (or section's) files, its menu
+   offering files or a before-and-after comparison (Comparisons.tsx). */
+.client .files .file--add { position: relative; min-height: 100%; border: 1px dashed var(--line-strong); background: transparent; }
+.client .files .file--add:hover, .client .files .file--add.is-open { border-color: var(--ink); }
+.client .file--add__button {
+  display: grid; place-content: center; justify-items: center; gap: 6px; width: 100%; height: 100%; min-height: 140px;
+  padding: 12px; border: 0; background: none; color: var(--muted); font: inherit; font-size: var(--text-sm); cursor: pointer;
+}
+.client .file--add__button:hover, .client .file--add.is-open .file--add__button { color: var(--ink); }
+.client .file--add__button svg { width: 28px; height: 28px; }
+.client .file--add .menu__list { top: 50%; left: 50%; transform: translateX(-50%); color: var(--ink); }
+.client .file--add .menu__list button { color: inherit; }
+.client .files[data-view="list"] .file--add { min-height: 64px; border-width: 0 0 1px; border-bottom-style: solid; }
+.client .files[data-view="list"] .file--add__button { min-height: 64px; grid-auto-flow: column; justify-content: start; }
+.client .files[data-view="list"] .file--add__button svg { width: 20px; height: 20px; }
+/* "Comparação antes e depois" (Comparisons.tsx): in a dialog, outside the page's
+   .client, so not scoped to it. Two images side by side, each with its label,
+   on a phone too, so the dialog stays short. */
+.compare-form { display: grid; gap: 18px; }
+.compare-form__sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 520px) { .compare-form__sides { gap: 10px; } .compare-side__image { font-size: var(--text-xs); } }
+.compare-side { display: grid; gap: 10px; align-content: start; }
+.compare-side__image {
+  position: relative; display: grid; place-content: center; justify-items: center; gap: 4px; aspect-ratio: 4 / 3;
+  overflow: hidden; padding: 10px; border: 1px dashed var(--line-strong); border-radius: var(--r-field, 8px);
+  background: var(--bg); color: var(--muted); font: inherit; font-size: var(--text-sm); cursor: pointer;
+}
+.compare-side__image:hover, .compare-side__image.over { border-color: var(--ink); color: var(--ink); }
+.compare-side__image:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.compare-side__image img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.compare-side__plus { width: 28px; height: 28px; background: currentColor;
+  mask: linear-gradient(currentColor 0 0) center / 2px 100% no-repeat, linear-gradient(currentColor 0 0) center / 100% 2px no-repeat; }
+.compare-side__word { color: var(--ink); font-weight: 500; }
+/* Over a chosen image: its label top left, "Trocar imagem" at the bottom. */
+.compare-side__image.is-chosen .compare-side__word,
+.compare-side__image.is-chosen .compare-side__action {
+  position: absolute; padding: 3px 9px; border-radius: 4px; background: rgb(255 255 255 / 0.88); color: #1d1f22;
+}
+.compare-side__image.is-chosen .compare-side__word { top: 8px; left: 8px; }
+.compare-side__image.is-chosen .compare-side__action { bottom: 8px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+.compare-form__preview { --compare-max: 260px; }
+/* The preview's own image rule (prototype.css) would shrink the slider's images inside its frame. */
+.client .file-preview__content--compare img { max-width: none; max-height: none; margin: 0; object-fit: cover; }

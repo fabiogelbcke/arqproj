@@ -19,6 +19,26 @@ a new entry too.
 
 ---
 
+## 2026-11-05 — A46: before-and-after comparisons, paired by name
+
+**Was:** no comparisons. Two related images ("antes" and "depois") showed as two
+unrelated files.
+
+**Now:** two images of one folder named `Título (antes).jpg` and `Título
+(depois).jpg` (a label after a dash: `(antes - Projeto)`) are one comparison,
+shown as one card that opens on a slider. Uploaded from the "+" card's
+"Comparação antes e depois", or named so in Drive.
+
+**Why names, not a table:** Fabio asked for a way to upload a before and an
+after image and slide between them (5 Nov 2026), and chose pairing by name.
+The page already works out versions from names and stores nothing about files
+(A25, A10); a table of pairs would be the first stored fact about files, would
+need a migration, and would go stale when a file is moved, renamed or deleted
+in Drive. Names keep working for files put straight into Drive, and a wrong
+pair is fixed the way a wrong version is: by renaming. Labels went into the
+names for the same reason (Fabio, 5 Nov 2026), so changing one renames the
+files, and only files the app made can be renamed (drive.file).
+
 ## 2026-11-04 — A45: a work's sheet is a list of details, with the office's own labels
 
 **Was:** a work's sheet had three fixed lines: area in m², status, and team, each

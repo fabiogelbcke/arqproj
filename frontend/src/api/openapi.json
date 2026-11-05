@@ -7650,6 +7650,372 @@
         }
       }
     },
+    "/api/projects/{project_id}/stages/{position}/comparisons": {
+      "post": {
+        "summary": "Start Comparison",
+        "description": "\"Comparação antes e depois\": both images go up, named so the page pairs\nthem (`Cozinha (antes).jpg`, `Cozinha (depois).jpg`).",
+        "operationId": "start_comparison_api_projects__project_id__stages__position__comparisons_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "position",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Position"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparisonIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonUploadOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/comparisons/{key}/edit": {
+      "post": {
+        "summary": "Edit Comparison",
+        "description": "Its title and labels are in its files' names: each version of both sides\nis renamed, keeping its version (`Cozinha (antes - Obra) v2.jpg`).",
+        "operationId": "edit_comparison_api_pages__slug__comparisons__key__edit_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparisonEditIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/comparisons/{key}/hide": {
+      "post": {
+        "summary": "Hide Comparison",
+        "description": "Both sides, every version, stay in Drive renamed \"_name\" (A05).",
+        "operationId": "hide_comparison_api_pages__slug__comparisons__key__hide_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/comparisons/{key}/move": {
+      "post": {
+        "summary": "Move Comparison",
+        "description": "Both sides, every version, into a stage's folder or one of its sections,\nas \"Mover para…\" moves a file; refused where that title is already compared.",
+        "operationId": "move_comparison_api_pages__slug__comparisons__key__move_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparisonMoveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/pages/{slug}": {
       "get": {
         "summary": "Page",
@@ -8202,6 +8568,199 @@
           "code"
         ],
         "title": "CodeIn"
+      },
+      "ComparisonEditIn": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Title"
+          },
+          "before_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Label"
+          },
+          "after_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "ComparisonEditIn"
+      },
+      "ComparisonIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Title"
+          },
+          "before": {
+            "$ref": "#/components/schemas/SideIn"
+          },
+          "after": {
+            "$ref": "#/components/schemas/SideIn"
+          },
+          "before_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Label"
+          },
+          "after_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "title",
+          "before",
+          "after"
+        ],
+        "title": "ComparisonIn"
+      },
+      "ComparisonMoveIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "position"
+        ],
+        "title": "ComparisonMoveIn"
+      },
+      "ComparisonOut": {
+        "properties": {
+          "after": {
+            "$ref": "#/components/schemas/FileOut"
+          },
+          "before_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Label"
+          },
+          "after_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Label"
+          },
+          "before_name": {
+            "type": "string",
+            "title": "Before Name"
+          },
+          "after_name": {
+            "type": "string",
+            "title": "After Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "after",
+          "before_name",
+          "after_name"
+        ],
+        "title": "ComparisonOut"
+      },
+      "ComparisonUploadOut": {
+        "properties": {
+          "before_url": {
+            "type": "string",
+            "title": "Before Url"
+          },
+          "after_url": {
+            "type": "string",
+            "title": "After Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "before_url",
+          "after_url"
+        ],
+        "title": "ComparisonUploadOut"
       },
       "CompletionIn": {
         "properties": {
@@ -9056,6 +9615,10 @@
           "upload_failed",
           "file_not_ours",
           "file_not_ours_to_move",
+          "comparison_exists",
+          "comparison_not_image",
+          "comparison_title_invalid",
+          "comparison_not_ours",
           "invalid_staff_name",
           "already_staff",
           "not_an_invite",
@@ -9191,6 +9754,16 @@
             "type": "array",
             "title": "Older",
             "default": []
+          },
+          "comparison": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComparisonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -12136,6 +12709,32 @@
         "title": "SheetLineOut",
         "description": "A line of the work's sheet: one of the built-in details (its `key`, with\nits label in the office's language) or one with the office's own label."
       },
+      "SideIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Size"
+          },
+          "mime_type": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Mime Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "size",
+          "mime_type"
+        ],
+        "title": "SideIn"
+      },
       "SigninOut": {
         "properties": {
           "url": {
@@ -12862,6 +13461,17 @@
               }
             ],
             "title": "Version"
+          },
+          "comparison": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison"
           }
         },
         "type": "object",

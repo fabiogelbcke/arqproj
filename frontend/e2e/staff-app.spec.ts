@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
@@ -825,6 +826,76 @@ test("staff upload a file into a stage, the client sees it, and staff hide it", 
     later.locator("#stage-0").getByText("Levantamento fotográfico.pdf"),
   ).toHaveCount(0);
   await later.close();
+});
+
+test("staff upload a before-and-after comparison, and the client slides between them (A46)", async ({
+  page,
+  browser,
+}) => {
+  await signInAsNewStaff(page, "comparacao@alinea.example");
+  await page.goto("/casa-jardim");
+  await page
+    .getByRole("navigation", { name: "Ferramentas do escritório" })
+    .getByRole("button", { name: "Editar" })
+    .click();
+  await page
+    .getByRole("list", { name: "Etapas" })
+    .getByRole("button", { name: /^Briefing/ })
+    .click();
+  const briefing = page.locator("#stage-0");
+  await briefing.getByRole("button", { name: "Adicionar à etapa" }).click();
+  await briefing.getByRole("menuitem", { name: /Comparação antes e depois/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Comparação antes e depois" });
+  const images = join(import.meta.dirname, "../src/client/example/images");
+  await dialog.getByLabel("Escolher a imagem “Antes”").setInputFiles(join(images, "fachada-estudo-exemplo.jpg"));
+  await dialog.getByLabel("Escolher a imagem “Depois”").setInputFiles(join(images, "fachada-exemplo.jpg"));
+  await dialog.getByRole("textbox", { name: "Nome da comparação" }).fill("Fachada");
+  await dialog.getByRole("textbox", { name: "Rótulo de “Antes” (opcional)" }).fill("Estudo");
+  await expect(dialog.getByRole("slider")).toBeVisible(); // the preview
+  await dialog.getByRole("button", { name: "Enviar comparação" }).click();
+  await expect(page.getByText("Comparação “Fachada” enviada.")).toBeVisible();
+  await expect(briefing.getByRole("button", { name: "Abrir Fachada" })).toBeVisible();
+  const folder = join(E2E_ENV.LOCAL_STORAGE_ROOT, "Casa Jardim", "01 - Briefing");
+  expect(readdirSync(folder).filter((name) => name.startsWith("Fachada")).sort()).toEqual([
+    "Fachada (antes - Estudo).jpg",
+    "Fachada (depois).jpg",
+  ]);
+
+  const client = await browser.newPage();
+  await client.goto("/casa-jardim");
+  await client
+    .getByRole("list", { name: "Etapas" })
+    .getByRole("button", { name: /^Briefing/ })
+    .click();
+  const card = client.locator("#stage-0 .file", { hasText: "Antes e depois" });
+  await card.getByRole("button", { name: "Abrir Fachada" }).click();
+  const viewer = client.getByRole("dialog", { name: "Fachada" });
+  const slider = viewer.getByRole("slider", { name: "Comparação antes e depois: Fachada" });
+  await expect(slider).toHaveAttribute("aria-valuenow", "50");
+  // Both images loaded: the frame takes the "before" image's shape (3:2).
+  const frame = await slider.locator("..").boundingBox();
+  expect(Math.abs(frame!.width / frame!.height - 1.5)).toBeLessThan(0.02);
+  await client.mouse.click(frame!.x + frame!.width * 0.8, frame!.y + frame!.height / 2);
+  await expect(slider).toHaveAttribute("aria-valuenow", /^(79|80|81)$/);
+  await slider.focus();
+  await client.keyboard.press("Home");
+  await expect(slider).toHaveAttribute("aria-valuenow", "0");
+  await expect(viewer.getByRole("link", { name: "Baixar “Estudo”" })).toBeVisible();
+  await expect(viewer.getByRole("link", { name: "Baixar “Depois”" })).toBeVisible();
+  await slider.press("ArrowRight", { delay: 0 });
+  for (let i = 0; i < 3; i += 1) await client.keyboard.press("Shift+ArrowRight");
+  await expect(slider).toHaveAttribute("aria-valuenow", "65");
+  await viewer.screenshot({ path: join(tmpdir(), "arqproj-e2e-comparison.png") });
+  await client.close();
+
+  // Hidden as one: both images leave the page, and stay in the folder.
+  await briefing.getByRole("button", { name: "Ações para Fachada" }).click();
+  await page.getByRole("menuitem", { name: /Ocultar do cliente/ }).click();
+  await expect(briefing.getByRole("button", { name: "Abrir Fachada" })).toHaveCount(0);
+  expect(readdirSync(folder).filter((name) => name.includes("Fachada")).sort()).toEqual([
+    "_Fachada (antes - Estudo).jpg",
+    "_Fachada (depois).jpg",
+  ]);
 });
 
 test("staff edit the page in place and the client sees it", async ({

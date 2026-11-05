@@ -3,6 +3,7 @@
 // same setup as the browser tests (built app, fresh fictional database).
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 
 import { expect, type Page, test } from "@playwright/test";
 
@@ -93,7 +94,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByText("Logo atualizado.").waitFor();
   await page.goto("/painel");
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
-  await page.locator("header img").waitFor();
+  await page.locator("header img").first().waitFor(); // the logo (light and dark copies)
   await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
@@ -281,6 +282,33 @@ test("@screenshots staff app", async ({ page, browser }) => {
     .setInputFiles({ name: "Plantas.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
   await page.getByRole("alertdialog", { name: "É uma nova versão?" }).waitFor();
   await shoot(page, "06m-nova-versao");
+  await page.keyboard.press("Escape");
+
+  // A before-and-after comparison (A46): the "+" card's menu, its dialog, the card
+  // on the page and its slider.
+  const stage = page.locator("#stage-2");
+  await stage.getByRole("button", { name: "Adicionar à etapa" }).click();
+  await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).waitFor();
+  await shoot(page, "06p-adicionar-menu");
+  await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).click();
+  const comparing = page.getByRole("dialog", { name: "Comparação antes e depois" });
+  const images = join(import.meta.dirname, "../src/client/example/images");
+  await comparing.getByLabel("Escolher a imagem “Antes”").setInputFiles(join(images, "fachada-estudo-exemplo.jpg"));
+  await comparing.getByLabel("Escolher a imagem “Depois”").setInputFiles(join(images, "fachada-exemplo.jpg"));
+  await comparing.getByRole("textbox", { name: "Nome da comparação" }).fill("Fachada");
+  await comparing.getByRole("textbox", { name: "Rótulo de “Antes” (opcional)" }).fill("Estudo");
+  await comparing.getByRole("textbox", { name: "Rótulo de “Depois” (opcional)" }).fill("Render");
+  await comparing.getByRole("slider").waitFor();
+  await shoot(page, "06q-nova-comparacao");
+  await comparing.getByRole("button", { name: "Enviar comparação" }).click();
+  await stage.getByRole("button", { name: "Abrir Fachada" }).waitFor();
+  await page.setViewportSize(SIZES[0]!);
+  await stage.getByRole("button", { name: "Abrir Fachada" }).scrollIntoViewIfNeeded();
+  await shoot(page, "06r-comparacao-na-etapa");
+  await stage.getByRole("button", { name: "Abrir Fachada" }).click();
+  await page.getByRole("dialog", { name: "Fachada" }).getByRole("slider").waitFor();
+  await shoot(page, "06s-comparacao-aberta");
+  await shoot(page, "06s-comparacao-aberta", "dark");
   await page.keyboard.press("Escape");
 
   // Details are added from a menu (no select marking its placeholder as chosen).
