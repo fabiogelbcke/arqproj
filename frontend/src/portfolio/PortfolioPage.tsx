@@ -309,7 +309,9 @@ function Work({
   const { t } = useTranslation();
   const remove = useRemoveEntry();
   const [confirming, setConfirming] = useState(false);
-  const cover = entry.photos[0];
+  // The first photo the page shows: a comparison's "after" isn't shown on its own (A46).
+  const afters = new Set(entry.photos.flatMap((photo) => (photo.comparison ? [photo.comparison.after] : [])));
+  const cover = entry.photos.find((photo) => !afters.has(photo.id));
   const meta = describe(entry);
   return (
     <li className={styles.work}>

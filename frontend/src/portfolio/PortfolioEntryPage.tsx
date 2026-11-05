@@ -580,7 +580,6 @@ function Videos({ entry }: { entry: Entry }) {
 
 type ImageFile = { key: string; name: string };
 
-/** A project's images to pick: the work's own project first, or any other. */
 /** "Antes e depois" (A46): this photo, the "before", with another of the work's
  *  photos as its "after", and the slider's words; a preview of the slider. The
  *  public page shows the two as one, on the slider. */
@@ -665,6 +664,7 @@ function ComparePhotos({ entry, before, onClose }: { entry: Entry; before: strin
   );
 }
 
+/** A project's images to pick: the work's own project first, or any other. */
 function ProjectPhotos({
   entry,
   room,

@@ -353,6 +353,14 @@ describe("a work's before and after (A46)", () => {
     expect(within(second).getByText("Capa")).toBeInTheDocument();
   });
 
+  it("lists the work with that same photo as its thumbnail", async () => {
+    const photos = [THREE[0]!, { ...THREE[1]!, comparison: { after: "f-1", before_label: null, after_label: null } }, THREE[2]!];
+    api({ ...NO_TYPES, ...COMPARING, "GET /api/portfolio": () => ({ body: { ...PORTFOLIO, entries: [entry({ photos })] } }) });
+    renderAt("/portfolio");
+    await screen.findByRole("link", { name: /Casa/ });
+    expect(document.querySelector("img[src^='/api/portfolio/photos/']")).toHaveAttribute("src", "/api/portfolio/photos/f-2?size=card");
+  });
+
   it("offers no \"Antes e depois\" when comparisons are switched off for the office", async () => {
     api({ ...NO_TYPES, "GET /api/portfolio": () => ({ body: { ...PORTFOLIO, entries: [entry({ photos: THREE })] } }) });
     renderAt("/portfolio/e-1");
