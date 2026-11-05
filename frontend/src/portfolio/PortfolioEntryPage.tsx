@@ -314,6 +314,7 @@ function Photos({ entry }: { entry: Entry }) {
   // Each comparison's "after" photo, by its id: the "before" photo it goes with.
   const afterOf = new Map(entry.photos.flatMap((photo) => (photo.comparison ? [[photo.comparison.after, photo.id]] : [])));
   const [comparing, setComparing] = useState<string | null>(null); // the "before" photo being paired
+  const cover = entry.photos.find((photo) => !afterOf.has(photo.id))?.id;
   // Another photo still free to be this one's "after": in no comparison yet.
   const free = (id: string) =>
     entry.photos.some((other) => other.id !== id && !other.comparison && !afterOf.has(other.id));
@@ -380,7 +381,8 @@ function Photos({ entry }: { entry: Entry }) {
           {entry.photos.map((photo, index) => (
             <li key={photo.id} className={styles.photo}>
               <img src={`${photo.url}?size=card`} alt={t("portfolio.photoAlt", { n: index + 1 })} loading="lazy" />
-              {index === 0 && <span className={styles.coverTag}>{t("portfolio.cover")}</span>}
+              {/* The first photo the page shows: an "after" photo never is (A46). */}
+              {photo.id === cover && <span className={styles.coverTag}>{t("portfolio.cover")}</span>}
               {/* A comparison (A46): its "before" photo says so; its "after" which one it goes with. */}
               {photo.comparison && <span className={styles.compareTag}>{t("portfolio.compareTag")}</span>}
               {afterOf.has(photo.id) && (

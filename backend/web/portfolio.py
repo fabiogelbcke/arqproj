@@ -46,7 +46,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.analytics import capture
 from backend.db.engine import get_tenant_session
 from backend.documents.comparisons import LABEL_MAX as COMPARISON_LABEL_MAX
-from backend.documents.comparisons import clean_label
 from backend.identity.models import User
 from backend.portfolio.links import profile
 from backend.portfolio.models import (
@@ -818,6 +817,12 @@ async def remove_photo(
     return await _out(db, tenant.locale)
 
 
+def _label_text(label: str | None) -> str | None:
+    """A slider's word as typed, on one line; empty is none. (Kept in its own
+    column, unlike a project's, which is part of a file name.)"""
+    return " ".join((label or "").split()) or None
+
+
 class PhotoComparisonIn(BaseModel):
     # The work's photo to compare this one with, as its "after"; None: no comparison.
     after: uuid.UUID | None
@@ -855,8 +860,8 @@ async def compare_photo(
         ):
             raise ApiError(409, ErrorCode.PORTFOLIO_PHOTO_COMPARED)
     photo.compare_photo_id = body.after
-    photo.before_label = clean_label(body.before_label) if body.after else None
-    photo.after_label = clean_label(body.after_label) if body.after else None
+    photo.before_label = _label_text(body.before_label) if body.after else None
+    photo.after_label = _label_text(body.after_label) if body.after else None
     await db.commit()
     capture(request, "portfolio_comparison_set" if body.after else "portfolio_comparison_removed")
     return await _out(db, tenant.locale)

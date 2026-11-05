@@ -342,6 +342,15 @@ describe("a work's before and after (A46)", () => {
     { id: "f-3", url: "/api/portfolio/photos/f-3" },
   ];
 
+  it("marks as the cover the first photo the page shows, never a comparison's after", async () => {
+    const photos = [THREE[0]!, { ...THREE[1]!, comparison: { after: "f-1", before_label: null, after_label: null } }, THREE[2]!];
+    api({ ...NO_TYPES, "GET /api/portfolio": () => ({ body: { ...PORTFOLIO, entries: [entry({ photos })] } }) });
+    renderAt("/portfolio/e-1");
+    const tiles = await screen.findAllByRole("listitem");
+    const second = tiles.find((tile) => within(tile).queryByAltText("Foto 2"))!;
+    expect(within(second).getByText("Capa")).toBeInTheDocument();
+  });
+
   it("compares a photo with another of the work's, naming the sides", async () => {
     const sent = api({
       ...NO_TYPES,
@@ -381,6 +390,7 @@ describe("a work's before and after (A46)", () => {
     });
     renderAt("/portfolio/e-1");
     expect(await screen.findByText("Depois da foto 1")).toBeInTheDocument();
+    expect(screen.getAllByText("Capa")).toHaveLength(1);
     // Only the "before" photo has the tool: its "after" goes with it, and the
     // second photo has no free photo left to compare with.
     const tiles = screen.getAllByRole("button", { name: "Antes e depois" });

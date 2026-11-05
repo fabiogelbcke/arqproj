@@ -911,12 +911,12 @@ def photos_of(answer, entry_id):
 
 async def test_a_photo_is_compared_with_another_of_its_work_and_undone(client, staff):
     entry, (first, second, third) = await three_photos(client, staff)
-    answer = await compare(client, staff, second, third, before_label=" Obra (antes) ")
+    answer = await compare(client, staff, second, third, before_label=" Obra\n (antes) ")
     assert answer.status_code == 200, answer.text
     shown = photos_of(answer, entry)
     assert shown[1]["comparison"] == {
         "after": third,
-        "before_label": "Obra antes",
+        "before_label": "Obra (antes)",  # as typed, on one line
         "after_label": None,
     }
     assert shown[0]["comparison"] is None and shown[2]["comparison"] is None
