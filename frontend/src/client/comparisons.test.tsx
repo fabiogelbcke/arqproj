@@ -308,13 +308,37 @@ describe("comparisons in edit mode", () => {
     vi.useRealTimers();
     // The "before" went up: it stays as it is, and so does the name its file has.
     await waitFor(() => expect(within(dialog).getByText("Já enviada")).toBeInTheDocument());
+    // The files aren't listed again meanwhile: the list changing shape would close the dialog.
+    const listings = () => sent.filter((r) => r.method === "GET" && r.path === "/api/pages/casa-jardim/files").length;
+    const before = listings();
     expect(within(dialog).getByRole("textbox", { name: "Nome da comparação" })).toBeDisabled();
     await userEvent.click(within(dialog).getByRole("button", { name: "Enviar comparação" }));
     expect(await screen.findByText("Comparação “Sala” enviada.")).toBeInTheDocument();
+    expect(before).toBe(1); // only the page's first listing, until the comparison was whole
     const retry = sent.filter((r) => r.path.endsWith("/comparisons"))[1]!.body as Record<string, unknown>;
     expect(retry.before).toBeUndefined();
     expect(retry.after).toEqual({ name: "Render.jpg", size: 1, mime_type: "image/jpeg" });
     expect(FakeXhr.sent.at(-1)?.url).toBe("https://upload.example/a2");
+  });
+
+  it("lists the files again when the dialog is closed after only one image went up", async () => {
+    const sent = asStaff({
+      "POST /api/projects/p-1/stages/1/comparisons": () => ({
+        body: { before_url: "https://upload.example/b", after_url: "https://upload.example/a" },
+      }),
+      "POST /api/projects/p-1/stages/1/uploads/failed": () => ({ status: 502, body: { error: "upload_failed" } }),
+    });
+    await startEditing();
+    const dialog = await openNewComparison("Briefing");
+    await userEvent.upload(within(dialog).getByLabelText("Escolher a imagem “Antes”"), new File(["b"], "Sala.jpg", { type: "image/jpeg" }));
+    await userEvent.upload(within(dialog).getByLabelText("Escolher a imagem “Depois”"), new File(["a"], "Render.jpg", { type: "image/jpeg" }));
+    FakeXhr.refused.add("https://upload.example/a");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Enviar comparação" }));
+    await waitFor(() => expect(within(dialog).getByText("Já enviada")).toBeInTheDocument());
+    const listings = () => sent.filter((r) => r.method === "GET" && r.path === "/api/pages/casa-jardim/files").length;
+    expect(listings()).toBe(1);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(listings()).toBe(2)); // the "before" now shows on its own
   });
 
   it("refuses a file that isn't a JPG, PNG, WebP or GIF before anything is sent", async () => {

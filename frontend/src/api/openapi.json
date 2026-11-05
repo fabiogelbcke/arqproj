@@ -9640,6 +9640,7 @@
           "comparison_exists",
           "comparison_not_image",
           "comparison_title_invalid",
+          "comparison_label_invalid",
           "comparison_not_ours",
           "invalid_staff_name",
           "already_staff",

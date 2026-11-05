@@ -237,6 +237,11 @@ function NewComparison({
   // The images that went up already: a retry sends only the others, as the
   // server finishes a comparison whose other image is there alone.
   const [uploaded, setUploaded] = useState<ReadonlySet<Side>>(new Set());
+  // Closed after one image went up alone: the page lists it now, on its own.
+  const close = () => {
+    onClose();
+    if (uploaded.size) onChanged();
+  };
   const send = async () => {
     if (!before || !after) return;
     setProgress(0);
@@ -294,11 +299,12 @@ function NewComparison({
       // The dialog stays, with what was chosen, to try again.
       setProgress(null);
       toastError(failure, { max: UPLOAD_MAX_MB });
-      onChanged(); // one image may have gone up: the page shows it on its own
+      // Not listed again yet, even if one image went up: the list changing shape
+      // (an empty stage gaining a file) would close this dialog and its retry.
     }
   };
   return (
-    <DialogFrame title={t("compare.new")} onClose={progress === null ? onClose : () => {}} outsideCloses={false}>
+    <DialogFrame title={t("compare.new")} onClose={progress === null ? close : () => {}} outsideCloses={false}>
       <form
         className="compare-form"
         onSubmit={(event) => {
@@ -360,7 +366,7 @@ function NewComparison({
           <progress className="upload-bar" max={1} value={progress} aria-label={t("compare.sending", { name: title })} />
         )}
         <div className={styles.confirmActions}>
-          <Button onPress={onClose} isDisabled={progress !== null}>
+          <Button onPress={close} isDisabled={progress !== null}>
             {t("confirm.cancel")}
           </Button>
           <Button variant="primary" type="submit" isDisabled={!ready}>

@@ -90,6 +90,14 @@ def _title(title: str) -> str:
     return cleaned
 
 
+def _base(title: str, side: Side, label: str | None, locale: str) -> str:
+    """A side's name without its extension, refused unless it reads back as it."""
+    base = comparisons.base_name(title, side, label, locale)
+    if not comparisons.reads_back(title, side, label, base):
+        raise ApiError(422, ErrorCode.COMPARISON_LABEL_INVALID)
+    return base
+
+
 def _taken(documents: list[versions.Document], key: str, besides=()) -> bool:
     """A document of the folder already marked for a comparison of this title
     (`besides`: the comparison's own sides, when it is renamed): a third side
@@ -155,7 +163,7 @@ async def start_comparison(
     except StorageError as error:
         raise _listing_failed(error, tenant, project_id, position) from None
     names = {
-        side: comparisons.base_name(title, side, labels[side], tenant.locale.value)
+        side: _base(title, side, labels[side], tenant.locale.value)
         + versions.parse(_clean(chosen.name)).extension.casefold()
         for side, chosen in sides.items()
     }
@@ -258,9 +266,7 @@ async def edit_comparison(
         (Side.BEFORE, comparison.before, body.before_label),
         (Side.AFTER, comparison.after, body.after_label),
     ):
-        base = comparisons.base_name(
-            title, side, comparisons.clean_label(label), tenant.locale.value
-        )
+        base = _base(title, side, comparisons.clean_label(label), tenant.locale.value)
         new.update(comparisons.renamed(document, base))
     names = {item.id: item.name for item in _items(comparison)}
 

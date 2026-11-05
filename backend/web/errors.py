@@ -96,6 +96,7 @@ class ErrorCode(StrEnum):
     COMPARISON_EXISTS = "comparison_exists"
     COMPARISON_NOT_IMAGE = "comparison_not_image"  # a side that isn't a JPEG, PNG, WebP or GIF
     COMPARISON_TITLE_INVALID = "comparison_title_invalid"  # blank, too long, or starts with "_"
+    COMPARISON_LABEL_INVALID = "comparison_label_invalid"  # it would read as a version: "v2"
     COMPARISON_NOT_OURS = "comparison_not_ours"  # a side put straight into Drive: change it there
     INVALID_STAFF_NAME = "invalid_staff_name"  # blank, or over 80 characters
     ALREADY_STAFF = "already_staff"  # `conflict_name`: the account with that email

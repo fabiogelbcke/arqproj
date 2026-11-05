@@ -166,3 +166,12 @@ def test_renaming_a_side_keeps_each_versions_number_and_extension():
     # Renamed so, the files still make one comparison of two versions.
     [again] = entries("Copa (antes - Obra) v2.JPG", "Copa (antes - Obra).jpg", "Copa (depois).jpg")
     assert (again.title, again.before.version, again.before_label) == ("Copa", 2, "Obra")
+
+
+@pytest.mark.parametrize(
+    ("label", "reads"),
+    [("Projeto", True), (None, True), ("Projeto v2", False), ("v2", False), ("Obra 2", True)],
+)
+def test_only_a_name_that_survives_the_version_rule_reads_back(label, reads):
+    base = comparisons.base_name("Cozinha", Side.BEFORE, label, "pt-BR")
+    assert comparisons.reads_back("Cozinha", Side.BEFORE, label, base) is reads

@@ -130,6 +130,18 @@ def base_name(title: str, side: Side, label: str | None, locale: str) -> str:
     return f"{title} ({word} - {label})" if label else f"{title} ({word})"
 
 
+def reads_back(title: str, side: Side, label: str | None, base: str) -> bool:
+    """Whether a name written for this side reads back as it, after the version
+    is taken off as the page does (A25): a label ending like a version ("Projeto
+    v2") would lose it and the marker's bracket with it."""
+    found = marked(versions.parse(base + ".jpg").base)
+    return found is not None and (found.key, found.side, found.label) == (
+        title_key(title),
+        side,
+        label,
+    )
+
+
 def renamed(document: versions.Document, base: str) -> list[tuple[str, str]]:
     """(item id, new name) for every version of a side, so they stay one
     document under the new base: `Cozinha (antes - Obra) v2.jpg`. Google formats

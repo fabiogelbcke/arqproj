@@ -328,6 +328,7 @@
     "comparison_exists": "Já existe uma comparação com esse nome aqui. Escolha outro nome.",
     "comparison_not_image": "Escolha imagens JPG, PNG, WebP ou GIF para a comparação.",
     "comparison_title_invalid": "Dê à comparação um nome de até 120 caracteres que não comece com _.",
+    "comparison_label_invalid": "Um nome ou rótulo não pode terminar como uma versão (por exemplo, “v2”). Mude o final do texto.",
     "comparison_not_ours": "Uma das imagens desta comparação não foi enviada pelo site. Para alterá-la, renomeie ou mova os arquivos na pasta da etapa.",
     "invalid_detail": "Confira as informações: não repita campos, use textos de até 40 caracteres, números para áreas e datas válidas.",
     "invalid_meeting": "Confira os dados da reunião: assunto de até 40 caracteres, data futura, término após o início e link começando com https://.",

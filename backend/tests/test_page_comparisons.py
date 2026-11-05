@@ -173,6 +173,31 @@ async def test_a_comparison_that_cant_go_is_refused_before_anything_is_sent(
     assert (response.status_code, response.json()["error"]) == (status, error)
 
 
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"before_label": "Projeto v2"},
+        {"after_label": "Render V3"},
+        {"title": "Sala", "after_label": "(v4"},
+    ],
+)
+async def test_a_name_that_wouldnt_read_back_as_its_comparison_is_refused(
+    client, owner, folders, changes
+):
+    """A label ending like a version would be read as one (A25), taking the
+    marker's bracket with it: the two images would show apart."""
+    response = await start(client, owner, **changes)
+    assert (response.status_code, response.json()["error"]) == (422, "comparison_label_invalid")
+
+
+async def test_editing_to_a_label_that_wouldnt_read_back_renames_nothing(client, owner, folders):
+    put(folders / "01 - Briefing", "Cozinha (antes).jpg", "Cozinha (depois).jpg")
+    key = (await card(client, "Cozinha"))["key"]
+    response = await act(client, owner, "edit", key, title="Cozinha", after_label="Obra v2")
+    assert (response.status_code, response.json()["error"]) == (422, "comparison_label_invalid")
+    assert (folders / "01 - Briefing" / "Cozinha (depois).jpg").exists()
+
+
 @pytest.mark.parametrize("there", ["Cozinha (antes).jpg", "cozinha (depois - Obra).png"])
 async def test_a_title_already_compared_in_the_folder_is_refused(client, owner, folders, there):
     """A third side would leave every one of them unpaired."""
