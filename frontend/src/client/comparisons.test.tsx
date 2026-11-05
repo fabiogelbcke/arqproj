@@ -288,11 +288,15 @@ describe("comparisons in edit mode", () => {
 
   it("after one image went up and the other didn't, tries again with the missing one only", async () => {
     let tries = 0;
+    let release = () => {};
     const sent = asStaff({
       "POST /api/projects/p-1/stages/1/comparisons": () => {
         tries += 1;
         return tries === 1
-          ? { body: { before_url: "https://upload.example/b", after_url: "https://upload.example/a" } }
+          ? // Held until the test has looked at the dialog while it sends.
+            new Promise((answer) => {
+              release = () => answer({ body: { before_url: "https://upload.example/b", after_url: "https://upload.example/a" } });
+            })
           : { body: { before_url: null, after_url: "https://upload.example/a2" } };
       },
       "POST /api/projects/p-1/stages/1/uploads/failed": () => ({ status: 502, body: { error: "upload_failed" } }),
@@ -304,6 +308,10 @@ describe("comparisons in edit mode", () => {
     FakeXhr.refused.add("https://upload.example/a"); // the "after" upload is refused for good
     vi.useFakeTimers({ shouldAdvanceTime: true }); // sendFile's waits before giving up
     await userEvent.click(within(dialog).getByRole("button", { name: "Enviar comparação" }));
+    // While the images go up, nothing that names them can change.
+    expect(within(dialog).getByRole("textbox", { name: "Nome da comparação" })).toBeDisabled();
+    expect(within(dialog).getByRole("textbox", { name: "Rótulo de “Depois” (opcional)" })).toBeDisabled();
+    release();
     await waitFor(() => expect(sent.some((r) => r.path.endsWith("/uploads/failed"))).toBe(true));
     vi.useRealTimers();
     // The "before" went up: it stays as it is, and so does the name its file has.

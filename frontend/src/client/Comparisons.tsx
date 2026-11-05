@@ -121,6 +121,7 @@ export function AddCard({
 /** One side's image: chosen or dropped, shown as chosen, with its label. */
 function SidePicker({
   locked = false,
+  busy = false,
   word,
   file,
   label,
@@ -128,6 +129,7 @@ function SidePicker({
   onLabel,
 }: {
   locked?: boolean; // it went up already: kept as it is, for the other to follow
+  busy?: boolean; // the images are going up: nothing changes meanwhile
   word: string; // "Antes", "Depois": the label until one is typed
   file: File | null;
   label: string;
@@ -143,7 +145,7 @@ function SidePicker({
       <button
         type="button"
         className={`compare-side__image${over ? " over" : ""}${preview ? " is-chosen" : ""}`}
-        disabled={locked}
+        disabled={locked || busy}
         onClick={() => chooser.current?.click()}
         onDragOver={(event) => {
           event.preventDefault();
@@ -181,7 +183,7 @@ function SidePicker({
         value={label}
         onChange={onLabel}
         maxLength={LIMITS.comparisonLabel}
-        isDisabled={locked}
+        isDisabled={locked || busy}
       />
     </div>
   );
@@ -319,12 +321,14 @@ function NewComparison({
           onChange={setTitle}
           maxLength={LIMITS.comparisonTitle}
           isRequired
-          isDisabled={uploaded.size > 0} // its images went up named so
+          // Its images go, or went, up named so.
+          isDisabled={uploaded.size > 0 || progress !== null}
           autoFocus
         />
         <div className="compare-form__sides">
           <SidePicker
             locked={uploaded.has("before")}
+            busy={progress !== null}
             word={words.before}
             file={before}
             label={labels.before}
@@ -333,6 +337,7 @@ function NewComparison({
           />
           <SidePicker
             locked={uploaded.has("after")}
+            busy={progress !== null}
             word={words.after}
             file={after}
             label={labels.after}
