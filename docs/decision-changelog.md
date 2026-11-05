@@ -19,6 +19,18 @@ a new entry too.
 
 ---
 
+## 2026-11-05 — A46: comparisons behind the `before_after` feature
+
+**Was:** before-and-after comparisons were on for every office as soon as they
+merged.
+
+**Now:** they are a feature switched on per office from the operator dashboard
+(A40), off by default. Switched off, a pair of images is two plain files and
+nothing offers to make one.
+
+**Why:** Fabio asked for it while reviewing (5 Nov 2026), so his partners can try
+it on staging and main before every office gets it, as with the other new work.
+
 ## 2026-11-05 — A46: a portfolio work's comparisons are kept in the database
 
 **Was:** comparisons came only from file names in a project's Drive folders.

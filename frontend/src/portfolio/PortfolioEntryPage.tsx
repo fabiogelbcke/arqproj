@@ -42,6 +42,7 @@ import {
   type Entry,
   type SheetLine,
 } from "./portfolio";
+import { useFeature } from "../session/session";
 import { ProjectChoice } from "./PortfolioPage";
 import styles from "./portfolio.module.css";
 import ui from "../ui/ui.module.css";
@@ -311,6 +312,7 @@ function Photos({ entry }: { entry: Entry }) {
     if (params.has("fotos")) setParams({}, { replace: true });
   }, [params, setParams]);
   const room = LIMITS.photos - entry.photos.length;
+  const compares = useFeature("before_after"); // "Antes e depois" (A40, A46)
   // Each comparison's "after" photo, by its id: the "before" photo it goes with.
   const afterOf = new Map(entry.photos.flatMap((photo) => (photo.comparison ? [[photo.comparison.after, photo.id]] : [])));
   const [comparing, setComparing] = useState<string | null>(null); // the "before" photo being paired
@@ -391,7 +393,7 @@ function Photos({ entry }: { entry: Entry }) {
                 </span>
               )}
               <span className={styles.photoTools}>
-                {!afterOf.has(photo.id) && (photo.comparison || free(photo.id)) && (
+                {compares && !afterOf.has(photo.id) && (photo.comparison || free(photo.id)) && (
                   <IconButton label={t("portfolio.compare")} onPress={() => setComparing(photo.id)}>
                     ⇄
                   </IconButton>

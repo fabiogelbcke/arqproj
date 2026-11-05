@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { expect, type Page, test } from "@playwright/test";
 
 import { E2E_ENV, OPERATOR, PORT } from "../playwright.config";
+import { switchOn } from "./features";
 
 const OUT = process.env.SCREENSHOTS_DIR ?? "screenshots";
 // A fictional mark (a slanted square), like the prototype's logo.
@@ -286,19 +287,26 @@ test("@screenshots staff app", async ({ page, browser }) => {
 
   // A before-and-after comparison (A46): the "+" card's menu, its dialog, the card
   // on the page and its slider.
+  switchOn("before_after"); // a feature switched on per office (A40)
+  await page.reload();
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   const stage = page.locator("#stage-2");
   await stage.getByRole("button", { name: "Adicionar à etapa" }).click();
   await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).waitFor();
   await shoot(page, "06x-comparacao-menu");
   await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).click();
   const comparing = page.getByRole("dialog", { name: "Comparação antes e depois" });
+  await comparing.getByRole("button", { name: "Renomear “Antes”" }).waitFor();
+  await shoot(page, "06x-comparacao-vazia");
   const images = join(import.meta.dirname, "../src/client/example/images");
   await comparing.getByLabel("Escolher a imagem “Antes”").setInputFiles(join(images, "fachada-estudo-exemplo.jpg"));
   await comparing.getByLabel("Escolher a imagem “Depois”").setInputFiles(join(images, "fachada-exemplo.jpg"));
   await comparing.getByRole("textbox", { name: "Nome da comparação" }).fill("Fachada");
-  await comparing.getByRole("textbox", { name: "Rótulo de “Antes” (opcional)" }).fill("Estudo");
-  await comparing.getByRole("textbox", { name: "Rótulo de “Depois” (opcional)" }).fill("Render");
-  await comparing.getByRole("slider").waitFor();
+  for (const [side, label] of [["Antes", "Estudo"], ["Depois", "Render"]]) {
+    await comparing.getByRole("button", { name: `Renomear “${side}”` }).click();
+    await comparing.getByRole("textbox", { name: `Rótulo de “${side}”` }).fill(label!);
+    await comparing.getByRole("textbox", { name: `Rótulo de “${side}”` }).press("Enter");
+  }
   await shoot(page, "06x-comparacao-nova");
   await comparing.getByRole("button", { name: "Enviar comparação" }).click();
   await stage.getByRole("button", { name: "Abrir Fachada" }).waitFor();

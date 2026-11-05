@@ -42,8 +42,12 @@ async def switch_on(db, slug="alinea"):
 
 @pytest.fixture
 async def staff(office_owner, db_session):
-    """Alinea's owner, with the portfolio switched on for the office."""
+    """Alinea's owner, with the portfolio switched on for the office, and its
+    before-and-after comparisons (A46)."""
     await switch_on(db_session)
+    await db_session.execute(
+        text("UPDATE tenants SET features = features || '{before_after}' WHERE slug = 'alinea'")
+    )
     return office_owner
 
 
@@ -907,6 +911,26 @@ async def compare(client, headers, before, after, **labels):
 
 def photos_of(answer, entry_id):
     return next(e for e in answer.json()["entries"] if e["id"] == entry_id)["photos"]
+
+
+async def test_switched_off_photos_arent_compared_and_a_pair_shows_as_two_photos(
+    client, db_session, staff
+):
+    entry, (first, second, third) = await three_photos(client, staff)
+    assert (await compare(client, staff, second, third)).status_code == 200
+    await publish(client, staff)
+    await db_session.execute(
+        text("UPDATE tenants SET features = array_remove(features, 'before_after')")
+    )
+    refused = await compare(client, staff, first, second)
+    assert (refused.status_code, refused.json()["error"]) == (409, "feature_off")
+    listed = await client.get("/api/portfolio", headers=staff)
+    assert all(p["comparison"] is None for p in photos_of(listed, entry))
+    client.cookies.clear()
+    page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
+    photos = page.split('class="photos"')[1].split("</ul>")[0]
+    assert photos.count("<li>") == 2  # the cover is the first; both others on their own
+    assert "data-after=" not in page and "compare-tag" not in page
 
 
 async def test_a_photo_is_compared_with_another_of_its_work_and_undone(client, staff):

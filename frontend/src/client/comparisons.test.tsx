@@ -233,7 +233,8 @@ describe("comparisons in edit mode", () => {
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
       "GET /api/pages/casa-jardim": () => ({
-        body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: 4 } },
+        // Comparisons are switched on for the office (A40).
+        body: { ...PAGE, features: ["before_after"], staff: { project_id: "p-1", status: "active", row_version: 4 } },
       }),
       "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
       ...extra,
@@ -269,8 +270,12 @@ describe("comparisons in edit mode", () => {
     await userEvent.upload(within(dialog).getByLabelText("Escolher a imagem “Depois”"), after);
     // The first image's name until another is typed.
     expect(within(dialog).getByRole("textbox", { name: "Nome da comparação" })).toHaveValue("Sala atual");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Rótulo de “Depois” (opcional)" }), "Obra pronta");
-    expect(within(dialog).getByRole("group", { name: "Prévia da comparação" })).toBeInTheDocument();
+    // A label is renamed from its pencil, on its image; Enter keeps it without sending.
+    expect(within(dialog).queryByRole("textbox", { name: "Rótulo de “Depois”" })).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Renomear “Depois”" }));
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Rótulo de “Depois”" }), "Obra pronta{Enter}");
+    expect(within(dialog).getByRole("button", { name: "Renomear “Obra pronta”" })).toHaveFocus();
+    expect(sent.some((r) => r.path.endsWith("/comparisons"))).toBe(false);
     await userEvent.click(within(dialog).getByRole("button", { name: "Enviar comparação" }));
     expect(await screen.findByText("Comparação “Sala atual” enviada.")).toBeInTheDocument();
     expect(sent.find((r) => r.path.endsWith("/comparisons"))?.body).toEqual({
@@ -310,7 +315,7 @@ describe("comparisons in edit mode", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Enviar comparação" }));
     // While the images go up, nothing that names them can change.
     expect(within(dialog).getByRole("textbox", { name: "Nome da comparação" })).toBeDisabled();
-    expect(within(dialog).getByRole("textbox", { name: "Rótulo de “Depois” (opcional)" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Renomear “Depois”" })).toBeDisabled();
     release();
     await waitFor(() => expect(sent.some((r) => r.path.endsWith("/uploads/failed"))).toBe(true));
     vi.useRealTimers();
@@ -349,6 +354,16 @@ describe("comparisons in edit mode", () => {
     await waitFor(() => expect(listings()).toBe(2)); // the "before" now shows on its own
   });
 
+  it("keeps a label as it was when its renaming is left with Escape, and the dialog open", async () => {
+    asStaff();
+    await startEditing();
+    const dialog = await openNewComparison("Briefing");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Renomear “Antes”" }));
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Rótulo de “Antes”" }), "Projeto{Escape}");
+    expect(within(dialog).getByRole("button", { name: "Renomear “Antes”" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Comparação antes e depois" })).toBeInTheDocument();
+  });
+
   it("refuses a file that isn't a JPG, PNG, WebP or GIF before anything is sent", async () => {
     const sent = asStaff();
     await startEditing();
@@ -363,6 +378,18 @@ describe("comparisons in edit mode", () => {
     expect(sent.some((r) => r.path.endsWith("/comparisons"))).toBe(false);
   });
 
+  it("shows no \"+\" card when comparisons are switched off for the office", async () => {
+    asStaff({
+      "GET /api/pages/casa-jardim": () => ({
+        body: { ...PAGE, staff: { project_id: "p-1", status: "active", row_version: 4 } },
+      }),
+    });
+    await startEditing();
+    const region = await screen.findByRole("region", { name: "Briefing" });
+    await within(region).findByLabelText("escolha no computador"); // the drop area, as before
+    expect(within(region).queryByRole("button", { name: "Adicionar à etapa" })).not.toBeInTheDocument();
+  });
+
   it("offers the stage's own file chooser from the \"+\" card too", async () => {
     asStaff();
     await startEditing();
@@ -370,7 +397,7 @@ describe("comparisons in edit mode", () => {
     const chooser = (await within(region).findByLabelText("escolha no computador")) as HTMLInputElement;
     const opened = vi.spyOn(chooser, "click");
     await userEvent.click(await within(region).findByRole("button", { name: "Adicionar à etapa" }));
-    await userEvent.click(within(region).getByRole("menuitem", { name: "Enviar arquivos" }));
+    await userEvent.click(within(region).getByRole("menuitem", { name: /Enviar arquivos/ }));
     expect(opened).toHaveBeenCalledTimes(1);
   });
 

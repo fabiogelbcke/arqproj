@@ -23,6 +23,7 @@ test.beforeEach(({ page, browserName }) => {
 });
 
 import { E2E_ENV, OPERATOR, OUTBOX, PORT } from "../playwright.config";
+import { switchOn } from "./features";
 
 /** An account made the real way, with the staff command; returns its invite link. */
 /** The project page's tour is for new accounts; tests about other things mark it
@@ -833,6 +834,7 @@ test("staff upload a before-and-after comparison, and the client slides between 
   browser,
 }) => {
   await signInAsNewStaff(page, "comparacao@alinea.example");
+  switchOn("before_after");
   await page.goto("/casa-jardim");
   await page
     .getByRole("navigation", { name: "Ferramentas do escritório" })
@@ -850,8 +852,9 @@ test("staff upload a before-and-after comparison, and the client slides between 
   await dialog.getByLabel("Escolher a imagem “Antes”").setInputFiles(join(images, "fachada-estudo-exemplo.jpg"));
   await dialog.getByLabel("Escolher a imagem “Depois”").setInputFiles(join(images, "fachada-exemplo.jpg"));
   await dialog.getByRole("textbox", { name: "Nome da comparação" }).fill("Fachada");
-  await dialog.getByRole("textbox", { name: "Rótulo de “Antes” (opcional)" }).fill("Estudo");
-  await expect(dialog.getByRole("slider")).toBeVisible(); // the preview
+  await dialog.getByRole("button", { name: "Renomear “Antes”" }).click();
+  await dialog.getByRole("textbox", { name: "Rótulo de “Antes”" }).fill("Estudo");
+  await dialog.getByRole("textbox", { name: "Rótulo de “Antes”" }).press("Enter");
   await dialog.getByRole("button", { name: "Enviar comparação" }).click();
   await expect(page.getByText("Comparação “Fachada” enviada.")).toBeVisible();
   await expect(briefing.getByRole("button", { name: "Abrir Fachada" })).toBeVisible();
@@ -903,16 +906,8 @@ test("a portfolio work's before and after opens on a slider, by pointer and keyb
   browser,
 }) => {
   await signInAsNewStaff(page, "portfolio@alinea.example");
-  // The portfolio is switched on per office (A40), here straight in the test database.
-  execFileSync(
-    "uv",
-    ["run", "python", "-c", [
-      "import os, sqlalchemy as sa",
-      "engine = sa.create_engine(os.environ['MIGRATION_DATABASE_URL'])",
-      "with engine.begin() as db: db.execute(sa.text(\"UPDATE tenants SET features = array_append(features, 'portfolio') WHERE slug = 'alinea' AND NOT 'portfolio' = ANY(features)\"))",
-    ].join("\n")],
-    { cwd: "..", env: { ...process.env, ...E2E_ENV } },
-  );
+  switchOn("portfolio");
+  switchOn("before_after");
   const me = await (await page.request.get("/api/me")).json();
   const headers = { "X-CSRF-Token": me.csrf_token };
   const made = await page.request.post("/api/portfolio/entries", { headers, data: { title: "Casa Fachada" } });

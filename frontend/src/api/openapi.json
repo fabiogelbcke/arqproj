@@ -9796,7 +9796,8 @@
           "project_members",
           "proposals",
           "portfolio",
-          "cover_band"
+          "cover_band",
+          "before_after"
         ],
         "title": "Feature",
         "description": "Work merged but switched on only for some offices, from the operator\ndashboard (A40): staging and main deploy it switched off for everyone else.\nRemove a feature from here once every office has it."

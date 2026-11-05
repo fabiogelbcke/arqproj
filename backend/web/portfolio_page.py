@@ -227,7 +227,7 @@ async def _page(request: Request) -> Response | None:
         pairs: dict = {}
         works = []
         for entry, photos in await entries_with_photos(db):
-            shown, found_pairs = compared(photos)
+            shown, found_pairs = compared(photos, tenant.has(Feature.BEFORE_AFTER))
             pairs.update(found_pairs)
             if shown:
                 works.append((entry, shown))

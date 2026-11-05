@@ -57,7 +57,7 @@ from backend.security import keys
 from backend.storage.base import StorageError, StorageItem, StorageProblem
 from backend.storage.connections import storage_for
 from backend.storage.models import StorageConnection
-from backend.tenancy.models import Locale
+from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.transfers import measured
 from backend.web.auth import CurrentStaff, optional_staff
@@ -338,9 +338,12 @@ async def page_files(
     slug: str,
     response: Response,
     staff: CurrentStaff | None = Depends(optional_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PageFilesOut:
     project = await _readable(db, slug, staff, request)
+    # Switched off (A40), a comparison's two images are the plain files they are.
+    compare = tenant.has(Feature.BEFORE_AFTER)
     response.headers.update({**PAGE_HEADERS, **_listing_cache(project, staff)})
     storage = await _storage(request, db)
     has_connection = await db.scalar(select(StorageConnection.id)) is not None
@@ -392,7 +395,8 @@ async def page_files(
             for group, parent, files in await stage_groups(
                 storage, folder, empty=staff is not None
             ):
-                entries = comparisons.pair(versions.group(files), _is_image)
+                documents = versions.group(files)
+                entries = comparisons.pair(documents, _is_image) if compare else documents
                 for entry in entries:
                     _note_visible(visible, entry, position, parent)
                 shown.groups.append(

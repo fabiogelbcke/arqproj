@@ -2,6 +2,7 @@
 uploaded as a pair, and changed as one."""
 
 import pytest
+from sqlalchemy import text
 
 from backend.identity.models import Role
 from backend.projects import creation
@@ -15,6 +16,20 @@ folders = test_page_uploads.folders
 pytestmark = pytest.mark.anyio
 
 JPEG = b"\xff\xd8\xff\xe0 jpeg"
+
+
+async def switch(db, on: bool):
+    """The `before_after` feature (A40), for Alinea."""
+    change = (
+        "array_append(features, 'before_after')" if on else "array_remove(features, 'before_after')"
+    )
+    await db.execute(text(f"UPDATE tenants SET features = {change} WHERE slug = 'alinea'"))
+
+
+@pytest.fixture(autouse=True)
+async def switched_on(owner, db_session):
+    """Comparisons are a feature switched on per office: on for these tests."""
+    await switch(db_session, on=True)
 
 
 def put(folder, *names):
@@ -356,6 +371,41 @@ async def test_a_key_that_isnt_a_comparisons_card_is_not_found(client, owner, fo
     for key in (plain, after):
         response = await act(client, owner, "hide", key)
         assert (response.status_code, response.json()["error"]) == (404, "file_not_found")
+
+
+async def test_switched_off_the_two_images_are_plain_files(client, db_session, owner, folders):
+    put(folders / "01 - Briefing", "Cozinha (antes).jpg", "Cozinha (depois).jpg")
+    await switch(db_session, on=False)
+    found = await cards(client)
+    assert sorted(f["name"] for f in found) == [
+        "Cozinha (antes).jpg",
+        "Cozinha (depois).jpg",
+        "Programa.pdf",
+    ]
+    assert all(f["comparison"] is None for f in found)
+    await switch(db_session, on=True)
+    assert sorted(f["name"] for f in await cards(client)) == ["Cozinha", "Programa.pdf"]
+
+
+@pytest.mark.parametrize("action", ["edit", "hide", "move"])
+async def test_switched_off_a_comparison_cant_be_changed(
+    client, db_session, owner, folders, action
+):
+    put(folders / "01 - Briefing", "Cozinha (antes).jpg", "Cozinha (depois).jpg")
+    key = (await card(client, "Cozinha"))["key"]
+    await switch(db_session, on=False)
+    staff = await staff_of(client)
+    body = {"title": "Copa", "position": 2, "row_version": staff["row_version"]}
+    response = await act(client, owner, action, key, **body)
+    assert (response.status_code, response.json()["error"]) == (409, "feature_off")
+    assert (folders / "01 - Briefing" / "Cozinha (antes).jpg").exists()
+
+
+async def test_switched_off_no_comparison_is_uploaded(client, db_session, owner, folders):
+    await switch(db_session, on=False)
+    response = await start(client, owner)
+    assert (response.status_code, response.json()["error"]) == (409, "feature_off")
+    assert sorted(p.name for p in (folders / "01 - Briefing").iterdir()) == ["Programa.pdf"]
 
 
 @pytest.mark.parametrize("action", ["edit", "hide", "move"])

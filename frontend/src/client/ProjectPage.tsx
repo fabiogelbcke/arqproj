@@ -1504,7 +1504,8 @@ export function ProjectPage({
             }
             moving={moving}
             addCard={
-              canEdit && !unreadable(i)
+              // The "+" card offers comparisons, a feature switched on per office (A40, A46).
+              canEdit && !unreadable(i) && (page.features ?? []).includes("before_after")
                 ? (section) => (
                     <Suspense fallback={null}>
                       <AddCard

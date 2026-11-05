@@ -90,7 +90,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       "- Três suítes e escritório\n" +
       "- Piscina na cota mais baixa do terreno",
     cover_url: house,
-    features: ["cover_band"], // the opening on a band (A40); the example shows everything
+    features: ["cover_band", "before_after"], // the opening on a band (A40); the example shows everything
     team: ["Paula Ribeiro"],
     proposal_url: pdf,
     status: "active",

@@ -10,7 +10,6 @@ import { useTranslation } from "react-i18next";
 import { api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { capture } from "../posthog";
-import { BeforeAfter } from "../ui/BeforeAfter";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { MoreIcon } from "../ui/MoreIcon";
@@ -51,7 +50,8 @@ export const moveComparison = (page: Page, slug: string, key: string, to: { posi
     }),
   );
 
-/** The "+" card after a stage's or a section's files. */
+/** The "+" card after a stage's or a section's files: as tall as a file card,
+ *  but plainly not a file, its "+" and "Adicionar" in the middle. */
 export function AddCard({
   staff,
   position,
@@ -81,13 +81,15 @@ export function AddCard({
         aria-label={section ? t("compare.addToSection", { section }) : t("compare.add")}
         onClick={() => setOpen(open === "menu" ? false : "menu")}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
         </svg>
-        <span>{t("compare.addShort")}</span>
+        <span className="file--add__label" aria-hidden="true">
+          {t("compare.addShort")}
+        </span>
       </button>
       {open === "menu" && (
-        <div className="menu__list" role="menu">
+        <div className="menu__list add-menu" role="menu">
           <button
             type="button"
             role="menuitem"
@@ -96,11 +98,23 @@ export function AddCard({
               document.getElementById(inputId)?.click(); // the drop area's own chooser
             }}
           >
-            {t("compare.sendFiles")}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <path d="M12 16V4M7 9l5-5 5 5M5 20h14" />
+            </svg>
+            <span>
+              {t("compare.sendFiles")}
+              <small>{t("compare.sendFilesNote")}</small>
+            </span>
           </button>
           <button type="button" role="menuitem" onClick={() => setOpen("compare")}>
-            {t("compare.new")}
-            <small>{t("compare.newNote")}</small>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="M12 3v18" />
+            </svg>
+            <span>
+              {t("compare.new")}
+              <small>{t("compare.newNote")}</small>
+            </span>
           </button>
         </div>
       )}
@@ -115,6 +129,72 @@ export function AddCard({
         />
       )}
     </div>
+  );
+}
+
+/** A side's label on its image: "Antes" with a pencil, which turns it into a
+ *  field. Enter or leaving the field keeps what was typed; Escape, what was. */
+function SideLabel({
+  word,
+  label,
+  isDisabled,
+  onLabel,
+}: {
+  word: string;
+  label: string;
+  isDisabled: boolean;
+  onLabel: (label: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState<string | null>(null); // being typed
+  const pencil = useRef<HTMLButtonElement>(null);
+  const done = useRef(false); // just renamed from the keyboard: the focus goes back to the pencil
+  useEffect(() => {
+    if (draft === null && done.current) pencil.current?.focus();
+    done.current = false;
+  }, [draft]);
+  const shown = label.trim() || word;
+  if (draft !== null)
+    return (
+      <input
+        className="compare-side__label is-editing"
+        aria-label={t("compare.labelField", { side: word })}
+        placeholder={word}
+        value={draft}
+        maxLength={LIMITS.comparisonLabel}
+        autoFocus
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          onLabel(draft);
+          setDraft(null);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault(); // not the form's "Enviar"
+            done.current = true;
+            event.currentTarget.blur();
+          } else if (event.key === "Escape") {
+            event.stopPropagation(); // not the dialog's close
+            done.current = true;
+            setDraft(null);
+          }
+        }}
+      />
+    );
+  return (
+    <button
+      ref={pencil}
+      type="button"
+      className="compare-side__label"
+      disabled={isDisabled}
+      aria-label={t("compare.editLabel", { side: shown })}
+      onClick={() => setDraft(label)}
+    >
+      {shown}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+        <path d="M4 20h4L19 9l-4-4L4 16v4Z M13.5 6.5l4 4" />
+      </svg>
+    </button>
   );
 }
 
@@ -140,31 +220,42 @@ function SidePicker({
   const chooser = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const preview = useObjectUrl(file);
+  const action = locked ? t("compare.uploadedSide") : preview ? t("compare.change") : t("compare.choose");
   return (
-    <div className="compare-side">
+    <div
+      className={`compare-side${over ? " over" : ""}${preview ? " is-chosen" : ""}`}
+      onDragOver={(event) => {
+        if (locked || busy) return;
+        event.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setOver(false);
+        const dropped = event.dataTransfer.files[0];
+        if (dropped && !locked && !busy) onFile(dropped);
+      }}
+    >
       <button
         type="button"
-        className={`compare-side__image${over ? " over" : ""}${preview ? " is-chosen" : ""}`}
+        className="compare-side__image"
         disabled={locked || busy}
+        aria-label={t("compare.pickSide", { action, side: label.trim() || word })}
         onClick={() => chooser.current?.click()}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setOver(true);
-        }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setOver(false);
-          const dropped = event.dataTransfer.files[0];
-          if (dropped) onFile(dropped);
-        }}
       >
-        {preview ? <img src={preview} alt="" /> : <span className="compare-side__plus" aria-hidden="true" />}
-        <span className="compare-side__word">{label.trim() || word}</span>
-        <span className="compare-side__action">
-          {locked ? t("compare.uploadedSide") : preview ? t("compare.change") : t("compare.choose")}
-        </span>
+        {preview ? (
+          <img src={preview} alt="" />
+        ) : (
+          <>
+            <span className="compare-side__plus" aria-hidden="true" />
+            <span>{action}</span>
+            <small>{t("compare.formats", { max: UPLOAD_MAX_MB })}</small>
+          </>
+        )}
+        {preview && <span className="compare-side__action">{action}</span>}
       </button>
+      <SideLabel word={word} label={label} isDisabled={locked || busy} onLabel={onLabel} />
       <input
         ref={chooser}
         type="file"
@@ -176,14 +267,6 @@ function SidePicker({
           event.target.value = ""; // the same file can be chosen again
           if (chosen) onFile(chosen);
         }}
-      />
-      <TextField
-        label={t("compare.label", { side: word })}
-        placeholder={word}
-        value={label}
-        onChange={onLabel}
-        maxLength={LIMITS.comparisonLabel}
-        isDisabled={locked || busy}
       />
     </div>
   );
@@ -200,8 +283,8 @@ function useObjectUrl(file: File | null): string | null {
   return url;
 }
 
-/** "Comparação antes e depois": a name, two images and their labels, a preview
- *  of the slider, then both go up. */
+/** "Comparação antes e depois": a name and two images, each labelled on its
+ *  image ("Antes" until staff rename it), then both go up. */
 function NewComparison({
   staff,
   position,
@@ -224,8 +307,6 @@ function NewComparison({
   const [labels, setLabels] = useState({ before: "", after: "" });
   const [problem, setProblem] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null); // both images', while sending
-  const beforeUrl = useObjectUrl(before);
-  const afterUrl = useObjectUrl(after);
   const words = { before: t("compare.before"), after: t("compare.after") };
   const pick = (side: "before" | "after") => (file: File) => {
     const refused = refusal(file);
@@ -345,15 +426,6 @@ function NewComparison({
             onLabel={(label) => setLabels({ ...labels, after: label })}
           />
         </div>
-        {beforeUrl && afterUrl && (
-          <div className="compare-form__preview" aria-label={t("compare.preview")} role="group">
-            <BeforeAfter
-              title={title.trim() || words.before}
-              before={{ src: beforeUrl, label: labels.before.trim() || words.before }}
-              after={{ src: afterUrl, label: labels.after.trim() || words.after }}
-            />
-          </div>
-        )}
         <p className={styles.hint}>
           {t("compare.note", {
             folder,

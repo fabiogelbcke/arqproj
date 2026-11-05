@@ -33,6 +33,7 @@ from backend.projects.creation import LocalFolders
 from backend.projects.models import Project, ProjectStage
 from backend.storage.base import StorageError
 from backend.storage.google_connect import ConnectError
+from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
@@ -52,7 +53,15 @@ from backend.web.pages import _readable
 from backend.web.projects import _folders
 
 log = logging.getLogger(__name__)
-router = APIRouter()
+
+
+def _switched_on(tenant: CurrentTenant = Depends(current_tenant)) -> None:
+    """Comparisons are a feature switched on per office (A40, A46)."""
+    if not tenant.has(Feature.BEFORE_AFTER):
+        raise ApiError(409, ErrorCode.FEATURE_OFF)
+
+
+router = APIRouter(dependencies=[Depends(_switched_on)])
 
 
 class SideIn(BaseModel):
