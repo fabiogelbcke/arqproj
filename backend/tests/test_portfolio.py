@@ -137,7 +137,7 @@ async def test_an_archived_project_can_be_drawn_on_though_the_painel_lists_it_no
     with_archived = await client.get("/api/projects?archived=true", headers=ALINEA)
     assert casa in [p["id"] for p in with_archived.json()]
     drawn = await add(client, staff, project_id=casa)
-    assert (drawn["project_name"], drawn["status"]) == ("Casa Jardim", "completed")
+    assert drawn["project_name"] == "Casa Jardim"
 
 
 async def test_a_failed_video_send_is_logged_with_its_context_and_answers_with_the_code(
@@ -520,6 +520,13 @@ async def test_the_images_are_the_page_and_the_words_come_after_them(client, sta
 
     page = (await client.get(f"/?projeto={casa['id']}", headers=ALINEA)).text
     run = page.split('<section class="run wrap"')[1].split("</section>")[0]
+    # One at a time, in a track that slides; the arrows and the count wait for the script.
+    assert '<div class="stage"><div class="track" tabindex="0"><div class="slide"><figure ' in run
+    assert run.endswith(
+        '<button type="button" class="prev" aria-label="Anterior" hidden>←</button>'
+        '<button type="button" class="next" aria-label="Próximo" hidden>→</button>'
+        '</div><p class="count" aria-live="polite" hidden></p>'
+    )
     shots = run.split("<figure ")[1:]
     assert [shot.split('width="')[1].split('"')[0] for shot in shots] == ["160", "161", "162"]
     assert 'fetchpriority="high"' in shots[0] and all('loading="lazy"' in s for s in shots[1:])
@@ -600,7 +607,7 @@ async def test_a_work_drawn_from_a_project_starts_with_its_facts_never_its_clien
 ):
     await _project_facts(db_session, status="completed", completed=date(2025, 3, 10))
     drawn = await add(client, staff, project_id=await project_id(client))
-    assert (drawn["status"], drawn["year"], drawn["place"]) == ("completed", 2025, "")
+    assert (drawn["year"], drawn["place"]) == (2025, "")
     # The project's details in its order, labelled as its page shows them; the
     # seeded project has a few more (its site area, its start) than the fixture adds.
     lines = {line["key"]: line for line in drawn["details"]}
@@ -618,7 +625,7 @@ async def test_a_work_drawn_from_a_project_starts_with_its_facts_never_its_clien
     page = (await client.get(f"/?projeto={drawn['id']}", headers=ALINEA)).text
     assert "<dt>Área construída</dt><dd>212,5 m²</dd>" in page
     assert "<dt>Responsável</dt><dd>Laura Mendes</dd>" in page
-    assert "<dt>Situação</dt><dd>Concluído</dd>" in page
+    assert "Situação" not in page  # where the work stands isn't said (5 Nov 2026)
     assert "Família Teixeira" not in page and "Acácias" not in page
 
 
@@ -660,15 +667,15 @@ async def test_a_work_in_progress_takes_its_expected_year_unless_given_one(
     await _project_facts(db_session, status="active", delivery=date(2027, 6, 1))
     project = await project_id(client)
     drawn = await add(client, staff, project_id=project)
-    assert (drawn["status"], drawn["year"]) == ("in_progress", 2027)
+    assert drawn["year"] == 2027
     assert (await add(client, staff, project_id=project, year=2026))["year"] == 2026
     blank = await add(client, staff, title="Loja")
-    assert (blank["details"], blank["status"]) == ([], None)
+    assert blank["details"] == []
 
 
 async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
     """The sheet: built-in details (typed: an area as typed with a comma, a date)
-    and the office's own labels, in the order sent, then where the work stands."""
+    and the office's own labels, in the order sent."""
     entry = await add(client, staff, title="Casa Jardim")
     for _ in range(3):
         await photo(client, staff, entry)
@@ -685,7 +692,6 @@ async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
                     "value": "Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho",
                 },
             ],
-            "status": "in_progress",
             "credits": "Estúdio Luz",
         },
         headers=staff,
@@ -713,7 +719,6 @@ async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
         "<div><dt>Início</dt><dd>02/03/2024</dd></div>"
         "<div><dt>Responsável</dt>"
         "<dd>Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho</dd></div>"
-        "<div><dt>Situação</dt><dd>Em andamento</dd></div>"
     )
     assert "frame-src" not in answer.headers["content-security-policy"]  # nothing embedded
     # The sheet, the text and the credits after the photos, under one heading.
@@ -725,11 +730,8 @@ async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
     assert page.count('class="zoom"') == 3 and page.count("?size=full") == 6
     assert 'class="lightbox"' in page
 
-    cleared = await client.patch(url, json={"details": [], "status": None}, headers=staff)
-    assert (cleared.json()["entries"][0]["details"], cleared.json()["entries"][0]["status"]) == (
-        [],
-        None,
-    )
+    cleared = await client.patch(url, json={"details": []}, headers=staff)
+    assert cleared.json()["entries"][0]["details"] == []
     bare = (await client.get(f"/?projeto={entry['id']}", headers=ALINEA)).text
     assert '<dl class="facts">' not in bare
 

@@ -1,6 +1,8 @@
 /* The Portfólio tab and a work's editor (portfolio/). */
 .page { display: grid; gap: 24px; }
-.head { display: grid; gap: 10px; }
+/* The page's name on the left and, on the right, the way to the portfolio itself. */
+.head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px 24px; }
+.headText { display: grid; gap: 10px; min-width: 0; }
 .kicker, .crumbs {
   font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--muted);
 }
@@ -14,32 +16,46 @@
 .empty { padding: 20px; border: 1px dashed var(--line-strong); border-radius: var(--r-card); color: var(--muted); }
 
 .section { display: grid; gap: 16px; }
+/* A work's editor: its photos and videos together on the left, most of the
+   page; its words in one panel on the right. Narrower, the words below. */
+.editor { display: grid; grid-template-columns: minmax(0, 7fr) minmax(320px, 3fr); gap: 24px 32px; align-items: start; }
+.media { display: grid; gap: 32px; min-width: 0; }
+.words { container-type: inline-size; }
+@media (max-width: 1000px) { .editor { grid-template-columns: minmax(0, 1fr); } }
 .section h2 { font-size: var(--text-lg); font-weight: 600; }
 .sectionHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .count { font-weight: 400; color: var(--muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .save { justify-self: start; }
 .switchLabel { font-weight: 500; }
-.pair { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: start; }
-/* The rest of a work's words, folded: open when any of it is filled in. */
+/* The rest of a work's words, folded: open when any of it is filled in. Inside,
+   one sheet: every row a name on the left and its value on the right, in the
+   same columns, whether built in (type, place, year), a detail of the sheet
+   (with its × at the end) or the description. */
 .more { border-top: 1px solid var(--line); padding-top: 12px; }
 .more summary { display: grid; gap: 2px; cursor: pointer; font-weight: 500; list-style: none; }
 .more summary::-webkit-details-marker { display: none; }
 .more summary > span:first-child::before { content: "+ "; color: var(--muted); }
 .more[open] summary > span:first-child::before { content: "− "; }
 .more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 4px; }
-.moreBody { display: grid; gap: 16px; padding-top: 16px; }
+.moreBody { display: grid; gap: 10px; padding-top: 20px; }
 .sheet { display: grid; gap: 10px; }
-.sheetRows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.sheetRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
-.sheetRow[data-own] { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; }
-.sheetRow > :last-child { margin-bottom: 4px; }
+.row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 36px; gap: 10px; align-items: center; }
+.row[data-top] { align-items: start; }
+.row[data-top] .rowLabel { padding-top: 12px; }
+.rowLabel { font-size: var(--text-sm); font-weight: 500; color: var(--muted); }
+.rowField { min-width: 0; }
+.short { max-width: 140px; }
+/* A select level with the inputs: the same height and corners as a field. */
+.rowSelect select { width: 100%; height: var(--control-main); border-color: var(--line); border-radius: var(--r-field); }
 .addDetail { justify-self: start; }
-@media (max-width: 560px) {
-  .sheetRow[data-own] { grid-template-columns: minmax(0, 1fr) auto; }
-  .sheetRow[data-own] > :nth-child(2) { grid-column: 1; }
+/* In a narrow panel (a phone), the name above its value; the × keeps the right edge. */
+@container (max-width: 400px) {
+  .row { grid-template-columns: minmax(0, 1fr) 36px; row-gap: 4px; }
+  .row > :first-child { grid-column: 1 / -1; }
+  .row[data-top] .rowLabel { padding-top: 0; }
+  .short { max-width: none; }
 }
-@media (max-width: 560px) { .pair { grid-template-columns: 1fr; } }
 .networks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 560px) { .networks { grid-template-columns: 1fr; } }
 
@@ -108,6 +124,7 @@
 @media (max-width: 560px) {
   .kicker { display: none; }
   .thumb { width: 72px; }
+  .photos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 }
 .format { display: grid; gap: 8px; }
 .formats { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 12px; }

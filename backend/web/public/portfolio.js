@@ -1,6 +1,6 @@
-// The portfolio (backend/web/portfolio_page.py): photos opened large, the
-// mosaic's columns, the menu of types as tabs, and a work opened over the
-// works. Without this script the page still works: each link goes to its page.
+// The portfolio (backend/web/portfolio_page.py): a work's photos slid one at a
+// time and opened large, the mosaic's columns, the menu of types as tabs, and a
+// work opened over the works. Without this script the page still works: each link goes to its page.
 const modified = (event) => event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0;
 
 // A work's photos and videos open large over the page, one after another with
@@ -79,16 +79,69 @@ const wireLightbox = (root) => {
 };
 wireLightbox(document);
 
+// A work's photos, one at a time in a track that slides from one to the next:
+// the arrows and the count below are shown here, and the keyboard's ← → move
+// it too (not while a photo is open large: that viewer's arrows take them).
+// The photos either side of the one shown are fetched ahead, so a slide never
+// waits. `keys` is where the keyboard is heard: the page, or the layer below.
+// Without this script the track still slides by swipe or trackpad.
+const wireRun = (root, keys) => {
+  const run = root.querySelector(".run");
+  if (!run) return () => {};
+  const track = run.querySelector(".track");
+  const shots = [...track.children];
+  const prev = run.querySelector(".stage > .prev");
+  const next = run.querySelector(".stage > .next");
+  const count = run.querySelector(":scope > .count");
+  let shown = 0; // the one in view
+  let wanted = 0; // the one slid to, which the arrows count from while the slide is still moving
+  const ahead = (index) => {
+    const img = shots[index]?.querySelector("img");
+    if (img) img.loading = "eager";
+  };
+  const place = () => {
+    const width = track.clientWidth || 1; // none yet in a layer still closed
+    shown = Math.max(0, Math.min(shots.length - 1, Math.round(track.scrollLeft / width)));
+    if (Math.abs(track.scrollLeft - shown * width) < 2) wanted = shown; // settled, by a swipe maybe
+    if (count) count.textContent = `${shown + 1} / ${shots.length}`;
+    if (prev) prev.disabled = shown === 0;
+    if (next) next.disabled = shown === shots.length - 1;
+    ahead(shown + 1);
+    ahead(shown - 1);
+  };
+  const go = (index) => {
+    wanted = Math.max(0, Math.min(shots.length - 1, index));
+    track.scrollTo({ left: wanted * track.clientWidth });
+  };
+  for (const [button, step] of [[prev, -1], [next, 1]]) {
+    if (!button) continue;
+    button.hidden = false;
+    button.addEventListener("click", () => go(wanted + step));
+  }
+  if (count) count.hidden = false;
+  track.addEventListener("scroll", () => requestAnimationFrame(place), { passive: true });
+  const onKey = (event) => {
+    if (event.target.closest(".lightbox, video")) return;
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault(); // the track would also scroll a little on its own
+    go(wanted + (event.key === "ArrowLeft" ? -1 : 1));
+  };
+  keys.addEventListener("keydown", onKey);
+  place();
+  return () => keys.removeEventListener("keydown", onKey); // for the layer, before its next work
+};
+wireRun(document, document);
+
 // The mosaic format (the works' covers, or a work's images): in the order
-// staff set them, left to right then down, in as many columns as fit; a work's
-// images keep two on a phone. Without this, the stylesheet's columns fill top
-// to bottom first. Gives back a way to lay the mosaic out again.
+// staff set them, left to right then down, in as many columns as fit, never
+// fewer than two (a phone shows two, as VSCO does). Without this, the
+// stylesheet's columns fill top to bottom first. Gives back a way to lay the
+// mosaic out again.
 const layMosaic = (mosaic) => {
   const works = [...mosaic.children];
-  const least = mosaic.classList.contains("posts") ? 2 : 1;
   const lay = (again = false) => {
     const width = mosaic.clientWidth;
-    const count = width > 1020 ? 3 : width > 500 ? 2 : least;
+    const count = width > 1020 ? 3 : 2;
     if (!again && mosaic.dataset.columns === String(count)) return;
     mosaic.dataset.columns = String(count);
     mosaic.replaceChildren();
@@ -158,6 +211,7 @@ if (layer && layer.showModal && window.fetch) {
   let pushed = false; // the address moved to the work: closing moves it back
   let leaving = false; // closing because the address moved back already
   let asked = 0; // the latest work asked for: an older answer, or one after closing, is dropped
+  let unwireRun = () => {}; // lets go of the keys the work shown took
   const open = async (url, push) => {
     const mine = ++asked;
     let doc;
@@ -179,6 +233,8 @@ if (layer && layer.showModal && window.fetch) {
     document.title = doc.title;
     layer.setAttribute("aria-label", body.querySelector("h1")?.textContent ?? doc.title);
     wireLightbox(body);
+    unwireRun();
+    unwireRun = wireRun(body, layer);
     for (const mosaic of body.querySelectorAll(".mosaic")) layMosaic(mosaic);
     body.querySelector("a.back")?.addEventListener("click", (event) => {
       if (modified(event)) return;
@@ -215,6 +271,8 @@ if (layer && layer.showModal && window.fetch) {
   layer.querySelector(":scope > .close").addEventListener("click", () => layer.close());
   layer.addEventListener("close", () => {
     asked++; // a work still on its way stays out
+    unwireRun();
+    unwireRun = () => {};
     body.replaceChildren();
     document.body.classList.remove("held");
     document.title = home;

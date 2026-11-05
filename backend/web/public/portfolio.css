@@ -1,6 +1,6 @@
 /* An office's portfolio at its address's root (backend/web/portfolio_page.py).
    The images are the page: the works as a grid of covers, a work as its photos
-   large, one after the other; the words small, and after the images. */
+   large, one at a time; the words small, and after the images. */
 :root{color-scheme:light dark;--paper:#fbfaf7;--ink:#1d1d1b;--muted:#6b6a64;--line:#e4e2db;--tint:#f1efe9;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--ink);background:var(--paper)}
 @media (prefers-color-scheme:dark){:root{--paper:#151514;--ink:#efede7;--muted:#a3a19a;--line:#2e2d2a;--tint:#1f1e1c}}
 *{box-sizing:border-box}
@@ -50,21 +50,36 @@ img{display:block;max-width:100%;height:auto}
 .intro p{max-width:900px;font-size:clamp(20px,2.2vw,28px);line-height:1.4;letter-spacing:-.015em}
 .intro p+p{margin-top:16px}
 
-/* One work: its photos large, one after the other down the page, each at its own
-   shape and never taller than the screen; the type, title, place and year over
-   the first, on a shade so they read over any photo. A click on a photo opens
-   it large over the page. */
+/* One work: its photos large, one at a time, each at its own shape and never
+   taller than most of the screen, side by side in a track that slides from one
+   to the next (a swipe, the trackpad, or the arrows and the count portfolio.js
+   shows); the type, title, place and year over the first, on a shade so they
+   read over any photo. A click on a photo opens it large over the page. */
 .work-top{padding-block:4px 14px}
 .back{display:inline-block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:var(--muted)}
 .back:hover{color:var(--ink)}
-.run{display:flex;flex-direction:column;align-items:center;gap:12px}
-.shot{position:relative;max-width:100%}
+.run{--h:min(78vh,860px)}
+.stage{position:relative}
+.track{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;overscroll-behavior-x:contain}
+.track::-webkit-scrollbar{display:none}
+.track:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+/* The track as tall as the tallest photo; each centred in its slide. */
+.slide{flex:0 0 100%;display:flex;justify-content:center;align-items:center;scroll-snap-align:start;scroll-snap-stop:always}
+.shot{position:relative;max-width:100%;margin:0}
 .shot a{display:block;position:relative;cursor:zoom-in;background:var(--tint)}
-.shot img{width:auto;height:auto;max-width:100%;max-height:92vh}
+.shot img{width:auto;height:auto;max-width:100%;max-height:var(--h)}
 .over{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:6px;padding:96px 28px 26px;color:#fff;background:linear-gradient(to top,rgba(0,0,0,.62),rgba(0,0,0,0));pointer-events:none}
 .over .label{color:rgba(255,255,255,.82)}
 .over h1{max-width:24ch;font-size:clamp(26px,3.4vw,46px);line-height:1.06;font-weight:500;letter-spacing:-.03em;text-shadow:0 1px 20px rgba(0,0,0,.3)}
 .over .meta{font-size:15px;color:rgba(255,255,255,.85)}
+/* The arrows, over the track's sides; the count under it. An arrow at the end
+   of the track fades. */
+.run>.stage>.prev,.run>.stage>.next{position:absolute;top:calc(50% - 24px);z-index:2;width:48px;height:48px;border:1px solid var(--line);border-radius:50%;background:var(--paper);color:var(--ink);font:inherit;font-size:18px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.12);transition:background .2s,color .2s,opacity .2s}
+.run .prev{left:16px}
+.run .next{right:16px}
+.run .prev:hover,.run .next:hover{background:var(--ink);color:var(--paper)}
+.run .prev:disabled,.run .next:disabled{opacity:.25;cursor:default;background:var(--paper);color:var(--ink)}
+.run>.count{margin-top:12px;text-align:center;font-size:13px;letter-spacing:.12em;font-variant-numeric:tabular-nums;color:var(--muted)}
 /* A video among the photos: its poster, with a play mark. */
 .play{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.8);pointer-events:none;transition:background .2s}
 .play::after{content:"";position:absolute;left:20px;top:16px;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff}
@@ -137,7 +152,11 @@ footer .small{margin-left:auto;font-size:12px;color:var(--muted)}
   .works .title,.mosaic .title{padding:40px 12px 10px;font-size:13px}
   .projects{padding-block:0 56px}
   .intro{padding-block:48px 56px}
-  .run{gap:6px}
+  .run{--h:min(64vh,640px);width:100%}
+  .run>.stage>.prev,.run>.stage>.next{width:40px;height:40px;top:calc(50% - 20px);font-size:16px}
+  .run .prev{left:8px}
+  .run .next{right:8px}
+  .run>.count{margin-top:8px;font-size:12px}
   .over{padding:64px 16px 18px;gap:4px}
   .over h1{font-size:clamp(24px,7vw,36px)}
   .over .meta{font-size:14px}
@@ -154,18 +173,22 @@ footer .small{margin-left:auto;font-size:12px;color:var(--muted)}
   footer{flex-direction:column;align-items:flex-start}
   footer .small{margin-left:0}
 }
-/* A phone upright: two covers across, square, as the networks show them. */
+/* A phone upright, as the networks show a profile: the gallery three square
+   covers across with hairline gaps (Instagram), the mosaic two columns (VSCO);
+   no titles, the images alone. */
 @media (max-width:540px){
-  .works{grid-template-columns:repeat(2,1fr);gap:4px}
+  .works{grid-template-columns:repeat(3,1fr);gap:2px}
   .frame{aspect-ratio:1}
-  .works .title,.mosaic .title{padding:32px 10px 8px;font-size:12px}
+  .works .title,.mosaic .title{display:none}
 }
 @media (max-width:420px){
   .top nav{gap:12px;font-size:11px}
   .top nav a[href$="#escritorio"]{display:none}
   .brand img{max-width:38vw}
 }
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.works img,.mosaic img,.following img,.lightbox button,.layer>.close,.play,.works .title,.mosaic .title{transition:none}.layer[open]{animation:none}}
+/* Where there is nothing to hover with, a swipe moves the track: no arrows. */
+@media (hover:none) and (pointer:coarse){.run .prev,.run .next{display:none}}
+@media (prefers-reduced-motion:reduce){html,.track{scroll-behavior:auto}.works img,.mosaic img,.following img,.lightbox button,.layer>.close,.run .prev,.run .next,.play,.works .title,.mosaic .title{transition:none}.layer[open]{animation:none}}
 
 /* An upright cover (a post, a story) in the grid's landscape frame: whole, on
    a blurred copy of itself, instead of cropped. */
@@ -187,4 +210,4 @@ footer .small{margin-left:auto;font-size:12px;color:var(--muted)}
 .posts a{cursor:zoom-in}
 @media (max-width:1100px){.mosaic{columns:2}}
 @media (max-width:820px){.mosaic{column-gap:4px}.mosaic[data-columns]{gap:4px}.mosaic li{margin-bottom:4px}.post-head{padding-block:4px 14px}}
-@media (max-width:540px){.mosaic{columns:1}.posts{columns:2}}
+@media (max-width:540px){.mosaic{columns:2;column-gap:2px}.mosaic[data-columns]{gap:2px}.mosaic li{margin-bottom:2px}}

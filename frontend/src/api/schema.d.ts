@@ -2301,7 +2301,6 @@ export interface components {
             description?: string | null;
             /** Project Type */
             project_type?: string | null;
-            status?: components["schemas"]["WorkStatus"] | null;
             /** Details */
             details?: components["schemas"]["SheetLineIn"][] | null;
             /** Credits */
@@ -2349,7 +2348,6 @@ export interface components {
             description: string;
             /** Project Type */
             project_type: string | null;
-            status: components["schemas"]["WorkStatus"] | null;
             /** Details */
             details: components["schemas"]["SheetLineOut"][];
             /** Credits */
@@ -3871,12 +3869,6 @@ export interface components {
              */
             tenant_id: string;
         };
-        /**
-         * WorkStatus
-         * @description Where a work stands, as the public page says it.
-         * @enum {string}
-         */
-        WorkStatus: "completed" | "in_progress";
         /**
          * WriterStatus
          * @description The office's own grant, used to create folders and upload.

@@ -8,10 +8,11 @@ Signed-in staff see an unpublished portfolio with `/?previa=1`.
 
 The page is plain HTML drawn here: quick to load and read by search engines.
 The images are the page: the works as a grid of covers, a work as its photos
-large, one after the other, with its sheet and text after them. One small script
-of ours, `portfolio.js`, opens a work over the grid, opens photos and videos
-large over the page and makes the menu of types switch in place; without it,
-each link goes to its own page. Videos, from the office's storage like the
+large, one at a time in a track that slides from one to the next, with its sheet
+and text after them. One small script of ours, `portfolio.js`, opens a work over
+the grid, moves the track with arrows, opens photos and videos large over the
+page and makes the menu of types switch in place; without it, each link goes to
+its own page and the track slides by hand. Videos, from the office's storage like the
 photos, play only there, in the browser's own player.
 """
 
@@ -85,7 +86,6 @@ def _texts(locale: Locale) -> dict:
     return {
         **texts["public"],
         "types": texts["types"],
-        "statuses": texts["statuses"],
         "networks": texts["networks"],
     }
 
@@ -295,14 +295,11 @@ def _document(
         title = f"{escape(entry.title)} · {name}"
         description = entry.description or intro
         # Type, place and year are on the cover, with the title; the sheet below
-        # it: its lines in the office's order, then where the work stands.
+        # it: its lines in the office's order.
         facts = "".join(
-            f"<div><dt>{escape(label)}</dt><dd>{escape(value)}</dd></div>"
-            for label, value in (
-                *((line.label, _fact(line, tenant.locale)) for line in sheet),
-                (t["status"], t["statuses"].get(entry.status or "", "")),
-            )
-            if value
+            f"<div><dt>{escape(line.label)}</dt><dd>{escape(value)}</dd></div>"
+            for line in sheet
+            if (value := _fact(line, tenant.locale))
         )
         index = next(n for n, work in enumerate(works) if work[0].id == entry.id)
         following = works[(index + 1) % len(works)] if len(works) > 1 else None
@@ -332,7 +329,7 @@ def _document(
                 + f"</div></article>{after}"
             )
         else:
-            # The photos large, one after the other, the title over the first.
+            # The photos large, one at a time, the title over the first.
             main = (
                 f'<article class="work"><div class="work-top wrap">{back}</div>'
                 + _run(t, entry, photos, videos, heading)
@@ -422,9 +419,9 @@ def _document(
 
 
 def _about(t: dict, facts: str, description: str, credits: str) -> str:
-    """After the photos, "Sobre o projeto": the work's sheet (its details, where
-    it stands) beside its text, as architecture sites set them, the sheet narrow
-    on the left and the text in a reading measure; the photo credits last."""
+    """After the photos, "Sobre o projeto": the work's sheet beside its text, as
+    architecture sites set them, the sheet narrow on the left and the text in a
+    reading measure; the photo credits last."""
     if not facts and not description.strip() and not credits:
         return ""
     return (
@@ -448,35 +445,48 @@ def _run(
     videos: list[PortfolioVideo],
     heading: str,
 ) -> str:
-    """The gallery format's work: its photos large, one after the other down the
-    page, each at its own shape, the type, title, place and year over the first;
-    then its videos, each by its poster with a play mark. Each opens large over
-    the page too, and the arrows go through them all; a video plays only there
-    (`portfolio.js`; without it, each opens on its own)."""
+    """The gallery format's work: its photos large, one at a time, each at its own
+    shape, side by side in a track that slides from one to the next (the arrows,
+    the keyboard or a swipe; `portfolio.js` shows the arrows and the count), the
+    type, title, place and year over the first; then its videos, each by its
+    poster with a play mark. Each opens large over the page too, and that
+    viewer's arrows go through them all; a video plays only there (without the
+    script, the track still slides by hand and each opens on its own)."""
     label = escape(_fill(t["gallery"], title=entry.title))
     shots = "".join(
-        f'<figure class="shot"><a class="zoom" href="{photo_url(photo)}?size=full" '
+        '<div class="slide"><figure class="shot">'
+        f'<a class="zoom" href="{photo_url(photo)}?size=full" '
         f'aria-label="{escape(_fill(t["open"], n=n))}">'
         f'<img src="{photo_url(photo)}?size=full" '
         f'alt="{escape(_fill(t["photo"], n=n, title=entry.title))}"{_size(photo)} '
         f'{_loading(n == 1)} decoding="async"></a>'
         + (f'<figcaption class="over">{heading}</figcaption>' if n == 1 else "")
-        + "</figure>"
+        + "</figure></div>"
         for n, photo in enumerate(photos, start=1)
     )
     films = "".join(
-        f'<figure class="shot film"><a class="zoom film" href="{video_url(video)}" '
+        '<div class="slide"><figure class="shot film">'
+        f'<a class="zoom film" href="{video_url(video)}" '
         f'data-poster="{video_url(video)}/poster" '
         f'aria-label="{escape(_fill(t["watch"], n=n))}">'
         f'<img src="{video_url(video)}/poster?size=full" '
         f'alt="{escape(_fill(t["video"], n=n, title=entry.title))}"{_size(video)} '
         'loading="lazy" decoding="async"><span class="play" aria-hidden="true"></span></a>'
-        "</figure>"
+        "</figure></div>"
         for n, video in enumerate(videos, start=1)
     )
-    return f'<section class="run wrap" aria-label="{label}">{shots}{films}</section>' + _lightbox(
-        t, label
+    several = len(photos) + len(videos) > 1
+    arrows = (
+        f'<button type="button" class="prev" aria-label="{escape(t["previous"])}" hidden>←</button>'
+        f'<button type="button" class="next" aria-label="{escape(t["next"])}" hidden>→</button>'
+        if several
+        else ""
     )
+    count = '<p class="count" aria-live="polite" hidden></p>' if several else ""
+    return (
+        f'<section class="run wrap" aria-label="{label}"><div class="stage">'
+        f'<div class="track" tabindex="0">{shots}{films}</div>{arrows}</div>{count}</section>'
+    ) + _lightbox(t, label)
 
 
 def _posts(

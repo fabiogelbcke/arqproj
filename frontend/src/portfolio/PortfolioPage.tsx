@@ -13,6 +13,7 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { IconButton } from "../ui/IconButton";
+import { LinkButton } from "../ui/LinkButton";
 import { NameDialog } from "../ui/NameDialog";
 import { Panel } from "../ui/Panel";
 import { SearchBox } from "../ui/SearchBox";
@@ -44,11 +45,14 @@ export function PortfolioPage() {
   return (
     <div className={styles.page}>
       <div className={styles.head}>
-        <p className={styles.kicker}>
-          {me.data?.tenant_name} / {t("portfolio.kicker")}
-        </p>
-        <h1 className={styles.title}>{t("portfolio.title")}</h1>
-        <p className={styles.lead}>{t("portfolio.lead", { address: officeAddress() })}</p>
+        <div className={styles.headText}>
+          <p className={styles.kicker}>
+            {me.data?.tenant_name} / {t("portfolio.kicker")}
+          </p>
+          <h1 className={styles.title}>{t("portfolio.title")}</h1>
+          <p className={styles.lead}>{t("portfolio.lead", { address: officeAddress() })}</p>
+        </div>
+        {portfolio.data && <SeePortfolio published={portfolio.data.published} />}
       </div>
       {portfolio.error ? (
         <ErrorNotice error={portfolio.error} />
@@ -99,6 +103,19 @@ function FormatSketch({ format }: { format: Portfolio["format"] }) {
   );
 }
 
+/** The way to the portfolio itself, at the top of the tab and of a work's
+ *  editor: the published page, or its preview while unpublished (staff only);
+ *  `work` opens one work. In a new tab, so the painel stays. */
+export function SeePortfolio({ published, work }: { published: boolean; work?: string }) {
+  const { t } = useTranslation();
+  const query = [work && `projeto=${work}`, !published && "previa=1"].filter(Boolean).join("&");
+  return (
+    <LinkButton variant="primary" href={query ? `/?${query}` : "/"} target="_blank" rel="noreferrer">
+      {t(work ? "portfolio.viewWork" : published ? "portfolio.view" : "portfolio.preview")} <span aria-hidden="true">↗</span>
+    </LinkButton>
+  );
+}
+
 function Publishing({ portfolio }: { portfolio: Portfolio }) {
   const { t } = useTranslation();
   const save = useSavePortfolio();
@@ -120,10 +137,7 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
         <span className={styles.switchLabel}>{t("portfolio.publish")}</span>
       </ToggleSwitch>
       <p className={styles.hint}>
-        {t(portfolio.published ? "portfolio.publishedHint" : "portfolio.unpublishedHint", { address: officeAddress() })}{" "}
-        <a href={portfolio.published ? "/" : "/?previa=1"} target="_blank" rel="noreferrer">
-          {t(portfolio.published ? "portfolio.view" : "portfolio.preview")}
-        </a>
+        {t(portfolio.published ? "portfolio.publishedHint" : "portfolio.unpublishedHint", { address: officeAddress() })}
       </p>
       {portfolio.published && !shown && <p className={styles.warning}>{t("portfolio.nothingShown")}</p>}
       <div className={styles.format} role="radiogroup" aria-labelledby="portfolio-format">

@@ -71,7 +71,6 @@ from backend.portfolio.models import (
     PortfolioVideo,
     SocialNetwork,
     VideoType,
-    WorkStatus,
 )
 from backend.projects.enums import CoverType, DetailKey, DetailType, ProjectStatus
 from backend.projects.models import (
@@ -160,7 +159,6 @@ class EntryOut(BaseModel):
     year: int | None
     description: str
     project_type: str | None
-    status: WorkStatus | None
     details: list[SheetLineOut]
     credits: str
     videos: list[VideoOut]
@@ -208,7 +206,6 @@ class EntryChange(BaseModel):
     year: int | None = Field(default=None, ge=YEAR_MIN, le=YEAR_MAX)
     description: str | None = Field(default=None, max_length=DESCRIPTION_MAX)
     project_type: str | None = Field(default=None, max_length=100)
-    status: WorkStatus | None = None
     # The whole sheet, in order; a line left out is removed.
     details: list[SheetLineIn] | None = Field(default=None, max_length=DETAILS_MAX)
     credits: str | None = Field(default=None, max_length=CREDITS_MAX)
@@ -314,7 +311,6 @@ async def _out(db: AsyncSession, locale: Locale) -> PortfolioOut:
                 year=entry.year,
                 description=entry.description,
                 project_type=entry.project_type,
-                status=entry.status,
                 details=details.get(entry.id, []),
                 credits=entry.credits,
                 videos=[
@@ -376,7 +372,8 @@ async def _project_facts(
     db: AsyncSession, project: Project, members: bool
 ) -> tuple[dict, list[PortfolioDetail]]:
     """What a work drawn from `project` starts with, besides its name and type:
-    its status and year, and its sheet: the project's details in their order,
+    its year (of completion for a project completed, else of expected delivery)
+    and its sheet: the project's details in their order,
     never its client nor its address, which the office may not want public
     (staff add the place themselves). "Responsável" is the
     project's members where the office has them (A41), as the client page shows
@@ -389,11 +386,7 @@ async def _project_facts(
         )
     ).all()
     details = {detail.key: detail for detail in rows}
-    status = {
-        ProjectStatus.COMPLETED: WorkStatus.COMPLETED,
-        ProjectStatus.ACTIVE: WorkStatus.IN_PROGRESS,
-    }.get(project.archived_from or project.status)
-    if status is WorkStatus.COMPLETED:
+    if (project.archived_from or project.status) == ProjectStatus.COMPLETED:
         finished = await db.scalar(
             select(func.max(ProjectStage.completed_at)).where(ProjectStage.project_id == project.id)
         )
@@ -431,7 +424,7 @@ async def _project_facts(
             )
     for position, detail in enumerate(sheet, start=1):
         detail.position = position
-    facts = {"status": status, "year": year if year and YEAR_MIN <= year <= YEAR_MAX else None}
+    facts = {"year": year if year and YEAR_MIN <= year <= YEAR_MAX else None}
     return facts, sheet
 
 
@@ -612,8 +605,6 @@ async def change_entry(
         entry.description = body.description.strip()
     if "project_type" in body.model_fields_set:
         entry.project_type = await _known_type(db, body.project_type)  # None clears it
-    if "status" in body.model_fields_set:
-        entry.status = body.status  # None clears it
     if body.details is not None:
         sheet = await _sheet(db, body.details)
         await db.execute(delete(PortfolioDetail).where(PortfolioDetail.entry_id == entry.id))

@@ -8724,16 +8724,6 @@
             ],
             "title": "Project Type"
           },
-          "status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WorkStatus"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "details": {
             "anyOf": [
               {
@@ -8902,16 +8892,6 @@
             ],
             "title": "Project Type"
           },
-          "status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WorkStatus"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "details": {
             "items": {
               "$ref": "#/components/schemas/SheetLineOut"
@@ -8969,7 +8949,6 @@
           "year",
           "description",
           "project_type",
-          "status",
           "details",
           "credits",
           "videos",
@@ -13130,15 +13109,6 @@
         ],
         "title": "VisitorAnalyticsOut",
         "description": "PostHog for project pages' visitors (A39): cookieless, no person profiles.\nOnly where the server has PostHog set (production)."
-      },
-      "WorkStatus": {
-        "type": "string",
-        "enum": [
-          "completed",
-          "in_progress"
-        ],
-        "title": "WorkStatus",
-        "description": "Where a work stands, as the public page says it."
       },
       "WriterStatus": {
         "type": "string",
