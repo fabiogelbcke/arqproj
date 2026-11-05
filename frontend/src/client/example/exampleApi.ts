@@ -182,7 +182,13 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     links = [{ link, keys }, ...links];
     const picked = keys.flatMap((key) =>
       project.stages.flatMap((s, i) =>
-        s.groups.flatMap((g) => g.files.filter((f) => f.key === key).map((f) => ({ ...f, position: i + 1, stage: s.title }))),
+        s.groups.flatMap((g) =>
+          g.files
+            // A comparison's card (A46) is two images, each shared on its own.
+            .flatMap((f) => (f.comparison ? [{ ...f, name: f.comparison.before_name }, f.comparison.after as ExampleFile] : [f]))
+            .filter((f) => f.key === key)
+            .map((f) => ({ ...f, position: i + 1, stage: s.title })),
+        ),
       ),
     );
     try {
