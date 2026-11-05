@@ -24,6 +24,8 @@ import { movePlaces, sendFile, UPLOAD_MAX_MB, UploadBroke, uploadFile, type Move
 type Staff = NonNullable<Page["staff"]>;
 type FileItem = Schemas["FileOut"];
 
+type Side = "before" | "after";
+
 // What the page shows in itself (backend/web/page_files.py, INLINE_IMAGES).
 export const COMPARABLE = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const UPLOAD_MAX = UPLOAD_MAX_MB * 1024 * 1024;
@@ -118,12 +120,14 @@ export function AddCard({
 
 /** One side's image: chosen or dropped, shown as chosen, with its label. */
 function SidePicker({
+  locked = false,
   word,
   file,
   label,
   onFile,
   onLabel,
 }: {
+  locked?: boolean; // it went up already: kept as it is, for the other to follow
   word: string; // "Antes", "Depois": the label until one is typed
   file: File | null;
   label: string;
@@ -139,6 +143,7 @@ function SidePicker({
       <button
         type="button"
         className={`compare-side__image${over ? " over" : ""}${preview ? " is-chosen" : ""}`}
+        disabled={locked}
         onClick={() => chooser.current?.click()}
         onDragOver={(event) => {
           event.preventDefault();
@@ -154,7 +159,9 @@ function SidePicker({
       >
         {preview ? <img src={preview} alt="" /> : <span className="compare-side__plus" aria-hidden="true" />}
         <span className="compare-side__word">{label.trim() || word}</span>
-        <span className="compare-side__action">{preview ? t("compare.change") : t("compare.choose")}</span>
+        <span className="compare-side__action">
+          {locked ? t("compare.uploadedSide") : preview ? t("compare.change") : t("compare.choose")}
+        </span>
       </button>
       <input
         ref={chooser}
@@ -174,6 +181,7 @@ function SidePicker({
         value={label}
         onChange={onLabel}
         maxLength={LIMITS.comparisonLabel}
+        isDisabled={locked}
       />
     </div>
   );
@@ -226,11 +234,16 @@ function NewComparison({
     if (!title.trim() && side === "before") setTitle(file.name.replace(/\.[^.]+$/, "").slice(0, LIMITS.comparisonTitle));
   };
   const ready = !!before && !!after && !!title.trim() && progress === null;
+  // The images that went up already: a retry sends only the others, as the
+  // server finishes a comparison whose other image is there alone.
+  const [uploaded, setUploaded] = useState<ReadonlySet<Side>>(new Set());
   const send = async () => {
     if (!before || !after) return;
     setProgress(0);
     setProblem(null);
     const path = { project_id: staff.project_id, position };
+    const files = { before, after };
+    const left = (["before", "after"] as const).filter((side) => !uploaded.has(side));
     try {
       const opened = await call(
         api.POST("/api/projects/{project_id}/stages/{position}/comparisons", {
@@ -239,38 +252,40 @@ function NewComparison({
             row_version: staff.row_version,
             title: title.trim(),
             ...(section ? { folder: section } : {}),
-            before: { name: before.name, size: before.size, mime_type: before.type },
-            after: { name: after.name, size: after.size, mime_type: after.type },
+            ...Object.fromEntries(
+              left.map((side) => [side, { name: files[side].name, size: files[side].size, mime_type: files[side].type }]),
+            ),
             ...(labels.before.trim() ? { before_label: labels.before.trim() } : {}),
             ...(labels.after.trim() ? { after_label: labels.after.trim() } : {}),
           },
         }),
       );
-      const total = before.size + after.size || 1;
+      const total = left.reduce((sum, side) => sum + files[side].size, 0) || 1;
       const sent = { before: 0, after: 0 };
-      const track = (side: "before" | "after", file: File) => (fraction: number) => {
-        sent[side] = fraction * file.size;
+      const track = (side: Side) => (fraction: number) => {
+        sent[side] = fraction * files[side].size;
         setProgress((sent.before + sent.after) / total);
       };
-      await Promise.all(
-        (
-          [
-            [opened.before_url, before, "before"],
-            [opened.after_url, after, "after"],
-          ] as const
-        ).map(([url, file, side]) =>
-          sendFile(url, file, track(side, file)).catch((broke) =>
-            broke instanceof UploadBroke
-              ? call(
-                  api.POST("/api/projects/{project_id}/stages/{position}/uploads/failed", {
-                    params: { path },
-                    body: { name: file.name, size: file.size, status: broke.status, detail: broke.detail },
-                  }),
-                ) // always an error: "upload_failed", with the support code
-              : Promise.reject(broke),
+      const results = await Promise.allSettled(
+        left.map((side) =>
+          sendFile(opened[`${side}_url`]!, files[side], track(side)).then(
+            () => side,
+            (broke) =>
+              broke instanceof UploadBroke
+                ? call(
+                    api.POST("/api/projects/{project_id}/stages/{position}/uploads/failed", {
+                      params: { path },
+                      body: { name: files[side].name, size: files[side].size, status: broke.status, detail: broke.detail },
+                    }),
+                  ) // always an error: "upload_failed", with the support code
+                : Promise.reject(broke),
           ),
         ),
       );
+      const done = results.flatMap((result) => (result.status === "fulfilled" ? [result.value as Side] : []));
+      setUploaded((was) => new Set([...was, ...done]));
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed) throw failed.reason;
       capture("comparison_uploaded", { stage_position: position });
       toast(t("compare.sent", { name: title.trim() }));
       onClose();
@@ -298,10 +313,12 @@ function NewComparison({
           onChange={setTitle}
           maxLength={LIMITS.comparisonTitle}
           isRequired
+          isDisabled={uploaded.size > 0} // its images went up named so
           autoFocus
         />
         <div className="compare-form__sides">
           <SidePicker
+            locked={uploaded.has("before")}
             word={words.before}
             file={before}
             label={labels.before}
@@ -309,6 +326,7 @@ function NewComparison({
             onLabel={(label) => setLabels({ ...labels, before: label })}
           />
           <SidePicker
+            locked={uploaded.has("after")}
             word={words.after}
             file={after}
             label={labels.after}

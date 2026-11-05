@@ -8631,10 +8631,24 @@
             "title": "Title"
           },
           "before": {
-            "$ref": "#/components/schemas/SideIn"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SideIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "after": {
-            "$ref": "#/components/schemas/SideIn"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SideIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "before_label": {
             "anyOf": [
@@ -8664,9 +8678,7 @@
         "type": "object",
         "required": [
           "row_version",
-          "title",
-          "before",
-          "after"
+          "title"
         ],
         "title": "ComparisonIn"
       },
@@ -8747,19 +8759,29 @@
       "ComparisonUploadOut": {
         "properties": {
           "before_url": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Before Url"
           },
           "after_url": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "After Url"
           }
         },
         "type": "object",
-        "required": [
-          "before_url",
-          "after_url"
-        ],
         "title": "ComparisonUploadOut"
       },
       "CompletionIn": {

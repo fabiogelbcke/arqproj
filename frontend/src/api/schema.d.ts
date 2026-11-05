@@ -2244,8 +2244,8 @@ export interface components {
             folder?: string | null;
             /** Title */
             title: string;
-            before: components["schemas"]["SideIn"];
-            after: components["schemas"]["SideIn"];
+            before?: components["schemas"]["SideIn"] | null;
+            after?: components["schemas"]["SideIn"] | null;
             /** Before Label */
             before_label?: string | null;
             /** After Label */
@@ -2275,9 +2275,9 @@ export interface components {
         /** ComparisonUploadOut */
         ComparisonUploadOut: {
             /** Before Url */
-            before_url: string;
+            before_url?: string | null;
             /** After Url */
-            after_url: string;
+            after_url?: string | null;
         };
         /** CompletionIn */
         CompletionIn: {

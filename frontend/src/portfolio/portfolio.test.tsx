@@ -291,6 +291,50 @@ describe("a work's editor", () => {
   });
 });
 
+describe("picking a project's images", () => {
+  it("offers both images of a before-and-after comparison, each under its own name (A46)", async () => {
+    const image = (key: string, name: string) => ({ key, name, kind: "image", size: 10, modified_at: "2026-11-01T12:00:00Z", older: [] });
+    api({
+      ...NO_TYPES,
+      "GET /api/projects": () => ({
+        body: [{ id: "p-1", name: "Casa Jardim", client_name: "Família Oliveira", slug: "casa-jardim", status: "active", cover_url: null }],
+      }),
+      "GET /api/pages/casa-jardim/files": () => ({
+        body: {
+          stages: [
+            {
+              position: 1,
+              groups: [
+                {
+                  folder: null,
+                  files: [
+                    {
+                      ...image("k-b", "Cozinha"),
+                      comparison: {
+                        after: image("k-a", "Cozinha (depois).jpg"),
+                        before_label: null,
+                        after_label: null,
+                        before_name: "Cozinha (antes).jpg",
+                        after_name: "Cozinha (depois).jpg",
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+    renderAt("/portfolio/e-1");
+    await userEvent.click(await screen.findByRole("button", { name: "Escolher fotos de um projeto" }));
+    const dialog = await screen.findByRole("dialog", { name: "Fotos de Casa Jardim" });
+    expect(await within(dialog).findByText("Cozinha (antes).jpg")).toBeInTheDocument();
+    expect(within(dialog).getByText("Cozinha (depois).jpg")).toBeInTheDocument();
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(2);
+  });
+});
+
 describe("a work's videos", () => {
   const MP4 = () => new File(["mp4"], "obra.mp4", { type: "video/mp4" });
   const videoInput = () => document.querySelector<HTMLInputElement>('input[accept="video/mp4,video/webm"]')!;

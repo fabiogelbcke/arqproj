@@ -66,16 +66,18 @@ class ComparisonIn(BaseModel):
     row_version: int
     folder: str | None = Field(default=None, max_length=255)  # a section, as for uploads
     title: str = Field(max_length=255)
-    before: SideIn
-    after: SideIn
+    # Both images; or, to finish one whose other image went up alone (its upload
+    # broke off), only the missing one.
+    before: SideIn | None = None
+    after: SideIn | None = None
     before_label: str | None = Field(default=None, max_length=255)
     after_label: str | None = Field(default=None, max_length=255)
 
 
 class ComparisonUploadOut(BaseModel):
-    # Send each image here with one PUT, as for an ordinary upload.
-    before_url: str
-    after_url: str
+    # Send each image here with one PUT, as for an ordinary upload; None: not asked for.
+    before_url: str | None = None
+    after_url: str | None = None
 
 
 def _title(title: str) -> str:
@@ -99,6 +101,16 @@ def _taken(documents: list[versions.Document], key: str, besides=()) -> bool:
     return False
 
 
+def _room_for(documents: list[versions.Document], key: str, wanted: set[Side]) -> bool:
+    """Whether the folder can take these sides of the comparison of this title:
+    nothing marked for that title yet, for both; for one, only the other side,
+    alone (the first try's image that went up)."""
+    marked = [m for d in documents if (m := comparisons.marked(d.named.base)) and m.key == key]
+    if len(wanted) == 2:
+        return not marked
+    return len(marked) == 1 and marked[0].side not in wanted
+
+
 @router.post(
     "/api/projects/{project_id}/stages/{position}/comparisons",
     responses=documented(401, 404, 409, 422, 503),
@@ -114,7 +126,13 @@ async def start_comparison(
 ) -> ComparisonUploadOut:
     """ "Comparação antes e depois": both images go up, named so the page pairs
     them (`Cozinha (antes).jpg`, `Cozinha (depois).jpg`)."""
-    sides = {Side.BEFORE: body.before, Side.AFTER: body.after}
+    sides = {
+        side: chosen
+        for side, chosen in ((Side.BEFORE, body.before), (Side.AFTER, body.after))
+        if chosen is not None
+    }
+    if not sides:
+        raise ApiError(422, ErrorCode.INVALID_REQUEST)  # the page always sends one
     for side in sides.values():
         if side.size > UPLOAD_MAX:
             raise ApiError(422, ErrorCode.FILE_TOO_LARGE)
@@ -130,8 +148,8 @@ async def start_comparison(
     )
     try:
         folder = await _section(reader, stage, body.folder)
-        if reader is not None and _taken(
-            await _documents(reader, folder), comparisons.title_key(title)
+        if reader is not None and not _room_for(
+            await _documents(reader, folder), comparisons.title_key(title), set(sides)
         ):
             raise ApiError(409, ErrorCode.COMPARISON_EXISTS)
     except StorageError as error:
@@ -164,9 +182,9 @@ async def start_comparison(
     capture(
         request,
         "comparison_upload_started",
-        {"bytes": body.before.size + body.after.size, "stage_position": position},
+        {"bytes": sum(chosen.size for chosen in sides.values()), "stage_position": position},
     )
-    return ComparisonUploadOut(before_url=urls[Side.BEFORE], after_url=urls[Side.AFTER])
+    return ComparisonUploadOut(before_url=urls.get(Side.BEFORE), after_url=urls.get(Side.AFTER))
 
 
 async def _comparison_at(

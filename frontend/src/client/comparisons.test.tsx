@@ -203,6 +203,7 @@ describe("a comparison on the page", () => {
 describe("comparisons in edit mode", () => {
   class FakeXhr {
     static sent: { url: string; body: File }[] = [];
+    static refused = new Set<string>(); // addresses Google refuses (403)
     upload: { onprogress?: (event: { loaded: number }) => void } = {};
     status = 0;
     responseText = "";
@@ -218,13 +219,14 @@ describe("comparisons in edit mode", () => {
     send(body: File) {
       FakeXhr.sent.push({ url: this.url, body });
       this.upload.onprogress?.({ loaded: body.size });
-      this.status = 200;
+      this.status = FakeXhr.refused.has(this.url) ? 403 : 200;
       setTimeout(() => this.onload?.());
     }
   }
 
   function asStaff(extra: Parameters<typeof fakeApi>[0] = {}) {
     FakeXhr.sent = [];
+    FakeXhr.refused = new Set();
     vi.stubGlobal("XMLHttpRequest", FakeXhr);
     window.history.pushState({}, "", "/casa-jardim");
     const sent = fakeApi({
@@ -282,6 +284,37 @@ describe("comparisons in edit mode", () => {
       ["https://upload.example/a", "render.png"],
       ["https://upload.example/b", "Sala atual.jpg"],
     ]);
+  });
+
+  it("after one image went up and the other didn't, tries again with the missing one only", async () => {
+    let tries = 0;
+    const sent = asStaff({
+      "POST /api/projects/p-1/stages/1/comparisons": () => {
+        tries += 1;
+        return tries === 1
+          ? { body: { before_url: "https://upload.example/b", after_url: "https://upload.example/a" } }
+          : { body: { before_url: null, after_url: "https://upload.example/a2" } };
+      },
+      "POST /api/projects/p-1/stages/1/uploads/failed": () => ({ status: 502, body: { error: "upload_failed" } }),
+    });
+    await startEditing();
+    const dialog = await openNewComparison("Briefing");
+    await userEvent.upload(within(dialog).getByLabelText("Escolher a imagem “Antes”"), new File(["b"], "Sala.jpg", { type: "image/jpeg" }));
+    await userEvent.upload(within(dialog).getByLabelText("Escolher a imagem “Depois”"), new File(["a"], "Render.jpg", { type: "image/jpeg" }));
+    FakeXhr.refused.add("https://upload.example/a"); // the "after" upload is refused for good
+    vi.useFakeTimers({ shouldAdvanceTime: true }); // sendFile's waits before giving up
+    await userEvent.click(within(dialog).getByRole("button", { name: "Enviar comparação" }));
+    await waitFor(() => expect(sent.some((r) => r.path.endsWith("/uploads/failed"))).toBe(true));
+    vi.useRealTimers();
+    // The "before" went up: it stays as it is, and so does the name its file has.
+    await waitFor(() => expect(within(dialog).getByText("Já enviada")).toBeInTheDocument());
+    expect(within(dialog).getByRole("textbox", { name: "Nome da comparação" })).toBeDisabled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Enviar comparação" }));
+    expect(await screen.findByText("Comparação “Sala” enviada.")).toBeInTheDocument();
+    const retry = sent.filter((r) => r.path.endsWith("/comparisons"))[1]!.body as Record<string, unknown>;
+    expect(retry.before).toBeUndefined();
+    expect(retry.after).toEqual({ name: "Render.jpg", size: 1, mime_type: "image/jpeg" });
+    expect(FakeXhr.sent.at(-1)?.url).toBe("https://upload.example/a2");
   });
 
   it("refuses a file that isn't a JPG, PNG, WebP or GIF before anything is sent", async () => {

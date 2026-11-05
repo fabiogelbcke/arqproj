@@ -614,8 +614,15 @@ function ImagePicker({
     queryKey: ["page-files", project.slug],
     queryFn: () => call(api.GET("/api/pages/{slug}/files", { params: { path: { slug: project.slug } } })),
   });
+  // A before-and-after comparison's card (A46) is two images: each offered on its own.
   const images: ImageFile[] = (files.data?.stages ?? []).flatMap((stage) =>
-    stage.groups.flatMap((group) => group.files.filter((file) => file.kind === "image")),
+    stage.groups.flatMap((group) =>
+      group.files
+        .flatMap((file) =>
+          file.comparison ? [{ ...file, name: file.comparison.before_name }, file.comparison.after] : [file],
+        )
+        .filter((file) => file.kind === "image"),
+    ),
   );
   const [chosen, setChosen] = useState<string[]>([]);
   const toggle = (key: string) =>

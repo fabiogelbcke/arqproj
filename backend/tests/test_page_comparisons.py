@@ -181,6 +181,32 @@ async def test_a_title_already_compared_in_the_folder_is_refused(client, owner, 
     assert (response.status_code, response.json()["error"]) == (409, "comparison_exists")
 
 
+async def test_a_comparison_whose_after_broke_off_is_finished_with_the_after_alone(
+    client, owner, folders
+):
+    """The first try's "before" went up; the retry sends only the "after"."""
+    opened = await start(client, owner)
+    await client.put(opened.json()["before_url"], content=JPEG, headers={"host": ALINEA["host"]})
+    for again in ({}, {"before": None}):  # both again, or the side already there
+        refused = await start(client, owner, **({"after": None} if again else {}))
+        assert (refused.status_code, refused.json()["error"]) == (409, "comparison_exists")
+    finished = await start(client, owner, before=None)
+    assert finished.status_code == 200, finished.text
+    assert finished.json()["before_url"] is None
+    sent = await client.put(
+        finished.json()["after_url"], content=JPEG, headers={"host": ALINEA["host"]}
+    )
+    assert sent.status_code == 201
+    assert (await card(client, "Cozinha"))["comparison"]["after_name"] == "Cozinha (depois).png"
+
+
+async def test_one_side_alone_is_refused_where_the_other_isnt_there(client, owner, folders):
+    response = await start(client, owner, before=None)
+    assert (response.status_code, response.json()["error"]) == (409, "comparison_exists")
+    neither = await start(client, owner, before=None, after=None)
+    assert neither.status_code == 422
+
+
 async def test_the_same_title_in_another_section_is_fine(client, owner, folders):
     put(folders / "01 - Briefing", "Cozinha (antes).jpg", "Cozinha (depois).jpg")
     (folders / "01 - Briefing" / "Renders").mkdir()

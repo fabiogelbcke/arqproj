@@ -777,6 +777,7 @@
     "newNote": "Duas imagens com um controle deslizante",
     "choose": "Escolher imagem",
     "change": "Trocar imagem",
+    "uploadedSide": "Já enviada",
     "chooseSide": "Escolher a imagem “{{side}}”",
     "label": "Rótulo de “{{side}}” (opcional)",
     "title": "Nome da comparação",

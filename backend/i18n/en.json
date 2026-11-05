@@ -777,6 +777,7 @@
     "newNote": "Two images with a slider",
     "choose": "Choose image",
     "change": "Change image",
+    "uploadedSide": "Uploaded",
     "chooseSide": "Choose the “{{side}}” image",
     "label": "“{{side}}” label (optional)",
     "title": "Comparison name",
