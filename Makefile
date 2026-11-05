@@ -31,7 +31,7 @@ define on_database
 	else echo "ENV must be local, staging or production"; exit 2; fi
 endef
 
-.PHONY: help setup dev serve build api-types test e2e screenshots lint format migrate staff owner-link reset-link reset-tour tenant tenant-host operator-login alerts
+.PHONY: help setup seed dev serve build api-types test e2e screenshots lint format migrate staff owner-link reset-link reset-tour tenant tenant-host operator-login alerts
 
 help: ## List the commands
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -44,6 +44,9 @@ setup: ## Once (and after pulling): packages, local databases, migrations, acces
 	uv run python -m backend.commands.provision
 	uv run python -m backend.commands.seed
 	$(MAKE) api-types
+
+seed: ## Test offices, projects and their owners' logins (safe to repeat; restores the passwords)
+	uv run python -m backend.commands.seed
 
 dev: api-types ## Backend + staff app with live reload → http://alinea.localhost:5173/painel
 	@trap 'kill 0' EXIT; \

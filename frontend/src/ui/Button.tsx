@@ -2,7 +2,7 @@ import { Button as AriaButton, type ButtonProps } from "react-aria-components";
 
 import styles from "./ui.module.css";
 
-type Variant = "primary" | "secondary" | "ghost";
+export type Variant = "primary" | "secondary" | "ghost";
 
 /** The site's text button. Size by role (ui/sizes.css): "regular" for the action
  *  a screen or dialog is about and in forms; "small" in toolbars and beside

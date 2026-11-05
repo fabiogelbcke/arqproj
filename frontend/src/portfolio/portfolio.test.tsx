@@ -29,7 +29,6 @@ function entry(changes: Partial<Entry>): Entry {
     year: 2024,
     description: "",
     project_type: "architecture",
-    status: null,
     details: [],
     credits: "",
     videos: [],
@@ -102,7 +101,7 @@ describe("the Portfólio tab", () => {
     // Each format is a card: its name, what it is for, and a drawing of its layout.
     const cards = within(formats).getAllByRole("radio");
     expect(cards.map((card) => card.closest("label")?.textContent)).toEqual([
-      "GaleriaCapa grande e carrossel: para fotos de arquitetura na horizontal.",
+      "GaleriaCapas na horizontal, no mesmo quadro; cada projeto em fotos grandes, uma de cada vez, com setas.",
       "MosaicoCada imagem no formato original, sem capa grande: para o material feito para posts, stories e reels.",
     ]);
     expect(cards.map((card) => card.closest("label")?.querySelector("svg") !== null)).toEqual([true, true]);
@@ -156,6 +155,34 @@ describe("the Portfólio tab", () => {
 });
 
 describe("a work's editor", () => {
+  it("opens on the photos, asks for the title, and folds the rest away until something is there", async () => {
+    const bare = { ...PORTFOLIO, entries: [entry({ place: "", year: null, project_type: null, project_id: null })] };
+    api({ ...NO_TYPES, "GET /api/portfolio": () => ({ body: bare }) });
+    renderAt("/portfolio/e-1"); // a bare work: nothing but its title and a photo
+    const title = await screen.findByLabelText("Título");
+    const photos = screen.getByRole("region", { name: /^Fotos/ });
+    expect(photos.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The videos right after the photos, before the words; no "Situação" anywhere.
+    const videos = screen.getByRole("region", { name: /^Vídeos/ });
+    expect(videos.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(photos.compareDocumentPosition(videos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("Situação")).toBeNull();
+    // The work as the public page shows it, in a new tab: the preview while unpublished.
+    expect(screen.getByRole("link", { name: "Ver no portfólio" })).toHaveAttribute("href", "/?projeto=e-1&previa=1");
+    const more = screen.getByText("Mais informações").closest("details")!;
+    expect(more.open).toBe(false);
+    await userEvent.click(screen.getByText("Mais informações"));
+    expect(more.open).toBe(true);
+    expect(screen.getByLabelText("Local")).toHaveValue("");
+  });
+
+  it("shows the rest unfolded where the work already has some of it", async () => {
+    api({ ...NO_TYPES });
+    renderAt("/portfolio/e-1"); // a place, a year and a type
+    await screen.findByLabelText("Título");
+    expect(screen.getByText("Mais informações").closest("details")!.open).toBe(true);
+  });
+
   it("files the work under a type, for the public page's menu", async () => {
     const sent = api({
       "GET /api/project-types": () => ({
@@ -205,7 +232,6 @@ describe("a work's editor", () => {
     renderAt("/portfolio/e-1");
     const sheet = await screen.findByRole("group", { name: "Informações" });
     expect(within(sheet).getByLabelText("Responsável")).toHaveValue("Laura Mendes");
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Situação" }), "Concluído");
     // A built-in detail, once each: the menu offers the ones not yet in the sheet.
     await userEvent.click(within(sheet).getByRole("button", { name: "Adicionar informação" }));
     // The project page's details not yet in the sheet, then what a portfolio's
@@ -243,7 +269,6 @@ describe("a work's editor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     await waitFor(() =>
       expect(sent.find((call) => call.method === "PATCH")?.body).toMatchObject({
-        status: "completed",
         details: [
           { key: "built_area", value: "1250.5" },
           { key: "start_date", value: "2024-03-02" },

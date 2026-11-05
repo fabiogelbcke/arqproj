@@ -262,7 +262,10 @@ The office is chosen by the exact hostname of each request (`tenant_domains`).
 Locally, every `*.localhost` address reaches this machine: the seed creates
 `alinea.localhost` (alias `alinea-old.localhost`, which redirects) and
 `norte.localhost`, e.g. `http://alinea.localhost:8000/`. Unknown hosts get 404;
-`/health` works on any host. Every response has an `X-Request-ID` header, also
+`/health` works on any host. The seed also gives each office an owner to sign in
+with at `/painel`: `laura@alinea.example` and `bruno@norte.example`, password
+`1234`. Running the seed again (`make seed`) puts that password back
+if it was changed. Every response has an `X-Request-ID` header, also
 printed on each log line.
 
 Staff accounts belong to one office each, and people choose their own passwords.
