@@ -175,11 +175,12 @@ footer .small{margin-left:auto;font-size:12px;color:var(--muted)}
 }
 /* A phone upright, as the networks show a profile: the gallery three square
    covers across with hairline gaps (Instagram), the mosaic two columns (VSCO);
-   no titles, the images alone. */
+   no titles to see, the images alone. The title stays the link's name for a
+   screen reader (the cover's alt is empty), so it is hidden as .sr-only is. */
 @media (max-width:540px){
   .works{grid-template-columns:repeat(3,1fr);gap:2px}
   .frame{aspect-ratio:1}
-  .works .title,.mosaic .title{display:none}
+  .works .title,.mosaic .title{width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;background:none}
 }
 @media (max-width:420px){
   .top nav{gap:12px;font-size:11px}
