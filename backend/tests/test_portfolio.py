@@ -141,7 +141,7 @@ async def test_an_archived_project_can_be_drawn_on_though_the_painel_lists_it_no
     with_archived = await client.get("/api/projects?archived=true", headers=ALINEA)
     assert casa in [p["id"] for p in with_archived.json()]
     drawn = await add(client, staff, project_id=casa)
-    assert (drawn["project_name"], drawn["status"]) == ("Casa Jardim", "completed")
+    assert drawn["project_name"] == "Casa Jardim"
 
 
 async def test_a_failed_video_send_is_logged_with_its_context_and_answers_with_the_code(
@@ -264,11 +264,12 @@ async def test_published_the_offices_address_shows_the_portfolio_and_unios_keeps
     assert root.status_code == 200
     assert "Arquitetura residencial." in root.text
     assert "Casa &lt;Jardim&gt;" in root.text and "<Jardim>" not in root.text
-    assert "Porto Alegre, RS · 2024" in root.text
     assert "Sem fotos ainda" not in root.text  # a work without photos isn't shown
     assert root.headers["cache-control"] == "public, max-age=60"
-    # Only our own script runs (the carousel's arrows), served from this address.
-    assert "script-src 'self';" in root.headers["content-security-policy"]
+    # Only our own script runs (a work opened over the works), served from this
+    # address, and it fetches only from it.
+    policy = root.headers["content-security-policy"]
+    assert "script-src 'self';" in policy and "connect-src 'self';" in policy
     # The stylesheet and script are cached for an hour, so the page names them by
     # their content: a change to either is seen as soon as the page is.
     style, script = (
@@ -276,7 +277,7 @@ async def test_published_the_offices_address_shows_the_portfolio_and_unios_keeps
     )
     assert style and script, root.text[:1200]
     served = await client.get(script.group(0), headers=ALINEA)
-    assert served.status_code == 200 and "carousel" in served.text and "lightbox" in served.text
+    assert served.status_code == 200 and ".layer" in served.text and "lightbox" in served.text
     assert (await client.get(style.group(0), headers=ALINEA)).status_code == 200
     from backend.web import portfolio_page
 
@@ -290,6 +291,7 @@ async def test_published_the_offices_address_shows_the_portfolio_and_unios_keeps
 
     work = await client.get(f"/?projeto={entry['id']}", headers=ALINEA)
     assert "<p>Primeiro parágrafo.</p><p>Segundo &amp; último.</p>" in work.text
+    assert "Porto Alegre, RS · 2024" in work.text
     assert f"{url}?size=full" in work.text
     # Nonsense in the address shows the list, not an error.
     assert (await client.get("/?projeto=nada", headers=ALINEA)).status_code == 200
@@ -406,7 +408,6 @@ async def test_the_menu_shows_the_works_of_one_type(client, staff):
     client.cookies.clear()
 
     every = (await client.get("/", headers=ALINEA)).text
-    assert 'class="carousel"' in every and every.count('class="slide"') == 3
     assert '<a href="/?tipo=interiors#projetos">Interiores</a>' in every
     assert "Paisagismo" not in every  # no work of that type: not in the menu
     assert '<a href="/#projetos" aria-current="page">Todos</a>' in every
@@ -422,7 +423,6 @@ async def test_the_menu_shows_the_works_of_one_type(client, staff):
     # Every work is in the page, the others hidden: the menu switches in place.
     assert grid(one) == {"Casa Jardim": False, "Apto Mar": True, "Loja": False}
     assert 'aria-current="page">Interiores' in one
-    assert one.count('class="slide"') == 3  # the carousel shows them all still
     nonsense = (await client.get("/?tipo=castle", headers=ALINEA)).text
     assert all(grid(nonsense).values())
 
@@ -439,8 +439,9 @@ async def test_a_photos_pixel_size_is_recorded_when_the_file_can_be_read(client,
 
 
 async def test_an_upright_cover_stands_whole_on_a_blurred_copy_instead_of_cropped(client, staff):
-    """A story or a post as a cover of the "gallery" format: the carousel and the
-    hero show it whole, over a blurred copy of itself; a landscape cover fills them."""
+    """A story or a post as a cover of the "gallery" format: the grid's landscape
+    frame shows it whole, over a blurred copy of itself; a landscape cover fills
+    the frame. On its page every photo stands at its own shape, so no copy there."""
     story = await add(client, staff, title="Story")
     await photo(client, staff, story, content=png(90, 160), name="story.png")
     wide = await add(client, staff, title="Casa")
@@ -449,19 +450,17 @@ async def test_an_upright_cover_stands_whole_on_a_blurred_copy_instead_of_croppe
     client.cookies.clear()
 
     home = (await client.get("/", headers=ALINEA)).text
-    slides = home.split('<li class="slide')[1:]
-    assert slides[0].startswith(' tall"') and slides[0].count('class="backdrop"') == 1
-    assert slides[1].startswith('"') and "backdrop" not in slides[1]
+    frames = home.split('<span class="frame')[1:]
+    assert frames[0].startswith(' tall"') and frames[0].count('class="backdrop"') == 1
+    assert frames[1].startswith('"') and "backdrop" not in frames[1]
     upright = (await client.get(f"/?projeto={story['id']}", headers=ALINEA)).text
-    assert '<header class="hero tall">' in upright and upright.count('class="backdrop"') == 1
-    landscape = (await client.get(f"/?projeto={wide['id']}", headers=ALINEA)).text
-    assert '<header class="hero">' in landscape and "backdrop" not in landscape
+    assert 'width="90" height="160"' in upright and "backdrop" not in upright
 
 
 async def test_the_mosaic_format_shows_every_image_in_its_own_shape(client, staff):
-    """For material made for the networks: no carousel, hero or frame; a mosaic of
-    covers, and a work as a grid of its images under its title. Each image's
-    size is in its tag, so the page keeps its shape while loading."""
+    """For material made for the networks: no frame; a mosaic of covers, and a
+    work as a grid of its images under its title, its sheet after them. Each
+    image's size is in its tag, so the page keeps its shape while loading."""
     changed = await client.patch("/api/portfolio", json={"format": "mosaic"}, headers=staff)
     assert (changed.status_code, changed.json()["format"]) == (200, "mosaic"), changed.text
     assert (await client.get("/api/portfolio", headers=staff)).json()["format"] == "mosaic"
@@ -472,23 +471,76 @@ async def test_the_mosaic_format_shows_every_image_in_its_own_shape(client, staf
     await photo(client, staff, post, content=png(1080, 1080), name="square.png")
     other = await add(client, staff, title="Loja", project_type="interiors")
     await photo(client, staff, other, content=png(1080, 1920), name="story.png")
+    await client.patch(
+        f"/api/portfolio/entries/{post['id']}", json={"description": "Um post."}, headers=staff
+    )
     await publish(client, staff)
     client.cookies.clear()
 
     home = (await client.get("/", headers=ALINEA)).text
-    assert 'class="carousel"' not in home and 'class="works"' not in home
+    assert 'class="works"' not in home
     mosaic = home.split('class="mosaic"')[1].split("</ul>")[0]
     assert mosaic.count("<li ") == 2 and 'width="1080" height="1350"' in mosaic
-    assert 'class="frame"' not in mosaic  # no fixed frame: the image's own shape
+    assert 'class="frame' not in mosaic  # no fixed frame: the image's own shape
     assert '<a href="/?tipo=interiors#projetos">Interiores</a>' in home  # the menu stays
 
     work = (await client.get(f"/?projeto={post['id']}", headers=ALINEA)).text
-    assert 'class="hero' not in work and '<header class="post-head wrap">' in work
+    assert 'class="run' not in work and '<header class="post-head wrap">' in work
     assert "<h1>Post</h1>" in work
     posts = work.split('class="mosaic posts"')[1].split("</ul>")[0]  # the mosaic's grid
     assert posts.count("<li>") == 2  # the cover among them, not above
     assert 'width="1080" height="1350"' in posts and 'width="1080" height="1080"' in posts
     assert 'class="lightbox"' in work  # each still opens large
+    assert work.index('class="mosaic posts"') < work.index('class="about')  # the words after
+
+
+async def test_the_images_are_the_page_and_the_words_come_after_them(client, staff):
+    """The works are the first screen: a grid of covers, each with only its title
+    (the stylesheet shows it over the cover under the pointer), the office's
+    words after the grid. A work's page is its photos large, one after the
+    other, in order, with its type, title, place and year over the first; the
+    layer the script opens a work in is in the page, empty, with its × only."""
+    casa = await add(client, staff, title="Casa Jardim", place="Porto Alegre, RS", year=2024)
+    for n in range(3):
+        await photo(client, staff, casa, content=png(160 + n, 90), name=f"casa-{n}.png")
+    loja = await add(client, staff, title="Loja", project_type="interiors")
+    await photo(client, staff, loja)
+    await client.patch("/api/portfolio", json={"intro": "Arquitetura residencial."}, headers=staff)
+    await publish(client, staff)
+    client.cookies.clear()
+
+    home = (await client.get("/", headers=ALINEA)).text
+    grid = home.split('<ul class="works">')[1].split("</ul>")[0]
+    assert home.index('id="projetos"') < home.index('id="escritorio"')
+    tiles = grid.split("<li ")[1:]
+    assert len(tiles) == 2
+    assert '<span class="title">Casa Jardim</span></a>' in tiles[0]
+    assert "Porto Alegre" not in grid and "2024" not in grid and 'class="meta"' not in grid
+    assert '<h2 id="works" class="sr-only">Projetos</h2>' in home  # for screen readers only
+    assert '<h2 class="label">Escritório</h2><p>Arquitetura residencial.</p>' in home
+    assert '<dialog class="layer"><button type="button" class="close"' in home
+    assert '<div class="layer-body"></div></dialog>' in home
+    assert 'href="/#escritorio">Escritório</a>' in home
+
+    page = (await client.get(f"/?projeto={casa['id']}", headers=ALINEA)).text
+    run = page.split('<section class="run wrap"')[1].split("</section>")[0]
+    # One at a time, in a track that slides; the arrows and the count wait for the script.
+    assert '<div class="stage"><div class="track" tabindex="0"><div class="slide"><figure ' in run
+    assert run.endswith(
+        '<button type="button" class="prev" aria-label="Anterior" hidden>←</button>'
+        '<button type="button" class="next" aria-label="Próximo" hidden>→</button>'
+        '</div><p class="count" aria-live="polite" hidden></p>'
+    )
+    shots = run.split("<figure ")[1:]
+    assert [shot.split('width="')[1].split('"')[0] for shot in shots] == ["160", "161", "162"]
+    assert 'fetchpriority="high"' in shots[0] and all('loading="lazy"' in s for s in shots[1:])
+    assert (
+        '<figcaption class="over"><h1>Casa Jardim</h1><p class="meta">Porto Alegre, RS · 2024'
+        in (shots[0])
+    )
+    assert "<figcaption" not in shots[1]
+    assert 'class="about' not in page  # nothing to say: no empty section
+    assert 'class="layer"' not in page  # the page itself, as a shared link opens
 
 
 async def test_with_a_single_type_there_is_no_menu(client, staff):
@@ -505,9 +557,9 @@ async def test_a_works_page_leads_to_the_next_one(client, staff):
         await photo(client, staff, entry)
     await publish(client, staff)
     page = (await client.get(f"/?projeto={first['id']}", headers=ALINEA)).text
-    # The type, title, place and year over the cover; the other facts below it.
-    hero = page.split('<header class="hero">')[1].split("</header>")[0]
-    assert '<p class="label">Arquitetura</p><h1>Casa Jardim</h1>' in hero
+    # The type, title, place and year over the first photo; the other facts after.
+    over = page.split('<figcaption class="over">')[1].split("</figcaption>")[0]
+    assert '<p class="label">Arquitetura</p><h1>Casa Jardim</h1>' in over
     assert f'class="following" href="/?projeto={second["id"]}"' in page
     last = (await client.get(f"/?projeto={second['id']}", headers=ALINEA)).text
     assert f'class="following" href="/?projeto={first["id"]}"' in last  # back to the first
@@ -559,7 +611,7 @@ async def test_a_work_drawn_from_a_project_starts_with_its_facts_never_its_clien
 ):
     await _project_facts(db_session, status="completed", completed=date(2025, 3, 10))
     drawn = await add(client, staff, project_id=await project_id(client))
-    assert (drawn["status"], drawn["year"], drawn["place"]) == ("completed", 2025, "")
+    assert (drawn["year"], drawn["place"]) == (2025, "")
     # The project's details in its order, labelled as its page shows them; the
     # seeded project has a few more (its site area, its start) than the fixture adds.
     lines = {line["key"]: line for line in drawn["details"]}
@@ -577,7 +629,7 @@ async def test_a_work_drawn_from_a_project_starts_with_its_facts_never_its_clien
     page = (await client.get(f"/?projeto={drawn['id']}", headers=ALINEA)).text
     assert "<dt>Área construída</dt><dd>212,5 m²</dd>" in page
     assert "<dt>Responsável</dt><dd>Laura Mendes</dd>" in page
-    assert "<dt>Situação</dt><dd>Concluído</dd>" in page
+    assert "Situação" not in page  # where the work stands isn't said (5 Nov 2026)
     assert "Família Teixeira" not in page and "Acácias" not in page
 
 
@@ -619,15 +671,15 @@ async def test_a_work_in_progress_takes_its_expected_year_unless_given_one(
     await _project_facts(db_session, status="active", delivery=date(2027, 6, 1))
     project = await project_id(client)
     drawn = await add(client, staff, project_id=project)
-    assert (drawn["status"], drawn["year"]) == ("in_progress", 2027)
+    assert drawn["year"] == 2027
     assert (await add(client, staff, project_id=project, year=2026))["year"] == 2026
     blank = await add(client, staff, title="Loja")
-    assert (blank["details"], blank["status"]) == ([], None)
+    assert blank["details"] == []
 
 
 async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
     """The sheet: built-in details (typed: an area as typed with a comma, a date)
-    and the office's own labels, in the order sent, then where the work stands."""
+    and the office's own labels, in the order sent."""
     entry = await add(client, staff, title="Casa Jardim")
     for _ in range(3):
         await photo(client, staff, entry)
@@ -644,7 +696,6 @@ async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
                     "value": "Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho",
                 },
             ],
-            "status": "in_progress",
             "credits": "Estúdio Luz",
         },
         headers=staff,
@@ -672,19 +723,19 @@ async def test_a_works_sheet_and_photos_show_on_its_page(client, staff):
         "<div><dt>Início</dt><dd>02/03/2024</dd></div>"
         "<div><dt>Responsável</dt>"
         "<dd>Laura Mendes, Pedro Alves, Ana Costa e Marina Carvalho</dd></div>"
-        "<div><dt>Situação</dt><dd>Em andamento</dd></div>"
     )
     assert "frame-src" not in answer.headers["content-security-policy"]  # nothing embedded
-    assert "Fotos: Estúdio Luz" in page
-    # Every photo, the cover too, opens large; the others are shown small.
-    assert page.count('class="zoom"') == 2 and 'class="cover zoom"' in page
-    assert page.count("?size=card") >= 2 and 'class="lightbox"' in page
+    # The sheet, the text and the credits after the photos, under one heading.
+    about = page.split('<section class="about">')[1].split("</section>")[0]
+    assert about.startswith('<p class="label">Sobre o projeto</p><dl class="facts">')
+    assert about.endswith('<p class="credits">Fotos: Estúdio Luz</p>')
+    assert page.index('class="run') < page.index('<section class="about">')
+    # Every photo is shown large and opens larger still.
+    assert page.count('class="zoom"') == 3 and page.count("?size=full") == 6
+    assert 'class="lightbox"' in page
 
-    cleared = await client.patch(url, json={"details": [], "status": None}, headers=staff)
-    assert (cleared.json()["entries"][0]["details"], cleared.json()["entries"][0]["status"]) == (
-        [],
-        None,
-    )
+    cleared = await client.patch(url, json={"details": []}, headers=staff)
+    assert cleared.json()["entries"][0]["details"] == []
     bare = (await client.get(f"/?projeto={entry['id']}", headers=ALINEA)).text
     assert '<dl class="facts">' not in bare
 
@@ -826,7 +877,7 @@ async def test_a_video_goes_to_storage_and_plays_from_any_point(client, staff, t
     # A thumbnail among the photos, which opens the video in the viewer: no
     # video plays on the page itself.
     assert f'<a class="zoom film" href="{video["url"]}"' in page.text
-    assert f'<img src="{video["poster_url"]}?size=card"' in page.text
+    assert f'<img src="{video["poster_url"]}?size=full"' in page.text  # large, like the photos
     assert page.text.count("<video") == 1 and '<dialog class="lightbox"' in page.text
     assert "media-src 'self'" in page.headers["content-security-policy"]
 
@@ -909,6 +960,11 @@ async def compare(client, headers, before, after, **labels):
     )
 
 
+def slides(page):
+    """A gallery work's photos, as its run shows them, one at a time."""
+    return page.split('class="track"')[1].split("</section>")[0].split('class="slide"')[1:]
+
+
 def photos_of(answer, entry_id):
     return next(e for e in answer.json()["entries"] if e["id"] == entry_id)["photos"]
 
@@ -928,8 +984,7 @@ async def test_switched_off_photos_arent_compared_and_a_pair_shows_as_two_photos
     assert all(p["comparison"] is None for p in photos_of(listed, entry))
     client.cookies.clear()
     page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
-    photos = page.split('class="photos"')[1].split("</ul>")[0]
-    assert photos.count("<li>") == 2  # the cover is the first; both others on their own
+    assert len(slides(page)) == 3  # each photo on its own
     assert "data-after=" not in page and "compare-tag" not in page
 
 
@@ -988,9 +1043,8 @@ async def test_a_comparison_shows_as_one_photo_opening_on_the_slider(client, sta
     await publish(client, staff)
     client.cookies.clear()
     page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
-    photos = page.split('class="photos"')[1].split("</ul>")[0]
-    # The cover is the first photo; the gallery, the comparison alone: its "after" in it.
-    assert photos.count("<li>") == 1
+    # The first photo, then the comparison as one: its "after" in it.
+    first_shown, photos = slides(page)
     assert f'href="/api/portfolio/photos/{second}?size=full"' in photos
     assert f'data-after="/api/portfolio/photos/{third}?size=full"' in photos
     assert 'data-before-label="Antes" data-after-label="Obra pronta"' in photos
@@ -1006,10 +1060,9 @@ async def test_a_comparison_as_the_cover_opens_on_the_slider_and_its_after_is_ne
     await publish(client, staff)
     client.cookies.clear()
     page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
-    hero = page.split('<header class="hero')[1].split("</header>")[0]
-    assert f'data-after="/api/portfolio/photos/{second}?size=full"' in hero
-    gallery = page.split('class="photos"')[1].split("</ul>")[0]
-    assert f"/api/portfolio/photos/{second}?size=card" not in gallery  # only with its "before"
+    cover, rest = slides(page)
+    assert f'data-after="/api/portfolio/photos/{second}?size=full"' in cover
+    assert f"/api/portfolio/photos/{second}" not in rest  # only with its "before"
     home = (await client.get("/", headers=ALINEA)).text
     assert f"/api/portfolio/photos/{first}" in home  # the work's cover
 

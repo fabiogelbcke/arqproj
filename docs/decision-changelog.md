@@ -64,6 +64,74 @@ pair is fixed the way a wrong version is: by renaming. Labels went into the
 names for the same reason (Fabio, 5 Nov 2026), so changing one renames the
 files, and only files the app made can be renamed (drive.file).
 
+## 2026-11-05 — A45: no "Situação"; the editor is media beside words; a phone shows a profile grid
+
+**Was:** a work had a status, "Concluído" or "Em andamento", drawn from its
+project and shown last in its sheet on the public page, with a "Situação"
+select in the editor. The editor ran down the page: photos, then the words,
+then the videos. On a phone the home showed two covers across (Galeria) or a
+single column (Mosaico), each cover with its title over it.
+
+**Now:** no status anywhere: not asked, not drawn from the project, not shown
+(the column stays in `portfolio_entries` until a migration drops it, which is
+a schema change awaiting approval). The editor puts the photos and the videos
+together on the left, taking most of the page, and the words in one panel on
+the right, below them on a narrow screen; a "Ver no portfólio" button at the
+top opens the work's public page in a new tab, and the tab's "Ver portfólio"
+(or "Ver prévia") is a button at the top too. On a phone the page is a profile
+as the networks show one: Galeria three square covers across with hairline
+gaps, Mosaico two columns, and no titles over the covers.
+
+**Why:** Fabio, 5 Nov 2026: "I don't think we need the 'situation' field, so
+pls remove that"; "photos and videos input should be near each other … and
+they should be before the text. Either that or they should both be on the left
+column taking up most of the page (~70%) and the right 30% could be the box
+with the text inputs" (the second taken: the media is what the portfolio is
+made of, and the words beside it stay in view while photos are arranged);
+"add a more prominent 'see portfolio' button at the top"; "make it a mosaic
+and grid in mobile? See how instagram has a grid and vsco has a mosaic in
+mobile". The titles leave the phone's covers because neither reference shows
+any and three across leaves no room for one.
+
+---
+
+## 2026-11-05 — A45: the images are the portfolio's page; a work's words come after its photos
+
+**Was:** the home opened on a full-width carousel of the first eight covers
+with their type, title, place and year, then the office's opening text, then a
+"Projetos" heading and a grid of covers each captioned with its title, type,
+place and year. A work's page opened on its cover at two thirds of the screen,
+with its sheet and text right under it and the other photos as small
+thumbnails after them. In the painel a work's editor opened on eight text
+fields, the photos below.
+
+**Now:** the home is the grid, from the first screen: covers with thin gaps,
+nothing written under them, a title shown over its cover under the pointer
+(always on a phone); the opening text after the grid as "Escritório"; no
+carousel. A work opens in a layer over the grid (its page fetched by
+`portfolio.js`, the address following, the back button, × or Escape closing
+it back to the same place in the grid), and that page is its photos large,
+one at a time, in a track that slides from one to the next (arrows, the
+keyboard or a swipe, with a count), the type, title, place and year over the
+first, with the sheet, text and credits only after the photos under "Sobre o
+projeto". The
+editor is the photos first, then the title, with the rest folded under "Mais
+informações".
+
+**Why:** Fabio, 5 Nov 2026: "less text on the screen and focused pretty much
+only on images", with two PDF portfolios (a full-bleed render per page, a small
+title over it) and Rojkind's work grid (uniform covers, no captions, the types
+as plain tabs) as the references, and "with the image focus it should make
+creation very simple too". Chosen over its own page for the work ("opens
+something where you can scroll through photos") so the grid stays where it
+was; over always-visible titles (Fabio picked "only on hover"). The photos
+slide one at a time rather than running down the page because, seeing the
+first version, Fabio asked for "an arrow based horizontal scroll, or something
+like instagram". The title is the one text a work needs, so it is the one text
+asked for.
+
+---
+
 ## 2026-11-05 — A24: archived projects can be found and unarchived in the painel
 
 **Was:** the only way back from the archive was "Desfazer" on the toast right

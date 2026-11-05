@@ -53,7 +53,9 @@ VIDEO_MAX_BYTES = 200 * 1024 * 1024
 
 
 class WorkStatus(StrEnum):
-    """Where a work stands, as the public page says it."""
+    """Where a work stood. No longer asked or shown (5 Nov 2026, Fabio: "I don't
+    think we need the situation field"); the column stays until a migration
+    drops it."""
 
     COMPLETED = "completed"
     IN_PROGRESS = "in_progress"
@@ -81,11 +83,11 @@ class SocialNetwork(StrEnum):
 
 
 class PortfolioFormat(StrEnum):
-    """How the public page lays the works out. GALLERY: one landscape cover per
-    work, a carousel and a work's page opening on its cover, as architecture
-    sites do. MOSAIC: every image in its own shape, square or upright, as the
-    networks show them: for an office whose material is what it made for its
-    posts, stories and reels."""
+    """How the public page lays the works out. GALLERY: every cover cropped to
+    one landscape frame, in rows, and a work's page its photos large, one after
+    the other, as architecture sites do. MOSAIC: every image in its own shape,
+    square or upright, as the networks show them: for an office whose material
+    is what it made for its posts, stories and reels."""
 
     GALLERY = "gallery"
     MOSAIC = "mosaic"
@@ -149,6 +151,7 @@ class PortfolioEntry(IdMixin, TimestampsMixin, TenantOwned, Base):
         Text, ForeignKey("project_types.key", name="fk_portfolio_entries_project_type")
     )
     project_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
+    # Unused since 5 Nov 2026 (see WorkStatus); always None for new works.
     status: Mapped[WorkStatus | None] = mapped_column(TextEnum(WorkStatus))
     # Who took the photos ("Fotos: ..."), as architecture sites credit them.
     credits: Mapped[str] = mapped_column(Text, default="", server_default=text("''"))

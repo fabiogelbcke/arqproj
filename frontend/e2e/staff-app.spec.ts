@@ -958,7 +958,7 @@ test("a portfolio work's before and after opens on a slider, by pointer and keyb
 
   const visitor = await browser.newPage();
   await visitor.goto(`/?projeto=${work.id}`);
-  await visitor.locator("header.hero a.cover").click(); // the cover is the comparison's "before"
+  await visitor.locator(".run a.zoom.compare").click(); // the first photo is the comparison's "before"
   const slider = visitor.getByRole("slider", { name: /Comparação antes e depois/ });
   await expect(slider).toHaveAttribute("aria-valuenow", "50");
   await expect(visitor.locator(".lightbox .side.before")).toHaveText("Estudo");

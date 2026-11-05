@@ -2,7 +2,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: var(--control-main); padding: 0 var(--control-pad-main); border: 1px solid var(--line-strong); border-radius: var(--r-pill);
   background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-weight: 500; font-size: var(--text-sm);
-  white-space: nowrap; transition: background 0.2s, border-color 0.2s, transform 0.15s var(--ease);
+  white-space: nowrap; text-decoration: none; transition: background 0.2s, border-color 0.2s, transform 0.15s var(--ease);
 }
 .button[data-hovered] { border-color: var(--ink); }
 .button[data-pressed] { transform: scale(0.98); }

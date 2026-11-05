@@ -9386,16 +9386,6 @@
             ],
             "title": "Project Type"
           },
-          "status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WorkStatus"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "details": {
             "anyOf": [
               {
@@ -9564,16 +9554,6 @@
             ],
             "title": "Project Type"
           },
-          "status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WorkStatus"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "details": {
             "items": {
               "$ref": "#/components/schemas/SheetLineOut"
@@ -9631,7 +9611,6 @@
           "year",
           "description",
           "project_type",
-          "status",
           "details",
           "credits",
           "videos",
@@ -11365,7 +11344,7 @@
           "mosaic"
         ],
         "title": "PortfolioFormat",
-        "description": "How the public page lays the works out. GALLERY: one landscape cover per\nwork, a carousel and a work's page opening on its cover, as architecture\nsites do. MOSAIC: every image in its own shape, square or upright, as the\nnetworks show them: for an office whose material is what it made for its\nposts, stories and reels."
+        "description": "How the public page lays the works out. GALLERY: every cover cropped to\none landscape frame, in rows, and a work's page its photos large, one after\nthe other, as architecture sites do. MOSAIC: every image in its own shape,\nsquare or upright, as the networks show them: for an office whose material\nis what it made for its posts, stories and reels."
       },
       "PortfolioIn": {
         "properties": {
@@ -13950,15 +13929,6 @@
         ],
         "title": "VisitorAnalyticsOut",
         "description": "PostHog for project pages' visitors (A39): cookieless, no person profiles.\nOnly where the server has PostHog set (production)."
-      },
-      "WorkStatus": {
-        "type": "string",
-        "enum": [
-          "completed",
-          "in_progress"
-        ],
-        "title": "WorkStatus",
-        "description": "Where a work stands, as the public page says it."
       },
       "WriterStatus": {
         "type": "string",
