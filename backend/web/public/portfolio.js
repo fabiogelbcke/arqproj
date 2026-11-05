@@ -157,16 +157,19 @@ if (layer && layer.showModal && window.fetch) {
   let opener = null; // the cover clicked, to go back to
   let pushed = false; // the address moved to the work: closing moves it back
   let leaving = false; // closing because the address moved back already
+  let asked = 0; // the latest work asked for: an older answer, or one after closing, is dropped
   const open = async (url, push) => {
+    const mine = ++asked;
     let doc;
     try {
       const answer = await fetch(url, { headers: { Accept: "text/html" } });
       if (!answer.ok) throw new Error(String(answer.status));
       doc = new DOMParser().parseFromString(await answer.text(), "text/html");
     } catch {
-      location.href = url;
+      if (mine === asked) location.href = url;
       return;
     }
+    if (mine !== asked) return;
     const main = doc.querySelector("main");
     if (!main || !main.querySelector(".work")) {
       location.href = url;
@@ -199,7 +202,9 @@ if (layer && layer.showModal && window.fetch) {
     }
     layer.scrollTop = 0;
   };
-  for (const link of document.querySelectorAll(".works a, .mosaic a")) {
+  // Every card's link, those a filtered mosaic left out of the page too (the
+  // menu of types brings them back).
+  for (const link of cards.flatMap((card) => [...card.querySelectorAll("a")])) {
     link.addEventListener("click", (event) => {
       if (modified(event)) return; // a new tab, as asked
       event.preventDefault();
@@ -209,6 +214,7 @@ if (layer && layer.showModal && window.fetch) {
   }
   layer.querySelector(":scope > .close").addEventListener("click", () => layer.close());
   layer.addEventListener("close", () => {
+    asked++; // a work still on its way stays out
     body.replaceChildren();
     document.body.classList.remove("held");
     document.title = home;
