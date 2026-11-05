@@ -352,6 +352,32 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   await expect(
     page.getByRole("heading", { name: "Refúgio da Serra" }),
   ).toBeVisible();
+
+  // Long after the toast has gone: "Arquivados" finds it, and it goes back to its group.
+  await menu("Refúgio da Serra");
+  await page.getByRole("menuitem", { name: "Arquivar projeto" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Arquivar “Refúgio da Serra”?" })
+    .getByRole("button", { name: "Arquivar" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Refúgio da Serra", exact: true }),
+  ).toBeHidden();
+  await page.reload();
+  await page.getByRole("button", { name: "Arquivados (1)" }).click();
+  await menu("Refúgio da Serra");
+  await page.getByRole("menuitem", { name: "Desarquivar projeto" }).click();
+  await expect(
+    page.getByText("Projeto “Refúgio da Serra” restaurado."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Arquivados/ }),
+  ).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("region", { name: "Concluídos" })
+      .getByRole("heading", { name: "Refúgio da Serra" }),
+  ).toBeVisible();
 });
 
 // A36: an owner invites from Configurações → Equipe; the invited person uses the
