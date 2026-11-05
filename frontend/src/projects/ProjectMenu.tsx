@@ -23,6 +23,32 @@ import {
 } from "./projects";
 import styles from "./projects.module.css";
 
+/** An archived project's "⋯" (A24): it can't be changed, so the one thing on offer is
+ *  taking it out of the archive, back to what it was. Nothing to confirm: archiving
+ *  it again is as easy. */
+export function ArchivedProjectMenu({ project }: { project: ProjectSummary }) {
+  const { t } = useTranslation();
+  const change = useChangeProject();
+  return (
+    <ActionMenu
+      label={t("projectSettings.open", { name: project.name })}
+      className={`${ui.photoAction} ${styles.menuButton}`}
+      items={[{ id: "unarchive", label: t("projectSettings.unarchiveProject") }]}
+      onAction={() =>
+        change.mutate(
+          { id: project.id, row_version: project.row_version, status: project.archived_from },
+          {
+            onSuccess: (back) => toast(t("projectSettings.restored", { name: back.name })),
+            onError: (failure) => toastError(failure),
+          },
+        )
+      }
+    >
+      <MoreIcon />
+    </ActionMenu>
+  );
+}
+
 /** The card's "⋯" (A24, revised 19 Oct 2026; a pencil until 22 Oct): a short menu. The photo is
  *  changed from it (CoverPhotoDialog: an upload, then the 3:2 crop, or a bundled photo) or removed; "Configurações
  *  do projeto" opens the "Projeto" dialog; archiving asks first, then offers

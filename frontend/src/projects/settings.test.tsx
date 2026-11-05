@@ -426,6 +426,76 @@ describe("the card's menu", () => {
   });
 });
 
+describe("archived projects in the painel", () => {
+  const ARCHIVED: ProjectSummary = { ...CASA, status: "archived", archived_from: "completed", row_version: 5 };
+  const DECLINED: ProjectSummary = {
+    ...CASA,
+    id: "22222222-2222-2222-2222-222222222222",
+    name: "Proposta Recusada",
+    status: "archived",
+    archived_from: "proposal",
+  };
+  /** The list as the server has it: archived ones only with `archived=true`. */
+  function office(projects: ProjectSummary[], extra = {}) {
+    return api({
+      "GET /api/projects": (_body: unknown, query: URLSearchParams) => ({
+        body: query.has("archived") ? projects : projects.filter((p) => p.status !== "archived"),
+      }),
+      ...extra,
+    });
+  }
+
+  it("says nothing when none are archived", async () => {
+    office([CASA]);
+    renderAt("/");
+    await screen.findByTestId("project-card");
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Arquivados/ })).toBeNull());
+  });
+
+  it("leaves declined proposals to their own tab", async () => {
+    office([{ ...CASA, id: "33333333-3333-3333-3333-333333333333", name: "Outra" }, DECLINED]);
+    renderAt("/");
+    await screen.findByTestId("project-card");
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Arquivados/ })).toBeNull());
+  });
+
+  it("opens them from Arquivados, and Desarquivar returns one to what it was", async () => {
+    const projects = [ARCHIVED];
+    const sent = office(projects, {
+      [`PATCH ${PATH}`]: () => {
+        projects[0] = { ...CASA, status: "completed", row_version: 6 };
+        return { body: projects[0] };
+      },
+    });
+    renderAt("/");
+    // An office with only archived projects still reaches them.
+    await userEvent.click(await screen.findByRole("button", { name: "Arquivados (1)" }));
+    const card = await screen.findByTestId("project-card");
+    await userEvent.click(within(card).getByRole("button", { name: "Opções do projeto Casa Jardim" }));
+    const menu = await screen.findByRole("menu");
+    // It can't be changed while archived, so the menu offers nothing else.
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Desarquivar projeto"]);
+    await userEvent.click(within(menu).getByRole("menuitem"));
+
+    expect(await screen.findByText("Projeto “Casa Jardim” restaurado.")).toBeInTheDocument();
+    expect(sent.filter((r) => r.method === "PATCH").map((r) => r.body)).toEqual([{ row_version: 5, status: "completed" }]);
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Arquivados/ })).toBeNull());
+    expect(await screen.findByRole("heading", { name: "Casa Jardim" })).toBeInTheDocument();
+  });
+
+  it("a failed Desarquivar says why, and the project stays in the archive", async () => {
+    office([ARCHIVED], {
+      [`PATCH ${PATH}`]: () => ({ status: 409, body: { error: "project_changed" }, headers: { "X-Request-ID": "abc123" } }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Arquivados (1)" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Opções do projeto Casa Jardim" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Desarquivar projeto" }));
+    expect(await screen.findByText(/alterado por outra pessoa.*Código de suporte: abc123/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Arquivados (1)" })).toBeInTheDocument();
+  });
+});
+
 describe("the card", () => {
   it("marks drafts on the photo, and opens the client's page", async () => {
     api({ "GET /api/projects": () => ({ body: [{ ...CASA, status: "draft" }] }) });
