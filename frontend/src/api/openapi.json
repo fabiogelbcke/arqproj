@@ -11765,6 +11765,16 @@
           "status": {
             "$ref": "#/components/schemas/ProjectStatus"
           },
+          "archived_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "project_type": {
             "type": "string",
             "title": "Project Type"

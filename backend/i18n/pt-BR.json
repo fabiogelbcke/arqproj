@@ -98,6 +98,7 @@
     "resultCount_other": "{{count}} projetos encontrados",
     "clearSearch": "Limpar busca",
     "showAll": "Ver todos ({{count}})",
+    "archivedGroup": "Arquivados ({{count}})",
     "showFewer": "Ver menos",
     "addClientEmail": "Adicionar",
     "title": "Projetos",
@@ -231,6 +232,7 @@
     "photoRemoved": "Foto removida.",
     "openSettings": "Configurações do projeto",
     "archiveProject": "Arquivar projeto",
+    "unarchiveProject": "Desarquivar projeto",
     "archiveAsk": "Arquivar “{{name}}”?",
     "archiveMeans": "O projeto sai da lista, mas a página continua disponível para o cliente. O envio de arquivos pelo portal e os e-mails de atualização ficam desativados."
   },

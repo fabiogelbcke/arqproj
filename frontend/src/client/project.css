@@ -119,6 +119,8 @@
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-content: start; min-width: 0;
 }
 .client .desc { font-size: var(--text-sm); line-height: 1.6; color: var(--ink); }
+/* The whole description at one size, the stage names' (Fabio, 5 Nov 2026). */
+.client .desc p:first-of-type { font-size: inherit; line-height: inherit; }
 .client .desc p, .client .desc ul { margin: 0 0 8px; }
 .client .desc__empty { color: var(--muted); }
 

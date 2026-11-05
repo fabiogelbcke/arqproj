@@ -99,6 +99,16 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
+  // An archived project, opened from "Arquivados" with its one action, and put back.
+  await page.getByRole("button", { name: "Opções do projeto Casa das Oliveiras" }).click();
+  await page.getByRole("menuitem", { name: "Arquivar projeto" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Arquivar" }).click();
+  await page.getByRole("button", { name: "Arquivados (1)" }).click();
+  await page.getByRole("button", { name: "Opções do projeto Casa das Oliveiras" }).click();
+  await page.getByRole("menuitem", { name: "Desarquivar projeto" }).waitFor();
+  await shoot(page, "03c-projetos-arquivados");
+  await page.getByRole("menuitem", { name: "Desarquivar projeto" }).click();
+  await page.getByRole("button", { name: /^Arquivados/ }).waitFor({ state: "detached" });
   // An iPad, upright and sideways: "Novo projeto" stays on the search's row.
   for (const tablet of [{ name: "ipad", width: 820, height: 1180 }, { name: "ipad-wide", width: 1180, height: 820 }]) {
     await page.setViewportSize(tablet);
