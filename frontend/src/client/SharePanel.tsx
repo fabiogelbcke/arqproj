@@ -108,7 +108,10 @@ export function SharePanel({
   const showTabs = staff || !!links?.length;
   const shown = !showTabs ? "new" : (tab ?? (stages !== null && all.length === 0 ? "links" : "new"));
   const shownStages = (from === null ? page.stages.map((_, i) => i) : [from]).filter((i) => files(i).length > 0);
-  const chosen = all.filter((file) => picked.has(file.key));
+  // A comparison's card (A46) shares both its images.
+  const chosen = all
+    .filter((file) => picked.has(file.key))
+    .flatMap((file) => (file.comparison ? [file, file.comparison.after] : [file]));
   const bytes = chosen.reduce((sum, file) => sum + (file.size ?? 0), 0);
   const tooLarge = bytes > LIMITS.shareBytes;
   const toggle = (keys: string[], on: boolean) =>
@@ -283,7 +286,7 @@ export function SharePanel({
                       />
                     );
                     const size = fileSize(
-                      own.reduce((sum, file) => sum + (file.size ?? 0), 0),
+                      own.reduce((sum, file) => sum + (file.size ?? 0) + (file.comparison?.after.size ?? 0), 0),
                       i18n.language,
                     );
                     const expanded = from !== null || (how === "files" && open.has(index));
@@ -346,7 +349,9 @@ export function SharePanel({
                               {file.version != null && (
                                 <span className="file__version">{t("files.version", { version: file.version })}</span>
                               )}
-                              <span className="share-file__size">{fileSize(file.size, i18n.language)}</span>
+                              <span className="share-file__size">
+                                {fileSize((file.size ?? 0) + (file.comparison?.after.size ?? 0), i18n.language)}
+                              </span>
                             </label>
                           ))}
                       </div>

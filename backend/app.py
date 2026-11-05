@@ -39,6 +39,7 @@ from backend.web import (
     office,
     office_signup,
     onboarding,
+    page_comparisons,
     page_edit,
     page_files,
     page_stages,
@@ -284,6 +285,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(page_files.router)
     app.include_router(page_stages.router)
     app.include_router(page_uploads.router)
+    app.include_router(page_comparisons.router)
     app.include_router(unsubscribe.router)
     # Last: `/{slug}` answers any single-segment address the routes above don't.
     app.include_router(pages.router)

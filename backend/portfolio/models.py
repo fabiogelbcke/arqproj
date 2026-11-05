@@ -20,6 +20,7 @@ from sqlalchemy import (
     Date,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Numeric,
     Text,
     UniqueConstraint,
@@ -217,7 +218,9 @@ class PortfolioDetail(IdMixin, TenantOwned, Base):
 
 
 class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
-    """One photo of an entry, in its order; the first is the entry's cover."""
+    """One photo of an entry, in its order; the first is the entry's cover. A
+    "before" photo may be compared with another of the work's photos, its
+    "after" (A46): the page shows the two on a slider, the "after" not alone."""
 
     __tablename__ = "portfolio_photos"
     __table_args__ = (
@@ -227,9 +230,23 @@ class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
             name="fk_portfolio_photos_entry",
             ondelete="CASCADE",
         ),
+        UniqueConstraint("tenant_id", "id", name="uq_portfolio_photos_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "compare_photo_id"],
+            ["portfolio_photos.tenant_id", "portfolio_photos.id"],
+            name="fk_portfolio_photos_compare",
+            ondelete="SET NULL (compare_photo_id)",
+        ),
+        Index(
+            "uq_portfolio_photos_compare_photo_id",
+            "compare_photo_id",
+            unique=True,
+            postgresql_where=text("compare_photo_id IS NOT NULL"),
+        ),
         CheckConstraint("position >= 1", name="position_positive"),
         enum_check("image_type", CoverType),
         CheckConstraint("width > 0 AND height > 0", name="size_positive"),
+        CheckConstraint("compare_photo_id <> id", name="compare_other"),
     )
 
     entry_id: Mapped[uuid.UUID] = mapped_column(index=True)
@@ -241,6 +258,11 @@ class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
     # its shape before it loads; None when the file couldn't be read.
     width: Mapped[int | None] = mapped_column()
     height: Mapped[int | None] = mapped_column()
+    # Its "after" photo, when this one is a comparison's "before"; and the
+    # slider's words for each side (None: "Antes", "Depois").
+    compare_photo_id: Mapped[uuid.UUID | None] = mapped_column()
+    before_label: Mapped[str | None] = mapped_column(Text)
+    after_label: Mapped[str | None] = mapped_column(Text)
 
 
 class PortfolioVideo(IdMixin, CreatedAtMixin, TenantOwned, Base):

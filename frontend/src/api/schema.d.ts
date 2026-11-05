@@ -1454,6 +1454,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolio/photos/{photo_id}/comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Compare Photo
+         * @description "Antes e depois": this photo, the "before", with another of the work's
+         *     photos, the "after", on one slider (A46). Each photo is in one comparison at
+         *     most, as one side; asking again with another photo or labels changes it.
+         */
+        put: operations["compare_photo_api_portfolio_photos__photo_id__comparison_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolio/entries/{entry_id}/videos/uploads/failed": {
         parameters: {
             query?: never;
@@ -1950,6 +1972,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/stages/{position}/comparisons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Comparison
+         * @description "Comparação antes e depois": both images go up, named so the page pairs
+         *     them (`Cozinha (antes).jpg`, `Cozinha (depois).jpg`).
+         */
+        post: operations["start_comparison_api_projects__project_id__stages__position__comparisons_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/comparisons/{key}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Edit Comparison
+         * @description Its title and labels are in its files' names: each version of both sides
+         *     is renamed, keeping its version (`Cozinha (antes - Obra) v2.jpg`).
+         */
+        post: operations["edit_comparison_api_pages__slug__comparisons__key__edit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/comparisons/{key}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hide Comparison
+         * @description Both sides, every version, stay in Drive renamed "_name" (A05).
+         */
+        post: operations["hide_comparison_api_pages__slug__comparisons__key__hide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/comparisons/{key}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move Comparison
+         * @description Both sides, every version, into a stage's folder or one of its sections,
+         *     as "Mover para…" moves a file; refused where that title is already compared.
+         */
+        post: operations["move_comparison_api_pages__slug__comparisons__key__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pages/{slug}": {
         parameters: {
             query?: never;
@@ -2143,6 +2248,58 @@ export interface components {
         CodeIn: {
             /** Code */
             code: string;
+        };
+        /** ComparisonEditIn */
+        ComparisonEditIn: {
+            /** Title */
+            title: string;
+            /** Before Label */
+            before_label?: string | null;
+            /** After Label */
+            after_label?: string | null;
+        };
+        /** ComparisonIn */
+        ComparisonIn: {
+            /** Row Version */
+            row_version: number;
+            /** Folder */
+            folder?: string | null;
+            /** Title */
+            title: string;
+            before?: components["schemas"]["SideIn"] | null;
+            after?: components["schemas"]["SideIn"] | null;
+            /** Before Label */
+            before_label?: string | null;
+            /** After Label */
+            after_label?: string | null;
+        };
+        /** ComparisonMoveIn */
+        ComparisonMoveIn: {
+            /** Row Version */
+            row_version: number;
+            /** Position */
+            position: number;
+            /** Folder */
+            folder?: string | null;
+        };
+        /** ComparisonOut */
+        ComparisonOut: {
+            after: components["schemas"]["FileOut"];
+            /** Before Label */
+            before_label?: string | null;
+            /** After Label */
+            after_label?: string | null;
+            /** Before Name */
+            before_name: string;
+            /** After Name */
+            after_name: string;
+        };
+        /** ComparisonUploadOut */
+        ComparisonUploadOut: {
+            /** Before Url */
+            before_url?: string | null;
+            /** After Url */
+            after_url?: string | null;
         };
         /** CompletionIn */
         CompletionIn: {
@@ -2365,7 +2522,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "portfolio_video_refused" | "portfolio_link_invalid";
+        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "comparison_exists" | "comparison_not_image" | "comparison_title_invalid" | "comparison_label_invalid" | "comparison_not_ours" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "portfolio_video_refused" | "portfolio_link_invalid" | "portfolio_photo_compared";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -2385,7 +2542,7 @@ export interface components {
          *     Remove a feature from here once every office has it.
          * @enum {string}
          */
-        Feature: "project_members" | "proposals" | "portfolio" | "cover_band";
+        Feature: "project_members" | "proposals" | "portfolio" | "cover_band" | "before_after";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -2418,6 +2575,7 @@ export interface components {
              * @default []
              */
             older: components["schemas"]["FileOut"][];
+            comparison?: components["schemas"]["ComparisonOut"] | null;
         };
         /** FileStats */
         FileStats: {
@@ -2905,6 +3063,31 @@ export interface components {
             /** When */
             when: string;
         };
+        /** PhotoComparisonIn */
+        PhotoComparisonIn: {
+            /** After */
+            after: string | null;
+            /** Before Label */
+            before_label?: string | null;
+            /** After Label */
+            after_label?: string | null;
+        };
+        /**
+         * PhotoComparisonOut
+         * @description A "before" photo's comparison (A46): its "after" photo, and the slider's
+         *     words for each side (None: the page's own, "Antes" and "Depois").
+         */
+        PhotoComparisonOut: {
+            /**
+             * After
+             * Format: uuid
+             */
+            after: string;
+            /** Before Label */
+            before_label: string | null;
+            /** After Label */
+            after_label: string | null;
+        };
         /** PhotoOut */
         PhotoOut: {
             /**
@@ -2914,6 +3097,7 @@ export interface components {
             id: string;
             /** Url */
             url: string;
+            comparison?: components["schemas"]["PhotoComparisonOut"] | null;
         };
         /**
          * PortfolioFormat
@@ -3501,6 +3685,15 @@ export interface components {
             /** Value */
             value: string;
         };
+        /** SideIn */
+        SideIn: {
+            /** Name */
+            name: string;
+            /** Size */
+            size: number;
+            /** Mime Type */
+            mime_type: string;
+        };
         /** SigninOut */
         SigninOut: {
             /** Url */
@@ -3765,6 +3958,8 @@ export interface components {
             name?: string | null;
             /** Version */
             version?: number | null;
+            /** Comparison */
+            comparison?: boolean | null;
         };
         /** UploadFailedIn */
         UploadFailedIn: {
@@ -8753,6 +8948,68 @@ export interface operations {
             };
         };
     };
+    compare_photo_api_portfolio_photos__photo_id__comparison_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoComparisonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     video_upload_failed_api_portfolio_entries__entry_id__videos_uploads_failed_post: {
         parameters: {
             query?: never;
@@ -10346,6 +10603,284 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["backend__web__page_uploads__MoveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    start_comparison_api_projects__project_id__stages__position__comparisons_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComparisonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComparisonUploadOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    edit_comparison_api_pages__slug__comparisons__key__edit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComparisonEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    hide_comparison_api_pages__slug__comparisons__key__hide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    move_comparison_api_pages__slug__comparisons__key__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComparisonMoveIn"];
             };
         };
         responses: {

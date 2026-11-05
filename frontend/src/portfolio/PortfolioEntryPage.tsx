@@ -9,12 +9,14 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { api, ApiError, call } from "../api/client";
+import { LIMITS as FIELD_LIMITS } from "../api/limits";
 import { ActionMenu } from "../ui/ActionMenu";
 import { fileSource } from "../client/format";
 import { useCreationOptions, useProjects, type ProjectSummary } from "../projects/projects";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { BeforeAfter } from "../ui/BeforeAfter";
 import { IconButton } from "../ui/IconButton";
 import { Panel } from "../ui/Panel";
 import { SelectField } from "../ui/SelectField";
@@ -31,6 +33,7 @@ import {
   sendVideo,
   useAddPhoto,
   useChangeEntry,
+  useComparePhoto,
   useDetailTypes,
   usePortfolio,
   useRemovePhoto,
@@ -39,6 +42,7 @@ import {
   type Entry,
   type SheetLine,
 } from "./portfolio";
+import { useFeature } from "../session/session";
 import { ProjectChoice, SeePortfolio } from "./PortfolioPage";
 import styles from "./portfolio.module.css";
 import ui from "../ui/ui.module.css";
@@ -367,6 +371,14 @@ function Photos({ entry }: { entry: Entry }) {
     if (params.has("fotos")) setParams({}, { replace: true });
   }, [params, setParams]);
   const room = LIMITS.photos - entry.photos.length;
+  const compares = useFeature("before_after"); // "Antes e depois" (A40, A46)
+  // Each comparison's "after" photo, by its id: the "before" photo it goes with.
+  const afterOf = new Map(entry.photos.flatMap((photo) => (photo.comparison ? [[photo.comparison.after, photo.id]] : [])));
+  const [comparing, setComparing] = useState<string | null>(null); // the "before" photo being paired
+  const cover = entry.photos.find((photo) => !afterOf.has(photo.id))?.id;
+  // Another photo still free to be this one's "after": in no comparison yet.
+  const free = (id: string) =>
+    entry.photos.some((other) => other.id !== id && !other.comparison && !afterOf.has(other.id));
 
   /** Each source shrunk and uploaded in turn, so the order is kept. */
   async function upload(sources: { blob: () => Promise<Blob>; name: string }[]) {
@@ -430,8 +442,21 @@ function Photos({ entry }: { entry: Entry }) {
           {entry.photos.map((photo, index) => (
             <li key={photo.id} className={styles.photo}>
               <img src={`${photo.url}?size=card`} alt={t("portfolio.photoAlt", { n: index + 1 })} loading="lazy" />
-              {index === 0 && <span className={styles.coverTag}>{t("portfolio.cover")}</span>}
+              {/* The first photo the page shows: an "after" photo never is (A46). */}
+              {photo.id === cover && <span className={styles.coverTag}>{t("portfolio.cover")}</span>}
+              {/* A comparison (A46): its "before" photo says so; its "after" which one it goes with. */}
+              {photo.comparison && <span className={styles.compareTag}>{t("portfolio.compareTag")}</span>}
+              {afterOf.has(photo.id) && (
+                <span className={styles.compareTag}>
+                  {t("portfolio.afterOf", { n: entry.photos.findIndex((p) => p.id === afterOf.get(photo.id)) + 1 })}
+                </span>
+              )}
               <span className={styles.photoTools}>
+                {compares && !afterOf.has(photo.id) && (photo.comparison || free(photo.id)) && (
+                  <IconButton label={t("portfolio.compare")} onPress={() => setComparing(photo.id)}>
+                    ⇄
+                  </IconButton>
+                )}
                 <IconButton
                   label={t("portfolio.movePhotoLeft")}
                   isDisabled={index === 0 || change.isPending}
@@ -463,6 +488,7 @@ function Photos({ entry }: { entry: Entry }) {
           ))}
         </ol>
       )}
+      {comparing && <ComparePhotos entry={entry} before={comparing} onClose={() => setComparing(null)} />}
       {picking && (
         <ProjectPhotos
           entry={entry}
@@ -613,6 +639,90 @@ function Videos({ entry }: { entry: Entry }) {
 
 type ImageFile = { key: string; name: string };
 
+/** "Antes e depois" (A46): this photo, the "before", with another of the work's
+ *  photos as its "after", and the slider's words; a preview of the slider. The
+ *  public page shows the two as one, on the slider. */
+function ComparePhotos({ entry, before, onClose }: { entry: Entry; before: string; onClose: () => void }) {
+  const { t } = useTranslation();
+  const compare = useComparePhoto();
+  const photo = entry.photos.find((candidate) => candidate.id === before)!;
+  const [after, setAfter] = useState<string | null>(photo.comparison?.after ?? null);
+  const [labels, setLabels] = useState({ before: photo.comparison?.before_label ?? "", after: photo.comparison?.after_label ?? "" });
+  // In another comparison already, as either side: not offered.
+  const taken = new Set(
+    entry.photos.flatMap((other) => (other.id === before || !other.comparison ? [] : [other.id, other.comparison.after])),
+  );
+  const offered = entry.photos.filter((other) => other.id !== before && !taken.has(other.id));
+  const chosen = entry.photos.find((other) => other.id === after);
+  const words = { before: t("compare.before"), after: t("compare.after") };
+  const save = (wanted: string | null) =>
+    compare.mutate(
+      { photo: before, after: wanted, before_label: labels.before.trim() || null, after_label: labels.after.trim() || null },
+      {
+        onSuccess: () => {
+          toast(wanted ? t("portfolio.compared") : t("portfolio.uncompared"));
+          onClose();
+        },
+        onError: (failure: unknown) => toastError(failure),
+      },
+    );
+  return (
+    <DialogFrame title={t("portfolio.compareTitle")} onClose={onClose}>
+      <div className={styles.dialogBody}>
+        <p className={styles.hint}>{t("portfolio.compareHint")}</p>
+        <div role="radiogroup" aria-label={t("portfolio.chooseAfter")} className={styles.pickGrid}>
+          {offered.map((other) => (
+            <button
+              key={other.id}
+              type="button"
+              role="radio"
+              aria-checked={other.id === after}
+              aria-label={t("portfolio.photoAlt", { n: entry.photos.indexOf(other) + 1 })}
+              className={styles.pick}
+              data-on={other.id === after || undefined}
+              onClick={() => setAfter(other.id)}
+            >
+              <img src={`${other.url}?size=card`} alt="" loading="lazy" />
+            </button>
+          ))}
+        </div>
+        <div className={styles.compareLabels}>
+          {(["before", "after"] as const).map((side) => (
+            <TextField
+              key={side}
+              label={t("compare.label", { side: words[side] })}
+              placeholder={words[side]}
+              value={labels[side]}
+              onChange={(label) => setLabels({ ...labels, [side]: label })}
+              maxLength={FIELD_LIMITS.comparisonLabel}
+            />
+          ))}
+        </div>
+        {chosen && (
+          <div className={styles.comparePreview}>
+            <BeforeAfter
+              title={entry.title}
+              before={{ src: `${photo.url}?size=full`, label: labels.before.trim() || words.before }}
+              after={{ src: `${chosen.url}?size=full`, label: labels.after.trim() || words.after }}
+            />
+          </div>
+        )}
+        <div className={ui.confirmActions}>
+          {photo.comparison && (
+            <Button isDisabled={compare.isPending} onPress={() => save(null)}>
+              {t("portfolio.uncompare")}
+            </Button>
+          )}
+          <Button onPress={onClose}>{t("confirm.cancel")}</Button>
+          <Button variant="primary" isDisabled={!after || compare.isPending} onPress={() => save(after)}>
+            {t("projectSettings.save")}
+          </Button>
+        </div>
+      </div>
+    </DialogFrame>
+  );
+}
+
 /** A project's images to pick: the work's own project first, or any other. */
 function ProjectPhotos({
   entry,
@@ -673,8 +783,15 @@ function ImagePicker({
     queryKey: ["page-files", project.slug],
     queryFn: () => call(api.GET("/api/pages/{slug}/files", { params: { path: { slug: project.slug } } })),
   });
+  // A before-and-after comparison's card (A46) is two images: each offered on its own.
   const images: ImageFile[] = (files.data?.stages ?? []).flatMap((stage) =>
-    stage.groups.flatMap((group) => group.files.filter((file) => file.kind === "image")),
+    stage.groups.flatMap((group) =>
+      group.files
+        .flatMap((file) =>
+          file.comparison ? [{ ...file, name: file.comparison.before_name }, file.comparison.after] : [file],
+        )
+        .filter((file) => file.kind === "image"),
+    ),
   );
   const [chosen, setChosen] = useState<string[]>([]);
   const toggle = (key: string) =>

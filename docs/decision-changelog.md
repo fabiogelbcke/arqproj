@@ -19,6 +19,51 @@ a new entry too.
 
 ---
 
+## 2026-11-05 — A46: comparisons behind the `before_after` feature
+
+**Was:** before-and-after comparisons were on for every office as soon as they
+merged.
+
+**Now:** they are a feature switched on per office from the operator dashboard
+(A40), off by default. Switched off, a pair of images is two plain files and
+nothing offers to make one.
+
+**Why:** Fabio asked for it while reviewing (5 Nov 2026), so his partners can try
+it on staging and main before every office gets it, as with the other new work.
+
+## 2026-11-05 — A46: a portfolio work's comparisons are kept in the database
+
+**Was:** comparisons came only from file names in a project's Drive folders.
+
+**Now:** a portfolio work (A45) has comparisons too, kept as a reference from
+its "before" photo to its "after" photo plus the two labels (migration 0052).
+
+**Why not names here:** a portfolio's photos are copies the app names itself
+(`foto-<id>.jpg`) and lists from its own rows, never from Drive, so there is no
+name for staff to read or write; a column on the row is the portfolio's own way
+of keeping a photo's facts (its order, size). Fabio asked for comparisons in
+portfolio works (5 Nov 2026); the schema change is his to approve.
+
+## 2026-11-05 — A46: before-and-after comparisons, paired by name
+
+**Was:** no comparisons. Two related images ("antes" and "depois") showed as two
+unrelated files.
+
+**Now:** two images of one folder named `Título (antes).jpg` and `Título
+(depois).jpg` (a label after a dash: `(antes - Projeto)`) are one comparison,
+shown as one card that opens on a slider. Uploaded from the "+" card's
+"Comparação antes e depois", or named so in Drive.
+
+**Why names, not a table:** Fabio asked for a way to upload a before and an
+after image and slide between them (5 Nov 2026), and chose pairing by name.
+The page already works out versions from names and stores nothing about files
+(A25, A10); a table of pairs would be the first stored fact about files, would
+need a migration, and would go stale when a file is moved, renamed or deleted
+in Drive. Names keep working for files put straight into Drive, and a wrong
+pair is fixed the way a wrong version is: by renaming. Labels went into the
+names for the same reason (Fabio, 5 Nov 2026), so changing one renames the
+files, and only files the app made can be renamed (drive.file).
+
 ## 2026-11-05 — A45: no "Situação"; the editor is media beside words; a phone shows a profile grid
 
 **Was:** a work had a status, "Concluído" or "Em andamento", drawn from its

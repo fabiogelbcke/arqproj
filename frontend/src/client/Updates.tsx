@@ -44,8 +44,11 @@ export function entriesFor(
         entries.push({
           ...base,
           // A version (A25) says which: the card shows the document's clean name.
-          title:
-            update.version != null ? t("updates.fileVersion", { name: update.name, version: update.version }) : update.name,
+          title: update.comparison
+            ? t("updates.comparison", { name: update.name })
+            : update.version != null
+              ? t("updates.fileVersion", { name: update.name, version: update.version })
+              : update.name,
           context: `${pad(index + 1)} ${stage.title}`,
           target: index,
         });

@@ -139,3 +139,13 @@
 .formatCard[data-on] .sketch rect { opacity: 0.55; }
 .formatName { font-weight: 500; }
 @media (max-width: 560px) { .formats { grid-template-columns: 1fr 1fr; } }
+
+/* "Antes e depois" (A46): a comparison's photos say so on their tiles; its dialog
+   picks the "after" photo, names the sides and previews the slider. */
+.compareTag {
+  position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: var(--r-pill);
+  background: rgb(255 255 255 / 90%); color: #1d1f22; font-size: var(--text-2xs);
+}
+.compareLabels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.dialogBody .pickGrid { max-height: 30vh; }
+.comparePreview { --compare-max: 40vh; }
