@@ -3,8 +3,11 @@
     uv run python -m backend.commands.seed
 
 Then open http://alinea.localhost:8000/ and http://norte.localhost:8000/ (browsers
-send every *.localhost address to this machine). Safe to run repeatedly. Only
-ever writes to a local database. Real addresses (alineaarquitetos.com, the
+send every *.localhost address to this machine), and sign in to the painel as
+each office's owner (`STAFF` below: laura@alinea.example, password
+1234). Safe to run repeatedly: it adds what is missing and puts the
+owners' passwords back, so the documented login always works. Only ever writes
+to a local database. Real addresses (alineaarquitetos.com, the
 staging host) are added to staging and production in step 1.7, not here.
 """
 
@@ -19,7 +22,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from backend.commands import local_db
-from backend.identity.passwords import hash_password
+from backend.identity.models import Role, User
+from backend.identity.passwords import hash_password, verify_password
 from backend.office.models import LogoType, OfficeProfile
 from backend.projects.enums import AccessMode, DetailKey, ProjectStatus, ProjectType
 from backend.projects.models import (
@@ -141,17 +145,30 @@ TENANTS = [
         "name": "Alinea (dev)",
         "domains": [("alinea.localhost", True), ("alinea-old.localhost", False)],
         "logo": True,
+        "staff": ("laura@alinea.example", "Laura Mendes"),
     },
     {
         "slug": "norte",
         "name": "Estúdio Norte (dev)",
         "domains": [("norte.localhost", True)],
+        "staff": ("bruno@norte.example", "Bruno Sales"),
     },
 ]
 
 
-async def seed(session: AsyncSession, *, with_logo: bool = False) -> list[str]:
-    """Create any missing tenants and addresses. Returns what was added."""
+# Every dev office's owner signs in with this password (README): the seed puts
+# it back whenever it runs, so a password changed while trying things out, or
+# forgotten, never locks a developer out of their own machine.
+STAFF_PASSWORD = "1234"
+
+
+async def seed(
+    session: AsyncSession, *, with_logo: bool = False, with_staff: bool = False
+) -> list[str]:
+    """Create any missing tenants and addresses, and with `with_staff` each
+    office's owner (`STAFF_PASSWORD` put back where it was changed): for a
+    developer's own setup, while the test suite makes the accounts it needs.
+    Returns what was added."""
     added = []
     for spec in TENANTS:
         tenant = await session.scalar(select(Tenant).where(Tenant.slug == spec["slug"]))
@@ -167,6 +184,8 @@ async def seed(session: AsyncSession, *, with_logo: bool = False) -> list[str]:
                 session.add(TenantDomain(tenant=tenant, hostname=hostname, is_primary=primary))
                 added.append(f"address {hostname}")
         await session.flush()
+        if with_staff and await _add_staff(session, tenant, *spec["staff"]):
+            added.append(f"login {spec['staff'][0]}")
         has_storage = await session.scalar(
             select(StorageConnection.id).where(StorageConnection.tenant_id == tenant.id)
         )
@@ -192,6 +211,22 @@ BRAND_FILES = {
     "logo-dev.png": "logo-light.png",
     "logo-dev-escuro.svg": "logo-dark.svg",
 }
+
+
+async def _add_staff(session: AsyncSession, tenant: Tenant, email: str, name: str) -> bool:
+    """The office's owner, with `STAFF_PASSWORD`: created, or given the password
+    back where it was changed. True when something was written."""
+    user = await session.scalar(
+        select(User).where(User.tenant_id == tenant.id, User.email == email)
+    )
+    if user is not None and await verify_password(user.password_hash, STAFF_PASSWORD):
+        return False
+    if user is None:
+        user = User(tenant_id=tenant.id, email=email, name=name, role=Role.OWNER)
+        session.add(user)
+    user.password_hash = await hash_password(STAFF_PASSWORD)
+    await session.flush()
+    return True
 
 
 async def _add_logo(session: AsyncSession, tenant: Tenant) -> bool:
@@ -330,7 +365,7 @@ async def main() -> None:
     local_db.require_local_server(url)  # before writing anything
     engine = create_async_engine(url)
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        added = await seed(session, with_logo=True)
+        added = await seed(session, with_logo=True, with_staff=True)
     await engine.dispose()
     print("Added: " + ", ".join(added) if added else "Nothing to add; already seeded.")
 
