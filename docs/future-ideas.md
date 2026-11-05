@@ -97,6 +97,8 @@ decision in the [decision changelog](decision-changelog.md).
   not urgent.
 - Built 31 Oct 2026 (PR for review), behind the `portfolio` feature: a published
   portfolio at `/` (A45). The redirects above stay possible for offices without one.
+- Since 5 Nov 2026 the images are the page: a grid of covers, a work opening
+  over it as its photos large, the words after them (A45).
 - Material made for the social networks: a "Mosaico" format since 4 Nov 2026 (A45).
   Still open: a caption per image; posts as entries of their own, with a date and a
   link to the original (dropped for now: offices only make the media for their

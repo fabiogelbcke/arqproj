@@ -17,20 +17,23 @@ import styles from "./ui.module.css";
 // `prefix`: before it ("alinea.myunio.app/"), so the whole address reads as one.
 type Props = TextFieldProps & {
   label: string;
+  /** The label for screen readers only, where the layout shows it another way. */
+  labelHidden?: boolean;
   description?: string;
   placeholder?: string;
   suffix?: string;
   prefix?: string;
+  className?: string;
 };
 
 /** A labelled input with its hint and validation message; with `maxLength`, the
  *  "12/28" counter in the input's right edge (ui/TextInput's); with `suffix` or
  *  `prefix`, that text in its right or left edge, not editable, and the counter
  *  just before the suffix. */
-export function TextField({ label, description, placeholder, suffix, prefix, ...props }: Props) {
+export function TextField({ label, labelHidden, description, placeholder, suffix, prefix, className, ...props }: Props) {
   return (
-    <AriaTextField {...props} className={styles.field}>
-      <Label className={styles.label}>{label}</Label>
+    <AriaTextField {...props} className={[styles.field, className].filter(Boolean).join(" ")}>
+      <Label className={labelHidden ? styles.visuallyHidden : styles.label}>{label}</Label>
       {suffix || prefix ? (
         <div className={styles.affixed}>
           {prefix && (
@@ -67,14 +70,16 @@ export function TextField({ label, description, placeholder, suffix, prefix, ...
  *  The text sets its height, from `rows` up; the limit stops the typing. */
 export function TextAreaField({
   label,
+  labelHidden,
   description,
   placeholder,
   rows = 3,
+  className,
   ...props
 }: Props & { rows?: number }) {
   return (
-    <AriaTextField {...props} className={styles.field}>
-      <Label className={styles.label}>{label}</Label>
+    <AriaTextField {...props} className={[styles.field, className].filter(Boolean).join(" ")}>
+      <Label className={labelHidden ? styles.visuallyHidden : styles.label}>{label}</Label>
       <TextArea className={`${styles.input} ${styles.textarea}`} placeholder={placeholder} rows={rows} />
       {description && (
         <Text slot="description" className={styles.hint}>

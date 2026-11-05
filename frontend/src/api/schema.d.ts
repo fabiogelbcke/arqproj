@@ -2301,7 +2301,6 @@ export interface components {
             description?: string | null;
             /** Project Type */
             project_type?: string | null;
-            status?: components["schemas"]["WorkStatus"] | null;
             /** Details */
             details?: components["schemas"]["SheetLineIn"][] | null;
             /** Credits */
@@ -2349,7 +2348,6 @@ export interface components {
             description: string;
             /** Project Type */
             project_type: string | null;
-            status: components["schemas"]["WorkStatus"] | null;
             /** Details */
             details: components["schemas"]["SheetLineOut"][];
             /** Credits */
@@ -2919,11 +2917,11 @@ export interface components {
         };
         /**
          * PortfolioFormat
-         * @description How the public page lays the works out. GALLERY: one landscape cover per
-         *     work, a carousel and a work's page opening on its cover, as architecture
-         *     sites do. MOSAIC: every image in its own shape, square or upright, as the
-         *     networks show them: for an office whose material is what it made for its
-         *     posts, stories and reels.
+         * @description How the public page lays the works out. GALLERY: every cover cropped to
+         *     one landscape frame, in rows, and a work's page its photos large, one after
+         *     the other, as architecture sites do. MOSAIC: every image in its own shape,
+         *     square or upright, as the networks show them: for an office whose material
+         *     is what it made for its posts, stories and reels.
          * @enum {string}
          */
         PortfolioFormat: "gallery" | "mosaic";
@@ -3872,12 +3870,6 @@ export interface components {
              */
             tenant_id: string;
         };
-        /**
-         * WorkStatus
-         * @description Where a work stands, as the public page says it.
-         * @enum {string}
-         */
-        WorkStatus: "completed" | "in_progress";
         /**
          * WriterStatus
          * @description The office's own grant, used to create folders and upload.
