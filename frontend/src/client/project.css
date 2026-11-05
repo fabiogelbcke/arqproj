@@ -601,3 +601,7 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 .compare-form__preview { --compare-max: 260px; }
 /* The preview's own image rule (prototype.css) would shrink the slider's images inside its frame. */
 .client .file-preview__content--compare img { max-width: none; max-height: none; margin: 0; object-fit: cover; }
+/* A comparison's versions (A46): each image's under its label, one scroll for both. */
+.client .file-versions__sides { overflow-y: auto; max-height: min(60dvh, 520px); }
+.client .file-versions__sides .file-versions__list { max-height: none; overflow: visible; }
+.client .file-versions__side { margin: 14px 18px 0; font-size: var(--text-sm); font-weight: 500; }

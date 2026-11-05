@@ -110,6 +110,24 @@ def test_a_side_with_a_version_clash_stays_apart_for_staff_to_rename():
     assert all(isinstance(card, str) for card in cards)
 
 
+def test_a_clash_on_one_side_never_lets_another_file_stand_in_for_it():
+    """The clashing "before" files are still candidates: the PNG beside them
+    doesn't become the comparison's "before" just because they stand aside."""
+    cards = shown(
+        "Cozinha (antes).jpg",
+        "Cozinha (antes) v2.jpg",
+        "Cozinha (antes)_v2.jpg",
+        "Cozinha (antes).png",
+        "Cozinha (depois).jpg",
+    )
+    assert all(isinstance(card, str) for card in cards)
+
+
+def test_a_marked_file_that_isnt_an_image_still_counts_as_a_side():
+    cards = shown("Cozinha (antes).pdf", "Cozinha (antes).jpg", "Cozinha (depois).jpg")
+    assert all(isinstance(card, str) for card in cards)
+
+
 @pytest.mark.parametrize(
     ("title", "side", "label", "locale", "name"),
     [

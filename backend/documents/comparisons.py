@@ -82,14 +82,15 @@ def pair(documents: list[versions.Document], is_image) -> list[versions.Document
     sides: dict[str, dict[Side, list[tuple[versions.Document, Marked]]]] = {}
     for document in documents:
         found = marked(document.named.base)
-        if found is None or document.clash or not is_image(document.current):
-            continue
-        sides.setdefault(found.key, {}).setdefault(found.side, []).append((document, found))
+        if found is not None:
+            sides.setdefault(found.key, {}).setdefault(found.side, []).append((document, found))
     paired: dict[int, Comparison | None] = {}  # by id of each side's document
     for both in sides.values():
         befores, afters = both.get(Side.BEFORE, []), both.get(Side.AFTER, [])
         if len(befores) != 1 or len(afters) != 1:
             continue  # unclear which goes with which: each file shows on its own
+        if any(d.clash or not is_image(d.current) for d, _m in befores + afters):
+            continue  # a clash or a file that isn't an image: the names need fixing first
         (before, b), (after, a) = befores[0], afters[0]
         comparison = Comparison(b.title, before, after, b.label, a.label)
         paired[id(before)] = comparison

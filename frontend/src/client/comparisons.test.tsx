@@ -150,6 +150,27 @@ describe("a comparison on the page", () => {
     );
   });
 
+  it("lists each image's versions under its label, the after image's older ones too", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    const after = { ...KITCHEN.comparison.after, version: 2, older: [{ ...image("k-after-1", "Cozinha (depois - Obra).jpg"), version: 1 }] };
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({
+        body: { stages: [{ position: 1, groups: [{ folder: null, files: [{ ...KITCHEN, comparison: { ...KITCHEN.comparison, after } }] }] }] },
+      }),
+    });
+    render(<ClientApp />);
+    await userEvent.click(await screen.findByRole("button", { name: "3 versões" }));
+    const dialog = await screen.findByRole("dialog", { name: "Cozinha" });
+    const obra = within(dialog).getByRole("region", { name: "Obra" });
+    expect(within(obra).getByRole("link", { name: "Baixar a versão 1 de Cozinha (depois - Obra).jpg" })).toHaveAttribute(
+      "href",
+      "/api/pages/casa-jardim/files/k-after-1",
+    );
+    expect(within(within(dialog).getByRole("region", { name: "Antes" })).getAllByRole("listitem")).toHaveLength(1);
+  });
+
   it("shares both its images when its card is picked to share", async () => {
     const sent = asClient({
       "POST /api/pages/casa-jardim/shares": () => ({

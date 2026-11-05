@@ -207,7 +207,7 @@ function FileCard({
           {t("files.version", { version: file.version })}
         </span>
       )}
-      {file.older.length > 0 && (
+      {(file.older.length > 0 || (file.comparison?.after.older.length ?? 0) > 0) && (
         <button
           className="older-button"
           type="button"
@@ -217,7 +217,10 @@ function FileCard({
             setVersions(true);
           }}
         >
-          {t("files.versionCount", { count: file.older.length + 1 })}
+          {/* A comparison's (A46): both its images' versions. */}
+          {t("files.versionCount", {
+            count: file.older.length + 1 + (file.comparison ? file.comparison.after.older.length + 1 : 0),
+          })}
         </button>
       )}
       {versions && <FileVersions file={file} slug={slug} timeZone={timeZone} onClose={() => setVersions(false)} />}
