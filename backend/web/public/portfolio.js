@@ -228,9 +228,12 @@ if (layer && layer.showModal && window.fetch) {
     if (wanted) {
       pushed = true; // forward, to a work seen before: closing goes back again
       open(location.href, false);
-    } else if (layer.open) {
-      leaving = true;
-      layer.close();
+    } else {
+      asked++; // back at the grid: a work still on its way stays out
+      if (layer.open) {
+        leaving = true;
+        layer.close();
+      }
     }
   });
 }
