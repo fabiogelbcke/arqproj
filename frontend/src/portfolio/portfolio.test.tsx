@@ -335,6 +335,63 @@ describe("picking a project's images", () => {
   });
 });
 
+describe("a work's before and after (A46)", () => {
+  const THREE = [
+    { id: "f-1", url: "/api/portfolio/photos/f-1" },
+    { id: "f-2", url: "/api/portfolio/photos/f-2" },
+    { id: "f-3", url: "/api/portfolio/photos/f-3" },
+  ];
+
+  it("compares a photo with another of the work's, naming the sides", async () => {
+    const sent = api({
+      ...NO_TYPES,
+      "GET /api/portfolio": () => ({ body: { ...PORTFOLIO, entries: [entry({ photos: THREE })] } }),
+      "PUT /api/portfolio/photos/f-2/comparison": () => ({ body: PORTFOLIO }),
+    });
+    renderAt("/portfolio/e-1");
+    const tiles = await screen.findAllByRole("button", { name: "Antes e depois" });
+    await userEvent.click(tiles[1]!); // the second photo, as the "before"
+    const dialog = await screen.findByRole("dialog", { name: "Antes e depois" });
+    const choices = within(dialog).getByRole("radiogroup", { name: "Foto do “depois”" });
+    // Every other photo of the work, never the "before" itself.
+    expect(within(choices).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual([
+      "Foto 1",
+      "Foto 3",
+    ]);
+    expect(within(dialog).getByRole("button", { name: "Salvar" })).toBeDisabled();
+    await userEvent.click(within(choices).getByRole("radio", { name: "Foto 3" }));
+    expect(within(dialog).getByRole("slider")).toBeInTheDocument(); // the preview
+    await userEvent.type(within(dialog).getByRole("textbox", { name: "Rótulo de “Depois” (opcional)" }), "Obra");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    await waitFor(() =>
+      expect(sent.find((call) => call.method === "PUT")?.body).toEqual({
+        after: "f-3",
+        before_label: null,
+        after_label: "Obra",
+      }),
+    );
+  });
+
+  it("marks both photos of a comparison, offers it only where a photo is free, and undoes it", async () => {
+    const photos = [{ ...THREE[0]!, comparison: { after: "f-3", before_label: null, after_label: null } }, THREE[1]!, THREE[2]!];
+    const sent = api({
+      ...NO_TYPES,
+      "GET /api/portfolio": () => ({ body: { ...PORTFOLIO, entries: [entry({ photos })] } }),
+      "PUT /api/portfolio/photos/f-1/comparison": () => ({ body: PORTFOLIO }),
+    });
+    renderAt("/portfolio/e-1");
+    expect(await screen.findByText("Depois da foto 1")).toBeInTheDocument();
+    // Only the "before" photo has the tool: its "after" goes with it, and the
+    // second photo has no free photo left to compare with.
+    const tiles = screen.getAllByRole("button", { name: "Antes e depois" });
+    expect(tiles).toHaveLength(1);
+    await userEvent.click(tiles[0]!);
+    const own = await screen.findByRole("dialog", { name: "Antes e depois" });
+    await userEvent.click(within(own).getByRole("button", { name: "Desfazer comparação" }));
+    await waitFor(() => expect(sent.find((call) => call.method === "PUT")?.body).toMatchObject({ after: null }));
+  });
+});
+
 describe("a work's videos", () => {
   const MP4 = () => new File(["mp4"], "obra.mp4", { type: "video/mp4" });
   const videoInput = () => document.querySelector<HTMLInputElement>('input[accept="video/mp4,video/webm"]')!;

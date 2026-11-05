@@ -1454,6 +1454,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolio/photos/{photo_id}/comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Compare Photo
+         * @description "Antes e depois": this photo, the "before", with another of the work's
+         *     photos, the "after", on one slider (A46). Each photo is in one comparison at
+         *     most, as one side; asking again with another photo or labels changes it.
+         */
+        put: operations["compare_photo_api_portfolio_photos__photo_id__comparison_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolio/entries/{entry_id}/videos/uploads/failed": {
         parameters: {
             query?: never;
@@ -2502,7 +2524,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "comparison_exists" | "comparison_not_image" | "comparison_title_invalid" | "comparison_label_invalid" | "comparison_not_ours" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "portfolio_video_refused" | "portfolio_link_invalid";
+        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "comparison_exists" | "comparison_not_image" | "comparison_title_invalid" | "comparison_label_invalid" | "comparison_not_ours" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "portfolio_video_refused" | "portfolio_link_invalid" | "portfolio_photo_compared";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -3043,6 +3065,31 @@ export interface components {
             /** When */
             when: string;
         };
+        /** PhotoComparisonIn */
+        PhotoComparisonIn: {
+            /** After */
+            after: string | null;
+            /** Before Label */
+            before_label?: string | null;
+            /** After Label */
+            after_label?: string | null;
+        };
+        /**
+         * PhotoComparisonOut
+         * @description A "before" photo's comparison (A46): its "after" photo, and the slider's
+         *     words for each side (None: the page's own, "Antes" and "Depois").
+         */
+        PhotoComparisonOut: {
+            /**
+             * After
+             * Format: uuid
+             */
+            after: string;
+            /** Before Label */
+            before_label: string | null;
+            /** After Label */
+            after_label: string | null;
+        };
         /** PhotoOut */
         PhotoOut: {
             /**
@@ -3052,6 +3099,7 @@ export interface components {
             id: string;
             /** Url */
             url: string;
+            comparison?: components["schemas"]["PhotoComparisonOut"] | null;
         };
         /**
          * PortfolioFormat
@@ -8889,6 +8937,68 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compare_photo_api_portfolio_photos__photo_id__comparison_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoComparisonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

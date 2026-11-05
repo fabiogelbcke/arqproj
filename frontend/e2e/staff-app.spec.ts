@@ -898,6 +898,68 @@ test("staff upload a before-and-after comparison, and the client slides between 
   ]);
 });
 
+test("a portfolio work's before and after opens on a slider, by pointer and keyboard (A46)", async ({
+  page,
+  browser,
+}) => {
+  await signInAsNewStaff(page, "portfolio@alinea.example");
+  // The portfolio is switched on per office (A40), here straight in the test database.
+  execFileSync(
+    "uv",
+    ["run", "python", "-c", [
+      "import os, sqlalchemy as sa",
+      "engine = sa.create_engine(os.environ['MIGRATION_DATABASE_URL'])",
+      "with engine.begin() as db: db.execute(sa.text(\"UPDATE tenants SET features = array_append(features, 'portfolio') WHERE slug = 'alinea' AND NOT 'portfolio' = ANY(features)\"))",
+    ].join("\n")],
+    { cwd: "..", env: { ...process.env, ...E2E_ENV } },
+  );
+  const me = await (await page.request.get("/api/me")).json();
+  const headers = { "X-CSRF-Token": me.csrf_token };
+  const made = await page.request.post("/api/portfolio/entries", { headers, data: { title: "Casa Fachada" } });
+  expect(made.ok()).toBe(true);
+  const work = (await made.json()).entries.at(-1);
+  const images = join(import.meta.dirname, "../src/client/example/images");
+  let photos: { id: string }[] = [];
+  for (const name of ["fachada-estudo-exemplo.jpg", "fachada-exemplo.jpg"]) {
+    const added = await page.request.post(`/api/portfolio/entries/${work.id}/photos`, {
+      headers,
+      multipart: { file: { name, mimeType: "image/jpeg", buffer: readFileSync(join(images, name)) } },
+    });
+    expect(added.ok()).toBe(true);
+    photos = (await added.json()).entries.find((entry: { id: string }) => entry.id === work.id).photos;
+  }
+  const paired = await page.request.put(`/api/portfolio/photos/${photos[0]!.id}/comparison`, {
+    headers,
+    data: { after: photos[1]!.id, before_label: "Estudo" },
+  });
+  expect(paired.ok()).toBe(true);
+  await page.request.patch("/api/portfolio", { headers, data: { published: true } });
+
+  const visitor = await browser.newPage();
+  await visitor.goto(`/?projeto=${work.id}`);
+  await visitor.locator("header.hero a.cover").click(); // the cover is the comparison's "before"
+  const slider = visitor.getByRole("slider", { name: /Comparação antes e depois/ });
+  await expect(slider).toHaveAttribute("aria-valuenow", "50");
+  await expect(visitor.locator(".lightbox .side.before")).toHaveText("Estudo");
+  await expect(visitor.locator(".lightbox .side.after")).toHaveText("Depois");
+  // Both photos loaded: the frame takes the "before" photo's shape (3:2).
+  await expect
+    .poll(async () => {
+      const box = await visitor.locator(".lightbox .compare").boundingBox();
+      return box ? Math.round((box.width / box.height) * 10) / 10 : 0;
+    })
+    .toBe(1.5);
+  const frame = (await visitor.locator(".lightbox .compare").boundingBox())!;
+  await visitor.mouse.click(frame.x + frame.width * 0.25, frame.y + frame.height / 2);
+  await expect(slider).toHaveAttribute("aria-valuenow", /^(24|25|26)$/);
+  await slider.focus();
+  await visitor.keyboard.press("ArrowRight"); // the handle's, not the next photo
+  await expect(slider).toHaveAttribute("aria-valuenow", /^(29|30|31)$/);
+  await expect(visitor.locator(".lightbox .compare")).toBeVisible();
+  await visitor.screenshot({ path: join(tmpdir(), "arqproj-e2e-portfolio-comparison.png") });
+  await visitor.close();
+});
+
 test("staff edit the page in place and the client sees it", async ({
   page,
   browser,

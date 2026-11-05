@@ -257,6 +257,7 @@
     "portfolio_entry_not_found": "Este item do portfólio não existe mais. Recarregue a página.",
     "portfolio_video_refused": "Envie vídeos em MP4 ou WebM, de até 200 MB. No celular e no Instagram, os vídeos já são salvos em MP4.",
     "portfolio_link_invalid": "Um dos links de redes sociais não foi reconhecido. Use o endereço do perfil, como https://www.instagram.com/escritorio, ou @escritorio.",
+    "portfolio_photo_compared": "Uma dessas fotos já faz parte de outra comparação. Desfaça aquela comparação primeiro.",
     "signin_not_configured": "O acesso com Google não está configurado neste ambiente.",
     "version_type_mismatch": "A nova versão precisa ser do mesmo tipo do arquivo atual.",
     "invalid_staff_name": "Informe o nome (até 80 caracteres).",
@@ -1588,6 +1589,15 @@
     "passwordChanged": "Senha alterada. Os outros aparelhos foram desconectados."
   },
   "portfolio": {
+    "compare": "Antes e depois",
+    "compareTag": "Antes e depois",
+    "afterOf": "Depois da foto {{n}}",
+    "compareTitle": "Antes e depois",
+    "compareHint": "Esta foto é o “antes”. Escolha a foto do “depois”: no site, as duas aparecem juntas, com um controle deslizante, e a do “depois” não aparece sozinha.",
+    "chooseAfter": "Foto do “depois”",
+    "compared": "Comparação salva.",
+    "uncompared": "Comparação desfeita. As duas fotos voltam a aparecer separadas.",
+    "uncompare": "Desfazer comparação",
     "kicker": "Portfólio",
     "title": "Portfólio",
     "lead": "Uma página com os projetos do escritório, no endereço {{address}}. Escolha fotos de projetos que já estão no Unio ou envie outras.",
@@ -1718,6 +1728,10 @@
       "tiktok": "TikTok"
     },
     "public": {
+      "before": "Antes",
+      "after": "Depois",
+      "compareTag": "Antes e depois",
+      "compareSlider": "Comparação antes e depois: arraste ou use as setas",
       "all": "Todos",
       "office": "Escritório",
       "previous": "Anterior",

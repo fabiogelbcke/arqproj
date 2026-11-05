@@ -19,6 +19,19 @@ a new entry too.
 
 ---
 
+## 2026-11-05 — A46: a portfolio work's comparisons are kept in the database
+
+**Was:** comparisons came only from file names in a project's Drive folders.
+
+**Now:** a portfolio work (A45) has comparisons too, kept as a reference from
+its "before" photo to its "after" photo plus the two labels (migration 0052).
+
+**Why not names here:** a portfolio's photos are copies the app names itself
+(`foto-<id>.jpg`) and lists from its own rows, never from Drive, so there is no
+name for staff to read or write; a column on the row is the portfolio's own way
+of keeping a photo's facts (its order, size). Fabio asked for comparisons in
+portfolio works (5 Nov 2026); the schema change is his to approve.
+
 ## 2026-11-05 — A46: before-and-after comparisons, paired by name
 
 **Was:** no comparisons. Two related images ("antes" and "depois") showed as two

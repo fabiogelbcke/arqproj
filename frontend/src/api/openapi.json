@@ -5518,6 +5518,87 @@
         }
       }
     },
+    "/api/portfolio/photos/{photo_id}/comparison": {
+      "put": {
+        "summary": "Compare Photo",
+        "description": "\"Antes e depois\": this photo, the \"before\", with another of the work's\nphotos, the \"after\", on one slider (A46). Each photo is in one comparison at\nmost, as one side; asking again with another photo or labels changes it.",
+        "operationId": "compare_photo_api_portfolio_photos__photo_id__comparison_put",
+        "parameters": [
+          {
+            "name": "photo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Photo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotoComparisonIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/portfolio/entries/{entry_id}/videos/uploads/failed": {
       "post": {
         "summary": "Video Upload Failed",
@@ -9665,7 +9746,8 @@
           "portfolio_full",
           "portfolio_entry_not_found",
           "portfolio_video_refused",
-          "portfolio_link_invalid"
+          "portfolio_link_invalid",
+          "portfolio_photo_compared"
         ],
         "title": "ErrorCode"
       },
@@ -11162,6 +11244,90 @@
         ],
         "title": "PaymentOut"
       },
+      "PhotoComparisonIn": {
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Label"
+          },
+          "after_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "after"
+        ],
+        "title": "PhotoComparisonIn"
+      },
+      "PhotoComparisonOut": {
+        "properties": {
+          "after": {
+            "type": "string",
+            "format": "uuid",
+            "title": "After"
+          },
+          "before_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Label"
+          },
+          "after_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "after",
+          "before_label",
+          "after_label"
+        ],
+        "title": "PhotoComparisonOut",
+        "description": "A \"before\" photo's comparison (A46): its \"after\" photo, and the slider's\nwords for each side (None: the page's own, \"Antes\" and \"Depois\")."
+      },
       "PhotoOut": {
         "properties": {
           "id": {
@@ -11172,6 +11338,16 @@
           "url": {
             "type": "string",
             "title": "Url"
+          },
+          "comparison": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhotoComparisonOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

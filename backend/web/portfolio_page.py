@@ -50,6 +50,7 @@ from backend.tenancy.resolve import CurrentTenant, normalize_host, resolve
 from backend.web.auth import COOKIE
 from backend.web.portfolio import (
     SheetLineOut,
+    compared,
     details_by_entry,
     entries_with_photos,
     links,
@@ -222,7 +223,14 @@ async def _page(request: Request) -> Response | None:
             await db.commit()
             preview = True
         office = await db.scalar(select(OfficeProfile))
-        works = [(entry, photos) for entry, photos in await entries_with_photos(db) if photos]
+        # Each comparison's "after" photo shows with its "before" one (A46).
+        pairs: dict = {}
+        works = []
+        for entry, photos in await entries_with_photos(db):
+            shown, found_pairs = compared(photos)
+            pairs.update(found_pairs)
+            if shown:
+                works.append((entry, shown))
         chosen = None
         wanted = request.query_params.get("projeto")
         if wanted:
@@ -236,7 +244,7 @@ async def _page(request: Request) -> Response | None:
         kinds = list(await db.scalars(select(ProjectTypeDef).order_by(ProjectTypeDef.position)))
     types = _type_labels(kinds, tenant.locale)
     document = _document(
-        tenant, office, found, works, chosen, videos, sheet, types, preview, request
+        tenant, office, found, works, chosen, videos, sheet, types, preview, request, pairs
     )
     return HTMLResponse(document, headers=PREVIEW if preview else PUBLISHED)
 
@@ -264,8 +272,10 @@ def _document(
     types: dict[str, str],
     preview: bool,
     request: Request,
+    pairs: dict | None = None,
 ) -> str:
     t = {**_texts(tenant.locale), "types": types}
+    pairs = pairs or {}
     deployed = request.app.state.settings.deployed
     intro = found.intro if found else ""
     mosaic = found is not None and found.format is PortfolioFormat.MOSAIC
@@ -325,7 +335,7 @@ def _document(
                 f'<article class="work mosaic-work"><header class="post-head wrap">{back}{heading}'
                 '</header><div class="wrap">'
                 + _about(facts, entry.description)
-                + _posts(t, entry, photos, videos)
+                + _posts(t, entry, photos, videos, pairs)
                 + f"</div></article>{after}"
             )
         else:
@@ -334,6 +344,7 @@ def _document(
                 # the work's type, place and year and the way back read over it.
                 f'<article class="work"><header class="hero{" tall" if _tall(photos[0]) else ""}">'
                 f'<a class="cover zoom" href="{photo_url(photos[0])}?size=full" '
+                f"{_compare_data(t, photos[0], pairs)}"
                 f'aria-label="{escape(_fill(t["open"], n=1))}">'
                 + _cover_img(
                     photos[0],
@@ -344,7 +355,7 @@ def _document(
                 + heading
                 + '</div></header><div class="wrap">'
                 + _about(facts, entry.description)
-                + _gallery(t, entry, photos, videos)
+                + _gallery(t, entry, photos, videos, pairs)
                 + f"</div></article>{after}"
             )
         image = photo_url(photos[0])
@@ -438,8 +449,48 @@ def _about(facts: str, description: str) -> str:
     )
 
 
+def _compare_data(t: dict, photo: PortfolioPhoto, pairs: dict) -> str:
+    """A comparison's link (A46): its "after" photo and the slider's words, which
+    `portfolio.js` shows on a slider; without it, the link opens the "before"."""
+    after = pairs.get(photo.id)
+    if after is None:
+        return ""
+    before_label = photo.before_label or t["before"]
+    after_label = photo.after_label or t["after"]
+    return (
+        f'data-after="{photo_url(after)}?size=full" '
+        f'data-before-label="{escape(before_label)}" data-after-label="{escape(after_label)}" '
+    )
+
+
+def _figure(
+    t: dict, entry: PortfolioEntry, photo: PortfolioPhoto, n: int, pairs: dict, attributes: str
+) -> str:
+    """A photo's thumbnail, opening it large; a comparison's (A46), its two
+    photos split down the middle, tagged, opening on the slider."""
+    after = pairs.get(photo.id)
+    alt = escape(_fill(t["photo"], n=n, title=entry.title))
+    image = f'<img src="{photo_url(photo)}?size=card" alt="{alt}"{attributes} decoding="async">'
+    if after is not None:
+        image = (
+            f'<span class="split">{image}'
+            f'<img class="after" src="{photo_url(after)}?size=card" alt="" loading="lazy" '
+            'decoding="async"></span>'
+            f'<span class="compare-tag">{escape(t["compareTag"])}</span>'
+        )
+    return (
+        f'<li><a class="zoom{" compare" if after else ""}" href="{photo_url(photo)}?size=full" '
+        f'{_compare_data(t, photo, pairs)}aria-label="{escape(_fill(t["open"], n=n))}">'
+        f"{image}</a></li>"
+    )
+
+
 def _gallery(
-    t: dict, entry: PortfolioEntry, photos: list[PortfolioPhoto], videos: list[PortfolioVideo]
+    t: dict,
+    entry: PortfolioEntry,
+    photos: list[PortfolioPhoto],
+    videos: list[PortfolioVideo],
+    pairs: dict | None = None,
 ) -> str:
     """The work's videos and other photos, small, side by side; a video by its
     poster with a play mark. Each opens large over the page, the cover too, and
@@ -456,11 +507,7 @@ def _gallery(
         for n, video in enumerate(videos, start=1)
     )
     figures = "".join(
-        f'<li><a class="zoom" href="{photo_url(photo)}?size=full" '
-        f'aria-label="{escape(_fill(t["open"], n=n))}">'
-        f'<img src="{photo_url(photo)}?size=card" '
-        f'alt="{escape(_fill(t["photo"], n=n, title=entry.title))}" '
-        f'loading="lazy" decoding="async"></a></li>'
+        _figure(t, entry, photo, n, pairs or {}, ' loading="lazy"')
         for n, photo in enumerate(photos[1:], start=2)
     )
     credits = (
@@ -478,7 +525,11 @@ def _gallery(
 
 
 def _posts(
-    t: dict, entry: PortfolioEntry, photos: list[PortfolioPhoto], videos: list[PortfolioVideo]
+    t: dict,
+    entry: PortfolioEntry,
+    photos: list[PortfolioPhoto],
+    videos: list[PortfolioVideo],
+    pairs: dict | None = None,
 ) -> str:
     """The mosaic format's work: its videos, then all its photos (the cover too), as
     a grid of images each in its own shape, like a profile on the networks; each
@@ -496,12 +547,9 @@ def _posts(
         for n, video in enumerate(videos, start=1)
     )
     figures = "".join(
-        f'<li><a class="zoom" href="{photo_url(photo)}?size=full" '
-        f'aria-label="{escape(_fill(t["open"], n=n))}">'
-        f'<img src="{photo_url(photo)}?size=card" '
-        f'alt="{escape(_fill(t["photo"], n=n, title=entry.title))}"{_size(photo)} '
-        f'{_loading(n == 1 and not videos)} decoding="async">'
-        "</a></li>"
+        _figure(
+            t, entry, photo, n, pairs or {}, f"{_size(photo)} {_loading(n == 1 and not videos)}"
+        )
         for n, photo in enumerate(photos, start=1)
     )
     credits = (
@@ -519,6 +567,11 @@ def _lightbox(t: dict, label: str) -> str:
     return (
         f'<dialog class="lightbox" aria-label="{label}">'
         '<img alt=""><video controls playsinline hidden></video>'
+        # A comparison (A46): the "after" photo under the "before", up to the handle.
+        '<div class="compare" hidden><img class="after" alt=""><img class="before" alt="">'
+        '<span class="side before"></span><span class="side after"></span>'
+        f'<span class="handle" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" '
+        f'aria-label="{escape(t["compareSlider"])}"></span></div>'
         '<p class="count" aria-live="polite"></p>'
         f'<button type="button" class="close" aria-label="{escape(t["close"])}">×</button>'
         f'<button type="button" class="prev" aria-label="{escape(t["previous"])}">←</button>'

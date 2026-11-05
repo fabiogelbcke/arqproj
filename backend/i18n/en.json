@@ -257,6 +257,7 @@
     "portfolio_entry_not_found": "This portfolio item no longer exists. Reload the page.",
     "portfolio_video_refused": "Send videos as MP4 or WebM, up to 200 MB. Phones and Instagram already save videos as MP4.",
     "portfolio_link_invalid": "One of the social links wasn't recognised. Use the profile's address, such as https://www.instagram.com/office, or @office.",
+    "portfolio_photo_compared": "One of these photos is already in another comparison. Undo that comparison first.",
     "signin_not_configured": "Signing in with Google isn't set up in this environment.",
     "version_type_mismatch": "The new version must be the same type of file as the current one.",
     "invalid_staff_name": "Give the name (up to 80 characters).",
@@ -1588,6 +1589,15 @@
     "passwordChanged": "Password changed. Other devices were signed out."
   },
   "portfolio": {
+    "compare": "Before and after",
+    "compareTag": "Before and after",
+    "afterOf": "After of photo {{n}}",
+    "compareTitle": "Before and after",
+    "compareHint": "This photo is the “before”. Choose the “after” photo: on the site the two show together, with a slider, and the “after” photo doesn't show on its own.",
+    "chooseAfter": "“After” photo",
+    "compared": "Comparison saved.",
+    "uncompared": "Comparison undone. The two photos show separately again.",
+    "uncompare": "Undo comparison",
     "kicker": "Portfolio",
     "title": "Portfolio",
     "lead": "A page with the office's projects, at {{address}}. Choose photos from projects already in Unio, or upload others.",
@@ -1718,6 +1728,10 @@
       "tiktok": "TikTok"
     },
     "public": {
+      "before": "Before",
+      "after": "After",
+      "compareTag": "Before and after",
+      "compareSlider": "Before and after comparison: drag or use the arrow keys",
       "all": "All",
       "office": "Office",
       "previous": "Previous",
