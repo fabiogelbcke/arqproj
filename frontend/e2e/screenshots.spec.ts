@@ -289,7 +289,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   const stage = page.locator("#stage-2");
   await stage.getByRole("button", { name: "Adicionar à etapa" }).click();
   await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).waitFor();
-  await shoot(page, "06p-adicionar-menu");
+  await shoot(page, "06x-comparacao-menu");
   await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).click();
   const comparing = page.getByRole("dialog", { name: "Comparação antes e depois" });
   const images = join(import.meta.dirname, "../src/client/example/images");
@@ -299,16 +299,16 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await comparing.getByRole("textbox", { name: "Rótulo de “Antes” (opcional)" }).fill("Estudo");
   await comparing.getByRole("textbox", { name: "Rótulo de “Depois” (opcional)" }).fill("Render");
   await comparing.getByRole("slider").waitFor();
-  await shoot(page, "06q-nova-comparacao");
+  await shoot(page, "06x-comparacao-nova");
   await comparing.getByRole("button", { name: "Enviar comparação" }).click();
   await stage.getByRole("button", { name: "Abrir Fachada" }).waitFor();
   await page.setViewportSize(SIZES[0]!);
   await stage.getByRole("button", { name: "Abrir Fachada" }).scrollIntoViewIfNeeded();
-  await shoot(page, "06r-comparacao-na-etapa");
+  await shoot(page, "06x-comparacao-na-etapa");
   await stage.getByRole("button", { name: "Abrir Fachada" }).click();
   await page.getByRole("dialog", { name: "Fachada" }).getByRole("slider").waitFor();
-  await shoot(page, "06s-comparacao-aberta");
-  await shoot(page, "06s-comparacao-aberta", "dark");
+  await shoot(page, "06x-comparacao-aberta");
+  await shoot(page, "06x-comparacao-aberta", "dark");
   await page.keyboard.press("Escape");
 
   // Details are added from a menu (no select marking its placeholder as chosen).
