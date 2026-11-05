@@ -5,7 +5,7 @@ import { CompletionBar } from "../ui/CompletionBar";
 import { relativeDay } from "../ui/dates";
 import { Cover } from "./Cover";
 import { ClientEmailsDialog } from "./ClientEmailsDialog";
-import { ProjectMenu } from "./ProjectMenu";
+import { ArchivedProjectMenu, ProjectMenu } from "./ProjectMenu";
 import { type ProjectSummary } from "./projects";
 import styles from "./projects.module.css";
 
@@ -49,7 +49,7 @@ export function ProjectCard({ project, timeZone }: { project: ProjectSummary; ti
       {(project.status === "draft" || project.status === "proposal") && (
         <span className={styles.draftTag}>{t(`projectStatus.${project.status}`)}</span>
       )}
-      <ProjectMenu project={project} />
+      {project.status === "archived" ? <ArchivedProjectMenu project={project} /> : <ProjectMenu project={project} />}
       <div className={styles.identity}>
         <h3 className={styles.name}>
           {/* The whole card opens the client's page (the "⋯" stays on top). */}

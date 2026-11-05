@@ -168,6 +168,8 @@
 
 /* "Ver todos (n)" under a cut group; "Limpar busca" beside "nothing found". */
 .showAll { justify-self: center; }
+.archived { display: grid; gap: 20px; justify-items: start; margin-top: 32px; }
+.archived .rows { justify-self: stretch; }
 .noResults { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
 
 /* Before the first project: four faded cards where the projects will be, and

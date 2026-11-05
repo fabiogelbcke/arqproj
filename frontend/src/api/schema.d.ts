@@ -3050,6 +3050,7 @@ export interface components {
             /** Slug */
             slug: string;
             status: components["schemas"]["ProjectStatus"];
+            archived_from?: components["schemas"]["ProjectStatus"] | null;
             /** Project Type */
             project_type: string;
             /** Project Type Label */
