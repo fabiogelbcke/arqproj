@@ -11,6 +11,7 @@ import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { PasswordField } from "../ui/PasswordField";
 import { TextField } from "../ui/TextField";
 import { toast } from "../ui/Toast";
 import { useChangeProject, type ProjectSummary } from "./projects";
@@ -172,14 +173,13 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           </Radio>
         </RadioGroup>
         {access === "password" && (
-          <TextField
+          <PasswordField
             label={t("projectSettings.password")}
             description={
               saved.access_mode === "password"
                 ? t("projectSettings.passwordKeep")
                 : t("projectSettings.passwordNew")
             }
-            type="password"
             value={password}
             onChange={setPassword}
             isRequired={saved.access_mode !== "password"}
