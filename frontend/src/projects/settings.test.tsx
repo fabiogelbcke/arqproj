@@ -213,6 +213,9 @@ describe("the Projeto dialog", () => {
     await userEvent.click(within(dialog).getByText("Com senha"));
     const password = within(dialog).getByLabelText(/^Senha/);
     await userEvent.type(password, "segredo");
+    // The shared password field: the office can check what it typed before saving.
+    await userEvent.click(within(dialog).getByRole("button", { name: "Mostrar senha" }));
+    expect(password).toHaveAttribute("type", "text");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText("Salvo.")).toBeInTheDocument();
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({
