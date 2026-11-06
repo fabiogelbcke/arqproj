@@ -248,6 +248,12 @@ make e2e          # browser tests against the built app on a fresh local databas
 make lint
 ```
 
+Local copies from different worktrees can run side by side on different ports,
+each with its own database, and you stay signed in to each: locally, cookies are
+kept per port (`backend/web/local_cookies.py`). Every copy has the same login,
+laura@alinea.example or bruno@norte.example with password `1234`; if one stops
+working, run `make seed` against that copy's database, which puts it back.
+
 Staging deploys itself when a pull request merges into `staging`; the admin
 commands also take `ENV=staging` (see `docs/infrastructure.md`, which records
 everything on Google Cloud). Open the invite link (it points to `make dev`'s
