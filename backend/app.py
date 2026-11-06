@@ -59,6 +59,7 @@ from backend.web import (
 from backend.web.auth import SUPPORT_TAG
 from backend.web.build import BuildIdMiddleware
 from backend.web.errors import ApiError, handle_api_error, handle_invalid_request
+from backend.web.local_cookies import LocalCookiesMiddleware
 from backend.web.request_id import RequestIdLogFilter, RequestIdMiddleware
 
 
@@ -298,4 +299,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(TenantMiddleware)
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(BuildIdMiddleware, build_id=settings.build_id)
+    if not settings.deployed:
+        app.add_middleware(LocalCookiesMiddleware)
     return app
