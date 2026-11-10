@@ -15,7 +15,7 @@ from sqlalchemy import text
 from backend.notifications import digest, notices, whatsapp_updates
 from backend.notifications.digest import StageNews, Summary
 from backend.notifications.models import NotificationBatch, WhatsAppNews
-from backend.notifications.reminders import Reminder, day_reminder_at, due
+from backend.notifications.reminders import Reminder, day_reminder_at, due, mark
 from backend.notifications.whatsapp import (
     REMINDER_TEMPLATE,
     REMINDER_VIDEO_TEMPLATE,
@@ -120,6 +120,21 @@ def test_a_meeting_set_after_its_reminder_came_due_is_not_reminded():
     ) is (None)
 
 
+def test_a_video_reminder_sent_first_leaves_the_mornings_to_come():
+    """3 hours ahead, a 10:00 meeting's video reminder (7:00) comes before the
+    day's (8:30): it must not count as both."""
+    rules = replace(notices.DEFAULT, before=timedelta(hours=3))
+    video = meeting(local(12, 10), link=CALL)
+    assert due(video, OFFICE, rules, local(12, 7, 5)) is Reminder.SOON
+    mark(video, Reminder.SOON, OFFICE, rules, local(12, 7, 5))
+    assert (video.reminded_soon_for, video.reminded_day_for) == (local(12, 10), None)
+    assert due(video, OFFICE, rules, local(12, 8, 35)) is Reminder.DAY
+    # Due together, the video one does take the day's with it.
+    late = meeting(local(12, 14), link=CALL)
+    mark(late, Reminder.SOON, OFFICE, notices.DEFAULT, local(12, 13, 35))
+    assert late.reminded_day_for == local(12, 14)
+
+
 def test_the_settings_move_the_reminders():
     rules = replace(notices.DEFAULT, before=timedelta(minutes=60))
     video = meeting(local(12, 14), link=CALL, day_for=local(12, 14))
@@ -182,6 +197,9 @@ async def test_a_video_meeting_soon_is_reminded_by_email_and_whatsapp_once(
     await add_meeting(db_session, starts, location="Sala 2")
     report = await run(app, outbox, phone)
     assert (report.reminder_emails, report.reminder_messages) == (1, 1)
+    # Counted per office for analytics: both are paid for.
+    tenant, _project = await casa_ids(db_session)
+    assert report.reminders_by_tenant == {str(tenant): {"emails": 1, "whatsapp": 1}}
     # Its Drive folder can't be read here (no `folders`): reminders go regardless.
     assert report.failed
     [email] = reminders_in(outbox)

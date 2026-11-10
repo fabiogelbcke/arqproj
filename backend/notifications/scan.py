@@ -71,6 +71,8 @@ class Report:
     asked_again: int = 0  # numbers staff added, asked once more after no answer
     reminder_emails: int = 0  # meeting reminders (A48)
     reminder_messages: int = 0
+    # Per office, for analytics: {"emails": n, "whatsapp": n} (both are paid for).
+    reminders_by_tenant: dict[str, dict[str, int]] = field(default_factory=dict)
     unfinished: int = 0  # not reached before the time budget ran out: the next pass
 
 
@@ -205,6 +207,12 @@ async def _remind(db, settings, sender, whatsapp, office, project, report, rules
     )
     report.reminder_emails += emailed
     report.reminder_messages += messaged
+    if emailed or messaged:
+        counts = report.reminders_by_tenant.setdefault(
+            str(project.tenant_id), {"emails": 0, "whatsapp": 0}
+        )
+        counts["emails"] += emailed
+        counts["whatsapp"] += messaged
 
 
 async def _scan_office(

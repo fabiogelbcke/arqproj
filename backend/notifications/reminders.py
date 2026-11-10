@@ -83,6 +83,17 @@ def due(meeting: Meeting, office: Office, notices: Notices, now: datetime) -> Re
     return None
 
 
+def mark(meeting: Meeting, kind: Reminder, office: Office, notices: Notices, now: datetime) -> None:
+    """Note what is sent for this meeting time. The video reminder takes the
+    day's with it only if that one is due too: with a long lead, the video one
+    can come first (10:00 reminded at 7:00), and the morning's is still to come."""
+    starts = meeting.starts_at
+    if kind is Reminder.SOON:
+        meeting.reminded_soon_for = starts
+    if kind is Reminder.DAY or now >= day_reminder_at(starts, office, notices):
+        meeting.reminded_day_for = starts
+
+
 # -- what they say --------------------------------------------------------------------
 
 
@@ -231,9 +242,7 @@ async def remind(
     emailed = messaged = 0
     for meeting, kind in reminders:
         # Sent for this time, whatever happens below: one attempt (module doc).
-        meeting.reminded_day_for = meeting.starts_at
-        if kind is Reminder.SOON:
-            meeting.reminded_soon_for = meeting.starts_at
+        mark(meeting, kind, office, notices, now)
         # Behind a password, the page asks for it and shows the link (section 6).
         join = meeting.link and project.access_mode is not AccessMode.PASSWORD
         link = (
