@@ -189,6 +189,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
                 "project_type",
                 "custom_type",  # "Outro"'s name, renamed or set from the page (0046)
                 "last_activity_at",
+                "current_position",
                 "files_scanned_at",
                 "folder_id",  # a Drive account switch: new, empty folders
             )
