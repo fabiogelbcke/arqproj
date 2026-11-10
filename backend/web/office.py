@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import is_email, tidy_email
 from backend.identity.models import Role
@@ -45,7 +45,8 @@ from backend.storage.google_connect import ConnectError
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
 from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
-from backend.web.auth import CurrentStaff, current_staff, require_csrf
+from backend.web.access import require_owner
+from backend.web.auth import CurrentStaff, current_staff
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
 
@@ -91,8 +92,10 @@ class OfficeOut(BaseModel):
 
 
 class OfficeIn(BaseModel):
-    name: str | None = None
-    contact_email: str | None = None
+    # Checked against NAME_LIMIT and EMAIL_LIMIT where saved: an office name from
+    # before its limit stays as it is.
+    name: str | None = Field(default=None, max_length=500)
+    contact_email: str | None = Field(default=None, max_length=500)
     # "" clears it.
     address: str | None = Field(default=None, max_length=ADDRESS_MAX)
     city: str | None = Field(default=None, max_length=CITY_MAX)
@@ -133,11 +136,6 @@ async def _profile_for_change(db: AsyncSession, tenant: CurrentTenant) -> Office
     return found
 
 
-def _owner(staff: CurrentStaff) -> None:
-    if staff.role is not Role.OWNER:
-        raise ApiError(403, ErrorCode.OWNER_ONLY)
-
-
 @router.get("/office", responses=documented(401))
 async def office(
     staff: CurrentStaff = Depends(current_staff),
@@ -151,11 +149,10 @@ async def office(
 async def change_office(
     request: Request,
     body: OfficeIn,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> OfficeOut:
-    _owner(staff)
     changes = body.model_fields_set
     if not tenant.has(Feature.PROPOSALS) and changes.intersection(PROPOSAL_DETAILS):
         raise ApiError(409, ErrorCode.FEATURE_OFF)  # proposals are switched on per office
@@ -177,7 +174,9 @@ async def change_office(
             setattr(found, column, value.strip() or None)
     await db.commit()
     await db.refresh(found)
-    capture(request, "office_settings_changed", {"fields": sorted(body.model_fields_set)})
+    capture(
+        request, AnalyticsEvent.OFFICE_SETTINGS_CHANGED, {"fields": sorted(body.model_fields_set)}
+    )
     return _out(tenant, found, staff)
 
 
@@ -262,12 +261,11 @@ async def upload_logo(
     request: Request,
     file: UploadFile,
     png: UploadFile | None = None,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> OfficeOut:
     """The logo; with an SVG, also `png`, the painel's drawing of it (for email)."""
-    _owner(staff)
     content = await _read(file)
     logo_type = image_type(content)
     if logo_type is None:
@@ -286,7 +284,7 @@ async def upload_logo(
     await db.commit()
     await _trash(request, db, *(p for p in previous if p not in ids.values()))
     await db.refresh(found)
-    capture(request, "office_logo_set", {"variant": "light"})
+    capture(request, AnalyticsEvent.OFFICE_LOGO_SET, {"variant": "light"})
     return _out(tenant, found, staff)
 
 
@@ -294,12 +292,11 @@ async def upload_logo(
 async def upload_dark_logo(
     request: Request,
     file: UploadFile,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> OfficeOut:
     """The logo for dark mode (pages show it only with the usual one)."""
-    _owner(staff)
     content = await _read(file)
     logo_type = image_type(content)
     if logo_type is None:
@@ -314,26 +311,25 @@ async def upload_dark_logo(
     if previous and previous != found.logo_dark_file_id:
         await _trash(request, db, previous)
     await db.refresh(found)
-    capture(request, "office_logo_set", {"variant": "dark"})
+    capture(request, AnalyticsEvent.OFFICE_LOGO_SET, {"variant": "dark"})
     return _out(tenant, found, staff)
 
 
 @router.delete("/office/logo/dark", responses=documented(401, 403, 503))
 async def remove_dark_logo(
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> OfficeOut:
     """Dark mode shows the usual logo again."""
-    _owner(staff)
     found = await _profile_for_change(db, tenant)
     previous = found.logo_dark_file_id
     found.logo_dark_file_id = found.logo_dark_type = None
     await db.commit()
     await _trash(request, db, previous)
     await db.refresh(found)
-    capture(request, "office_logo_removed", {"variant": "dark"})
+    capture(request, AnalyticsEvent.OFFICE_LOGO_REMOVED, {"variant": "dark"})
     return _out(tenant, found, staff)
 
 
@@ -341,13 +337,12 @@ async def remove_dark_logo(
 async def add_logo_png(
     request: Request,
     file: UploadFile,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> OfficeOut:
     """The PNG of an SVG logo uploaded before PNGs were drawn (the painel sends it
     when it sees `logo_needs_png`)."""
-    _owner(staff)
     content = _png(await _read(file))
     found = await load_profile(db)
     if found is None or found.logo_type is not LogoType.SVG:
@@ -359,7 +354,7 @@ async def add_logo_png(
     if previous and previous != found.logo_png_file_id:
         await _trash(request, db, previous)
     await db.refresh(found)
-    capture(request, "office_logo_set", {"variant": "png"})
+    capture(request, AnalyticsEvent.OFFICE_LOGO_SET, {"variant": "png"})
     return _out(tenant, found, staff)
 
 

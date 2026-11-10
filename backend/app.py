@@ -17,6 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from posthog import Posthog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+from starlette.exceptions import HTTPException
 
 from backend.db import runtime_role
 from backend.db.engine import create_engine, create_sessionmaker
@@ -58,7 +59,12 @@ from backend.web import (
 )
 from backend.web.auth import SUPPORT_TAG
 from backend.web.build import BuildIdMiddleware
-from backend.web.errors import ApiError, handle_api_error, handle_invalid_request
+from backend.web.errors import (
+    ApiError,
+    handle_api_error,
+    handle_http_error,
+    handle_invalid_request,
+)
 from backend.web.local_cookies import LocalCookiesMiddleware
 from backend.web.request_id import RequestIdLogFilter, RequestIdMiddleware
 
@@ -292,6 +298,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(pages.router)
     app.add_exception_handler(ApiError, handle_api_error)
     app.add_exception_handler(RequestValidationError, handle_invalid_request)
+    app.add_exception_handler(HTTPException, handle_http_error)
     # Added innermost first: request IDs wrap everything, so even a 404 for an
     # unknown host or a redirect carries an ID and logs with it. The PostHog
     # context sits inside tenant resolution, to tag the request's office.

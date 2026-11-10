@@ -19,6 +19,7 @@ from backend.db.isolation import scope_to_tenant
 from backend.identity import accounts
 from backend.identity.models import JoinLink, Role, User
 from backend.notifications.email import EmailError
+from backend.security import keys
 from backend.settings import Settings
 from backend.tenancy.models import Tenant, TenantDomain
 from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL
@@ -200,15 +201,20 @@ async def test_when_the_email_cannot_go_the_invite_stands_and_says_so(client, ow
 
 
 async def test_members_see_the_team_but_only_owners_invite(client, owner, db_session, sent):
+    pending = (await invite(client, owner, email="ana@alinea.example")).json()["member"]["id"]
     member = await sign_in_as(client, db_session, "rui@alinea.example", Role.MEMBER)
     team_now = (await client.get("/api/team", headers=member)).json()
     assert team_now["can_manage"] is False
     for response in (
         await invite(client, member),
+        await client.post(f"/api/team/invites/{pending}/link", headers=member),
+        await client.delete(f"/api/team/invites/{pending}", headers=member),
         await client.post("/api/team/join-link", headers=member),
         await client.delete("/api/team/join-link", headers=member),
     ):
         assert (response.status_code, response.json()["error"]) == (403, "owner_only")
+    team_now = (await client.get("/api/team", headers=member)).json()
+    assert pending in {person["id"] for person in team_now["members"]}  # still invited
 
 
 async def test_inviting_needs_a_signed_in_request_with_its_csrf_token(client, owner, sent):
@@ -486,7 +492,7 @@ async def owner_token(db, **values):
         JoinLink(
             **(
                 {
-                    "token_hash": team._hash(token),
+                    "token_hash": keys.token_hash(token),
                     "role": Role.OWNER,
                     "single_use": True,
                     "expires_at": datetime.now(UTC) + timedelta(days=7),
@@ -625,7 +631,7 @@ async def test_concurrent_owner_joins_create_only_one_account(test_database_url,
             async with holder.begin():
                 await holder.execute(
                     text("SELECT id FROM join_links WHERE token_hash = :hash FOR UPDATE"),
-                    {"hash": team._hash(token)},
+                    {"hash": keys.token_hash(token)},
                 )
                 async with anyio.create_task_group() as tasks:
                     tasks.start_soon(request, "ana@example.com")
@@ -665,3 +671,23 @@ async def test_concurrent_owner_joins_create_only_one_account(test_database_url,
             await cleanup.execute(delete(Tenant).where(Tenant.id == tenant.id))
         await app_engine.dispose()
         await owner_engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("password_hash", "confirmed", "status"),
+    [
+        (None, None, accounts.StaffStatus.INVITED),
+        # Invited by email: the address is known, the password not chosen yet.
+        (None, datetime(2026, 11, 1, tzinfo=UTC), accounts.StaffStatus.INVITED),
+        ("$argon2id$…", None, accounts.StaffStatus.UNCONFIRMED),  # joined by the shared link
+        ("$argon2id$…", datetime(2026, 11, 1, tzinfo=UTC), accounts.StaffStatus.ACTIVE),
+    ],
+)
+def test_a_staff_members_status_is_one_rule_for_the_team_and_the_operator(
+    password_hash, confirmed, status
+):
+    """The painel's team list and the operator dashboard both show it, from
+    `accounts.staff_status`: a change to what "pending" means changes both."""
+    user = User(name="Ana", email="ana@alinea.example", role=Role.MEMBER)
+    user.password_hash, user.email_confirmed_at = password_hash, confirmed
+    assert accounts.staff_status(user) is status

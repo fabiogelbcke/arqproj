@@ -83,3 +83,10 @@ def decrypt(secret: str, purpose: str, ciphertext: str) -> str:
         raise
     except Exception as error:  # wrong key, tampered bytes
         raise BadToken("undecryptable") from error
+
+
+def token_hash(token: str) -> str:
+    """What is stored of a secret token sent in a link or a cookie (a session, a
+    password or share link): its SHA-256, so the database never holds the token.
+    The tokens are random and long, so no key or slow hash is needed."""
+    return hashlib.sha256(token.encode()).hexdigest()

@@ -22,6 +22,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.identity.models import User
 from backend.notifications.models import RECIPIENTS_MAX, ProjectRecipient, RecipientStatus
@@ -97,10 +98,6 @@ class ProjectSummary(BaseModel):
     project_type_label: str
     stage_count: int
     completed_stage_count: int  # stages marked as completed, in any order (0032)
-    # The previous release's current stage (A30), for one release: the first stage
-    # still open (its title), else the last.
-    current_position: int | None
-    current_stage_title: str | None
     next_meeting: NextMeeting | None
     created_at: datetime
     # The last change a client can see (A28); None until there is one.
@@ -148,14 +145,16 @@ class ProjectIn(BaseModel):
     project_type: str = Field(max_length=100)
     # "Outro"'s name (2 Nov 2026); ignored for a built-in type.
     custom_type: str | None = Field(default=None, max_length=500)
-    stages: list[str] = Field(max_length=50)
+    stages: list[Annotated[str, Field(max_length=100)]] = Field(max_length=50)
     # The office's own stages, named as typed: after the built-in ones.
     custom_stages: list[Annotated[str, Field(max_length=STAGE_TITLE_MAX)]] = Field(
         default=[], max_length=20
     )
     slug: str = Field(max_length=200)
     # The client's addresses for updates (A32), optional.
-    recipients: list[str] = Field(default=[], max_length=RECIPIENTS_MAX)
+    recipients: list[Annotated[str, Field(max_length=500)]] = Field(
+        default=[], max_length=RECIPIENTS_MAX
+    )
     # "Começa como proposta" (A42): the page shows only the proposal until accepted.
     proposal: bool = False
     # Made by the screen once per dialog: a retried or double-sent request
@@ -208,18 +207,6 @@ async def summaries(
             )
         ).all()
     )
-    first_open = {
-        stage.project_id: (stage, titles)
-        for stage, titles in (
-            await db.execute(
-                select(ProjectStage, StageDef.titles)
-                .outerjoin(StageDef, StageDef.key == ProjectStage.builtin_key)
-                .where(ProjectStage.project_id.in_(ids), ProjectStage.completed_at.is_(None))
-                .order_by(ProjectStage.project_id, ProjectStage.position)
-                .ext(distinct_on(ProjectStage.project_id))
-            )
-        ).all()
-    }
     meetings = {
         meeting.project_id: NextMeeting(title=meeting.title, starts_at=meeting.starts_at)
         for meeting in await db.scalars(
@@ -273,16 +260,6 @@ async def summaries(
             project_type_label=project.custom_type or _text(labels, locale),
             stage_count=counts.get(project.id, 0),
             completed_stage_count=completed.get(project.id, 0),
-            current_position=(
-                first_open[project.id][0].position
-                if project.id in first_open
-                else counts.get(project.id) or None
-            ),
-            current_stage_title=(
-                first_open[project.id][0].title or _text(first_open[project.id][1], locale)
-                if project.id in first_open
-                else None
-            ),
             next_meeting=meetings.get(project.id),
             created_at=project.created_at,
             last_activity_at=project.last_activity_at,
@@ -403,23 +380,22 @@ async def new_project(
     except CreationProblem as problem:
         taken = problem.code in (ErrorCode.SLUG_TAKEN, ErrorCode.PROJECT_NAME_TAKEN)
         status = 409 if taken else 422
-        raise ApiError(status, ErrorCode(problem.code), problem.conflict_name) from None
+        raise ApiError(status, problem.code, problem.conflict_name) from None
     except ConnectError as error:
         log.error("creating project folders failed for %s: %s", tenant.slug, error.detail)
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
     log.info("project %s created in %s", project.id, tenant.slug)
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture(
-            "project_created",
-            properties={
-                "project_type": project.project_type,
-                "stage_count": len(body.stages) + len(body.custom_stages),
-                "custom_stage_count": len(body.custom_stages),
-                "recipient_count": len(body.recipients),
-                "proposal": body.proposal,
-            },
-        )
+    capture(
+        request,
+        AnalyticsEvent.PROJECT_CREATED,
+        {
+            "project_type": project.project_type,
+            "stage_count": len(body.stages) + len(body.custom_stages),
+            "custom_stage_count": len(body.custom_stages),
+            "recipient_count": len(body.recipients),
+            "proposal": body.proposal,
+        },
+    )
     project_id = project.id  # giving the cover expires the loaded rows
     # Only a project that never had a cover: not a resent creation, even one whose
     # cover was removed since (removing keeps the `_capa` folder).

@@ -188,7 +188,7 @@ function StorageState({ office }: { office: Office }) {
         : office.writer_status === "expired"
           ? "expired"
           : "disconnected"
-      : office.storage;
+      : (office.storage ?? "none");
   return <span className={styles.state} data-state={state}>{t(`admin.storage.${state}`)}</span>;
 }
 

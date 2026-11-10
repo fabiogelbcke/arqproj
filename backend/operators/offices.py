@@ -12,11 +12,13 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from enum import StrEnum
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.db.isolation import scope_to_tenant
+from backend.identity.accounts import StaffStatus, staff_status
 from backend.identity.models import LoginSession, Role, User
 from backend.notifications.models import DeliveryStatus, NotificationDelivery
 from backend.office.models import OfficeProfile
@@ -24,11 +26,19 @@ from backend.portfolio.models import Portfolio, PortfolioEntry, PortfolioPhoto
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Meeting, Project, ProjectDetail, ProjectStage
 from backend.shares.models import ShareLink
-from backend.storage.models import StorageConnection
-from backend.tenancy.models import Tenant, TenantDomain
+from backend.storage.models import ReaderStatus, StorageConnection, StorageKind, WriterStatus
+from backend.tenancy.models import Tenant, TenantDomain, TenantStatus
 from backend.tenancy.resolve import known_features
 
 RECENT = timedelta(days=30)  # "emails sent" counts this long back
+
+
+class LinkState(StrEnum):
+    """A share link, as the dashboard counts them."""
+
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    DISABLED = "disabled"  # turned off
 
 
 @dataclass
@@ -36,7 +46,7 @@ class StaffMember:
     name: str
     email: str
     role: Role
-    status: str  # active, invited (no password yet), unconfirmed (email not confirmed)
+    status: StaffStatus
     last_seen_at: datetime | None
 
 
@@ -45,16 +55,16 @@ class OfficeSummary:
     id: uuid.UUID
     slug: str
     name: str
-    status: str
+    status: TenantStatus
     created_at: datetime
     hosts: list[str]  # the primary first
     owners: int = 0
     staff: int = 0  # every account, owners included
     pending: int = 0  # invited or unconfirmed
-    projects: dict[str, int] = field(default_factory=dict)  # by status
-    storage: str = "none"  # none, folder (local), google
-    writer_status: str | None = None
-    reader_status: str | None = None
+    projects: dict[ProjectStatus, int] = field(default_factory=dict)
+    storage: StorageKind | None = None  # None: not connected
+    writer_status: WriterStatus | None = None
+    reader_status: ReaderStatus | None = None
     drive_account: str | None = None  # the office's Google account (staff's, not a client's)
     last_activity_at: datetime | None = None  # a staff session last used
     emails_sent: int = 0  # client update emails, in the last RECENT
@@ -64,7 +74,7 @@ class OfficeSummary:
     # address shows it (1) or not (0).
     portfolio: dict[str, int] = field(default_factory=dict)
     usage: dict[str, int] = field(default_factory=dict)
-    link_statuses: dict[str, int] = field(default_factory=dict)
+    link_statuses: dict[LinkState, int] = field(default_factory=dict)
     project_types: dict[str, int] = field(default_factory=dict)
     features: list[str] = field(default_factory=list)  # switched on (A40)
     team: list[StaffMember] = field(default_factory=list)  # only for one office's page
@@ -91,9 +101,7 @@ async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, tea
     users = list(await session.scalars(select(User).where(User.support.is_(False))))
     office.staff = len(users)
     office.owners = sum(1 for u in users if u.role is Role.OWNER)
-    office.pending = sum(
-        1 for u in users if u.password_hash is None or u.email_confirmed_at is None
-    )
+    office.pending = sum(1 for u in users if staff_status(u) is not StaffStatus.ACTIVE)
     seen = dict(
         (
             await session.execute(
@@ -111,17 +119,13 @@ async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, tea
                 name=u.name,
                 email=u.email,
                 role=u.role,
-                status="invited"
-                if u.password_hash is None
-                else "unconfirmed"
-                if u.email_confirmed_at is None
-                else "active",
+                status=staff_status(u),
                 last_seen_at=seen.get(u.id),
             )
             for u in sorted(users, key=lambda u: u.name.lower())
         ]
     office.projects = {
-        str(status): count
+        status: count
         for status, count in (
             await session.execute(
                 select(Project.status, func.count())
@@ -131,12 +135,12 @@ async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, tea
         ).all()
     }
     for status in ProjectStatus:
-        office.projects.setdefault(str(status), 0)
+        office.projects.setdefault(status, 0)
     connection = await session.scalar(select(StorageConnection))
     if connection is not None:
-        office.storage = str(connection.kind)
-        office.writer_status = str(connection.writer_status)
-        office.reader_status = str(connection.reader_status)
+        office.storage = connection.kind
+        office.writer_status = connection.writer_status
+        office.reader_status = connection.reader_status
         office.drive_account = connection.account_email
     office.emails_sent = await session.scalar(
         select(func.count()).where(
@@ -193,14 +197,14 @@ async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, tea
             office.project_types[project.project_type] = (
                 office.project_types.get(project.project_type, 0) + 1
             )
-        office.link_statuses = {"active": 0, "expired": 0, "disabled": 0}
+        office.link_statuses = dict.fromkeys(LinkState, 0)
         for link in await session.scalars(select(ShareLink)):
             state = (
-                "disabled"
+                LinkState.DISABLED
                 if link.disabled_at
-                else "expired"
+                else LinkState.EXPIRED
                 if link.expires_at and link.expires_at <= now
-                else "active"
+                else LinkState.ACTIVE
             )
             office.link_statuses[state] += 1
 
@@ -219,7 +223,7 @@ async def summaries(
             id=tenant.id,
             slug=tenant.slug,
             name=tenant.name,
-            status=str(tenant.status),
+            status=tenant.status,
             created_at=tenant.created_at,
             hosts=hosts,
             features=sorted(known_features(tenant.features)),

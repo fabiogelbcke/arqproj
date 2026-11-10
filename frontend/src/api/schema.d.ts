@@ -1102,7 +1102,10 @@ export interface paths {
         /** Upload Cover */
         put: operations["upload_cover_api_projects__project_id__cover_put"];
         post?: never;
-        /** Remove Cover */
+        /**
+         * Remove Cover
+         * @description The cover goes; an archived project keeps its own, as its other content.
+         */
         delete: operations["remove_cover_api_projects__project_id__cover_delete"];
         options?: never;
         head?: never;
@@ -1914,30 +1917,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/projects/{project_id}/progress": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Progress
-         * @deprecated
-         * @description The previous release's progress, for a tab still running its code during a
-         *     deploy (A30); remove in the release after independent stages. "advance" and
-         *     "complete" complete the first open stage; "back" and "reopen" reopen the last
-         *     completed one.
-         */
-        post: operations["progress_api_projects__project_id__progress_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/projects/{project_id}/stages/{position}/uploads": {
         parameters: {
             query?: never;
@@ -2244,8 +2223,7 @@ export interface components {
             slug: string;
             /** Name */
             name: string;
-            /** Status */
-            status: string;
+            status: components["schemas"]["TenantStatus"];
             /**
              * Created At
              * Format: date-time
@@ -2263,12 +2241,9 @@ export interface components {
             projects: {
                 [key: string]: number;
             };
-            /** Storage */
-            storage: string;
-            /** Writer Status */
-            writer_status: string | null;
-            /** Reader Status */
-            reader_status: string | null;
+            storage: components["schemas"]["StorageKind"] | null;
+            writer_status: components["schemas"]["WriterStatus"] | null;
+            reader_status: components["schemas"]["ReaderStatus"] | null;
             /** Drive Account */
             drive_account: string | null;
             /** Last Activity At */
@@ -2309,8 +2284,7 @@ export interface components {
             /** Email */
             email: string;
             role: components["schemas"]["Role"];
-            /** Status */
-            status: string;
+            status: components["schemas"]["StaffStatus"];
             /** Last Seen At */
             last_seen_at: string | null;
         };
@@ -2671,7 +2645,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "comparison_exists" | "comparison_not_image" | "comparison_title_invalid" | "comparison_label_invalid" | "comparison_not_ours" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "portfolio_video_refused" | "portfolio_link_invalid" | "portfolio_photo_compared" | "portfolio_section_not_found" | "portfolio_section_exists" | "portfolio_section_not_empty";
+        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "not_found" | "method_not_allowed" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "comparison_exists" | "comparison_not_image" | "comparison_title_invalid" | "comparison_label_invalid" | "comparison_not_ours" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "portfolio_video_refused" | "portfolio_link_invalid" | "portfolio_photo_compared" | "portfolio_section_not_found" | "portfolio_section_exists" | "portfolio_section_not_empty";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -2692,14 +2666,19 @@ export interface components {
          * @enum {string}
          */
         Feature: "project_members" | "proposals" | "portfolio" | "cover_band" | "before_after";
+        /**
+         * FileKind
+         * @description How the page shows a file.
+         * @enum {string}
+         */
+        FileKind: "image" | "pdf" | "other";
         /** FileOut */
         FileOut: {
             /** Key */
             key: string;
             /** Name */
             name: string;
-            /** Kind */
-            kind: string;
+            kind: components["schemas"]["FileKind"];
             /** Size */
             size: number | null;
             /**
@@ -2885,6 +2864,12 @@ export interface components {
             kind: components["schemas"]["LinkKind"];
         };
         /**
+         * LinkState
+         * @description A share link, as the dashboard counts them.
+         * @enum {string}
+         */
+        LinkState: "active" | "expired" | "disabled";
+        /**
          * Locale
          * @description Languages the site's own text is translated into. Text an office writes
          *     itself is shown as written.
@@ -3000,11 +2985,7 @@ export interface components {
             /** Email */
             email: string;
             role: components["schemas"]["Role"];
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "active" | "invited" | "unconfirmed";
+            status: components["schemas"]["StaffStatus"];
             /** Me */
             me: boolean;
         };
@@ -3104,6 +3085,13 @@ export interface components {
             /** Has Project */
             has_project: boolean;
         };
+        /**
+         * OperatorAction
+         * @description What an operator can do to an office from its page (A38). Recorded in the
+         *     audit log as written here.
+         * @enum {string}
+         */
+        OperatorAction: "owner_link" | "suspend" | "restore" | "delete" | "feature_on" | "feature_off" | "support_owner" | "support_member";
         /** OperatorOut */
         OperatorOut: {
             /** Email */
@@ -3169,8 +3157,6 @@ export interface components {
             cover_url: string | null;
             /** Completed */
             completed: boolean;
-            /** Current Position */
-            current_position: number | null;
             /**
              * Last Update
              * Format: date-time
@@ -3303,16 +3289,6 @@ export interface components {
             /** Services */
             services: components["schemas"]["Service"][];
         };
-        /** ProgressIn */
-        ProgressIn: {
-            /** Row Version */
-            row_version: number;
-            /**
-             * Action
-             * @enum {string}
-             */
-            action: "advance" | "back" | "complete" | "reopen";
-        };
         /** ProjectChange */
         ProjectChange: {
             /** Row Version */
@@ -3397,10 +3373,6 @@ export interface components {
             stage_count: number;
             /** Completed Stage Count */
             completed_stage_count: number;
-            /** Current Position */
-            current_position: number | null;
-            /** Current Stage Title */
-            current_stage_title: string | null;
             next_meeting: components["schemas"]["NextMeeting"] | null;
             /**
              * Created At
@@ -3805,8 +3777,7 @@ export interface components {
             key: string;
             /** Name */
             name: string;
-            /** Kind */
-            kind: string;
+            kind: components["schemas"]["FileKind"];
             /** Size */
             size: number | null;
             /**
@@ -3988,6 +3959,13 @@ export interface components {
             total: number | null;
         };
         /**
+         * StaffStatus
+         * @description Where a staff account stands, as the team list and the operator dashboard
+         *     show it.
+         * @enum {string}
+         */
+        StaffStatus: "invited" | "unconfirmed" | "active";
+        /**
          * StaffView
          * @description Only for the office's signed-in staff: what the staff bar needs.
          */
@@ -4068,11 +4046,7 @@ export interface components {
         };
         /** TenantActionIn */
         TenantActionIn: {
-            /**
-             * Action
-             * @enum {string}
-             */
-            action: "owner_link" | "suspend" | "restore" | "delete" | "feature_on" | "feature_off" | "support_owner" | "support_member";
+            action: components["schemas"]["OperatorAction"];
             /**
              * Confirmation
              * @default
@@ -4100,6 +4074,11 @@ export interface components {
             logo_dark_url: string | null;
             analytics: components["schemas"]["VisitorAnalyticsOut"] | null;
         };
+        /**
+         * TenantStatus
+         * @enum {string}
+         */
+        TenantStatus: "active" | "suspended";
         /** TokenIn */
         TokenIn: {
             /** Token */
@@ -10626,66 +10605,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ProjectCompletionIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Content */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    progress_api_projects__project_id__progress_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProgressIn"];
             };
         };
         responses: {

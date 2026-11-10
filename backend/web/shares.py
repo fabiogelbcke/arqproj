@@ -26,7 +26,6 @@ typed once per device as a project page's (plan section 6).
 
 from __future__ import annotations
 
-import hashlib
 import hmac
 import json
 import logging
@@ -38,6 +37,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
+from typing import Annotated
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
@@ -46,7 +46,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture, capture_visit
+from backend.analytics import AnalyticsEvent, capture, capture_visit
 from backend.db.engine import get_tenant_session
 from backend.documents import versions
 from backend.documents.versions import shown_name
@@ -65,6 +65,7 @@ from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_files import (
     KEY_HOURS,
     NO_STORE,
+    FileKind,
     RangeNotSatisfiable,
     _disposition,
     _failure_page,
@@ -122,10 +123,6 @@ class ShareExpiry(StrEnum):
 EXPIRY_DAYS = {ShareExpiry.WEEK: 7, ShareExpiry.MONTH: 30, ShareExpiry.NEVER: None}
 
 
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
 def _owner_key(request: Request, link_id: uuid.UUID) -> str:
     return keys.sign(
         request.app.state.settings.app_secret,
@@ -169,7 +166,11 @@ def _owns(request: Request, owner: str | None) -> uuid.UUID | None:
 
 
 def _event(
-    request: Request, staff: CurrentStaff | None, project: Project, event: str, properties: dict
+    request: Request,
+    staff: CurrentStaff | None,
+    project: Project,
+    event: AnalyticsEvent,
+    properties: dict,
 ) -> None:
     """A share link made, renewed or turned off: as the staff member, or as an
     anonymous visitor when a client does it from the page (A39)."""
@@ -244,7 +245,9 @@ async def _files(db: AsyncSession, links: list[ShareLink]) -> dict[uuid.UUID, li
 
 
 class ShareIn(BaseModel):
-    files: list[str] = Field(min_length=1, max_length=FILES_MAX)  # the page's file keys
+    files: list[Annotated[str, Field(max_length=2000)]] = Field(  # the page's file keys
+        min_length=1, max_length=FILES_MAX
+    )
     label: str | None = Field(default=None, max_length=LABEL_MAX)  # "Para quem?"
     expiry: ShareExpiry
     password: str | None = Field(default=None, max_length=PAGE_PASSWORD_MAX)
@@ -278,7 +281,7 @@ class ShareMadeOut(BaseModel):
 
 
 class OwnedIn(BaseModel):
-    owners: list[str] = Field(max_length=200)
+    owners: list[Annotated[str, Field(max_length=2000)]] = Field(max_length=200)
 
 
 class OwnerIn(BaseModel):
@@ -392,7 +395,7 @@ async def make_share(
     acting = _staff_acting(request, staff)
     link = ShareLink(
         project_id=project.id,
-        token_hash=_hash(token),
+        token_hash=keys.token_hash(token),
         token_encrypted=keys.encrypt(request.app.state.settings.app_secret, TOKEN_PURPOSE, token),
         password_hash=await hash_password(body.password) if body.password else None,
         label=label,
@@ -411,7 +414,7 @@ async def make_share(
         request,
         staff,
         project,
-        "share_link_created",
+        AnalyticsEvent.SHARE_LINK_CREATED,
         {"file_count": len(items), "has_password": body.password is not None, "expiry_days": days},
     )
     log.info("shares: link %s made for project %s, %s files", link.id, project.id, len(items))
@@ -503,7 +506,7 @@ async def disable_share(
     if link.disabled_at is None:
         link.disabled_at = datetime.now(UTC)
         await db.commit()
-        _event(request, staff, project, "share_link_disabled", {})
+        _event(request, staff, project, AnalyticsEvent.SHARE_LINK_DISABLED, {})
         log.info("shares: link %s turned off", link.id)
     [shown] = await _described(db, await _storage(request, db), project, [link])
     return shown
@@ -545,7 +548,7 @@ async def refresh_share(
         await db.commit()
         await db.refresh(link)
         log.info("shares: link %s moved to newer versions", link.id)
-    _event(request, staff, project, "share_link_renewed", {"changed": updated != held})
+    _event(request, staff, project, AnalyticsEvent.SHARE_LINK_RENEWED, {"changed": updated != held})
     [shown] = await _described(db, storage, project, [link])
     return shown
 
@@ -562,7 +565,7 @@ async def _open_link(db: AsyncSession, token: str) -> tuple[ShareLink, Project]:
             select(ShareLink, Project)
             .join(Project, Project.id == ShareLink.project_id)
             .where(
-                ShareLink.token_hash == _hash(token),
+                ShareLink.token_hash == keys.token_hash(token),
                 ShareLink.disabled_at.is_(None),
                 Project.deleted_at.is_(None),
                 PUBLISHED,
@@ -582,7 +585,7 @@ async def _open_link(db: AsyncSession, token: str) -> tuple[ShareLink, Project]:
 class SharedFileOut(BaseModel):
     key: str
     name: str  # Drive's, with its version: "Planta v2.pdf", as it downloads
-    kind: str  # "image", "pdf" or "other"
+    kind: FileKind
     size: int | None
     modified_at: datetime
     stage: str  # "02 Estudo preliminar"
@@ -644,7 +647,7 @@ async def shared(
     capture_visit(
         request,
         project.tenant_id,
-        "share_page_viewed",
+        AnalyticsEvent.SHARE_PAGE_VIEWED,
         {"file_count": len(files), "has_password": link.password_hash is not None},
     )
     return SharedOut(
@@ -723,10 +726,12 @@ async def unlock_share(
         raise
     if not right:
         attempts.failed(key, who)
-        capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": False})
+        capture_visit(
+            request, link.tenant_id, AnalyticsEvent.SHARE_UNLOCK_TRIED, {"unlocked": False}
+        )
         raise ApiError(401, ErrorCode.WRONG_SHARE_PASSWORD, headers=challenge)
     attempts.succeeded(key, who)
-    capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": True})
+    capture_visit(request, link.tenant_id, AnalyticsEvent.SHARE_UNLOCK_TRIED, {"unlocked": True})
     response = Response(status_code=204, headers=challenge)
     response.set_cookie(
         _unlock_cookie(link),

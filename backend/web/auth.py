@@ -31,7 +31,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, SignInMethod, capture
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts, links, sessions, support
 from backend.identity.models import LinkKind, LoginSession, Role, User
@@ -294,11 +294,10 @@ async def signed_in(
     tenant: CurrentTenant,
     db: AsyncSession,
     user: User,
-    method: str = "password",
+    method: SignInMethod = SignInMethod.PASSWORD,
 ) -> MeOut:
     """Start a session for `user` (its cookie on `response`), and say who they are.
-    `method` says how, for analytics: password, google, link (a password set from an
-    email's link) or join."""
+    `method` says how, for analytics."""
     token, row = await sessions.start(db, user)
     await db.commit()
     _set_cookie(request, response, token, row.expires_at)
@@ -313,7 +312,7 @@ async def signed_in(
         posthog_client.group_identify(
             "tenant", str(tenant.id), properties={"slug": tenant.slug, "name": tenant.name}
         )
-        posthog_client.capture("user_signed_in", properties={"method": method})
+    capture(request, AnalyticsEvent.USER_SIGNED_IN, {"method": method})
     out = me_out(
         user.id,
         user.email,
@@ -339,9 +338,7 @@ async def sign_out(
     row = await db.get(LoginSession, staff.session_id)
     await sessions.revoke(db, row)
     await db.commit()
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture("user_signed_out")
+    capture(request, AnalyticsEvent.USER_SIGNED_OUT)
     del response.headers["set-cookie"]  # current_staff's refresh of the same cookie
     response.delete_cookie(COOKIE, path="/")
 
@@ -387,10 +384,8 @@ async def choose_password(
     await accounts.set_password(db, user, password_hash)
     # The link came to their inbox: that proves the address too.
     await accounts.confirm_email(db, user)
-    result = await signed_in(request, response, tenant, db, user, method="link")
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture("password_set")
+    result = await signed_in(request, response, tenant, db, user, method=SignInMethod.LINK)
+    capture(request, AnalyticsEvent.PASSWORD_SET)
     return result
 
 
@@ -466,7 +461,7 @@ async def tour_seen(
         .values(tour_seen_at=func.now())
     )
     await db.commit()
-    capture(request, "page_tour_seen")
+    capture(request, AnalyticsEvent.PAGE_TOUR_SEEN)
 
 
 @router.post("/password-reset", status_code=204, responses=documented(422, 429))

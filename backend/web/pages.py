@@ -36,7 +36,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture_visit
+from backend.analytics import AnalyticsEvent, capture_visit
 from backend.db.engine import get_tenant_session
 from backend.identity.models import User
 from backend.identity.passwords import verify_password
@@ -66,7 +66,8 @@ from backend.storage.models import StorageConnection
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
-from backend.web.auth import CurrentStaff, optional_staff
+from backend.web.access import changeable
+from backend.web.auth import CurrentStaff, optional_staff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
 from backend.web.project_settings import serve_cover
@@ -189,9 +190,6 @@ class PageOut(BaseModel):
     description: str
     cover_url: str | None
     completed: bool
-    # The previous release's current stage (A30), for one release: the first stage
-    # still open, else the last; None without stages.
-    current_position: int | None
     last_update: datetime
     details: list[DetailOut]
     # The staff working on it, by name: shown as "Responsável" (A41).
@@ -245,7 +243,6 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             description="",
             cover_url=None,
             completed=False,
-            current_position=None,
             last_update=project.last_activity_at or project.created_at,
             details=[],
             stages=[],
@@ -328,7 +325,6 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             else None
         ),
         completed=project.status is ProjectStatus.COMPLETED,
-        current_position=next((s.position for s in stages if not s.completed), len(stages) or None),
         last_update=project.last_activity_at or project.created_at,
         details=details,
         team=team,
@@ -398,6 +394,19 @@ async def _readable(
     if locked and staff is None:
         raise ApiError(403, ErrorCode.PAGE_LOCKED)  # the password step comes in 2.4
     return project
+
+
+async def changeable_page(
+    request: Request,
+    slug: str,
+    staff: CurrentStaff = Depends(require_csrf),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Project:
+    """`access.changeable_project` for staff changes made from the client page,
+    `/api/pages/{slug}/…`: the page's project, if it may be changed (not archived).
+    Here, not in `access`, because this module needs `access` itself."""
+    project = await _readable(db, slug, staff, request)
+    return await changeable(db, project.id)
 
 
 @router.get("/api/pages/{slug}", responses=documented(403, 404, 503))
@@ -497,10 +506,12 @@ async def unlock(
     if not right:
         attempts.failed(key, who)
         log.info("wrong page password for %s", slug)
-        capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": False})
+        capture_visit(
+            request, project.tenant_id, AnalyticsEvent.PAGE_UNLOCK_TRIED, {"unlocked": False}
+        )
         raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD, headers=challenge)
     attempts.succeeded(key, who)
-    capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": True})
+    capture_visit(request, project.tenant_id, AnalyticsEvent.PAGE_UNLOCK_TRIED, {"unlocked": True})
     token = keys.sign(
         request.app.state.settings.app_secret,
         UNLOCK_PURPOSE,
@@ -585,7 +596,7 @@ async def meeting_ics(
         lines.append(f"URL:{meeting.link}")
     lines += ["END:VEVENT", "END:VCALENDAR"]
     if staff is None:
-        capture_visit(request, project.tenant_id, "meeting_added_to_calendar")
+        capture_visit(request, project.tenant_id, AnalyticsEvent.MEETING_ADDED_TO_CALENDAR)
     return Response(
         "\r\n".join(lines) + "\r\n",
         media_type="text/calendar; charset=utf-8",

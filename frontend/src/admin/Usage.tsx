@@ -71,7 +71,7 @@ export function FileStatistics({ office }: { office: Schemas["AdminOfficeOut"] }
       <div className={styles.panelHead}>
         <h2 id="files">{t("admin.fileStats")}</h2>
         <InfoTip label={t("admin.aboutFiles")}>{t("admin.fileStatsScope")}</InfoTip>
-        <Button size="small" className={styles.panelAction} onPress={() => files.mutate()} isDisabled={files.isPending || office.storage === "none"}>
+        <Button size="small" className={styles.panelAction} onPress={() => files.mutate()} isDisabled={files.isPending || office.storage === null}>
           {t(files.isPending ? "app.loading" : data ? "admin.reloadFiles" : "admin.loadFiles")}
         </Button>
       </div>

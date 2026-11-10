@@ -264,7 +264,7 @@ describe("the painel's first steps", () => {
   });
 
   it("comes before the search while setting up, once there are projects to search (Fabio)", async () => {
-    const casa = { id: "11111111-1111-1111-1111-111111111111", name: "Casa Jardim", client_name: "Família Oliveira", slug: "casa-jardim", status: "active", project_type: "architecture", project_type_label: "Projeto Arquitetônico", stage_count: 7, completed_stage_count: 2, current_position: null, current_stage_title: null, next_meeting: null, created_at: "2026-09-01T12:00:00Z", last_activity_at: null, row_version: 4, cover_url: null, access_mode: "public", recipients: [] };
+    const casa = { id: "11111111-1111-1111-1111-111111111111", name: "Casa Jardim", client_name: "Família Oliveira", slug: "casa-jardim", status: "active", project_type: "architecture", project_type_label: "Projeto Arquitetônico", stage_count: 7, completed_stage_count: 2, next_meeting: null, created_at: "2026-09-01T12:00:00Z", last_activity_at: null, row_version: 4, cover_url: null, access_mode: "public", recipients: [] };
     api(CONNECTED, {
       "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: false, has_project: true } }),
       "GET /api/projects": () => ({ body: [casa] }),

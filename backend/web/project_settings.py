@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
@@ -29,7 +30,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import InvalidEmail, email_list
 from backend.identity.models import User
@@ -47,6 +48,7 @@ from backend.storage.connections import storage_for
 from backend.storage.models import StorageConnection, StorageKind
 from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
+from backend.web.access import changeable_project
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.covers import COVER_MAX_BYTES, local_root, stock_photo_bytes, store_cover
 from backend.web.drive import writer_for
@@ -83,7 +85,9 @@ class ProjectChange(BaseModel):
     # device that unlocked the page before.
     password: str | None = Field(default=None, max_length=PAGE_PASSWORD_MAX)
     # The client's addresses for email updates, the whole list (A32).
-    recipients: list[str] | None = Field(default=None, max_length=RECIPIENTS_MAX)
+    recipients: list[Annotated[str, Field(max_length=500)]] | None = Field(
+        default=None, max_length=RECIPIENTS_MAX
+    )
     # Who works on it: the whole list of staff accounts (A41), if the office has
     # the feature (A40).
     members: list[uuid.UUID] | None = Field(default=None, max_length=MEMBERS_MAX)
@@ -298,7 +302,7 @@ async def publish(
         if published.rowcount != 1:  # someone archived it meanwhile
             raise ApiError(409, ErrorCode.PROJECT_CHANGED)
         await db.commit()
-        capture(request, "project_published")
+        capture(request, AnalyticsEvent.PROJECT_PUBLISHED)
     elif project.status is not ProjectStatus.ACTIVE:
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # completed or archived
     db.expire_all()
@@ -310,16 +314,13 @@ async def upload_cover(
     request: Request,
     project_id: uuid.UUID,
     file: UploadFile,
-    _staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
-    project = await _project(db, project_id)
-    if project.status is ProjectStatus.ARCHIVED:
-        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
     content = await file.read(COVER_MAX_BYTES + 1)
     await store_cover(request, db, tenant, project, content)
-    capture(request, "project_cover_set")
+    capture(request, AnalyticsEvent.PROJECT_COVER_SET)
     return await _summary(db, tenant, project_id)
 
 
@@ -332,16 +333,13 @@ async def choose_stock_cover(
     request: Request,
     project_id: uuid.UUID,
     body: StockCoverChoice,
-    _staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
     """One of the bundled photos as the cover, stored like an uploaded one."""
-    project = await _project(db, project_id)
-    if project.status is ProjectStatus.ARCHIVED:
-        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
     await store_cover(request, db, tenant, project, stock_photo_bytes(body.name))
-    capture(request, "project_cover_set", {"stock": True})
+    capture(request, AnalyticsEvent.PROJECT_COVER_SET, {"stock": True})
     return await _summary(db, tenant, project_id)
 
 
@@ -349,11 +347,11 @@ async def choose_stock_cover(
 async def remove_cover(
     request: Request,
     project_id: uuid.UUID,
-    _staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
-    project = await _project(db, project_id)
+    """The cover goes; an archived project keeps its own, as its other content."""
     previous = project.cover_file_id
     if previous is not None:
         connection = await db.scalar(select(StorageConnection))
@@ -366,7 +364,7 @@ async def remove_cover(
         project.cover_file_id = project.cover_type = None
         await db.commit()
     db.expire_all()
-    capture(request, "project_cover_removed")
+    capture(request, AnalyticsEvent.PROJECT_COVER_REMOVED)
     return await _summary(db, tenant, project_id)
 
 

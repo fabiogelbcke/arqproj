@@ -22,6 +22,7 @@ import anyio
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
+from backend.analytics import AnalyticsEvent
 from backend.notifications.email import sender_for
 from backend.notifications.scan import run_maintenance
 
@@ -69,7 +70,7 @@ async def maintenance(request: Request) -> Response:
     for tenant_id, sent in report.emails_by_tenant.items() if client is not None else ():
         # Update emails are paid per email (Resend): counted per office, personless.
         client.capture(
-            "update_emails_sent",
+            AnalyticsEvent.UPDATE_EMAILS_SENT,
             distinct_id=f"tenant:{tenant_id}",
             properties={
                 "$process_person_profile": False,

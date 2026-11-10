@@ -4,7 +4,7 @@ visitor's download carries only the day's anonymous visitor id (backend.analytic
 import logging
 from contextlib import aclosing
 
-from backend.analytics import visitor_id, visitor_properties
+from backend.analytics import AnalyticsEvent, visitor_id, visitor_properties
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ async def measured(request, project, chunks, source: str, *, staff: bool = False
         if client is not None:
             try:
                 client.capture(
-                    "file_transfer",
+                    AnalyticsEvent.FILE_TRANSFER,
                     distinct_id=(
                         f"tenant:{project.tenant_id}" if staff else f"visitor:{visitor_id(request)}"
                     ),

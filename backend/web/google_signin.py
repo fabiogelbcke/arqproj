@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+from enum import StrEnum
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Request
@@ -33,6 +34,7 @@ from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import SignInMethod
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts
 from backend.operators.google_signin import GoogleSignIn, SignInError, new_verifier
@@ -54,6 +56,18 @@ TTL = 600  # long enough to sign in at Google
 TRIES = "google-signin"
 SIGN_IN_PAGE = "/painel/entrar"
 AFTER = "/painel/"
+
+
+class GoogleProblem(StrEnum):
+    """Why a Google sign-in didn't get in, as the sign-in page's address says it
+    (`?google=…`); the page shows each one's text (`signIn.googleProblem`)."""
+
+    EXPIRED = "expirado"  # another browser, too late, or started at another office
+    CANCELLED = "cancelado"
+    TOO_MANY_TRIES = "tentativas"
+    FAILED = "falhou"
+    NO_ACCOUNT = "sem-conta"
+    INVITE_PENDING = "convite"
 
 
 class StartOut(BaseModel):
@@ -125,7 +139,7 @@ async def forward(request: Request, state: dict) -> Response:
     return RedirectResponse(f"{origin}{FINISH}?{request.url.query}", status_code=302)
 
 
-def _back(problem: str | None = None) -> RedirectResponse:
+def _back(problem: GoogleProblem | None = None) -> RedirectResponse:
     # With the request ID its log line carries, so the page shows the support code.
     target = f"{SIGN_IN_PAGE}?google={problem}&ref={current_request_id()}" if problem else AFTER
     response = RedirectResponse(target, status_code=302)
@@ -144,20 +158,20 @@ async def finish(
     try:
         flow = keys.verify(settings.app_secret, FLOW_PURPOSE, request.cookies.get(FLOW_COOKIE, ""))
     except keys.BadToken:
-        return _back("expirado")  # another browser, or too late
+        return _back(GoogleProblem.EXPIRED)  # another browser, or too late
     if (
         state is None
         or state["tenant"] != str(tenant.id)  # started at another office
         or not secrets.compare_digest(state["flow"], flow["state"])
     ):
-        return _back("expirado")
+        return _back(GoogleProblem.EXPIRED)
     if request.query_params.get("error") or not request.query_params.get("code"):
-        return _back("cancelado")
+        return _back(GoogleProblem.CANCELLED)
     # A few failed exchanges per device, as passwords are (section 5: hand-offs
     # are rate-limited): a replayed return can't make the server call Google at will.
     who = attempts.device(request)
     if not attempts.admit(TRIES, who):
-        return _back("tentativas")
+        return _back(GoogleProblem.TOO_MANY_TRIES)
     try:
         identity = await google(request).identify(
             getattr(request.app.state, "http", None),  # set up at app start
@@ -169,7 +183,7 @@ async def finish(
         attempts.failed(TRIES, who)
         detail = error.detail if isinstance(error, SignInError) else error.code
         log.error("google sign-in failed: route=%s tenant=%s %s", FINISH, tenant.slug, detail)
-        return _back("falhou")
+        return _back(GoogleProblem.FAILED)
     attempts.succeeded(TRIES, who)
     user = await accounts.find_user(db, identity.email)
     if user is not None:
@@ -179,15 +193,15 @@ async def finish(
         await db.refresh(user)
     if user is None or user.email != identity.email:
         log.info("google sign-in: no account for that email in %s", tenant.slug)
-        return _back("sem-conta")
+        return _back(GoogleProblem.NO_ACCOUNT)
     if user.password_hash is None:
         # A pending invite (A36): accepted only through its link, which sets the
         # password; until then the team page offers to cancel or resend it, which
         # must never touch an account in use.
-        return _back("convite")
+        return _back(GoogleProblem.INVITE_PENDING)
     # Google has shown the address is theirs: a pending sign-up or invite counts.
     await accounts.confirm_email(db, user)
     response = _back()
-    await signed_in(request, response, tenant, db, user, method="google")  # commits
+    await signed_in(request, response, tenant, db, user, method=SignInMethod.GOOGLE)  # commits
     log.info("staff %s signed in with google in %s", user.id, tenant.slug)
     return response

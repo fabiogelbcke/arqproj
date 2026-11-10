@@ -20,18 +20,17 @@ is proven theirs (plan section 5). It always makes a member.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import secrets
 import uuid
 from datetime import timedelta
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, delete, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import SignInMethod
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts, links
 from backend.identity.emails import is_email, tidy_email
@@ -40,9 +39,11 @@ from backend.notifications.email import Email, EmailError, sender_for
 from backend.notifications.office import office_of
 from backend.notifications.password_reset import invite_email
 from backend.office.profile import display_name
+from backend.security import keys
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts, email_confirmation
-from backend.web.auth import CurrentStaff, MeOut, current_staff, require_csrf, signed_in
+from backend.web.access import require_owner
+from backend.web.auth import CurrentStaff, MeOut, current_staff, signed_in
 from backend.web.errors import ApiError, ErrorCode, documented
 
 NAME_MAX = 80
@@ -68,9 +69,7 @@ class MemberOut(BaseModel):
     name: str
     email: str
     role: Role
-    # "invited": hasn't chosen a password through the invite yet; "unconfirmed":
-    # joined through the shared link, and hasn't confirmed the email yet.
-    status: Literal["active", "invited", "unconfirmed"]
+    status: accounts.StaffStatus
     me: bool
 
 
@@ -118,28 +117,13 @@ class JoinIn(BaseModel):
     password: str = Field(max_length=500)
 
 
-def _owner(staff: CurrentStaff) -> None:
-    if staff.role is not Role.OWNER:
-        raise ApiError(403, ErrorCode.OWNER_ONLY)
-
-
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
 def _member(user: User, staff: CurrentStaff) -> MemberOut:
     return MemberOut(
         id=user.id,
         name=user.name,
         email=user.email,
         role=user.role,
-        status=(
-            "invited"
-            if user.password_hash is None
-            else "unconfirmed"
-            if user.email_confirmed_at is None
-            else "active"
-        ),
+        status=accounts.staff_status(user),
         me=user.id == staff.user_id,
     )
 
@@ -206,11 +190,10 @@ async def team(
 async def invite(
     body: InviteIn,
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> InviteOut:
-    _owner(staff)
     name, email = _name(body.name), _address(body.email)
     await db.execute(_LOCK_EMAIL, {"email": email})
     found = await accounts.find_user(db, email)
@@ -253,11 +236,10 @@ async def _pending(db: AsyncSession, user_id: uuid.UUID) -> User:
 async def invite_again(
     user_id: uuid.UUID,
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> InviteOut:
-    _owner(staff)
     user = await _pending(db, user_id)
     # As an invite: two at once must not leave two links working.
     await db.execute(_LOCK_EMAIL, {"email": user.email})
@@ -271,13 +253,12 @@ async def invite_again(
 @router.delete("/team/invites/{user_id}", status_code=204, responses=documented(401, 403, 404, 409))
 async def cancel_invite(
     user_id: uuid.UUID,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
     """Only a pending invite: its account and links go (removing staff who are in
     comes later, A36)."""
-    _owner(staff)
     user = await _pending(db, user_id)
     if not await _delete_pending(db, user):
         raise ApiError(409, ErrorCode.NOT_AN_INVITE)  # in, just now
@@ -288,11 +269,10 @@ async def cancel_invite(
 @router.post("/team/join-link", status_code=201, responses=documented(401, 403))
 async def join_link_on(
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> LinkOnOut:
-    _owner(staff)
     await db.execute(_LOCK_JOIN_LINK, {"tenant": str(tenant.id)})
     await db.execute(
         update(JoinLink)
@@ -300,7 +280,7 @@ async def join_link_on(
         .values(revoked_at=func.now())
     )
     token = secrets.token_urlsafe(24)
-    made = JoinLink(created_by=staff.user_id, token_hash=_hash(token))
+    made = JoinLink(created_by=staff.user_id, token_hash=keys.token_hash(token))
     db.add(made)
     office = await office_of(db, request.app.state.settings, tenant.id)
     await db.commit()
@@ -313,11 +293,10 @@ async def join_link_on(
 
 @router.delete("/team/join-link", status_code=204, responses=documented(401, 403))
 async def join_link_off(
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
-    _owner(staff)
     await db.execute(_LOCK_JOIN_LINK, {"tenant": str(tenant.id)})
     await db.execute(
         update(JoinLink)
@@ -344,7 +323,7 @@ def _working():
 
 async def _join_link(db: AsyncSession, token: str) -> JoinLink:
     found = await db.scalar(
-        select(JoinLink).where(JoinLink.token_hash == _hash(token), *_working())
+        select(JoinLink).where(JoinLink.token_hash == keys.token_hash(token), *_working())
     )
     if found is None:
         raise ApiError(404, ErrorCode.JOIN_LINK_INVALID)
@@ -411,7 +390,7 @@ async def join(
         email_confirmed=False,
     )
     message = await email_confirmation.new_code(db, request, tenant, user)
-    me = await signed_in(request, response, tenant, db, user, method="join")  # commits
+    me = await signed_in(request, response, tenant, db, user, method=SignInMethod.JOIN)  # commits
     log.info("staff %s joined %s through a %s link", user.id, tenant.slug, link.role)
     await email_confirmation.send(request, tenant, message, "/api/join")
     return me

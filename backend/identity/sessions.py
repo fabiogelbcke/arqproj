@@ -7,7 +7,6 @@ tenant is invisible, so a cookie only works on the address it was issued for.
 
 from __future__ import annotations
 
-import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -15,14 +14,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.identity.models import LoginSession, User
+from backend.security import keys
 
 LIFETIME = timedelta(days=30)  # since last use
 # Last use is written at most this often, not on every request.
 TOUCH_EVERY = timedelta(hours=1)
-
-
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def _now() -> datetime:
@@ -36,7 +32,7 @@ async def start(
     token = secrets.token_urlsafe(32)
     row = LoginSession(
         user_id=user.id,
-        token_hash=_hash(token),
+        token_hash=keys.token_hash(token),
         csrf_token=secrets.token_urlsafe(32),
         expires_at=_now() + lifetime,
     )
@@ -53,7 +49,7 @@ async def find_active(session: AsyncSession, token: str) -> tuple[LoginSession, 
             select(LoginSession, User)
             .join(User, User.id == LoginSession.user_id)
             .where(
-                LoginSession.token_hash == _hash(token),
+                LoginSession.token_hash == keys.token_hash(token),
                 LoginSession.revoked_at.is_(None),
                 LoginSession.expires_at > now,
             )

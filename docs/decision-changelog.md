@@ -19,6 +19,24 @@ a new entry too.
 
 ---
 
+## 2026-11-10 — A30: the one-release shims of independent stages removed
+
+**Was:** when stages became independent (23 Oct 2026, section 10), the previous
+`POST /api/projects/{id}/progress` route and the `current_position` and
+`current_stage_title` fields of the project list and the page kept working "for
+one release", for a tab still running the previous build during a deploy (A30).
+
+**Now:** they are gone. A30 itself is unchanged: an API change stays compatible
+with the previous release only.
+
+**Why:** many releases have passed, so no open tab can still run that build, and
+the staff app had stopped reading the fields (only test fixtures still set them).
+Issue #210 ("Rigidity") listed them as dead code; Fabio's rule while every
+office's data is test data is no compatibility shims. The database column
+`projects.current_position` is not part of this: a separate pull request drops
+it with a migration. `POST /api/projects/{id}/publish` stays: A35 keeps it, unused, for
+when drafts return.
+
 ## 2026-11-10 — A46: with comparisons on, the whole stage takes dropped files
 
 **Was:** with `before_after` on, a stage and each section showed both the "+"

@@ -73,22 +73,34 @@ def test_startup_opens_a_working_database_pool(test_database_url):
         assert client.portal.call(ping) == 1
 
 
-def test_the_app_loads_no_one_off_code():
-    """Runtime code never imports migrations or commands (AGENTS.md, "Runtime code
-    vs one-off code"); checked in a fresh interpreter so other tests' imports
-    don't hide it."""
+def one_off_code_loaded_by(imports: str) -> str:
+    """The migration and command modules loaded by `imports`, in a fresh
+    interpreter so other tests' imports don't hide them."""
     import subprocess
     import sys
 
     code = (
-        "import backend.app, sys; "
+        f"import {imports}, sys; "
         "print(sorted(m for m in sys.modules "
         "if m.startswith(('backend.migrations', 'backend.commands'))))"
     )
     loaded = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
     )
-    assert loaded.stdout.strip() == "[]"
+    return loaded.stdout.strip()
+
+
+def test_the_app_loads_no_one_off_code():
+    """Runtime code never imports migrations or commands (AGENTS.md, "Runtime code
+    vs one-off code")."""
+    assert one_off_code_loaded_by("backend.app") == "[]"
+
+
+def test_the_one_off_code_check_catches_an_import():
+    """Self-test: the app loading a command module shows up."""
+    assert "backend.commands.local_db" in one_off_code_loaded_by(
+        "backend.app, backend.commands.local_db"
+    )
 
 
 def test_startup_refuses_a_login_other_than_the_checked_one(test_database_url):
@@ -126,3 +138,36 @@ def test_app_login_cannot_also_have_operator_membership(test_database_url):
         with owner_engine.begin() as connection:
             connection.exec_driver_sql(f'REVOKE "{group}" FROM "{RUNTIME_ROLE}"')
         owner_engine.dispose()
+
+
+# -- the router's own answers (plan section 17) ---------------------------------------
+
+
+@pytest.fixture
+async def offices(db_session):
+    from backend.commands.seed import seed
+
+    await seed(db_session)
+
+
+@pytest.mark.anyio
+async def test_an_unknown_api_address_answers_only_a_code(client, offices):
+    response = await client.get("/api/no-such-thing", headers={"host": "alinea.localhost"})
+    assert (response.status_code, response.json()) == (404, {"error": "not_found"})
+
+
+@pytest.mark.anyio
+async def test_a_method_an_api_address_does_not_take_answers_only_a_code(client, offices):
+    response = await client.put("/api/session", headers={"host": "alinea.localhost"})
+    assert (response.status_code, response.json()) == (405, {"error": "method_not_allowed"})
+    assert "POST" in response.headers["allow"]  # as Starlette says it
+
+
+@pytest.mark.anyio
+async def test_other_addresses_answer_as_before(client, offices):
+    """Pages and the painel's shell are not the API: Starlette's own answer."""
+    host = {"host": "alinea.localhost"}
+    missing = await client.get("/not/a/page", headers=host)
+    assert (missing.status_code, missing.json()) == (404, {"detail": "Not Found"})
+    wrong = await client.delete("/painel", headers=host)
+    assert (wrong.status_code, wrong.json()) == (405, {"detail": "Method Not Allowed"})

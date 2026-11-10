@@ -7,6 +7,8 @@ session is scoped to (`scope_to_tenant`); other tenants' accounts are invisible.
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 from sqlalchemy import func, null, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -117,3 +119,20 @@ async def set_password(session: AsyncSession, user: User, password_hash: str) ->
         .values(revoked_at=func.now())
     )
     await session.flush()
+
+
+class StaffStatus(StrEnum):
+    """Where a staff account stands, as the team list and the operator dashboard
+    show it."""
+
+    INVITED = "invited"  # hasn't chosen a password through the invite yet
+    UNCONFIRMED = "unconfirmed"  # joined through the shared link, email not confirmed
+    ACTIVE = "active"
+
+
+def staff_status(user: User) -> StaffStatus:
+    if user.password_hash is None:
+        return StaffStatus.INVITED
+    if user.email_confirmed_at is None:
+        return StaffStatus.UNCONFIRMED
+    return StaffStatus.ACTIVE

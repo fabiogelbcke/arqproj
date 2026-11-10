@@ -11,9 +11,11 @@ import logging
 from enum import StrEnum
 
 from fastapi import Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
+from starlette.exceptions import HTTPException
 
 
 class ErrorCode(StrEnum):
@@ -31,6 +33,8 @@ class ErrorCode(StrEnum):
     CSRF_TOKEN_MISSING_OR_WRONG = "csrf_token_missing_or_wrong"
     INVALID_CREDENTIALS = "invalid_credentials"
     INVALID_REQUEST = "invalid_request"  # malformed body or missing fields: a bug, not the user
+    NOT_FOUND = "not_found"  # no such API address: a bug, or a tab left open over a deploy
+    METHOD_NOT_ALLOWED = "method_not_allowed"  # the address takes another method: likewise
     LINK_INVALID = "link_invalid"  # unknown, used, expired, replaced or another office's
     PASSWORD_TOO_SHORT = "password_too_short"
     CURRENT_PASSWORD_WRONG = "current_password_wrong"  # "Minha conta": not the current one
@@ -169,3 +173,17 @@ async def handle_api_error(_request: Request, error: ApiError) -> JSONResponse:
     if error.conflict_name is not None:
         body["conflict_name"] = error.conflict_name
     return JSONResponse(body, status_code=error.status_code, headers=error.headers)
+
+
+_ROUTING_CODES = {404: ErrorCode.NOT_FOUND, 405: ErrorCode.METHOD_NOT_ALLOWED}
+
+
+async def handle_http_error(request: Request, error: HTTPException) -> Response:
+    """The router's own answers (an unknown address, a method the address doesn't
+    take): under /api/ only the code, as every API error (plan section 17);
+    elsewhere (pages, the painel's shell) as before."""
+    if not request.url.path.startswith("/api/") or error.status_code >= 500:
+        return await http_exception_handler(request, error)
+    log.warning("%s %s answered %s", request.method, request.url.path, error.status_code)
+    code = _ROUTING_CODES.get(error.status_code, ErrorCode.INVALID_REQUEST)
+    return JSONResponse({"error": code.value}, status_code=error.status_code, headers=error.headers)
