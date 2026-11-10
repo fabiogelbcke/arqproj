@@ -4,7 +4,7 @@
 // each section a card with its drop area, its projects then its loose photos),
 // and the office's social networks. Every image is a piece of the portfolio, on
 // its own or inside a project; a drop opens one dialog to say where they go.
-import { useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router";
 
@@ -1011,6 +1011,8 @@ function ReviewDialog({
   const [project, setProject] = useState(projects[0]?.id ?? "");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const previews = useMemo(() => drop.files.map((file) => URL.createObjectURL(file)), [drop.files]);
+  // The previews point at the originals: let the browser drop them with the dialog.
+  useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
   const count = drop.files.length;
   const sectionId = section || null;
   // What an attempt already did, so that trying again after a failure goes on
