@@ -9,6 +9,7 @@ Each maintenance pass, for each published project:
 3. Just before sending: the project must still be published, files must still be
    on its page and unchanged for a minute (section 11's settling check), and the
    address still subscribed; outside production, only the office's own staff.
+   While the office's Drive is disconnected its pages are offline: the email waits.
    Nothing left to say, or nobody to say it to: the batch is dropped.
 4. One email per address, each with its own idempotency key and recorded as sent,
    so a retry never sends twice. A failure is retried on the next pass.
@@ -47,6 +48,7 @@ from backend.projects.enums import ProjectStatus
 from backend.projects.models import Meeting, Project, ProjectSlug, ProjectStage
 from backend.security import keys
 from backend.settings import Settings
+from backend.storage.models import StorageConnection
 from backend.tenancy.models import Locale
 from backend.web.page_files import _in_project, stage_groups
 from backend.web.page_stages import _title
@@ -192,7 +194,8 @@ def is_due(batch: NotificationBatch, now: datetime) -> bool:
 
 
 class Wait(Exception):
-    """Not now: a file is still changing (why, for the log)."""
+    """Not now: a file is still changing, or the office's files or pages can't be
+    read (why, for the log)."""
 
 
 async def _visible_files(db: AsyncSession, storage, project: Project) -> dict:
@@ -249,9 +252,9 @@ async def summarize(
     summary = Summary()
     changes: dict[int, list[str]] = {}  # by stage position
     files = [e for e in events if e.kind is EventKind.FILE_PUBLISHED]
-    # Without Drive (none connected, or disconnected) the page shows no files, so
-    # neither does the email; its other news still goes.
-    if files and storage is not None:
+    if files:
+        if storage is None:
+            raise Wait("the office's files can't be read")  # nor can the page's
         visible = await _visible_files(db, storage, project)
         # As the page shows them now: renamed or moved meanwhile, by their current
         # name and stage; taken down, left out (section 14).
@@ -414,6 +417,11 @@ async def deliver(
             .order_by(ProjectEvent.occurred_at)
         )
     )
+    # Disconnected ("Desconectar"), the office's pages are offline (plan section 9):
+    # nothing goes, and nothing is dropped, until it reconnects.
+    connection = await db.scalar(select(StorageConnection))
+    if connection is not None and connection.disconnected:
+        raise Wait("the office disconnected Drive: its pages are offline")
     summary = await summarize(db, storage, project, events, office, now)  # may raise Wait
     # Who may get it now: subscribed, and outside production staff only (section 14).
     allowed = {

@@ -573,22 +573,55 @@ async def test_a_file_dated_ahead_of_our_clock_doesnt_hold_the_email(
     assert len(outbox.sent) == 1
 
 
-async def test_without_drive_the_email_still_tells_the_rest(
-    app, client, db_session, owner, outbox, ready
+async def test_while_drive_is_disconnected_the_email_waits_and_then_goes_whole(
+    app, client, db_session, owner, outbox, ready, caplog
 ):
-    """Drive disconnected: the page shows no files, nor does the email; a stage
-    completed still goes, instead of the email waiting for good."""
+    """Disconnected ("Desconectar"), the office's pages are offline (plan section
+    9): nothing is emailed, nor dropped. Reconnected, the email goes with its files."""
     from backend.tests.test_maintenance_scan import call
 
+    alinea = "tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
     await new_file(app, outbox, ready)
     await call(client, owner, "PUT", "/stages/3/completion", completed=True)
     await run(app, outbox)
-    await db_session.execute(text("DELETE FROM storage_connections"))
+    await db_session.execute(
+        text(
+            "UPDATE storage_connections SET kind = 'google', writer_status = 'none',"
+            f" reader_identity = 'leitor@exemplo.com', root_id = 'pasta' WHERE {alinea}"
+        )
+    )
     await make_due(db_session)
     await run(app, outbox)
+    await run(app, outbox)
+    assert outbox.sent == [] and await batches(db_session) == [("open",)]
+    assert any(
+        r.levelname == "WARNING" and "disconnected Drive" in r.getMessage() for r in caplog.records
+    )
+    await db_session.execute(
+        text(
+            "UPDATE storage_connections SET kind = 'folder', reader_identity = NULL,"
+            f" root_id = '' WHERE {alinea}"
+        )
+    )
+    await run(app, outbox)
     [email] = outbox.sent
-    assert "A etapa 03 Estudo Preliminar foi atualizada: marcada como concluída." in email.text
-    assert "arquivo" not in email.text
+    assert "- 02 Levantamento: 1 arquivo enviado" in email.text
+    assert "- 03 Estudo Preliminar: marcada como concluída" in email.text
+
+
+async def test_files_that_cant_be_read_hold_the_email(app, db_session, outbox, ready):
+    """No usable connection at all: the page shows no files either, so the email
+    waits rather than drop them."""
+    await new_file(app, outbox, ready)
+    await db_session.execute(
+        text(
+            "DELETE FROM storage_connections"
+            " WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
+        )
+    )
+    await make_due(db_session)
+    await run(app, outbox)
+    assert outbox.sent == [] and await batches(db_session) == [("open",)]
 
 
 @pytest.mark.parametrize(

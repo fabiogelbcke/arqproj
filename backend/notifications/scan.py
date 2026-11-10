@@ -199,7 +199,8 @@ async def _scan_office(
                     _LOCK_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project_id)}
                 ):
                     raise Busy
-                # None without Drive: meetings and stages still email.
+                # None without Drive: no scan. A due email with files, or any while
+                # the office is disconnected, waits for Drive to be back.
                 storage = await storage_view(db, settings, google)
                 project = await db.scalar(select(Project).where(Project.id == project_id))
                 if project is not None:
