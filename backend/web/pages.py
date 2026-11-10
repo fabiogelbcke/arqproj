@@ -66,7 +66,8 @@ from backend.storage.models import StorageConnection
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
-from backend.web.auth import CurrentStaff, optional_staff
+from backend.web.access import changeable
+from backend.web.auth import CurrentStaff, optional_staff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.painel import CONTENT_SECURITY_POLICY, SHELL_CACHE
 from backend.web.project_settings import serve_cover
@@ -393,6 +394,19 @@ async def _readable(
     if locked and staff is None:
         raise ApiError(403, ErrorCode.PAGE_LOCKED)  # the password step comes in 2.4
     return project
+
+
+async def changeable_page(
+    request: Request,
+    slug: str,
+    staff: CurrentStaff = Depends(require_csrf),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Project:
+    """`access.changeable_project` for staff changes made from the client page,
+    `/api/pages/{slug}/…`: the page's project, if it may be changed (not archived).
+    Here, not in `access`, because this module needs `access` itself."""
+    project = await _readable(db, slug, staff, request)
+    return await changeable(db, project.id)
 
 
 @router.get("/api/pages/{slug}", responses=documented(403, 404, 503))

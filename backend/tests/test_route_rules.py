@@ -4,7 +4,8 @@ forgets one fails here, not in production (issue #210, "Rigidity"):
 - it signs someone in, or is listed below as public with the reason;
 - a signed-in route that changes something checks the CSRF token (plan section 17);
 - the owner-only routes listed below refuse members (A36);
-- a route that changes a project refuses an archived one (plan section 22);
+- a route that changes a project refuses an archived one (plan section 22): under
+  /api/projects/{project_id}, and staff's under /api/pages/{slug} (the client page);
 - every text and list a request body takes has a length limit.
 
 Each rule has a self-test showing it catches a violation, so it cannot silently
@@ -35,6 +36,7 @@ from backend.web.auth import (
     require_csrf,
     require_csrf_account,
 )
+from backend.web.pages import changeable_page
 
 owner = test_office.owner  # a fixture
 
@@ -42,7 +44,7 @@ APP = create_app(Settings(environment="test", database_url=TEST_DATABASE_URL))
 READS = {"GET", "HEAD"}
 SIGN_IN = {current_staff, current_account, current_operator}
 CSRF = {require_csrf, require_csrf_account, operator_with_csrf}
-CHANGEABLE = {changeable_project, locked_changeable_project}
+CHANGEABLE = {changeable_project, locked_changeable_project, changeable_page}
 
 # Routes anyone may call, each with what protects it instead.
 PUBLIC = {
@@ -268,9 +270,15 @@ def test_the_owner_rule_catches_a_route_that_forgets_it():
 
 
 def project_changes(app: FastAPI) -> Iterator[tuple[str, set[Callable]]]:
+    """Changes to one project: in the painel's API, and staff's from the client page
+    (the page's public routes, such as a client's share link, are not changes to it)."""
     for key, _route, calls in routes(app):
         method, path = key.split()
-        if method not in READS and path.startswith("/api/projects/{project_id}"):
+        if method in READS:
+            continue
+        if path.startswith("/api/projects/{project_id}") or (
+            path.startswith("/api/pages/{slug}/") and calls & SIGN_IN
+        ):
             yield key, calls
 
 
@@ -278,7 +286,7 @@ def archive_problems(app: FastAPI, while_archived: dict[str, str]) -> set[str]:
     problems = _stale(while_archived, app)
     for key, calls in project_changes(app):
         if key not in while_archived and not calls & CHANGEABLE:
-            problems.add(f"{key}: changes a project without changeable_project")
+            problems.add(f"{key}: changes a project without a changeable_ dependency")
     return problems
 
 
@@ -298,8 +306,18 @@ def test_the_archive_rule_catches_a_route_that_forgets_it():
     @app.get("/api/projects/{project_id}/read")
     async def read(project_id: str, _staff=Depends(current_staff)) -> None: ...
 
+    @app.post("/api/pages/{slug}/forgot")
+    async def page_forgot(slug: str, _staff=Depends(require_csrf)) -> None: ...
+
+    @app.post("/api/pages/{slug}/fine")
+    async def page_fine(_project=Depends(changeable_page)) -> None: ...
+
+    @app.post("/api/pages/{slug}/clients")
+    async def clients(slug: str) -> None: ...  # public: not staff's change
+
     assert archive_problems(app, {}) == {
-        "PUT /api/projects/{project_id}/forgot: changes a project without changeable_project"
+        "PUT /api/projects/{project_id}/forgot: changes a project without a changeable_ dependency",
+        "POST /api/pages/{slug}/forgot: changes a project without a changeable_ dependency",
     }
 
 
@@ -328,7 +346,10 @@ async def test_an_archived_project_is_not_changed(client, owner, archived, key):
     """Each route, as sent: the refusal comes before the body is read, so an empty
     request shows it (a route checking later would answer invalid_request)."""
     method, path = key.split()
-    path = path.replace("{project_id}", str(archived)).replace("{position}", "1")
+    # Any key: the refusal comes before the file or comparison is looked up.
+    for name, value in (("project_id", archived), ("position", 1), ("slug", "casa-jardim")):
+        path = path.replace(f"{{{name}}}", str(value))
+    path = path.replace("{key}", "any")
     response = await client.request(method, path, headers=owner)
     assert (response.status_code, response.json()) == (409, {"error": "project_archived"})
 

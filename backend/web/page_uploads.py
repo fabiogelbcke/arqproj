@@ -77,7 +77,7 @@ from backend.web.page_files import (
     _showable,
     _storage,
 )
-from backend.web.pages import _origin, _readable
+from backend.web.pages import _origin, changeable_page
 from backend.web.projects import _folders
 
 log = logging.getLogger(__name__)
@@ -619,13 +619,11 @@ async def hide_file(
     request: Request,
     slug: str,
     key: str,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """The file stays in Drive, renamed "_name", which the page doesn't show."""
-    project = await _readable(db, slug, staff, request)
-    await changeable(db, project.id)
     _storage, item = await _item(request, db, project, key)
     maker, _root = await _folders(request, db)
     try:
@@ -656,15 +654,13 @@ async def move_file(
     slug: str,
     key: str,
     body: MoveIn,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Into a stage's folder, at its top or into one of its sections (the same
     stage's too). The file keeps its identity, so it is not "new" again and sends
     no email (A10)."""
-    project = await _readable(db, slug, staff, request)
-    await changeable(db, project.id)
     if project.row_version != body.row_version:
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)  # that position may be another stage now
     stage = await db.scalar(
