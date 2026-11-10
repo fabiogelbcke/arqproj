@@ -39,7 +39,9 @@ EXEMPT_PATHS = frozenset(
     }
 )
 # The staff app's built files are the same for every tenant: no lookup per file.
-EXEMPT_PREFIXES = ("/painel/assets/",)
+# WhatsApp's link buttons, on Unio's own address, name their office themselves
+# (short_links.py, LINK_PATH).
+EXEMPT_PREFIXES = ("/painel/assets/", "/w/")
 # Google's shared return address is no office's: let it through without a tenant
 # (backend/web/drive.py forwards it to the office that started).
 UNOWNED_PATHS = frozenset({"/api/drive/callback"})

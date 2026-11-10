@@ -53,6 +53,9 @@ GREETING_GRACE = timedelta(minutes=10)
 # A first message still failing a day later (a template Meta hasn't approved, a
 # number that replied SAIR since) is no longer tried.
 GREETING_TRIES = timedelta(days=1)
+# Staff's question left unanswered this long is asked once more (A47), tried
+# for GREETING_TRIES like a first message.
+ASK_AGAIN_AFTER = timedelta(days=3)
 MAINTENANCE_LOCK = 7_202_611  # next to the migrations' (backend/migrations/registry.py)
 _LOCK_PROJECT = text("SELECT pg_try_advisory_xact_lock(:key, hashtext(:project))")
 _WAIT_FOR_PROJECT = text("SELECT pg_advisory_xact_lock(:key, hashtext(:project))")
@@ -68,6 +71,7 @@ class Report:
     emails: int = 0
     emails_by_tenant: dict[str, int] = field(default_factory=dict)  # for analytics
     greeted: int = 0  # WhatsApp numbers sent their first message, left over by a request
+    asked_again: int = 0  # numbers staff added, asked once more after no answer
     unfinished: int = 0  # not reached before the time budget ran out: the next pass
 
 
@@ -152,6 +156,21 @@ async def _project_pass(
         for recipient in waiting:
             report.greeted += await whatsapp_updates.greet(
                 db, settings, whatsapp, office, project.tenant_id, project, recipient, now
+            )
+        asked = now - ASK_AGAIN_AFTER
+        for recipient in await whatsapp_updates.unanswered(
+            db, project.id, asked, asked - GREETING_TRIES
+        ):
+            report.asked_again += await whatsapp_updates.greet(
+                db,
+                settings,
+                whatsapp,
+                office,
+                project.tenant_id,
+                project,
+                recipient,
+                now,
+                again=True,
             )
     # Batches that came due, or are being retried, go as they were: changes made
     # after start the next one, with its own quiet period (section 14).

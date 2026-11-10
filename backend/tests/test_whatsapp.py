@@ -7,6 +7,8 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -17,6 +19,7 @@ from backend.notifications.digest import StageNews, Summary
 from backend.notifications.scan import run_maintenance
 from backend.notifications.whatsapp import (
     NOT_ON_WHATSAPP,
+    PARAM_MAX,
     OutboxWhatsAppSender,
     WhatsAppError,
     WhatsAppMessage,
@@ -26,6 +29,7 @@ from backend.notifications.whatsapp import (
     parse_phone,
     read_token,
     request_body,
+    short_link,
     token,
 )
 from backend.settings import Environment, Settings
@@ -181,6 +185,25 @@ def test_what_meta_is_sent():
     assert (yes["index"], yes["parameters"][0]["payload"]) == ("0", "yes-token")
     assert (no["index"], no["parameters"][0]["payload"]) == ("1", "no-token")
     assert body["biz_opaque_callback_data"] == "cb"
+    linked = request_body(
+        WhatsAppMessage(
+            to=CLIENT,
+            text="…",
+            template="unio_atualizacao_reuniao",
+            links=(
+                ("Abrir", "https://myunio.app/w/page.code"),
+                ("Agenda", "https://myunio.app/w/agenda.code"),
+            ),
+        )
+    )
+    [page, agenda] = linked["template"]["components"]
+    # Meta holds each address up to its code: only the code is sent.
+    assert (page["sub_type"], page["index"], page["parameters"]) == (
+        "url",
+        "0",
+        [{"type": "text", "text": "page.code"}],
+    )
+    assert (agenda["index"], agenda["parameters"][0]["text"]) == ("1", "agenda.code")
     reply = request_body(WhatsAppMessage(to=CLIENT, text="Pronto"))
     assert reply["type"] == "text" and reply["text"] == {"body": "Pronto"}
 
@@ -248,10 +271,11 @@ def news(*stages, project_completed=False, meeting=None):
                 StageNews("Anteprojeto", 0, "completed"),
                 StageNews("Projeto Legal", 2, None),
                 StageNews("Projeto Executivo", 1, None),
-                StageNews("Detalhamento", 0, "completed"),
+                StageNews("Interiores", 0, "completed"),
             ],
             "Estudo Preliminar: 3 arquivos novos; Anteprojeto: etapa concluída; "
-            "Projeto Legal: 2 arquivos novos; e mais 2 etapas",
+            "Projeto Legal: 2 arquivos novos; Projeto Executivo: 1 arquivo novo; "
+            "Interiores: etapa concluída",
         ),
     ],
 )
@@ -259,9 +283,12 @@ def test_stage_news_on_one_line(summary, said):
     assert news(*summary) == said
 
 
-def test_one_more_stage_is_said_in_the_singular():
-    stages = [StageNews(f"Etapa {i}", 1, None) for i in range(4)]
-    assert news(*stages).endswith("; e mais 1 etapa")
+def test_only_metas_length_limit_cuts_the_stages_and_never_inside_one():
+    stages = [StageNews(f"Etapa {i} {'x' * 110}", 1, None) for i in range(5)]
+    said = news(*stages)
+    assert len(said) <= PARAM_MAX
+    assert said.endswith(f"Etapa 3 {'x' * 110}: 1 arquivo novo; e mais 1 etapa")
+    assert "…" not in said  # whole stages, never one cut short
 
 
 def test_the_project_and_meetings_follow_the_stages():
@@ -272,18 +299,19 @@ def test_the_project_and_meetings_follow_the_stages():
     )
     assert (
         news(meeting=("scheduled", "Apresentação do anteprojeto", WHEN))
-        == "reunião marcada: Apresentação do anteprojeto, 12/11 às 14h"
+        == "reunião marcada: Apresentação do anteprojeto, quinta, 12/11, às 14:00"
     )
     assert (
-        news(meeting=("changed", "Apresentação", WHEN.replace(hour=10, minute=30)))
-        == "reunião alterada: Apresentação, agora 12/11 às 10h30"
+        news(meeting=("changed", "Apresentação", WHEN.replace(day=13, hour=10, minute=30)))
+        == "reunião alterada: Apresentação, agora sexta, 13/11, às 10:30"
     )
     assert (
         news(meeting=("cleared", "Apresentação", None)) == 'a reunião "Apresentação" foi cancelada'
     )
     assert (
         news(StageNews("Anteprojeto", 2, None), meeting=("scheduled", "Apresentação", WHEN))
-        == "2 arquivos novos na etapa Anteprojeto; reunião marcada: Apresentação, 12/11 às 14h"
+        == "2 arquivos novos na etapa Anteprojeto; "
+        "reunião marcada: Apresentação, quinta, 12/11, às 14:00"
     )
 
 
@@ -307,7 +335,9 @@ async def subscribed(app, db_session, owner, folders, phone):  # noqa: F811
     return folders
 
 
-async def test_a_due_batch_goes_to_each_subscribed_number(app, db_session, subscribed, phone):
+async def test_a_due_batch_goes_to_each_subscribed_number(
+    app, client, db_session, subscribed, phone
+):
     outbox = Outbox()
     await new_file(app, outbox, subscribed, "Croqui.pdf")
     await new_file(app, outbox, subscribed, "Fachada.pdf")
@@ -317,11 +347,18 @@ async def test_a_due_batch_goes_to_each_subscribed_number(app, db_session, subsc
     await run(app, outbox, phone)
     [message] = phone.to(CLIENT)
     assert message.template == "unio_atualizacao"
-    project_name, office, line, link = message.params
+    project_name, office, line = message.params
     assert project_name == "Casa Jardim" and line == "2 arquivos novos na etapa Levantamento"
+    assert message.text.startswith("Olá! Você tem novidades no projeto Casa Jardim")
     assert "Croqui" not in message.text  # files counted, never named
-    assert link.endswith("/casa-jardim?utm_source=whatsapp&utm_medium=update")
     assert "responda SAIR" in message.text
+    [(label, link)] = message.links
+    assert label == "Abrir o projeto"
+    response = await client.get(urlsplit(link).path)  # on Unio's address: no office's
+    assert response.status_code == 302
+    assert response.headers["location"].endswith(
+        "/casa-jardim?utm_source=whatsapp&utm_medium=update"
+    )
     # Sent once: another pass sends nothing more.
     await run(app, outbox, phone)
     assert len(phone.to(CLIENT)) == 1
@@ -917,3 +954,157 @@ async def test_an_older_answer_delivered_last_doesnt_undo_the_newer_one(
     # And the other way round: a newer yes after an older no.
     await post(client, tap(question.buttons[0], "wamid.yes-newest", at=now + timedelta(minutes=1)))
     assert (await number(db_session))[0] == "subscribed"
+
+
+# -- the buttons ----------------------------------------------------------------------
+
+
+def test_a_meeting_to_come_adds_the_calendar_button():
+    settings = Settings()
+    office = SimpleNamespace(locale=PT, name="Alinea")
+    project = SimpleNamespace(tenant_id=uuid.uuid4(), id=uuid.uuid4(), name="Casa Jardim")
+
+    def links(**summary):
+        return whatsapp_updates.update_links(settings, office, project, Summary(**summary))
+
+    plain = links(news=[StageNews("Anteprojeto", 1, None)])
+    meeting = links(meeting=("scheduled", "Visita", WHEN))
+    assert [label for label, _ in plain] == ["Abrir o projeto"]
+    assert [label for label, _ in meeting] == ["Abrir o projeto", "Adicionar à agenda"]
+    assert len(links(meeting=("cleared", "Visita", None))) == 1  # nothing to add
+    found = read_token(settings, meeting[1][1].rsplit("/", 1)[1])
+    assert (found.action, found.tenant_id, found.recipient_id) == (
+        "agenda",
+        project.tenant_id,
+        project.id,
+    )
+    message = whatsapp_updates.update_message
+    assert message(office, project, CLIENT, "x", plain, "cb").template == "unio_atualizacao"
+    with_meeting = message(office, project, CLIENT, "x", meeting, "cb")
+    assert with_meeting.template == "unio_atualizacao_reuniao"
+
+
+async def casa_ids(db_session):
+    row = (
+        await db_session.execute(text(f"SELECT tenant_id, id FROM projects WHERE id = {CASA}"))
+    ).first()
+    return row[0], row[1]
+
+
+async def test_the_calendar_button_gives_the_next_meeting(app, client, db_session, owner):
+    tenant, project_id = await casa_ids(db_session)
+    await db_session.execute(text("DELETE FROM meetings"))
+    await db_session.execute(
+        text(
+            "INSERT INTO meetings (tenant_id, project_id, title, starts_at, ends_at) "
+            "VALUES (:t, :p, 'Visita à obra', now() + interval '1 day', "
+            "now() + interval '1 day 1 hour')"
+        ),
+        {"t": tenant, "p": project_id},
+    )
+    path = urlsplit(short_link(app.state.settings, "agenda", tenant, project_id)).path
+    response = await client.get(path)
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/calendar")
+    assert "SUMMARY:Visita à obra · Casa Jardim" in response.text
+    # Cancelled since the message: the page instead.
+    await db_session.execute(text("DELETE FROM meetings"))
+    response = await client.get(path)
+    assert response.status_code == 302
+    assert "/casa-jardim?utm_source=whatsapp" in response.headers["location"]
+
+
+async def test_a_link_that_doesnt_check_out_is_not_found(app, client, db_session, owner):
+    settings = app.state.settings
+    tenant, project_id = await casa_ids(db_session)
+    path = urlsplit(short_link(settings, "page", tenant, project_id)).path
+    assert (await client.get(path)).status_code == 302
+    assert (await client.get(path[:-1] + ("0" if path[-1] != "0" else "1"))).status_code == 404
+    answer = urlsplit(short_link(settings, "yes", tenant, project_id)).path
+    assert (await client.get(answer)).status_code == 404  # a button's answer isn't a link
+    await db_session.execute(
+        text("UPDATE tenants SET status = 'suspended' WHERE id = :t"), {"t": tenant}
+    )
+    assert (await client.get(path)).status_code == 404
+    await db_session.execute(
+        text("UPDATE tenants SET status = 'active' WHERE id = :t"), {"t": tenant}
+    )
+    await db_session.execute(text(f"UPDATE projects SET deleted_at = now() WHERE id = {CASA}"))
+    assert (await client.get(path)).status_code == 404
+
+
+# -- the automatic reply --------------------------------------------------------------
+
+
+async def contacts(db_session):
+    await db_session.execute(
+        text(
+            "INSERT INTO office_profiles (tenant_id, display_name, contact_email, whatsapp) "
+            "SELECT id, 'Alinea Arquitetos', 'contato@alinea.example', '(11) 3456-7890' "
+            "FROM tenants WHERE slug = 'alinea' ON CONFLICT (tenant_id) DO UPDATE SET "
+            "display_name = 'Alinea Arquitetos', contact_email = 'contato@alinea.example', "
+            "whatsapp = '(11) 3456-7890'"
+        )
+    )
+
+
+async def test_the_automatic_reply_gives_the_offices_contacts(client, db_session, owner, meta):
+    await switch_on(db_session)
+    await add_number(db_session)
+    await contacts(db_session)
+    await post(client, incoming({"from": CLIENT, "type": "text", "text": {"body": "Oi"}}))
+    [reply] = meta.to(CLIENT)
+    assert reply.text == (
+        "Este número só envia avisos automáticos e não lê respostas. Para falar com o "
+        "Alinea Arquitetos: WhatsApp ou telefone (11) 3456-7890 · e-mail contato@alinea.example."
+    )
+
+
+async def test_an_office_without_whatsapp_isnt_named_in_the_reply(client, db_session, owner, meta):
+    await add_number(db_session)
+    await contacts(db_session)
+    await post(client, incoming({"from": CLIENT, "type": "text", "text": {"body": "Oi"}}))
+    [reply] = meta.to(CLIENT)
+    assert "Alinea" not in reply.text and "contatos da página" in reply.text
+
+
+# -- an unanswered question -----------------------------------------------------------
+
+
+async def asked_ago(db_session, interval, status="invited"):
+    await add_number(db_session, OTHER, status=status, source="staff")
+    await db_session.execute(
+        text(
+            "UPDATE project_whatsapp_recipients SET greeted_at = now() - CAST(:i AS interval) "
+            "WHERE phone = :p"
+        ),
+        {"i": interval, "p": OTHER},
+    )
+
+
+async def test_an_unanswered_question_is_asked_once_more_after_3_days(
+    app, db_session, subscribed, phone
+):
+    await asked_ago(db_session, "3 days 1 hour")
+    report = await run(app, Outbox(), phone)
+    [again] = phone.to(OTHER)
+    assert again.template == "unio_convite" and report.asked_again == 1
+    await run(app, Outbox(), phone)
+    assert len(phone.to(OTHER)) == 1  # never a third time
+
+
+@pytest.mark.parametrize(
+    ("interval", "status"),
+    [
+        ("2 days", "invited"),  # not yet
+        ("4 days", "declined"),  # answered
+        ("4 days", "subscribed"),
+        ("5 days", "invited"),  # a resend failing for a day is given up
+    ],
+)
+async def test_the_question_isnt_asked_again_otherwise(
+    app, db_session, subscribed, phone, interval, status
+):
+    await asked_ago(db_session, interval, status)
+    await run(app, Outbox(), phone)
+    assert phone.to(OTHER) == []

@@ -22,7 +22,8 @@ batched 45 minutes, at most 2 hours).
 behind the `whatsapp_updates` feature: one Unio number, Meta directly, each
 client choosing email, WhatsApp or both, staff-added numbers confirmed by the
 client with a button, SAIR for every project, offices' own numbers left out. The
-register is the source for those; this page stays the research behind them.
+register is the source for those (the texts were revised on 9 Nov 2026 after
+Fabio's answers); this page stays the research behind them.
 The file bot is still undecided.
 
 Prices come from Meta's pricing page and secondary sources checked on 28 Oct and
@@ -145,7 +146,7 @@ businesses' numbers, which offices' own numbers would need later).
 | Phone number | A number not on WhatsApp, confirmed once by SMS or voice call (below) | ~10 min |
 | Display name | "Unio", reviewed by Meta | Usually 1–2 days |
 | Payment method | A card in WhatsApp Manager, or BRL billing | ~5 min |
-| Templates | The Portuguese update texts, approved automatically | Minutes, at most ~24 h |
+| Templates | `unio_atualizacao` (button "Abrir o projeto"), `unio_atualizacao_reuniao` (also "Adicionar à agenda"), `unio_boas_vindas`, `unio_convite` (buttons "Quero receber" / "Não quero"), in the approved Portuguese texts. Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
 | Access token and webhook | A permanent token in Secret Manager, our webhook registered with Meta | Part of the coding |
 | Business verification (later) | Below | A few days to ~2 weeks |
 

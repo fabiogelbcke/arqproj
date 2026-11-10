@@ -531,6 +531,33 @@ def _origin(request: Request, tenant: CurrentTenant) -> str:
     return f"{request.url.scheme}://{request.headers.get('host', tenant.primary_host)}"
 
 
+CALENDAR_TYPE = "text/calendar; charset=utf-8"
+CALENDAR_HEADERS = {"Content-Disposition": 'attachment; filename="reuniao.ics"'}
+
+
+def calendar_file(meeting: Meeting, project: str, office: str, page: str, host: str) -> str:
+    """A meeting as a calendar app takes it (also from WhatsApp, short_links.py)."""
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Portal de projetos//PT",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        f"UID:{meeting.id}@{host}",
+        f"DTSTAMP:{_ics_time(datetime.now(UTC))}",
+        f"DTSTART:{_ics_time(meeting.starts_at)}",
+        f"DTEND:{_ics_time(meeting.ends_at)}",
+        f"SUMMARY:{_ics_text(f'{meeting.title} · {project}')}",
+        f"DESCRIPTION:{_ics_text(f'{office}: {page}')}",
+    ]
+    if meeting.location:
+        lines.append(f"LOCATION:{_ics_text(meeting.location)}")
+    if meeting.link:
+        lines.append(f"URL:{meeting.link}")
+    lines += ["END:VEVENT", "END:VCALENDAR"]
+    return "\r\n".join(lines) + "\r\n"
+
+
 def _ics_time(moment: datetime) -> str:
     return moment.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
@@ -569,31 +596,16 @@ async def meeting_ics(
     if meeting is None:
         return Response(status_code=404, headers=PAGE_HEADERS)
     office = (await _office(db, tenant)).name
-    lines = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "PRODID:-//Portal de projetos//PT",
-        "METHOD:PUBLISH",
-        "BEGIN:VEVENT",
-        f"UID:{meeting.id}@{tenant.primary_host}",
-        f"DTSTAMP:{_ics_time(datetime.now(UTC))}",
-        f"DTSTART:{_ics_time(meeting.starts_at)}",
-        f"DTEND:{_ics_time(meeting.ends_at)}",
-        f"SUMMARY:{_ics_text(f'{meeting.title} · {project.name}')}",
-        f"DESCRIPTION:{_ics_text(f'{office}: {_origin(request, tenant)}/{slug}')}",
-    ]
-    if meeting.location:
-        lines.append(f"LOCATION:{_ics_text(meeting.location)}")
-    if meeting.link:
-        lines.append(f"URL:{meeting.link}")
-    lines += ["END:VEVENT", "END:VCALENDAR"]
+    ics = calendar_file(
+        meeting, project.name, office, f"{_origin(request, tenant)}/{slug}", tenant.primary_host
+    )
     if staff is None:
         capture_visit(request, project.tenant_id, "meeting_added_to_calendar")
     return Response(
-        "\r\n".join(lines) + "\r\n",
-        media_type="text/calendar; charset=utf-8",
+        ics,
+        media_type=CALENDAR_TYPE,
         headers={
-            "Content-Disposition": 'attachment; filename="reuniao.ics"',
+            **CALENDAR_HEADERS,
             **PAGE_HEADERS,
             # Staff-only or behind a password: never in a shared cache.
             **(PRIVATE if staff is not None or project.access_mode is AccessMode.PASSWORD else {}),

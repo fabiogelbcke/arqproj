@@ -781,7 +781,7 @@
       "resetIgnore": "Se não foi você quem pediu, ignore este e-mail: sua senha continua a mesma."
   },
   "whatsapp": {
-    "update": "Olá! Há novidades no projeto {{project}}, do {{office}}: {{news}}. Veja na página do projeto: {{link}}",
+    "update": "Olá! Você tem novidades no projeto {{project}}, do {{office}}: {{news}}.",
     "footer": "Para não receber mais estas mensagens, responda SAIR.",
     "welcome": "Olá! Este número vai receber pelo WhatsApp as atualizações do projeto {{project}}, do {{office}}: arquivos novos, etapas e reuniões.",
     "invite": "Olá! O {{office}} cadastrou este número para receber pelo WhatsApp as atualizações do projeto {{project}}: arquivos novos, etapas e reuniões. Deseja receber?",
@@ -807,8 +807,20 @@
     "meetingScheduled": "reunião marcada: {{title}}, {{when}}",
     "meetingChanged": "reunião alterada: {{title}}, agora {{when}}",
     "meetingCleared": "a reunião \"{{title}}\" foi cancelada",
-    "when": "{{date}} às {{time}}",
-    "separator": "; "
+    "when": "{{weekday}}, {{date}}, às {{time}}",
+    "separator": "; ",
+    "openProject": "Abrir o projeto",
+    "addToCalendar": "Adicionar à agenda",
+    "autoReplyOffice": "Este número só envia avisos automáticos e não lê respostas. Para falar com o {{office}}: {{contacts}}.",
+    "contactPhone": "WhatsApp ou telefone {{phone}}",
+    "contactEmail": "e-mail {{email}}",
+    "weekday0": "segunda",
+    "weekday1": "terça",
+    "weekday2": "quarta",
+    "weekday3": "quinta",
+    "weekday4": "sexta",
+    "weekday5": "sábado",
+    "weekday6": "domingo"
   },
   "compare": {
     "before": "Antes",

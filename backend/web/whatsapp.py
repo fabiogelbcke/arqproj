@@ -10,7 +10,8 @@ the app's secret; anything unsigned gets a 404, as if nothing were here.
 - "Quero receber" / "Não quero": the question's buttons carry a signed token
   naming the office and the number's row, which they subscribe or decline.
 - SAIR (PARAR, CANCELAR, STOP): no more WhatsApp updates from any project.
-- Anything else: one automatic reply a day saying nobody reads this number.
+- Anything else: one automatic reply a day saying nobody reads this number,
+  with the contacts of the office of the number's latest project.
 - A message Meta couldn't deliver because the number has no WhatsApp marks that
   number unreachable, through the token our message carried.
 
@@ -164,7 +165,8 @@ async def _message(request: Request, message: dict) -> None:
     now = time.monotonic()
     if now - _auto_replied.get(phone, -AUTO_REPLY_EVERY) >= AUTO_REPLY_EVERY:
         _auto_replied[phone] = now
-        await _send(request, whatsapp_updates.reply(Locale.PT_BR, phone, "autoReply"))
+        answer = await whatsapp_updates.auto_reply(request.app.state.sessionmaker, settings, phone)
+        await _send(request, answer)
 
 
 async def _answer(request: Request, phone: str, found, message_id: str, sent_at: datetime) -> None:

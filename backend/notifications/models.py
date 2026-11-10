@@ -102,6 +102,8 @@ class ProjectWhatsApp(IdMixin, TimestampsMixin, TenantOwned, Base):
     # When the client made the choice it stands at (signed up, or tapped "Quero
     # receber" / "Não quero"): an answer sent before it, delivered late, is ignored.
     answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When a question left unanswered was asked once more (A47): never a third time.
+    reinvited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class WhatsAppOptOut(Base):

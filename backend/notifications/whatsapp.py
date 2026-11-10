@@ -35,7 +35,9 @@ log = logging.getLogger(__name__)
 
 GRAPH_URL = "https://graph.facebook.com/{version}/{number}/messages"
 # The templates' names at Meta, and their languages there.
-UPDATE_TEMPLATE = "unio_atualizacao"
+UPDATE_TEMPLATE = "unio_atualizacao"  # button: "Abrir o projeto"
+# With a meeting scheduled or changed: "Adicionar à agenda" too.
+UPDATE_MEETING_TEMPLATE = "unio_atualizacao_reuniao"
 WELCOME_TEMPLATE = "unio_boas_vindas"
 INVITE_TEMPLATE = "unio_convite"
 LANGUAGES = {Locale.PT_BR: "pt_BR", Locale.EN: "en"}
@@ -45,6 +47,10 @@ NOT_ON_WHATSAPP = 131026
 # A part that changes in a template: no line breaks, tabs or runs of spaces
 # (Meta's rule), and short enough to keep the message whole.
 PARAM_MAX = 600
+# A link button's address at Meta is fixed up to its last part, so buttons go
+# through a short link on Unio's own address that names office and project
+# (backend/web/short_links.py). The templates at Meta hold LINK_PATH's address.
+LINK_PATH = "/w/"
 
 
 # -- numbers --------------------------------------------------------------------------
@@ -123,7 +129,9 @@ def param(text: str) -> str:
 
 @dataclass(frozen=True)
 class Token:
-    action: str  # "yes" or "no" (the question's buttons), "sent" (a message's status)
+    # "yes" or "no" (the question's buttons), "sent" (a message's status): about
+    # a number's row; "page" or "agenda" (a link button): about a project.
+    action: str
     tenant_id: uuid.UUID
     recipient_id: uuid.UUID
 
@@ -147,6 +155,16 @@ def read_token(settings: Settings, value: str) -> Token | None:
         return None
 
 
+def short_link(settings: Settings, action: str, tenant_id: uuid.UUID, project_id: uuid.UUID) -> str:
+    """A link button's address: Unio's own, whichever office it is about."""
+    origin = (
+        f"https://{settings.operator_host}"
+        if settings.deployed
+        else f"http://localhost:{settings.local_site_port}"
+    )
+    return f"{origin}{LINK_PATH}{token(settings, action, tenant_id, project_id)}"
+
+
 # -- sending --------------------------------------------------------------------------
 
 
@@ -158,6 +176,9 @@ class WhatsAppMessage:
     language: str = "pt_BR"
     params: tuple[str, ...] = ()  # the template's body parts, in order
     buttons: tuple[str, ...] = ()  # the template's quick-reply payloads, in order
+    # The template's link buttons, in order: (label, address). Meta holds each
+    # address up to its last part, which is all we send.
+    links: tuple[tuple[str, str], ...] = ()
     callback: str | None = None  # comes back with the message's delivery status
 
 
@@ -196,6 +217,15 @@ def request_body(message: WhatsAppMessage) -> dict:
                     "sub_type": "quick_reply",
                     "index": str(index),
                     "parameters": [{"type": "payload", "payload": payload}],
+                }
+            )
+        for index, (_, address) in enumerate(message.links, start=len(message.buttons)):
+            components.append(
+                {
+                    "type": "button",
+                    "sub_type": "url",
+                    "index": str(index),
+                    "parameters": [{"type": "text", "text": address.rsplit("/", 1)[1]}],
                 }
             )
         body |= {
@@ -253,6 +283,7 @@ class OutboxWhatsAppSender:
             f"To: +{message.to}",
             f"Template: {message.template or '(free-text reply)'}",
             *(f"Button {i + 1} payload: {b}" for i, b in enumerate(message.buttons)),
+            *(f'Button "{label}": {address}' for label, address in message.links),
         ]
         path.write_text("\n".join([*meta, "", message.text, ""]), encoding="utf-8")
         log.info("whatsapp message written to %s", path)

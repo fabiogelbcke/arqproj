@@ -87,6 +87,7 @@ def upgrade() -> None:
         sa.Column("source", sa.Text(), nullable=False),
         sa.Column("greeted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("answered_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("reinvited_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column(
             "updated_at",

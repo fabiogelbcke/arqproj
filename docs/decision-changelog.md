@@ -19,6 +19,26 @@ a new entry too.
 
 ---
 
+## 2026-11-09 — A47: the WhatsApp texts after Fabio's answers
+
+**Was:** an update linked the page at the end of its text, listed the first
+three stages that changed and "e mais N etapas", and dated meetings "12/11 às
+14h". A number staff added got the "Quero receber" question once; with no
+answer, nothing more was sent. The automatic reply pointed to the project page.
+
+**Now:** the update starts "Olá! Você tem novidades no projeto…", lists every
+stage, dates meetings "quinta, 12/11, às 14:00", and links the page through an
+"Abrir o projeto" button, plus "Adicionar à agenda" when a meeting was scheduled
+or changed. An unanswered question goes once more after 3 days. The automatic
+reply gives the office's contacts.
+
+**Why:** Fabio's answers to the questions in the partners' review document
+(9 Nov 2026). Updates can't go without the client's yes, so an unanswered
+question would otherwise leave the client without them for good; one resend, not
+more, because repeated messages lead to blocks, and blocks cost the number.
+
+---
+
 ## 2026-11-05 — A46: comparisons behind the `before_after` feature
 
 **Was:** before-and-after comparisons were on for every office as soon as they

@@ -497,7 +497,6 @@ async def deliver(
         project,
         batch,
         summary,
-        f"{office.base}/{slug}?utm_source=whatsapp&utm_medium=update",
         phones,
     )
     if messages:
