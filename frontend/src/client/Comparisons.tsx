@@ -72,7 +72,12 @@ export function AddCard({
   const menu = useRef<HTMLDivElement>(null);
   useDismiss(menu, open === "menu", () => setOpen(false));
   return (
-    <div ref={menu} className={`file file--add menu${open === "menu" ? " is-open" : ""}`}>
+    <div
+      ref={menu}
+      className={`file file--add menu${open === "menu" ? " is-open" : ""}`}
+      // The stage's way to add files, the tour's upload step (in place of its drop area).
+      data-tour={section ? undefined : "upload"}
+    >
       <button
         type="button"
         className="file--add__button"
