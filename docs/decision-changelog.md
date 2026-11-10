@@ -19,6 +19,30 @@ a new entry too.
 
 ---
 
+## 2026-11-10 — A21, A45: a CDN for published portfolio photos; a work's images fit the screen
+
+**Was:** every portfolio photo was fetched through the app, which made three calls
+to Drive for each (about 0.7 s, up to 1.6 s, measured on Alinea's page), and was
+kept five minutes by the visitor's browser only. Grid tiles about 440 px wide
+fetched 960 px images. In Mosaico, a work of one image (most of them since
+pieces became single images, 9 Nov) showed it the full width of the page, at
+twice the screen's height on a laptop.
+
+**Now:** Cloud CDN on the load balancer keeps published photos a day
+(`s-maxage`), the browser an hour; a 480 px size joins the two others, offered
+as a `srcset`; on a desktop a work's images are capped at 72% of the screen's
+width or 1100 px and 82% of its height.
+
+**Why:** almost all the waiting was the app reaching Drive, not the download, so
+smaller images alone would not fix it. A CDN costs about what plain outbound
+transfer does (it replaces it for cached content; lookups are $0.0075 per
+10,000), so no added cost to speak of. Considered and left: keeping our own small
+copy of each photo, the fastest even for a first visitor, but a second store
+beside Drive (A10); and remembering Drive's thumbnail links, which expire. The
+cost of the CDN: a photo removed, or a portfolio unpublished, can still be
+served from it for up to a day, at an address no longer linked anywhere (Fabio
+accepted, 10 Nov 2026). Purging the CDN on removal can come if that matters.
+
 ## 2026-11-10 — A46: with comparisons on, the whole stage takes dropped files
 
 **Was:** with `before_after` on, a stage and each section showed both the "+"
