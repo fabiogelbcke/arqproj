@@ -4867,7 +4867,7 @@
     "/api/proposal-presets": {
       "put": {
         "summary": "Change Presets",
-        "description": "The office's services, in order (\"Salvar como padrão\"). An empty list goes\nback to the built-in one.",
+        "description": "The office's services, in order (\"Salvar como padrão\"). An empty list goes\nback to the built-in one. One save at a time: two at once would each insert\ntheir list after the other's delete (one service per place, 0054).",
         "operationId": "change_presets_api_proposal_presets_put",
         "requestBody": {
           "content": {
@@ -10227,6 +10227,7 @@
           "password_required",
           "invalid_detail",
           "invalid_stage",
+          "stage_name_taken",
           "invalid_meeting",
           "files_unavailable",
           "file_not_found",

@@ -208,7 +208,7 @@ async def add_stage(
             raise ApiError(422, ErrorCode.INVALID_STAGE)
         values = {"title": title}
     if await _named_like_another(db, stages, title, tenant.locale):
-        raise ApiError(422, ErrorCode.INVALID_STAGE)
+        raise ApiError(409, ErrorCode.STAGE_NAME_TAKEN)
     # The Drive connection first: getting it may itself save (an expired grant).
     current = await _project(db, project_id)
     maker = await _maker(request, db, current)
@@ -271,7 +271,7 @@ async def rename_stage(
     if stage is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
     if await _named_like_another(db, stages, title, tenant.locale, but=stage):
-        raise ApiError(422, ErrorCode.INVALID_STAGE)
+        raise ApiError(409, ErrorCode.STAGE_NAME_TAKEN)
     maker = await _maker(request, db, await _project(db, project_id))
     project = await _change(db, project_id, body.row_version)
     old_title = await _title(db, stage, tenant.locale)

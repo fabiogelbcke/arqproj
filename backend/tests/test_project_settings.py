@@ -335,6 +335,33 @@ async def test_on_drive_the_old_cover_stays_until_the_new_one_is_saved(
     assert "PATCH /drive/v3/files/new2" not in fake.calls
 
 
+async def test_on_drive_a_saved_cover_stays_saved_when_the_old_one_cant_be_trashed(
+    app, client, owner, on_google
+):
+    """Trashing the old photo comes after the save and is best effort: Drive
+    refusing it leaves a file behind, never an error for a cover that changed."""
+    import httpx2
+
+    fake, _ = on_google
+    found = await project(client)
+    await upload(client, owner, found, PNG)  # new2: the photo
+    refused = []
+
+    def refusing_trash(request):
+        if request.method == "PATCH":
+            refused.append(request.url.path)
+            return httpx2.Response(503)
+        return fake(request)
+
+    app.state.http = httpx2.AsyncClient(transport=httpx2.MockTransport(refusing_trash))
+    first_url = (await project(client))["cover_url"]
+    second = await upload(client, owner, found, PNG)
+    assert second.status_code == 200, second.text
+    assert second.json()["cover_url"] != first_url
+    assert (await project(client))["cover_url"] == second.json()["cover_url"]
+    assert refused == ["/drive/v3/files/new2"]  # the old photo's trashing, refused
+
+
 async def test_on_drive_a_failure_says_try_again(app, client, owner, on_google):
     import httpx2
 

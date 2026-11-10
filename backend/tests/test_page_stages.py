@@ -98,13 +98,13 @@ async def test_a_stage_is_never_named_like_another_of_its_project(client, owner,
     tell apart. Case and spaces aside; a stage may keep its own name re-cased."""
     before = on_disk(folders)
     added = await call(client, owner, "POST", "/stages", title=" anteprojeto ")
-    assert (added.status_code, added.json()["error"]) == (422, "invalid_stage")
+    assert (added.status_code, added.json()["error"]) == (409, "stage_name_taken")
     renamed = await call(client, owner, "PATCH", "/stages/2", title="BRIEFING")
-    assert (renamed.status_code, renamed.json()["error"]) == (422, "invalid_stage")
+    assert (renamed.status_code, renamed.json()["error"]) == (409, "stage_name_taken")
     assert on_disk(folders) == before
     await call(client, owner, "POST", "/stages", title="Aprovação")
     again = await call(client, owner, "PATCH", "/stages/3", title="aprovação")
-    assert (again.status_code, again.json()["error"]) == (422, "invalid_stage")
+    assert (again.status_code, again.json()["error"]) == (409, "stage_name_taken")
     recased = await call(client, owner, "PATCH", "/stages/2", title="CONCEITO")
     assert recased.status_code == 204, recased.text
 

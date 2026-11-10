@@ -339,6 +339,7 @@
     "invalid_detail": "Confira as informações: não repita campos, use textos de até 40 caracteres, números para áreas e datas válidas.",
     "invalid_meeting": "Confira os dados da reunião: assunto de até 40 caracteres, data futura, término após o início e link começando com https://.",
     "invalid_stage": "Não foi possível mudar esta etapa. Recarregue a página e tente novamente.",
+    "stage_name_taken": "Já existe uma etapa com esse nome neste projeto. Escolha outro nome.",
     "files_unavailable": "Não foi possível abrir o arquivo agora. Tente novamente em instantes.",
     "share_not_found": "Este link não está mais disponível. Peça um novo a quem o enviou.",
     "share_too_large": "O limite é de 300 MB por link. Desmarque alguns arquivos ou crie mais de um link.",
