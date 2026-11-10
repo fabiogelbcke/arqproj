@@ -19,6 +19,23 @@ a new entry too.
 
 ---
 
+## 2026-11-10 — A45: joining portfolio pieces asks before it discards their words
+
+**Was:** "Agrupar em projeto", "Adicionar a…" and dropping a piece in the middle
+of another joined them at once. The target keeps its own title, place, year,
+description, sheet and credits; the words the others had for those went with
+them, silently and for good.
+
+**Now:** when joining would discard any of the others' words, a confirmation
+names them ("Serão descartados o título de “Loja Centro”.") and starts on
+Cancelar. Joining pieces whose words simply move to the target still happens at
+once. What the server keeps is unchanged.
+
+**Why:** the overnight audit (issue #210) found that a drop a little off a
+tile's edge merged two works irreversibly, deleting the dragged one's texts.
+
+---
+
 ## 2026-11-10 — A45: the office's networks at the top of the page as well as in the footer
 
 **Was:** the office's social profiles showed only in the footer, as plain names
