@@ -27,6 +27,8 @@ export const E2E_ENV = {
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: false,
+  // A test.only left in by mistake would silently skip the rest of the suite in CI.
+  forbidOnly: !!process.env.CI,
   reporter: [["list"]],
   use: { baseURL: `http://alinea.localhost:${PORT}`, trace: "retain-on-failure" },
   projects: [
