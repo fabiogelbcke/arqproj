@@ -201,6 +201,16 @@ async def test_another_offices_project_is_not_found(client, db_session, owner):
     assert (response.status_code, response.json()["error"]) == (404, "project_not_found")
 
 
+async def test_only_the_taken_address_itself_is_reported_as_taken(client, db_session, owner):
+    """The database's refusal is told by the rule it broke, not by its wording,
+    which names the addresses' table whatever rule it was."""
+    await db_session.execute(
+        text("ALTER TABLE project_slugs ADD CONSTRAINT refuses CHECK (slug <> 'bloqueado')")
+    )
+    response = await change(client, owner, await project(client), slug="bloqueado")
+    assert response.status_code == 500
+
+
 async def test_changes_need_the_csrf_token(client, owner):
     response = await change(client, ALINEA, await project(client), name="Sem token")
     assert response.status_code in (401, 403)

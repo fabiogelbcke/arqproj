@@ -249,7 +249,7 @@ async def change_project(
         except IntegrityError as error:
             # Two people gave the same new address at once: the second loses.
             await db.rollback()
-            if "slug" in str(error.orig):
+            if error.orig.diag.constraint_name == "uq_project_slugs_tenant_id_slug":
                 raise ApiError(409, ErrorCode.SLUG_TAKEN) from None
             raise
     elif project.row_version != body.row_version:
