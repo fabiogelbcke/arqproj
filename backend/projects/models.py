@@ -146,9 +146,6 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
         CheckConstraint(
             "access_mode <> 'password' OR password_hash IS NOT NULL", name="password_set"
         ),
-        CheckConstraint(
-            "current_position IS NULL OR current_position >= 1", name="position_positive"
-        ),
         UniqueConstraint("tenant_id", "creation_key", name="uq_projects_tenant_id_creation_key"),
         CheckConstraint(
             "archived_from IN ("
@@ -189,8 +186,6 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
     password_hash: Mapped[str | None] = mapped_column(Text)
     # Changing the password or access mode bumps it, ending earlier unlocks.
     access_version: Mapped[int] = mapped_column(server_default=text("1"))
-    # Position of the current stage; None before the first stage starts.
-    current_position: Mapped[int | None] = mapped_column()
     # Last change a client can see (A28); orders the painel's "last updated".
     last_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # When the scan last listed its files (A10); None until the first, which only

@@ -9,6 +9,8 @@
 - An email batch is closed (`closed_at`) exactly when sent or dropped; its last
   change never comes before its first; a delivery's attempts never go below 0.
 - An office's own stage name fits the screens' limit (STAGE_TITLE_MAX, 80).
+- `projects.current_position` is dropped, with its check: unused since stages
+  complete on their own (0032, A30), as the audit found.
 
 Rows already breaking a rule are put right first, every office's (the forced
 policy lifted while the migration login copies them, as in 0053): duplicated
@@ -21,6 +23,7 @@ Previous: 0053
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0054"
@@ -118,9 +121,21 @@ def upgrade() -> None:
     op.create_check_constraint(
         op.f("ck_project_stages_title_length"), "project_stages", "length(title) <= 80"
     )
+    op.drop_constraint(op.f("ck_projects_position_positive"), "projects", type_="check")
+    op.drop_column("projects", "current_position")  # its UPDATE grant goes with it
 
 
 def downgrade() -> None:
+    op.add_column("projects", sa.Column("current_position", sa.Integer(), nullable=True))
+    op.create_check_constraint(
+        op.f("ck_projects_position_positive"),
+        "projects",
+        "current_position IS NULL OR current_position >= 1",
+    )
+    op.execute(
+        "DO $$ BEGIN EXECUTE format('GRANT UPDATE (current_position) ON projects TO %I', "
+        "current_database() || '_app'); END $$"
+    )
     op.drop_constraint(op.f("ck_project_stages_title_length"), "project_stages", type_="check")
     op.drop_constraint(
         op.f("ck_notification_deliveries_attempts_not_negative"),
