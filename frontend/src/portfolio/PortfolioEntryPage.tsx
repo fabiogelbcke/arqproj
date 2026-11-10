@@ -6,14 +6,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { api, ApiError, call } from "../api/client";
 import { LIMITS as FIELD_LIMITS } from "../api/limits";
 import { ActionMenu } from "../ui/ActionMenu";
 import { fileSource } from "../client/format";
-import { useCreationOptions, useProjects, type ProjectSummary } from "../projects/projects";
+import { useProjects, type ProjectSummary } from "../projects/projects";
 import { Button } from "../ui/Button";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { BeforeAfter } from "../ui/BeforeAfter";
@@ -38,8 +39,10 @@ import {
   usePortfolio,
   useRemovePhoto,
   useRemoveVideo,
+  useSplitEntry,
   videoPoster,
   type Entry,
+  type Section,
   type SheetLine,
 } from "./portfolio";
 import { useFeature } from "../session/session";
@@ -59,11 +62,14 @@ export function PortfolioEntryPage() {
           <p className={styles.crumbs}>
             <Link to="/portfolio">{t("portfolio.title")}</Link> /
           </p>
-          <h1 className={styles.title}>{entry?.title ?? t("portfolio.title")}</h1>
+          <h1 className={styles.title}>{entry ? entry.title || t("portfolio.untitled") : t("portfolio.title")}</h1>
         </div>
-        {/* A work without photos isn't on the page: nothing to see yet. */}
-        {portfolio.data && entry && entry.photos.length > 0 && (
-          <SeePortfolio published={portfolio.data.published} work={entry.id} />
+        {portfolio.data && entry && (
+          <div className={styles.actions}>
+            {entry.photos.length > 1 && <Ungroup entry={entry} />}
+            {/* A work without photos isn't on the page: nothing to see yet. */}
+            {entry.photos.length > 0 && <SeePortfolio published={portfolio.data.published} work={entry.id} />}
+          </div>
         )}
       </div>
       {portfolio.error ? (
@@ -80,10 +86,42 @@ export function PortfolioEntryPage() {
             <Photos entry={entry} />
             <Videos entry={entry} />
           </div>
-          <Details key={entry.id} entry={entry} />
+          <Details key={entry.id} entry={entry} sections={portfolio.data.sections} />
         </div>
       )}
     </div>
+  );
+}
+
+/** "Desfazer projeto": its images after the first become pieces of their own,
+ *  back in the tab, in the same section; this one keeps its words and videos. */
+function Ungroup({ entry }: { entry: Entry }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const split = useSplitEntry();
+  const [asking, setAsking] = useState(false);
+  return (
+    <>
+      <Button onPress={() => setAsking(true)}>{t("portfolio.ungroup")}</Button>
+      {asking && (
+        <ConfirmDialog
+          title={t("portfolio.ungroupTitle")}
+          text={t("portfolio.ungroupText", { count: entry.photos.length - 1 })}
+          confirm={t("portfolio.ungroup")}
+          busy={split.isPending}
+          onConfirm={() =>
+            split.mutate(entry.id, {
+              onSuccess: () => {
+                toast(t("portfolio.ungrouped"));
+                void navigate("/portfolio");
+              },
+              onError: (failure) => toastError(failure),
+            })
+          }
+          onCancel={() => setAsking(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -92,19 +130,18 @@ export function PortfolioEntryPage() {
  *  anything there is filled in: one sheet of rows, a name and its value, as the
  *  public page shows them (type, place, year, the details, the description,
  *  the credits). */
-function Details({ entry }: { entry: Entry }) {
+function Details({ entry, sections }: { entry: Entry; sections: Section[] }) {
   const { t } = useTranslation();
   const change = useChangeEntry();
   const hasMore =
-    !!entry.place || !!entry.year || !!entry.description || !!entry.project_type || !!entry.credits || entry.details.length > 0;
+    !!entry.place || !!entry.year || !!entry.description || !!entry.section_id || !!entry.credits || entry.details.length > 0;
   const [title, setTitle] = useState(entry.title);
   const [place, setPlace] = useState(entry.place);
   const [year, setYear] = useState(entry.year ? String(entry.year) : "");
   const [description, setDescription] = useState(entry.description);
-  const [kind, setKind] = useState(entry.project_type ?? "");
+  const [kind, setKind] = useState(entry.section_id ?? "");
   const [sheet, setSheet] = useState<SheetLine[]>(entry.details);
   const [credits, setCredits] = useState(entry.credits);
-  const types = useCreationOptions().data?.types ?? [];
   const yearNumber = year.trim() ? Number(year.trim()) : null;
   const yearOk = yearNumber === null || (Number.isInteger(yearNumber) && yearNumber >= 1900 && yearNumber <= 2100);
   const lines = sheet.map(sentLine);
@@ -114,7 +151,7 @@ function Details({ entry }: { entry: Entry }) {
     place.trim() !== entry.place ||
     yearNumber !== entry.year ||
     description.trim() !== entry.description ||
-    kind !== (entry.project_type ?? "") ||
+    kind !== (entry.section_id ?? "") ||
     JSON.stringify(lines) !== JSON.stringify(entry.details.map(sentLine)) ||
     credits.trim() !== entry.credits;
   return (
@@ -124,10 +161,10 @@ function Details({ entry }: { entry: Entry }) {
       <TextField
         label={t("portfolio.titleLabel")}
         description={t("portfolio.titleHint")}
+        placeholder={t("portfolio.titleOptional")}
         value={title}
         onChange={setTitle}
         maxLength={LIMITS.title}
-        isRequired
       />
       <details className={styles.more} open={hasMore}>
         <summary>
@@ -135,15 +172,15 @@ function Details({ entry }: { entry: Entry }) {
           <span className={styles.hint}>{t("portfolio.moreHint")}</span>
         </summary>
         <div className={styles.moreBody}>
-          <Row label={t("portfolio.type")}>
+          <Row label={t("portfolio.section")}>
             <SelectField
-              label={t("portfolio.type")}
+              label={t("portfolio.section")}
               labelHidden
               className={styles.rowSelect}
               value={kind}
               options={[
                 { value: "", label: t("portfolio.typeNone") },
-                ...types.map((type) => ({ value: type.key, label: t(`portfolio.types.${type.key}`, type.label) })),
+                ...sections.map((section) => ({ value: section.id, label: section.name })),
               ]}
               onChange={setKind}
             />
@@ -198,7 +235,7 @@ function Details({ entry }: { entry: Entry }) {
       <Button
         size="small"
         className={styles.save}
-        isDisabled={!changed || !title.trim() || !yearOk || !sheetOk || change.isPending}
+        isDisabled={!changed || !yearOk || !sheetOk || change.isPending}
         onPress={() =>
           change.mutate(
             {
@@ -207,7 +244,7 @@ function Details({ entry }: { entry: Entry }) {
               place,
               year: yearNumber,
               description,
-              project_type: kind || null,
+              section_id: kind || null,
               details: lines.filter((line) => line !== null),
               credits,
             },

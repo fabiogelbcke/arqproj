@@ -153,6 +153,7 @@ async def test_delete_populated_tenant_preserves_other_tenant(client, actions_en
         "portfolio_details",
         "portfolio_photos",
         "portfolio_videos",
+        "portfolio_sections",
     ):
         left = await db_session.scalar(
             text(f"SELECT count(*) FROM {table} WHERE tenant_id = :t"), {"t": alinea}
