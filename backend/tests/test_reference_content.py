@@ -4,7 +4,7 @@ name those rows. These tests keep the two in step and the texts complete."""
 from enum import StrEnum
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from backend.projects.enums import BuiltinStage, DetailKey, DetailType, ProjectType
 from backend.projects.models import (
@@ -14,6 +14,10 @@ from backend.projects.models import (
     StageDef,
 )
 from backend.tenancy.models import Locale
+from backend.tests import test_office
+from backend.tests.test_office import ALINEA
+
+owner = test_office.owner  # fixtures
 
 pytestmark = pytest.mark.anyio
 
@@ -70,10 +74,11 @@ async def test_every_built_in_text_exists_in_every_language(db_session):
 
 
 async def usual_stages(session) -> dict[str, list[str]]:
+    """Each type's ticked stages as the table holds them, in the shared order."""
     rows = await session.execute(
         select(ProjectTypeStage.project_type, ProjectTypeStage.stage_key)
         .join(StageDef, StageDef.key == ProjectTypeStage.stage_key)
-        .where(ProjectTypeStage.usual)
+        .where(ProjectTypeStage.usual, ~StageDef.hidden)
         .order_by(StageDef.position)
     )
     stages: dict[str, list[str]] = {}
@@ -82,36 +87,28 @@ async def usual_stages(session) -> dict[str, list[str]]:
     return stages
 
 
-async def test_each_type_ticks_the_stages_alineas_partners_listed(db_session):
-    """What a new project gets ticked for each type, in order (A27, 16 Oct 2026;
-    Reforma surveys with "Levantamento" since 26 Oct 2026; Visualização since
-    2 Nov 2026):
-    behaviour creation relies on."""
-    stages = await usual_stages(db_session)
-    s = BuiltinStage
-    assert stages == {
-        ProjectType.ARCHITECTURE: [
-            s.BRIEFING, s.SURVEY, s.PRELIMINARY_STUDY, s.SCHEMATIC_DESIGN,
-            s.PERMIT_DOCUMENTS, s.CONSTRUCTION_DOCUMENTS, s.COORDINATION,
-        ],
-        ProjectType.INTERIORS: [
-            s.BRIEFING, s.SURVEY, s.PRELIMINARY_STUDY, s.SCHEMATIC_DESIGN,
-            s.CONSTRUCTION_DOCUMENTS, s.DETAILING, s.SPECIFICATIONS,
-        ],
-        ProjectType.RENOVATION: [
-            s.BRIEFING, s.SURVEY, s.FEASIBILITY_STUDY, s.PRELIMINARY_STUDY,
-            s.SCHEMATIC_DESIGN, s.PERMIT_DOCUMENTS, s.CONSTRUCTION_DOCUMENTS, s.COORDINATION,
-        ],
-        ProjectType.LANDSCAPING: [
-            s.BRIEFING, s.SURVEY, s.PRELIMINARY_STUDY, s.SCHEMATIC_DESIGN,
-            s.CONSTRUCTION_DOCUMENTS, s.COMPLEMENTARY_PROJECTS, s.SPECIFICATIONS,
-        ],
-        # Fabio, 2 Nov 2026: all five ticked.
-        ProjectType.VISUALIZATION: [
-            s.BRIEFING, s.DOCUMENTATION, s.PREVIEW_DELIVERY, s.REVISIONS, s.FINAL_DELIVERY,
-        ],
-        ProjectType.OTHER: [s.BRIEFING],  # named by the office (2 Nov 2026)
-    }  # fmt: skip
+async def ticked_in_the_dialog(client) -> dict[str, list[str]]:
+    options = (await client.get("/api/project-types", headers=ALINEA)).json()
+    return {kind["key"]: kind["stages"] for kind in options["types"] if kind["stages"]}
+
+
+async def test_each_type_ticks_the_stages_its_rows_mark_usual(client, owner, db_session):
+    """A new project's dialog ticks, for each type, whatever
+    `project_type_stages.usual` says (A27). The list itself is content operators
+    edit since A44, so it isn't restated here."""
+    assert await ticked_in_the_dialog(client) == await usual_stages(db_session)
+    # The self-test: a row changed in the table changes what the dialog ticks.
+    await db_session.execute(
+        update(ProjectTypeStage)
+        .where(
+            ProjectTypeStage.project_type == ProjectType.ARCHITECTURE,
+            ProjectTypeStage.stage_key == BuiltinStage.BRIEFING,
+        )
+        .values(usual=False)
+    )
+    ticked = await ticked_in_the_dialog(client)
+    assert BuiltinStage.BRIEFING not in ticked[ProjectType.ARCHITECTURE]
+    assert ticked == await usual_stages(db_session)
 
 
 async def test_the_shared_order_is_the_enums_order(db_session):
