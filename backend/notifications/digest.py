@@ -21,7 +21,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from html import escape
 from pathlib import Path
 from string import Template
@@ -258,8 +258,10 @@ async def summarize(
         shown = {e.item_id: visible[e.item_id] for e in files if e.item_id in visible}
         # Changed in the last minute: still changing. A time ahead of ours (a
         # computer's wrong clock, kept by Drive's sync) is not a change happening
-        # now, and would otherwise hold the email back for good.
-        if any(now - SETTLE < item.modified_at <= now for _position, item in shown.values()):
+        # now, and would otherwise hold the email back for good. "Ours" is read
+        # after the listing: a file changed while Drive was being read still waits.
+        listed = datetime.now(UTC)
+        if any(listed - SETTLE < item.modified_at <= listed for _position, item in shown.values()):
             raise Wait("a file changed in the last minute")
         counts: dict[int, int] = {}
         for position, _item in shown.values():

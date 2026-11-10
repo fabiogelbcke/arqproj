@@ -542,6 +542,24 @@ async def test_a_file_still_changing_waits_for_the_next_pass(
     assert len(outbox.sent) == 1
 
 
+async def test_a_file_changed_while_the_pass_reads_drive_still_waits(
+    app, db_session, outbox, ready, monkeypatch
+):
+    """Changed after the pass began but before its listing came back: a change
+    happening now, not a clock ahead of ours (section 11's settling check)."""
+    path = await new_file(app, outbox, ready)
+    await make_due(db_session)
+    real = digest._visible_files
+
+    async def changed_meanwhile(db, storage, project):
+        path.write_bytes(PDF + b"more")  # after the pass took its time, during the listing
+        return await real(db, storage, project)
+
+    monkeypatch.setattr(digest, "_visible_files", changed_meanwhile)
+    await run(app, outbox)
+    assert outbox.sent == [] and await batches(db_session) == [("open",)]
+
+
 async def test_a_file_dated_ahead_of_our_clock_doesnt_hold_the_email(
     app, db_session, outbox, ready
 ):
