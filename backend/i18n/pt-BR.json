@@ -396,6 +396,7 @@
     "connect": "Conectar Google Drive",
     "reconnect": "Reconectar",
     "disconnect": "Desconectar",
+    "disconnectTitle": "Desconectar o Google Drive?",
     "disconnectConfirm": "O portal deixa de acessar o Drive agora. Os arquivos continuam na pasta.",
     "connectedNow": "Google Drive conectado.",
     "disconnectedNow": "Google Drive desconectado.",

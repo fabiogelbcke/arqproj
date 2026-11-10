@@ -9,6 +9,7 @@ import { SPACE_LOW, bytes, useConnectDrive, useDisconnectDrive, useDrive, useDri
 import { capture } from "../posthog";
 import dialogs from "../projects/projects.module.css";
 import { Button } from "../ui/Button";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { loadError } from "../ui/loadError";
@@ -129,28 +130,28 @@ export function DriveDetails({
                 label={t(returnedError === "drive_other_account" ? "drive.switchAnyway" : "drive.switch")}
               />
             )}
-            {google &&
-              (confirming ? (
-                <>
-                  <p>{t("drive.disconnectConfirm")}</p>
-                  <Button
-                    onPress={() =>
-                      disconnect.mutate(undefined, {
-                        onSuccess: () => toast(t("drive.disconnectedNow")),
-                        onSettled: () => setConfirming(false),
-                      })
-                    }
-                    isDisabled={disconnect.isPending}
-                  >
-                    {t("drive.disconnect")}
-                  </Button>
-                </>
-              ) : (
-                // A button, but a quiet one: not something to encourage (Fabio, 25 Oct 2026).
-                <Button size="small" onPress={() => setConfirming(true)}>
-                  {t("drive.disconnect")}
-                </Button>
-              ))}
+            {google && (
+              // A button, but a quiet one: not something to encourage (Fabio, 25 Oct 2026).
+              <Button size="small" onPress={() => setConfirming(true)}>
+                {t("drive.disconnect")}
+              </Button>
+            )}
+            {confirming && (
+              <ConfirmDialog
+                title={t("drive.disconnectTitle")}
+                text={t("drive.disconnectConfirm")}
+                confirm={t("drive.disconnect")}
+                danger
+                busy={disconnect.isPending}
+                onConfirm={() =>
+                  disconnect.mutate(undefined, {
+                    onSuccess: () => toast(t("drive.disconnectedNow")),
+                    onSettled: () => setConfirming(false),
+                  })
+                }
+                onCancel={() => setConfirming(false)}
+              />
+            )}
           </div>
         ) : (
           <p className={styles.small}>{t("drive.ownerOnly")}</p>

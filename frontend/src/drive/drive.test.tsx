@@ -52,9 +52,16 @@ describe("Drive settings", () => {
     renderAt("/configuracoes/drive");
     expect(await screen.findByText("Conectado como escritorio@gmail.com")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Desconectar" }));
-    expect(screen.getByText(/deixa de acessar o Drive/)).toBeInTheDocument();
+    let ask = await screen.findByRole("alertdialog", { name: "Desconectar o Google Drive?" });
+    expect(ask).toHaveTextContent(/deixa de acessar o Drive/);
+    // A way out, focused first: a stray Enter doesn't disconnect.
+    expect(within(ask).getByRole("button", { name: "Cancelar" })).toHaveFocus();
+    await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(sent.some((r) => r.method === "DELETE")).toBe(false); // not yet: confirm first
     await userEvent.click(screen.getByRole("button", { name: "Desconectar" }));
+    ask = await screen.findByRole("alertdialog", { name: "Desconectar o Google Drive?" });
+    await userEvent.click(within(ask).getByRole("button", { name: "Desconectar" }));
     await waitFor(() => expect(sent.some((r) => r.method === "DELETE")).toBe(true));
   });
 
