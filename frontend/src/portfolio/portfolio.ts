@@ -178,9 +178,19 @@ export const useAddLoosePhoto = () =>
     ),
   );
 
-/** What reads as a project: a piece of several images, one with videos, or one
- *  still waiting for its photos; a single photo is a photo, captioned or not. */
-export const isProject = (entry: Entry) => entry.photos.length !== 1 || entry.videos.length > 0;
+/** What reads as a project, and opens in the editor: a piece of several images,
+ *  one with videos, one still waiting for its photos, or one with more words
+ *  than a caption (drawn from a project, a place, a year, a description, a
+ *  sheet, credits). A single photo with at most a caption is a photo. */
+export const isProject = (entry: Entry) =>
+  entry.photos.length !== 1 ||
+  entry.videos.length > 0 ||
+  !!entry.project_id ||
+  !!entry.place ||
+  !!entry.year ||
+  !!entry.description ||
+  !!entry.credits ||
+  entry.details.length > 0;
 
 /** "Antes e depois" (A46): a photo, the "before", with another of the work's
  *  photos as its "after"; `after: null` undoes it. */

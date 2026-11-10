@@ -6,7 +6,7 @@
 // its own or inside a project; a drop opens one dialog to say where they go.
 import { useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import { capture } from "../posthog";
 import { plain, useCreationOptions, useProjects, type ProjectSummary } from "../projects/projects";
@@ -354,7 +354,7 @@ function Sections({ portfolio }: { portfolio: Portfolio }) {
       },
     );
   const open = (entry: Entry) => {
-    if (entry.photos.length > 1 || entry.videos.length > 0) void navigate(`/portfolio/${entry.id}`);
+    if (isProject(entry)) void navigate(`/portfolio/${entry.id}`);
     else setSheet(entry.id);
   };
   const sections: (Section | null)[] = [...portfolio.sections, null];
@@ -804,7 +804,7 @@ function Tiles({
             <button
               type="button"
               className={styles.tileOpen}
-              aria-label={t(entry.photos.length > 1 ? "portfolio.openProject" : "portfolio.openPhoto", { name })}
+              aria-label={t(isProject(entry) ? "portfolio.openProject" : "portfolio.openPhoto", { name })}
               onClick={() => (selected.size ? onToggle(entry.id) : onOpen(entry))}
             >
               {cover ? (
@@ -814,7 +814,7 @@ function Tiles({
               )}
               {entry.photos.length > 1 && <StackMark count={entry.photos.length} />}
               {entry.title && <span className={styles.cap}>{entry.title}</span>}
-              {entry.photos.length === 1 && !entry.title && (
+              {!isProject(entry) && !entry.title && (
                 <span className={styles.edit} aria-hidden="true">
                   {t("portfolio.caption")}
                 </span>
@@ -959,7 +959,7 @@ function SelectionBar({
       )}
       {one && (
         <Button size="small" onPress={() => onOpen(one)}>
-          {t(one.photos.length > 1 || one.videos.length > 0 ? "portfolio.open" : "portfolio.caption")}
+          {t(isProject(one) ? "portfolio.open" : "portfolio.caption")}
         </Button>
       )}
       <Button size="small" variant="ghost" className={styles.dockDanger} isDisabled={busy} onPress={() => setRemoving(true)}>
@@ -1162,6 +1162,9 @@ function PhotoSheet({ entry, sections, onClose }: { entry: Entry; sections: Sect
           options={[{ value: "", label: t("portfolio.typeNone") }, ...sections.map((item) => ({ value: item.id, label: item.name }))]}
           onChange={setSection}
         />
+        <p className={styles.hint}>
+          <Link to={`/portfolio/${entry.id}`}>{t("portfolio.moreInEditor")}</Link>
+        </p>
         <div className={styles.dialogActions}>
           <Button variant="ghost" className={styles.dockDanger} onPress={() => setRemoving(true)}>
             {t("portfolio.removeFromPortfolio")}

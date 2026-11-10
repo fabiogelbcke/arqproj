@@ -46,7 +46,7 @@ function entry(changes: Partial<Entry>): Entry {
 
 // Two sections, in the office's order: a site type's and one of its own.
 const SECTIONS = [
-  { id: "s-arch", position: 1, name: "Projeto Arquitetônico", project_type: "architecture", slug: "architecture" },
+  { id: "s-arch", position: 1, name: "Arquitetura", project_type: "architecture", slug: "architecture" },
   { id: "s-int", position: 2, name: "Interiores", project_type: "interiors", slug: "interiors" },
 ];
 
@@ -98,7 +98,7 @@ describe("the Portfólio tab", () => {
     const images = await screen.findByRole("region", { name: /^Imagens/ });
     const sections = within(images).getAllByRole("region");
     expect(sections.map((section) => within(section).getByRole("heading", { level: 3 }).textContent)).toEqual([
-      "Projeto Arquitetônico",
+      "Arquitetura",
       "Interiores",
       "Sem tipo",
     ]);
@@ -113,7 +113,7 @@ describe("the Portfólio tab", () => {
     expect(within(sections[1]!).getByText(/Nenhuma foto nesta seção ainda/)).toBeInTheDocument();
     expect(within(sections[2]!).getByRole("button", { name: "Abrir a foto Loja Centro" })).toBeInTheDocument();
     // Each section's own drop area, and the way to the portfolio.
-    expect(within(arch).getByLabelText("Enviar fotos para Projeto Arquitetônico")).toBeInTheDocument();
+    expect(within(arch).getByLabelText("Enviar fotos para Arquitetura")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver prévia" })).toHaveAttribute("href", "/?previa=1");
   });
 

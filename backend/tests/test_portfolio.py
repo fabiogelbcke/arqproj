@@ -151,7 +151,9 @@ async def test_a_type_the_operator_added_is_shown_by_its_own_name(client, staff,
 
     sections = (await get(client, staff))["sections"]
     assert [s["project_type"] for s in sections] == ["architecture", "cenografia"]
-    assert [s["name"] for s in sections] == ["Projeto Arquitetônico", "Cenografia & Eventos"]
+    # The short public name of a built-in type, the same the menu shows; an
+    # operator-added type by its own name.
+    assert [s["name"] for s in sections] == ["Arquitetura", "Cenografia & Eventos"]
     reordered = await client.put(
         "/api/portfolio/sections/order",
         json={"sections": [sections[1]["id"], sections[0]["id"]]},
@@ -1296,3 +1298,38 @@ async def test_pieces_are_grouped_into_a_project_and_ungrouped_again(client, sta
     assert [p["photos"][0]["id"] for p in pieces] == photos
     again = await client.post(f"/api/portfolio/entries/{a['id']}/split", headers=staff)
     assert again.status_code == 200 and len(again.json()["entries"]) == 3  # nothing to split
+
+
+async def test_merging_keeps_the_words_the_first_piece_lacks(client, staff):
+    """A loose photo grouped with a project drawn from Casa Jardim: the photo is
+    the cover, and the project's title, section, year, sheet and project come
+    along instead of being thrown away."""
+    bare = await client.post(
+        "/api/portfolio/photos", files={"file": ("x.jpg", JPEG)}, headers=staff
+    )
+    [loose] = bare.json()["entries"]
+    drawn = await add(client, staff, project_id=await project_id(client), place="Porto Alegre, RS")
+    await client.patch(
+        f"/api/portfolio/entries/{drawn['id']}",
+        json={"details": [{"label": "Fotografia", "value": "Estúdio Luz"}], "credits": "Luz"},
+        headers=staff,
+    )
+    await photo(client, staff, drawn)
+    merged = await client.post(
+        f"/api/portfolio/entries/{loose['id']}/merge",
+        json={"entries": [drawn["id"]]},
+        headers=staff,
+    )
+    assert merged.status_code == 200, merged.text
+    [project] = merged.json()["entries"]
+    assert project["id"] == loose["id"] and project["photos"][0]["id"] == loose["photos"][0]["id"]
+    assert (project["title"], project["place"], project["credits"]) == (
+        "Casa Jardim",
+        "Porto Alegre, RS",
+        "Luz",
+    )
+    assert (
+        project["section_id"] == drawn["section_id"]
+        and project["project_id"] == drawn["project_id"]
+    )
+    assert [line["label"] for line in project["details"]] == ["Fotografia"]

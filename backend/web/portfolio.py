@@ -37,10 +37,12 @@ frame it took from it, the poster.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import unicodedata
 import uuid
+from functools import cache
 from io import BytesIO
 from pathlib import Path
 from typing import Annotated
@@ -302,13 +304,30 @@ async def sections(db: AsyncSession) -> list[PortfolioSection]:
     return list(await db.scalars(select(PortfolioSection).order_by(PortfolioSection.position)))
 
 
+_CATALOGS = Path(__file__).resolve().parent.parent / "i18n"
+
+
+@cache
+def short_type_labels(locale: Locale) -> dict[str, str]:
+    """The public, short name of each built-in project type ("Arquitetura", not
+    the painel's "Projeto Arquitetônico"), the name a section of it goes by
+    everywhere: the tab, the menu, the address's label."""
+    texts = json.loads((_CATALOGS / f"{locale.value}.json").read_text("utf-8"))
+    return dict(texts["portfolio"]["types"])
+
+
 def section_name(
     section: PortfolioSection, kinds: dict[str, ProjectTypeDef], locale: Locale
 ) -> str:
-    """An own section's name, or its type's label in the office's language."""
+    """An own section's name, or its type's: the short public one for a
+    built-in type, a type the operator added by its own name (A44)."""
     if section.label is not None:
         return section.label
-    kind = kinds.get(section.project_type or "")
+    key = section.project_type or ""
+    short = short_type_labels(locale).get(key)
+    if short:
+        return short
+    kind = kinds.get(key)
     return _label(kind.labels, locale) if kind else section.slug
 
 
@@ -943,8 +962,10 @@ async def merge_entries(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
     """Grouping: the other pieces' photos and videos join this one, after its
-    own, in the order given, and those pieces go (their words with them). A
-    piece without a title or section takes the first found among them."""
+    own, in the order given, and those pieces go. Whatever words this one lacks
+    (title, section, place, year, description, credits, its sheet, the project
+    it was drawn from) come from the first of the others that has them; the
+    rest of their words go with them."""
     await _portfolio(db)
     target = await _entry(db, entry_id)
     wanted = list(dict.fromkeys(body.entries))
@@ -974,13 +995,34 @@ async def merge_entries(
                 position += 1
                 item.entry_id = target.id
                 item.position = position
+    details = {
+        entry_id: count
+        for entry_id, count in (
+            await db.execute(
+                select(PortfolioDetail.entry_id, func.count())
+                .where(PortfolioDetail.entry_id.in_(ids))
+                .group_by(PortfolioDetail.entry_id)
+            )
+        ).all()
+    }
     for other_id in wanted:
         other = others[other_id]
-        target.title = target.title or other.title
-        target.section_id = target.section_id or other.section_id
+        for word in ("title", "place", "description", "credits"):
+            if not getattr(target, word):
+                setattr(target, word, getattr(other, word))
+        for word in ("section_id", "year", "project_id"):
+            if getattr(target, word) is None:
+                setattr(target, word, getattr(other, word))
+        if not details.get(target.id) and details.get(other_id):
+            await db.execute(
+                update(PortfolioDetail)
+                .where(PortfolioDetail.entry_id == other_id)
+                .values(entry_id=target.id)
+            )
+            details[target.id] = details[other_id]
     await db.flush()
     for other_id in wanted:
-        await db.delete(others[other_id])  # its details with it; the images moved
+        await db.delete(others[other_id])  # what words it still has go with it; the images moved
     await db.commit()
     capture(request, "portfolio_entries_merged", {"count": len(wanted)})
     return await _out(db, tenant)
