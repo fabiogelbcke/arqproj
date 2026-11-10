@@ -1497,7 +1497,11 @@ Pipeline:
 2. Batch worker deduplicates and attaches eligible events under a project lock.
 3. When due, freeze the batch and create one delivery per active recipient.
 4. Immediately before sending, recheck project/tenant status, subscription and
-   file visibility. Remove withdrawn items; drop an empty digest.
+   file visibility. Remove withdrawn items; drop an empty digest. While the
+   office's Drive is disconnected (its pages answer 503, section 9), a due
+   digest waits, past the 2-hour hold and with no time limit, and goes whole
+   after "Reconectar": nothing is dropped, and nothing links to a page that
+   can't open. Each pass logs that it waits.
 5. Send using a stable provider idempotency key per logical delivery. Record
    provider ID and outcome. Unknown timeout outcomes are reconciled where the
    provider permits; do not promise mathematical exactly-once email delivery.
