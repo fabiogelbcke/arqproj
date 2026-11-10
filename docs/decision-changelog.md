@@ -39,6 +39,25 @@ is still open" to `us-east1` (A16): corrections, not changes.
 
 ---
 
+## 2026-11-10 — A46: with comparisons on, the whole stage takes dropped files
+
+**Was:** with `before_after` on, a stage and each section showed both the "+"
+card and their drop area ("Solte arquivos aqui ou escolha no computador"), two
+ways to add files side by side.
+
+**Now:** with the feature on, the drop areas go. Files dropped anywhere on a
+stage or a section upload there (the section, not its stage, when dropped on
+it), the place outlined while they are over it; the "+" card's "Enviar
+arquivos" opens the same chooser. Switched off, the page keeps its drop areas
+and has no "+" card, as before.
+
+**Why:** Fabio, looking at the "+" card: the drop area repeated it, and the
+whole stage being droppable is simpler. The drop area's note (the Drive folder,
+the size limit) no longer shows; a file over the limit still fails with its
+message.
+
+---
+
 ## 2026-11-10 — A45: the office's networks at the top of the page as well as in the footer
 
 **Was:** the office's social profiles showed only in the footer, as plain names
