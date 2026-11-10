@@ -36,7 +36,14 @@ export function NameDialog({
   const error = trimmed ? (problem?.(trimmed) ?? null) : null;
   const ready = !!trimmed && !error && !busy;
   return (
-    <ModalOverlay className={styles.confirmOverlay} isDismissable isOpen onOpenChange={(open) => !open && onCancel()}>
+    // While the name is saved, nothing closes the dialog until it answers.
+    <ModalOverlay
+      className={styles.confirmOverlay}
+      isDismissable={!busy}
+      isKeyboardDismissDisabled={busy}
+      isOpen
+      onOpenChange={(open) => !open && onCancel()}
+    >
       <Modal className={styles.confirmModal}>
         <Dialog className={styles.confirmDialog}>
           <form
@@ -66,7 +73,9 @@ export function NameDialog({
               </p>
             )}
             <div className={styles.confirmActions}>
-              <Button onPress={onCancel}>{t("confirm.cancel")}</Button>
+              <Button onPress={onCancel} isDisabled={busy}>
+                {t("confirm.cancel")}
+              </Button>
               <Button variant="primary" type="submit" isDisabled={!ready}>
                 {confirm}
               </Button>

@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { api, call, type Schemas } from "../api/client";
 import { SETUP_PARAM } from "../projects/setup";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { copyText } from "../ui/copyText";
 import { Toaster, toast, toastError } from "../ui/Toast";
 import { SiteFooter } from "../ui/UnioMark";
 import type { Page } from "./format";
@@ -75,13 +76,7 @@ function StaffBar({ page, ready, onChanged }: { page: Page; ready: boolean; onCh
         type="button"
         aria-label={t("page.copyLink")}
         title={t("page.copyLink")}
-        onClick={() => {
-          const link = window.location.origin + window.location.pathname;
-          navigator.clipboard?.writeText(link).then(
-            () => toast(t("page.linkCopied")),
-            () => toast(link),
-          );
-        }}
+        onClick={() => void copyText(window.location.origin + window.location.pathname)}
       >
         <Icon name="link" />
       </button>

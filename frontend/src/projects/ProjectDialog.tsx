@@ -119,7 +119,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           : null
       : null;
   return (
-    <DialogFrame title={t("projectSettings.title")} onClose={onClose}>
+    <DialogFrame title={t("projectSettings.title")} onClose={onClose} busy={saving}>
       <Form
         className={styles.form}
         onSubmit={(event) => {
@@ -208,7 +208,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           <ErrorNotice error={error} values={{ min: 6 }} />
         )}
         <div className={styles.actions}>
-          <Button onPress={onClose}>{t("projectSettings.cancel")}</Button>
+          <Button onPress={onClose} isDisabled={saving}>{t("projectSettings.cancel")}</Button>
           <Button type="submit" variant="primary" isDisabled={saving}>
             {saving ? t("projectSettings.saving") : t("projectSettings.save")}
           </Button>

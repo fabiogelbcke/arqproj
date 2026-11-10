@@ -130,7 +130,7 @@ export function ChangeWarning({
             <Button onPress={onCancel} autoFocus>
               {t("admin.settings.warning.cancel")}
             </Button>
-            <Button className={styles.warningConfirm} onPress={onConfirm} isDisabled={busy}>
+            <Button variant="danger" onPress={onConfirm} isDisabled={busy}>
               {t("admin.settings.warning.confirm")}
             </Button>
           </div>

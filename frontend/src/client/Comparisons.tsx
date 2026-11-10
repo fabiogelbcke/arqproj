@@ -392,7 +392,7 @@ function NewComparison({
     }
   };
   return (
-    <DialogFrame title={t("compare.new")} onClose={progress === null ? close : () => {}} outsideCloses={false}>
+    <DialogFrame title={t("compare.new")} onClose={close} outsideCloses={false} busy={progress !== null}>
       <form
         className="compare-form"
         onSubmit={(event) => {

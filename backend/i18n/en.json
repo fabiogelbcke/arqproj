@@ -396,6 +396,7 @@
     "connect": "Connect Google Drive",
     "reconnect": "Reconnect",
     "disconnect": "Disconnect",
+    "disconnectTitle": "Disconnect Google Drive?",
     "disconnectConfirm": "The portal stops reaching your Drive now. Files stay in the folder.",
     "connectedNow": "Google Drive connected.",
     "disconnectedNow": "Google Drive disconnected.",
@@ -475,6 +476,11 @@
   },
   "confirm": {
     "cancel": "Cancel"
+  },
+  "copy": {
+    "copied": "Link copied.",
+    "failed": "Couldn't copy. Select the link and copy it yourself.",
+    "failedLink": "Couldn't copy. The link is {{link}}"
   },
   "painelTour": {
     "again": "Explore the dashboard",
@@ -574,7 +580,6 @@
     "staffBar": "Office tools",
     "backToPainel": "Painel",
     "copyLink": "Copy the client's link",
-    "linkCopied": "Link copied.",
     "password": "Password",
     "enter": "Enter",
     "noFilesShort": "No files",
@@ -937,7 +942,6 @@
     "cancel": "Cancel invite",
     "cancelled": "Invite to {{email}} cancelled.",
     "copy": "Copy link",
-    "copied": "Link copied.",
     "linkTitle": "Invite with a link",
     "linkIntro": "Share this link to invite people to the team. It is valid for 24 hours and does not grant administrator access.",
     "linkOn": "Create invite link",
@@ -1057,8 +1061,6 @@
     "readyHint": "Send this link to whoever is receiving the files.",
     "link": "Link to share",
     "copy": "Copy link",
-    "copied": "Link copied",
-    "copyFailed": "Couldn't copy. Select the link and copy it yourself.",
     "shareSheet": "Share…",
     "done": "Done",
     "validUntil": "Valid until {{date}}",
@@ -1445,7 +1447,7 @@
       "paymentsDiffer": "The instalments add up to R${{paid}}, and the fees are R${{fee}}.",
       "terms": "Texts and terms",
       "notIncluded": "Services not included",
-      "notIncludedHint": "One per line.",
+      "notIncludedHint": "One per line, up to {{lines}} lines of {{chars}} characters.",
       "notes": "Notes",
       "office": "Office details",
       "officeHint": "Shown in the footer and by the signature. Any the office's details lack are saved there with the proposal; to change ones already saved, use Settings → Office.",
@@ -1484,7 +1486,9 @@
       "needsService": "Add at least one service.",
       "needsServiceTitle": "Give each service a name.",
       "needsFee": "Enter the fees.",
-      "badPayment": "Check each instalment's amount."
+      "badPayment": "Check each instalment's amount.",
+      "notIncludedTooMany": "Services not included: {{max}} lines at most. Combine or remove some.",
+      "notIncludedTooLong": "Services not included: line {{line}} is longer than {{max}} characters. Shorten it or split it in two."
     },
     "accept": {
       "action": "Proposal accepted",
@@ -1603,6 +1607,18 @@
     "passwordChanged": "Password changed. Other devices were signed out."
   },
   "portfolio": {
+    "mergeTitle": "Group into “{{title}}”?",
+    "mergeLoses": "The photos and videos move to “{{target}}”, which keeps its own texts. These will be discarded: {{lost}}.",
+    "mergeLostOf": "{{words}} of “{{name}}”",
+    "mergeWord": {"title": "the title", "place": "the place", "year": "the year", "description": "the description", "details": "the details sheet", "credits": "the credits"},
+    "mergeNote": "This can't be undone.",
+    "mergeConfirm": "Group and discard",
+    "removePhotoTitle": "Remove this photo?",
+    "removePhotoText": "The photo leaves the portfolio and goes to the office's Google Drive trash.",
+    "removeVideoTitle": "Remove this video?",
+    "removeVideoText": "The video leaves the portfolio and goes to the office's Google Drive trash.",
+    "photosUnreadable": "{{names}} couldn't be opened in the browser. Send photos as JPEG, PNG or WebP.",
+    "leave": {"ask": "Leave without saving the details?", "means": "Changes made since the last save will be lost.", "confirm": "Leave without saving", "cancel": "Keep editing"},
     "compare": "Before and after",
     "compareTag": "Before and after",
     "afterOf": "After of photo {{n}}",
@@ -1703,8 +1719,6 @@
     "removeFromPortfolio": "Remove from the portfolio",
     "share": "Share",
     "shareSection": "Share the section {{name}}",
-    "linkCopied": "Link copied.",
-    "copyFailed": "Couldn't copy. The address is {{url}}",
     "intro": "Introduction",
     "introHint": "Shows after the projects, in the Office section.",
     "introPlaceholder": "E.g. Residential and interior architecture in Porto Alegre.",

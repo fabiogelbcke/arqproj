@@ -20,11 +20,18 @@ import { TypeChoiceField, useStageChoice } from "./StageChoice";
  *  proposal until staff mark it accepted. Two ways in, one form. */
 export type NewKind = "project" | "proposal";
 
-function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
+function CreateForm({
+  kind,
+  create,
+  close,
+}: {
+  kind: NewKind;
+  create: ReturnType<typeof useCreateProject>; // the dialog's, which stays open while it runs
+  close: () => void;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const options = useCreationOptions();
-  const create = useCreateProject();
   // One per dialog: a double click or a retry returns the project already made.
   const [creationKey] = useState(() => crypto.randomUUID());
   const [name, setName] = useState("");
@@ -124,7 +131,9 @@ function CreateForm({ kind, close }: { kind: NewKind; close: () => void }) {
         </div>
       )}
       <div className={styles.setupActions}>
-        <Button onPress={close}>{t("newProject.cancel")}</Button>
+        <Button onPress={close} isDisabled={create.isPending}>
+          {t("newProject.cancel")}
+        </Button>
         <Button type="submit" variant="primary" isDisabled={create.isPending || !options.data}>
           {create.isPending
             ? t("newProject.creating")
@@ -163,6 +172,8 @@ function NeedsDrive({ close }: { close: () => void }) {
 function NewProjectDialog({ kind, onClose }: { kind: NewKind; onClose?: () => void }) {
   const { t } = useTranslation();
   const drive = useDrive();
+  // Here, not in the form: closing while the project is made would hide how it went.
+  const create = useCreateProject();
   // New folders are made with the office's grant and shown through the reader.
   const storageReady =
     drive.data?.kind === "folder" ||
@@ -170,12 +181,16 @@ function NewProjectDialog({ kind, onClose }: { kind: NewKind; onClose?: () => vo
       drive.data.writer_status === "connected" &&
       drive.data.reader_status === "ok");
   return (
-    <DialogFrame title={t(kind === "proposal" ? "newProject.titleProposal" : "newProject.title")} onClose={onClose}>
+    <DialogFrame
+      title={t(kind === "proposal" ? "newProject.titleProposal" : "newProject.title")}
+      onClose={onClose}
+      busy={create.isPending}
+    >
       {(close) =>
         !drive.data ? (
           <ErrorNotice error={drive.error} />
         ) : storageReady ? (
-          <CreateForm kind={kind} close={close} />
+          <CreateForm kind={kind} create={create} close={close} />
         ) : (
           <NeedsDrive close={close} />
         )

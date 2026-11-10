@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import styles from "../pages/pages.module.css";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { useDrive } from "./drive";
 
 /** Office-wide: the Drive connection expired, or its folder can't be read. (Not
@@ -11,7 +12,7 @@ import { useDrive } from "./drive";
 export function DriveNotice() {
   const { t } = useTranslation();
   const drive = useDrive();
-  if (drive.error) return <ErrorNotice error={drive.error} />;
+  if (loadError(drive)) return <ErrorNotice error={drive.error} />;
   const status = drive.data;
   if (!status || status.kind === "folder") return null;
   const expired = status.kind === "google" && status.writer_status === "expired";

@@ -49,12 +49,14 @@ const store = {
   snapshot: () => current,
 };
 
-/** The live region is always present, so screen readers announce each message. */
+/** The live region is always present, so screen readers announce each message.
+ *  It is a top layer for react-aria: an open dialog leaves it readable and
+ *  usable (a toast's "Desfazer"), and a click on it doesn't count as outside. */
 export function Toaster() {
   const { t } = useTranslation();
   const shown = useSyncExternalStore(store.subscribe, store.snapshot);
   return (
-    <div role="status" className={styles.toastRegion}>
+    <div role="status" className={styles.toastRegion} data-react-aria-top-layer="true">
       {shown && (
         <div key={shown.id} className={styles.toast} data-kind={shown.kind}>
           <span className={styles.toastMark} aria-hidden="true">

@@ -7,6 +7,7 @@ import { LogoPng, useOffice } from "../office/office";
 import { ConfirmEmailPage } from "../pages/ConfirmEmailPage";
 import { useMe, useSignedOut } from "../session/session";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { EXAMPLE_SLUG } from "../client/example/address";
 import { HeaderMenu } from "../ui/HeaderMenu";
 import { OfficeBrand } from "../ui/OfficeBrand";
@@ -48,7 +49,7 @@ function Painel() {
   const startTour = () => void import("./PainelTour").then(({ startPainelTour }) => startPainelTour({ t }));
 
   if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
-  if (me.error) return <main className={styles.centered}><ErrorNotice error={me.error} /></main>;
+  if (loadError(me)) return <main className={styles.centered}><ErrorNotice error={me.error} /></main>;
   if (!me.data) {
     const next = location.pathname + location.search;
     return <Navigate to={`/entrar?next=${encodeURIComponent(next)}`} replace />;

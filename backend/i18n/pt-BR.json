@@ -396,6 +396,7 @@
     "connect": "Conectar Google Drive",
     "reconnect": "Reconectar",
     "disconnect": "Desconectar",
+    "disconnectTitle": "Desconectar o Google Drive?",
     "disconnectConfirm": "O portal deixa de acessar o Drive agora. Os arquivos continuam na pasta.",
     "connectedNow": "Google Drive conectado.",
     "disconnectedNow": "Google Drive desconectado.",
@@ -475,6 +476,11 @@
   },
   "confirm": {
     "cancel": "Cancelar"
+  },
+  "copy": {
+    "copied": "Link copiado.",
+    "failed": "Não foi possível copiar. Selecione o link e copie manualmente.",
+    "failedLink": "Não foi possível copiar. O link é {{link}}"
   },
   "painelTour": {
     "again": "Ver o tour do painel",
@@ -574,7 +580,6 @@
     "staffBar": "Ferramentas do escritório",
     "backToPainel": "Painel",
     "copyLink": "Copiar link do cliente",
-    "linkCopied": "Link copiado.",
     "password": "Senha",
     "enter": "Entrar",
     "noFilesShort": "Sem arquivos",
@@ -937,7 +942,6 @@
     "cancel": "Cancelar convite",
     "cancelled": "Convite para {{email}} cancelado.",
     "copy": "Copiar link",
-    "copied": "Link copiado.",
     "linkTitle": "Convidar através de um link",
     "linkIntro": "Compartilhe este link para convidar pessoas para a equipe. Ele é válido por 24 horas e não concede acesso de administrador.",
     "linkOn": "Criar link de convite",
@@ -1057,8 +1061,6 @@
     "readyHint": "Envie este link a quem vai receber os arquivos.",
     "link": "Link para compartilhar",
     "copy": "Copiar link",
-    "copied": "Link copiado",
-    "copyFailed": "Não foi possível copiar. Selecione o link e copie manualmente.",
     "shareSheet": "Compartilhar…",
     "done": "Concluir",
     "validUntil": "Válido até {{date}}",
@@ -1445,7 +1447,7 @@
       "paymentsDiffer": "As parcelas somam R$ {{paid}}, e os honorários são R$ {{fee}}.",
       "terms": "Textos e condições",
       "notIncluded": "Serviços não incluídos",
-      "notIncludedHint": "Um por linha.",
+      "notIncludedHint": "Um por linha, até {{lines}} linhas de até {{chars}} caracteres.",
       "notes": "Observações",
       "office": "Dados do escritório",
       "officeHint": "Aparecem no rodapé e na assinatura. Os que faltarem nos dados do escritório são salvos lá com a proposta; para mudar os já salvos, use Configurações → Escritório.",
@@ -1484,7 +1486,9 @@
       "needsService": "Adicione pelo menos um serviço.",
       "needsServiceTitle": "Dê um nome a cada serviço.",
       "needsFee": "Informe o valor dos honorários.",
-      "badPayment": "Confira o valor de cada parcela."
+      "badPayment": "Confira o valor de cada parcela.",
+      "notIncludedTooMany": "Serviços não incluídos: no máximo {{max}} linhas. Junte ou remova algumas.",
+      "notIncludedTooLong": "Serviços não incluídos: a linha {{line}} passa de {{max}} caracteres. Encurte-a ou divida-a em duas."
     },
     "accept": {
       "action": "Proposta aceita",
@@ -1603,6 +1607,18 @@
     "passwordChanged": "Senha alterada. Os outros aparelhos foram desconectados."
   },
   "portfolio": {
+    "mergeTitle": "Juntar a “{{title}}”?",
+    "mergeLoses": "As fotos e os vídeos passam para “{{target}}”, que mantém os próprios textos. Serão descartados {{lost}}.",
+    "mergeLostOf": "{{words}} de “{{name}}”",
+    "mergeWord": {"title": "o título", "place": "o local", "year": "o ano", "description": "a descrição", "details": "a ficha técnica", "credits": "os créditos"},
+    "mergeNote": "Esta ação não pode ser desfeita.",
+    "mergeConfirm": "Juntar e descartar",
+    "removePhotoTitle": "Remover esta foto?",
+    "removePhotoText": "A foto sai do portfólio e vai para a lixeira do Google Drive do escritório.",
+    "removeVideoTitle": "Remover este vídeo?",
+    "removeVideoText": "O vídeo sai do portfólio e vai para a lixeira do Google Drive do escritório.",
+    "photosUnreadable": "Não foi possível abrir {{names}} no navegador. Envie as fotos em JPEG, PNG ou WebP.",
+    "leave": {"ask": "Sair sem salvar as informações?", "means": "As alterações feitas desde o último salvamento serão perdidas.", "confirm": "Sair sem salvar", "cancel": "Continuar editando"},
     "compare": "Antes e depois",
     "compareTag": "Antes e depois",
     "afterOf": "Depois da foto {{n}}",
@@ -1703,8 +1719,6 @@
     "removeFromPortfolio": "Remover do portfólio",
     "share": "Compartilhar",
     "shareSection": "Compartilhar a seção {{name}}",
-    "linkCopied": "Link copiado.",
-    "copyFailed": "Não foi possível copiar. O endereço é {{url}}",
     "intro": "Apresentação",
     "introHint": "Aparece depois dos projetos, na seção Escritório.",
     "introPlaceholder": "Ex.: Arquitetura residencial e de interiores em Porto Alegre.",

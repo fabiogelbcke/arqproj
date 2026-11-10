@@ -11,6 +11,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
+import { copyText } from "../ui/copyText";
 import { Toaster, toast, toastError } from "../ui/Toast";
 import { SiteFooter } from "../ui/UnioMark";
 import { EditButton, openOnClick } from "./EditButton";
@@ -994,13 +995,7 @@ function StaffBar({
         data-tour="link"
         aria-label={t("page.copyLink")}
         title={t("page.copyLink")}
-        onClick={() => {
-          const link = window.location.origin + window.location.pathname;
-          navigator.clipboard?.writeText(link).then(
-            () => toast(t("page.linkCopied")),
-            () => toast(link),
-          );
-        }}
+        onClick={() => void copyText(window.location.origin + window.location.pathname)}
       >
         <Icon name="link" />
       </button>

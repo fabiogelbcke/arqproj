@@ -208,7 +208,7 @@
 
 /* The bar at the bottom while pieces are selected: the project page's dock. */
 .dock {
-  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 40;
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: var(--z-floating);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 64px; padding: 12px 14px 12px 22px;
   width: min(calc(100vw - 32px), 920px); border-radius: 20px; background: var(--ink); color: var(--bg);
   box-shadow: 0 0 0 2px var(--bg), 0 14px 36px rgb(0 0 0 / 30%), 0 3px 8px rgb(0 0 0 / 18%);
