@@ -413,6 +413,7 @@ function Photos({ entry }: { entry: Entry }) {
   // Each comparison's "after" photo, by its id: the "before" photo it goes with.
   const afterOf = new Map(entry.photos.flatMap((photo) => (photo.comparison ? [[photo.comparison.after, photo.id]] : [])));
   const [comparing, setComparing] = useState<string | null>(null); // the "before" photo being paired
+  const [removing, setRemoving] = useState<string | null>(null); // the photo asked about
   const cover = entry.photos.find((photo) => !afterOf.has(photo.id))?.id;
   // Another photo still free to be this one's "after": in no comparison yet.
   const free = (id: string) =>
@@ -512,12 +513,7 @@ function Photos({ entry }: { entry: Entry }) {
                 <IconButton
                   label={t("portfolio.removePhoto")}
                   isDisabled={remove.isPending}
-                  onPress={() =>
-                    remove.mutate(photo.id, {
-                      onSuccess: () => toast(t("portfolio.photoRemoved")),
-                      onError: (failure) => toastError(failure),
-                    })
-                  }
+                  onPress={() => setRemoving(photo.id)}
                 >
                   ×
                 </IconButton>
@@ -525,6 +521,23 @@ function Photos({ entry }: { entry: Entry }) {
             </li>
           ))}
         </ol>
+      )}
+      {removing && (
+        <ConfirmDialog
+          title={t("portfolio.removePhotoTitle")}
+          text={t("portfolio.removePhotoText")}
+          confirm={t("portfolio.remove")}
+          danger
+          busy={remove.isPending}
+          onConfirm={() =>
+            remove.mutate(removing, {
+              onSuccess: () => toast(t("portfolio.photoRemoved")),
+              onError: (failure) => toastError(failure),
+              onSettled: () => setRemoving(null),
+            })
+          }
+          onCancel={() => setRemoving(null)}
+        />
       )}
       {comparing && <ComparePhotos entry={entry} before={comparing} onClose={() => setComparing(null)} />}
       {picking && (
@@ -558,6 +571,7 @@ function Videos({ entry }: { entry: Entry }) {
   const remove = useRemoveVideo();
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<{ n: number; total: number; percent: number } | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null); // the video asked about
   const room = LIMITS.videos - entry.videos.length;
 
   /** Each in turn: its poster first, which also shows the browser can play it. */
@@ -657,12 +671,7 @@ function Videos({ entry }: { entry: Entry }) {
                 <IconButton
                   label={t("portfolio.removeVideo")}
                   isDisabled={remove.isPending}
-                  onPress={() =>
-                    remove.mutate(video.id, {
-                      onSuccess: () => toast(t("portfolio.videoRemoved")),
-                      onError: (failure) => toastError(failure),
-                    })
-                  }
+                  onPress={() => setRemoving(video.id)}
                 >
                   ×
                 </IconButton>
@@ -670,6 +679,23 @@ function Videos({ entry }: { entry: Entry }) {
             </li>
           ))}
         </ol>
+      )}
+      {removing && (
+        <ConfirmDialog
+          title={t("portfolio.removeVideoTitle")}
+          text={t("portfolio.removeVideoText")}
+          confirm={t("portfolio.remove")}
+          danger
+          busy={remove.isPending}
+          onConfirm={() =>
+            remove.mutate(removing, {
+              onSuccess: () => toast(t("portfolio.videoRemoved")),
+              onError: (failure) => toastError(failure),
+              onSettled: () => setRemoving(null),
+            })
+          }
+          onCancel={() => setRemoving(null)}
+        />
       )}
     </section>
   );

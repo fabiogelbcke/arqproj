@@ -32,6 +32,7 @@ import {
   LIMITS,
   NETWORKS,
   isProject,
+  lostInMerge,
   resized,
   useAddEntry,
   useAddLoosePhoto,
@@ -470,7 +471,7 @@ function SectionCard({
   const order = useOrderSections();
   const remove = useRemoveSection();
   const change = useChangeEntry();
-  const merge = useMergeEntries();
+  const joining = useJoin();
   const reorder = useOrderEntries();
   const [over, setOver] = useState(false);
   const projects = entries.filter(isProject);
@@ -506,13 +507,14 @@ function SectionCard({
   const dropOn = async (target: Entry, where: "before" | "after" | "into") => {
     const ids = carried().filter((id) => id !== target.id);
     if (!ids.length) return;
-    try {
-      if (where === "into") {
-        await merge.mutateAsync({ into: target.id, entries: ids });
+    if (where === "into") {
+      const pieces = ids.flatMap((id) => all.find((entry) => entry.id === id) ?? []);
+      return joining.join(target, pieces, () => {
         toast(t(target.photos.length > 1 ? "portfolio.addedTo" : "portfolio.grouped", { title: nameOf(target, t) }));
         onSelect([]);
-        return;
-      }
+      });
+    }
+    try {
       const moving = new Set(ids);
       const rest = all.map((entry) => entry.id).filter((id) => !moving.has(id));
       const at = rest.indexOf(target.id) + (where === "after" ? 1 : 0);
@@ -631,8 +633,62 @@ function SectionCard({
           )}
         </div>
       )}
+      {joining.dialog}
     </section>
   );
+}
+
+/** Joining pieces into one (`target`): asked first when it throws away words of
+ *  theirs that the target already has (the server keeps the target's), naming
+ *  them; at once otherwise. A failure is a toast. */
+function useJoin() {
+  const { t, i18n } = useTranslation();
+  const merge = useMergeEntries();
+  const [asking, setAsking] = useState<{
+    target: Entry;
+    pieces: Entry[];
+    lost: ReturnType<typeof lostInMerge>;
+    done: () => void;
+  } | null>(null);
+  const run = async (target: Entry, pieces: Entry[], done: () => void) => {
+    try {
+      await merge.mutateAsync({ into: target.id, entries: pieces.map((piece) => piece.id) });
+      done();
+    } catch (failure) {
+      toastError(failure);
+    } finally {
+      setAsking(null);
+    }
+  };
+  const join = (target: Entry, pieces: Entry[], done: () => void) => {
+    const lost = lostInMerge(target, pieces);
+    if (lost.length) setAsking({ target, pieces, lost, done });
+    else void run(target, pieces, done);
+  };
+  const list = (items: string[]) => new Intl.ListFormat(i18n.language).format(items);
+  const dialog = asking && (
+    <ConfirmDialog
+      title={t("portfolio.mergeTitle", { title: nameOf(asking.target, t) })}
+      text={t("portfolio.mergeLoses", {
+        target: nameOf(asking.target, t),
+        lost: list(
+          asking.lost.map(({ entry, words }) =>
+            t("portfolio.mergeLostOf", {
+              words: list(words.map((word) => t(`portfolio.mergeWord.${word}`))),
+              name: nameOf(entry, t),
+            }),
+          ),
+        ),
+      })}
+      note={t("portfolio.mergeNote")}
+      confirm={t("portfolio.mergeConfirm")}
+      danger
+      busy={merge.isPending}
+      onConfirm={() => void run(asking.target, asking.pieces, asking.done)}
+      onCancel={() => setAsking(null)}
+    />
+  );
+  return { join, dialog, busy: merge.isPending };
 }
 
 function Group({ title, count, children }: { title: string; count: number; children: ReactNode }) {
@@ -846,40 +902,28 @@ function SelectionBar({
   onOpen: (entry: Entry) => void;
 }) {
   const { t } = useTranslation();
-  const merge = useMergeEntries();
+  const joining = useJoin();
   const split = useSplitEntry();
   const change = useChangeEntry();
   const remove = useRemoveEntry();
   const [removing, setRemoving] = useState(false);
   const ids = chosen.map((entry) => entry.id);
   const images = chosen.reduce((n, entry) => n + entry.photos.length, 0);
-  const busy = merge.isPending || split.isPending || change.isPending || remove.isPending;
+  const busy = joining.busy || split.isPending || change.isPending || remove.isPending;
   const others = portfolio.entries.filter((entry) => isProject(entry) && !ids.includes(entry.id));
   const one = chosen.length === 1 ? chosen[0]! : null;
   const group = () => {
     const [first, ...rest] = chosen;
-    merge.mutate(
-      { into: first!.id, entries: rest.map((entry) => entry.id) },
-      {
-        onSuccess: () => {
-          toast(t("portfolio.grouped"));
-          onClear();
-        },
-        onError: (failure) => toastError(failure),
-      },
-    );
+    joining.join(first!, rest, () => {
+      toast(t("portfolio.grouped"));
+      onClear();
+    });
   };
   const addTo = (target: Entry) =>
-    merge.mutate(
-      { into: target.id, entries: ids },
-      {
-        onSuccess: () => {
-          toast(t("portfolio.addedTo", { title: nameOf(target, t) }));
-          onClear();
-        },
-        onError: (failure) => toastError(failure),
-      },
-    );
+    joining.join(target, chosen, () => {
+      toast(t("portfolio.addedTo", { title: nameOf(target, t) }));
+      onClear();
+    });
   const moveTo = async (section: Section | null) => {
     try {
       for (const id of ids) await change.mutateAsync({ id, section_id: section?.id ?? null });
@@ -966,6 +1010,7 @@ function SelectionBar({
       <IconButton label={t("portfolio.clearSelection")} onPress={onClear}>
         ×
       </IconButton>
+      {joining.dialog}
       {removing && (
         <ConfirmDialog
           title={t("portfolio.removeManyTitle", { count: chosen.length })}

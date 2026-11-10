@@ -154,6 +154,26 @@ export const useMergeEntries = () =>
     call(api.POST("/api/portfolio/entries/{entry_id}/merge", { params: { path: { entry_id: into } }, body: { entries } })),
   );
 
+/** A piece's own words that grouping can carry over: the sheet is its lines. */
+export const MERGED_WORDS = ["title", "place", "year", "description", "details", "credits"] as const;
+export type MergedWord = (typeof MERGED_WORDS)[number];
+
+const hasWord = (entry: Entry, word: MergedWord) =>
+  word === "details" ? entry.details.length > 0 : !!entry[word];
+
+/** What grouping `others` into `into` throws away, as the server does it: each
+ *  word `into` lacks comes from the first of the others that has it; the rest
+ *  of their words go with them. Only the pieces that lose something. */
+export function lostInMerge(into: Entry, others: Entry[]): { entry: Entry; words: MergedWord[] }[] {
+  const filled = new Set(MERGED_WORDS.filter((word) => hasWord(into, word)));
+  return others.flatMap((entry) => {
+    const own = MERGED_WORDS.filter((word) => hasWord(entry, word));
+    const words = own.filter((word) => filled.has(word));
+    own.forEach((word) => filled.add(word));
+    return words.length ? [{ entry, words }] : [];
+  });
+}
+
 /** Ungrouping: every image after the first becomes a piece of its own, right after it. */
 export const useSplitEntry = () =>
   useChange((id: string) =>

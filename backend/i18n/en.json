@@ -1605,6 +1605,18 @@
     "passwordChanged": "Password changed. Other devices were signed out."
   },
   "portfolio": {
+    "mergeTitle": "Group into “{{title}}”?",
+    "mergeLoses": "The photos and videos move to “{{target}}”, which keeps its own texts. These will be discarded: {{lost}}.",
+    "mergeLostOf": "{{words}} of “{{name}}”",
+    "mergeWord": {"title": "the title", "place": "the place", "year": "the year", "description": "the description", "details": "the details sheet", "credits": "the credits"},
+    "mergeNote": "This can't be undone.",
+    "mergeConfirm": "Group and discard",
+    "removePhotoTitle": "Remove this photo?",
+    "removePhotoText": "The photo leaves the portfolio and goes to the office's Google Drive trash.",
+    "removeVideoTitle": "Remove this video?",
+    "removeVideoText": "The video leaves the portfolio and goes to the office's Google Drive trash.",
+    "photosUnreadable": "{{names}} couldn't be opened in the browser. Send photos as JPEG, PNG or WebP.",
+    "leave": {"ask": "Leave without saving the details?", "means": "Changes made since the last save will be lost.", "confirm": "Leave without saving", "cancel": "Keep editing"},
     "compare": "Before and after",
     "compareTag": "Before and after",
     "afterOf": "After of photo {{n}}",

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi, ME, renderAt, TENANT } from "../test/render";
-import { moved, parsedArea, sendVideo, videoPoster, type Entry, type Portfolio } from "./portfolio";
+import { lostInMerge, moved, parsedArea, sendVideo, videoPoster, type Entry, type Portfolio } from "./portfolio";
 
 // A browser decodes the video for its poster and sends it to Drive: neither
 // happens in the test's document, so both are stood in for.
@@ -75,6 +75,17 @@ function api(extra = {}) {
     "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: true, has_project: true } }),
     ...extra,
   });
+}
+
+/** A piece's tile in the tab, by its name. */
+const tile = async (name: string) => (await screen.findByRole("checkbox", { name: `Selecionar ${name}` })).closest("li")!;
+
+/** A tile dragged and dropped in another's middle (the test's tiles have no size: always the middle). */
+function dragOnto(from: Element, to: Element) {
+  fireEvent.dragStart(from, { dataTransfer: { effectAllowed: "" } });
+  fireEvent.dragOver(to, { dataTransfer: {} });
+  fireEvent.drop(to, { dataTransfer: {} });
+  fireEvent.dragEnd(from, { dataTransfer: {} });
 }
 
 describe("the Portfólio tab", () => {
@@ -293,6 +304,44 @@ describe("the Portfólio tab", () => {
       expect(sent.find((call) => call.method === "POST")?.body).toEqual({ entries: ["e-2"] }),
     );
     expect(await screen.findByText("Projeto criado.")).toBeInTheDocument();
+  });
+
+  it("joins a piece dropped in another's middle at once when nothing of its own is lost", async () => {
+    const sent = api({ "POST /api/portfolio/entries/e-1/merge": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio");
+    dragOnto(await tile("Foto"), await tile("Casa Jardim")); // the photo has no words of its own
+    await waitFor(() =>
+      expect(sent.find((call) => call.method === "POST")?.body).toEqual({ entries: ["e-3"] }),
+    );
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("asks before a drop throws away the dragged piece's own words, naming them", async () => {
+    const sent = api({ "POST /api/portfolio/entries/e-1/merge": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio");
+    dragOnto(await tile("Loja Centro"), await tile("Casa Jardim"));
+    const ask = await screen.findByRole("alertdialog", { name: "Juntar a “Casa Jardim”?" });
+    expect(ask).toHaveTextContent("Serão descartados o título de “Loja Centro”.");
+    expect(within(ask).getByRole("button", { name: "Cancelar" })).toHaveFocus(); // destructive: starts on Cancelar
+    await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
+    expect(sent.some((call) => call.method === "POST")).toBe(false);
+
+    dragOnto(await tile("Loja Centro"), await tile("Casa Jardim"));
+    await userEvent.click(await screen.findByRole("button", { name: "Juntar e descartar" }));
+    await waitFor(() =>
+      expect(sent.find((call) => call.method === "POST")?.body).toEqual({ entries: ["e-2"] }),
+    );
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+  });
+
+  it("asks the same before grouping from the bar loses words", async () => {
+    const sent = api({ "POST /api/portfolio/entries/e-1/merge": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio");
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Selecionar Casa Jardim" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar Loja Centro" }));
+    await userEvent.click(screen.getByRole("button", { name: "Agrupar em projeto" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("o título de “Loja Centro”");
+    expect(sent.some((call) => call.method === "POST")).toBe(false);
   });
 
   it("moves selected pieces to another section from the bar", async () => {
@@ -652,6 +701,30 @@ describe("a work's before and after (A46)", () => {
   });
 });
 
+describe("removing a work's photo or video", () => {
+  const video = { id: "v-1", url: "/api/portfolio/videos/v-1", poster_url: "/api/portfolio/videos/v-1/poster" };
+  const WITH_VIDEO = { ...PORTFOLIO, entries: [entry({ videos: [video] }), ...PORTFOLIO.entries.slice(1)] };
+
+  it.each([
+    ["Remover foto", "Remover esta foto?", "/api/portfolio/photos/f-1"],
+    ["Remover vídeo", "Remover este vídeo?", "/api/portfolio/videos/v-1"],
+  ])("asks first (%s), starting on Cancelar, and removes only when confirmed", async (button, question, path) => {
+    const sent = api({ ...NO_TYPES, "GET /api/portfolio": () => ({ body: WITH_VIDEO }), [`DELETE ${path}`]: () => ({ body: WITH_VIDEO }) });
+    renderAt("/portfolio/e-1");
+    await userEvent.click(await screen.findByRole("button", { name: button }));
+    const ask = await screen.findByRole("alertdialog", { name: question });
+    expect(ask).toHaveTextContent("lixeira do Google Drive");
+    expect(within(ask).getByRole("button", { name: "Cancelar" })).toHaveFocus();
+    await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
+    expect(sent.some((call) => call.method === "DELETE")).toBe(false);
+
+    await userEvent.click(screen.getByRole("button", { name: button }));
+    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Remover" }));
+    await waitFor(() => expect(sent.find((call) => call.method === "DELETE")?.path).toBe(path));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+  });
+});
+
 describe("a work's videos", () => {
   const MP4 = () => new File(["mp4"], "obra.mp4", { type: "video/mp4" });
   const videoInput = () => document.querySelector<HTMLInputElement>('input[accept="video/mp4,video/webm"]')!;
@@ -703,6 +776,25 @@ describe("parsedArea", () => {
     expect(parsedArea("0")).toBe(0); // as a project's details allow
     expect(parsedArea("10.000.000")).toBe(10000000);
     expect(parsedArea("abc")).toBeUndefined();
+  });
+});
+
+describe("lostInMerge", () => {
+  const bare = entry({ title: "", place: "", year: null, project_id: null, project_name: null });
+  const line = { key: "area", label: "Área", type: "area", value: "120" } as Entry["details"][number];
+
+  it("loses nothing the target lacks: the first piece that has a word gives it", () => {
+    expect(lostInMerge(bare, [entry({ id: "a", title: "Casa", place: "", year: null, details: [line] })])).toEqual([]);
+  });
+
+  it("names, per piece, the words the target (or a piece before it) already gave", () => {
+    const target = entry({ title: "Casa", place: "", year: null, credits: "Foto: Ana" });
+    const first = entry({ id: "a", title: "Loja", place: "Centro", year: null, credits: "", description: "Uma loja." });
+    const second = entry({ id: "b", title: "", place: "Bairro", year: null, credits: "Foto: Bia", details: [line] });
+    expect(lostInMerge(target, [first, second])).toEqual([
+      { entry: first, words: ["title"] },
+      { entry: second, words: ["place", "credits"] }, // the place came from the first piece
+    ]);
   });
 });
 
