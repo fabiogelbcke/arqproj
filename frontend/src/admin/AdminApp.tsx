@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { hashKey, QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
@@ -116,6 +116,8 @@ function Layout({ me }: { me: Operator }) {
     mutationFn: () => call(api.POST("/api/admin/signout")),
     onSuccess: () => {
       setCsrfToken(null);
+      // Nothing the operator loaded stays for whoever signs in next.
+      client.removeQueries({ predicate: (query) => query.queryHash !== hashKey(ME) });
       client.setQueryData(ME, null);
     },
   });

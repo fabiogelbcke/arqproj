@@ -1,5 +1,5 @@
 // Who is signed in. The app asks /api/me on start; 401 means "show sign-in".
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { hashKey, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import { ApiError, api, call, setCsrfToken, type Me, type Schemas } from "../api/client";
 import { resetAnalytics, startAnalytics } from "../posthog";
@@ -41,12 +41,23 @@ export function useTenant() {
   });
 }
 
-/** After signing in or choosing a password: the response is the new /api/me. */
+/** Everything the painel loaded for the person who was signed in (the projects,
+ *  the team, the proposals…), so that the next one never sees it, even for a
+ *  moment. Who is signed in is replaced by the caller; the office's public
+ *  details (the sign-in page's) stay. */
+function forgetSession(client: QueryClient) {
+  const kept = [hashKey(ME), hashKey(TENANT)];
+  client.removeQueries({ predicate: (query) => !kept.includes(query.queryHash) });
+}
+
+/** After signing in or choosing a password: the response is the new /api/me.
+ *  Someone else than before (or no one before): nothing of theirs is kept. */
 export function useSignedIn() {
   const client = useQueryClient();
   return (me: Me) => {
     setCsrfToken(me.csrf_token);
     void startAnalytics(me);
+    if (client.getQueryData<Me | null>(ME)?.id !== me.id) forgetSession(client);
     client.setQueryData(ME, me);
   };
 }
@@ -56,6 +67,7 @@ export function useSignedOut() {
   return () => {
     resetAnalytics();
     setCsrfToken(null);
+    forgetSession(client);
     client.setQueryData(ME, null);
   };
 }

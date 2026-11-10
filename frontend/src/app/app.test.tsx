@@ -201,6 +201,60 @@ describe("signed in", () => {
   });
 });
 
+describe("signing out, then in as someone else", () => {
+  it("never shows the last person's projects, even while the new list loads", async () => {
+    const BRUNO = { ...ME, id: "00000000-0000-0000-0000-0000000000b2", email: "bruno@alinea.example", name: "Bruno" };
+    const project = {
+      id: "p-1",
+      name: "Casa da Ana",
+      client_name: "Família Oliveira",
+      slug: "casa-da-ana",
+      status: "active",
+      project_type: "architecture",
+      project_type_label: "Projeto Arquitetônico",
+      stage_count: 7,
+      completed_stage_count: 2,
+      current_position: null,
+      current_stage_title: null,
+      next_meeting: null,
+      created_at: "2026-09-01T12:00:00Z",
+      last_activity_at: null,
+      row_version: 1,
+      cover_url: null,
+      access_mode: "public",
+      recipients: [],
+      members: [],
+    };
+    let who: typeof ME | null = ME;
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => (who ? { body: who } : notSignedIn),
+      "DELETE /api/session": () => {
+        who = null;
+        return { status: 204 };
+      },
+      "POST /api/session": () => {
+        who = BRUNO;
+        return { body: BRUNO };
+      },
+      "GET /api/drive": () => ({ body: { kind: "folder", writer_status: "none", reader_status: "unknown", can_manage: true } }),
+      // Ana's list; Bruno's never arrives in this test.
+      "GET /api/projects": () => (who === ME ? { body: [project] } : new Promise(() => undefined)),
+    });
+    const router = renderAt("/");
+    expect(await screen.findByText("Casa da Ana")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Sair" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
+    await userEvent.type(screen.getByLabelText(/E-mail/), BRUNO.email);
+    await userEvent.type(screen.getByLabelText(/Senha/), "a password");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    await screen.findByRole("heading", { name: "Projetos" });
+    expect(screen.queryByText("Casa da Ana")).toBeNull();
+  });
+});
+
 describe("a failed refresh", () => {
   it("keeps the painel when checking who is signed in fails after a change", async () => {
     let checks = 0;
