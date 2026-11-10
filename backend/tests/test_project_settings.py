@@ -310,6 +310,21 @@ async def test_on_drive_the_cover_goes_into_a_capa_folder_and_replaces_the_old(
     assert "PATCH /drive/v3/files/new2" in fake.calls  # the first photo, trashed
 
 
+async def test_on_drive_the_old_cover_stays_until_the_new_one_is_saved(
+    client, db_session, owner, on_google
+):
+    """Trashed only once the project points at the new one: had the save failed,
+    the project would still show a photo in the trash."""
+    fake, _ = on_google
+    found = await project(client)
+    await upload(client, owner, found, PNG)  # new1: the _capa folder, new2: the photo
+    await db_session.execute(  # the next photo (new3) can't be saved
+        text("ALTER TABLE projects ADD CONSTRAINT refuses_new3 CHECK (cover_file_id <> 'new3')")
+    )
+    assert (await upload(client, owner, found, PNG)).status_code == 500
+    assert "PATCH /drive/v3/files/new2" not in fake.calls
+
+
 async def test_on_drive_a_failure_says_try_again(app, client, owner, on_google):
     import httpx2
 
