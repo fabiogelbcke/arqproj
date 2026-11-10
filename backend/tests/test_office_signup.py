@@ -147,7 +147,7 @@ async def test_the_app_role_cannot_read_signup_links(app, actions_enabled):
     # Only the operator login reads them: the app's own login, which every office
     # page uses, has no grant at all (a violation case for the rule).
     async with app.state.sessionmaker() as db:
-        with pytest.raises(ProgrammingError):
+        with pytest.raises(ProgrammingError, match="permission denied"):
             await db.execute(text("SELECT * FROM office_signup_links"))
     async with app.state.operator_sessionmaker() as db:
         await db.execute(text("SELECT count(*) FROM office_signup_links"))

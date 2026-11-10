@@ -72,7 +72,7 @@ def _logo(content: bytes | None) -> Image.Image | None:
     try:
         image = Image.open(io.BytesIO(content))
         image.load()
-    except Exception:  # noqa: BLE001 - a broken logo must not stop the proposal
+    except Exception:  # a broken logo must not stop the proposal
         log.warning("proposal: the office's logo could not be read")
         return None
     return image

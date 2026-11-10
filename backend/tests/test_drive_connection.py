@@ -18,6 +18,7 @@ from backend.storage.google import GoogleDriveStorage
 from backend.storage.models import StorageConnection, StorageKind, WriterStatus
 from backend.tenancy.models import Tenant
 from backend.tests.conftest import TEST_DATABASE_URL
+from backend.tests.test_team import lock_waiters
 from backend.web import auth, drive
 
 pytestmark = pytest.mark.anyio
@@ -497,6 +498,7 @@ async def test_starting_afresh_gives_every_project_and_stage_an_empty_folder(
     assert saved.root_id not in ("root1", "") and saved.writer_status is WriterStatus.CONNECTED
     projects, stages, logo = await folders_of(db_session)
     assert projects and len(projects) == len(projects_before)
+    assert len(stages) == len(stages_before)
     new_folders = {folder for folder, _cover, _scanned in projects} | set(stages)
     assert all(f and f.startswith("new") for f in new_folders)  # all in the new account
     assert len(new_folders) == len(projects) + len(stages)
@@ -587,7 +589,7 @@ async def test_starting_afresh_waits_for_a_scan_of_the_old_folders(
                 {"key": MAINTENANCE_LOCK, "project": str(project)},
             )
             switch = asyncio.create_task(come_back(client, await start(client, owner, fresh=True)))
-            await asyncio.sleep(1)
+            await lock_waiters(scanner, stop=switch.done)
             assert not switch.done()  # waiting for the scan
         done = await asyncio.wait_for(switch, 10)  # the scan ended: the switch goes on
     finally:

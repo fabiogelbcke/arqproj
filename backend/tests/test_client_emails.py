@@ -492,11 +492,10 @@ async def test_the_email_shows_a_logo_email_programs_can_show(
 async def test_names_the_office_typed_cant_inject_html(
     app, client, db_session, owner, outbox, ready
 ):
-    from datetime import date, timedelta
-
     from backend.tests.test_maintenance_scan import call
+    from backend.tests.test_page_edit import in_days
 
-    day = (date.today() + timedelta(days=5)).isoformat()
+    day = in_days(5)
     await call(
         client, owner, "PUT", "/meeting", title="<img src=x onerror=1>", day=day, start="10:00"
     )
@@ -510,11 +509,12 @@ async def test_names_the_office_typed_cant_inject_html(
 async def test_several_meeting_changes_read_as_the_latest(
     app, client, db_session, owner, outbox, ready
 ):
-    from datetime import date, timedelta
+    from datetime import date
 
     from backend.tests.test_maintenance_scan import call
+    from backend.tests.test_page_edit import in_days
 
-    day = (date.today() + timedelta(days=5)).isoformat()
+    day = in_days(5)
     await call(client, owner, "PUT", "/meeting", title="Visita", day=day, start="10:00")
     await call(client, owner, "PUT", "/meeting", title="Visita à obra", day=day, start="15:30")
     await run(app, outbox)
@@ -529,9 +529,8 @@ async def test_several_meeting_changes_read_as_the_latest(
 async def test_a_meeting_scheduled_and_cancelled_meanwhile_is_not_news(
     app, client, db_session, owner, outbox, ready
 ):
-    from datetime import date, timedelta
-
     from backend.tests.test_maintenance_scan import call
+    from backend.tests.test_page_edit import in_days
 
     # Casa Jardim's seed meeting is cleared first, so the next one is new.
     await call(client, owner, "DELETE", "/meeting")
@@ -540,7 +539,7 @@ async def test_a_meeting_scheduled_and_cancelled_meanwhile_is_not_news(
     await run(app, outbox)
     cancelled = [e.text for e in outbox.sent]
     assert any("foi cancelada" in t_ for t_ in cancelled)  # it was announced before: news
-    day = (date.today() + timedelta(days=5)).isoformat()
+    day = in_days(5)
     await call(client, owner, "PUT", "/meeting", title="Visita", day=day, start="10:00")
     await call(client, owner, "DELETE", "/meeting")
     await run(app, outbox)
@@ -645,7 +644,7 @@ async def test_the_database_refuses_linking_a_change_to_another_projects_email(
              f"'project_completed' FROM projects WHERE id = {other}")
     )  # fmt: skip
     nested = await db_session.begin_nested()
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityError, match="fk_project_events_batch"):
         await db_session.execute(
             text(
                 f"UPDATE project_events SET batch_id = (SELECT id FROM notification_batches "

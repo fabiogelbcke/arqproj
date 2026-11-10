@@ -354,6 +354,27 @@ async def test_a_device_asking_again_and_again_must_wait(client, owner, sent):
     assert (response.status_code, response.json()) == (429, {"error": "too_many_attempts"})
 
 
+async def lock_waiters(engine, at_least: int = 1, query: str = "%", stop=lambda: False) -> int:
+    """How many connections wait for a lock (pg_stat_activity), once there are
+    `at_least` of them or `stop()` holds: a test sees a request waiting instead of
+    guessing with a sleep. Fails after 10 seconds."""
+    async with engine.connect() as observer:
+        with anyio.fail_after(10):
+            while True:
+                waiting = await observer.scalar(
+                    text(
+                        "SELECT count(*) FROM pg_stat_activity "
+                        "WHERE datname = current_database() "
+                        "AND wait_event_type = 'Lock' AND query LIKE :query"
+                    ),
+                    {"query": query},
+                )
+                await observer.commit()  # fresh activity snapshot
+                if waiting >= at_least or stop():
+                    return waiting
+                await anyio.sleep(0.02)
+
+
 async def test_requests_for_one_address_wait_for_each_other(client, owner, sent):
     """Two at once for a new address must not both find no account and both make
     one: the second waits for the first's lock, which holds across connections."""
@@ -373,12 +394,13 @@ async def test_requests_for_one_address_wait_for_each_other(client, owner, sent)
                     text("SELECT pg_advisory_xact_lock(hashtext('staff-email'), hashtext(:e))"),
                     {"e": "caio@gmail.com"},
                 )
-                async with anyio.create_task_group() as tasks:
-                    tasks.start_soon(request)
-                    await anyio.sleep(0.5)
-                    assert not done.is_set()  # waiting for the lock
-                    await holder.commit()  # let go
-            await done.wait()
+                with anyio.fail_after(10):
+                    async with anyio.create_task_group() as tasks:
+                        tasks.start_soon(request)
+                        await lock_waiters(other, stop=done.is_set)
+                        assert not done.is_set()  # waiting for the lock
+                        await holder.commit()  # let go
+            assert done.is_set()
     finally:
         await other.dispose()
     assert answers == [201]
@@ -399,12 +421,13 @@ async def _waits_for(lock_sql: str, key: str, call) -> int:
         async with other.connect() as holder:
             async with holder.begin():
                 await holder.execute(text(lock_sql), {"k": key})
-                async with anyio.create_task_group() as tasks:
-                    tasks.start_soon(request)
-                    await anyio.sleep(0.5)
-                    assert not done.is_set()  # waiting for the lock
-                    await holder.commit()
-            await done.wait()
+                with anyio.fail_after(10):
+                    async with anyio.create_task_group() as tasks:
+                        tasks.start_soon(request)
+                        await lock_waiters(other, stop=done.is_set)
+                        assert not done.is_set()  # waiting for the lock
+                        await holder.commit()
+            assert done.is_set()
     finally:
         await other.dispose()
     return answers[0]
@@ -630,21 +653,9 @@ async def test_concurrent_owner_joins_create_only_one_account(test_database_url,
                 async with anyio.create_task_group() as tasks:
                     tasks.start_soon(request, "ana@example.com")
                     tasks.start_soon(request, "bia@example.com")
-                    async with owner_engine.connect() as observer:
-                        with anyio.fail_after(10):
-                            while True:
-                                waiting = await observer.scalar(
-                                    text(
-                                        "SELECT count(*) FROM pg_stat_activity "
-                                        "WHERE datname = current_database() "
-                                        "AND wait_event_type = 'Lock' "
-                                        "AND query LIKE 'UPDATE join_links%'"
-                                    )
-                                )
-                                await observer.commit()  # fresh activity snapshot
-                                if waiting == 2 or answers:
-                                    break
-                                await anyio.sleep(0.02)
+                    waiting = await lock_waiters(
+                        owner_engine, 2, "UPDATE join_links%", stop=lambda: bool(answers)
+                    )
                     assert waiting == 2 and answers == []
                     await holder.commit()
         assert sorted(answer.status_code for answer in answers) == [201, 404]
