@@ -1085,14 +1085,17 @@ function ReviewDialog({
         <div className={styles.forAll}>
           <h3>{t("portfolio.forAll")}</h3>
           <div className={styles.typeRow}>
+            {/* Into an existing project, the photos take its section; once the
+                upload began, the section stays what the first photos got. */}
             <SelectField
               label={t("portfolio.section")}
-              value={section}
+              value={where === "existing" ? (projects.find((entry) => entry.id === project)?.section_id ?? "") : section}
               options={[
                 { value: "", label: t("portfolio.typeNone") },
                 ...sections.map((item) => ({ value: item.id, label: item.name })),
               ]}
               onChange={setSection}
+              disabled={where === "existing" || started}
             />
           </div>
           <div className={styles.where} role="radiogroup" aria-label={t("portfolio.where")}>

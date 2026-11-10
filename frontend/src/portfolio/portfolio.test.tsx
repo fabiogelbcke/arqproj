@@ -217,9 +217,16 @@ describe("the Portfólio tab", () => {
     expect(within(dialog).getAllByLabelText(/^Legenda da foto/)).toHaveLength(3);
     await userEvent.click(within(dialog).getByRole("radio", { name: "Um projeto novo" }));
     expect(within(dialog).queryByLabelText(/^Legenda da foto/)).toBeNull();
+    // Into an existing project, the photos take its section: the choice follows it.
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Em um projeto" }));
+    expect(within(dialog).getByRole("combobox", { name: "Seção" })).toBeDisabled();
+    expect(within(dialog).getByRole("combobox", { name: "Seção" })).toHaveValue("s-arch"); // Casa Jardim's
     await userEvent.click(within(dialog).getByRole("radio", { name: "Fotos soltas" }));
+    expect(within(dialog).getByRole("combobox", { name: "Seção" })).toBeEnabled();
     await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar" }));
     expect(await within(dialog).findByText("O envio parou em 1 de 3. As que faltam podem ser enviadas de novo.")).toBeInTheDocument();
+    // What was sent went to Interiores: the section can't change under the rest.
+    expect(within(dialog).getByRole("combobox", { name: "Seção" })).toBeDisabled();
     expect(sent.filter((call) => call.path === "/api/portfolio/photos")).toHaveLength(2);
     await userEvent.click(within(dialog).getByRole("button", { name: "Enviar as que faltam" }));
     // Two more, never the one already in: four calls for three photos.
