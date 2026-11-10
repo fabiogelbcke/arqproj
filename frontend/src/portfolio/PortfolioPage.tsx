@@ -23,7 +23,8 @@ import { Panel } from "../ui/Panel";
 import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
 import { TextAreaField, TextField } from "../ui/TextField";
-import { toast, toastError, toastProblem } from "../ui/Toast";
+import { copyText } from "../ui/copyText";
+import { toast, toastError } from "../ui/Toast";
 import { ToggleSwitch } from "../ui/ToggleSwitch";
 import {
   FORMATS,
@@ -146,19 +147,14 @@ export function SeePortfolio({ published, work }: { published: boolean; work?: s
 
 /** "Compartilhar": the portfolio's address, or a section's, on the clipboard;
  *  on a phone, the system's share sheet. */
-export async function shareLink(section: Section | null, t: Translate) {
+export async function shareLink(section: Section | null) {
   const url = new URL(sectionLink(section), window.location.origin).toString();
   capture("portfolio_link_shared", { section: section !== null });
   if (navigator.share && window.matchMedia?.("(pointer: coarse)").matches) {
     await navigator.share({ url, title: section?.name }).catch(() => undefined); // closed: nothing to say
     return;
   }
-  try {
-    await navigator.clipboard.writeText(url);
-    toast(t("portfolio.linkCopied"));
-  } catch {
-    toastProblem(t("portfolio.copyFailed", { url }));
-  }
+  await copyText(url);
 }
 
 function ShareIcon() {
@@ -176,13 +172,13 @@ function ShareButton({ section }: { section: Section | null }) {
   const { t } = useTranslation();
   if (section) {
     return (
-      <IconButton label={t("portfolio.shareSection", { name: section.name })} onPress={() => void shareLink(section, t)}>
+      <IconButton label={t("portfolio.shareSection", { name: section.name })} onPress={() => void shareLink(section)}>
         <ShareIcon />
       </IconButton>
     );
   }
   return (
-    <Button onPress={() => void shareLink(null, t)}>
+    <Button onPress={() => void shareLink(null)}>
       <ShareIcon /> {t("portfolio.share")}
     </Button>
   );
@@ -305,7 +301,7 @@ function Social({ portfolio }: { portfolio: Portfolio }) {
 
 /** A drop of photos being reviewed: the files, the section they were dropped
  *  on, and whether they were sent as one project. */
-type Drop = { files: File[]; section: Section | null; asProject: boolean };
+type Drop = { id: number; files: File[]; section: Section | null; asProject: boolean };
 
 /** What a piece is called where a name is needed: its title, else its kind. */
 function nameOf(entry: Entry, t: Translate): string {
@@ -383,7 +379,7 @@ function Sections({ portfolio }: { portfolio: Portfolio }) {
           onFold={() => fold(section?.id ?? "none")}
           onToggle={toggle}
           onOpen={open}
-          onDrop={(files, asProject) => setDrop({ files, section, asProject })}
+          onDrop={(files, asProject) => setDrop((before) => ({ id: (before?.id ?? 0) + 1, files, section, asProject }))}
           onRename={() => section && setNaming(section)}
           onSelect={(ids) => setSelected(new Set(ids))}
         />
@@ -404,6 +400,7 @@ function Sections({ portfolio }: { portfolio: Portfolio }) {
       )}
       {drop && (
         <ReviewDialog
+          key={drop.id} // each drop starts afresh, never with the last one's captions or progress
           drop={drop}
           sections={portfolio.sections}
           projects={portfolio.entries.filter(isProject)}
@@ -1060,7 +1057,7 @@ function ReviewDialog({
   const started = sent.current.size > 0 || made.current !== null;
 
   return (
-    <DialogFrame title={t("portfolio.arrived", { count })} onClose={progress ? undefined : onClose} outsideCloses={false}>
+    <DialogFrame title={t("portfolio.arrived", { count })} onClose={onClose} outsideCloses={false} busy={!!progress}>
       <div className={styles.dialogBody}>
         <p className={styles.hint}>{t(where === "loose" ? "portfolio.reviewHint" : "portfolio.reviewHintProject")}</p>
         <ul className={styles.arrived}>
@@ -1173,7 +1170,7 @@ function PhotoSheet({ entry, sections, onClose }: { entry: Entry; sections: Sect
   const [removing, setRemoving] = useState(false);
   const cover = entry.photos[0];
   return (
-    <DialogFrame title={t("portfolio.photo")} onClose={onClose}>
+    <DialogFrame title={t("portfolio.photo")} onClose={onClose} busy={change.isPending || remove.isPending}>
       <div className={styles.dialogBody}>
         <p className={styles.hint}>{t("portfolio.captionHint")}</p>
         {cover && <img className={styles.sheetImage} src={`${cover.url}?size=card`} alt="" />}
@@ -1198,7 +1195,7 @@ function PhotoSheet({ entry, sections, onClose }: { entry: Entry; sections: Sect
             {t("portfolio.removeFromPortfolio")}
           </Button>
           <span className={styles.grow} />
-          <Button variant="ghost" onPress={onClose}>
+          <Button variant="ghost" isDisabled={change.isPending} onPress={onClose}>
             {t("portfolio.cancel")}
           </Button>
           <Button
@@ -1260,7 +1257,7 @@ function NewSectionDialog({ sections, onClose }: { sections: Section[]; onClose:
       onError: (failure) => toastError(failure),
     });
   return (
-    <DialogFrame title={t("portfolio.newSection")} onClose={onClose}>
+    <DialogFrame title={t("portfolio.newSection")} onClose={onClose} busy={add.isPending}>
       <div className={styles.dialogBody}>
         <TextField
           label={t("portfolio.sectionName")}
@@ -1286,7 +1283,7 @@ function NewSectionDialog({ sections, onClose }: { sections: Section[]; onClose:
           </div>
         )}
         <div className={styles.dialogActions}>
-          <Button variant="ghost" onPress={onClose}>
+          <Button variant="ghost" isDisabled={add.isPending} onPress={onClose}>
             {t("portfolio.cancel")}
           </Button>
           <Button variant="primary" isDisabled={!label.trim() || add.isPending} onPress={() => create({ label: label.trim() }, label.trim())}>

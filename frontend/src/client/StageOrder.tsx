@@ -193,8 +193,8 @@ export default function StageOrder({
   return (
     <ModalOverlay
       className="stage-order__overlay"
-      isDismissable={!moving}
-      isKeyboardDismissDisabled={moving}
+      isDismissable={!moving && !change.busy}
+      isKeyboardDismissDisabled={moving || change.busy}
       isOpen
       onOpenChange={(open) => !open && onClose()}
     >
@@ -231,7 +231,7 @@ export default function StageOrder({
             </SortableContext>
           </DndContext>
           <div className="editor__actions">
-            <button className="b b--ghost" type="button" onClick={onClose}>
+            <button className="b b--ghost" type="button" disabled={change.busy} onClick={onClose}>
               {t("projectSettings.cancel")}
             </button>
             <button className="b b--primary" type="button" disabled={!changed || change.busy} onClick={() => void save()}>

@@ -476,6 +476,11 @@
   "confirm": {
     "cancel": "Cancelar"
   },
+  "copy": {
+    "copied": "Link copiado.",
+    "failed": "Não foi possível copiar. Selecione o link e copie manualmente.",
+    "failedLink": "Não foi possível copiar. O link é {{link}}"
+  },
   "painelTour": {
     "again": "Ver o tour do painel",
     "first-stepsTitle": "Primeiros passos",
@@ -574,7 +579,6 @@
     "staffBar": "Ferramentas do escritório",
     "backToPainel": "Painel",
     "copyLink": "Copiar link do cliente",
-    "linkCopied": "Link copiado.",
     "password": "Senha",
     "enter": "Entrar",
     "noFilesShort": "Sem arquivos",
@@ -936,7 +940,6 @@
     "cancel": "Cancelar convite",
     "cancelled": "Convite para {{email}} cancelado.",
     "copy": "Copiar link",
-    "copied": "Link copiado.",
     "linkTitle": "Convidar através de um link",
     "linkIntro": "Compartilhe este link para convidar pessoas para a equipe. Ele é válido por 24 horas e não concede acesso de administrador.",
     "linkOn": "Criar link de convite",
@@ -1056,8 +1059,6 @@
     "readyHint": "Envie este link a quem vai receber os arquivos.",
     "link": "Link para compartilhar",
     "copy": "Copiar link",
-    "copied": "Link copiado",
-    "copyFailed": "Não foi possível copiar. Selecione o link e copie manualmente.",
     "shareSheet": "Compartilhar…",
     "done": "Concluir",
     "validUntil": "Válido até {{date}}",
@@ -1702,8 +1703,6 @@
     "removeFromPortfolio": "Remover do portfólio",
     "share": "Compartilhar",
     "shareSection": "Compartilhar a seção {{name}}",
-    "linkCopied": "Link copiado.",
-    "copyFailed": "Não foi possível copiar. O endereço é {{url}}",
     "intro": "Apresentação",
     "introHint": "Aparece depois dos projetos, na seção Escritório.",
     "introPlaceholder": "Ex.: Arquitetura residencial e de interiores em Porto Alegre.",

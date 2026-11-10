@@ -41,7 +41,7 @@ export function ClientEmailsDialog({ project, onClose }: { project: ProjectSumma
   };
 
   return (
-    <DialogFrame title={t("clientEmails.title")} onClose={onClose}>
+    <DialogFrame title={t("clientEmails.title")} onClose={onClose} busy={change.isPending}>
       <Form
         className={styles.form}
         onSubmit={(event) => {
@@ -62,7 +62,9 @@ export function ClientEmailsDialog({ project, onClose }: { project: ProjectSumma
         />
         <ErrorNotice error={change.error} />
         <div className={styles.actions}>
-          <Button onPress={onClose}>{t("projectSettings.cancel")}</Button>
+          <Button onPress={onClose} isDisabled={change.isPending}>
+            {t("projectSettings.cancel")}
+          </Button>
           <Button type="submit" variant="primary" isDisabled={change.isPending}>
             {change.isPending ? t("projectSettings.saving") : t("projectSettings.save")}
           </Button>

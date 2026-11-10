@@ -704,7 +704,7 @@ function ComparePhotos({ entry, before, onClose }: { entry: Entry; before: strin
       },
     );
   return (
-    <DialogFrame title={t("portfolio.compareTitle")} onClose={onClose}>
+    <DialogFrame title={t("portfolio.compareTitle")} onClose={onClose} busy={compare.isPending}>
       <div className={styles.dialogBody}>
         <p className={styles.hint}>{t("portfolio.compareHint")}</p>
         <div role="radiogroup" aria-label={t("portfolio.chooseAfter")} className={styles.pickGrid}>
@@ -750,7 +750,9 @@ function ComparePhotos({ entry, before, onClose }: { entry: Entry; before: strin
               {t("portfolio.uncompare")}
             </Button>
           )}
-          <Button onPress={onClose}>{t("confirm.cancel")}</Button>
+          <Button onPress={onClose} isDisabled={compare.isPending}>
+            {t("confirm.cancel")}
+          </Button>
           <Button variant="primary" isDisabled={!after || compare.isPending} onPress={() => save(after)}>
             {t("projectSettings.save")}
           </Button>

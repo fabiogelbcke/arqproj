@@ -476,6 +476,11 @@
   "confirm": {
     "cancel": "Cancel"
   },
+  "copy": {
+    "copied": "Link copied.",
+    "failed": "Couldn't copy. Select the link and copy it yourself.",
+    "failedLink": "Couldn't copy. The link is {{link}}"
+  },
   "painelTour": {
     "again": "Explore the dashboard",
     "first-stepsTitle": "First steps",
@@ -574,7 +579,6 @@
     "staffBar": "Office tools",
     "backToPainel": "Painel",
     "copyLink": "Copy the client's link",
-    "linkCopied": "Link copied.",
     "password": "Password",
     "enter": "Enter",
     "noFilesShort": "No files",
@@ -936,7 +940,6 @@
     "cancel": "Cancel invite",
     "cancelled": "Invite to {{email}} cancelled.",
     "copy": "Copy link",
-    "copied": "Link copied.",
     "linkTitle": "Invite with a link",
     "linkIntro": "Share this link to invite people to the team. It is valid for 24 hours and does not grant administrator access.",
     "linkOn": "Create invite link",
@@ -1056,8 +1059,6 @@
     "readyHint": "Send this link to whoever is receiving the files.",
     "link": "Link to share",
     "copy": "Copy link",
-    "copied": "Link copied",
-    "copyFailed": "Couldn't copy. Select the link and copy it yourself.",
     "shareSheet": "Share…",
     "done": "Done",
     "validUntil": "Valid until {{date}}",
@@ -1702,8 +1703,6 @@
     "removeFromPortfolio": "Remove from the portfolio",
     "share": "Share",
     "shareSection": "Share the section {{name}}",
-    "linkCopied": "Link copied.",
-    "copyFailed": "Couldn't copy. The address is {{url}}",
     "intro": "Introduction",
     "introHint": "Shows after the projects, in the Office section.",
     "introPlaceholder": "E.g. Residential and interior architecture in Porto Alegre.",
