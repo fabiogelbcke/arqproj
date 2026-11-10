@@ -83,9 +83,22 @@ function draftFrom(start: Generator["start"], locale: string): Draft {
 }
 
 type Checked = { content: ProposalContent } | { problem: string };
+type Translate = (key: string, values?: Record<string, unknown>) => string;
+
+/** "Não incluídos" as the server takes them: the lines written, one each. */
+const notIncludedLines = (text: string) => text.split("\n").map((line) => line.trim()).filter(Boolean);
+
+/** What the server would refuse in "Não incluídos", in the user's words (the
+ *  line as numbered in the field); null when it takes them. */
+function notIncludedProblem(text: string, t: Translate): string | null {
+  if (notIncludedLines(text).length > LIMITS.proposalNotIncluded)
+    return t("proposal.generator.notIncludedTooMany", { max: LIMITS.proposalNotIncluded });
+  const long = text.split("\n").findIndex((line) => line.trim().length > LIMITS.proposalLine);
+  return long < 0 ? null : t("proposal.generator.notIncludedTooLong", { line: long + 1, max: LIMITS.proposalLine });
+}
 
 /** The draft as the API takes it, or what to fix first (in the user's words). */
-function check(draft: Draft, locale: string, t: (key: string) => string): Checked {
+function check(draft: Draft, locale: string, t: Translate): Checked {
   const fee = parseAmount(draft.fee, locale);
   const services = kept(draft.services);
   if (!draft.client_name.trim()) return { problem: t("proposal.generator.needsClient") };
@@ -96,13 +109,15 @@ function check(draft: Draft, locale: string, t: (key: string) => string): Checke
     .filter((p) => p.amount.trim() || p.when.trim())
     .map((p) => ({ amount: parseAmount(p.amount, locale), when: p.when }));
   if (payments.some((p) => !p.amount)) return { problem: t("proposal.generator.badPayment") };
+  const notIncluded = notIncludedProblem(draft.not_included, t);
+  if (notIncluded) return { problem: notIncluded };
   return {
     content: {
       ...draft,
       services,
       fee,
       payments: payments as { amount: number; when: string }[],
-      not_included: draft.not_included.split("\n").map((line) => line.trim()).filter(Boolean),
+      not_included: notIncludedLines(draft.not_included),
     },
   };
 }
@@ -118,7 +133,10 @@ function previewBody(draft: Draft, locale: string): Schemas["ProposalStart"] {
       const amount = parseAmount(p.amount, locale);
       return amount ? [{ amount, when: p.when }] : [];
     }),
-    not_included: draft.not_included.split("\n").map((line) => line.trim()).filter(Boolean),
+    // A line too long, or one too many, would have the whole preview refused.
+    not_included: notIncludedLines(draft.not_included)
+      .filter((line) => line.length <= LIMITS.proposalLine)
+      .slice(0, LIMITS.proposalNotIncluded),
   };
 }
 
@@ -563,9 +581,15 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
             <h2 id="p-terms">{t("proposal.generator.terms")}</h2>
             <TextAreaField
               label={t("proposal.generator.notIncluded")}
-              description={t("proposal.generator.notIncludedHint")}
+              description={t("proposal.generator.notIncludedHint", {
+                lines: LIMITS.proposalNotIncluded,
+                chars: LIMITS.proposalLine,
+              })}
               value={draft.not_included}
               onChange={(not_included) => change({ not_included })}
+              isInvalid={notIncludedProblem(draft.not_included, t) !== null}
+              validate={(text) => notIncludedProblem(text, t)}
+              validationBehavior="aria"
             />
             <DefaultText
               label={t("proposal.generator.intro")}

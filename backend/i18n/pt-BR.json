@@ -1445,7 +1445,7 @@
       "paymentsDiffer": "As parcelas somam R$ {{paid}}, e os honorários são R$ {{fee}}.",
       "terms": "Textos e condições",
       "notIncluded": "Serviços não incluídos",
-      "notIncludedHint": "Um por linha.",
+      "notIncludedHint": "Um por linha, até {{lines}} linhas de até {{chars}} caracteres.",
       "notes": "Observações",
       "office": "Dados do escritório",
       "officeHint": "Aparecem no rodapé e na assinatura. Os que faltarem nos dados do escritório são salvos lá com a proposta; para mudar os já salvos, use Configurações → Escritório.",
@@ -1484,7 +1484,9 @@
       "needsService": "Adicione pelo menos um serviço.",
       "needsServiceTitle": "Dê um nome a cada serviço.",
       "needsFee": "Informe o valor dos honorários.",
-      "badPayment": "Confira o valor de cada parcela."
+      "badPayment": "Confira o valor de cada parcela.",
+      "notIncludedTooMany": "Serviços não incluídos: no máximo {{max}} linhas. Junte ou remova algumas.",
+      "notIncludedTooLong": "Serviços não incluídos: a linha {{line}} passa de {{max}} caracteres. Encurte-a ou divida-a em duas."
     },
     "accept": {
       "action": "Proposta aceita",

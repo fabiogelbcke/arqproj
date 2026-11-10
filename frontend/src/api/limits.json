@@ -31,6 +31,7 @@
   "proposalServices": 40,
   "proposalPayments": 24,
   "proposalNotIncluded": 20,
+  "proposalAmount": 9999999999,
   "serviceTitle": 80,
   "serviceDescription": 1000
 }

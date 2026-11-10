@@ -1445,7 +1445,7 @@
       "paymentsDiffer": "The instalments add up to R${{paid}}, and the fees are R${{fee}}.",
       "terms": "Texts and terms",
       "notIncluded": "Services not included",
-      "notIncludedHint": "One per line.",
+      "notIncludedHint": "One per line, up to {{lines}} lines of {{chars}} characters.",
       "notes": "Notes",
       "office": "Office details",
       "officeHint": "Shown in the footer and by the signature. Any the office's details lack are saved there with the proposal; to change ones already saved, use Settings → Office.",
@@ -1484,7 +1484,9 @@
       "needsService": "Add at least one service.",
       "needsServiceTitle": "Give each service a name.",
       "needsFee": "Enter the fees.",
-      "badPayment": "Check each instalment's amount."
+      "badPayment": "Check each instalment's amount.",
+      "notIncludedTooMany": "Services not included: {{max}} lines at most. Combine or remove some.",
+      "notIncludedTooLong": "Services not included: line {{line}} is longer than {{max}} characters. Shorten it or split it in two."
     },
     "accept": {
       "action": "Proposal accepted",
