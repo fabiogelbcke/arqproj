@@ -16,6 +16,7 @@ import { Button } from "../ui/Button";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { IconButton } from "../ui/IconButton";
 import { LinkButton } from "../ui/LinkButton";
 import { NameDialog } from "../ui/NameDialog";
@@ -83,7 +84,7 @@ export function PortfolioPage() {
           </div>
         )}
       </div>
-      {portfolio.error ? (
+      {loadError(portfolio) ? (
         <ErrorNotice error={portfolio.error} />
       ) : !portfolio.data ? (
         <p className={styles.hint}>{t("app.loading")}</p>
@@ -1356,7 +1357,7 @@ export function ProjectChoice({
           value={query}
           onChange={setQuery}
         />
-        {projects.error ? (
+        {loadError(projects) ? (
           <ErrorNotice error={projects.error} />
         ) : !projects.data ? (
           <p className={styles.hint}>{t("app.loading")}</p>

@@ -132,6 +132,23 @@ describe("the operator dashboard", () => {
     expect(screen.getByRole("link", { name: "alineaarquitetos.com" })).toHaveAttribute("href", "https://alineaarquitetos.com/painel/");
   });
 
+  it("keeps the dashboard when checking who is signed in fails on the way to another page", async () => {
+    let checks = 0;
+    fakeApi({
+      "GET /api/admin/me": () => (++checks === 1 ? { body: ME } : { status: 500, body: {} }),
+      "GET /api/admin/offices": () => ({ body: [ALINEA, NORTE] }),
+      "GET /api/admin/offices/alinea": () => ({ body: ALINEA }),
+    });
+    const router = renderAt("/");
+    await screen.findByRole("table");
+    await router.navigate("/escritorios/alinea"); // the office's page asks again: it failed
+    expect(await screen.findByRole("heading", { name: "Alinea", level: 1 })).toBeInTheDocument();
+    await vi.waitFor(() => expect(checks).toBeGreaterThanOrEqual(2));
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect(screen.getByRole("heading", { name: "Alinea", level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("switches a feature on for one office (A40)", async () => {
     let features: string[] = [];
     const sent = fakeApi({

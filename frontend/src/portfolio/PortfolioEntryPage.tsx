@@ -17,6 +17,7 @@ import { Button } from "../ui/Button";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { BeforeAfter } from "../ui/BeforeAfter";
 import { IconButton } from "../ui/IconButton";
 import { Panel } from "../ui/Panel";
@@ -72,7 +73,7 @@ export function PortfolioEntryPage() {
           </div>
         )}
       </div>
-      {portfolio.error ? (
+      {loadError(portfolio) ? (
         <ErrorNotice error={portfolio.error} />
       ) : !portfolio.data ? (
         <p className={styles.hint}>{t("app.loading")}</p>
@@ -839,7 +840,7 @@ function ImagePicker({
     <DialogFrame title={t("portfolio.pickTitle", { name: project.name })} onClose={onClose}>
       <div className={styles.dialogBody}>
         <p className={styles.hint}>{t("portfolio.pickHint")}</p>
-        {files.error ? (
+        {loadError(files) ? (
           <ErrorNotice error={files.error} />
         ) : !files.data ? (
           <p className={styles.hint}>{t("app.loading")}</p>

@@ -201,6 +201,25 @@ describe("signed in", () => {
   });
 });
 
+describe("a failed refresh", () => {
+  it("keeps the painel when checking who is signed in fails after a change", async () => {
+    let checks = 0;
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => (++checks === 1 ? { body: ME } : { status: 500, body: {} }),
+      "PATCH /api/me": () => ({ body: {} }),
+    });
+    renderAt("/conta");
+    const name = await screen.findByLabelText(/^Seu nome/);
+    await userEvent.type(name, " Lima");
+    await userEvent.click(screen.getAllByRole("button", { name: "Salvar" })[0]!); // asks who is signed in again
+    await waitFor(() => expect(checks).toBe(3), { timeout: 4000 });
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect(screen.getByRole("button", { name: "Sua conta" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Seu nome/)).toBeInTheDocument();
+  });
+});
+
 describe("the painel tour", () => {
   it("starts from the account menu and the phone's drawer, never on its own", async () => {
     fakeApi({

@@ -13,6 +13,7 @@ import { useMe } from "../session/session";
 import { ActionMenu } from "../ui/ActionMenu";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { MoreIcon } from "../ui/MoreIcon";
 import { SearchBox } from "../ui/SearchBox";
 import { toast, toastError } from "../ui/Toast";
@@ -76,7 +77,7 @@ export function ProposalsPage() {
       <p className="sr-only" role="status">
         {list.data && filtering ? t("proposal.list.resultCount", { count: rows.length }) : ""}
       </p>
-      {list.error ? (
+      {loadError(list) ? (
         <ErrorNotice error={list.error} />
       ) : !list.data ? (
         <p className={styles.hint}>{t("app.loading")}</p>

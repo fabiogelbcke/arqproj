@@ -8,6 +8,7 @@ import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { Button } from "../ui/Button";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { InfoTip } from "../ui/InfoTip";
 import { Panel } from "../ui/Panel";
 import { TextField } from "../ui/TextField";
@@ -286,7 +287,7 @@ function OfficePage() {
     queryFn: () => call(api.GET("/api/admin/offices/{slug}", { params: { path: { slug } } })),
   });
   const logs = me ? target(me) : null;
-  if (office.error) return <ErrorNotice error={office.error} />;
+  if (loadError(office)) return <ErrorNotice error={office.error} />;
   if (!office.data) return <p className={styles.muted}>{t("app.loading")}</p>;
   const o = office.data;
   return (
@@ -403,7 +404,7 @@ function Root() {
   const { t } = useTranslation();
   const me = useOperator();
   if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
-  if (me.error)
+  if (loadError(me))
     return (
       <main className={styles.centered}>
         <ErrorNotice error={me.error} />

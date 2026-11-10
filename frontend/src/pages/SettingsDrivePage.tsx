@@ -10,6 +10,7 @@ import dialogs from "../projects/projects.module.css";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { Panel } from "../ui/Panel";
 import { toast } from "../ui/Toast";
 import styles from "./pages.module.css";
@@ -56,7 +57,7 @@ export function DriveDetails({
   const [confirming, setConfirming] = useState(false);
 
   const status = drive.data;
-  if (drive.error) return <ErrorNotice error={drive.error} />;
+  if (loadError(drive)) return <ErrorNotice error={drive.error} />;
   if (!status) return <p className={styles.lead}>{t("app.loading")}</p>;
   const google = status.kind === "google" && status.writer_status !== "none";
   const expired = google && status.writer_status === "expired";
