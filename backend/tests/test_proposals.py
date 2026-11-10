@@ -690,6 +690,34 @@ async def test_the_offices_services_replace_the_built_in_ones_until_emptied(clie
     assert emptied.json()[0]["title"] == "Briefing"  # the built-in list again
 
 
+async def test_two_saves_of_the_offices_services_take_turns(client, db_session, owner):
+    """Each save replaces the whole list. Two at once would each insert theirs
+    after the other's delete, and the second would break the one-service-per-place
+    rule (0054); so a save waits for one already under way, then replaces its list."""
+    import asyncio
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from backend.tests.conftest import TEST_DATABASE_URL
+    from backend.web.proposals import _LOCK_PRESETS
+
+    alinea = await db_session.scalar(text("SELECT id FROM tenants WHERE slug = 'alinea'"))
+    mine = [{"title": "Consultoria", "description": "Uma visita."}]
+    other = create_async_engine(TEST_DATABASE_URL)
+    try:
+        async with other.connect() as saving, saving.begin():
+            await saving.execute(_LOCK_PRESETS, {"tenant": str(alinea)})  # a save under way
+            second = asyncio.create_task(
+                client.put("/api/proposal-presets", json={"services": mine}, headers=owner)
+            )
+            await asyncio.sleep(1)
+            assert not second.done()  # waiting for the first
+        saved = await asyncio.wait_for(second, 10)
+    finally:
+        await other.dispose()
+    assert (saved.status_code, saved.json()) == (200, mine)
+
+
 async def test_an_offices_presets_and_defaults_are_its_own(client, db_session, owner):
     await client.put(
         "/api/proposal-presets",

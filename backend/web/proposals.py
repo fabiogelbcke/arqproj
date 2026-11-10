@@ -29,7 +29,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, exists, func, select, update
+from sqlalchemy import delete, exists, func, select, text, update
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,6 +68,10 @@ from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.projects import ProjectSummary, summaries
 
 log = logging.getLogger(__name__)
+# The office's services are saved one at a time (change_presets).
+_LOCK_PRESETS = text(
+    "SELECT pg_advisory_xact_lock(hashtext('proposal-presets'), hashtext(:tenant))"
+)
 
 
 def _switched_on(tenant: CurrentTenant = Depends(current_tenant)) -> None:
@@ -655,7 +659,9 @@ async def change_presets(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> list[PresetOut]:
     """The office's services, in order ("Salvar como padrão"). An empty list goes
-    back to the built-in one."""
+    back to the built-in one. One save at a time: two at once would each insert
+    their list after the other's delete (one service per place, 0054)."""
+    await db.execute(_LOCK_PRESETS, {"tenant": str(tenant.id)})
     await db.execute(delete(ProposalServicePreset))
     for position, service in enumerate(body.services, start=1):
         db.add(
