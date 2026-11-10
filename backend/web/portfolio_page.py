@@ -319,6 +319,7 @@ def _document(
 
     if chosen:
         entry, photos = chosen
+        t = {**t, "name": named(entry)}  # what its images are "of": "Foto 1 de …"
         title = f"{escape(named(entry))} · {name}"
         description = entry.description or intro
         # Type, place and year are on the cover, with the title; the sheet below
@@ -500,7 +501,7 @@ def _photo_link(
     """A photo at this size, opening it large; a comparison's (A46), its two
     photos split down the middle, tagged, opening on the slider."""
     after = pairs.get(photo.id)
-    alt = escape(_fill(t["photo"], n=n, title=entry.title))
+    alt = escape(_fill(t["photo"], n=n, title=t["name"]))
     image = f'<img src="{photo_url(photo)}?size={size}" alt="{alt}"{attributes} decoding="async">'
     if after is not None:
         image = (
@@ -531,7 +532,7 @@ def _run(
     poster with a play mark. Each opens large over the page too, and that
     viewer's arrows go through them all; a video plays only there (without the
     script, the track still slides by hand and each opens on its own)."""
-    label = escape(_fill(t["gallery"], title=entry.title))
+    label = escape(_fill(t["gallery"], title=t["name"]))
     shots = "".join(
         '<div class="slide"><figure class="shot">'
         + _photo_link(t, entry, photo, n, pairs or {}, "full", f"{_size(photo)} {_loading(n == 1)}")
@@ -545,7 +546,7 @@ def _run(
         f'data-poster="{video_url(video)}/poster" '
         f'aria-label="{escape(_fill(t["watch"], n=n))}">'
         f'<img src="{video_url(video)}/poster?size=full" '
-        f'alt="{escape(_fill(t["video"], n=n, title=entry.title))}"{_size(video)} '
+        f'alt="{escape(_fill(t["video"], n=n, title=t["name"]))}"{_size(video)} '
         'loading="lazy" decoding="async"><span class="play" aria-hidden="true"></span></a>'
         "</figure></div>"
         for n, video in enumerate(videos, start=1)
@@ -575,13 +576,13 @@ def _posts(
     a grid of images each in its own shape, like a profile on the networks; each
     opens large over the page like the gallery's. The grid is the mosaic's
     (`mosaic`, laid out by `portfolio.js`), in the order the photos were added."""
-    label = escape(_fill(t["gallery"], title=entry.title))
+    label = escape(_fill(t["gallery"], title=t["name"]))
     films = "".join(
         f'<li><a class="zoom film" href="{video_url(video)}" '
         f'data-poster="{video_url(video)}/poster" '
         f'aria-label="{escape(_fill(t["watch"], n=n))}">'
         f'<img src="{video_url(video)}/poster?size=card" '
-        f'alt="{escape(_fill(t["video"], n=n, title=entry.title))}"{_size(video)} '
+        f'alt="{escape(_fill(t["video"], n=n, title=t["name"]))}"{_size(video)} '
         f'{_loading(n == 1)} decoding="async">'
         '<span class="play" aria-hidden="true"></span></a></li>'
         for n, video in enumerate(videos, start=1)

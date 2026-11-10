@@ -1228,6 +1228,8 @@ async def test_a_piece_needs_no_title(client, staff):
     page = (await client.get(f"/?projeto={piece['id']}", headers=ALINEA)).text
     assert "<title>Interiores · " in page and "<h1>" not in page
     assert '<p class="label">Interiores</p>' in page
+    # Its images are "of" its section too, for a screen reader.
+    assert 'alt="Foto 1 de Interiores"' in page and 'aria-label="Fotos de Interiores"' in page
     before_named = (await client.get(f"/?projeto={loose['id']}", headers=ALINEA)).text
     assert (
         '<span class="title">Casa Jardim</span>' in before_named
