@@ -17,6 +17,8 @@ from urllib.parse import urlencode
 
 import httpx2
 
+from backend.storage.google import THROTTLED
+
 log = logging.getLogger(__name__)
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -111,6 +113,14 @@ class OAuthClient:
         return response.json()
 
 
+def _throttled(response: httpx2.Response) -> bool:
+    try:
+        errors = response.json()["error"].get("errors", [])
+        return bool({error.get("reason") for error in errors} & THROTTLED)
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return False
+
+
 class DriveWriter:
     """Drive as the office's own grant (drive.file). A failed call, whether Google
     answered with an error or the network failed, is a `ConnectError`."""
@@ -160,7 +170,9 @@ class DriveWriter:
     async def can_open(self, folder_id: str) -> bool:
         """Whether this grant reaches a folder the app created before: False when
         Google says it cannot (another account, deleted, trashed). A failure that
-        says nothing about access (network, Google's 5xx) raises `ConnectError`."""
+        says nothing about access (network, Google's 5xx) raises `ConnectError`,
+        and so does Drive slowing down (a 429, or a 403 with a rate-limit reason):
+        `UNAVAILABLE`, never "out of reach"."""
         try:
             response = await self._http.get(
                 f"{DRIVE}/files/{folder_id}",
@@ -169,12 +181,14 @@ class DriveWriter:
             )
         except httpx2.TransportError as error:
             raise ConnectError(ConnectProblem.FOLDER_FAILED, repr(error)) from error
-        if response.status_code in (403, 404):
+        status = response.status_code
+        detail = f"{status}: {response.text[:300]}"
+        if status == 429 or status >= 500 or (status == 403 and _throttled(response)):
+            raise ConnectError(ConnectProblem.UNAVAILABLE, detail)
+        if status in (403, 404):
             return False
-        if response.status_code >= 400:
-            raise ConnectError(
-                ConnectProblem.FOLDER_FAILED, f"{response.status_code}: {response.text[:300]}"
-            )
+        if status >= 400:
+            raise ConnectError(ConnectProblem.FOLDER_FAILED, detail)
         return not response.json().get("trashed")
 
     async def create_folder(self, name: str, parent: str | None = None) -> str:

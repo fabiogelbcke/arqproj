@@ -15,6 +15,7 @@ from backend.notifications.scan import MAINTENANCE_LOCK
 from backend.office.models import OfficeProfile
 from backend.security import keys
 from backend.storage.google import GoogleDriveStorage
+from backend.storage.google_connect import ConnectError, ConnectProblem, DriveWriter
 from backend.storage.models import StorageConnection, StorageKind, WriterStatus
 from backend.tenancy.models import Tenant
 from backend.tests.conftest import TEST_DATABASE_URL
@@ -698,3 +699,54 @@ async def test_missing_quota_is_not_reported_as_zero(client, owner, google):
     response = await client.get("/api/drive/space", headers=ALINEA)
     assert response.status_code == 503
     assert "Google returned" not in response.text
+
+
+# -- whether the office's grant reaches a folder ------------------------------------
+
+
+def _answering(status, body):
+    return DriveWriter(
+        httpx2.AsyncClient(
+            transport=httpx2.MockTransport(lambda _request: httpx2.Response(status, json=body))
+        ),
+        "writer",
+    )
+
+
+def _drive_error(status, reason):
+    return {"error": {"code": status, "message": "detail", "errors": [{"reason": reason}]}}
+
+
+@pytest.mark.parametrize(
+    ("status", "body", "reaches"),
+    [
+        (200, {"id": "f", "trashed": False}, True),
+        (200, {"id": "f", "trashed": True}, False),
+        (404, _drive_error(404, "notFound"), False),  # deleted, or never this account's
+        (403, _drive_error(403, "insufficientFilePermissions"), False),
+        (403, _drive_error(403, "appNotAuthorizedToFile"), False),
+    ],
+)
+async def test_the_grant_reaches_a_folder_unless_google_says_it_cannot(status, body, reaches):
+    writer = _answering(status, body)
+    assert await writer.can_open("f") is reaches
+    assert await writer.can_rename("f") is reaches
+
+
+@pytest.mark.parametrize(
+    ("status", "body"),
+    [
+        (403, _drive_error(403, "rateLimitExceeded")),
+        (403, _drive_error(403, "userRateLimitExceeded")),
+        (429, _drive_error(429, "rateLimitExceeded")),
+        (503, {}),
+    ],
+)
+async def test_throttling_is_a_passing_failure_not_a_folder_out_of_reach(status, body):
+    """Read as "can't open", Drive slowing down made a second `_capa`, skipped a
+    stage folder's rename, or told a reconnecting owner it was another account."""
+    writer = _answering(status, body)
+    for check in (writer.can_open, writer.can_rename):
+        with pytest.raises(ConnectError) as raised:
+            await check("f")
+        assert raised.value.problem is ConnectProblem.UNAVAILABLE
