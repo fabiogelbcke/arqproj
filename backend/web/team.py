@@ -42,7 +42,8 @@ from backend.notifications.password_reset import invite_email
 from backend.office.profile import display_name
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts, email_confirmation
-from backend.web.auth import CurrentStaff, MeOut, current_staff, require_csrf, signed_in
+from backend.web.access import require_owner
+from backend.web.auth import CurrentStaff, MeOut, current_staff, signed_in
 from backend.web.errors import ApiError, ErrorCode, documented
 
 NAME_MAX = 80
@@ -116,11 +117,6 @@ class JoinIn(BaseModel):
     name: str = Field(max_length=500)
     email: str = Field(max_length=500)
     password: str = Field(max_length=500)
-
-
-def _owner(staff: CurrentStaff) -> None:
-    if staff.role is not Role.OWNER:
-        raise ApiError(403, ErrorCode.OWNER_ONLY)
 
 
 def _hash(token: str) -> str:
@@ -206,11 +202,10 @@ async def team(
 async def invite(
     body: InviteIn,
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> InviteOut:
-    _owner(staff)
     name, email = _name(body.name), _address(body.email)
     await db.execute(_LOCK_EMAIL, {"email": email})
     found = await accounts.find_user(db, email)
@@ -253,11 +248,10 @@ async def _pending(db: AsyncSession, user_id: uuid.UUID) -> User:
 async def invite_again(
     user_id: uuid.UUID,
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> InviteOut:
-    _owner(staff)
     user = await _pending(db, user_id)
     # As an invite: two at once must not leave two links working.
     await db.execute(_LOCK_EMAIL, {"email": user.email})
@@ -271,13 +265,12 @@ async def invite_again(
 @router.delete("/team/invites/{user_id}", status_code=204, responses=documented(401, 403, 404, 409))
 async def cancel_invite(
     user_id: uuid.UUID,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
     """Only a pending invite: its account and links go (removing staff who are in
     comes later, A36)."""
-    _owner(staff)
     user = await _pending(db, user_id)
     if not await _delete_pending(db, user):
         raise ApiError(409, ErrorCode.NOT_AN_INVITE)  # in, just now
@@ -288,11 +281,10 @@ async def cancel_invite(
 @router.post("/team/join-link", status_code=201, responses=documented(401, 403))
 async def join_link_on(
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> LinkOnOut:
-    _owner(staff)
     await db.execute(_LOCK_JOIN_LINK, {"tenant": str(tenant.id)})
     await db.execute(
         update(JoinLink)
@@ -313,11 +305,10 @@ async def join_link_on(
 
 @router.delete("/team/join-link", status_code=204, responses=documented(401, 403))
 async def join_link_off(
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
-    _owner(staff)
     await db.execute(_LOCK_JOIN_LINK, {"tenant": str(tenant.id)})
     await db.execute(
         update(JoinLink)

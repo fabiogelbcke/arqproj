@@ -8,6 +8,7 @@ ever creeps in.
 from __future__ import annotations
 
 from datetime import date
+from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -75,7 +76,10 @@ class ProposalContent(BaseModel):
     services: list[Service] = Field(min_length=1, max_length=SERVICES_MAX)
     fee: int = Field(gt=0, le=AMOUNT_MAX)  # centavos
     payments: list[Payment] = Field(default=[], max_length=PAYMENTS_MAX)
-    not_included: list[str] = Field(default=[], max_length=NOT_INCLUDED_MAX)
+    # Each line at most LINE_MAX once trimmed (`_lines`).
+    not_included: list[Annotated[str, Field(max_length=500)]] = Field(
+        default=[], max_length=NOT_INCLUDED_MAX
+    )
     notes: str = Field(default="", max_length=NOTES_MAX)
     signatory: str = Field(default="", max_length=SIGNATORY_MAX)
     # The footer: the office's details as they were when it was saved.

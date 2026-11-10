@@ -31,7 +31,7 @@ from backend.db.engine import get_tenant_session
 from backend.notifications.events import record
 from backend.notifications.models import EventKind
 from backend.projects.creation import CreationProblem, custom_type_name
-from backend.projects.enums import DetailKey, DetailType, ProjectStatus, ProjectType
+from backend.projects.enums import DetailKey, DetailType, ProjectType
 from backend.projects.models import (
     MEETING_LOCATION_MAX,
     MEETING_TITLE_MAX,
@@ -44,7 +44,8 @@ from backend.projects.models import (
 )
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
-from backend.web.auth import CurrentStaff, current_staff, require_csrf
+from backend.web.access import changeable_project
+from backend.web.auth import CurrentStaff, current_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 
 router = APIRouter(prefix="/api")
@@ -95,14 +96,13 @@ async def _change(
     db: AsyncSession, project_id: uuid.UUID, row_version: int, values: dict | None = None
 ) -> Project:
     """Bump the project's row version (with `values`), only if nobody saved it
-    since the page loaded it."""
+    since the page loaded it. The route's `changeable_project` has refused an
+    archived project; archiving bumps the row version, so one archived since fails."""
     project = await db.scalar(
         select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
     )
     if project is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
-    if project.status is ProjectStatus.ARCHIVED:
-        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)  # viewable, not editable (section 22)
     changed = await db.execute(
         update(Project)
         .where(Project.id == project_id, Project.row_version == row_version)
@@ -166,7 +166,7 @@ async def change_content(
     request: Request,
     project_id: uuid.UUID,
     body: ContentIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -257,7 +257,7 @@ async def set_meeting(
     request: Request,
     project_id: uuid.UUID,
     body: MeetingIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -314,7 +314,7 @@ async def clear_meeting(
     request: Request,
     project_id: uuid.UUID,
     row_version: int,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     project = await _change(db, project_id, row_version, {"last_activity_at": datetime.now(UTC)})
@@ -344,7 +344,7 @@ async def set_notes(
     project_id: uuid.UUID,
     position: int,
     body: NotesIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """A stage's note to the client ("Recado"); empty removes it."""

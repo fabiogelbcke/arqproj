@@ -161,12 +161,11 @@ def test_the_comparison_catches_a_changed_function(migrated_url, from_models_url
     assert set(differences) == {"functions"}
 
 
-def test_every_updated_at_has_its_trigger(migrated_url):
-    """Each table with updated_at has exactly the trigger that maintains it: before
+def updated_at_trigger_problems(url: str) -> set[tuple[str, str]]:
+    """Triggers missing, or not exactly the one that maintains updated_at: before
     every UPDATE (any column), for each row. Compared as PostgreSQL's full trigger
-    definition, so a narrowed trigger (e.g. `BEFORE UPDATE OF name`) fails."""
-    command.upgrade(alembic_config(migrated_url), "head")
-    engine = create_engine(migrated_url)
+    definition, so a narrowed trigger (e.g. `BEFORE UPDATE OF name`) shows up."""
+    engine = create_engine(url)
     with engine.connect() as connection:
         with_updated_at = set(
             connection.scalars(
@@ -187,13 +186,38 @@ def test_every_updated_at_has_its_trigger(migrated_url):
         )
     engine.dispose()
     assert with_updated_at  # the rule is not vacuous
-    assert triggers == {
+    wanted = {
         (
             table,
             f"CREATE TRIGGER {table}_set_updated_at BEFORE UPDATE ON public.{table} "
             "FOR EACH ROW EXECUTE FUNCTION set_updated_at()",
         )
         for table in with_updated_at
+    }
+    return wanted ^ triggers
+
+
+def test_every_updated_at_has_its_trigger(migrated_url):
+    command.upgrade(alembic_config(migrated_url), "head")
+    assert updated_at_trigger_problems(migrated_url) == set()
+
+
+def test_the_trigger_rule_catches_a_missing_or_narrowed_trigger(migrated_url):
+    command.upgrade(alembic_config(migrated_url), "head")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE forgotten (id int, updated_at timestamptz)"))
+        connection.execute(text("CREATE TABLE narrowed (name text, updated_at timestamptz)"))
+        connection.execute(
+            text(
+                "CREATE TRIGGER narrowed_set_updated_at BEFORE UPDATE OF name ON narrowed "
+                "FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+            )
+        )
+    engine.dispose()
+    assert {table for table, _definition in updated_at_trigger_problems(migrated_url)} == {
+        "forgotten",
+        "narrowed",
     }
 
 
