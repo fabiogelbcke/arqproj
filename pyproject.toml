@@ -18,6 +18,7 @@ dependencies = [
     "python-multipart~=0.0.32",
     "posthog>=7.75.11",
     "fpdf2~=2.8.3",
+    "pillow~=13.0",
 ]
 
 [dependency-groups]
