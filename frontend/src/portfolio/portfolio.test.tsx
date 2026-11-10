@@ -203,6 +203,30 @@ describe("the Portfólio tab", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("after a failed upload, sends only the photos still missing, and keeps the captions to loose photos", async () => {
+    let calls = 0;
+    const sent = api({
+      "POST /api/portfolio/photos": () =>
+        ++calls === 2 ? { status: 503, body: { error: "drive_connect_failed" } } : { body: PORTFOLIO },
+    });
+    renderAt("/portfolio");
+    const input = await screen.findByLabelText("Enviar fotos para Interiores");
+    await userEvent.upload(input, [1, 2, 3].map((n) => new File([`${n}`], `${n}.jpg`, { type: "image/jpeg" })));
+    const dialog = await screen.findByRole("dialog", { name: "3 fotos" });
+    // Captions belong to loose photos: a project's photos have none, so the boxes go.
+    expect(within(dialog).getAllByLabelText(/^Legenda da foto/)).toHaveLength(3);
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Um projeto novo" }));
+    expect(within(dialog).queryByLabelText(/^Legenda da foto/)).toBeNull();
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Fotos soltas" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar" }));
+    expect(await within(dialog).findByText("O envio parou em 1 de 3. As que faltam podem ser enviadas de novo.")).toBeInTheDocument();
+    expect(sent.filter((call) => call.path === "/api/portfolio/photos")).toHaveLength(2);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Enviar as que faltam" }));
+    // Two more, never the one already in: four calls for three photos.
+    await waitFor(() => expect(sent.filter((call) => call.path === "/api/portfolio/photos")).toHaveLength(4));
+    expect(await screen.findByText("3 fotos adicionadas.")).toBeInTheDocument();
+  });
+
   it("makes one project of a drop when asked, opened on its photos", async () => {
     const made = { ...PORTFOLIO, entries: [entry({ id: "e-new", title: "Casa Nova", photos: [], project_id: null }), ...PORTFOLIO.entries] };
     const sent = api({

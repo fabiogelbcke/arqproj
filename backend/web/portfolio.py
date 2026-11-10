@@ -989,7 +989,8 @@ async def merge_entries(
     ):
         raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
     for by_entry in (photos, videos):
-        position = len(by_entry.get(target.id, []))
+        # After the target's last position (not its count: one may have been removed).
+        position = max((item.position for item in by_entry.get(target.id, [])), default=0)
         for other_id in wanted:
             for item in by_entry.get(other_id, []):
                 position += 1

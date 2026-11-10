@@ -1335,3 +1335,31 @@ async def test_merging_keeps_the_words_the_first_piece_lacks(client, staff):
         and project["project_id"] == drawn["project_id"]
     )
     assert [line["label"] for line in project["details"]] == ["Fotografia"]
+
+
+async def test_merged_images_come_after_the_targets_last_even_past_a_gap(client, staff):
+    """Removing a photo leaves a gap in the positions; what joins still comes
+    after the last one, in order."""
+    target = await add(client, staff, title="Casa")
+    for n in range(3):
+        await photo(client, staff, target, content=png(100 + n, 90), name=f"{n}.png")
+    kept = next(e for e in (await get(client, staff))["entries"] if e["id"] == target["id"])
+    first, middle, last = kept["photos"]
+    gone = await client.delete(f"/api/portfolio/photos/{middle['id']}", headers=staff)
+    assert gone.status_code == 200
+    loose = await client.post(
+        "/api/portfolio/photos", files={"file": ("x.jpg", JPEG)}, headers=staff
+    )
+    piece = next(e for e in loose.json()["entries"] if e["id"] != target["id"])
+    merged = await client.post(
+        f"/api/portfolio/entries/{target['id']}/merge",
+        json={"entries": [piece["id"]]},
+        headers=staff,
+    )
+    assert merged.status_code == 200, merged.text
+    [project] = merged.json()["entries"]
+    assert [p["id"] for p in project["photos"]] == [
+        first["id"],
+        last["id"],
+        piece["photos"][0]["id"],
+    ]

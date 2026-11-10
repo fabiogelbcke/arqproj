@@ -1013,54 +1013,70 @@ function ReviewDialog({
   const previews = useMemo(() => drop.files.map((file) => URL.createObjectURL(file)), [drop.files]);
   const count = drop.files.length;
   const sectionId = section || null;
+  // What an attempt already did, so that trying again after a failure goes on
+  // from there instead of sending the whole drop twice: the photos sent (by
+  // their place in the drop) and the project made for them.
+  const sent = useRef(new Set<number>());
+  const made = useRef<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   async function send() {
-    setProgress({ done: 0, total: count });
-    capture("portfolio_photos_dropped", { count, where, as_project: drop.asProject });
+    setProgress({ done: sent.current.size, total: count });
+    setFailed(false);
+    if (!sent.current.size) capture("portfolio_photos_dropped", { count, where, as_project: drop.asProject });
     try {
-      const files: File[] = [];
-      for (const file of drop.files) files.push(await resized(file, file.name));
-      if (where === "loose") {
-        // Last to first: each lands first in its section, so the first dropped ends first.
-        for (let index = files.length - 1; index >= 0; index -= 1) {
-          await addLoose.mutateAsync({ file: files[index]!, section: sectionId, title: captions[index]!.trim().slice(0, LIMITS.title) });
-          setProgress({ done: files.length - index, total: count });
+      // Loose photos go last to first: each lands first in its section, so the
+      // first dropped ends first. A project's go in order, after its own.
+      const order = [...drop.files.keys()].filter((index) => !sent.current.has(index));
+      if (where === "loose") order.reverse();
+      let target = project;
+      if (where === "new") {
+        if (!made.current) {
+          const after = await addEntry.mutateAsync({ title: title.trim().slice(0, LIMITS.title), place: "", description: "", section_id: sectionId });
+          made.current = after.entries.find((entry) => !known.has(entry.id))!.id;
         }
-      } else {
-        let target = project;
-        if (where === "new") {
-          const made = await addEntry.mutateAsync({ title: title.trim().slice(0, LIMITS.title), place: "", description: "", section_id: sectionId });
-          target = made.entries.find((entry) => !known.has(entry.id))!.id;
-        }
-        for (const [index, file] of files.entries()) {
+        target = made.current;
+      }
+      for (const index of order) {
+        const file = await resized(drop.files[index]!, drop.files[index]!.name);
+        if (where === "loose") {
+          await addLoose.mutateAsync({ file, section: sectionId, title: captions[index]!.trim().slice(0, LIMITS.title) });
+        } else {
           await addPhoto.mutateAsync({ entry: target, file });
-          setProgress({ done: index + 1, total: count });
         }
+        sent.current.add(index);
+        setProgress({ done: sent.current.size, total: count });
       }
       toast(where === "new" ? t("portfolio.projectCreated") : t("portfolio.photosAdded", { count }));
       onClose();
     } catch (failure) {
       toastError(failure);
       setProgress(null);
+      setFailed(true);
     }
   }
+  const started = sent.current.size > 0 || made.current !== null;
 
   return (
     <DialogFrame title={t("portfolio.arrived", { count })} onClose={progress ? undefined : onClose} outsideCloses={false}>
       <div className={styles.dialogBody}>
-        <p className={styles.hint}>{t("portfolio.reviewHint")}</p>
+        <p className={styles.hint}>{t(where === "loose" ? "portfolio.reviewHint" : "portfolio.reviewHintProject")}</p>
         <ul className={styles.arrived}>
           {drop.files.map((file, index) => (
-            <li key={`${file.name}-${index}`}>
+            <li key={`${file.name}-${index}`} data-sent={sent.current.has(index) || undefined}>
               <img src={previews[index]} alt="" />
-              <TextField
-                label={t("portfolio.captionOf", { n: index + 1 })}
-                labelHidden
-                placeholder={t("portfolio.caption")}
-                value={captions[index] ?? ""}
-                onChange={(value) => setCaptions(captions.map((caption, at) => (at === index ? value : caption)))}
-                maxLength={LIMITS.title}
-              />
+              {/* A caption is a loose photo's; a project's photos have none. */}
+              {where === "loose" && (
+                <TextField
+                  label={t("portfolio.captionOf", { n: index + 1 })}
+                  labelHidden
+                  placeholder={t("portfolio.caption")}
+                  value={captions[index] ?? ""}
+                  onChange={(value) => setCaptions(captions.map((caption, at) => (at === index ? value : caption)))}
+                  maxLength={LIMITS.title}
+                  isDisabled={started}
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -1079,12 +1095,12 @@ function ReviewDialog({
           </div>
           <div className={styles.where} role="radiogroup" aria-label={t("portfolio.where")}>
             <label>
-              <input type="radio" name="where" value="loose" checked={where === "loose"} onChange={() => setWhere("loose")} />
+              <input type="radio" name="where" value="loose" checked={where === "loose"} disabled={started} onChange={() => setWhere("loose")} />
               {t("portfolio.whereLoose")}
             </label>
             <div className={styles.whereRow}>
               <label>
-                <input type="radio" name="where" value="new" checked={where === "new"} onChange={() => setWhere("new")} />
+                <input type="radio" name="where" value="new" checked={where === "new"} disabled={started} onChange={() => setWhere("new")} />
                 {t("portfolio.whereNew")}
               </label>
               <TextField
@@ -1095,12 +1111,13 @@ function ReviewDialog({
                 onChange={setTitle}
                 onFocus={() => setWhere("new")}
                 maxLength={LIMITS.title}
+                isDisabled={started}
               />
             </div>
             {projects.length > 0 && (
               <div className={styles.whereRow}>
                 <label>
-                  <input type="radio" name="where" value="existing" checked={where === "existing"} onChange={() => setWhere("existing")} />
+                  <input type="radio" name="where" value="existing" checked={where === "existing"} disabled={started} onChange={() => setWhere("existing")} />
                   {t("portfolio.whereExisting")}
                 </label>
                 <SelectField
@@ -1109,6 +1126,7 @@ function ReviewDialog({
                   value={project}
                   options={projects.map((entry) => ({ value: entry.id, label: `${nameOf(entry, t)} (${entry.photos.length})` }))}
                   onChange={(value) => {
+                    if (started) return;
                     setProject(value);
                     setWhere("existing");
                   }}
@@ -1123,11 +1141,16 @@ function ReviewDialog({
               {t("portfolio.uploading", { done: progress.done, total: progress.total })}
             </span>
           )}
+          {failed && (
+            <span className={styles.warning} role="status">
+              {t("portfolio.uploadStopped", { done: sent.current.size, total: count })}
+            </span>
+          )}
           <Button variant="ghost" isDisabled={!!progress} onPress={onClose}>
-            {t("portfolio.cancel")}
+            {t(started ? "portfolio.close" : "portfolio.cancel")}
           </Button>
           <Button variant="primary" isDisabled={!!progress} onPress={() => void send()}>
-            {t("portfolio.create")}
+            {t(failed ? "portfolio.tryAgain" : "portfolio.create")}
           </Button>
         </div>
       </div>
