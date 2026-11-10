@@ -249,7 +249,8 @@ footer .nets a:hover{text-decoration:underline;text-underline-offset:4px}
 @media (min-width:821px){
   .posts .column>ul{container-type:inline-size}
   .posts a{width:fit-content;margin-inline:auto}
-  .mosaic.posts img{width:min(100cqw,72vw,1100px,calc(82vh * var(--r,99)))}
+  /* Not a comparison's "after": it lies over its "before", at its size. */
+  .mosaic.posts img:not(.after){width:min(100cqw,72vw,1100px,calc(82vh * var(--r,99)))}
 }
 @media (max-width:1100px){.mosaic{columns:2}}
 @media (max-width:820px){.mosaic{column-gap:4px}.mosaic[data-columns]{gap:4px}.mosaic li{margin-bottom:4px}.post-head{padding-block:4px 14px}}
