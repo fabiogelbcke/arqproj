@@ -63,6 +63,20 @@ describe("the operator dashboard", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([
+    ["4bf92f3577b34da6a3ce929d0e0e4736", "Código de suporte: 4bf92f3577b34da6a3ce929d0e0e4736"],
+    ["Ligue-para-0800-123-4567", null],
+  ])("after a failed sign-in, shows the support code from the address only when it is one (%s)", async (ref, shown) => {
+    vi.stubGlobal("location", { ...window.location, search: `?entrar=negado&ref=${ref}` });
+    fakeApi({ "GET /api/admin/me": () => ({ status: 401, body: { error: "not_signed_in" } }) });
+    renderAt("/");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Esta conta Google não tem acesso a esta área.");
+    if (shown) expect(alert).toHaveTextContent(shown);
+    else expect(alert).not.toHaveTextContent("Código de suporte");
+    vi.unstubAllGlobals();
+  });
+
   it("lists every office with its counts and health", async () => {
     fakeApi({
       "GET /api/admin/me": () => ({ body: ME }),

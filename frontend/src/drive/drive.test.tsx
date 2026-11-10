@@ -67,10 +67,19 @@ describe("Drive settings", () => {
 
   it("explains a failed connection from Google's return, in Portuguese", async () => {
     api(NOT_CONNECTED);
-    renderAt("/configuracoes/drive?erro=drive_share_failed&ref=req42");
+    renderAt("/configuracoes/drive?erro=drive_share_failed&ref=4bf92f3577b34da6a3ce929d0e0e4736");
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Não foi possível preparar a pasta");
-    expect(alert).toHaveTextContent("Código de suporte: req42");
+    expect(alert).toHaveTextContent("Código de suporte: 4bf92f3577b34da6a3ce929d0e0e4736");
+  });
+
+  it("shows only a real support code from the address, never other text put in the link", async () => {
+    api(NOT_CONNECTED);
+    renderAt("/configuracoes/drive?erro=drive_share_failed&ref=Ligue-para-0800-123-4567");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Não foi possível preparar a pasta");
+    expect(alert).not.toHaveTextContent("Código de suporte");
+    expect(alert).not.toHaveTextContent("0800");
   });
 
   it("lets members see the connection but not change it", async () => {

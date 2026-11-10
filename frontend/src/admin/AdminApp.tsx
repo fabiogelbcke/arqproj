@@ -14,7 +14,8 @@ import { Panel } from "../ui/Panel";
 import { TextField } from "../ui/TextField";
 import { Toaster } from "../ui/Toast";
 import { UnioMark } from "../ui/UnioMark";
-import { officeErrorsUrl, SUPPORT_CODE, supportCodeUrl, type LogsTarget } from "./logs";
+import { SUPPORT_CODE, supportCode } from "../api/supportCode";
+import { officeErrorsUrl, supportCodeUrl, type LogsTarget } from "./logs";
 import styles from "./admin.module.css";
 import { CreateTenant, Features, SignupLink, TenantActions } from "./Actions";
 import { SettingsLayout } from "./Settings";
@@ -58,7 +59,7 @@ function SignIn() {
   const client = useQueryClient();
   const query = new URLSearchParams(window.location.search);
   const problem = query.get("entrar");
-  const reference = query.get("ref");
+  const reference = supportCode(query.get("ref"));
   const [email, setEmail] = useState("");
   const google = useMutation({
     mutationFn: () => call(api.POST("/api/admin/signin")),

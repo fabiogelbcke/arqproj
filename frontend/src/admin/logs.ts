@@ -22,5 +22,3 @@ export function officeErrorsUrl(target: LogsTarget, office: { slug: string; id: 
   return url(target, `severity>=ERROR\n("${office.slug}" OR "${office.id}")`);
 }
 
-/** A request ID: 32 hexadecimal characters (Cloud Run's trace, or our own). */
-export const SUPPORT_CODE = /^[0-9a-f]{32}$/i;

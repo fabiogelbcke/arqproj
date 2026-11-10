@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 
 import { api, call } from "../api/client";
+import { supportCode } from "../api/supportCode";
 import { useMe, useSignedIn } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
@@ -39,6 +40,7 @@ export function SignInPage() {
     onSuccess: ({ url }) => window.location.assign(url),
   });
   const googleProblem = params.get("google");
+  const reference = supportCode(params.get("ref"));
 
   if (me.data) return <Navigate to={next} replace />;
   return (
@@ -50,7 +52,7 @@ export function SignInPage() {
         {googleProblem && (
           <div role="alert" className={styles.lead}>
             <p>{t(`signIn.googleProblem.${googleProblem}`, { defaultValue: t("signIn.googleProblem.falhou") })}</p>
-            {params.get("ref") && <p className={styles.small}>{t("errors.reference", { id: params.get("ref") })}</p>}
+            {reference && <p className={styles.small}>{t("errors.reference", { id: reference })}</p>}
           </div>
         )}
         <Button onPress={() => google.mutate()} isDisabled={google.isPending}>

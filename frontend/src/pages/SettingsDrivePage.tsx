@@ -4,6 +4,7 @@ import { DialogTrigger } from "react-aria-components";
 import { useSearchParams } from "react-router";
 
 import { ApiError, type ErrorCode } from "../api/client";
+import { supportCode } from "../api/supportCode";
 import { SPACE_LOW, bytes, useConnectDrive, useDisconnectDrive, useDrive, useDriveSpace } from "../drive/drive";
 import { capture } from "../posthog";
 import dialogs from "../projects/projects.module.css";
@@ -22,7 +23,7 @@ export function SettingsDrivePage() {
   const [returned] = useState(() => ({
     connected: params.get("resultado") === "conectado",
     error: params.get("erro"),
-    reference: params.get("ref"),
+    reference: supportCode(params.get("ref")),
   }));
   useEffect(() => {
     if (returned.connected) toast(t("drive.connectedNow"));

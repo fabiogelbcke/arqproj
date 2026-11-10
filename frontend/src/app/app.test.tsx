@@ -625,9 +625,20 @@ describe("signing in with Google", () => {
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => notSignedIn,
     });
-    renderAt("/entrar?google=falhou&ref=abc123");
+    renderAt("/entrar?google=falhou&ref=4bf92f3577b34da6a3ce929d0e0e4736");
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Código de suporte: abc123",
+      "Código de suporte: 4bf92f3577b34da6a3ce929d0e0e4736",
     );
+  });
+
+  it("shows only a real support code from the address, never other text put in the link", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+    });
+    renderAt("/entrar?google=falhou&ref=Ligue-para-0800-123-4567");
+    const alert = await screen.findByRole("alert");
+    expect(alert).not.toHaveTextContent("Código de suporte");
+    expect(alert).not.toHaveTextContent("0800");
   });
 });
