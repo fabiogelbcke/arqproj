@@ -13,7 +13,8 @@ from backend.identity.models import Role
 from backend.operators.google_signin import GoogleSignIn, Identity, SignInError, challenge
 from backend.security import keys
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as, tenant_id
-from backend.web import attempts, auth, google_signin
+from backend.tests.test_team import Sent
+from backend.web import attempts, auth, email_confirmation, google_signin
 
 pytestmark = pytest.mark.anyio
 
@@ -186,6 +187,10 @@ async def test_google_confirming_a_sign_up_keeps_nothing_its_maker_chose(
     )
     assert (password.status_code, password.json()) == (401, {"error": "invalid_credentials"})
 
+    marked = await db_session.scalar(
+        text("SELECT unconfirmed_signup FROM users WHERE email = 'caio@gmail.com'")
+    )
+    assert marked is False  # a member like any other from now on
     # The address's owner carries on, and is a member like any other: not shown as
     # an invite (which could be cancelled) and let in by Google again.
     client.cookies.set(auth.COOKIE, real_caio)
@@ -194,6 +199,41 @@ async def test_google_confirming_a_sign_up_keeps_nothing_its_maker_chose(
     client.cookies.clear()
     again = await returned(client, await start(client))
     assert again.headers["location"] == "/painel/"
+
+
+async def test_google_confirming_a_changed_email_keeps_the_account_as_it_is(
+    client, google, db_session, monkeypatch
+):
+    """A changed email ("Minha conta") is unconfirmed too, but the account was the
+    person's before: Google confirming the new address ends nothing."""
+    box = Sent()
+    monkeypatch.setattr(email_confirmation, "sender_for", lambda settings, http: box)
+    signed = await client.post(
+        "/api/session", json={"email": ANA, "password": "a good password"}, headers=ALINEA
+    )
+    headers = {**ALINEA, auth.CSRF_HEADER: signed.json()["csrf_token"]}
+    changed = await client.post(
+        "/api/me/email/change",
+        json={"current": "a good password", "email": "ana.nova@gmail.com"},
+        headers=headers,
+    )
+    assert (changed.status_code, changed.json()["email_confirmed"]) == (200, False)
+    this_device = client.cookies.get(auth.COOKIE)
+    client.cookies.clear()
+    google["identity"] = Identity("ana.nova@gmail.com", "Ana")
+    assert (await returned(client, await start(client))).headers["location"] == "/painel/"
+    me = (await client.get("/api/me", headers=ALINEA)).json()
+    assert (me["email"], me["email_confirmed"]) == ("ana.nova@gmail.com", True)
+    client.cookies.clear()
+    client.cookies.set(auth.COOKIE, this_device)
+    assert (await client.get("/api/projects", headers=ALINEA)).status_code == 200
+    client.cookies.clear()
+    password = await client.post(
+        "/api/session",
+        json={"email": "ana.nova@gmail.com", "password": "a good password"},
+        headers=ALINEA,
+    )
+    assert password.status_code == 200
 
 
 async def test_google_ends_no_sign_in_of_a_confirmed_account(client, google, db_session):

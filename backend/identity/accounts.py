@@ -79,6 +79,7 @@ async def create_user(
     if not email_confirmed:
         # SQL's NULL: a plain None would leave the column to its default (now).
         user.email_confirmed_at = null()
+        user.unconfirmed_signup = True
     session.add(user)
     await session.flush()
     if not email_confirmed:
@@ -100,9 +101,11 @@ async def lock_confirmation(session: AsyncSession, user_id) -> None:
 
 async def confirm_email(session: AsyncSession, user: User) -> None:
     """The address is shown to be theirs (a code, a confirmation, an invite or a
-    reset link): the account works fully."""
-    if user.email_confirmed_at is None:
-        user.email_confirmed_at = func.now()
+    reset link, Google): the account works fully, and is a sign-up no longer."""
+    if user.email_confirmed_at is None or user.unconfirmed_signup:
+        if user.email_confirmed_at is None:
+            user.email_confirmed_at = func.now()
+        user.unconfirmed_signup = False
         await session.flush()
         await session.refresh(user, ["email_confirmed_at"])
 
@@ -110,13 +113,13 @@ async def confirm_email(session: AsyncSession, user: User) -> None:
 async def confirm_by_google(session: AsyncSession, user: User) -> None:
     """Google has shown the address is theirs, but not that they made the account:
     anyone holding the office's shared link can sign up with a colleague's address
-    (A36). So an unconfirmed account confirmed this way keeps nothing its sign-up
-    chose: every sign-in ends and its password stops working ("Esqueceu a senha?"
-    sets a new one). A confirmed account is only signed in."""
-    if user.email_confirmed_at is None:
+    (A36). So a sign-up confirmed this way keeps nothing it chose: every sign-in
+    ends and its password stops working ("Esqueceu a senha?" sets a new one). Any
+    other account (one confirming a changed email, too) is only confirmed."""
+    if user.unconfirmed_signup:
         user.password_hash = NO_PASSWORD
         await _end_sign_ins(session, user)
-        await confirm_email(session, user)
+    await confirm_email(session, user)
 
 
 async def set_password(session: AsyncSession, user: User, password_hash: str) -> None:
