@@ -12,8 +12,8 @@ client chose again after it gets updates again. The app reads, adds and re-dates
 `whatsapp_messages_seen`, no office's either, holds the ids of messages Meta's
 webhook brought that were handled, so one delivered again is handled once.
 
-Revision: 0053
-Previous: 0052
+Revision: 0054
+Previous: 0053
 """
 
 from collections.abc import Sequence
@@ -21,8 +21,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0053"
-down_revision: str | None = "0052"
+revision: str = "0054"
+down_revision: str | None = "0053"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

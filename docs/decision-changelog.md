@@ -36,6 +36,7 @@ restart messages from every office's projects. Found in the review of PR #184.
 
 ## 2026-11-09 — A47: the WhatsApp texts after Fabio's answers
 
+
 **Was:** an update linked the page at the end of its text, listed the first
 three stages that changed and "e mais N etapas", and dated meetings "12/11 às
 14h". A number staff added got the "Quero receber" question once; with no
@@ -51,6 +52,45 @@ reply gives the office's contacts.
 (9 Nov 2026). Updates can't go without the client's yes, so an unanswered
 question would otherwise leave the client without them for good; one resend, not
 more, because repeated messages lead to blocks, and blocks cost the number.
+
+## 2026-11-09 — A45: the image is the atom; the tab in sections by type; one dialog per drop
+
+**Was:** the portfolio was a list of works. Each work needed a title and was
+created one at a time, from a project or from nothing, and its photos were
+uploaded into it afterwards. Its type was one of the site's project types or
+none, chosen in its editor; the public menu listed the types present in the
+dashboard's order. Up to 60 works of 30 photos.
+
+**Now:** every image is a piece of the portfolio, on its own or inside a
+project; a project is a piece of several images. Nothing needs a title. The
+Portfólio tab is laid out as the project page's file manager: one section per
+type, in the office's order, each with its drop area and, inside, its projects
+then its loose photos; "Nova seção" adds a type of the office's own
+(`portfolio_sections`), and the public menu follows the sections and their
+order. Every drop opens one dialog (captions, a type for all, loose / new
+project / existing project, all optional). Selected pieces are grouped into a
+project, added to one, moved to another section, or ungrouped, from a bar at the
+bottom. Up to 3000 pieces, 100 images in a project. A "Compartilhar" button
+copies the portfolio's address or a section's (`/?tipo=…`).
+
+**Why:** Fabio (5 and 9 Nov 2026): "the idea is to facilitate uploading, so
+that a person doesn't have to create many projects and individually upload
+photos into one", with social-media imagery "tied from a project" alongside
+finished-project photos. Settled in a working mockup that compared four tab
+layouts: (A) one grid where a project is a tile with several photos, as
+Instagram treats a carousel; (B) a tray of loose photos beside a list of
+projects, as Lightroom, rejected because it loses the one manual order of the
+public page; (C) projects as folders in one grid, rejected because the public
+page has no folders; (D) sections by type as the project page's stages, chosen
+because it is what staff already know from the project page and the sections
+teach what types exist. Also compared were three upload behaviours: straight
+into the grid, arriving selected with the bar open, and a review dialog; Fabio
+chose the dialog for every drop, one photo included ("one behaviour for every
+drop"). A separate "Projetos" tab was the fallback if a mixed grid proved
+unclear; it did not. The section's link keeps `?tipo=` rather than a `#`
+because the page draws the filtered version on the server (a `#` is the
+browser's mark for a place further down the same page). Office-owned types come
+now rather than later because "Nova seção" is part of the layout.
 
 ---
 

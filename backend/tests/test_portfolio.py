@@ -56,14 +56,38 @@ async def project_id(client, slug="casa-jardim"):
     return next(p["id"] for p in projects if p["slug"] == slug)
 
 
-async def add(client, headers, **body):
+async def get(client, headers):
+    answer = await client.get("/api/portfolio", headers=headers)
+    assert answer.status_code == 200, answer.text
+    return answer.json()
+
+
+async def section_for(client, headers, kind):
+    """The office's section of a site type (made when the office hasn't it yet)."""
+    sections = (await get(client, headers))["sections"]
+    found = next((s for s in sections if s["project_type"] == kind), None)
+    if found is None:
+        answer = await client.post(
+            "/api/portfolio/sections", json={"project_type": kind}, headers=headers
+        )
+        assert answer.status_code == 200, answer.text
+        found = next(s for s in answer.json()["sections"] if s["project_type"] == kind)
+    return found
+
+
+async def add(client, headers, project_type=None, **body):
+    """A piece (a project), in a site type's section when `project_type` is
+    given: the new piece, which comes first."""
+    if project_type is not None:
+        body["section_id"] = (await section_for(client, headers, project_type))["id"]
+    before = {entry["id"] for entry in (await get(client, headers))["entries"]}
     answer = await client.post(
         "/api/portfolio/entries",
         json={"title": "Casa Jardim", "place": "", "description": ""} | body,
         headers=headers,
     )
     assert answer.status_code == 200, answer.text
-    return answer.json()["entries"][-1]
+    return next(entry for entry in answer.json()["entries"] if entry["id"] not in before)
 
 
 async def photo(client, headers, entry, content=JPEG, name="foto.jpg"):
@@ -107,7 +131,8 @@ async def test_unios_home_on_an_office_address_is_not_kept_by_the_browser(client
 async def test_a_type_the_operator_added_is_shown_by_its_own_name(client, staff, db_session):
     """The built-in types have a short public label ("Arquitetura", not the
     painel's "Projeto Arquitetônico"); a type added from the operator dashboard
-    (A44) has only its own name, shown as given, where the dashboard ordered it."""
+    (A44) has only its own name, shown as given. The menu lists the sections in
+    the office's order, which it can change."""
     await db_session.execute(
         text("INSERT INTO project_types (key, position, labels) VALUES ('cenografia', 0, :labels)"),
         {"labels": '{"pt-BR": "Cenografia & Eventos", "en": "Set design"}'},
@@ -117,13 +142,30 @@ async def test_a_type_the_operator_added_is_shown_by_its_own_name(client, staff,
         entry = await add(client, staff, title=title, project_type=kind)
         await photo(client, staff, entry)
     await publish(client, staff)
-    client.cookies.clear()
 
     page = (await client.get("/", headers=ALINEA)).text
     menu = page.split('class="types"')[1].split("</nav>")[0]
     assert "Cenografia &amp; Eventos</a>" in menu and "Arquitetura</a>" in menu
     assert "Projeto Arquitetônico" not in page
-    assert menu.index("Cenografia") < menu.index("Arquitetura")  # position 0 comes first
+    assert menu.index("Arquitetura") < menu.index("Cenografia")  # the section made first
+
+    sections = (await get(client, staff))["sections"]
+    assert [s["project_type"] for s in sections] == ["architecture", "cenografia"]
+    # The short public name of a built-in type, the same the menu shows; an
+    # operator-added type by its own name.
+    assert [s["name"] for s in sections] == ["Arquitetura", "Cenografia & Eventos"]
+    reordered = await client.put(
+        "/api/portfolio/sections/order",
+        json={"sections": [sections[1]["id"], sections[0]["id"]]},
+        headers=staff,
+    )
+    assert reordered.status_code == 200, reordered.text
+    menu = (await client.get("/", headers=ALINEA)).text.split('class="types"')[1]
+    assert menu.index("Cenografia") < menu.index("Arquitetura")
+    stale = await client.put(
+        "/api/portfolio/sections/order", json={"sections": [sections[0]["id"]]}, headers=staff
+    )
+    assert stale.status_code == 409
 
 
 async def test_an_archived_project_can_be_drawn_on_though_the_painel_lists_it_no_more(
@@ -197,10 +239,15 @@ async def test_a_work_from_a_project_keeps_its_photos_as_copies_in_order(client,
 async def test_works_are_reordered_only_as_a_whole_list(client, staff):
     first = await add(client, staff, title="Casa Jardim")
     second = await add(client, staff, title="Loja Centro")
+    # A new piece comes first, so it is found; the office orders them as it likes.
+    assert [e["title"] for e in (await get(client, staff))["entries"]] == [
+        "Loja Centro",
+        "Casa Jardim",
+    ]
     answer = await client.put(
-        "/api/portfolio/order", json={"entries": [second["id"], first["id"]]}, headers=staff
+        "/api/portfolio/order", json={"entries": [first["id"], second["id"]]}, headers=staff
     )
-    assert [e["title"] for e in answer.json()["entries"]] == ["Loja Centro", "Casa Jardim"]
+    assert [e["title"] for e in answer.json()["entries"]] == ["Casa Jardim", "Loja Centro"]
     partial = await client.put(
         "/api/portfolio/order", json={"entries": [second["id"]]}, headers=staff
     )
@@ -376,28 +423,97 @@ async def test_removing_succeeds_even_when_storage_cant_take_the_files(client, s
     assert gone.status_code == 200 and gone.json()["entries"] == []
 
 
-async def test_a_work_takes_its_projects_type_unless_given_one(client, staff):
+async def test_a_work_takes_its_projects_types_section_unless_given_one(client, staff):
+    """A piece drawn from a project goes to its type's section, made for the
+    office if it hasn't one; a section given wins; a piece from nothing has none."""
     project = await project_id(client)
+    assert (await get(client, staff))["sections"] == []
     drawn = await add(client, staff, project_id=project)
-    assert drawn["project_type"] == "architecture"  # Casa Jardim's
+    sections = (await get(client, staff))["sections"]
+    assert [s["project_type"] for s in sections] == ["architecture"]  # Casa Jardim's, made
+    assert drawn["section_id"] == sections[0]["id"]
     chosen = await add(client, staff, project_id=project, project_type="interiors")
-    assert chosen["project_type"] == "interiors"
-    assert (await add(client, staff, title="Loja"))["project_type"] is None
+    interiors = await section_for(client, staff, "interiors")
+    assert chosen["section_id"] == interiors["id"]
+    assert (await add(client, staff, title="Loja"))["section_id"] is None
 
     url = f"/api/portfolio/entries/{drawn['id']}"
-    changed = await client.patch(url, json={"project_type": "landscaping"}, headers=staff)
-    assert changed.json()["entries"][0]["project_type"] == "landscaping"
+    by_id = lambda answer: {e["id"]: e for e in answer.json()["entries"]}  # noqa: E731
+    changed = await client.patch(url, json={"section_id": interiors["id"]}, headers=staff)
+    assert by_id(changed)[drawn["id"]]["section_id"] == interiors["id"]
     kept = await client.patch(url, json={"title": "Casa"}, headers=staff)
-    assert kept.json()["entries"][0]["project_type"] == "landscaping"
-    cleared = await client.patch(url, json={"project_type": None}, headers=staff)
-    assert cleared.json()["entries"][0]["project_type"] is None
+    assert by_id(kept)[drawn["id"]]["section_id"] == interiors["id"]
+    cleared = await client.patch(url, json={"section_id": None}, headers=staff)
+    assert by_id(cleared)[drawn["id"]]["section_id"] is None
 
-    unknown = await client.patch(url, json={"project_type": "castle"}, headers=staff)
-    assert unknown.status_code == 422
+    unknown = await client.patch(url, json={"section_id": str(uuid.uuid4())}, headers=staff)
+    assert unknown.status_code == 404
     added = await client.post(
-        "/api/portfolio/entries", json={"title": "X", "project_type": "castle"}, headers=staff
+        "/api/portfolio/entries",
+        json={"title": "X", "section_id": str(uuid.uuid4())},
+        headers=staff,
     )
-    assert added.status_code == 422
+    assert added.status_code == 404
+
+
+async def test_sections_are_the_offices_own_and_removed_only_when_empty(client, staff, db_session):
+    """A section is one of the site's types (one each) or a name of the office's
+    own, named in the address by a slug made from the name; renaming keeps the
+    slug. Another office never sees them. An empty section goes; one holding
+    pieces stays until they are moved."""
+    own = await client.post(
+        "/api/portfolio/sections", json={"label": "Redes sociais"}, headers=staff
+    )
+    assert own.status_code == 200, own.text
+    [section] = own.json()["sections"]
+    assert (section["name"], section["slug"], section["project_type"]) == (
+        "Redes sociais",
+        "redes-sociais",
+        None,
+    )
+    again = await client.post(
+        "/api/portfolio/sections", json={"label": "Redes Sociais"}, headers=staff
+    )
+    assert again.json()["sections"][1]["slug"] == "redes-sociais-2"  # the slug stays unique
+    typed = await client.post(
+        "/api/portfolio/sections", json={"project_type": "interiors"}, headers=staff
+    )
+    assert typed.json()["sections"][2]["slug"] == "interiors"
+    twice = await client.post(
+        "/api/portfolio/sections", json={"project_type": "interiors"}, headers=staff
+    )
+    assert (twice.status_code, twice.json()["error"]) == (409, "portfolio_section_exists")
+    for nonsense in ({}, {"label": "  "}, {"project_type": "castle"}):
+        refused = await client.post("/api/portfolio/sections", json=nonsense, headers=staff)
+        assert refused.status_code == 422, nonsense
+
+    url = f"/api/portfolio/sections/{section['id']}"
+    renamed = await client.patch(url, json={"label": "Stories"}, headers=staff)
+    assert (renamed.json()["sections"][0]["name"], renamed.json()["sections"][0]["slug"]) == (
+        "Stories",
+        "redes-sociais",
+    )
+    typed_url = f"/api/portfolio/sections/{typed.json()['sections'][2]['id']}"
+    assert (await client.patch(typed_url, json={"label": "X"}, headers=staff)).status_code == 422
+
+    piece = await add(client, staff, title="Post", section_id=section["id"])
+    full = await client.delete(url, headers=staff)
+    assert (full.status_code, full.json()["error"]) == (409, "portfolio_section_not_empty")
+    await client.patch(
+        f"/api/portfolio/entries/{piece['id']}", json={"section_id": None}, headers=staff
+    )
+    emptied = await client.delete(url, headers=staff)
+    assert emptied.status_code == 200 and len(emptied.json()["sections"]) == 2
+
+    # Another office: none of these, and no reach into them.
+    await switch_on(db_session, "norte")
+    norte = await sign_in_as(
+        client, db_session, "dono@norte.example", Role.OWNER, host=NORTE, slug="norte"
+    )
+    assert (await get(client, norte))["sections"] == []
+    other = f"/api/portfolio/sections/{again.json()['sections'][1]['id']}"
+    assert (await client.delete(other, headers=norte)).status_code == 404
+    assert (await client.patch(other, json={"label": "Minha"}, headers=norte)).status_code == 404
 
 
 async def test_the_menu_shows_the_works_of_one_type(client, staff):
@@ -450,9 +566,9 @@ async def test_an_upright_cover_stands_whole_on_a_blurred_copy_instead_of_croppe
     client.cookies.clear()
 
     home = (await client.get("/", headers=ALINEA)).text
-    frames = home.split('<span class="frame')[1:]
-    assert frames[0].startswith(' tall"') and frames[0].count('class="backdrop"') == 1
-    assert frames[1].startswith('"') and "backdrop" not in frames[1]
+    frames = home.split('<span class="frame')[1:]  # the newer piece, Casa, first
+    assert frames[1].startswith(' tall"') and frames[1].count('class="backdrop"') == 1
+    assert frames[0].startswith('"') and "backdrop" not in frames[0]
     upright = (await client.get(f"/?projeto={story['id']}", headers=ALINEA)).text
     assert 'width="90" height="160"' in upright and "backdrop" not in upright
 
@@ -513,8 +629,9 @@ async def test_the_images_are_the_page_and_the_words_come_after_them(client, sta
     grid = home.split('<ul class="works">')[1].split("</ul>")[0]
     assert home.index('id="projetos"') < home.index('id="escritorio"')
     tiles = grid.split("<li ")[1:]
-    assert len(tiles) == 2
-    assert '<span class="title">Casa Jardim</span></a>' in tiles[0]
+    assert len(tiles) == 2  # Loja, in a section, before Casa, in none
+    assert '<span class="title">Casa Jardim</span></a>' in tiles[1]
+    assert 'class="stack"' in tiles[1] and 'class="stack"' not in tiles[0]  # three photos: a stack
     assert "Porto Alegre" not in grid and "2024" not in grid and 'class="meta"' not in grid
     assert '<h2 id="works" class="sr-only">Projetos</h2>' in home  # for screen readers only
     assert '<h2 class="label">Escritório</h2><p>Arquitetura residencial.</p>' in home
@@ -1076,3 +1193,173 @@ async def test_the_mosaic_shows_a_comparison_in_its_grid(client, staff):
     page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
     posts = page.split('class="mosaic posts"')[1].split("</ul>")[0]
     assert posts.count("<li>") == 2 and 'class="zoom compare"' in posts
+
+
+async def test_a_piece_needs_no_title(client, staff):
+    """A photo dropped in is a piece with no words: nothing over its cover, no
+    heading on its page, and its section (or "Projeto") where a name is needed:
+    the page's title, the link to it, "Próximo projeto"."""
+    sent = await client.post(
+        "/api/portfolio/photos",
+        files={"file": ("foto.jpg", JPEG)},
+        data={"section_id": (await section_for(client, staff, "interiors"))["id"]},
+        headers=staff,
+    )
+    assert sent.status_code == 200, sent.text
+    [piece] = sent.json()["entries"]
+    assert (piece["title"], len(piece["photos"])) == ("", 1)
+    named = await add(client, staff, title="Casa Jardim")
+    await photo(client, staff, named)
+    bare = await client.post(
+        "/api/portfolio/photos", files={"file": ("x.jpg", JPEG)}, headers=staff
+    )
+    assert bare.status_code == 200, bare.text
+    loose = next(e for e in bare.json()["entries"] if e["id"] not in (piece["id"], named["id"]))
+    assert (loose["title"], loose["section_id"]) == ("", None)
+    await publish(client, staff)
+
+    home = (await client.get("/", headers=ALINEA)).text
+    cards = home.split('<ul class="works">')[1].split("</ul>")[0].split("<li ")[1:]
+    assert len(cards) == 3 and cards[0].count('class="title"') == 0
+    # The section's pieces first; the ones in none after, newest first.
+    assert f'href="/?projeto={piece["id"]}" aria-label="Interiores">' in cards[0]  # a name to read
+    assert f'href="/?projeto={loose["id"]}" aria-label="Projeto">' in cards[1]
+    assert f'href="/?projeto={named["id"]}">' in cards[2]
+    page = (await client.get(f"/?projeto={piece['id']}", headers=ALINEA)).text
+    assert "<title>Interiores · " in page and "<h1>" not in page
+    assert '<p class="label">Interiores</p>' in page
+    # Its images are "of" its section too, for a screen reader.
+    assert 'alt="Foto 1 de Interiores"' in page and 'aria-label="Fotos de Interiores"' in page
+    before_named = (await client.get(f"/?projeto={loose['id']}", headers=ALINEA)).text
+    assert (
+        '<span class="title">Casa Jardim</span>' in before_named
+    )  # "Próximo projeto": the named one
+    last = (await client.get(f"/?projeto={named['id']}", headers=ALINEA)).text
+    assert (
+        '<span class="title">Interiores</span>' in last
+    )  # back to the first, named by its section
+
+    # A title may be given later, and taken away.
+    url = f"/api/portfolio/entries/{piece['id']}"
+    by_id = lambda answer: {e["id"]: e for e in answer.json()["entries"]}  # noqa: E731
+    titled = await client.patch(url, json={"title": " Sala "}, headers=staff)
+    assert by_id(titled)[piece["id"]]["title"] == "Sala"
+    untitled = await client.patch(url, json={"title": ""}, headers=staff)
+    assert by_id(untitled)[piece["id"]]["title"] == ""
+
+
+async def test_pieces_are_grouped_into_a_project_and_ungrouped_again(client, staff):
+    """Merging: the other pieces' images join the first, in order, after its own,
+    and those pieces go; a piece without a title or section takes the first
+    found. Splitting: every image after the first becomes a piece of its own in
+    the same section, right after it, the words staying with the first."""
+    interiors = await section_for(client, staff, "interiors")
+    for name in ("a", "b", "c"):
+        sent = await client.post(
+            "/api/portfolio/photos",
+            files={"file": (f"{name}.jpg", png(100 + ord(name), 90))},
+            data={"section_id": interiors["id"]} if name == "b" else {},
+            headers=staff,
+        )
+        assert sent.status_code == 200, sent.text
+    pieces = sent.json()["entries"]
+    b = next(e for e in pieces if e["section_id"] == interiors["id"])
+    c, a = [e for e in pieces if e["id"] != b["id"]]  # the last dropped first
+    await client.patch(f"/api/portfolio/entries/{b['id']}", json={"title": "Sala"}, headers=staff)
+
+    merged = await client.post(
+        f"/api/portfolio/entries/{a['id']}/merge",
+        json={"entries": [b["id"], c["id"]]},
+        headers=staff,
+    )
+    assert merged.status_code == 200, merged.text
+    [project] = merged.json()["entries"]
+    assert (project["id"], project["title"], project["section_id"]) == (
+        a["id"],
+        "Sala",
+        interiors["id"],
+    )
+    photos = [a["photos"][0]["id"], b["photos"][0]["id"], c["photos"][0]["id"]]
+    assert [p["id"] for p in project["photos"]] == photos
+    gone = await client.post(
+        f"/api/portfolio/entries/{a['id']}/merge", json={"entries": [b["id"]]}, headers=staff
+    )
+    assert gone.status_code == 404
+    itself = await client.post(
+        f"/api/portfolio/entries/{a['id']}/merge", json={"entries": [a["id"]]}, headers=staff
+    )
+    assert itself.status_code == 422
+
+    split = await client.post(f"/api/portfolio/entries/{a['id']}/split", headers=staff)
+    assert split.status_code == 200, split.text
+    pieces = split.json()["entries"]
+    assert [len(p["photos"]) for p in pieces] == [1, 1, 1]
+    assert pieces[0]["id"] == a["id"] and pieces[0]["title"] == "Sala"  # keeps its words
+    assert [p["title"] for p in pieces[1:]] == ["", ""]
+    assert {p["section_id"] for p in pieces} == {interiors["id"]}
+    assert [p["photos"][0]["id"] for p in pieces] == photos
+    again = await client.post(f"/api/portfolio/entries/{a['id']}/split", headers=staff)
+    assert again.status_code == 200 and len(again.json()["entries"]) == 3  # nothing to split
+
+
+async def test_merging_keeps_the_words_the_first_piece_lacks(client, staff):
+    """A loose photo grouped with a project drawn from Casa Jardim: the photo is
+    the cover, and the project's title, section, year, sheet and project come
+    along instead of being thrown away."""
+    bare = await client.post(
+        "/api/portfolio/photos", files={"file": ("x.jpg", JPEG)}, headers=staff
+    )
+    [loose] = bare.json()["entries"]
+    drawn = await add(client, staff, project_id=await project_id(client), place="Porto Alegre, RS")
+    await client.patch(
+        f"/api/portfolio/entries/{drawn['id']}",
+        json={"details": [{"label": "Fotografia", "value": "Estúdio Luz"}], "credits": "Luz"},
+        headers=staff,
+    )
+    await photo(client, staff, drawn)
+    merged = await client.post(
+        f"/api/portfolio/entries/{loose['id']}/merge",
+        json={"entries": [drawn["id"]]},
+        headers=staff,
+    )
+    assert merged.status_code == 200, merged.text
+    [project] = merged.json()["entries"]
+    assert project["id"] == loose["id"] and project["photos"][0]["id"] == loose["photos"][0]["id"]
+    assert (project["title"], project["place"], project["credits"]) == (
+        "Casa Jardim",
+        "Porto Alegre, RS",
+        "Luz",
+    )
+    assert (
+        project["section_id"] == drawn["section_id"]
+        and project["project_id"] == drawn["project_id"]
+    )
+    assert [line["label"] for line in project["details"]] == ["Fotografia"]
+
+
+async def test_merged_images_come_after_the_targets_last_even_past_a_gap(client, staff):
+    """Removing a photo leaves a gap in the positions; what joins still comes
+    after the last one, in order."""
+    target = await add(client, staff, title="Casa")
+    for n in range(3):
+        await photo(client, staff, target, content=png(100 + n, 90), name=f"{n}.png")
+    kept = next(e for e in (await get(client, staff))["entries"] if e["id"] == target["id"])
+    first, middle, last = kept["photos"]
+    gone = await client.delete(f"/api/portfolio/photos/{middle['id']}", headers=staff)
+    assert gone.status_code == 200
+    loose = await client.post(
+        "/api/portfolio/photos", files={"file": ("x.jpg", JPEG)}, headers=staff
+    )
+    piece = next(e for e in loose.json()["entries"] if e["id"] != target["id"])
+    merged = await client.post(
+        f"/api/portfolio/entries/{target['id']}/merge",
+        json={"entries": [piece["id"]]},
+        headers=staff,
+    )
+    assert merged.status_code == 200, merged.text
+    [project] = merged.json()["entries"]
+    assert [p["id"] for p in project["photos"]] == [
+        first["id"],
+        last["id"],
+        piece["photos"][0]["id"],
+    ]

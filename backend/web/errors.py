@@ -131,6 +131,9 @@ class ErrorCode(StrEnum):
     PORTFOLIO_VIDEO_REFUSED = "portfolio_video_refused"  # not an MP4 or WebM, or over 200 MB
     PORTFOLIO_LINK_INVALID = "portfolio_link_invalid"  # not a profile on its network
     PORTFOLIO_PHOTO_COMPARED = "portfolio_photo_compared"  # already in another comparison (A46)
+    PORTFOLIO_SECTION_NOT_FOUND = "portfolio_section_not_found"  # removed meanwhile: reload
+    PORTFOLIO_SECTION_EXISTS = "portfolio_section_exists"  # the office has that type's already
+    PORTFOLIO_SECTION_NOT_EMPTY = "portfolio_section_not_empty"  # move its pieces out first
 
 
 class ErrorOut(BaseModel):

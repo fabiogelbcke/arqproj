@@ -18,6 +18,7 @@ PORTFOLIO_TABLES = (
     "portfolio_details",
     "portfolio_photos",
     "portfolio_videos",
+    "portfolio_sections",
 )
 CRUD = ("SELECT", "INSERT", "UPDATE", "DELETE")
 

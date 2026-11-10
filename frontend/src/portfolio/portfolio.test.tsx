@@ -11,7 +11,10 @@ vi.mock("./portfolio", async (original) => ({
   ...(await original<typeof import("./portfolio")>()),
   videoPoster: vi.fn(),
   sendVideo: vi.fn(),
+  resized: vi.fn((blob: Blob, name: string) => Promise.resolve(new File([blob], name, { type: "image/jpeg" }))),
 }));
+URL.createObjectURL ??= () => "blob:preview";
+URL.revokeObjectURL ??= () => undefined;
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -30,7 +33,7 @@ function entry(changes: Partial<Entry>): Entry {
     place: "Porto Alegre, RS",
     year: 2024,
     description: "",
-    project_type: "architecture",
+    section_id: "s-arch",
     details: [],
     credits: "",
     videos: [],
@@ -41,12 +44,25 @@ function entry(changes: Partial<Entry>): Entry {
   };
 }
 
+// Two sections, in the office's order: a site type's and one of its own.
+const SECTIONS = [
+  { id: "s-arch", position: 1, name: "Arquitetura", project_type: "architecture", slug: "architecture" },
+  { id: "s-int", position: 2, name: "Interiores", project_type: "interiors", slug: "interiors" },
+];
+
+// In the page's order: Arquitetura's pieces (a project of two photos, a loose
+// photo), then the piece in no section.
 const PORTFOLIO: Portfolio = {
   published: false,
   format: "gallery",
   intro: "",
   links: {},
-  entries: [entry({}), entry({ id: "e-2", title: "Loja Centro", place: "", year: null, photos: [], project_id: null })],
+  sections: SECTIONS,
+  entries: [
+    entry({ photos: [{ id: "f-1", url: "/api/portfolio/photos/f-1" }, { id: "f-2", url: "/api/portfolio/photos/f-2" }] }),
+    entry({ id: "e-3", title: "", place: "", year: null, project_id: null, project_name: null, photos: [{ id: "f-3", url: "/api/portfolio/photos/f-3" }] }),
+    entry({ id: "e-2", title: "Loja Centro", place: "", year: null, section_id: null, project_id: null, project_name: null }),
+  ],
 };
 
 const NO_TYPES = { "GET /api/project-types": () => ({ body: { types: [], stages: [] } }) };
@@ -76,15 +92,28 @@ describe("the Portfólio tab", () => {
     expect(screen.queryByRole("link", { name: "Portfólio" })).toBeNull();
   });
 
-  it("lists the works in order and says which won't show for lack of photos", async () => {
+  it("lays the images out in sections by type, each its projects then its loose photos, and Sem tipo last", async () => {
     api();
     renderAt("/portfolio");
-    const works = await screen.findByRole("region", { name: /Projetos no portfólio/ });
-    const rows = within(works).getAllByRole("listitem");
-    expect(within(rows[0]!).getByText("Porto Alegre, RS · 2024")).toBeInTheDocument();
-    expect(within(rows[0]!).getByText("1 foto")).toBeInTheDocument();
-    expect(within(rows[1]!).getByText("Sem fotos: não aparece no portfólio")).toBeInTheDocument();
-    expect(within(rows[0]!).getByRole("button", { name: "Mover para cima" })).toBeDisabled();
+    const images = await screen.findByRole("region", { name: /^Imagens/ });
+    const sections = within(images).getAllByRole("region");
+    expect(sections.map((section) => within(section).getByRole("heading", { level: 3 }).textContent)).toEqual([
+      "Arquitetura",
+      "Interiores",
+      "Sem tipo",
+    ]);
+    // Arquitetura: a project (two photos) and a loose photo, as two groups, in the office's order.
+    const arch = sections[0]!;
+    expect(within(arch).getByText("3 fotos · 1 projeto")).toBeInTheDocument();
+    const groups = within(arch).getAllByRole("heading", { level: 4 });
+    expect(groups.map((group) => group.textContent)).toEqual(["Projetos 1", "Fotos 1"]);
+    expect(within(arch).getByRole("button", { name: "Abrir o projeto Casa Jardim" })).toBeInTheDocument();
+    expect(within(arch).getByRole("button", { name: "Abrir a foto Foto" })).toBeInTheDocument();
+    // Interiores holds nothing yet; Sem tipo the piece in no section.
+    expect(within(sections[1]!).getByText(/Nenhuma foto nesta seção ainda/)).toBeInTheDocument();
+    expect(within(sections[2]!).getByRole("button", { name: "Abrir a foto Loja Centro" })).toBeInTheDocument();
+    // Each section's own drop area, and the way to the portfolio.
+    expect(within(arch).getByLabelText("Enviar fotos para Arquitetura")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver prévia" })).toHaveAttribute("href", "/?previa=1");
   });
 
@@ -145,20 +174,170 @@ describe("the Portfólio tab", () => {
     expect(sent.find((call) => call.path === "/api/projects")?.query).toBe("?archived=true");
   });
 
-  it("moves a work down by sending the whole new order", async () => {
-    const sent = api({ "PUT /api/portfolio/order": () => ({ body: PORTFOLIO }) });
+  it("reorders the sections, the public menu's order, by sending the whole new order", async () => {
+    const sent = api({ "PUT /api/portfolio/sections/order": () => ({ body: PORTFOLIO }) });
     renderAt("/portfolio");
-    const works = await screen.findByRole("region", { name: /Projetos no portfólio/ });
-    await userEvent.click(within(within(works).getAllByRole("listitem")[0]!).getByRole("button", { name: "Mover para baixo" }));
+    const images = await screen.findByRole("region", { name: /^Imagens/ });
+    const [arch] = within(images).getAllByRole("region");
+    expect(within(arch!).getByRole("button", { name: "Mover para cima" })).toBeDisabled();
+    await userEvent.click(within(arch!).getByRole("button", { name: "Mover para baixo" }));
     await waitFor(() =>
-      expect(sent.find((call) => call.method === "PUT")?.body).toEqual({ entries: ["e-2", "e-1"] }),
+      expect(sent.find((call) => call.method === "PUT")?.body).toEqual({ sections: ["s-int", "s-arch"] }),
     );
+  });
+
+  it("opens one dialog for every drop, and adds the photos as loose pieces of the section, last to first", async () => {
+    const sent = api({ "POST /api/portfolio/photos": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio");
+    const input = await screen.findByLabelText("Enviar fotos para Interiores");
+    const files = [new File(["a"], "sala.jpg", { type: "image/jpeg" }), new File(["b"], "quarto.jpg", { type: "image/jpeg" })];
+    await userEvent.upload(input, files);
+    const dialog = await screen.findByRole("dialog", { name: "2 fotos" });
+    // Everything optional: the section it was dropped on, loose photos, no captions.
+    expect(within(dialog).getByRole("combobox", { name: "Seção" })).toHaveValue("s-int");
+    expect(within(dialog).getByRole("radio", { name: "Fotos soltas" })).toBeChecked();
+    await userEvent.type(within(dialog).getByLabelText("Legenda da foto 1"), "Sala");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar" }));
+    await waitFor(() => expect(sent.filter((call) => call.path === "/api/portfolio/photos")).toHaveLength(2));
+    expect(await screen.findByText("2 fotos adicionadas.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("after a failed upload, sends only the photos still missing, and keeps the captions to loose photos", async () => {
+    let calls = 0;
+    const sent = api({
+      "POST /api/portfolio/photos": () =>
+        ++calls === 2 ? { status: 503, body: { error: "drive_connect_failed" } } : { body: PORTFOLIO },
+    });
+    renderAt("/portfolio");
+    const input = await screen.findByLabelText("Enviar fotos para Interiores");
+    await userEvent.upload(input, [1, 2, 3].map((n) => new File([`${n}`], `${n}.jpg`, { type: "image/jpeg" })));
+    const dialog = await screen.findByRole("dialog", { name: "3 fotos" });
+    // Captions belong to loose photos: a project's photos have none, so the boxes go.
+    expect(within(dialog).getAllByLabelText(/^Legenda da foto/)).toHaveLength(3);
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Um projeto novo" }));
+    expect(within(dialog).queryByLabelText(/^Legenda da foto/)).toBeNull();
+    // Into an existing project, the photos take its section: the choice follows it.
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Em um projeto" }));
+    expect(within(dialog).getByRole("combobox", { name: "Seção" })).toBeDisabled();
+    expect(within(dialog).getByRole("combobox", { name: "Seção" })).toHaveValue("s-arch"); // Casa Jardim's
+    await userEvent.click(within(dialog).getByRole("radio", { name: "Fotos soltas" }));
+    expect(within(dialog).getByRole("combobox", { name: "Seção" })).toBeEnabled();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar" }));
+    expect(await within(dialog).findByText("O envio parou em 1 de 3. As que faltam podem ser enviadas de novo.")).toBeInTheDocument();
+    // What was sent went to Interiores: the section can't change under the rest.
+    expect(within(dialog).getByRole("combobox", { name: "Seção" })).toBeDisabled();
+    expect(sent.filter((call) => call.path === "/api/portfolio/photos")).toHaveLength(2);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Enviar as que faltam" }));
+    // Two more, never the one already in: four calls for three photos.
+    await waitFor(() => expect(sent.filter((call) => call.path === "/api/portfolio/photos")).toHaveLength(4));
+    expect(await screen.findByText("3 fotos adicionadas.")).toBeInTheDocument();
+  });
+
+  it("makes one project of a drop when asked, opened on its photos", async () => {
+    const made = { ...PORTFOLIO, entries: [entry({ id: "e-new", title: "Casa Nova", photos: [], project_id: null }), ...PORTFOLIO.entries] };
+    const sent = api({
+      "POST /api/portfolio/entries": () => ({ body: made }),
+      "POST /api/portfolio/entries/e-new/photos": () => ({ body: made }),
+    });
+    renderAt("/portfolio");
+    const input = await screen.findByLabelText("Enviar um projeto inteiro para Interiores");
+    await userEvent.upload(input, [new File(["a"], "a.jpg", { type: "image/jpeg" }), new File(["b"], "b.jpg", { type: "image/jpeg" })]);
+    const dialog = await screen.findByRole("dialog", { name: "2 fotos" });
+    expect(within(dialog).getByRole("radio", { name: "Um projeto novo" })).toBeChecked();
+    await userEvent.type(within(dialog).getByLabelText("Título do projeto"), "Casa Nova");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar" }));
+    await waitFor(() =>
+      expect(sent.find((call) => call.path === "/api/portfolio/entries")?.body).toEqual({
+        title: "Casa Nova",
+        place: "",
+        description: "",
+        section_id: "s-int",
+      }),
+    );
+    await waitFor(() => expect(sent.filter((call) => call.path === "/api/portfolio/entries/e-new/photos")).toHaveLength(2));
+    expect(await screen.findByText("Projeto criado.")).toBeInTheDocument();
+  });
+
+  it("groups selected pieces into a project from the bar, the first as its cover", async () => {
+    const sent = api({ "POST /api/portfolio/entries/e-3/merge": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio");
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Selecionar Foto" }));
+    const bar = screen.getByRole("toolbar", { name: "Itens selecionados" });
+    expect(within(bar).getByText("1 selecionado")).toBeInTheDocument();
+    expect(within(bar).getByRole("button", { name: "Agrupar em projeto" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar Loja Centro" }));
+    expect(within(bar).getByText("2 selecionados")).toBeInTheDocument();
+    await userEvent.click(within(bar).getByRole("button", { name: "Agrupar em projeto" }));
+    await waitFor(() =>
+      expect(sent.find((call) => call.method === "POST")?.body).toEqual({ entries: ["e-2"] }),
+    );
+    expect(await screen.findByText("Projeto criado.")).toBeInTheDocument();
+  });
+
+  it("moves selected pieces to another section from the bar", async () => {
+    const sent = api({ "PATCH /api/portfolio/entries/e-2": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio");
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Selecionar Loja Centro" }));
+    const bar = screen.getByRole("toolbar", { name: "Itens selecionados" });
+    await userEvent.selectOptions(within(bar).getByRole("combobox", { name: "Mover para…" }), "Interiores");
+    await waitFor(() => expect(sent.find((call) => call.method === "PATCH")?.body).toEqual({ section_id: "s-int" }));
+    expect(await screen.findByText("Movido para Interiores.")).toBeInTheDocument();
+  });
+
+  it("opens a photo on its sheet: a caption and a section, both optional", async () => {
+    const sent = api({ "PATCH /api/portfolio/entries/e-3": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio");
+    await userEvent.click(await screen.findByRole("button", { name: "Abrir a foto Foto" }));
+    const sheet = await screen.findByRole("dialog", { name: "Foto" });
+    await userEvent.type(within(sheet).getByLabelText("Legenda"), "Sala de estar");
+    await userEvent.click(within(sheet).getByRole("button", { name: "Salvar" }));
+    await waitFor(() =>
+      expect(sent.find((call) => call.method === "PATCH")?.body).toEqual({ title: "Sala de estar", section_id: "s-arch" }),
+    );
+  });
+
+  it("adds a section: one of the site's types the office hasn't yet, or a name of its own", async () => {
+    const sent = api({
+      "GET /api/project-types": () => ({
+        body: {
+          types: [
+            { key: "architecture", label: "Projeto Arquitetônico", stages: [] },
+            { key: "landscaping", label: "Paisagismo", stages: [] },
+          ],
+          stages: [],
+        },
+      }),
+      "POST /api/portfolio/sections": () => ({ body: PORTFOLIO }),
+    });
+    renderAt("/portfolio");
+    await userEvent.click(await screen.findByRole("button", { name: "+ Nova seção" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nova seção" });
+    // Arquitetura is a section already: only Paisagismo is offered.
+    expect(await within(dialog).findByRole("button", { name: "Paisagismo" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Arquitetura" })).toBeNull();
+    await userEvent.type(within(dialog).getByLabelText("Nome da seção"), "Stories");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar" }));
+    await waitFor(() => expect(sent.find((call) => call.method === "POST")?.body).toEqual({ label: "Stories" }));
+    expect(await screen.findByText("Seção “Stories” criada.")).toBeInTheDocument();
+  });
+
+  it("copies the portfolio's link, or a section's, to share", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText }, share: undefined });
+    api();
+    renderAt("/portfolio");
+    await userEvent.click(await screen.findByRole("button", { name: "Compartilhar" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.origin + "/"));
+    expect(await screen.findByText("Link copiado.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Compartilhar a seção Interiores" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(window.location.origin + "/?tipo=interiors"));
   });
 });
 
 describe("a work's editor", () => {
   it("opens on the photos, asks for the title, and folds the rest away until something is there", async () => {
-    const bare = { ...PORTFOLIO, entries: [entry({ place: "", year: null, project_type: null, project_id: null })] };
+    const bare = { ...PORTFOLIO, entries: [entry({ place: "", year: null, section_id: null, project_id: null })] };
     api({ ...NO_TYPES, "GET /api/portfolio": () => ({ body: bare }) });
     renderAt("/portfolio/e-1"); // a bare work: nothing but its title and a photo
     const title = await screen.findByLabelText("Título");
@@ -185,27 +364,36 @@ describe("a work's editor", () => {
     expect(screen.getByText("Mais informações").closest("details")!.open).toBe(true);
   });
 
-  it("files the work under a type, for the public page's menu", async () => {
-    const sent = api({
-      "GET /api/project-types": () => ({
-        body: {
-          types: [
-            { key: "architecture", label: "Projeto Arquitetônico", stages: [] },
-            { key: "interiors", label: "Projeto de Interiores", stages: [] },
-          ],
-          stages: [],
-        },
-      }),
-      "PATCH /api/portfolio/entries/e-1": () => ({ body: PORTFOLIO }),
-    });
+  it("files the work under a section, for the public page's menu", async () => {
+    const sent = api({ ...NO_TYPES, "PATCH /api/portfolio/entries/e-1": () => ({ body: PORTFOLIO }) });
     renderAt("/portfolio/e-1");
-    const type = await screen.findByRole("combobox", { name: "Tipo" });
-    await waitFor(() => expect(type).toHaveValue("architecture"));
-    await userEvent.selectOptions(type, "Interiores");
+    const section = await screen.findByRole("combobox", { name: "Seção" });
+    await waitFor(() => expect(section).toHaveValue("s-arch"));
+    await userEvent.selectOptions(section, "Interiores");
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
     await waitFor(() =>
-      expect(sent.find((call) => call.method === "PATCH")?.body).toMatchObject({ project_type: "interiors" }),
+      expect(sent.find((call) => call.method === "PATCH")?.body).toMatchObject({ section_id: "s-int" }),
     );
+  });
+
+  it("needs no title: a project may be saved without one", async () => {
+    const sent = api({ ...NO_TYPES, "PATCH /api/portfolio/entries/e-1": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio/e-1");
+    const title = await screen.findByLabelText("Título");
+    await userEvent.clear(title);
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(sent.find((call) => call.method === "PATCH")?.body).toMatchObject({ title: "" }));
+  });
+
+  it("ungroups a project from its editor: its photos after the first become pieces of their own", async () => {
+    const sent = api({ ...NO_TYPES, "POST /api/portfolio/entries/e-1/split": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio/e-1");
+    await userEvent.click(await screen.findByRole("button", { name: "Desfazer projeto" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Desfazer o projeto?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Desfazer projeto" }));
+    await waitFor(() => expect(sent.some((call) => call.path === "/api/portfolio/entries/e-1/split")).toBe(true));
+    expect(await screen.findByText("Projeto desfeito. As fotos continuam no portfólio.")).toBeInTheDocument();
   });
 
   const DETAIL_TYPES = {
@@ -382,8 +570,8 @@ describe("a work's before and after (A46)", () => {
     const photos = [THREE[0]!, { ...THREE[1]!, comparison: { after: "f-1", before_label: null, after_label: null } }, THREE[2]!];
     api({ ...NO_TYPES, ...COMPARING, "GET /api/portfolio": () => ({ body: { ...PORTFOLIO, entries: [entry({ photos })] } }) });
     renderAt("/portfolio");
-    await screen.findByRole("link", { name: /Casa/ });
-    expect(document.querySelector("img[src^='/api/portfolio/photos/']")).toHaveAttribute("src", "/api/portfolio/photos/f-2?size=card");
+    const tile = await screen.findByRole("button", { name: "Abrir o projeto Casa Jardim" });
+    expect(within(tile).getByRole("presentation")).toHaveAttribute("src", "/api/portfolio/photos/f-2?size=card");
   });
 
   it("offers no \"Antes e depois\" when comparisons are switched off for the office", async () => {
