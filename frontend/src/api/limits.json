@@ -7,6 +7,8 @@
   "stageTitle": 80,
   "stageNotes": 120,
   "sectionName": 80,
+  "comparisonTitle": 120,
+  "comparisonLabel": 40,
   "detailText": 40,
   "meetingTitle": 40,
   "meetingLocation": 60,

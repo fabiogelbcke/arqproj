@@ -10,6 +10,8 @@ database allows more, and a name saved before the limit stays as it is.
 
 from __future__ import annotations
 
+from backend.documents.comparisons import LABEL_MAX as COMPARISON_LABEL_MAX
+from backend.documents.comparisons import TITLE_MAX as COMPARISON_TITLE_MAX
 from backend.identity.emails import EMAIL_LIMIT
 from backend.notifications.models import RECIPIENTS_MAX
 from backend.projects.creation import CLIENT_NAME_LIMIT, CUSTOM_TYPE_LIMIT, SLUG_MAX
@@ -34,6 +36,8 @@ FIELD_LIMITS: dict[str, int] = {
     "stageTitle": STAGE_TITLE_MAX,
     "stageNotes": NOTES_MAX,
     "sectionName": SECTION_NAME_MAX,
+    "comparisonTitle": COMPARISON_TITLE_MAX,  # A46
+    "comparisonLabel": COMPARISON_LABEL_MAX,
     "detailText": DETAIL_TEXT_MAX,
     "meetingTitle": MEETING_TITLE_MAX,
     "meetingLocation": MEETING_LOCATION_MAX,

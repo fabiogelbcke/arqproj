@@ -4,17 +4,20 @@
 // most 2400 px and uploads it; the portfolio keeps its own copy. And its videos,
 // sent from the computer straight to the office's storage.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { api, ApiError, call } from "../api/client";
+import { LIMITS as FIELD_LIMITS } from "../api/limits";
 import { ActionMenu } from "../ui/ActionMenu";
 import { fileSource } from "../client/format";
-import { useCreationOptions, useProjects, type ProjectSummary } from "../projects/projects";
+import { useProjects, type ProjectSummary } from "../projects/projects";
 import { Button } from "../ui/Button";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { BeforeAfter } from "../ui/BeforeAfter";
 import { IconButton } from "../ui/IconButton";
 import { Panel } from "../ui/Panel";
 import { SelectField } from "../ui/SelectField";
@@ -31,19 +34,21 @@ import {
   sendVideo,
   useAddPhoto,
   useChangeEntry,
+  useComparePhoto,
   useDetailTypes,
   usePortfolio,
   useRemovePhoto,
   useRemoveVideo,
+  useSplitEntry,
   videoPoster,
   type Entry,
+  type Section,
   type SheetLine,
 } from "./portfolio";
-import { ProjectChoice } from "./PortfolioPage";
+import { useFeature } from "../session/session";
+import { ProjectChoice, SeePortfolio } from "./PortfolioPage";
 import styles from "./portfolio.module.css";
 import ui from "../ui/ui.module.css";
-
-const STATUSES = ["completed", "in_progress"] as const;
 
 export function PortfolioEntryPage() {
   const { t } = useTranslation();
@@ -53,10 +58,19 @@ export function PortfolioEntryPage() {
   return (
     <div className={styles.page}>
       <div className={styles.head}>
-        <p className={styles.crumbs}>
-          <Link to="/portfolio">{t("portfolio.title")}</Link> /
-        </p>
-        <h1 className={styles.title}>{entry?.title ?? t("portfolio.title")}</h1>
+        <div className={styles.headText}>
+          <p className={styles.crumbs}>
+            <Link to="/portfolio">{t("portfolio.title")}</Link> /
+          </p>
+          <h1 className={styles.title}>{entry ? entry.title || t("portfolio.untitled") : t("portfolio.title")}</h1>
+        </div>
+        {portfolio.data && entry && (
+          <div className={styles.actions}>
+            {entry.photos.length > 1 && <Ungroup entry={entry} />}
+            {/* A work without photos isn't on the page: nothing to see yet. */}
+            {entry.photos.length > 0 && <SeePortfolio published={portfolio.data.published} work={entry.id} />}
+          </div>
+        )}
       </div>
       {portfolio.error ? (
         <ErrorNotice error={portfolio.error} />
@@ -67,28 +81,67 @@ export function PortfolioEntryPage() {
           {t("portfolio.notFound")} <Link to="/portfolio">{t("portfolio.backToList")}</Link>
         </p>
       ) : (
-        <>
-          <Details key={entry.id} entry={entry} />
-          <Photos entry={entry} />
-          <Videos entry={entry} />
-        </>
+        <div className={styles.editor}>
+          <div className={styles.media}>
+            <Photos entry={entry} />
+            <Videos entry={entry} />
+          </div>
+          <Details key={entry.id} entry={entry} sections={portfolio.data.sections} />
+        </div>
       )}
     </div>
   );
 }
 
-function Details({ entry }: { entry: Entry }) {
+/** "Desfazer projeto": its images after the first become pieces of their own,
+ *  back in the tab, in the same section; this one keeps its words and videos. */
+function Ungroup({ entry }: { entry: Entry }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const split = useSplitEntry();
+  const [asking, setAsking] = useState(false);
+  return (
+    <>
+      <Button onPress={() => setAsking(true)}>{t("portfolio.ungroup")}</Button>
+      {asking && (
+        <ConfirmDialog
+          title={t("portfolio.ungroupTitle")}
+          text={t("portfolio.ungroupText", { count: entry.photos.length - 1 })}
+          confirm={t("portfolio.ungroup")}
+          busy={split.isPending}
+          onConfirm={() =>
+            split.mutate(entry.id, {
+              onSuccess: () => {
+                toast(t("portfolio.ungrouped"));
+                void navigate("/portfolio");
+              },
+              onError: (failure) => toastError(failure),
+            })
+          }
+          onCancel={() => setAsking(false)}
+        />
+      )}
+    </>
+  );
+}
+
+/** The work's words, beside its photos and videos: its title, the one text
+ *  the portfolio needs, and the rest folded under "Mais informações", open when
+ *  anything there is filled in: one sheet of rows, a name and its value, as the
+ *  public page shows them (type, place, year, the details, the description,
+ *  the credits). */
+function Details({ entry, sections }: { entry: Entry; sections: Section[] }) {
   const { t } = useTranslation();
   const change = useChangeEntry();
+  const hasMore =
+    !!entry.place || !!entry.year || !!entry.description || !!entry.section_id || !!entry.credits || entry.details.length > 0;
   const [title, setTitle] = useState(entry.title);
   const [place, setPlace] = useState(entry.place);
   const [year, setYear] = useState(entry.year ? String(entry.year) : "");
   const [description, setDescription] = useState(entry.description);
-  const [kind, setKind] = useState(entry.project_type ?? "");
-  const [status, setStatus] = useState<string>(entry.status ?? "");
+  const [kind, setKind] = useState(entry.section_id ?? "");
   const [sheet, setSheet] = useState<SheetLine[]>(entry.details);
   const [credits, setCredits] = useState(entry.credits);
-  const types = useCreationOptions().data?.types ?? [];
   const yearNumber = year.trim() ? Number(year.trim()) : null;
   const yearOk = yearNumber === null || (Number.isInteger(yearNumber) && yearNumber >= 1900 && yearNumber <= 2100);
   const lines = sheet.map(sentLine);
@@ -98,75 +151,91 @@ function Details({ entry }: { entry: Entry }) {
     place.trim() !== entry.place ||
     yearNumber !== entry.year ||
     description.trim() !== entry.description ||
-    kind !== (entry.project_type ?? "") ||
-    status !== (entry.status ?? "") ||
+    kind !== (entry.section_id ?? "") ||
     JSON.stringify(lines) !== JSON.stringify(entry.details.map(sentLine)) ||
     credits.trim() !== entry.credits;
   return (
-    <Panel className={styles.section} aria-labelledby="portfolio-details">
+    <Panel className={`${styles.section} ${styles.words}`} aria-labelledby="portfolio-details">
       <h2 id="portfolio-details">{t("portfolio.details")}</h2>
       {entry.project_name && <p className={styles.hint}>{t("portfolio.linked", { name: entry.project_name })}</p>}
-      <TextField label={t("portfolio.titleLabel")} value={title} onChange={setTitle} maxLength={LIMITS.title} isRequired />
-      <div>
-        <SelectField
-          label={t("portfolio.type")}
-          value={kind}
-          options={[
-            { value: "", label: t("portfolio.typeNone") },
-            ...types.map((type) => ({ value: type.key, label: t(`portfolio.types.${type.key}`, type.label) })),
-          ]}
-          onChange={setKind}
-        />
-        <p className={styles.hint}>{t("portfolio.typeHint")}</p>
-      </div>
-      <div className={styles.pair}>
-        <TextField
-          label={t("portfolio.place")}
-          placeholder={t("portfolio.placePlaceholder")}
-          value={place}
-          onChange={setPlace}
-          maxLength={LIMITS.place}
-        />
-        <TextField
-          label={t("portfolio.year")}
-          placeholder="2025"
-          inputMode="numeric"
-          value={year}
-          onChange={setYear}
-          isInvalid={!yearOk}
-          validate={() => (yearOk ? null : t("portfolio.yearInvalid"))}
-          validationBehavior="aria"
-        />
-      </div>
-      <SelectField
-        label={t("portfolio.status")}
-        value={status}
-        options={[
-          { value: "", label: t("portfolio.statusNone") },
-          ...STATUSES.map((value) => ({ value, label: t(`portfolio.statuses.${value}`) })),
-        ]}
-        onChange={setStatus}
-      />
-      <Sheet lines={sheet} onChange={setSheet} />
-      <TextAreaField
-        label={t("portfolio.description")}
-        description={t("portfolio.descriptionHint")}
-        value={description}
-        onChange={setDescription}
-        maxLength={LIMITS.description}
-        rows={5}
-      />
       <TextField
-        label={t("portfolio.credits")}
-        placeholder={t("portfolio.creditsPlaceholder")}
-        value={credits}
-        onChange={setCredits}
-        maxLength={LIMITS.credits}
+        label={t("portfolio.titleLabel")}
+        description={t("portfolio.titleHint")}
+        placeholder={t("portfolio.titleOptional")}
+        value={title}
+        onChange={setTitle}
+        maxLength={LIMITS.title}
       />
+      <details className={styles.more} open={hasMore}>
+        <summary>
+          <span>{t("portfolio.more")}</span>
+          <span className={styles.hint}>{t("portfolio.moreHint")}</span>
+        </summary>
+        <div className={styles.moreBody}>
+          <Row label={t("portfolio.section")}>
+            <SelectField
+              label={t("portfolio.section")}
+              labelHidden
+              className={styles.rowSelect}
+              value={kind}
+              options={[
+                { value: "", label: t("portfolio.typeNone") },
+                ...sections.map((section) => ({ value: section.id, label: section.name })),
+              ]}
+              onChange={setKind}
+            />
+          </Row>
+          <Row label={t("portfolio.place")}>
+            <TextField
+              label={t("portfolio.place")}
+              labelHidden
+              placeholder={t("portfolio.placePlaceholder")}
+              value={place}
+              onChange={setPlace}
+              maxLength={LIMITS.place}
+            />
+          </Row>
+          <Row label={t("portfolio.year")}>
+            <TextField
+              label={t("portfolio.year")}
+              labelHidden
+              className={styles.short}
+              placeholder="2025"
+              inputMode="numeric"
+              value={year}
+              onChange={setYear}
+              isInvalid={!yearOk}
+              validate={() => (yearOk ? null : t("portfolio.yearInvalid"))}
+              validationBehavior="aria"
+            />
+          </Row>
+          <Sheet lines={sheet} onChange={setSheet} />
+          <Row label={t("portfolio.description")} top>
+            <TextAreaField
+              label={t("portfolio.description")}
+              labelHidden
+              value={description}
+              onChange={setDescription}
+              maxLength={LIMITS.description}
+              rows={4}
+            />
+          </Row>
+          <Row label={t("portfolio.credits")}>
+            <TextField
+              label={t("portfolio.credits")}
+              labelHidden
+              placeholder={t("portfolio.creditsPlaceholder")}
+              value={credits}
+              onChange={setCredits}
+              maxLength={LIMITS.credits}
+            />
+          </Row>
+        </div>
+      </details>
       <Button
         size="small"
         className={styles.save}
-        isDisabled={!changed || !title.trim() || !yearOk || !sheetOk || change.isPending}
+        isDisabled={!changed || !yearOk || !sheetOk || change.isPending}
         onPress={() =>
           change.mutate(
             {
@@ -175,8 +244,7 @@ function Details({ entry }: { entry: Entry }) {
               place,
               year: yearNumber,
               description,
-              project_type: kind || null,
-              status: (status || null) as Entry["status"],
+              section_id: kind || null,
               details: lines.filter((line) => line !== null),
               credits,
             },
@@ -207,6 +275,36 @@ function sentLine(line: SheetLine): { key?: string; label?: string; value: strin
 /** The work's sheet: the built-in details the project page offers (each once,
  *  typed: an area in m², a date, text) and lines with the office's own label
  *  ("Fotografia", "Construtora"), in the order added. */
+/** One row of the sheet: its name on the left (or, for a line of the office's
+ *  own, the field for the name), the value on the right, and, for a line that
+ *  can go, its × at the end. Every row shares the same columns, so the fold
+ *  reads as one sheet. `top`: the name level with the top of a tall field. */
+function Row({
+  label,
+  name,
+  remove,
+  top,
+  children,
+}: {
+  label: string;
+  name?: ReactNode;
+  remove?: ReactNode;
+  top?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={styles.row} data-top={top || undefined}>
+      {name ?? (
+        <span className={styles.rowLabel} aria-hidden="true">
+          {label}
+        </span>
+      )}
+      <div className={styles.rowField}>{children}</div>
+      {remove ?? <span />}
+    </div>
+  );
+}
+
 function Sheet({ lines, onChange }: { lines: SheetLine[]; onChange: (lines: SheetLine[]) => void }) {
   const { t } = useTranslation();
   const types = useDetailTypes().data ?? [];
@@ -217,79 +315,81 @@ function Sheet({ lines, onChange }: { lines: SheetLine[]; onChange: (lines: Shee
   const set = (index: number, change: Partial<SheetLine>) =>
     onChange(lines.map((line, i) => (i === index ? { ...line, ...change } : line)));
   return (
-    <div className={styles.sheet} role="group" aria-labelledby="portfolio-sheet">
-      <span id="portfolio-sheet" className={styles.switchLabel}>
-        {t("portfolio.sheet")}
-      </span>
-      <p className={styles.hint}>{t("portfolio.sheetHint")}</p>
-      {lines.length === 0 ? (
-        <p className={styles.hint}>{t("portfolio.noDetails")}</p>
-      ) : (
-        <ul className={styles.sheetRows}>
-          {lines.map((line, index) => {
-            const name = line.key ? line.label : line.label.trim() || t("portfolio.ownLabel");
-            const area = line.type === "area";
-            const areaOk = !area || !line.value.trim() || typeof parsedArea(line.value) === "number";
-            return (
-              <li key={line.key ?? `own-${index}`} className={styles.sheetRow} data-own={line.key ? undefined : true}>
-                {!line.key && (
-                  <TextField
-                    label={t("portfolio.ownLabel")}
-                    placeholder={t("portfolio.ownLabelPlaceholder")}
-                    value={line.label}
-                    onChange={(label) => set(index, { label })}
-                    maxLength={LIMITS.label}
-                  />
-                )}
+    <div className={styles.sheet} role="group" aria-label={t("portfolio.sheet")}>
+      {lines.map((line, index) => {
+        const name = line.key ? line.label : line.label.trim() || t("portfolio.ownLabel");
+        const area = line.type === "area";
+        const areaOk = !area || !line.value.trim() || typeof parsedArea(line.value) === "number";
+        return (
+          <Row
+            key={line.key ?? `own-${index}`}
+            label={line.label}
+            name={
+              line.key ? undefined : (
                 <TextField
-                  label={line.key ? line.label : t("portfolio.detailValue")}
-                  type={line.type === "date" ? "date" : "text"}
-                  inputMode={area ? "decimal" : undefined}
-                  suffix={area ? "m²" : undefined}
-                  value={line.value}
-                  onChange={(value) => set(index, { value })}
-                  maxLength={line.type === "text" ? LIMITS.detail : undefined}
-                  isInvalid={!areaOk}
-                  validate={() => (areaOk ? null : t("portfolio.areaInvalid"))}
-                  validationBehavior="aria"
+                  label={t("portfolio.ownLabel")}
+                  labelHidden
+                  placeholder={t("portfolio.ownLabelPlaceholder")}
+                  value={line.label}
+                  onChange={(label) => set(index, { label })}
+                  maxLength={LIMITS.label}
                 />
-                <IconButton
-                  label={t("portfolio.removeDetail", { name })}
-                  onPress={() => onChange(lines.filter((_, i) => i !== index))}
-                >
-                  ×
-                </IconButton>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {lines.length >= LIMITS.details ? (
-        <p className={styles.hint}>{t("portfolio.detailsFull", { count: LIMITS.details })}</p>
-      ) : (
-        <ActionMenu
-          label={t("portfolio.addDetail")}
-          className={`${ui.button} ${ui.secondary} ${ui.small} ${styles.addDetail}`}
-          placement="bottom start"
-          items={[
-            ...unused.map((type) => ({ id: type.key, label: type.label })),
-            ...suggested,
-            { id: "own", label: t("portfolio.ownDetail") },
-          ]}
-          onAction={(id) => {
-            const type = types.find((candidate) => candidate.key === id);
-            const suggestion = suggested.find((item) => item.id === id);
-            onChange([
-              ...lines,
-              type
-                ? { key: type.key, label: type.label, type: type.type, value: "" }
-                : { key: null, label: suggestion?.label ?? "", type: "text", value: "" },
-            ]);
-          }}
-        >
-          + {t("portfolio.addDetail")}
-        </ActionMenu>
-      )}
+              )
+            }
+            remove={
+              <IconButton
+                label={t("portfolio.removeDetail", { name })}
+                onPress={() => onChange(lines.filter((_, i) => i !== index))}
+              >
+                ×
+              </IconButton>
+            }
+          >
+            <TextField
+              label={line.key ? line.label : t("portfolio.detailValue")}
+              labelHidden
+              type={line.type === "date" ? "date" : "text"}
+              inputMode={area ? "decimal" : undefined}
+              suffix={area ? "m²" : undefined}
+              value={line.value}
+              onChange={(value) => set(index, { value })}
+              maxLength={line.type === "text" ? LIMITS.detail : undefined}
+              isInvalid={!areaOk}
+              validate={() => (areaOk ? null : t("portfolio.areaInvalid"))}
+              validationBehavior="aria"
+            />
+          </Row>
+        );
+      })}
+      <div className={styles.row}>
+        <span />
+        {lines.length >= LIMITS.details ? (
+          <p className={styles.hint}>{t("portfolio.detailsFull", { count: LIMITS.details })}</p>
+        ) : (
+          <ActionMenu
+            label={t("portfolio.addDetail")}
+            className={`${ui.button} ${ui.secondary} ${ui.small} ${styles.addDetail}`}
+            placement="bottom start"
+            items={[
+              ...unused.map((type) => ({ id: type.key, label: type.label })),
+              ...suggested,
+              { id: "own", label: t("portfolio.ownDetail") },
+            ]}
+            onAction={(id) => {
+              const type = types.find((candidate) => candidate.key === id);
+              const suggestion = suggested.find((item) => item.id === id);
+              onChange([
+                ...lines,
+                type
+                  ? { key: type.key, label: type.label, type: type.type, value: "" }
+                  : { key: null, label: suggestion?.label ?? "", type: "text", value: "" },
+              ]);
+            }}
+          >
+            + {t("portfolio.addDetail")}
+          </ActionMenu>
+        )}
+      </div>
     </div>
   );
 }
@@ -308,6 +408,14 @@ function Photos({ entry }: { entry: Entry }) {
     if (params.has("fotos")) setParams({}, { replace: true });
   }, [params, setParams]);
   const room = LIMITS.photos - entry.photos.length;
+  const compares = useFeature("before_after"); // "Antes e depois" (A40, A46)
+  // Each comparison's "after" photo, by its id: the "before" photo it goes with.
+  const afterOf = new Map(entry.photos.flatMap((photo) => (photo.comparison ? [[photo.comparison.after, photo.id]] : [])));
+  const [comparing, setComparing] = useState<string | null>(null); // the "before" photo being paired
+  const cover = entry.photos.find((photo) => !afterOf.has(photo.id))?.id;
+  // Another photo still free to be this one's "after": in no comparison yet.
+  const free = (id: string) =>
+    entry.photos.some((other) => other.id !== id && !other.comparison && !afterOf.has(other.id));
 
   /** Each source shrunk and uploaded in turn, so the order is kept. */
   async function upload(sources: { blob: () => Promise<Blob>; name: string }[]) {
@@ -371,8 +479,21 @@ function Photos({ entry }: { entry: Entry }) {
           {entry.photos.map((photo, index) => (
             <li key={photo.id} className={styles.photo}>
               <img src={`${photo.url}?size=card`} alt={t("portfolio.photoAlt", { n: index + 1 })} loading="lazy" />
-              {index === 0 && <span className={styles.coverTag}>{t("portfolio.cover")}</span>}
+              {/* The first photo the page shows: an "after" photo never is (A46). */}
+              {photo.id === cover && <span className={styles.coverTag}>{t("portfolio.cover")}</span>}
+              {/* A comparison (A46): its "before" photo says so; its "after" which one it goes with. */}
+              {photo.comparison && <span className={styles.compareTag}>{t("portfolio.compareTag")}</span>}
+              {afterOf.has(photo.id) && (
+                <span className={styles.compareTag}>
+                  {t("portfolio.afterOf", { n: entry.photos.findIndex((p) => p.id === afterOf.get(photo.id)) + 1 })}
+                </span>
+              )}
               <span className={styles.photoTools}>
+                {compares && !afterOf.has(photo.id) && (photo.comparison || free(photo.id)) && (
+                  <IconButton label={t("portfolio.compare")} onPress={() => setComparing(photo.id)}>
+                    ⇄
+                  </IconButton>
+                )}
                 <IconButton
                   label={t("portfolio.movePhotoLeft")}
                   isDisabled={index === 0 || change.isPending}
@@ -404,6 +525,7 @@ function Photos({ entry }: { entry: Entry }) {
           ))}
         </ol>
       )}
+      {comparing && <ComparePhotos entry={entry} before={comparing} onClose={() => setComparing(null)} />}
       {picking && (
         <ProjectPhotos
           entry={entry}
@@ -554,6 +676,90 @@ function Videos({ entry }: { entry: Entry }) {
 
 type ImageFile = { key: string; name: string };
 
+/** "Antes e depois" (A46): this photo, the "before", with another of the work's
+ *  photos as its "after", and the slider's words; a preview of the slider. The
+ *  public page shows the two as one, on the slider. */
+function ComparePhotos({ entry, before, onClose }: { entry: Entry; before: string; onClose: () => void }) {
+  const { t } = useTranslation();
+  const compare = useComparePhoto();
+  const photo = entry.photos.find((candidate) => candidate.id === before)!;
+  const [after, setAfter] = useState<string | null>(photo.comparison?.after ?? null);
+  const [labels, setLabels] = useState({ before: photo.comparison?.before_label ?? "", after: photo.comparison?.after_label ?? "" });
+  // In another comparison already, as either side: not offered.
+  const taken = new Set(
+    entry.photos.flatMap((other) => (other.id === before || !other.comparison ? [] : [other.id, other.comparison.after])),
+  );
+  const offered = entry.photos.filter((other) => other.id !== before && !taken.has(other.id));
+  const chosen = entry.photos.find((other) => other.id === after);
+  const words = { before: t("compare.before"), after: t("compare.after") };
+  const save = (wanted: string | null) =>
+    compare.mutate(
+      { photo: before, after: wanted, before_label: labels.before.trim() || null, after_label: labels.after.trim() || null },
+      {
+        onSuccess: () => {
+          toast(wanted ? t("portfolio.compared") : t("portfolio.uncompared"));
+          onClose();
+        },
+        onError: (failure: unknown) => toastError(failure),
+      },
+    );
+  return (
+    <DialogFrame title={t("portfolio.compareTitle")} onClose={onClose}>
+      <div className={styles.dialogBody}>
+        <p className={styles.hint}>{t("portfolio.compareHint")}</p>
+        <div role="radiogroup" aria-label={t("portfolio.chooseAfter")} className={styles.pickGrid}>
+          {offered.map((other) => (
+            <button
+              key={other.id}
+              type="button"
+              role="radio"
+              aria-checked={other.id === after}
+              aria-label={t("portfolio.photoAlt", { n: entry.photos.indexOf(other) + 1 })}
+              className={styles.pick}
+              data-on={other.id === after || undefined}
+              onClick={() => setAfter(other.id)}
+            >
+              <img src={`${other.url}?size=card`} alt="" loading="lazy" />
+            </button>
+          ))}
+        </div>
+        <div className={styles.compareLabels}>
+          {(["before", "after"] as const).map((side) => (
+            <TextField
+              key={side}
+              label={t("compare.label", { side: words[side] })}
+              placeholder={words[side]}
+              value={labels[side]}
+              onChange={(label) => setLabels({ ...labels, [side]: label })}
+              maxLength={FIELD_LIMITS.comparisonLabel}
+            />
+          ))}
+        </div>
+        {chosen && (
+          <div className={styles.comparePreview}>
+            <BeforeAfter
+              title={entry.title}
+              before={{ src: `${photo.url}?size=full`, label: labels.before.trim() || words.before }}
+              after={{ src: `${chosen.url}?size=full`, label: labels.after.trim() || words.after }}
+            />
+          </div>
+        )}
+        <div className={ui.confirmActions}>
+          {photo.comparison && (
+            <Button isDisabled={compare.isPending} onPress={() => save(null)}>
+              {t("portfolio.uncompare")}
+            </Button>
+          )}
+          <Button onPress={onClose}>{t("confirm.cancel")}</Button>
+          <Button variant="primary" isDisabled={!after || compare.isPending} onPress={() => save(after)}>
+            {t("projectSettings.save")}
+          </Button>
+        </div>
+      </div>
+    </DialogFrame>
+  );
+}
+
 /** A project's images to pick: the work's own project first, or any other. */
 function ProjectPhotos({
   entry,
@@ -614,8 +820,15 @@ function ImagePicker({
     queryKey: ["page-files", project.slug],
     queryFn: () => call(api.GET("/api/pages/{slug}/files", { params: { path: { slug: project.slug } } })),
   });
+  // A before-and-after comparison's card (A46) is two images: each offered on its own.
   const images: ImageFile[] = (files.data?.stages ?? []).flatMap((stage) =>
-    stage.groups.flatMap((group) => group.files.filter((file) => file.kind === "image")),
+    stage.groups.flatMap((group) =>
+      group.files
+        .flatMap((file) =>
+          file.comparison ? [{ ...file, name: file.comparison.before_name }, file.comparison.after] : [file],
+        )
+        .filter((file) => file.kind === "image"),
+    ),
   );
   const [chosen, setChosen] = useState<string[]>([]);
   const toggle = (key: string) =>

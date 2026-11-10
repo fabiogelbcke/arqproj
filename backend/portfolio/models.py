@@ -20,6 +20,7 @@ from sqlalchemy import (
     Date,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Numeric,
     Text,
     UniqueConstraint,
@@ -38,8 +39,11 @@ INTRO_MAX = 600
 TITLE_MAX = 80
 PLACE_MAX = 80
 DESCRIPTION_MAX = 2000
-ENTRIES_MAX = 60
-PHOTOS_MAX = 30
+# Pieces in a portfolio and images in one project: no practical limit (Fabio,
+# 9 Nov 2026), the caps only stop a runaway.
+ENTRIES_MAX = 3000
+PHOTOS_MAX = 100
+SECTION_MAX = 40  # an own section's name, as a menu item
 YEAR_MIN = 1900
 YEAR_MAX = 2100
 CREDITS_MAX = 120
@@ -49,13 +53,6 @@ DETAIL_VALUE_MAX = 200  # a text value: room for a team's names, as the team fie
 LINK_MAX = 300
 VIDEOS_MAX = 6
 VIDEO_MAX_BYTES = 200 * 1024 * 1024
-
-
-class WorkStatus(StrEnum):
-    """Where a work stands, as the public page says it."""
-
-    COMPLETED = "completed"
-    IN_PROGRESS = "in_progress"
 
 
 class VideoType(StrEnum):
@@ -80,11 +77,11 @@ class SocialNetwork(StrEnum):
 
 
 class PortfolioFormat(StrEnum):
-    """How the public page lays the works out. GALLERY: one landscape cover per
-    work, a carousel and a work's page opening on its cover, as architecture
-    sites do. MOSAIC: every image in its own shape, square or upright, as the
-    networks show them: for an office whose material is what it made for its
-    posts, stories and reels."""
+    """How the public page lays the works out. GALLERY: every cover cropped to
+    one landscape frame, in rows, and a work's page its photos large, one after
+    the other, as architecture sites do. MOSAIC: every image in its own shape,
+    square or upright, as the networks show them: for an office whose material
+    is what it made for its posts, stories and reels."""
 
     GALLERY = "gallery"
     MOSAIC = "mosaic"
@@ -115,9 +112,54 @@ class Portfolio(IdMixin, TimestampsMixin, TenantOwned, Base):
     folder_id: Mapped[str | None] = mapped_column(Text)
 
 
+SLUG_SHAPE = "^[a-z0-9_]+(-[a-z0-9_]+)*$"
+
+
+class PortfolioSection(IdMixin, TimestampsMixin, TenantOwned, Base):
+    """A section of the Portfólio tab and an item of the public page's menu, in
+    the office's order: one of the site's project types (A44), named by it, or
+    a name of the office's own ("Stories"). In the page's address it is its
+    `slug` (`/?tipo=interiors`): the type's key, or made from the name."""
+
+    __tablename__ = "portfolio_sections"
+    __table_args__ = (
+        # Lets entries reference (tenant_id, id): always the same office.
+        UniqueConstraint("tenant_id", "id", name="uq_portfolio_sections_tenant_id_id"),
+        UniqueConstraint("tenant_id", "slug", name="uq_portfolio_sections_tenant_id_slug"),
+        # One section per type in an office.
+        Index(
+            "uq_portfolio_sections_project_type",
+            "tenant_id",
+            "project_type",
+            unique=True,
+            postgresql_where=text("project_type IS NOT NULL"),
+        ),
+        CheckConstraint("position >= 1", name="position_positive"),
+        CheckConstraint(
+            "(project_type IS NOT NULL AND label IS NULL) "
+            "OR (project_type IS NULL AND label IS NOT NULL)",
+            name="type_or_own",
+        ),
+        CheckConstraint(
+            f"label IS NULL OR length(btrim(label)) BETWEEN 1 AND {SECTION_MAX}",
+            name="label_length",
+        ),
+        CheckConstraint(f"slug ~ '{SLUG_SHAPE}'", name="slug_shape"),
+    )
+
+    position: Mapped[int] = mapped_column()
+    project_type: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("project_types.key", name="fk_portfolio_sections_project_type")
+    )
+    label: Mapped[str | None] = mapped_column(Text)
+    slug: Mapped[str] = mapped_column(Text)
+
+
 class PortfolioEntry(IdMixin, TimestampsMixin, TenantOwned, Base):
-    """A work the portfolio shows. `project_id`: the project it was drawn from,
-    for staff only; the public page never links to a project's page."""
+    """A piece the portfolio shows: a photo on its own, or a project of several
+    images, the first its cover. In one section or none; a title is optional.
+    `project_id`: the project it was drawn from, for staff only; the public page
+    never links to a project's page."""
 
     __tablename__ = "portfolio_entries"
     __table_args__ = (
@@ -126,29 +168,30 @@ class PortfolioEntry(IdMixin, TimestampsMixin, TenantOwned, Base):
             ["projects.tenant_id", "projects.id"],
             name="fk_portfolio_entries_project",
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "section_id"],
+            ["portfolio_sections.tenant_id", "portfolio_sections.id"],
+            name="fk_portfolio_entries_section",
+            ondelete="SET NULL (section_id)",
+        ),
         # Lets photos reference (tenant_id, id): always the same office.
         UniqueConstraint("tenant_id", "id", name="uq_portfolio_entries_tenant_id_id"),
         CheckConstraint("position >= 1", name="position_positive"),
-        CheckConstraint(f"length(btrim(title)) BETWEEN 1 AND {TITLE_MAX}", name="title_length"),
+        CheckConstraint(f"length(title) <= {TITLE_MAX}", name="title_length"),
         CheckConstraint(f"length(place) <= {PLACE_MAX}", name="place_length"),
         CheckConstraint(f"length(description) <= {DESCRIPTION_MAX}", name="description_length"),
         CheckConstraint(f"year BETWEEN {YEAR_MIN} AND {YEAR_MAX}", name="year_range"),
-        enum_check("status", WorkStatus),
         CheckConstraint(f"length(credits) <= {CREDITS_MAX}", name="credits_length"),
     )
 
     position: Mapped[int] = mapped_column()
-    title: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text, default="")
     place: Mapped[str] = mapped_column(Text, default="")
     year: Mapped[int | None] = mapped_column()
     description: Mapped[str] = mapped_column(Text, default="")
-    # Architecture, interiors, ...: the public page's menu groups works by it.
-    # From the project when drawn from one; None: shown only under "all".
-    project_type: Mapped[str | None] = mapped_column(
-        Text, ForeignKey("project_types.key", name="fk_portfolio_entries_project_type")
-    )
+    # The section it is in (the public page's menu); None: shown only under "all".
+    section_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
     project_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
-    status: Mapped[WorkStatus | None] = mapped_column(TextEnum(WorkStatus))
     # Who took the photos ("Fotos: ..."), as architecture sites credit them.
     credits: Mapped[str] = mapped_column(Text, default="", server_default=text("''"))
 
@@ -214,7 +257,9 @@ class PortfolioDetail(IdMixin, TenantOwned, Base):
 
 
 class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
-    """One photo of an entry, in its order; the first is the entry's cover."""
+    """One photo of an entry, in its order; the first is the entry's cover. A
+    "before" photo may be compared with another of the work's photos, its
+    "after" (A46): the page shows the two on a slider, the "after" not alone."""
 
     __tablename__ = "portfolio_photos"
     __table_args__ = (
@@ -224,9 +269,23 @@ class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
             name="fk_portfolio_photos_entry",
             ondelete="CASCADE",
         ),
+        UniqueConstraint("tenant_id", "id", name="uq_portfolio_photos_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "compare_photo_id"],
+            ["portfolio_photos.tenant_id", "portfolio_photos.id"],
+            name="fk_portfolio_photos_compare",
+            ondelete="SET NULL (compare_photo_id)",
+        ),
+        Index(
+            "uq_portfolio_photos_compare_photo_id",
+            "compare_photo_id",
+            unique=True,
+            postgresql_where=text("compare_photo_id IS NOT NULL"),
+        ),
         CheckConstraint("position >= 1", name="position_positive"),
         enum_check("image_type", CoverType),
         CheckConstraint("width > 0 AND height > 0", name="size_positive"),
+        CheckConstraint("compare_photo_id <> id", name="compare_other"),
     )
 
     entry_id: Mapped[uuid.UUID] = mapped_column(index=True)
@@ -238,6 +297,11 @@ class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
     # its shape before it loads; None when the file couldn't be read.
     width: Mapped[int | None] = mapped_column()
     height: Mapped[int | None] = mapped_column()
+    # Its "after" photo, when this one is a comparison's "before"; and the
+    # slider's words for each side (None: "Antes", "Depois").
+    compare_photo_id: Mapped[uuid.UUID | None] = mapped_column()
+    before_label: Mapped[str | None] = mapped_column(Text)
+    after_label: Mapped[str | None] = mapped_column(Text)
 
 
 class PortfolioVideo(IdMixin, CreatedAtMixin, TenantOwned, Base):

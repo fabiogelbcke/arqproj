@@ -1417,6 +1417,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portfolio/sections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Section
+         * @description A section, last in the office's order: one of the site's types (one
+         *     section per type), or a name of the office's own.
+         */
+        post: operations["add_section_api_portfolio_sections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/sections/{section_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Section
+         * @description An empty section goes; one with pieces is kept (move them out first).
+         */
+        delete: operations["remove_section_api_portfolio_sections__section_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Change Section
+         * @description An own section's name; its slug stays, so links to it keep working. A
+         *     type's section is named by the type.
+         */
+        patch: operations["change_section_api_portfolio_sections__section_id__patch"];
+        trace?: never;
+    };
+    "/api/portfolio/sections/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Order Sections */
+        put: operations["order_sections_api_portfolio_sections_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/entries/{entry_id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Entries
+         * @description Grouping: the other pieces' photos and videos join this one, after its
+         *     own, in the order given, and those pieces go. Whatever words this one lacks
+         *     (title, section, place, year, description, credits, its sheet, the project
+         *     it was drawn from) come from the first of the others that has them; the
+         *     rest of their words go with them.
+         */
+        post: operations["merge_entries_api_portfolio_entries__entry_id__merge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/entries/{entry_id}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Split Entry
+         * @description Ungrouping: every photo after the first becomes a piece of its own, in
+         *     the same section, right after this one; this one keeps its first photo, its
+         *     words and its videos. Comparisons between the photos no longer hold.
+         */
+        post: operations["split_entry_api_portfolio_entries__entry_id__split_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Loose Photo
+         * @description A photo as a piece of its own, first in its section (the painel sends a
+         *     drop's photos last to first, so they land in the order dropped).
+         */
+        post: operations["add_loose_photo_api_portfolio_photos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portfolio/entries/{entry_id}/photos": {
         parameters: {
             query?: never;
@@ -1428,7 +1558,7 @@ export interface paths {
         put?: never;
         /**
          * Add Photo
-         * @description A photo, at the end of the work's photos (the first is its cover).
+         * @description A photo, at the end of the piece's photos (the first is its cover).
          */
         post: operations["add_photo_api_portfolio_entries__entry_id__photos_post"];
         delete?: never;
@@ -1449,6 +1579,28 @@ export interface paths {
         post?: never;
         /** Remove Photo */
         delete: operations["remove_photo_api_portfolio_photos__photo_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/portfolio/photos/{photo_id}/comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Compare Photo
+         * @description "Antes e depois": this photo, the "before", with another of the work's
+         *     photos, the "after", on one slider (A46). Each photo is in one comparison at
+         *     most, as one side; asking again with another photo or labels changes it.
+         */
+        put: operations["compare_photo_api_portfolio_photos__photo_id__comparison_put"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1950,6 +2102,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/stages/{position}/comparisons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Comparison
+         * @description "Comparação antes e depois": both images go up, named so the page pairs
+         *     them (`Cozinha (antes).jpg`, `Cozinha (depois).jpg`).
+         */
+        post: operations["start_comparison_api_projects__project_id__stages__position__comparisons_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/comparisons/{key}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Edit Comparison
+         * @description Its title and labels are in its files' names: each version of both sides
+         *     is renamed, keeping its version (`Cozinha (antes - Obra) v2.jpg`).
+         */
+        post: operations["edit_comparison_api_pages__slug__comparisons__key__edit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/comparisons/{key}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hide Comparison
+         * @description Both sides, every version, stay in Drive renamed "_name" (A05).
+         */
+        post: operations["hide_comparison_api_pages__slug__comparisons__key__hide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/comparisons/{key}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move Comparison
+         * @description Both sides, every version, into a stage's folder or one of its sections,
+         *     as "Mover para…" moves a file; refused where that title is already compared.
+         */
+        post: operations["move_comparison_api_pages__slug__comparisons__key__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pages/{slug}": {
         parameters: {
             query?: never;
@@ -2044,6 +2279,10 @@ export interface components {
             share_links: number;
             /** Downloads */
             downloads: number;
+            /** Portfolio */
+            portfolio: {
+                [key: string]: number;
+            };
             /** Usage */
             usage: {
                 [key: string]: number;
@@ -2103,6 +2342,18 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_add_loose_photo_api_portfolio_photos_post */
+        Body_add_loose_photo_api_portfolio_photos_post: {
+            /** File */
+            file: string;
+            /** Section Id */
+            section_id?: string | null;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+        };
         /** Body_add_photo_api_portfolio_entries__entry_id__photos_post */
         Body_add_photo_api_portfolio_entries__entry_id__photos_post: {
             /** File */
@@ -2143,6 +2394,58 @@ export interface components {
         CodeIn: {
             /** Code */
             code: string;
+        };
+        /** ComparisonEditIn */
+        ComparisonEditIn: {
+            /** Title */
+            title: string;
+            /** Before Label */
+            before_label?: string | null;
+            /** After Label */
+            after_label?: string | null;
+        };
+        /** ComparisonIn */
+        ComparisonIn: {
+            /** Row Version */
+            row_version: number;
+            /** Folder */
+            folder?: string | null;
+            /** Title */
+            title: string;
+            before?: components["schemas"]["SideIn"] | null;
+            after?: components["schemas"]["SideIn"] | null;
+            /** Before Label */
+            before_label?: string | null;
+            /** After Label */
+            after_label?: string | null;
+        };
+        /** ComparisonMoveIn */
+        ComparisonMoveIn: {
+            /** Row Version */
+            row_version: number;
+            /** Position */
+            position: number;
+            /** Folder */
+            folder?: string | null;
+        };
+        /** ComparisonOut */
+        ComparisonOut: {
+            after: components["schemas"]["FileOut"];
+            /** Before Label */
+            before_label?: string | null;
+            /** After Label */
+            after_label?: string | null;
+            /** Before Name */
+            before_name: string;
+            /** After Name */
+            after_name: string;
+        };
+        /** ComparisonUploadOut */
+        ComparisonUploadOut: {
+            /** Before Url */
+            before_url?: string | null;
+            /** After Url */
+            after_url?: string | null;
         };
         /** CompletionIn */
         CompletionIn: {
@@ -2299,9 +2602,8 @@ export interface components {
             year?: number | null;
             /** Description */
             description?: string | null;
-            /** Project Type */
-            project_type?: string | null;
-            status?: components["schemas"]["WorkStatus"] | null;
+            /** Section Id */
+            section_id?: string | null;
             /** Details */
             details?: components["schemas"]["SheetLineIn"][] | null;
             /** Credits */
@@ -2313,7 +2615,10 @@ export interface components {
         };
         /** EntryIn */
         EntryIn: {
-            /** Title */
+            /**
+             * Title
+             * @default
+             */
             title: string;
             /**
              * Place
@@ -2327,8 +2632,8 @@ export interface components {
              * @default
              */
             description: string;
-            /** Project Type */
-            project_type?: string | null;
+            /** Section Id */
+            section_id?: string | null;
             /** Project Id */
             project_id?: string | null;
         };
@@ -2347,9 +2652,8 @@ export interface components {
             year: number | null;
             /** Description */
             description: string;
-            /** Project Type */
-            project_type: string | null;
-            status: components["schemas"]["WorkStatus"] | null;
+            /** Section Id */
+            section_id: string | null;
             /** Details */
             details: components["schemas"]["SheetLineOut"][];
             /** Credits */
@@ -2367,7 +2671,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "portfolio_video_refused" | "portfolio_link_invalid";
+        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "comparison_exists" | "comparison_not_image" | "comparison_title_invalid" | "comparison_label_invalid" | "comparison_not_ours" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "portfolio_video_refused" | "portfolio_link_invalid" | "portfolio_photo_compared" | "portfolio_section_not_found" | "portfolio_section_exists" | "portfolio_section_not_empty";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -2387,7 +2691,7 @@ export interface components {
          *     Remove a feature from here once every office has it.
          * @enum {string}
          */
-        Feature: "project_members" | "proposals" | "portfolio" | "cover_band";
+        Feature: "project_members" | "proposals" | "portfolio" | "cover_band" | "before_after";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -2420,6 +2724,7 @@ export interface components {
              * @default []
              */
             older: components["schemas"]["FileOut"][];
+            comparison?: components["schemas"]["ComparisonOut"] | null;
         };
         /** FileStats */
         FileStats: {
@@ -2713,6 +3018,11 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** MergeIn */
+        MergeIn: {
+            /** Entries */
+            entries: string[];
+        };
         /** NameIn */
         NameIn: {
             /** Name */
@@ -2907,6 +3217,31 @@ export interface components {
             /** When */
             when: string;
         };
+        /** PhotoComparisonIn */
+        PhotoComparisonIn: {
+            /** After */
+            after: string | null;
+            /** Before Label */
+            before_label?: string | null;
+            /** After Label */
+            after_label?: string | null;
+        };
+        /**
+         * PhotoComparisonOut
+         * @description A "before" photo's comparison (A46): its "after" photo, and the slider's
+         *     words for each side (None: the page's own, "Antes" and "Depois").
+         */
+        PhotoComparisonOut: {
+            /**
+             * After
+             * Format: uuid
+             */
+            after: string;
+            /** Before Label */
+            before_label: string | null;
+            /** After Label */
+            after_label: string | null;
+        };
         /** PhotoOut */
         PhotoOut: {
             /**
@@ -2916,14 +3251,15 @@ export interface components {
             id: string;
             /** Url */
             url: string;
+            comparison?: components["schemas"]["PhotoComparisonOut"] | null;
         };
         /**
          * PortfolioFormat
-         * @description How the public page lays the works out. GALLERY: one landscape cover per
-         *     work, a carousel and a work's page opening on its cover, as architecture
-         *     sites do. MOSAIC: every image in its own shape, square or upright, as the
-         *     networks show them: for an office whose material is what it made for its
-         *     posts, stories and reels.
+         * @description How the public page lays the works out. GALLERY: every cover cropped to
+         *     one landscape frame, in rows, and a work's page its photos large, one after
+         *     the other, as architecture sites do. MOSAIC: every image in its own shape,
+         *     square or upright, as the networks show them: for an office whose material
+         *     is what it made for its posts, stories and reels.
          * @enum {string}
          */
         PortfolioFormat: "gallery" | "mosaic";
@@ -2950,6 +3286,8 @@ export interface components {
             links: {
                 [key: string]: string;
             };
+            /** Sections */
+            sections: components["schemas"]["SectionOut"][];
             /** Entries */
             entries: components["schemas"]["EntryOut"][];
         };
@@ -3050,6 +3388,7 @@ export interface components {
             /** Slug */
             slug: string;
             status: components["schemas"]["ProjectStatus"];
+            archived_from?: components["schemas"]["ProjectStatus"] | null;
             /** Project Type */
             project_type: string;
             /** Project Type Label */
@@ -3341,6 +3680,11 @@ export interface components {
          * @enum {string}
          */
         Role: "owner" | "member";
+        /** SectionChange */
+        SectionChange: {
+            /** Label */
+            label: string;
+        };
         /** SectionChangeIn */
         SectionChangeIn: {
             /** Row Version */
@@ -3348,12 +3692,26 @@ export interface components {
             /** Name */
             name: string;
         };
-        /** SectionIn */
-        SectionIn: {
-            /** Row Version */
-            row_version: number;
+        /** SectionOrderIn */
+        SectionOrderIn: {
+            /** Sections */
+            sections: string[];
+        };
+        /** SectionOut */
+        SectionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Position */
+            position: number;
             /** Name */
             name: string;
+            /** Project Type */
+            project_type: string | null;
+            /** Slug */
+            slug: string;
         };
         /** SectionRenameIn */
         SectionRenameIn: {
@@ -3501,6 +3859,15 @@ export interface components {
             type: components["schemas"]["DetailType"];
             /** Value */
             value: string;
+        };
+        /** SideIn */
+        SideIn: {
+            /** Name */
+            name: string;
+            /** Size */
+            size: number;
+            /** Mime Type */
+            mime_type: string;
         };
         /** SigninOut */
         SigninOut: {
@@ -3766,6 +4133,8 @@ export interface components {
             name?: string | null;
             /** Version */
             version?: number | null;
+            /** Comparison */
+            comparison?: boolean | null;
         };
         /** UploadFailedIn */
         UploadFailedIn: {
@@ -3872,12 +4241,6 @@ export interface components {
             tenant_id: string;
         };
         /**
-         * WorkStatus
-         * @description Where a work stands, as the public page says it.
-         * @enum {string}
-         */
-        WorkStatus: "completed" | "in_progress";
-        /**
          * WriterStatus
          * @description The office's own grant, used to create folders and upload.
          * @enum {string}
@@ -3962,6 +4325,13 @@ export interface components {
             /** Folder */
             folder?: string | null;
         };
+        /** SectionIn */
+        backend__web__page_uploads__SectionIn: {
+            /** Row Version */
+            row_version: number;
+            /** Name */
+            name: string;
+        };
         /** OfficeOut */
         backend__web__pages__OfficeOut: {
             /** Name */
@@ -3975,6 +4345,13 @@ export interface components {
         backend__web__portfolio__OrderIn: {
             /** Entries */
             entries: string[];
+        };
+        /** SectionIn */
+        backend__web__portfolio__SectionIn: {
+            /** Project Type */
+            project_type?: string | null;
+            /** Label */
+            label?: string | null;
         };
     };
     responses: never;
@@ -8622,6 +8999,426 @@ export interface operations {
             };
         };
     };
+    add_section_api_portfolio_sections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["backend__web__portfolio__SectionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    remove_section_api_portfolio_sections__section_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_section_api_portfolio_sections__section_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                section_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SectionChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    order_sections_api_portfolio_sections_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SectionOrderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    merge_entries_api_portfolio_entries__entry_id__merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    split_entry_api_portfolio_entries__entry_id__split_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_loose_photo_api_portfolio_photos_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_add_loose_photo_api_portfolio_photos_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     add_photo_api_portfolio_entries__entry_id__photos_post: {
         parameters: {
             query?: never;
@@ -8742,6 +9539,68 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compare_photo_api_portfolio_photos__photo_id__comparison_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoComparisonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10031,7 +10890,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SectionIn"];
+                "application/json": components["schemas"]["backend__web__page_uploads__SectionIn"];
             };
         };
         responses: {
@@ -10353,6 +11212,284 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["backend__web__page_uploads__MoveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    start_comparison_api_projects__project_id__stages__position__comparisons_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComparisonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComparisonUploadOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    edit_comparison_api_pages__slug__comparisons__key__edit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComparisonEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    hide_comparison_api_pages__slug__comparisons__key__hide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    move_comparison_api_pages__slug__comparisons__key__move_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComparisonMoveIn"];
             };
         };
         responses: {

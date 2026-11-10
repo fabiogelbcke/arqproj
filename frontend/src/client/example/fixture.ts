@@ -4,6 +4,7 @@
 import type { Schemas } from "../../api/client";
 import house from "./images/capa-exemplo.jpg";
 import facade from "./images/fachada-exemplo.jpg";
+import facadeStudy from "./images/fachada-estudo-exemplo.jpg";
 import pool from "./images/piscina-exemplo.jpg";
 import roof from "./images/telhado-exemplo.jpg";
 import type { Detail } from "../format";
@@ -89,7 +90,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       "- Três suítes e escritório\n" +
       "- Piscina na cota mais baixa do terreno",
     cover_url: house,
-    features: ["cover_band"], // the opening on a band (A40); the example shows everything
+    features: ["cover_band", "before_after"], // the opening on a band (A40); the example shows everything
     team: ["Paula Ribeiro"],
     proposal_url: pdf,
     status: "active",
@@ -137,6 +138,17 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
               },
               file("Planta baixa - térreo.dwg", "other", dwg, 5_872_025, 3),
               file("Estudo de cobertura.jpg", "image", roof, 1_228_800, 1),
+              // A before-and-after comparison (A46): the study and the render, one card.
+              {
+                ...file("Fachada", "image", facadeStudy, 655_360, 2),
+                comparison: {
+                  after: file("Fachada (depois - Render).jpg", "image", facade, 1_536_000, 2),
+                  before_label: "Estudo",
+                  after_label: "Render",
+                  before_name: "Fachada (antes - Estudo).jpg",
+                  after_name: "Fachada (depois - Render).jpg",
+                },
+              },
             ],
           },
         ],

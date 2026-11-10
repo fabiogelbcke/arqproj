@@ -20,6 +20,7 @@ from backend.db.isolation import scope_to_tenant
 from backend.identity.models import LoginSession, Role, User
 from backend.notifications.models import DeliveryStatus, NotificationDelivery
 from backend.office.models import OfficeProfile
+from backend.portfolio.models import Portfolio, PortfolioEntry, PortfolioPhoto
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Meeting, Project, ProjectDetail, ProjectStage
 from backend.shares.models import ShareLink
@@ -59,6 +60,9 @@ class OfficeSummary:
     emails_sent: int = 0  # client update emails, in the last RECENT
     share_links: int = 0
     downloads: int = 0
+    # The office's portfolio (A45): its pieces and images, and whether its
+    # address shows it (1) or not (0).
+    portfolio: dict[str, int] = field(default_factory=dict)
     usage: dict[str, int] = field(default_factory=dict)
     link_statuses: dict[str, int] = field(default_factory=dict)
     project_types: dict[str, int] = field(default_factory=dict)
@@ -144,6 +148,15 @@ async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, tea
         await session.execute(select(func.count(), func.coalesce(func.sum(ShareLink.downloads), 0)))
     ).one()
     office.share_links, office.downloads = links, downloads
+    published = await session.scalar(select(Portfolio.published))
+    pieces, images = (
+        await session.execute(
+            select(
+                func.count(func.distinct(PortfolioEntry.id)), func.count(PortfolioPhoto.id)
+            ).outerjoin(PortfolioPhoto, PortfolioPhoto.entry_id == PortfolioEntry.id)
+        )
+    ).one()
+    office.portfolio = {"pieces": pieces, "images": images, "published": int(bool(published))}
 
     if team:
         projects = list(await session.scalars(select(Project).where(Project.deleted_at.is_(None))))

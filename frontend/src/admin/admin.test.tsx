@@ -29,6 +29,7 @@ const ALINEA = {
   emails_sent: 12,
   share_links: 3,
   downloads: 7,
+  portfolio: { pieces: 34, images: 120, published: 1 },
   features: [] as string[],
   all_features: ["project_members"],
   team: [],

@@ -72,7 +72,8 @@ export function previewData(settings: Settings, now: Date, timeZone: string): Ex
   const files = (position: number): ExampleFile[] =>
     Array.from({ length: settings.files }, (_, i) => {
       const pattern = patterns[(position + i) % patterns.length]!;
-      const extension = pattern.name.slice(pattern.name.lastIndexOf("."));
+      // A comparison's card (A46) goes by its title, without one.
+      const extension = pattern.name.includes(".") ? pattern.name.slice(pattern.name.lastIndexOf(".")) : "";
       const name = settings.longNames && i < LONG_FILES.length ? LONG_FILES[i]! + extension : pattern.name;
       return { ...pattern, key: `previa-${(key += 1)}`, name };
     });

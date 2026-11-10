@@ -19,6 +19,178 @@ a new entry too.
 
 ---
 
+## 2026-11-09 — A45: the image is the atom; the tab in sections by type; one dialog per drop
+
+**Was:** the portfolio was a list of works. Each work needed a title and was
+created one at a time, from a project or from nothing, and its photos were
+uploaded into it afterwards. Its type was one of the site's project types or
+none, chosen in its editor; the public menu listed the types present in the
+dashboard's order. Up to 60 works of 30 photos.
+
+**Now:** every image is a piece of the portfolio, on its own or inside a
+project; a project is a piece of several images. Nothing needs a title. The
+Portfólio tab is laid out as the project page's file manager: one section per
+type, in the office's order, each with its drop area and, inside, its projects
+then its loose photos; "Nova seção" adds a type of the office's own
+(`portfolio_sections`), and the public menu follows the sections and their
+order. Every drop opens one dialog (captions, a type for all, loose / new
+project / existing project, all optional). Selected pieces are grouped into a
+project, added to one, moved to another section, or ungrouped, from a bar at the
+bottom. Up to 3000 pieces, 100 images in a project. A "Compartilhar" button
+copies the portfolio's address or a section's (`/?tipo=…`).
+
+**Why:** Fabio (5 and 9 Nov 2026): "the idea is to facilitate uploading, so
+that a person doesn't have to create many projects and individually upload
+photos into one", with social-media imagery "tied from a project" alongside
+finished-project photos. Settled in a working mockup that compared four tab
+layouts: (A) one grid where a project is a tile with several photos, as
+Instagram treats a carousel; (B) a tray of loose photos beside a list of
+projects, as Lightroom, rejected because it loses the one manual order of the
+public page; (C) projects as folders in one grid, rejected because the public
+page has no folders; (D) sections by type as the project page's stages, chosen
+because it is what staff already know from the project page and the sections
+teach what types exist. Also compared were three upload behaviours: straight
+into the grid, arriving selected with the bar open, and a review dialog; Fabio
+chose the dialog for every drop, one photo included ("one behaviour for every
+drop"). A separate "Projetos" tab was the fallback if a mixed grid proved
+unclear; it did not. The section's link keeps `?tipo=` rather than a `#`
+because the page draws the filtered version on the server (a `#` is the
+browser's mark for a place further down the same page). Office-owned types come
+now rather than later because "Nova seção" is part of the layout.
+
+---
+
+## 2026-11-05 — A46: comparisons behind the `before_after` feature
+
+**Was:** before-and-after comparisons were on for every office as soon as they
+merged.
+
+**Now:** they are a feature switched on per office from the operator dashboard
+(A40), off by default. Switched off, a pair of images is two plain files and
+nothing offers to make one.
+
+**Why:** Fabio asked for it while reviewing (5 Nov 2026), so his partners can try
+it on staging and main before every office gets it, as with the other new work.
+
+## 2026-11-05 — A46: a portfolio work's comparisons are kept in the database
+
+**Was:** comparisons came only from file names in a project's Drive folders.
+
+**Now:** a portfolio work (A45) has comparisons too, kept as a reference from
+its "before" photo to its "after" photo plus the two labels (migration 0052).
+
+**Why not names here:** a portfolio's photos are copies the app names itself
+(`foto-<id>.jpg`) and lists from its own rows, never from Drive, so there is no
+name for staff to read or write; a column on the row is the portfolio's own way
+of keeping a photo's facts (its order, size). Fabio asked for comparisons in
+portfolio works (5 Nov 2026); the schema change is his to approve.
+
+## 2026-11-05 — A46: before-and-after comparisons, paired by name
+
+**Was:** no comparisons. Two related images ("antes" and "depois") showed as two
+unrelated files.
+
+**Now:** two images of one folder named `Título (antes).jpg` and `Título
+(depois).jpg` (a label after a dash: `(antes - Projeto)`) are one comparison,
+shown as one card that opens on a slider. Uploaded from the "+" card's
+"Comparação antes e depois", or named so in Drive.
+
+**Why names, not a table:** Fabio asked for a way to upload a before and an
+after image and slide between them (5 Nov 2026), and chose pairing by name.
+The page already works out versions from names and stores nothing about files
+(A25, A10); a table of pairs would be the first stored fact about files, would
+need a migration, and would go stale when a file is moved, renamed or deleted
+in Drive. Names keep working for files put straight into Drive, and a wrong
+pair is fixed the way a wrong version is: by renaming. Labels went into the
+names for the same reason (Fabio, 5 Nov 2026), so changing one renames the
+files, and only files the app made can be renamed (drive.file).
+
+## 2026-11-05 — A45: no "Situação"; the editor is media beside words; a phone shows a profile grid
+
+**Was:** a work had a status, "Concluído" or "Em andamento", drawn from its
+project and shown last in its sheet on the public page, with a "Situação"
+select in the editor. The editor ran down the page: photos, then the words,
+then the videos. On a phone the home showed two covers across (Galeria) or a
+single column (Mosaico), each cover with its title over it.
+
+**Now:** no status anywhere: not asked, not drawn from the project, not shown
+(the column stays in `portfolio_entries` until a migration drops it, which is
+a schema change awaiting approval). The editor puts the photos and the videos
+together on the left, taking most of the page, and the words in one panel on
+the right, below them on a narrow screen; a "Ver no portfólio" button at the
+top opens the work's public page in a new tab, and the tab's "Ver portfólio"
+(or "Ver prévia") is a button at the top too. On a phone the page is a profile
+as the networks show one: Galeria three square covers across with hairline
+gaps, Mosaico two columns, and no titles over the covers.
+
+**Why:** Fabio, 5 Nov 2026: "I don't think we need the 'situation' field, so
+pls remove that"; "photos and videos input should be near each other … and
+they should be before the text. Either that or they should both be on the left
+column taking up most of the page (~70%) and the right 30% could be the box
+with the text inputs" (the second taken: the media is what the portfolio is
+made of, and the words beside it stay in view while photos are arranged);
+"add a more prominent 'see portfolio' button at the top"; "make it a mosaic
+and grid in mobile? See how instagram has a grid and vsco has a mosaic in
+mobile". The titles leave the phone's covers because neither reference shows
+any and three across leaves no room for one.
+
+---
+
+## 2026-11-05 — A45: the images are the portfolio's page; a work's words come after its photos
+
+**Was:** the home opened on a full-width carousel of the first eight covers
+with their type, title, place and year, then the office's opening text, then a
+"Projetos" heading and a grid of covers each captioned with its title, type,
+place and year. A work's page opened on its cover at two thirds of the screen,
+with its sheet and text right under it and the other photos as small
+thumbnails after them. In the painel a work's editor opened on eight text
+fields, the photos below.
+
+**Now:** the home is the grid, from the first screen: covers with thin gaps,
+nothing written under them, a title shown over its cover under the pointer
+(always on a phone); the opening text after the grid as "Escritório"; no
+carousel. A work opens in a layer over the grid (its page fetched by
+`portfolio.js`, the address following, the back button, × or Escape closing
+it back to the same place in the grid), and that page is its photos large,
+one at a time, in a track that slides from one to the next (arrows, the
+keyboard or a swipe, with a count), the type, title, place and year over the
+first, with the sheet, text and credits only after the photos under "Sobre o
+projeto". The
+editor is the photos first, then the title, with the rest folded under "Mais
+informações".
+
+**Why:** Fabio, 5 Nov 2026: "less text on the screen and focused pretty much
+only on images", with two PDF portfolios (a full-bleed render per page, a small
+title over it) and Rojkind's work grid (uniform covers, no captions, the types
+as plain tabs) as the references, and "with the image focus it should make
+creation very simple too". Chosen over its own page for the work ("opens
+something where you can scroll through photos") so the grid stays where it
+was; over always-visible titles (Fabio picked "only on hover"). The photos
+slide one at a time rather than running down the page because, seeing the
+first version, Fabio asked for "an arrow based horizontal scroll, or something
+like instagram". The title is the one text a work needs, so it is the one text
+asked for.
+
+---
+
+## 2026-11-05 — A24: archived projects can be found and unarchived in the painel
+
+**Was:** the only way back from the archive was "Desfazer" on the toast right
+after archiving. The painel didn't list archived projects, though the project
+page and an error message told staff to unarchive them there.
+
+**Now:** "Arquivados (n)" under the painel's groups, shown only when there are
+any, opens the archived projects. An archived card's "⋯" offers only "Desarquivar
+projeto", with no confirmation, and the project returns to the status it had
+(`archived_from`, now in the project list). Declined proposals, archived too,
+stay in the Propostas tab (A42).
+
+**Why:** Fabio, 5 Nov 2026: "do we have no mechanism to unarchive projects?" A
+filter or a page of its own would be more than a handful of archived projects
+needs. No confirmation, as archiving it again is as easy.
+
+---
+
 ## 2026-11-04 — A45: a work's sheet is a list of details, with the office's own labels
 
 **Was:** a work's sheet had three fixed lines: area in m², status, and team, each

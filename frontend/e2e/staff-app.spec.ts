@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
@@ -22,6 +23,7 @@ test.beforeEach(({ page, browserName }) => {
 });
 
 import { E2E_ENV, OPERATOR, OUTBOX, PORT } from "../playwright.config";
+import { switchOn } from "./features";
 
 /** An account made the real way, with the staff command; returns its invite link. */
 /** The project page's tour is for new accounts; tests about other things mark it
@@ -351,6 +353,32 @@ test("the card's menu: the photo, then the settings, then archive (confirmed) an
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Refúgio da Serra" }),
+  ).toBeVisible();
+
+  // Long after the toast has gone: "Arquivados" finds it, and it goes back to its group.
+  await menu("Refúgio da Serra");
+  await page.getByRole("menuitem", { name: "Arquivar projeto" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Arquivar “Refúgio da Serra”?" })
+    .getByRole("button", { name: "Arquivar" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Refúgio da Serra", exact: true }),
+  ).toBeHidden();
+  await page.reload();
+  await page.getByRole("button", { name: "Arquivados (1)" }).click();
+  await menu("Refúgio da Serra");
+  await page.getByRole("menuitem", { name: "Desarquivar projeto" }).click();
+  await expect(
+    page.getByText("Projeto “Refúgio da Serra” restaurado."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Arquivados/ }),
+  ).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("region", { name: "Concluídos" })
+      .getByRole("heading", { name: "Refúgio da Serra" }),
   ).toBeVisible();
 });
 
@@ -825,6 +853,132 @@ test("staff upload a file into a stage, the client sees it, and staff hide it", 
     later.locator("#stage-0").getByText("Levantamento fotográfico.pdf"),
   ).toHaveCount(0);
   await later.close();
+});
+
+test("staff upload a before-and-after comparison, and the client slides between them (A46)", async ({
+  page,
+  browser,
+}) => {
+  await signInAsNewStaff(page, "comparacao@alinea.example");
+  switchOn("before_after");
+  await page.goto("/casa-jardim");
+  await page
+    .getByRole("navigation", { name: "Ferramentas do escritório" })
+    .getByRole("button", { name: "Editar" })
+    .click();
+  await page
+    .getByRole("list", { name: "Etapas" })
+    .getByRole("button", { name: /^Briefing/ })
+    .click();
+  const briefing = page.locator("#stage-0");
+  await briefing.getByRole("button", { name: "Adicionar à etapa" }).click();
+  await briefing.getByRole("menuitem", { name: /Comparação antes e depois/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Comparação antes e depois" });
+  const images = join(import.meta.dirname, "../src/client/example/images");
+  await dialog.getByLabel("Escolher a imagem “Antes”").setInputFiles(join(images, "fachada-estudo-exemplo.jpg"));
+  await dialog.getByLabel("Escolher a imagem “Depois”").setInputFiles(join(images, "fachada-exemplo.jpg"));
+  await dialog.getByRole("textbox", { name: "Nome da comparação" }).fill("Fachada");
+  await dialog.getByRole("button", { name: "Renomear “Antes”" }).click();
+  await dialog.getByRole("textbox", { name: "Rótulo de “Antes”" }).fill("Estudo");
+  await dialog.getByRole("textbox", { name: "Rótulo de “Antes”" }).press("Enter");
+  await dialog.getByRole("button", { name: "Enviar comparação" }).click();
+  await expect(page.getByText("Comparação “Fachada” enviada.")).toBeVisible();
+  await expect(briefing.getByRole("button", { name: "Abrir Fachada" })).toBeVisible();
+  const folder = join(E2E_ENV.LOCAL_STORAGE_ROOT, "Casa Jardim", "01 - Briefing");
+  expect(readdirSync(folder).filter((name) => name.startsWith("Fachada")).sort()).toEqual([
+    "Fachada (antes - Estudo).jpg",
+    "Fachada (depois).jpg",
+  ]);
+
+  const client = await browser.newPage();
+  await client.goto("/casa-jardim");
+  await client
+    .getByRole("list", { name: "Etapas" })
+    .getByRole("button", { name: /^Briefing/ })
+    .click();
+  const card = client.locator("#stage-0 .file", { hasText: "Antes e depois" });
+  await card.getByRole("button", { name: "Abrir Fachada" }).click();
+  const viewer = client.getByRole("dialog", { name: "Fachada" });
+  const slider = viewer.getByRole("slider", { name: "Comparação antes e depois: Fachada" });
+  await expect(slider).toHaveAttribute("aria-valuenow", "50");
+  // Both images loaded: the frame takes the "before" image's shape (3:2).
+  const frame = await slider.locator("..").boundingBox();
+  expect(Math.abs(frame!.width / frame!.height - 1.5)).toBeLessThan(0.02);
+  await client.mouse.click(frame!.x + frame!.width * 0.8, frame!.y + frame!.height / 2);
+  await expect(slider).toHaveAttribute("aria-valuenow", /^(79|80|81)$/);
+  await slider.focus();
+  await client.keyboard.press("Home");
+  await expect(slider).toHaveAttribute("aria-valuenow", "0");
+  await expect(viewer.getByRole("link", { name: "Baixar “Estudo”" })).toBeVisible();
+  await expect(viewer.getByRole("link", { name: "Baixar “Depois”" })).toBeVisible();
+  await slider.press("ArrowRight", { delay: 0 });
+  for (let i = 0; i < 3; i += 1) await client.keyboard.press("Shift+ArrowRight");
+  await expect(slider).toHaveAttribute("aria-valuenow", "65");
+  await viewer.screenshot({ path: join(tmpdir(), "arqproj-e2e-comparison.png") });
+  await client.close();
+
+  // Hidden as one: both images leave the page, and stay in the folder.
+  await briefing.getByRole("button", { name: "Ações para Fachada" }).click();
+  await page.getByRole("menuitem", { name: /Ocultar do cliente/ }).click();
+  await expect(briefing.getByRole("button", { name: "Abrir Fachada" })).toHaveCount(0);
+  expect(readdirSync(folder).filter((name) => name.includes("Fachada")).sort()).toEqual([
+    "_Fachada (antes - Estudo).jpg",
+    "_Fachada (depois).jpg",
+  ]);
+});
+
+test("a portfolio work's before and after opens on a slider, by pointer and keyboard (A46)", async ({
+  page,
+  browser,
+}) => {
+  await signInAsNewStaff(page, "portfolio@alinea.example");
+  switchOn("portfolio");
+  switchOn("before_after");
+  const me = await (await page.request.get("/api/me")).json();
+  const headers = { "X-CSRF-Token": me.csrf_token };
+  const made = await page.request.post("/api/portfolio/entries", { headers, data: { title: "Casa Fachada" } });
+  expect(made.ok()).toBe(true);
+  const work = (await made.json()).entries.at(-1);
+  const images = join(import.meta.dirname, "../src/client/example/images");
+  let photos: { id: string }[] = [];
+  for (const name of ["fachada-estudo-exemplo.jpg", "fachada-exemplo.jpg"]) {
+    const added = await page.request.post(`/api/portfolio/entries/${work.id}/photos`, {
+      headers,
+      multipart: { file: { name, mimeType: "image/jpeg", buffer: readFileSync(join(images, name)) } },
+    });
+    expect(added.ok()).toBe(true);
+    photos = (await added.json()).entries.find((entry: { id: string }) => entry.id === work.id).photos;
+  }
+  const paired = await page.request.put(`/api/portfolio/photos/${photos[0]!.id}/comparison`, {
+    headers,
+    data: { after: photos[1]!.id, before_label: "Estudo" },
+  });
+  expect(paired.ok()).toBe(true);
+  await page.request.patch("/api/portfolio", { headers, data: { published: true } });
+
+  const visitor = await browser.newPage();
+  await visitor.goto(`/?projeto=${work.id}`);
+  await visitor.locator(".run a.zoom.compare").click(); // the first photo is the comparison's "before"
+  const slider = visitor.getByRole("slider", { name: /Comparação antes e depois/ });
+  await expect(slider).toHaveAttribute("aria-valuenow", "50");
+  await expect(visitor.locator(".lightbox .side.before")).toHaveText("Estudo");
+  await expect(visitor.locator(".lightbox .side.after")).toHaveText("Depois");
+  // Both photos loaded: the frame takes the "before" photo's shape (3:2).
+  await expect
+    .poll(async () => {
+      const box = await visitor.locator(".lightbox .compare").boundingBox();
+      return box ? Math.round((box.width / box.height) * 10) / 10 : 0;
+    })
+    .toBe(1.5);
+  const frame = (await visitor.locator(".lightbox .compare").boundingBox())!;
+  await visitor.mouse.click(frame.x + frame.width * 0.25, frame.y + frame.height / 2);
+  await expect(slider).toHaveAttribute("aria-valuenow", /^(24|25|26)$/);
+  await slider.focus();
+  await visitor.keyboard.press("ArrowRight"); // the handle's, not the next photo
+  await expect(slider).toHaveAttribute("aria-valuenow", /^(29|30|31)$/);
+  await expect(visitor.locator(".lightbox .compare")).toBeVisible();
+  await visitor.screenshot({ path: join(tmpdir(), "arqproj-e2e-portfolio-comparison.png") });
+  await visitor.close();
 });
 
 test("staff edit the page in place and the client sees it", async ({

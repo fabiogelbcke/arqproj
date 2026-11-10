@@ -92,6 +92,12 @@ class ErrorCode(StrEnum):
     UPLOAD_FAILED = "upload_failed"  # the browser couldn't finish sending: logged, with the code
     FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
     FILE_NOT_OURS_TO_MOVE = "file_not_ours_to_move"  # put straight into Drive: move it there
+    # A before-and-after comparison (A46): one of that title is already in the folder.
+    COMPARISON_EXISTS = "comparison_exists"
+    COMPARISON_NOT_IMAGE = "comparison_not_image"  # a side that isn't a JPEG, PNG, WebP or GIF
+    COMPARISON_TITLE_INVALID = "comparison_title_invalid"  # blank, too long, or starts with "_"
+    COMPARISON_LABEL_INVALID = "comparison_label_invalid"  # it would read as a version: "v2"
+    COMPARISON_NOT_OURS = "comparison_not_ours"  # a side put straight into Drive: change it there
     INVALID_STAFF_NAME = "invalid_staff_name"  # blank, or over 80 characters
     ALREADY_STAFF = "already_staff"  # `conflict_name`: the account with that email
     NOT_AN_INVITE = "not_an_invite"  # unknown, or already in (only pending invites)
@@ -117,6 +123,10 @@ class ErrorCode(StrEnum):
     PORTFOLIO_ENTRY_NOT_FOUND = "portfolio_entry_not_found"  # removed meanwhile: reload
     PORTFOLIO_VIDEO_REFUSED = "portfolio_video_refused"  # not an MP4 or WebM, or over 200 MB
     PORTFOLIO_LINK_INVALID = "portfolio_link_invalid"  # not a profile on its network
+    PORTFOLIO_PHOTO_COMPARED = "portfolio_photo_compared"  # already in another comparison (A46)
+    PORTFOLIO_SECTION_NOT_FOUND = "portfolio_section_not_found"  # removed meanwhile: reload
+    PORTFOLIO_SECTION_EXISTS = "portfolio_section_exists"  # the office has that type's already
+    PORTFOLIO_SECTION_NOT_EMPTY = "portfolio_section_not_empty"  # move its pieces out first
 
 
 class ErrorOut(BaseModel):

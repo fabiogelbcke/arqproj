@@ -90,6 +90,8 @@ class ProjectSummary(BaseModel):
     client_name: str
     slug: str
     status: ProjectStatus
+    # What an archived project was, which is what it can go back to; None otherwise.
+    archived_from: ProjectStatus | None = None
     project_type: str
     # A built-in type's label in the office's language; "Outro"'s name as typed.
     project_type_label: str
@@ -266,6 +268,7 @@ async def summaries(
             client_name=project.client_name,
             slug=slug,
             status=project.status,
+            archived_from=project.archived_from,
             project_type=project.project_type,
             project_type_label=project.custom_type or _text(labels, locale),
             stage_count=counts.get(project.id, 0),

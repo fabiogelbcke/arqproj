@@ -129,7 +129,7 @@ const message = (failure: unknown) => errorMessage(failure, { max: UPLOAD_MAX_MB
 /** Opens the upload and sends the file. `versionOf`: a file's key, to save this
  *  one as the next version of its document, in its folder; else `section`, the
  *  stage's section it goes into (none: the stage's own folder). */
-async function uploadFile(
+export async function uploadFile(
   staff: Staff,
   position: number,
   file: File,
@@ -216,17 +216,20 @@ export function StageDrop({
   position,
   folder,
   section,
+  inputId: chooserId,
   onChanged,
 }: {
   staff: Staff;
   position: number;
   folder: string; // the folder's path, as staff know it in Drive
   section?: string;
+  inputId?: string; // its file chooser's, for the "+" card to open (Comparisons)
   onChanged: () => void;
 }) {
   const { t } = useTranslation();
   const unique = useId();
-  const inputId = section ? `up-${position}${unique}` : `up-${position}`; // the stage's own keeps its id
+  // The stage's own keeps its id.
+  const inputId = chooserId ?? (section ? `up-${position}${unique}` : `up-${position}`);
   const [over, setOver] = useState(false);
   const chooser = useRef<HTMLInputElement>(null);
   const touch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
@@ -388,6 +391,25 @@ export const moveRequest = (page: Page, slug: string, key: string, to: { positio
     }),
   );
 
+export type MovePlace = { position: number; section: string | null; label: string; done: string };
+
+/** Where "Mover para…" offers to put a file: every stage, and under each its
+ *  sections, but not where the file is now. */
+export function movePlaces(page: Page, sections: string[][], position: number, folder: string | null): MovePlace[] {
+  return page.stages.flatMap((stage, i) => {
+    const title = `${String(i + 1).padStart(2, "0")} ${stage.title}`;
+    return [
+      { position: i + 1, section: null as string | null, label: title, done: stage.title },
+      ...(sections[i] ?? []).map((section) => ({
+        position: i + 1,
+        section,
+        label: `${title} › ${section}`,
+        done: `${stage.title} › ${section}`,
+      })),
+    ].filter((place) => place.position !== position || place.section !== folder);
+  });
+}
+
 /** The "⋯" on each file in edit mode: set as cover (images), move to another
  *  stage or section, hide from the client. Changes are made here, not in Drive (A34). */
 export function FileMenu({
@@ -468,20 +490,8 @@ export function FileMenu({
         ),
       t("edit.coverSet", { name: file.name }),
     );
-  // Every stage, and under each its sections, but not where the file is now.
-  const places = page.stages.flatMap((stage, i) => {
-    const title = `${String(i + 1).padStart(2, "0")} ${stage.title}`;
-    return [
-      { position: i + 1, section: null as string | null, label: title, done: stage.title },
-      ...(sections[i] ?? []).map((section) => ({
-        position: i + 1,
-        section,
-        label: `${title} › ${section}`,
-        done: `${stage.title} › ${section}`,
-      })),
-    ].filter((place) => place.position !== position || place.section !== folder);
-  });
-  const move = (to: (typeof places)[number]) =>
+  const places = movePlaces(page, sections, position, folder);
+  const move = (to: MovePlace) =>
     act(() => moveRequest(page, slug, file.key, to), t("edit.fileMoved", { name: file.name, stage: to.done }));
   return (
     <div

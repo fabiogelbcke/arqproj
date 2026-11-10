@@ -119,6 +119,8 @@
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-content: start; min-width: 0;
 }
 .client .desc { font-size: var(--text-sm); line-height: 1.6; color: var(--ink); }
+/* The whole description at one size, the stage names' (Fabio, 5 Nov 2026). */
+.client .desc p:first-of-type { font-size: inherit; line-height: inherit; }
 .client .desc p, .client .desc ul { margin: 0 0 8px; }
 .client .desc__empty { color: var(--muted); }
 
@@ -545,3 +547,106 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 }
 .client .proposal-file__name { flex: 1; min-width: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
 .client .proposal-file svg { width: 18px; height: 18px; flex: none; color: var(--muted); }
+/* A before-and-after comparison's card (A46): its two images split down the
+   middle, as the slider opens; its preview is wider, for the slider. */
+.client .file__compare { position: absolute; inset: 0; display: block; }
+.client .file__compare img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.client .file__compare .file__compare-before { clip-path: inset(0 50% 0 0); }
+.client .file__compare-handle { position: absolute; top: 0; bottom: 0; left: 50%; border-left: 2px solid #fff; box-shadow: 0 0 4px rgb(0 0 0 / 0.35); }
+.client .file__compare-handle::after {
+  content: ""; position: absolute; top: 50%; left: -1px; width: 18px; height: 18px; border-radius: 50%;
+  transform: translate(-50%, -50%); background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+}
+.client .file__compare-tag { margin-right: 6px; color: var(--ink); font-weight: 500; }
+.client .file-preview:has(.file-preview__content--compare) { width: min(1100px, calc(100vw - 24px)); }
+.client .file-preview__content--compare { --compare-max: calc(100dvh - 200px); }
+/* Edit mode: the "+" card after a stage's (or section's) files, its menu
+   offering files or a before-and-after comparison (Comparisons.tsx). As tall as
+   the files beside it, but plainly not one (a soft grey tile, no thumbnail):
+   its "+" and label in the middle;
+   its menu opens under it, not over it. */
+.client .stage .files .file--add {
+  position: relative; display: flex; border: 0; border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--ink) 6%, transparent); transition: background .15s var(--ease);
+}
+.client .stage .files .file--add:hover, .client .stage .files .file--add.is-open { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.client .file--add__button {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 140px;
+  padding: 14px; border: 0; border-radius: inherit; background: none; color: var(--muted); font: inherit; text-align: center; cursor: pointer;
+}
+.client .file--add__button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.client .file--add__button svg { width: 64px; height: 64px; }
+.client .file--add__label { font-size: var(--text-sm); font-weight: 500; }
+.client .file--add__button:hover, .client .file--add.is-open .file--add__button { color: var(--ink); }
+.client .file--add .menu__list { left: 50%; transform: translateX(-50%); color: var(--ink); }
+.client .file--add .menu__list button { color: inherit; }
+/* Its two options as two rows you can tell apart: an icon on a tile, the
+   option and a line on what it does, a rule between them. */
+.client .file--add .add-menu { min-width: 280px; padding: 6px; gap: 0; }
+.client .file--add .add-menu button { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 10px; font-size: var(--text-sm); font-weight: 500; }
+.client .file--add .add-menu button + button { margin-top: 6px; position: relative; }
+.client .file--add .add-menu button + button::before { content: ""; position: absolute; left: 10px; right: 10px; top: -4px; border-top: 1px solid var(--line); }
+.client .file--add .add-menu svg { flex: none; width: 40px; height: 40px; padding: 9px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.client .file--add .add-menu button:hover svg, .client .file--add .add-menu button:focus-visible svg { background: var(--raise); }
+.client .file--add .add-menu small { margin-top: 2px; font-weight: 400; }
+/* On a phone, as small as the files' captions there, and the menu across the
+   screen's foot, as the files' own menus (page.css). */
+@media (max-width: 760px) {
+  .client .file--add__button { min-height: 0; gap: 4px; padding: 8px; }
+  .client .file--add__button svg { width: 44px; height: 44px; }
+  .client .file--add__label { font-size: var(--text-xs); }
+  .client .file--add .menu__list { position: fixed; z-index: 55; left: 12px; right: 12px; top: auto; bottom: 88px; min-width: 0; transform: none; }
+}
+/* In the list: a row like the files', "+" and label side by side. */
+.client .stage .files[data-view="list"] .file--add { min-height: 64px; margin-top: 8px; }
+.client .files[data-view="list"] .file--add__button { min-height: 64px; flex-direction: row; justify-content: flex-start; text-align: left; }
+.client .files[data-view="list"] .file--add__button svg { width: 18px; height: 18px; }
+.client .files[data-view="list"] .file--add .menu__list { left: 0; transform: none; }
+/* "Comparação antes e depois" (Comparisons.tsx): in a dialog, outside the page's
+   .client, so not scoped to it. Two images side by side, on a phone too, so the
+   dialog stays short; each one's label on it, renamed from its pencil. */
+.compare-form { display: grid; gap: 18px; }
+.compare-form__sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 520px) { .compare-form__sides { gap: 10px; } .compare-side__image { font-size: var(--text-xs); } .compare-side__image small { display: none; } }
+.compare-side { position: relative; }
+.compare-side__image {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; aspect-ratio: 4 / 3; overflow: hidden; padding: 36px 10px 10px; border: 1px dashed var(--line-strong);
+  border-radius: var(--r-field, 8px); background: var(--bg); color: var(--muted); font: inherit; font-size: var(--text-sm);
+  text-align: center; cursor: pointer;
+}
+.compare-side__image small { font-size: var(--text-xs); }
+.compare-side__image:hover, .compare-side.over .compare-side__image { border-color: var(--ink); color: var(--ink); }
+.compare-side.is-chosen .compare-side__image { border-style: solid; border-color: var(--line); }
+.compare-side__image:disabled { cursor: default; }
+.compare-side__image:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.compare-side__image img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.compare-side__plus { width: 22px; height: 22px; background: currentColor;
+  mask: linear-gradient(currentColor 0 0) center / 1.5px 100% no-repeat, linear-gradient(currentColor 0 0) center / 100% 1.5px no-repeat; }
+/* The label, top left: on an image, a chip over it; the pencil renames it. */
+.compare-side__label {
+  position: absolute; top: 8px; left: 8px; z-index: 1; display: inline-flex; align-items: center; gap: 6px;
+  max-width: calc(100% - 16px); padding: 3px 8px; border: 1px solid transparent; border-radius: 4px;
+  background: var(--surface); color: var(--ink); font: inherit; font-size: var(--text-sm); font-weight: 500; cursor: pointer;
+}
+.compare-side.is-chosen .compare-side__label { background: rgb(255 255 255 / 0.9); color: #1d1f22; }
+.compare-side__label svg { flex: none; width: 13px; height: 13px; opacity: .55; }
+.compare-side__label:hover svg, .compare-side__label:focus-visible svg { opacity: 1; }
+.compare-side__label:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.compare-side__label:disabled { cursor: default; }
+.compare-side__label:disabled svg { display: none; }
+.compare-side__label.is-editing { width: calc(100% - 16px); border-color: var(--ink); background: var(--raise); color: var(--ink); cursor: text; outline: none; }
+/* "Trocar imagem", at the bottom of a chosen image. */
+.compare-side__action {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  padding: 3px 9px; border-radius: 4px; background: rgb(255 255 255 / 0.9); color: #1d1f22;
+  opacity: 0; transition: opacity .15s var(--ease);
+}
+.compare-side__image:hover .compare-side__action, .compare-side__image:focus-visible .compare-side__action, .compare-side__image:disabled .compare-side__action { opacity: 1; }
+@media (hover: none) { .compare-side__action { opacity: 1; } }
+/* The preview's own image rule (prototype.css) would shrink the slider's images inside its frame. */
+.client .file-preview__content--compare img { max-width: none; max-height: none; margin: 0; object-fit: cover; }
+/* A comparison's versions (A46): each image's under its label, one scroll for both. */
+.client .file-versions__sides { overflow-y: auto; max-height: min(60dvh, 520px); }
+.client .file-versions__sides .file-versions__list { max-height: none; overflow: visible; }
+.client .file-versions__side { margin: 14px 18px 0; font-size: var(--text-sm); font-weight: 500; }

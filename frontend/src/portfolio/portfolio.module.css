@@ -1,6 +1,8 @@
 /* The Portfólio tab and a work's editor (portfolio/). */
 .page { display: grid; gap: 24px; }
-.head { display: grid; gap: 10px; }
+/* The page's name on the left and, on the right, the way to the portfolio itself. */
+.head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px 24px; }
+.headText { display: grid; gap: 10px; min-width: 0; }
 .kicker, .crumbs {
   font-size: var(--text-2xs); letter-spacing: var(--caps-spacing); text-transform: uppercase; color: var(--muted);
 }
@@ -14,35 +16,50 @@
 .empty { padding: 20px; border: 1px dashed var(--line-strong); border-radius: var(--r-card); color: var(--muted); }
 
 .section { display: grid; gap: 16px; }
+/* A work's editor: its photos and videos together on the left, most of the
+   page; its words in one panel on the right. Narrower, the words below. */
+.editor { display: grid; grid-template-columns: minmax(0, 7fr) minmax(320px, 3fr); gap: 24px 32px; align-items: start; }
+.media { display: grid; gap: 32px; min-width: 0; }
+.words { container-type: inline-size; }
+@media (max-width: 1000px) { .editor { grid-template-columns: minmax(0, 1fr); } }
 .section h2 { font-size: var(--text-lg); font-weight: 600; }
 .sectionHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .count { font-weight: 400; color: var(--muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .save { justify-self: start; }
 .switchLabel { font-weight: 500; }
-.pair { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: start; }
+/* The rest of a work's words, folded: open when any of it is filled in. Inside,
+   one sheet: every row a name on the left and its value on the right, in the
+   same columns, whether built in (type, place, year), a detail of the sheet
+   (with its × at the end) or the description. */
+.more { border-top: 1px solid var(--line); padding-top: 12px; }
+.more summary { display: grid; gap: 2px; cursor: pointer; font-weight: 500; list-style: none; }
+.more summary::-webkit-details-marker { display: none; }
+.more summary > span:first-child::before { content: "+ "; color: var(--muted); }
+.more[open] summary > span:first-child::before { content: "− "; }
+.more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 4px; }
+.moreBody { display: grid; gap: 10px; padding-top: 20px; }
 .sheet { display: grid; gap: 10px; }
-.sheetRows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.sheetRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
-.sheetRow[data-own] { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; }
-.sheetRow > :last-child { margin-bottom: 4px; }
+.row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 36px; gap: 10px; align-items: center; }
+.row[data-top] { align-items: start; }
+.row[data-top] .rowLabel { padding-top: 12px; }
+.rowLabel { font-size: var(--text-sm); font-weight: 500; color: var(--muted); }
+.rowField { min-width: 0; }
+.short { max-width: 140px; }
+/* A select level with the inputs: the same height and corners as a field. */
+.rowSelect select { width: 100%; height: var(--control-main); border-color: var(--line); border-radius: var(--r-field); }
 .addDetail { justify-self: start; }
-@media (max-width: 560px) {
-  .sheetRow[data-own] { grid-template-columns: minmax(0, 1fr) auto; }
-  .sheetRow[data-own] > :nth-child(2) { grid-column: 1; }
+/* In a narrow panel (a phone), the name above its value; the × keeps the right edge. */
+@container (max-width: 400px) {
+  .row { grid-template-columns: minmax(0, 1fr) 36px; row-gap: 4px; }
+  .row > :first-child { grid-column: 1 / -1; }
+  .row[data-top] .rowLabel { padding-top: 0; }
+  .short { max-width: none; }
 }
-@media (max-width: 560px) { .pair { grid-template-columns: 1fr; } }
 .networks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 560px) { .networks { grid-template-columns: 1fr; } }
 
-/* The works: cover, title and details, then ↑ ↓ Remover. */
-.works { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.work {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 8px 8px 8px;
-  border: 1px solid var(--line); border-radius: var(--r-card); background: var(--raise);
-}
-.workMain { display: flex; align-items: center; gap: 14px; flex: 1 1 260px; min-width: 0; color: inherit; text-decoration: none; }
-.workMain:hover .workTitle { text-decoration: underline; }
+/* The project chooser's rows. */
 .thumb {
   flex: none; width: 96px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: calc(var(--r-card) - 4px);
   background: var(--surface);
@@ -50,7 +67,6 @@
 .workText { display: grid; min-width: 0; text-align: left; }
 .workTitle { font-weight: 500; overflow-wrap: anywhere; }
 .workMeta { font-size: var(--text-sm); color: var(--muted); }
-.tools { display: flex; align-items: center; gap: 2px; margin-left: auto; }
 
 /* A work's photos, in order: the first is the cover. */
 .photos {
@@ -100,6 +116,7 @@
 @media (max-width: 560px) {
   .kicker { display: none; }
   .thumb { width: 72px; }
+  .photos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 }
 .format { display: grid; gap: 8px; }
 .formats { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 12px; }
@@ -114,3 +131,118 @@
 .formatCard[data-on] .sketch rect { opacity: 0.55; }
 .formatName { font-weight: 500; }
 @media (max-width: 560px) { .formats { grid-template-columns: 1fr 1fr; } }
+
+/* "Antes e depois" (A46): a comparison's photos say so on their tiles; its dialog
+   picks the "after" photo, names the sides and previews the slider. */
+.compareTag {
+  position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: var(--r-pill);
+  background: rgb(255 255 255 / 90%); color: #1d1f22; font-size: var(--text-2xs);
+}
+.compareLabels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.dialogBody .pickGrid { max-height: 30vh; }
+.comparePreview { --compare-max: 40vh; }
+
+/* The images in sections by type, as the project page's stages: a grey card
+   each, its name in small capitals and its counts, the controls on the right;
+   open, its drop area and its projects then its loose photos as groups. */
+.bucket { border-radius: 14px; background: var(--surface); outline: 2px solid transparent; transition: outline-color .12s; }
+.bucket[data-over] { outline-color: var(--ink); }
+.bucketHead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 16px 20px; cursor: pointer; }
+.bucketName { display: grid; gap: 4px; flex: 1 1 200px; min-width: 0; }
+.bucketName h3 { margin: 0; font-size: var(--text-sm); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+.bucketMeta { font-size: var(--text-xs); color: var(--muted); }
+.bucketBody { display: grid; gap: 14px; padding: 0 20px 20px; }
+.chevron { transition: transform .2s; }
+.bucket[data-closed] .chevron { transform: rotate(-90deg); }
+.group { display: grid; gap: 10px; }
+.groupTitle { margin: 6px 0 0; font: 500 11px/1.4 var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* The drop area, as the project page's: dashed, an arrow, one line, a small note. */
+.drop {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; min-height: 72px; padding: 12px 16px;
+  border: 1px dashed var(--line-strong); border-radius: 14px; background: var(--raise); color: var(--ink); font-size: var(--text-sm);
+  text-align: center; cursor: pointer; transition: border-color .2s, background .2s;
+}
+.drop:hover, .drop[data-over] { border-color: var(--ink); background: var(--mark-soft); }
+.drop svg { width: 20px; height: 20px; color: var(--muted); }
+.drop label { text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-weight: 500; }
+.drop label:focus-within { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+.drop small { flex-basis: 100%; color: var(--muted); font-size: var(--text-xs); }
+
+/* Tiles: every piece is one; a project carries the stack mark and its count. */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tile {
+  position: relative; border-radius: var(--r-card); overflow: hidden; background: var(--raise); aspect-ratio: 1;
+  outline: 2px solid transparent; outline-offset: 2px; transition: outline-color .12s, transform .12s;
+}
+.tile[data-on] { outline-color: var(--ink); }
+.tile[data-over="into"] { outline-color: var(--ink); transform: scale(.96); }
+.tile[data-over="before"] { box-shadow: -6px 0 0 var(--ink); }
+.tile[data-over="after"] { box-shadow: 6px 0 0 var(--ink); }
+.tileOpen { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; }
+.tileOpen:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.tileOpen img { width: 100%; height: 100%; object-fit: cover; }
+.noCover { display: grid; place-items: center; height: 100%; padding: 12px; color: var(--muted); font-size: var(--text-xs); }
+.check {
+  position: absolute; top: 8px; left: 8px; width: 22px; height: 22px; margin: 0; border-radius: 50%; border: 2px solid #fff;
+  background: rgb(0 0 0 / 25%); appearance: none; cursor: pointer; opacity: 0; transition: opacity .12s;
+}
+.tile:hover .check, .tile[data-on] .check, .tiles[data-selecting] .check, .check:focus-visible { opacity: 1; }
+.check:checked { background: var(--ink); border-color: var(--ink); }
+.check:checked::after { content: "✓"; display: grid; place-items: center; height: 100%; color: var(--bg); font-size: 13px; }
+.check:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.stack {
+  position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 4px; color: #fff;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 50%)); font-size: var(--text-xs); font-weight: 600; pointer-events: none;
+}
+.cap {
+  position: absolute; inset: auto 0 0 0; padding: 22px 10px 8px; background: linear-gradient(transparent, rgb(0 0 0 / 55%));
+  color: #fff; font-size: var(--text-xs); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left;
+}
+.edit {
+  position: absolute; right: 8px; bottom: 8px; padding: 3px 9px; border-radius: var(--r-pill); background: rgb(255 255 255 / 88%);
+  color: #242629; font-size: var(--text-2xs); font-weight: 500; opacity: 0; transition: opacity .12s;
+}
+.tile:hover .edit { opacity: 1; }
+.tile[data-on] .edit, .tiles[data-selecting] .edit { opacity: 0; }
+
+/* The bar at the bottom while pieces are selected: the project page's dock. */
+.dock {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 40;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 64px; padding: 12px 14px 12px 22px;
+  width: min(calc(100vw - 32px), 920px); border-radius: 20px; background: var(--ink); color: var(--bg);
+  box-shadow: 0 0 0 2px var(--bg), 0 14px 36px rgb(0 0 0 / 30%), 0 3px 8px rgb(0 0 0 / 18%);
+}
+.dockCount { font-weight: 500; font-size: 15px; margin-right: auto; }
+.dockMeta { font-weight: 400; opacity: .75; }
+.dock :global(.button), .dock button { color: var(--bg); border-color: rgb(255 255 255 / 35%); }
+.dock :global(.button):hover { border-color: var(--bg); }
+.dock :global(.primary) { background: var(--bg); color: var(--ink); border-color: var(--bg); }
+.dock :global(.primary):hover { opacity: .88; }
+.dockDanger { color: var(--danger); }
+.dock .dockDanger { color: #f3b89f; }
+.dockSelect select { height: var(--control-small); padding-block: 0; border-color: rgb(255 255 255 / 35%); border-radius: var(--r-pill); background: transparent; color: var(--bg); font-size: var(--text-sm); }
+.dockSelect select option { color: var(--ink); background: var(--raise); }
+
+/* After a drop: the photos that arrived, each with its caption, then the choices for all. */
+.arrived { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; max-height: 40vh; overflow: auto; margin: 0; padding: 2px; list-style: none; }
+.arrived li { display: grid; gap: 6px; }
+.arrived img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: var(--surface); }
+.forAll { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
+.forAll h3 { margin: 0; font-size: var(--text-sm); font-weight: 600; }
+.typeRow { max-width: 320px; }
+.where { display: grid; gap: 8px; }
+.where label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; cursor: pointer; }
+.where input[type="radio"] { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
+.whereRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.whereRow > :last-child { flex: 1 1 200px; min-width: 0; }
+.sheetImage { max-height: 46vh; width: auto; max-width: 100%; margin: 0 auto; object-fit: contain; border-radius: 6px; background: var(--surface); }
+.grow { flex: 1; }
+.quickPicks { display: grid; gap: 8px; }
+@media (max-width: 560px) {
+  .bucketHead { padding: 14px 14px; }
+  .bucketBody { padding: 0 14px 14px; }
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .dock { padding: 10px 10px 10px 16px; border-radius: 16px; }
+  .dockCount { flex-basis: 100%; margin-right: 0; }
+}

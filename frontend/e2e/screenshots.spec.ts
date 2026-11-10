@@ -3,10 +3,12 @@
 // same setup as the browser tests (built app, fresh fictional database).
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 
 import { expect, type Page, test } from "@playwright/test";
 
 import { E2E_ENV, OPERATOR, PORT } from "../playwright.config";
+import { switchOn } from "./features";
 
 const OUT = process.env.SCREENSHOTS_DIR ?? "screenshots";
 // A fictional mark (a slanted square), like the prototype's logo.
@@ -93,10 +95,20 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByText("Logo atualizado.").waitFor();
   await page.goto("/painel");
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
-  await page.locator("header img").waitFor();
+  await page.locator("header img").first().waitFor(); // the logo (light and dark copies)
   await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
+  // An archived project, opened from "Arquivados" with its one action, and put back.
+  await page.getByRole("button", { name: "Opções do projeto Casa das Oliveiras" }).click();
+  await page.getByRole("menuitem", { name: "Arquivar projeto" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Arquivar" }).click();
+  await page.getByRole("button", { name: "Arquivados (1)" }).click();
+  await page.getByRole("button", { name: "Opções do projeto Casa das Oliveiras" }).click();
+  await page.getByRole("menuitem", { name: "Desarquivar projeto" }).waitFor();
+  await shoot(page, "03c-projetos-arquivados");
+  await page.getByRole("menuitem", { name: "Desarquivar projeto" }).click();
+  await page.getByRole("button", { name: /^Arquivados/ }).waitFor({ state: "detached" });
   // An iPad, upright and sideways: "Novo projeto" stays on the search's row.
   for (const tablet of [{ name: "ipad", width: 820, height: 1180 }, { name: "ipad-wide", width: 1180, height: 820 }]) {
     await page.setViewportSize(tablet);
@@ -281,6 +293,40 @@ test("@screenshots staff app", async ({ page, browser }) => {
     .setInputFiles({ name: "Plantas.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
   await page.getByRole("alertdialog", { name: "É uma nova versão?" }).waitFor();
   await shoot(page, "06m-nova-versao");
+  await page.keyboard.press("Escape");
+
+  // A before-and-after comparison (A46): the "+" card's menu, its dialog, the card
+  // on the page and its slider.
+  switchOn("before_after"); // a feature switched on per office (A40)
+  await page.reload();
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  const stage = page.locator("#stage-2");
+  await stage.getByRole("button", { name: "Adicionar à etapa" }).click();
+  await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).waitFor();
+  await shoot(page, "06x-comparacao-menu");
+  await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).click();
+  const comparing = page.getByRole("dialog", { name: "Comparação antes e depois" });
+  await comparing.getByRole("button", { name: "Renomear “Antes”" }).waitFor();
+  await shoot(page, "06x-comparacao-vazia");
+  const images = join(import.meta.dirname, "../src/client/example/images");
+  await comparing.getByLabel("Escolher a imagem “Antes”").setInputFiles(join(images, "fachada-estudo-exemplo.jpg"));
+  await comparing.getByLabel("Escolher a imagem “Depois”").setInputFiles(join(images, "fachada-exemplo.jpg"));
+  await comparing.getByRole("textbox", { name: "Nome da comparação" }).fill("Fachada");
+  for (const [side, label] of [["Antes", "Estudo"], ["Depois", "Render"]]) {
+    await comparing.getByRole("button", { name: `Renomear “${side}”` }).click();
+    await comparing.getByRole("textbox", { name: `Rótulo de “${side}”` }).fill(label!);
+    await comparing.getByRole("textbox", { name: `Rótulo de “${side}”` }).press("Enter");
+  }
+  await shoot(page, "06x-comparacao-nova");
+  await comparing.getByRole("button", { name: "Enviar comparação" }).click();
+  await stage.getByRole("button", { name: "Abrir Fachada" }).waitFor();
+  await page.setViewportSize(SIZES[0]!);
+  await stage.getByRole("button", { name: "Abrir Fachada" }).scrollIntoViewIfNeeded();
+  await shoot(page, "06x-comparacao-na-etapa");
+  await stage.getByRole("button", { name: "Abrir Fachada" }).click();
+  await page.getByRole("dialog", { name: "Fachada" }).getByRole("slider").waitFor();
+  await shoot(page, "06x-comparacao-aberta");
+  await shoot(page, "06x-comparacao-aberta", "dark");
   await page.keyboard.press("Escape");
 
   // Details are added from a menu (no select marking its placeholder as chosen).

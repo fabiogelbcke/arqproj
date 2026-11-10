@@ -4,10 +4,17 @@
 
     GET    /api/portfolio                       the whole portfolio, for staff
     PATCH  /api/portfolio                       published, opening text, social links
-    POST   /api/portfolio/entries               add a work (from a project, or not)
-    PATCH  /api/portfolio/entries/{id}          its texts, or its photos' order
+    POST   /api/portfolio/sections              a section: a site type's, or the office's own
+    PATCH  /api/portfolio/sections/{id}         rename an own section
+    DELETE /api/portfolio/sections/{id}         remove an empty section
+    PUT    /api/portfolio/sections/order        the sections' order (the public menu's)
+    POST   /api/portfolio/entries               add a piece (a project, from one or not)
+    PATCH  /api/portfolio/entries/{id}          its texts, section, or its photos' order
     DELETE /api/portfolio/entries/{id}          remove it, photos to the Drive trash
-    PUT    /api/portfolio/order                 the works' order
+    POST   /api/portfolio/entries/{id}/merge    other pieces' images join it (grouping)
+    POST   /api/portfolio/entries/{id}/split    its images after the first become pieces
+    PUT    /api/portfolio/order                 the pieces' order
+    POST   /api/portfolio/photos                a photo as a piece of its own, in a section
     POST   /api/portfolio/entries/{id}/photos   add a photo (resized in the browser)
     DELETE /api/portfolio/photos/{id}           remove a photo
     GET    /api/portfolio/photos/{id}           the photo: public once published
@@ -30,21 +37,26 @@ frame it took from it, the poster.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
+import unicodedata
 import uuid
+from functools import cache
 from io import BytesIO
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from PIL import Image
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, nulls_last, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.analytics import capture
 from backend.db.engine import get_tenant_session
+from backend.documents.comparisons import LABEL_MAX as COMPARISON_LABEL_MAX
 from backend.identity.models import User
 from backend.portfolio.links import profile
 from backend.portfolio.models import (
@@ -58,6 +70,7 @@ from backend.portfolio.models import (
     LINK_MAX,
     PHOTOS_MAX,
     PLACE_MAX,
+    SECTION_MAX,
     TITLE_MAX,
     VIDEO_MAX_BYTES,
     VIDEOS_MAX,
@@ -68,10 +81,10 @@ from backend.portfolio.models import (
     PortfolioEntry,
     PortfolioFormat,
     PortfolioPhoto,
+    PortfolioSection,
     PortfolioVideo,
     SocialNetwork,
     VideoType,
-    WorkStatus,
 )
 from backend.projects.enums import CoverType, DetailKey, DetailType, ProjectStatus
 from backend.projects.models import (
@@ -122,9 +135,19 @@ def _switched_on(tenant: CurrentTenant = Depends(current_tenant)) -> None:
 router = APIRouter(prefix="/api", dependencies=[Depends(_switched_on)])
 
 
+class PhotoComparisonOut(BaseModel):
+    """A "before" photo's comparison (A46): its "after" photo, and the slider's
+    words for each side (None: the page's own, "Antes" and "Depois")."""
+
+    after: uuid.UUID
+    before_label: str | None
+    after_label: str | None
+
+
 class PhotoOut(BaseModel):
     id: uuid.UUID
     url: str
+    comparison: PhotoComparisonOut | None = None
 
 
 class VideoOut(BaseModel):
@@ -153,14 +176,24 @@ class SheetLineOut(BaseModel):
     value: str  # as typed: text, a number of m² ("212.5"), or an ISO date
 
 
+class SectionOut(BaseModel):
+    id: uuid.UUID
+    position: int
+    # Its name in the office's language: the type's, or the office's own.
+    name: str
+    # One of the site's project types (A44), or None for an own section.
+    project_type: str | None
+    # In the page's address: `/?tipo=<slug>`.
+    slug: str
+
+
 class EntryOut(BaseModel):
     id: uuid.UUID
-    title: str
+    title: str  # may be empty: a piece needs no title
     place: str
     year: int | None
     description: str
-    project_type: str | None
-    status: WorkStatus | None
+    section_id: uuid.UUID | None
     details: list[SheetLineOut]
     credits: str
     videos: list[VideoOut]
@@ -175,6 +208,8 @@ class PortfolioOut(BaseModel):
     format: PortfolioFormat
     intro: str
     links: dict[SocialNetwork, str]
+    sections: list[SectionOut]  # in the office's order
+    # In the page's order: section by section, then each piece's position.
     entries: list[EntryOut]
 
 
@@ -186,13 +221,33 @@ class PortfolioIn(BaseModel):
     links: dict[SocialNetwork, str] | None = None
 
 
+class SectionIn(BaseModel):
+    # One of the two: a site type's section, or an own name.
+    project_type: str | None = Field(default=None, max_length=100)
+    label: str | None = Field(default=None, max_length=SECTION_MAX)
+
+
+class SectionChange(BaseModel):
+    label: str = Field(min_length=1, max_length=SECTION_MAX)
+
+
+class SectionOrderIn(BaseModel):
+    # Every section, in its new order.
+    sections: list[uuid.UUID] = Field(max_length=ENTRIES_MAX)
+
+
+class MergeIn(BaseModel):
+    # The pieces whose images join this one, in order; they are removed.
+    entries: list[uuid.UUID] = Field(min_length=1, max_length=PHOTOS_MAX)
+
+
 class EntryIn(BaseModel):
-    title: str = Field(min_length=1, max_length=TITLE_MAX)
+    title: str = Field(default="", max_length=TITLE_MAX)
     place: str = Field(default="", max_length=PLACE_MAX)
     year: int | None = Field(default=None, ge=YEAR_MIN, le=YEAR_MAX)
     description: str = Field(default="", max_length=DESCRIPTION_MAX)
-    # None: the project's own type, for a work drawn from one.
-    project_type: str | None = Field(default=None, max_length=100)
+    # None: the project's type's section, for a piece drawn from a project.
+    section_id: uuid.UUID | None = None
     project_id: uuid.UUID | None = None
 
 
@@ -203,12 +258,11 @@ class SheetLineIn(BaseModel):
 
 
 class EntryChange(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=TITLE_MAX)
+    title: str | None = Field(default=None, max_length=TITLE_MAX)
     place: str | None = Field(default=None, max_length=PLACE_MAX)
     year: int | None = Field(default=None, ge=YEAR_MIN, le=YEAR_MAX)
     description: str | None = Field(default=None, max_length=DESCRIPTION_MAX)
-    project_type: str | None = Field(default=None, max_length=100)
-    status: WorkStatus | None = None
+    section_id: uuid.UUID | None = None  # None, when sent, clears it
     # The whole sheet, in order; a line left out is removed.
     details: list[SheetLineIn] | None = Field(default=None, max_length=DETAILS_MAX)
     credits: str | None = Field(default=None, max_length=CREDITS_MAX)
@@ -245,11 +299,55 @@ async def videos_by_entry(db: AsyncSession) -> dict[uuid.UUID, list[PortfolioVid
     return found
 
 
+async def sections(db: AsyncSession) -> list[PortfolioSection]:
+    """The office's sections in its order."""
+    return list(await db.scalars(select(PortfolioSection).order_by(PortfolioSection.position)))
+
+
+_CATALOGS = Path(__file__).resolve().parent.parent / "i18n"
+
+
+@cache
+def short_type_labels(locale: Locale) -> dict[str, str]:
+    """The public, short name of each built-in project type ("Arquitetura", not
+    the painel's "Projeto Arquitetônico"), the name a section of it goes by
+    everywhere: the tab, the menu, the address's label."""
+    texts = json.loads((_CATALOGS / f"{locale.value}.json").read_text("utf-8"))
+    return dict(texts["portfolio"]["types"])
+
+
+def section_name(
+    section: PortfolioSection, kinds: dict[str, ProjectTypeDef], locale: Locale
+) -> str:
+    """An own section's name, or its type's: the short public one for a
+    built-in type, a type the operator added by its own name (A44)."""
+    if section.label is not None:
+        return section.label
+    key = section.project_type or ""
+    short = short_type_labels(locale).get(key)
+    if short:
+        return short
+    kind = kinds.get(key)
+    return _label(kind.labels, locale) if kind else section.slug
+
+
+async def kinds_by_key(db: AsyncSession) -> dict[str, ProjectTypeDef]:
+    return {kind.key: kind for kind in await db.scalars(select(ProjectTypeDef))}
+
+
 async def entries_with_photos(
     db: AsyncSession,
 ) -> list[tuple[PortfolioEntry, list[PortfolioPhoto]]]:
-    """Every work in order, each with its photos in order."""
-    entries = (await db.scalars(select(PortfolioEntry).order_by(PortfolioEntry.position))).all()
+    """Every piece in the page's order (section by section in the office's
+    order, those without a section last, each by its position), with its photos
+    in order."""
+    entries = (
+        await db.scalars(
+            select(PortfolioEntry)
+            .outerjoin(PortfolioSection, PortfolioSection.id == PortfolioEntry.section_id)
+            .order_by(nulls_last(PortfolioSection.position), PortfolioEntry.position)
+        )
+    ).all()
     photos = (await db.scalars(select(PortfolioPhoto).order_by(PortfolioPhoto.position))).all()
     by_entry: dict[uuid.UUID, list[PortfolioPhoto]] = {}
     for photo in photos:
@@ -288,11 +386,14 @@ def _label(labels: dict[str, str], locale: Locale) -> str:
     return labels.get(locale.value) or labels[Locale.PT_BR.value]
 
 
-async def _out(db: AsyncSession, locale: Locale) -> PortfolioOut:
+async def _out(db: AsyncSession, tenant: CurrentTenant) -> PortfolioOut:
+    locale = tenant.locale
+    compare = tenant.has(Feature.BEFORE_AFTER)  # switched off (A40): no comparisons shown
     found = await db.scalar(select(Portfolio))
     works = await entries_with_photos(db)
     videos = await videos_by_entry(db)
     details = await details_by_entry(db, locale)
+    kinds = await kinds_by_key(db)
     linked = {entry.project_id for entry, _ in works if entry.project_id}
     names = (
         dict(
@@ -306,6 +407,16 @@ async def _out(db: AsyncSession, locale: Locale) -> PortfolioOut:
         format=found.format if found else PortfolioFormat.GALLERY,
         intro=found.intro if found else "",
         links=links(found),
+        sections=[
+            SectionOut(
+                id=section.id,
+                position=section.position,
+                name=section_name(section, kinds, locale),
+                project_type=section.project_type,
+                slug=section.slug,
+            )
+            for section in await sections(db)
+        ],
         entries=[
             EntryOut(
                 id=entry.id,
@@ -313,8 +424,7 @@ async def _out(db: AsyncSession, locale: Locale) -> PortfolioOut:
                 place=entry.place,
                 year=entry.year,
                 description=entry.description,
-                project_type=entry.project_type,
-                status=entry.status,
+                section_id=entry.section_id,
                 details=details.get(entry.id, []),
                 credits=entry.credits,
                 videos=[
@@ -327,11 +437,42 @@ async def _out(db: AsyncSession, locale: Locale) -> PortfolioOut:
                 ],
                 project_id=entry.project_id,
                 project_name=names.get(entry.project_id),
-                photos=[PhotoOut(id=photo.id, url=photo_url(photo)) for photo in photos],
+                photos=[_photo_out(photo, compare) for photo in photos],
             )
             for entry, photos in works
         ],
     )
+
+
+def _photo_out(photo: PortfolioPhoto, compare: bool) -> PhotoOut:
+    comparison = (
+        PhotoComparisonOut(
+            after=photo.compare_photo_id,
+            before_label=photo.before_label,
+            after_label=photo.after_label,
+        )
+        if compare and photo.compare_photo_id
+        else None
+    )
+    return PhotoOut(id=photo.id, url=photo_url(photo), comparison=comparison)
+
+
+def compared(
+    photos: list[PortfolioPhoto], compare: bool = True
+) -> tuple[list[PortfolioPhoto], dict]:
+    """A work's photos as its page shows them (A46): each "after" photo left out,
+    shown with its "before" one; with each "before" photo's id, its "after".
+    Switched off (A40, `compare` false), every photo shows on its own."""
+    if not compare:
+        return photos, {}
+    by_id = {photo.id: photo for photo in photos}
+    pairs = {
+        photo.id: by_id[photo.compare_photo_id]
+        for photo in photos
+        if photo.compare_photo_id in by_id
+    }
+    afters = {after.id for after in pairs.values()}
+    return [photo for photo in photos if photo.id not in afters], pairs
 
 
 async def _portfolio(db: AsyncSession) -> Portfolio:
@@ -351,12 +492,66 @@ async def _entry(db: AsyncSession, entry_id: uuid.UUID) -> PortfolioEntry:
     return entry
 
 
-async def _known_type(db: AsyncSession, key: str | None) -> str | None:
-    if key is not None and not await db.scalar(
-        select(ProjectTypeDef.key).where(ProjectTypeDef.key == key)
-    ):
+async def _known_type(db: AsyncSession, key: str) -> str:
+    if not await db.scalar(select(ProjectTypeDef.key).where(ProjectTypeDef.key == key)):
         raise ApiError(422, ErrorCode.INVALID_REQUEST)  # the painel offers only known ones
     return key
+
+
+async def _section(db: AsyncSession, section_id: uuid.UUID) -> PortfolioSection:
+    section = await db.scalar(select(PortfolioSection).where(PortfolioSection.id == section_id))
+    if section is None:
+        raise ApiError(404, ErrorCode.PORTFOLIO_SECTION_NOT_FOUND)
+    return section
+
+
+async def _section_or_none(db: AsyncSession, section_id: uuid.UUID | None) -> uuid.UUID | None:
+    """A section's id as sent, checked to be the office's; None stays None."""
+    return (await _section(db, section_id)).id if section_id is not None else None
+
+
+def _slug(label: str) -> str:
+    """A name as the address names it: "Redes sociais" → `redes-sociais`."""
+    plain = unicodedata.normalize("NFKD", label).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-") or "secao"
+
+
+async def _free_slug(db: AsyncSession, wanted: str) -> str:
+    """`wanted`, or `wanted-2`, `wanted-3`… where the office has it already."""
+    taken = set(await db.scalars(select(PortfolioSection.slug)))
+    slug, n = wanted, 1
+    while slug in taken:
+        n += 1
+        slug = f"{wanted}-{n}"
+    return slug
+
+
+async def _add_section(
+    db: AsyncSession, *, project_type: str | None = None, label: str | None = None
+) -> PortfolioSection:
+    """A new section, last in the office's order."""
+    last = await db.scalar(select(func.max(PortfolioSection.position)))
+    section = PortfolioSection(
+        position=(last or 0) + 1,
+        project_type=project_type,
+        label=label,
+        slug=await _free_slug(db, project_type or _slug(label or "")),
+    )
+    db.add(section)
+    await db.flush()
+    return section
+
+
+async def _section_for_type(db: AsyncSession, key: str) -> PortfolioSection:
+    """The office's section of a site type, made if it hasn't one yet: a piece
+    drawn from a project brings the project's type with it."""
+    found = await db.scalar(select(PortfolioSection).where(PortfolioSection.project_type == key))
+    return found or await _add_section(db, project_type=key)
+
+
+async def _make_room_at_front(db: AsyncSession) -> None:
+    """New pieces come first: every piece moves one place down."""
+    await db.execute(update(PortfolioEntry).values(position=PortfolioEntry.position + 1))
 
 
 def _profiles(given: dict[SocialNetwork, str]) -> dict[str, str]:
@@ -376,7 +571,8 @@ async def _project_facts(
     db: AsyncSession, project: Project, members: bool
 ) -> tuple[dict, list[PortfolioDetail]]:
     """What a work drawn from `project` starts with, besides its name and type:
-    its status and year, and its sheet: the project's details in their order,
+    its year (of completion for a project completed, else of expected delivery)
+    and its sheet: the project's details in their order,
     never its client nor its address, which the office may not want public
     (staff add the place themselves). "Responsável" is the
     project's members where the office has them (A41), as the client page shows
@@ -389,11 +585,7 @@ async def _project_facts(
         )
     ).all()
     details = {detail.key: detail for detail in rows}
-    status = {
-        ProjectStatus.COMPLETED: WorkStatus.COMPLETED,
-        ProjectStatus.ACTIVE: WorkStatus.IN_PROGRESS,
-    }.get(project.archived_from or project.status)
-    if status is WorkStatus.COMPLETED:
+    if (project.archived_from or project.status) == ProjectStatus.COMPLETED:
         finished = await db.scalar(
             select(func.max(ProjectStage.completed_at)).where(ProjectStage.project_id == project.id)
         )
@@ -431,7 +623,7 @@ async def _project_facts(
             )
     for position, detail in enumerate(sheet, start=1):
         detail.position = position
-    facts = {"status": status, "year": year if year and YEAR_MIN <= year <= YEAR_MAX else None}
+    facts = {"year": year if year and YEAR_MIN <= year <= YEAR_MAX else None}
     return facts, sheet
 
 
@@ -519,7 +711,7 @@ async def portfolio(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.patch("/portfolio", responses=documented(401, 422))
@@ -542,7 +734,7 @@ async def change_portfolio(
         found.published = body.published
         capture(request, "portfolio_published" if body.published else "portfolio_unpublished")
     await db.commit()
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.post("/portfolio/entries", responses=documented(401, 404, 409, 422))
@@ -553,10 +745,8 @@ async def add_entry(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PortfolioOut:
-    if not body.title.strip():
-        raise ApiError(422, ErrorCode.INVALID_REQUEST)  # the painel never sends one
     await _portfolio(db)  # locks the office's portfolio: one addition at a time
-    kind = await _known_type(db, body.project_type)
+    section_id = await _section_or_none(db, body.section_id)
     facts: dict = {"year": body.year}
     sheet: list[PortfolioDetail] = []
     if body.project_id is not None:
@@ -565,18 +755,19 @@ async def add_entry(
         )
         if project is None:
             raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
-        kind = kind or project.project_type
+        if section_id is None and project.project_type:
+            section_id = (await _section_for_type(db, project.project_type)).id
         facts, sheet = await _project_facts(db, project, tenant.has(Feature.PROJECT_MEMBERS))
         facts["year"] = body.year or facts["year"]
-    count, last = (await db.execute(select(func.count(), func.max(PortfolioEntry.position)))).one()
-    if count >= ENTRIES_MAX:
+    if await db.scalar(select(func.count()).select_from(PortfolioEntry)) >= ENTRIES_MAX:
         raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
+    await _make_room_at_front(db)
     entry = PortfolioEntry(
-        position=(last or 0) + 1,
+        position=1,
         title=body.title.strip(),
         place=body.place.strip(),
         description=body.description.strip(),
-        project_type=kind,
+        section_id=section_id,
         project_id=body.project_id,
         credits="",
         **facts,
@@ -588,7 +779,7 @@ async def add_entry(
         db.add(detail)
     await db.commit()
     capture(request, "portfolio_entry_added", {"from_project": body.project_id is not None})
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.patch("/portfolio/entries/{entry_id}", responses=documented(401, 404, 409, 422))
@@ -601,8 +792,6 @@ async def change_entry(
 ) -> PortfolioOut:
     entry = await _entry(db, entry_id)
     if body.title is not None:
-        if not body.title.strip():
-            raise ApiError(422, ErrorCode.INVALID_REQUEST)  # the painel never sends one
         entry.title = body.title.strip()
     if body.place is not None:
         entry.place = body.place.strip()
@@ -610,10 +799,8 @@ async def change_entry(
         entry.year = body.year  # None clears it
     if body.description is not None:
         entry.description = body.description.strip()
-    if "project_type" in body.model_fields_set:
-        entry.project_type = await _known_type(db, body.project_type)  # None clears it
-    if "status" in body.model_fields_set:
-        entry.status = body.status  # None clears it
+    if "section_id" in body.model_fields_set:
+        entry.section_id = await _section_or_none(db, body.section_id)  # None clears it
     if body.details is not None:
         sheet = await _sheet(db, body.details)
         await db.execute(delete(PortfolioDetail).where(PortfolioDetail.entry_id == entry.id))
@@ -633,7 +820,7 @@ async def change_entry(
         for position, item_id in enumerate(wanted, start=1):
             by_id[item_id].position = position
     await db.commit()
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.delete("/portfolio/entries/{entry_id}", responses=documented(401, 404))
@@ -660,7 +847,7 @@ async def remove_entry(
     await db.commit()
     await _trash(request, db, files)
     capture(request, "portfolio_entry_removed")
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.put("/portfolio/order", responses=documented(401, 409, 422))
@@ -677,7 +864,223 @@ async def order_entries(
     for position, entry_id in enumerate(body.entries, start=1):
         entries[entry_id].position = position
     await db.commit()
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
+
+
+@router.post("/portfolio/sections", responses=documented(401, 409, 422))
+async def add_section(
+    request: Request,
+    body: SectionIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """A section, last in the office's order: one of the site's types (one
+    section per type), or a name of the office's own."""
+    await _portfolio(db)  # locked: one addition at a time, so slugs stay unique
+    label = (body.label or "").strip()
+    if body.project_type is not None:
+        await _known_type(db, body.project_type)
+        if await db.scalar(
+            select(PortfolioSection.id).where(PortfolioSection.project_type == body.project_type)
+        ):
+            raise ApiError(409, ErrorCode.PORTFOLIO_SECTION_EXISTS)
+        await _add_section(db, project_type=body.project_type)
+    elif label:
+        await _add_section(db, label=label)
+    else:
+        raise ApiError(422, ErrorCode.INVALID_REQUEST)
+    await db.commit()
+    capture(request, "portfolio_section_added", {"own": body.project_type is None})
+    return await _out(db, tenant)
+
+
+@router.patch("/portfolio/sections/{section_id}", responses=documented(401, 404, 422))
+async def change_section(
+    section_id: uuid.UUID,
+    body: SectionChange,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """An own section's name; its slug stays, so links to it keep working. A
+    type's section is named by the type."""
+    section = await _section(db, section_id)
+    if section.project_type is not None or not body.label.strip():
+        raise ApiError(422, ErrorCode.INVALID_REQUEST)
+    section.label = body.label.strip()
+    await db.commit()
+    return await _out(db, tenant)
+
+
+@router.delete("/portfolio/sections/{section_id}", responses=documented(401, 404, 409))
+async def remove_section(
+    request: Request,
+    section_id: uuid.UUID,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """An empty section goes; one with pieces is kept (move them out first)."""
+    section = await _section(db, section_id)
+    if await db.scalar(
+        select(func.count())
+        .select_from(PortfolioEntry)
+        .where(PortfolioEntry.section_id == section.id)
+    ):
+        raise ApiError(409, ErrorCode.PORTFOLIO_SECTION_NOT_EMPTY)
+    await db.delete(section)
+    await db.commit()
+    capture(request, "portfolio_section_removed")
+    return await _out(db, tenant)
+
+
+@router.put("/portfolio/sections/order", responses=documented(401, 409, 422))
+async def order_sections(
+    body: SectionOrderIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    await _portfolio(db)
+    found = {section.id: section for section in await sections(db)}
+    if len(body.sections) != len(found) or set(body.sections) != set(found):
+        raise ApiError(409, ErrorCode.PORTFOLIO_SECTION_NOT_FOUND)  # changed elsewhere: reload
+    for position, section_id in enumerate(body.sections, start=1):
+        found[section_id].position = position
+    await db.commit()
+    return await _out(db, tenant)
+
+
+@router.post("/portfolio/entries/{entry_id}/merge", responses=documented(401, 404, 409, 422))
+async def merge_entries(
+    request: Request,
+    entry_id: uuid.UUID,
+    body: MergeIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """Grouping: the other pieces' photos and videos join this one, after its
+    own, in the order given, and those pieces go. Whatever words this one lacks
+    (title, section, place, year, description, credits, its sheet, the project
+    it was drawn from) come from the first of the others that has them; the
+    rest of their words go with them."""
+    await _portfolio(db)
+    target = await _entry(db, entry_id)
+    wanted = list(dict.fromkeys(body.entries))
+    if target.id in wanted:
+        raise ApiError(422, ErrorCode.INVALID_REQUEST)
+    others = {
+        entry.id: entry
+        for entry in await db.scalars(select(PortfolioEntry).where(PortfolioEntry.id.in_(wanted)))
+    }
+    if len(others) != len(wanted):
+        raise ApiError(404, ErrorCode.PORTFOLIO_ENTRY_NOT_FOUND)
+    ids = [target.id, *wanted]
+    photos, videos = {}, {}
+    for model, by_entry in ((PortfolioPhoto, photos), (PortfolioVideo, videos)):
+        for item in await db.scalars(
+            select(model).where(model.entry_id.in_(ids)).order_by(model.position)
+        ):
+            by_entry.setdefault(item.entry_id, []).append(item)
+    if sum(len(photos.get(i, [])) for i in ids) > PHOTOS_MAX or (
+        sum(len(videos.get(i, [])) for i in ids) > VIDEOS_MAX
+    ):
+        raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
+    for by_entry in (photos, videos):
+        # After the target's last position (not its count: one may have been removed).
+        position = max((item.position for item in by_entry.get(target.id, [])), default=0)
+        for other_id in wanted:
+            for item in by_entry.get(other_id, []):
+                position += 1
+                item.entry_id = target.id
+                item.position = position
+    details = {
+        entry_id: count
+        for entry_id, count in (
+            await db.execute(
+                select(PortfolioDetail.entry_id, func.count())
+                .where(PortfolioDetail.entry_id.in_(ids))
+                .group_by(PortfolioDetail.entry_id)
+            )
+        ).all()
+    }
+    for other_id in wanted:
+        other = others[other_id]
+        for word in ("title", "place", "description", "credits"):
+            if not getattr(target, word):
+                setattr(target, word, getattr(other, word))
+        for word in ("section_id", "year", "project_id"):
+            if getattr(target, word) is None:
+                setattr(target, word, getattr(other, word))
+        if not details.get(target.id) and details.get(other_id):
+            await db.execute(
+                update(PortfolioDetail)
+                .where(PortfolioDetail.entry_id == other_id)
+                .values(entry_id=target.id)
+            )
+            details[target.id] = details[other_id]
+    await db.flush()
+    for other_id in wanted:
+        await db.delete(others[other_id])  # what words it still has go with it; the images moved
+    await db.commit()
+    capture(request, "portfolio_entries_merged", {"count": len(wanted)})
+    return await _out(db, tenant)
+
+
+@router.post("/portfolio/entries/{entry_id}/split", responses=documented(401, 404, 409))
+async def split_entry(
+    request: Request,
+    entry_id: uuid.UUID,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """Ungrouping: every photo after the first becomes a piece of its own, in
+    the same section, right after this one; this one keeps its first photo, its
+    words and its videos. Comparisons between the photos no longer hold."""
+    await _portfolio(db)
+    entry = await _entry(db, entry_id)
+    photos = list(
+        await db.scalars(
+            select(PortfolioPhoto)
+            .where(PortfolioPhoto.entry_id == entry.id)
+            .order_by(PortfolioPhoto.position)
+        )
+    )
+    leaving = photos[1:]
+    if not leaving:
+        return await _out(db, tenant)
+    if (
+        await db.scalar(select(func.count()).select_from(PortfolioEntry)) + len(leaving)
+        > ENTRIES_MAX
+    ):
+        raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
+    for photo in photos:
+        photo.compare_photo_id = None
+    await db.flush()
+    await db.execute(
+        update(PortfolioEntry)
+        .where(PortfolioEntry.position > entry.position)
+        .values(position=PortfolioEntry.position + len(leaving))
+    )
+    for offset, photo in enumerate(leaving, start=1):
+        piece = PortfolioEntry(
+            position=entry.position + offset,
+            title="",
+            place="",
+            description="",
+            section_id=entry.section_id,
+            credits=entry.credits,
+        )
+        db.add(piece)
+        await db.flush()
+        photo.entry_id = piece.id
+        photo.position = 1
+    await db.commit()
+    capture(request, "portfolio_entry_split", {"count": len(leaving)})
+    return await _out(db, tenant)
 
 
 def _image_size(content: bytes) -> tuple[int, int] | tuple[None, None]:
@@ -720,27 +1123,27 @@ async def _store(
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
 
 
-@router.post(
-    "/portfolio/entries/{entry_id}/photos", responses=documented(401, 404, 409, 413, 415, 503)
-)
-async def add_photo(
-    request: Request,
-    entry_id: uuid.UUID,
-    file: UploadFile,
-    _staff: CurrentStaff = Depends(require_csrf),
-    tenant: CurrentTenant = Depends(current_tenant),
-    db: AsyncSession = Depends(get_tenant_session),
-) -> PortfolioOut:
-    """A photo, at the end of the work's photos (the first is its cover)."""
+async def _image(file: UploadFile) -> tuple[bytes, CoverType]:
+    """The upload's bytes and image type, or the error the painel knows."""
     content = await file.read(COVER_MAX_BYTES + 1)
     if len(content) > COVER_MAX_BYTES:
         raise ApiError(413, ErrorCode.COVER_TOO_LARGE)
     try:
-        kind = CoverType(image_type(content))
+        return content, CoverType(image_type(content))
     except ValueError:  # not an image, or an SVG
         raise ApiError(415, ErrorCode.COVER_WRONG_TYPE) from None
-    found = await _portfolio(db)  # locked: positions are counted one upload at a time
-    entry = await _entry(db, entry_id)
+
+
+async def _add_photo(
+    request: Request,
+    db: AsyncSession,
+    tenant: CurrentTenant,
+    found: Portfolio,
+    entry: PortfolioEntry,
+    content: bytes,
+    kind: CoverType,
+) -> None:
+    """The photo stored and registered at the end of the piece's photos."""
     count, last = (
         await db.execute(
             select(func.count(), func.max(PortfolioPhoto.position)).where(
@@ -757,9 +1160,56 @@ async def add_photo(
         request, db, tenant, found, f"foto-{photo.id.hex[:12]}.{_EXTENSIONS[kind]}", content, kind
     )
     db.add(photo)
+
+
+@router.post("/portfolio/photos", responses=documented(401, 404, 409, 413, 415, 503))
+async def add_loose_photo(
+    request: Request,
+    file: UploadFile,
+    section_id: Annotated[uuid.UUID | None, Form()] = None,
+    title: Annotated[str, Form(max_length=TITLE_MAX)] = "",
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """A photo as a piece of its own, first in its section (the painel sends a
+    drop's photos last to first, so they land in the order dropped)."""
+    content, kind = await _image(file)
+    found = await _portfolio(db)  # locked: positions are counted one upload at a time
+    section = await _section_or_none(db, section_id)
+    if await db.scalar(select(func.count()).select_from(PortfolioEntry)) >= ENTRIES_MAX:
+        raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
+    await _make_room_at_front(db)
+    entry = PortfolioEntry(
+        position=1, title=title.strip(), place="", description="", section_id=section, credits=""
+    )
+    db.add(entry)
+    await db.flush()
+    await _add_photo(request, db, tenant, found, entry, content, kind)
     await db.commit()
-    capture(request, "portfolio_photo_added")
-    return await _out(db, tenant.locale)
+    capture(request, "portfolio_photo_added", {"loose": True})
+    return await _out(db, tenant)
+
+
+@router.post(
+    "/portfolio/entries/{entry_id}/photos", responses=documented(401, 404, 409, 413, 415, 503)
+)
+async def add_photo(
+    request: Request,
+    entry_id: uuid.UUID,
+    file: UploadFile,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """A photo, at the end of the piece's photos (the first is its cover)."""
+    content, kind = await _image(file)
+    found = await _portfolio(db)  # locked: positions are counted one upload at a time
+    entry = await _entry(db, entry_id)
+    await _add_photo(request, db, tenant, found, entry, content, kind)
+    await db.commit()
+    capture(request, "portfolio_photo_added", {"loose": False})
+    return await _out(db, tenant)
 
 
 @router.delete("/portfolio/photos/{photo_id}", responses=documented(401, 404))
@@ -777,7 +1227,59 @@ async def remove_photo(
     await db.execute(delete(PortfolioPhoto).where(PortfolioPhoto.id == photo_id))
     await db.commit()
     await _trash(request, db, [file_id])
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
+
+
+def _label_text(label: str | None) -> str | None:
+    """A slider's word as typed, on one line; empty is none. (Kept in its own
+    column, unlike a project's, which is part of a file name.)"""
+    return " ".join((label or "").split()) or None
+
+
+class PhotoComparisonIn(BaseModel):
+    # The work's photo to compare this one with, as its "after"; None: no comparison.
+    after: uuid.UUID | None
+    before_label: str | None = Field(default=None, max_length=COMPARISON_LABEL_MAX)
+    after_label: str | None = Field(default=None, max_length=COMPARISON_LABEL_MAX)
+
+
+@router.put("/portfolio/photos/{photo_id}/comparison", responses=documented(401, 404, 409))
+async def compare_photo(
+    request: Request,
+    photo_id: uuid.UUID,
+    body: PhotoComparisonIn,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> PortfolioOut:
+    """ "Antes e depois": this photo, the "before", with another of the work's
+    photos, the "after", on one slider (A46). Each photo is in one comparison at
+    most, as one side; asking again with another photo or labels changes it."""
+    if not tenant.has(Feature.BEFORE_AFTER):
+        raise ApiError(409, ErrorCode.FEATURE_OFF)
+    await _portfolio(db)  # locked: two staff pairing the same photos wait in turn
+    photo = await db.scalar(select(PortfolioPhoto).where(PortfolioPhoto.id == photo_id))
+    if photo is None:
+        raise ApiError(404, ErrorCode.PORTFOLIO_ENTRY_NOT_FOUND)
+    if body.after is not None:
+        same_work = select(PortfolioPhoto).where(PortfolioPhoto.entry_id == photo.entry_id)
+        photos = (await db.scalars(same_work)).all()
+        after = next((other for other in photos if other.id == body.after), None)
+        if after is None or after.id == photo.id:
+            raise ApiError(404, ErrorCode.PORTFOLIO_ENTRY_NOT_FOUND)  # another work's, or gone
+        busy = {other.compare_photo_id for other in photos if other.id != photo.id}
+        if (
+            photo.id in busy  # this one is already another photo's "after"
+            or after.id in busy  # that one is already another photo's "after"
+            or after.compare_photo_id is not None  # that one is a "before" already
+        ):
+            raise ApiError(409, ErrorCode.PORTFOLIO_PHOTO_COMPARED)
+    photo.compare_photo_id = body.after
+    photo.before_label = _label_text(body.before_label) if body.after else None
+    photo.after_label = _label_text(body.after_label) if body.after else None
+    await db.commit()
+    capture(request, "portfolio_comparison_set" if body.after else "portfolio_comparison_removed")
+    return await _out(db, tenant)
 
 
 @router.get("/portfolio/photos/{photo_id}", include_in_schema=False)
@@ -963,7 +1465,7 @@ async def add_video(
     db.add(video)
     await db.commit()
     capture(request, "portfolio_video_added", {"bytes": sent.size})
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 @router.delete("/portfolio/videos/{video_id}", responses=documented(401, 404))
@@ -981,7 +1483,7 @@ async def remove_video(
     await db.execute(delete(PortfolioVideo).where(PortfolioVideo.id == video_id))
     await db.commit()
     await _trash(request, db, files)
-    return await _out(db, tenant.locale)
+    return await _out(db, tenant)
 
 
 async def _shown_video(
