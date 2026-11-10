@@ -165,7 +165,7 @@ function exampleShared(office: Schemas["TenantOut"] | null): Shared {
     project?: string;
     label?: string | null;
     expires_at?: string | null;
-    files?: { name: string; kind: string; size: number | null; modified_at: string; stage: string; url: string }[];
+    files?: { name: string; kind: Schemas["FileKind"]; size: number | null; modified_at: string; stage: string; url: string }[];
   } = {};
   try {
     kept = JSON.parse(localStorage.getItem(EXAMPLE_SHARE_KEY) ?? "{}");

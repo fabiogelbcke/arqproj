@@ -7443,81 +7443,6 @@
         }
       }
     },
-    "/api/projects/{project_id}/progress": {
-      "post": {
-        "summary": "Progress",
-        "description": "The previous release's progress, for a tab still running its code during a\ndeploy (A30); remove in the release after independent stages. \"advance\" and\n\"complete\" complete the first open stage; \"back\" and \"reopen\" reopen the last\ncompleted one.",
-        "operationId": "progress_api_projects__project_id__progress_post",
-        "deprecated": true,
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Project Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProgressIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Unprocessable Content"
-          }
-        }
-      }
-    },
     "/api/projects/{project_id}/stages/{position}/uploads": {
       "post": {
         "summary": "Start Upload",
@@ -8787,8 +8712,7 @@
             "title": "Name"
           },
           "status": {
-            "type": "string",
-            "title": "Status"
+            "$ref": "#/components/schemas/TenantStatus"
           },
           "created_at": {
             "type": "string",
@@ -8818,34 +8742,41 @@
             "additionalProperties": {
               "type": "integer"
             },
+            "propertyNames": {
+              "$ref": "#/components/schemas/ProjectStatus"
+            },
             "type": "object",
             "title": "Projects"
           },
           "storage": {
-            "type": "string",
-            "title": "Storage"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StorageKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "writer_status": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/WriterStatus"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Writer Status"
+            ]
           },
           "reader_status": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/ReaderStatus"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Reader Status"
+            ]
           },
           "drive_account": {
             "anyOf": [
@@ -8899,6 +8830,9 @@
           "link_statuses": {
             "additionalProperties": {
               "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/LinkState"
             },
             "type": "object",
             "title": "Link Statuses"
@@ -8976,8 +8910,7 @@
             "$ref": "#/components/schemas/Role"
           },
           "status": {
-            "type": "string",
-            "title": "Status"
+            "$ref": "#/components/schemas/StaffStatus"
           },
           "last_seen_at": {
             "anyOf": [
@@ -10333,6 +10266,16 @@
         "title": "Feature",
         "description": "Work merged but switched on only for some offices, from the operator\ndashboard (A40): staging and main deploy it switched off for everyone else.\nRemove a feature from here once every office has it."
       },
+      "FileKind": {
+        "type": "string",
+        "enum": [
+          "image",
+          "pdf",
+          "other"
+        ],
+        "title": "FileKind",
+        "description": "How the page shows a file."
+      },
       "FileOut": {
         "properties": {
           "key": {
@@ -10344,8 +10287,7 @@
             "title": "Name"
           },
           "kind": {
-            "type": "string",
-            "title": "Kind"
+            "$ref": "#/components/schemas/FileKind"
           },
           "size": {
             "anyOf": [
@@ -10828,6 +10770,16 @@
         ],
         "title": "LinkOut"
       },
+      "LinkState": {
+        "type": "string",
+        "enum": [
+          "active",
+          "expired",
+          "disabled"
+        ],
+        "title": "LinkState",
+        "description": "A share link, as the dashboard counts them."
+      },
       "Locale": {
         "type": "string",
         "enum": [
@@ -11125,13 +11077,7 @@
             "$ref": "#/components/schemas/Role"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "invited",
-              "unconfirmed"
-            ],
-            "title": "Status"
+            "$ref": "#/components/schemas/StaffStatus"
           },
           "me": {
             "type": "boolean",
@@ -11455,6 +11401,21 @@
         ],
         "title": "OnboardingOut"
       },
+      "OperatorAction": {
+        "type": "string",
+        "enum": [
+          "owner_link",
+          "suspend",
+          "restore",
+          "delete",
+          "feature_on",
+          "feature_off",
+          "support_owner",
+          "support_member"
+        ],
+        "title": "OperatorAction",
+        "description": "What an operator can do to an office from its page (A38). Recorded in the\naudit log as written here."
+      },
       "OperatorOut": {
         "properties": {
           "email": {
@@ -11633,17 +11594,6 @@
             "type": "boolean",
             "title": "Completed"
           },
-          "current_position": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Position"
-          },
           "last_update": {
             "type": "string",
             "format": "date-time",
@@ -11731,7 +11681,6 @@
           "description",
           "cover_url",
           "completed",
-          "current_position",
           "last_update",
           "details",
           "stages",
@@ -12062,30 +12011,6 @@
         ],
         "title": "PresetsIn"
       },
-      "ProgressIn": {
-        "properties": {
-          "row_version": {
-            "type": "integer",
-            "title": "Row Version"
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "advance",
-              "back",
-              "complete",
-              "reopen"
-            ],
-            "title": "Action"
-          }
-        },
-        "type": "object",
-        "required": [
-          "row_version",
-          "action"
-        ],
-        "title": "ProgressIn"
-      },
       "ProjectChange": {
         "properties": {
           "row_version": {
@@ -12357,28 +12282,6 @@
             "type": "integer",
             "title": "Completed Stage Count"
           },
-          "current_position": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Position"
-          },
-          "current_stage_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Stage Title"
-          },
           "next_meeting": {
             "anyOf": [
               {
@@ -12462,8 +12365,6 @@
           "project_type_label",
           "stage_count",
           "completed_stage_count",
-          "current_position",
-          "current_stage_title",
           "next_meeting",
           "created_at",
           "last_activity_at",
@@ -13359,8 +13260,7 @@
             "title": "Name"
           },
           "kind": {
-            "type": "string",
-            "title": "Kind"
+            "$ref": "#/components/schemas/FileKind"
           },
           "size": {
             "anyOf": [
@@ -13908,6 +13808,16 @@
         ],
         "title": "SpaceOut"
       },
+      "StaffStatus": {
+        "type": "string",
+        "enum": [
+          "invited",
+          "unconfirmed",
+          "active"
+        ],
+        "title": "StaffStatus",
+        "description": "Where a staff account stands, as the team list and the operator dashboard\nshow it."
+      },
       "StaffView": {
         "properties": {
           "project_id": {
@@ -14101,18 +14011,7 @@
       "TenantActionIn": {
         "properties": {
           "action": {
-            "type": "string",
-            "enum": [
-              "owner_link",
-              "suspend",
-              "restore",
-              "delete",
-              "feature_on",
-              "feature_off",
-              "support_owner",
-              "support_member"
-            ],
-            "title": "Action"
+            "$ref": "#/components/schemas/OperatorAction"
           },
           "confirmation": {
             "type": "string",
@@ -14221,6 +14120,14 @@
           "analytics"
         ],
         "title": "TenantOut"
+      },
+      "TenantStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "suspended"
+        ],
+        "title": "TenantStatus"
       },
       "TokenIn": {
         "properties": {

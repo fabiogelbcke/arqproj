@@ -7,7 +7,6 @@
     DELETE /api/projects/{id}/stages/{n}?row_version= remove it (its folder stays)
     PUT    /api/projects/{id}/stages/{n}/completion   mark it as completed, or reopen it
     PUT    /api/projects/{id}/completion              complete the project, once every stage is
-    POST   /api/projects/{id}/progress                the previous release's (A30), for one release
 
 Stage folders follow the stages in the office's Drive (Fabio, 16 Oct 2026):
 renaming or reordering renames the "NN - title" folders, adding creates one, and
@@ -34,7 +33,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.notifications.events import record
 from backend.notifications.models import EventKind
@@ -212,16 +211,15 @@ async def add_stage(
         if isinstance(error, ConnectError):
             raise _drive_failed("add stage", tenant, project_id, error) from None
         raise
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture(
-            "stage_added",
-            properties={
-                "stage_kind": "builtin" if body.builtin_key is not None else "custom",
-                "stage_position": position,
-                "reopened_project": reopens,
-            },
-        )
+    capture(
+        request,
+        AnalyticsEvent.STAGE_ADDED,
+        {
+            "stage_kind": "builtin" if body.builtin_key is not None else "custom",
+            "stage_position": position,
+            "reopened_project": reopens,
+        },
+    )
     return Response(status_code=204)
 
 
@@ -277,7 +275,7 @@ async def rename_stage(
         )
 
     await _run(db, renames, work, "rename stage", tenant, project_id)
-    capture(request, "stage_renamed")
+    capture(request, AnalyticsEvent.STAGE_RENAMED)
     return Response(status_code=204)
 
 
@@ -332,7 +330,7 @@ async def move_stage(
         )
 
     await _run(db, renames, work, "move stage", tenant, project_id)
-    capture(request, "stage_moved")
+    capture(request, AnalyticsEvent.STAGE_MOVED)
     return Response(status_code=204)
 
 
@@ -379,7 +377,7 @@ async def reorder_stages(
             )
 
     await _run(db, renames, work, "reorder stages", tenant, project_id)
-    capture(request, "stages_reordered")
+    capture(request, AnalyticsEvent.STAGES_REORDERED)
     return Response(status_code=204)
 
 
@@ -426,7 +424,7 @@ async def remove_stage(
             )
 
     await _run(db, renames, work, "remove stage", tenant, project_id)
-    capture(request, "stage_removed")
+    capture(request, AnalyticsEvent.STAGE_REMOVED)
     return Response(status_code=204)
 
 
@@ -458,12 +456,11 @@ async def set_completion(
     if stage is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)  # as the other stage routes
     await _complete(db, tenant, project_id, stages, stage, body.completed, body.row_version)
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture(
-            "stage_completion_changed",
-            properties={"completed": body.completed, "stage_position": position},
-        )
+    capture(
+        request,
+        AnalyticsEvent.STAGE_COMPLETION_CHANGED,
+        {"completed": body.completed, "stage_position": position},
+    )
     return Response(status_code=204)
 
 
@@ -527,9 +524,7 @@ async def complete_project(
     are asked when they complete the last stage, and can do it later; the client
     sees it at once and is told by email (A32)."""
     await _finish(db, project_id, body.row_version)
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture("project_completed")
+    capture(request, AnalyticsEvent.PROJECT_COMPLETED)
     return Response(status_code=204)
 
 
@@ -542,37 +537,3 @@ async def _finish(db: AsyncSession, project_id: uuid.UUID, row_version: int) -> 
     await _change(db, project_id, row_version, values)
     record(db, project, EventKind.PROJECT_COMPLETED)
     await db.commit()
-
-
-class ProgressIn(BaseModel):
-    row_version: int
-    action: Literal["advance", "back", "complete", "reopen"]
-
-
-@router.post(
-    "/projects/{project_id}/progress",
-    status_code=204,
-    responses=documented(401, 404, 409, 422),
-    deprecated=True,
-)
-async def progress(
-    project_id: uuid.UUID,
-    body: ProgressIn,
-    _changeable: Project = Depends(changeable_project),
-    tenant: CurrentTenant = Depends(current_tenant),
-    db: AsyncSession = Depends(get_tenant_session),
-) -> Response:
-    """The previous release's progress, for a tab still running its code during a
-    deploy (A30); remove in the release after independent stages. "advance" and
-    "complete" complete the first open stage; "back" and "reopen" reopen the last
-    completed one."""
-    stages = await _stages(db, project_id)
-    finishing = body.action in ("advance", "complete")
-    candidates = [s for s in stages if (s.completed_at is None) == finishing]
-    if not candidates:
-        raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
-    stage = candidates[0] if finishing else candidates[-1]
-    await _complete(db, tenant, project_id, stages, stage, finishing, body.row_version)
-    if body.action == "complete" and len(candidates) == 1:  # it completed the project
-        await _finish(db, project_id, body.row_version + 1)
-    return Response(status_code=204)

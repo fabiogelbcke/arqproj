@@ -1,6 +1,5 @@
 """Tenant lifecycle actions. The caller commits each action and audit together."""
 
-import hashlib
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -11,6 +10,7 @@ from backend.db.isolation import scope_to_tenant
 from backend.identity import links
 from backend.identity.models import JoinLink, Role
 from backend.operators.models import OfficeSignupLink, OperatorAuditEvent
+from backend.security import keys
 from backend.tenancy.models import Feature, Tenant, TenantDomain, TenantStatus
 from backend.web.errors import ApiError, ErrorCode
 
@@ -79,7 +79,7 @@ async def owner_link(db, tenant: Tenant, local_port: int = 5173) -> str:
             role=Role.OWNER,
             single_use=True,
             expires_at=datetime.now(UTC) + timedelta(days=7),
-            token_hash=hashlib.sha256(token.encode()).hexdigest(),
+            token_hash=keys.token_hash(token),
         )
     )
     url = links.url(host, token, path="/painel/entrar-na-equipe")
@@ -117,16 +117,12 @@ SIGNUP_LINK_DAYS = 7
 SIGNUP_PATH = "/criar-escritorio"
 
 
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
 def signup_link(db, operator: str, operator_host: str, local_port: int = 5173) -> str:
     """A one-time link to create an office, shown once: only its hash is kept."""
     token = secrets.token_urlsafe(32)
     db.add(
         OfficeSignupLink(
-            token_hash=_hash(token),
+            token_hash=keys.token_hash(token),
             created_by=operator,
             expires_at=datetime.now(UTC) + timedelta(days=SIGNUP_LINK_DAYS),
         )
@@ -139,7 +135,7 @@ def signup_link(db, operator: str, operator_host: str, local_port: int = 5173) -
 async def usable_signup_link(db, token: str, *, lock: bool = False) -> OfficeSignupLink:
     """The link the token names, if it hasn't been used and hasn't expired."""
     query = select(OfficeSignupLink).where(
-        OfficeSignupLink.token_hash == _hash(token),
+        OfficeSignupLink.token_hash == keys.token_hash(token),
         OfficeSignupLink.used_at.is_(None),
         OfficeSignupLink.expires_at > datetime.now(UTC),
     )

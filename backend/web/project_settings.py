@@ -30,7 +30,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import InvalidEmail, email_list
 from backend.identity.models import User
@@ -302,7 +302,7 @@ async def publish(
         if published.rowcount != 1:  # someone archived it meanwhile
             raise ApiError(409, ErrorCode.PROJECT_CHANGED)
         await db.commit()
-        capture(request, "project_published")
+        capture(request, AnalyticsEvent.PROJECT_PUBLISHED)
     elif project.status is not ProjectStatus.ACTIVE:
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)  # completed or archived
     db.expire_all()
@@ -320,7 +320,7 @@ async def upload_cover(
 ) -> ProjectSummary:
     content = await file.read(COVER_MAX_BYTES + 1)
     await store_cover(request, db, tenant, project, content)
-    capture(request, "project_cover_set")
+    capture(request, AnalyticsEvent.PROJECT_COVER_SET)
     return await _summary(db, tenant, project_id)
 
 
@@ -339,7 +339,7 @@ async def choose_stock_cover(
 ) -> ProjectSummary:
     """One of the bundled photos as the cover, stored like an uploaded one."""
     await store_cover(request, db, tenant, project, stock_photo_bytes(body.name))
-    capture(request, "project_cover_set", {"stock": True})
+    capture(request, AnalyticsEvent.PROJECT_COVER_SET, {"stock": True})
     return await _summary(db, tenant, project_id)
 
 
@@ -364,7 +364,7 @@ async def remove_cover(
         project.cover_file_id = project.cover_type = None
         await db.commit()
     db.expire_all()
-    capture(request, "project_cover_removed")
+    capture(request, AnalyticsEvent.PROJECT_COVER_REMOVED)
     return await _summary(db, tenant, project_id)
 
 

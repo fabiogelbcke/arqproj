@@ -36,7 +36,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture_visit
+from backend.analytics import AnalyticsEvent, capture_visit
 from backend.db.engine import get_tenant_session
 from backend.identity.models import User
 from backend.identity.passwords import verify_password
@@ -189,9 +189,6 @@ class PageOut(BaseModel):
     description: str
     cover_url: str | None
     completed: bool
-    # The previous release's current stage (A30), for one release: the first stage
-    # still open, else the last; None without stages.
-    current_position: int | None
     last_update: datetime
     details: list[DetailOut]
     # The staff working on it, by name: shown as "Responsável" (A41).
@@ -245,7 +242,6 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             description="",
             cover_url=None,
             completed=False,
-            current_position=None,
             last_update=project.last_activity_at or project.created_at,
             details=[],
             stages=[],
@@ -328,7 +324,6 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             else None
         ),
         completed=project.status is ProjectStatus.COMPLETED,
-        current_position=next((s.position for s in stages if not s.completed), len(stages) or None),
         last_update=project.last_activity_at or project.created_at,
         details=details,
         team=team,
@@ -497,10 +492,12 @@ async def unlock(
     if not right:
         attempts.failed(key, who)
         log.info("wrong page password for %s", slug)
-        capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": False})
+        capture_visit(
+            request, project.tenant_id, AnalyticsEvent.PAGE_UNLOCK_TRIED, {"unlocked": False}
+        )
         raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD, headers=challenge)
     attempts.succeeded(key, who)
-    capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": True})
+    capture_visit(request, project.tenant_id, AnalyticsEvent.PAGE_UNLOCK_TRIED, {"unlocked": True})
     token = keys.sign(
         request.app.state.settings.app_secret,
         UNLOCK_PURPOSE,
@@ -585,7 +582,7 @@ async def meeting_ics(
         lines.append(f"URL:{meeting.link}")
     lines += ["END:VEVENT", "END:VCALENDAR"]
     if staff is None:
-        capture_visit(request, project.tenant_id, "meeting_added_to_calendar")
+        capture_visit(request, project.tenant_id, AnalyticsEvent.MEETING_ADDED_TO_CALENDAR)
     return Response(
         "\r\n".join(lines) + "\r\n",
         media_type="text/calendar; charset=utf-8",

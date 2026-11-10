@@ -38,6 +38,7 @@ import re
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from pathlib import Path
 from urllib.parse import quote
 
@@ -75,6 +76,16 @@ THUMB_SIZE = 480
 # Shown in the page itself; everything else only downloads.
 INLINE_IMAGES = frozenset({"image/jpeg", "image/png", "image/webp", "image/gif"})
 PDF = "application/pdf"
+
+
+class FileKind(StrEnum):
+    """How the page shows a file."""
+
+    IMAGE = "image"  # inline, with a thumbnail
+    PDF = "pdf"  # the browser's own viewer; Google's formats come as PDF
+    OTHER = "other"  # downloaded
+
+
 # The page's own words, for the one answer a browser shows directly: a file
 # link that fails (AGENTS.md, user-facing errors).
 _TEXTS = {
@@ -86,7 +97,7 @@ _TEXTS = {
 class FileOut(BaseModel):
     key: str
     name: str  # a document's clean name: "Planta.pdf" for `Planta v3.pdf`
-    kind: str  # "image", "pdf" or "other"
+    kind: FileKind
     size: int | None
     modified_at: datetime
     version: int | None = None  # None: a file whose name carries no version (A25)
@@ -157,12 +168,12 @@ def _showable(item: StorageItem) -> bool:
     return not item.is_native or item.exports_as_pdf
 
 
-def _kind(item: StorageItem) -> str:
+def _kind(item: StorageItem) -> FileKind:
     if item.mime_type in INLINE_IMAGES:
-        return "image"
-    if item.mime_type == PDF or item.is_native:  # Google's formats come as PDF
-        return "pdf"
-    return "other"
+        return FileKind.IMAGE
+    if item.mime_type == PDF or item.is_native:
+        return FileKind.PDF
+    return FileKind.OTHER
 
 
 NO_STORE = {"Cache-Control": "private, no-store"}
@@ -263,7 +274,7 @@ def _document(
 
 
 def _is_image(item: StorageItem) -> bool:
-    return _kind(item) == "image"
+    return _kind(item) is FileKind.IMAGE
 
 
 def _entry(
@@ -717,7 +728,7 @@ def streamed(
     """A checked file's bytes, as they come from Drive; never run on the office's
     address. `part`: the byte range asked for and downloaded (206)."""
     kind = _kind(item)
-    shown_inline = inline and kind in ("image", "pdf")
+    shown_inline = inline and kind in (FileKind.IMAGE, FileKind.PDF)
     name = shown_name(item)  # Drive's, with its version: "Planta v3.pdf"
     headers = {
         **PAGE_HEADERS,
@@ -727,7 +738,7 @@ def streamed(
         # Nothing in a file may run on the office's address. A PDF keeps the
         # browser's own viewer, which a sandbox would block.
         "Content-Security-Policy": "default-src 'none'"
-        + ("" if kind == "pdf" and shown_inline else "; sandbox"),
+        + ("" if kind is FileKind.PDF and shown_inline else "; sandbox"),
     }
     if download.size is not None:
         headers["Content-Length"] = str(download.size)

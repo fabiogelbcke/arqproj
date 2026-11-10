@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import is_email, tidy_email
 from backend.identity.models import Role
@@ -174,7 +174,9 @@ async def change_office(
             setattr(found, column, value.strip() or None)
     await db.commit()
     await db.refresh(found)
-    capture(request, "office_settings_changed", {"fields": sorted(body.model_fields_set)})
+    capture(
+        request, AnalyticsEvent.OFFICE_SETTINGS_CHANGED, {"fields": sorted(body.model_fields_set)}
+    )
     return _out(tenant, found, staff)
 
 
@@ -282,7 +284,7 @@ async def upload_logo(
     await db.commit()
     await _trash(request, db, *(p for p in previous if p not in ids.values()))
     await db.refresh(found)
-    capture(request, "office_logo_set", {"variant": "light"})
+    capture(request, AnalyticsEvent.OFFICE_LOGO_SET, {"variant": "light"})
     return _out(tenant, found, staff)
 
 
@@ -309,7 +311,7 @@ async def upload_dark_logo(
     if previous and previous != found.logo_dark_file_id:
         await _trash(request, db, previous)
     await db.refresh(found)
-    capture(request, "office_logo_set", {"variant": "dark"})
+    capture(request, AnalyticsEvent.OFFICE_LOGO_SET, {"variant": "dark"})
     return _out(tenant, found, staff)
 
 
@@ -327,7 +329,7 @@ async def remove_dark_logo(
     await db.commit()
     await _trash(request, db, previous)
     await db.refresh(found)
-    capture(request, "office_logo_removed", {"variant": "dark"})
+    capture(request, AnalyticsEvent.OFFICE_LOGO_REMOVED, {"variant": "dark"})
     return _out(tenant, found, staff)
 
 
@@ -352,7 +354,7 @@ async def add_logo_png(
     if previous and previous != found.logo_png_file_id:
         await _trash(request, db, previous)
     await db.refresh(found)
-    capture(request, "office_logo_set", {"variant": "png"})
+    capture(request, AnalyticsEvent.OFFICE_LOGO_SET, {"variant": "png"})
     return _out(tenant, found, staff)
 
 

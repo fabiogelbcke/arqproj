@@ -20,7 +20,6 @@ from backend.settings import Environment
 from backend.web.auth import CurrentStaff, optional_staff
 
 PREFIX = "/painel"
-ASSETS = f"{PREFIX}/assets/"
 SHELL_CACHE = "no-cache"
 ASSET_CACHE = "public, max-age=31536000, immutable"
 # Plan section 4: scripts and styles only from this site. Everything the app loads

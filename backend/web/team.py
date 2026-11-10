@@ -20,18 +20,17 @@ is proven theirs (plan section 5). It always makes a member.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import secrets
 import uuid
 from datetime import timedelta
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, delete, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import SignInMethod
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts, links
 from backend.identity.emails import is_email, tidy_email
@@ -40,6 +39,7 @@ from backend.notifications.email import Email, EmailError, sender_for
 from backend.notifications.office import office_of
 from backend.notifications.password_reset import invite_email
 from backend.office.profile import display_name
+from backend.security import keys
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts, email_confirmation
 from backend.web.access import require_owner
@@ -69,9 +69,7 @@ class MemberOut(BaseModel):
     name: str
     email: str
     role: Role
-    # "invited": hasn't chosen a password through the invite yet; "unconfirmed":
-    # joined through the shared link, and hasn't confirmed the email yet.
-    status: Literal["active", "invited", "unconfirmed"]
+    status: accounts.StaffStatus
     me: bool
 
 
@@ -119,23 +117,13 @@ class JoinIn(BaseModel):
     password: str = Field(max_length=500)
 
 
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
 def _member(user: User, staff: CurrentStaff) -> MemberOut:
     return MemberOut(
         id=user.id,
         name=user.name,
         email=user.email,
         role=user.role,
-        status=(
-            "invited"
-            if user.password_hash is None
-            else "unconfirmed"
-            if user.email_confirmed_at is None
-            else "active"
-        ),
+        status=accounts.staff_status(user),
         me=user.id == staff.user_id,
     )
 
@@ -292,7 +280,7 @@ async def join_link_on(
         .values(revoked_at=func.now())
     )
     token = secrets.token_urlsafe(24)
-    made = JoinLink(created_by=staff.user_id, token_hash=_hash(token))
+    made = JoinLink(created_by=staff.user_id, token_hash=keys.token_hash(token))
     db.add(made)
     office = await office_of(db, request.app.state.settings, tenant.id)
     await db.commit()
@@ -335,7 +323,7 @@ def _working():
 
 async def _join_link(db: AsyncSession, token: str) -> JoinLink:
     found = await db.scalar(
-        select(JoinLink).where(JoinLink.token_hash == _hash(token), *_working())
+        select(JoinLink).where(JoinLink.token_hash == keys.token_hash(token), *_working())
     )
     if found is None:
         raise ApiError(404, ErrorCode.JOIN_LINK_INVALID)
@@ -402,7 +390,7 @@ async def join(
         email_confirmed=False,
     )
     message = await email_confirmation.new_code(db, request, tenant, user)
-    me = await signed_in(request, response, tenant, db, user, method="join")  # commits
+    me = await signed_in(request, response, tenant, db, user, method=SignInMethod.JOIN)  # commits
     log.info("staff %s joined %s through a %s link", user.id, tenant.slug, link.role)
     await email_confirmation.send(request, tenant, message, "/api/join")
     return me

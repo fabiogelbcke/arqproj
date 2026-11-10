@@ -39,7 +39,6 @@ const NEW: Page = {
   cover_url: null,
   features: [],
   completed: false,
-  current_position: null,
   last_update: "2026-11-01T12:00:00Z",
   details: [],
   stages: [],

@@ -14,6 +14,7 @@ import logging
 import re
 import uuid
 from datetime import UTC, datetime
+from enum import StrEnum
 
 from fastapi import Request
 
@@ -26,7 +27,86 @@ _TABLET = re.compile(r"iPad|Tablet", re.I)
 _PHONE = re.compile(r"iPhone|Android.+Mobile|Windows Phone", re.I)
 
 
-def capture(request: Request, event: str, properties: dict | None = None) -> None:
+class AnalyticsEvent(StrEnum):
+    """Every event the server sends (A39). The values are PostHog's event names:
+    its dashboards and insights find events by them, so a value never changes."""
+
+    # Signing in and the account.
+    USER_SIGNED_IN = "user_signed_in"
+    USER_SIGNED_OUT = "user_signed_out"
+    PASSWORD_SET = "password_set"
+    PAGE_TOUR_SEEN = "page_tour_seen"
+    # The office.
+    OFFICE_SETTINGS_CHANGED = "office_settings_changed"
+    OFFICE_LOGO_SET = "office_logo_set"
+    OFFICE_LOGO_REMOVED = "office_logo_removed"
+    DRIVE_CONNECTED = "drive_connected"
+    DRIVE_DISCONNECTED = "drive_disconnected"
+    # Projects and their pages.
+    PROJECT_CREATED = "project_created"
+    PROJECT_CONTENT_UPDATED = "project_content_updated"
+    PROJECT_PUBLISHED = "project_published"
+    PROJECT_COVER_SET = "project_cover_set"
+    PROJECT_COVER_REMOVED = "project_cover_removed"
+    PROJECT_COMPLETED = "project_completed"
+    MEETING_SCHEDULED = "meeting_scheduled"
+    MEETING_CLEARED = "meeting_cleared"
+    STAGE_ADDED = "stage_added"
+    STAGE_COMPLETION_CHANGED = "stage_completion_changed"
+    STAGE_RENAMED = "stage_renamed"
+    STAGE_MOVED = "stage_moved"
+    STAGES_REORDERED = "stages_reordered"
+    STAGE_REMOVED = "stage_removed"
+    SECTION_CREATED = "section_created"
+    UPLOAD_STARTED = "upload_started"
+    UPLOAD_FAILED = "upload_failed"
+    FILE_HIDDEN = "file_hidden"
+    FILE_MOVED = "file_moved"
+    COMPARISON_UPLOAD_STARTED = "comparison_upload_started"
+    COMPARISON_EDITED = "comparison_edited"
+    COMPARISON_HIDDEN = "comparison_hidden"
+    COMPARISON_MOVED = "comparison_moved"
+    # Share links: staff's, or a visitor's when a client makes one.
+    SHARE_LINK_CREATED = "share_link_created"
+    SHARE_LINK_RENEWED = "share_link_renewed"
+    SHARE_LINK_DISABLED = "share_link_disabled"
+    # The portfolio (A45).
+    PORTFOLIO_PUBLISHED = "portfolio_published"
+    PORTFOLIO_UNPUBLISHED = "portfolio_unpublished"
+    PORTFOLIO_FORMAT_CHANGED = "portfolio_format_changed"
+    PORTFOLIO_ENTRY_ADDED = "portfolio_entry_added"
+    PORTFOLIO_ENTRY_REMOVED = "portfolio_entry_removed"
+    PORTFOLIO_ENTRIES_MERGED = "portfolio_entries_merged"
+    PORTFOLIO_ENTRY_SPLIT = "portfolio_entry_split"
+    PORTFOLIO_SECTION_ADDED = "portfolio_section_added"
+    PORTFOLIO_SECTION_REMOVED = "portfolio_section_removed"
+    PORTFOLIO_PHOTO_ADDED = "portfolio_photo_added"
+    PORTFOLIO_COMPARISON_SET = "portfolio_comparison_set"
+    PORTFOLIO_COMPARISON_REMOVED = "portfolio_comparison_removed"
+    PORTFOLIO_VIDEO_ADDED = "portfolio_video_added"
+    PORTFOLIO_VIDEO_UPLOAD_FAILED = "portfolio_video_upload_failed"
+    # Clients and other visitors: personless.
+    PAGE_UNLOCK_TRIED = "page_unlock_tried"
+    MEETING_ADDED_TO_CALENDAR = "meeting_added_to_calendar"
+    SHARE_PAGE_VIEWED = "share_page_viewed"
+    SHARE_UNLOCK_TRIED = "share_unlock_tried"
+    CLIENT_EMAIL_SUBSCRIBED = "client_email_subscribed"
+    CLIENT_EMAIL_UNSUBSCRIBED = "client_email_unsubscribed"
+    # Personless counts: bytes sent, update emails per office.
+    FILE_TRANSFER = "file_transfer"
+    UPDATE_EMAILS_SENT = "update_emails_sent"
+
+
+class SignInMethod(StrEnum):
+    """How a staff member signed in (`user_signed_in`'s `method`)."""
+
+    PASSWORD = "password"
+    GOOGLE = "google"
+    LINK = "link"  # a password chosen from an email's link
+    JOIN = "join"  # joined through the office's shared link
+
+
+def capture(request: Request, event: AnalyticsEvent, properties: dict | None = None) -> None:
     """A staff action, as this request's person and office."""
     client = getattr(request.app.state, "posthog", None)
     if client is not None:
@@ -64,7 +144,7 @@ def visitor_properties(request: Request, tenant_id: uuid.UUID) -> dict:
 
 
 def capture_visit(
-    request: Request, tenant_id: uuid.UUID, event: str, properties: dict | None = None
+    request: Request, tenant_id: uuid.UUID, event: AnalyticsEvent, properties: dict | None = None
 ) -> None:
     """Something a client or other visitor did. Never fails the request."""
     client = getattr(request.app.state, "posthog", None)

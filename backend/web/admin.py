@@ -26,8 +26,8 @@ import os
 import secrets
 import uuid
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, Response
@@ -37,14 +37,16 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from backend.db.isolation import scope_to_tenant
 from backend.identity import links, support
+from backend.identity.accounts import StaffStatus
 from backend.identity.models import Role
 from backend.operators import actions, offices
 from backend.operators.google_signin import GoogleSignIn, SignInError, new_verifier
 from backend.operators.statistics import FileStats, load_files
+from backend.projects.enums import ProjectStatus
 from backend.security import keys
 from backend.storage.base import StorageError
 from backend.storage.google_connect import ConnectError
-from backend.storage.models import StorageConnection, StorageKind
+from backend.storage.models import ReaderStatus, StorageConnection, StorageKind, WriterStatus
 from backend.tenancy.middleware import OPERATOR_PAGE
 from backend.tenancy.models import Feature, Tenant, TenantDomain, TenantStatus
 from backend.tenancy.resolve import current_tenant, normalize_host
@@ -112,7 +114,7 @@ class AdminStaffOut(BaseModel):
     name: str
     email: str
     role: Role
-    status: str
+    status: StaffStatus
     last_seen_at: datetime | None
 
 
@@ -120,16 +122,16 @@ class AdminOfficeOut(BaseModel):
     id: str  # for searching the logs, where some lines name the office by it
     slug: str
     name: str
-    status: str
+    status: TenantStatus
     created_at: datetime
     hosts: list[str]
     owners: int
     staff: int
     pending: int
-    projects: dict[str, int]
-    storage: str
-    writer_status: str | None
-    reader_status: str | None
+    projects: dict[ProjectStatus, int]
+    storage: StorageKind | None  # None: not connected
+    writer_status: WriterStatus | None
+    reader_status: ReaderStatus | None
     drive_account: str | None
     last_activity_at: datetime | None
     emails_sent: int
@@ -137,7 +139,7 @@ class AdminOfficeOut(BaseModel):
     downloads: int
     portfolio: dict[str, int]  # pieces, images, published (A45)
     usage: dict[str, int]
-    link_statuses: dict[str, int]
+    link_statuses: dict[offices.LinkState, int]
     project_types: dict[str, int]
     # Switched on for this office (A40); `all_features` lists what can be.
     features: list[Feature]
@@ -249,7 +251,18 @@ async def signin(request: Request, response: Response) -> SigninOut:
     return SigninOut(url=google.authorization_url(flow["state"], flow["nonce"], flow["verifier"]))
 
 
-def _back(problem: str | None = None) -> RedirectResponse:
+class OperatorSignInProblem(StrEnum):
+    """Why an operator's sign-in didn't get in, as the dashboard's address says it
+    (`?entrar=…`); the page shows each one's text (`admin.signInProblem`)."""
+
+    EXPIRED = "expirado"
+    CANCELLED = "cancelado"
+    TOO_MANY_TRIES = "tentativas"
+    FAILED = "falhou"
+    DENIED = "negado"  # not on the operator allowlist
+
+
+def _back(problem: OperatorSignInProblem | None = None) -> RedirectResponse:
     # With the request ID its log line carries, so the page shows the support code.
     target = PAGE + (f"?entrar={problem}&ref={current_request_id()}" if problem else "")
     response = RedirectResponse(target, status_code=302)
@@ -268,14 +281,14 @@ async def callback(request: Request) -> Response:
     try:
         flow = keys.verify(settings.app_secret, FLOW_PURPOSE, request.cookies.get(FLOW_COOKIE, ""))
     except keys.BadToken:
-        return _back("expirado")
+        return _back(OperatorSignInProblem.EXPIRED)
     if not secrets.compare_digest(request.query_params.get("state", ""), flow["state"]):
-        return _back("expirado")
+        return _back(OperatorSignInProblem.EXPIRED)
     if request.query_params.get("error") or not request.query_params.get("code"):
-        return _back("cancelado")
+        return _back(OperatorSignInProblem.CANCELLED)
     who = attempts.device(request)  # as office sign-in (google_signin.TRIES)
     if not attempts.admit(google_signin.TRIES, who):
-        return _back("tentativas")
+        return _back(OperatorSignInProblem.TOO_MANY_TRIES)
     try:
         identity = await _google(request).identify(
             getattr(request.app.state, "http", None),  # set up at app start
@@ -286,12 +299,12 @@ async def callback(request: Request) -> Response:
     except SignInError as error:
         attempts.failed(google_signin.TRIES, who)
         log.error("operator sign-in failed: route=%s %s", CALLBACK, error.detail)
-        return _back("falhou")
+        return _back(OperatorSignInProblem.FAILED)
     attempts.succeeded(google_signin.TRIES, who)
     if identity.email not in settings.operator_allowlist:
         # Who tried is worth knowing; the page only says "not allowed".
         log.warning("operator sign-in refused for %s", identity.email)
-        return _back("negado")
+        return _back(OperatorSignInProblem.DENIED)
     response = _back()
     _start_session(request, response, identity.email)
     log.info("operator %s signed in", identity.email)
@@ -407,17 +420,22 @@ class CreateTenantIn(BaseModel):
         return value
 
 
+class OperatorAction(StrEnum):
+    """What an operator can do to an office from its page (A38). Recorded in the
+    audit log as written here."""
+
+    OWNER_LINK = "owner_link"
+    SUSPEND = "suspend"
+    RESTORE = "restore"
+    DELETE = "delete"
+    FEATURE_ON = "feature_on"  # A40
+    FEATURE_OFF = "feature_off"
+    SUPPORT_OWNER = "support_owner"  # A43
+    SUPPORT_MEMBER = "support_member"
+
+
 class TenantActionIn(BaseModel):
-    action: Literal[
-        "owner_link",
-        "suspend",
-        "restore",
-        "delete",
-        "feature_on",
-        "feature_off",
-        "support_owner",
-        "support_member",
-    ]
+    action: OperatorAction
     confirmation: str = Field(default="", max_length=200)
     # For "feature_on" and "feature_off" (A40).
     feature: Feature | None = None
@@ -489,25 +507,25 @@ async def tenant_action(
     operator: dict = Depends(operator_with_csrf),
 ) -> TenantActionOut:
     response.headers["Cache-Control"] = "private, no-store"
-    if body.action in ("support_owner", "support_member"):
+    if body.action in (OperatorAction.SUPPORT_OWNER, OperatorAction.SUPPORT_MEMBER):
         return await _support_entry(request, slug, body.action, operator)
     try:
         async with _action_sessionmaker(request)() as db:
             tenant = await actions.scoped_tenant(db, slug)
             url = None
-            if body.action == "owner_link":
+            if body.action is OperatorAction.OWNER_LINK:
                 url = await actions.owner_link(db, tenant, _settings(request).local_site_port)
-            elif body.action == "delete":
+            elif body.action is OperatorAction.DELETE:
                 await actions.delete_tenant(db, tenant, body.confirmation)
-            elif body.action in ("feature_on", "feature_off"):
+            elif body.action in (OperatorAction.FEATURE_ON, OperatorAction.FEATURE_OFF):
                 if body.feature is None:
                     raise ApiError(409, ErrorCode.OPERATOR_ACTION_CONFLICT)
-                actions.switch_feature(tenant, body.feature, on=body.action == "feature_on")
+                on = body.action is OperatorAction.FEATURE_ON
+                actions.switch_feature(tenant, body.feature, on=on)
             else:
-                tenant.status = (
-                    TenantStatus.SUSPENDED if body.action == "suspend" else TenantStatus.ACTIVE
-                )
-            done = f"{body.action}:{body.feature}" if body.feature else body.action
+                suspend = body.action is OperatorAction.SUSPEND
+                tenant.status = TenantStatus.SUSPENDED if suspend else TenantStatus.ACTIVE
+            done = f"{body.action}:{body.feature}" if body.feature else str(body.action)
             actions.audit(db, operator["email"], done, tenant, current_request_id())
             await db.commit()
             return TenantActionOut(owner_url=url)
@@ -516,13 +534,13 @@ async def tenant_action(
 
 
 async def _support_entry(
-    request: Request, slug: str, action: str, operator: dict
+    request: Request, slug: str, action: OperatorAction, operator: dict
 ) -> TenantActionOut:
     """Support access (A43): the entry is audited first, with the operator login;
     the office's Suporte Unio account and its one-time link are then written with
     the app's login, scoped to the office like a request, so the operator login
     needs no privileges on office tables."""
-    role = Role.OWNER if action == "support_owner" else Role.MEMBER
+    role = Role.OWNER if action is OperatorAction.SUPPORT_OWNER else Role.MEMBER
     try:
         async with _action_sessionmaker(request)() as db:
             tenant = await actions.scoped_tenant(db, slug)
