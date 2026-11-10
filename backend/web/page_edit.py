@@ -30,7 +30,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.db.engine import get_tenant_session
 from backend.notifications.events import record
 from backend.notifications.models import EventKind
-from backend.projects.enums import DetailKey, DetailType, ProjectStatus
+from backend.projects.creation import CreationProblem, custom_type_name
+from backend.projects.enums import DetailKey, DetailType, ProjectStatus, ProjectType
 from backend.projects.models import (
     MEETING_LOCATION_MAX,
     MEETING_TITLE_MAX,
@@ -124,12 +125,24 @@ class ContentIn(BaseModel):
     details: list[DetailIn] | None = Field(default=None, max_length=50)
     # Changing the type later leaves the stages as they are (section 10).
     project_type: str | None = Field(default=None, max_length=100)
+    # "Outro"'s name: with it as the new type, or alone to rename it (2 Nov 2026).
+    custom_type: str | None = Field(default=None, max_length=500)
 
 
-def _detail_value(value_type: DetailType, value: str) -> dict:
+def _custom_type(project_type: str, typed: str | None) -> str | None:
+    try:
+        return custom_type_name(project_type, typed)
+    except CreationProblem:
+        raise ApiError(422, ErrorCode.INVALID_CUSTOM_TYPE) from None
+
+
+def detail_value(value_type: DetailType, value: str, text_max: int = DETAIL_TEXT_MAX) -> dict:
+    """A detail's value as typed, checked and in the column of its type (a project's
+    details and a portfolio work's sheet alike, each with its length for a text);
+    422 when it isn't one."""
     text = value.strip()
     if value_type is DetailType.TEXT:
-        if not text or len(text) > DETAIL_TEXT_MAX:
+        if not text or len(text) > text_max:
             raise ApiError(422, ErrorCode.INVALID_DETAIL)
         return {"value_text": text}
     if value_type is DetailType.AREA:
@@ -161,9 +174,19 @@ async def change_content(
     if body.description is not None:
         values["description"] = body.description.strip()
     if body.project_type is not None:
-        if await db.get(ProjectTypeDef, body.project_type) is None:
+        # A hidden type stays with the projects that have it, but none switch to it (A44).
+        kind = await db.get(ProjectTypeDef, body.project_type)
+        current = await db.scalar(select(Project.project_type).where(Project.id == project_id))
+        if kind is None or (kind.hidden and kind.key != current):
             raise ApiError(422, ErrorCode.UNKNOWN_PROJECT_TYPE)
         values["project_type"] = body.project_type
+        values["custom_type"] = _custom_type(body.project_type, body.custom_type)
+    elif body.custom_type is not None:
+        # Renaming "Outro": only a project of that type has a name to change.
+        current = await db.scalar(select(Project.project_type).where(Project.id == project_id))
+        if current != ProjectType.OTHER:
+            raise ApiError(422, ErrorCode.INVALID_CUSTOM_TYPE)
+        values["custom_type"] = _custom_type(current, body.custom_type)
     rows = []
     if body.details is not None:
         known = dict(
@@ -185,7 +208,7 @@ async def change_content(
                     "key": detail.key,
                     "value_type": known[detail.key],
                     "position": position,
-                    **_detail_value(known[detail.key], detail.value),
+                    **detail_value(known[detail.key], detail.value),
                 }
             )
     await _change(db, project_id, body.row_version, values)

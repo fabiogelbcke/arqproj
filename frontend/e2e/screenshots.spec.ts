@@ -3,10 +3,12 @@
 // same setup as the browser tests (built app, fresh fictional database).
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 
 import { expect, type Page, test } from "@playwright/test";
 
 import { E2E_ENV, OPERATOR, PORT } from "../playwright.config";
+import { switchOn } from "./features";
 
 const OUT = process.env.SCREENSHOTS_DIR ?? "screenshots";
 // A fictional mark (a slanted square), like the prototype's logo.
@@ -84,8 +86,8 @@ test("@screenshots staff app", async ({ page, browser }) => {
 
   // A fictional logo, so the header shows one.
   await page.goto("/painel/configuracoes/escritorio");
-  await page.getByRole("button", { name: "Escolher imagem" }).waitFor();
-  await page.locator('input[type="file"]').setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: LOGO });
+  await page.getByRole("button", { name: "Escolher imagem", exact: true }).waitFor();
+  await page.locator('input[type="file"]').first().setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: LOGO });
   // Cropped first, its empty margins trimmed already.
   await page.getByText("Assim ele aparece no topo das páginas").waitFor();
   await shoot(page, "04b-recortar-logo");
@@ -93,10 +95,20 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByText("Logo atualizado.").waitFor();
   await page.goto("/painel");
   await page.getByRole("heading", { name: "Projetos" }).waitFor();
-  await page.locator("header img").waitFor();
+  await page.locator("header img").first().waitFor(); // the logo (light and dark copies)
   await page.getByRole("region", { name: "Em andamento" }).waitFor(); // the projects, loaded
   await shoot(page, "03-projetos");
   await shoot(page, "03-projetos", "dark");
+  // An archived project, opened from "Arquivados" with its one action, and put back.
+  await page.getByRole("button", { name: "Opções do projeto Casa das Oliveiras" }).click();
+  await page.getByRole("menuitem", { name: "Arquivar projeto" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Arquivar" }).click();
+  await page.getByRole("button", { name: "Arquivados (1)" }).click();
+  await page.getByRole("button", { name: "Opções do projeto Casa das Oliveiras" }).click();
+  await page.getByRole("menuitem", { name: "Desarquivar projeto" }).waitFor();
+  await shoot(page, "03c-projetos-arquivados");
+  await page.getByRole("menuitem", { name: "Desarquivar projeto" }).click();
+  await page.getByRole("button", { name: /^Arquivados/ }).waitFor({ state: "detached" });
   // An iPad, upright and sideways: "Novo projeto" stays on the search's row.
   for (const tablet of [{ name: "ipad", width: 820, height: 1180 }, { name: "ipad-wide", width: 1180, height: 820 }]) {
     await page.setViewportSize(tablet);
@@ -132,6 +144,13 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("button", { name: "Opções do projeto Casa Jardim" }).click();
   await page.getByRole("menu").waitFor();
   await shoot(page, "03f-menu-do-projeto");
+  await page.getByRole("menuitem", { name: /^(Adicionar|Trocar) foto$/ }).click();
+  const picker = page.getByRole("dialog", { name: "Escolher foto de capa" });
+  await expect(picker.getByRole("button", { name: "Foto 1", exact: true })).toBeVisible();
+  await page.waitForFunction(() => [...document.querySelectorAll("[role=dialog] img")].slice(0, 9).every((img) => (img as HTMLImageElement).complete));
+  await shoot(page, "03j-escolher-capa");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Opções do projeto Casa Jardim" }).click();
   await page.getByRole("menuitem", { name: "Configurações do projeto" }).click();
   await page.getByRole("dialog", { name: "Projeto" }).waitFor();
   await shoot(page, "03c-projeto");
@@ -210,6 +229,18 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
   await shoot(page, "06-pagina-do-cliente");
   await shoot(page, "06-pagina-do-cliente", "dark");
+  // The example project (plan section 16) has the cover band on (A40): the
+  // opening on a band made from the cover. Its explore tour closed first.
+  const example = await browser.newPage();
+  await example.emulateMedia({ reducedMotion: "reduce" });
+  await example.goto("/tour-projeto");
+  await example.locator(".driver-popover").waitFor();
+  await example.keyboard.press("Escape");
+  await example.locator(".project-opening__backdrop img").waitFor();
+  await example.getByRole("heading", { name: "Etapas do projeto" }).waitFor();
+  await shoot(example, "06v-exemplo-faixa-da-capa");
+  await shoot(example, "06v-exemplo-faixa-da-capa", "dark");
+  await example.close();
   // Drive disconnected: the page is offline (staff are told to reconnect).
   await page.route("**/api/pages/casa-jardim", (route) =>
     route.fulfill({ status: 503, json: { error: "page_unavailable" } }),
@@ -264,11 +295,45 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(page, "06m-nova-versao");
   await page.keyboard.press("Escape");
 
+  // A before-and-after comparison (A46): the "+" card's menu, its dialog, the card
+  // on the page and its slider.
+  switchOn("before_after"); // a feature switched on per office (A40)
+  await page.reload();
+  await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
+  const stage = page.locator("#stage-2");
+  await stage.getByRole("button", { name: "Adicionar à etapa" }).click();
+  await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).waitFor();
+  await shoot(page, "06x-comparacao-menu");
+  await stage.getByRole("menuitem", { name: /Comparação antes e depois/ }).click();
+  const comparing = page.getByRole("dialog", { name: "Comparação antes e depois" });
+  await comparing.getByRole("button", { name: "Renomear “Antes”" }).waitFor();
+  await shoot(page, "06x-comparacao-vazia");
+  const images = join(import.meta.dirname, "../src/client/example/images");
+  await comparing.getByLabel("Escolher a imagem “Antes”").setInputFiles(join(images, "fachada-estudo-exemplo.jpg"));
+  await comparing.getByLabel("Escolher a imagem “Depois”").setInputFiles(join(images, "fachada-exemplo.jpg"));
+  await comparing.getByRole("textbox", { name: "Nome da comparação" }).fill("Fachada");
+  for (const [side, label] of [["Antes", "Estudo"], ["Depois", "Render"]]) {
+    await comparing.getByRole("button", { name: `Renomear “${side}”` }).click();
+    await comparing.getByRole("textbox", { name: `Rótulo de “${side}”` }).fill(label!);
+    await comparing.getByRole("textbox", { name: `Rótulo de “${side}”` }).press("Enter");
+  }
+  await shoot(page, "06x-comparacao-nova");
+  await comparing.getByRole("button", { name: "Enviar comparação" }).click();
+  await stage.getByRole("button", { name: "Abrir Fachada" }).waitFor();
+  await page.setViewportSize(SIZES[0]!);
+  await stage.getByRole("button", { name: "Abrir Fachada" }).scrollIntoViewIfNeeded();
+  await shoot(page, "06x-comparacao-na-etapa");
+  await stage.getByRole("button", { name: "Abrir Fachada" }).click();
+  await page.getByRole("dialog", { name: "Fachada" }).getByRole("slider").waitFor();
+  await shoot(page, "06x-comparacao-aberta");
+  await shoot(page, "06x-comparacao-aberta", "dark");
+  await page.keyboard.press("Escape");
+
   // Details are added from a menu (no select marking its placeholder as chosen).
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
   await page.getByRole("button", { name: "Editar informações" }).click();
-  await page.getByRole("button", { name: "Adicionar informação" }).click();
+  await page.getByRole("button", { name: "Adicionar detalhes" }).click();
   await page.getByRole("menu").waitFor();
   await shoot(page, "06o-adicionar-informacao");
   await page.keyboard.press("Escape");
@@ -443,6 +508,28 @@ test("@screenshots operator dashboard", async ({ page }) => {
   await shoot(page, "10c-operacao-escritorio");
   await page.getByRole("button", { name: "Suspender", exact: true }).click();
   await shoot(page, "10e-operacao-suspender");
+  await page.setViewportSize(SIZES[0]!);
+  await page.keyboard.press("Escape");
+  // The site's types and stages (A44): the list, one type, and the warning before
+  // a change that reaches existing projects (gone back from, nothing saved).
+  await page.getByRole("link", { name: "Configurações" }).click();
+  await page.getByText("Visualização Arquitetônica").waitFor();
+  await shoot(page, "10g-configuracoes-tipos");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("link", { name: "Editar Projeto Arquitetônico" }).click();
+  await page.getByRole("heading", { name: "Projeto Arquitetônico" }).waitFor();
+  await shoot(page, "10h-configuracoes-tipo");
+  await page.setViewportSize(SIZES[0]!);
+  const name = page.getByLabel("Português").first();
+  await name.fill("Projeto de Arquitetura");
+  await page.getByRole("button", { name: "Salvar alterações" }).click();
+  await page.getByRole("alertdialog").waitFor();
+  await shoot(page, "10i-configuracoes-aviso");
+  await page.setViewportSize(SIZES[0]!);
+  await page.getByRole("button", { name: "Voltar e revisar" }).click();
+  await page.getByRole("link", { name: "Etapas" }).click();
+  await page.getByText("Entrega Final").waitFor();
+  await shoot(page, "10j-configuracoes-etapas");
 });
 
 test("@screenshots support access", async ({ page }) => {
@@ -550,11 +637,15 @@ test("@screenshots proposals", async ({ page }) => {
   const dialog = page.getByRole("dialog", { name: "Nova proposta" });
   await dialog.getByLabel("Nome do projeto").fill("Casa do Lago");
   await dialog.getByLabel("Cliente").fill("Família Souza");
-  await dialog.getByLabel("Outra etapa (opcional)").fill("Visita técnica");
-  await dialog.getByLabel("Outra etapa (opcional)").press("Enter");
   await shoot(page, "11b-nova-proposta");
   await page.setViewportSize(SIZES[0]!);
   await dialog.getByRole("button", { name: "Criar proposta" }).click();
+  // Its services first: the type's stages, its usual ones ticked (2 Nov 2026).
+  const services = page.getByRole("dialog", { name: "Serviços da proposta" });
+  await services.getByRole("checkbox").first().waitFor();
+  await shoot(page, "11b2-servicos-da-proposta");
+  await page.setViewportSize(SIZES[0]!);
+  await services.getByRole("button", { name: "Continuar" }).click();
   await page.getByLabel(/Valor total/).waitFor();
   await page.getByLabel(/Valor total/).pressSequentially("2900000");
   await page.getByLabel("Número de parcelas").fill("3");
@@ -572,10 +663,21 @@ test("@screenshots proposals", async ({ page }) => {
   await shoot(page, "11e-aceitar-proposta");
   await page.setViewportSize(SIZES[0]!);
   await page.getByRole("alertdialog").getByRole("button", { name: "Criar projeto" }).click();
+  // The project's setup steps, the proposal's services as its stages (2 Nov 2026).
+  const setup = page.getByRole("dialog", { name: "Etapas" });
+  await setup.getByRole("checkbox").first().waitFor();
+  await shoot(page, "11f-etapas-da-proposta");
+  await page.setViewportSize(SIZES[0]!);
+  await setup.getByRole("button", { name: "Continuar" }).click();
+  const details = page.getByRole("dialog", { name: "Descrição e informações" });
+  await details.getByLabel("Descrição").fill("Residência de campo com vista para o lago.");
+  await shoot(page, "11f2-descricao-do-projeto");
+  await page.setViewportSize(SIZES[0]!);
+  await details.getByRole("button", { name: "Fechar" }).click();
   await page.getByRole("region", { name: "Proposta" }).waitFor();
-  await shoot(page, "11f-projeto-com-proposta");
+  await shoot(page, "11g-projeto-com-proposta");
   await page.setViewportSize(SIZES[0]!);
   await page.goto("/painel/propostas");
   await page.getByRole("region", { name: /Aceitas/ }).waitFor();
-  await shoot(page, "11g-propostas");
+  await shoot(page, "11h-propostas");
 });

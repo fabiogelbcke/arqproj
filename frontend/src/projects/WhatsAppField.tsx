@@ -27,7 +27,7 @@ export function addPhone(list: string[], draft: string): { list: string[]; left:
   return { list: list.includes(phone) ? list : [...list, phone], left: "" };
 }
 
-/** The client's WhatsApp numbers (A44), each with where it stands. Staff add one
+/** The client's WhatsApp numbers (A47), each with where it stands. Staff add one
  *  and the client is asked; one that answered "Não quero" stays listed, without a
  *  remove button, so it is never asked again. */
 export function WhatsAppField({

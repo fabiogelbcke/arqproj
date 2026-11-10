@@ -1,5 +1,5 @@
 """Clients sign themselves up for a project's emails (A32, 20 Oct 2026) or
-WhatsApp messages (A44).
+WhatsApp messages (A47).
 
     POST /api/pages/{slug}/subscribe   from the project page: listed at once, and welcomed
     POST /api/pages/{slug}/whatsapp    the same for a WhatsApp number, if the office has it
@@ -145,7 +145,7 @@ async def subscribe_whatsapp(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
-    """Listed at once and sent the welcome, as an email is (A44). Signing up is
+    """Listed at once and sent the welcome, as an email is (A47). Signing up is
     the client's own choice, so it also lifts a SAIR they sent before; staff signed
     in can't make it for them (they add the number in the painel, and the client
     is asked)."""

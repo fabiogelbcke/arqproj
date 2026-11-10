@@ -2,13 +2,17 @@
 // Brazilian Portuguese like all demo data. Dates are counted from today, so the
 // meeting is always ahead and the files are recent.
 import type { Schemas } from "../../api/client";
-import roof from "../../projects/covers/capa-01.jpg";
 import house from "./images/capa-exemplo.jpg";
-import pool from "../../projects/covers/capa-07.jpg";
-import facade from "../../projects/covers/capa-09.jpg";
+import facade from "./images/fachada-exemplo.jpg";
+import facadeStudy from "./images/fachada-estudo-exemplo.jpg";
+import pool from "./images/piscina-exemplo.jpg";
+import roof from "./images/telhado-exemplo.jpg";
 import type { Detail } from "../format";
 import dwg from "./files/planta-exemplo.dwg?url";
 import pdf from "./files/folha-exemplo.pdf?url";
+
+/** What the cover picker offers on the example page, which reaches no server. */
+export const EXAMPLE_COVER_PHOTOS = { "exemplo-casa": house, "exemplo-telhado": roof, "exemplo-piscina": pool, "exemplo-fachada": facade };
 
 export const EXAMPLE_TIMEZONE = "America/Sao_Paulo"; // without a signed-in office's own
 
@@ -24,6 +28,7 @@ export type ExampleProject = {
   project_type_key: string;
   description: string;
   cover_url: string | null;
+  features: Schemas["Feature"][]; // switched on for the example (A40)
   team: string[]; // "Responsável" (A41)
   proposal_url: string | null; // the accepted proposal's PDF, before the stages (A42)
   status: "active" | "completed";
@@ -85,6 +90,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       "- Três suítes e escritório\n" +
       "- Piscina na cota mais baixa do terreno",
     cover_url: house,
+    features: ["cover_band", "before_after"], // the opening on a band (A40); the example shows everything
     team: ["Paula Ribeiro"],
     proposal_url: pdf,
     status: "active",
@@ -132,6 +138,17 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
               },
               file("Planta baixa - térreo.dwg", "other", dwg, 5_872_025, 3),
               file("Estudo de cobertura.jpg", "image", roof, 1_228_800, 1),
+              // A before-and-after comparison (A46): the study and the render, one card.
+              {
+                ...file("Fachada", "image", facadeStudy, 655_360, 2),
+                comparison: {
+                  after: file("Fachada (depois - Render).jpg", "image", facade, 1_536_000, 2),
+                  before_label: "Estudo",
+                  after_label: "Render",
+                  before_name: "Fachada (antes - Estudo).jpg",
+                  after_name: "Fachada (depois - Render).jpg",
+                },
+              },
             ],
           },
         ],

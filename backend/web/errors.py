@@ -20,6 +20,10 @@ class ErrorCode(StrEnum):
     OPERATOR_ACTION_CONFLICT = "operator_action_conflict"
     OPERATOR_ACTION_FAILED = "operator_action_failed"
     OPERATOR_ACTIONS_UNAVAILABLE = "operator_actions_unavailable"
+    # The site's types and stages (A44).
+    INVALID_SETTING_TEXT = "invalid_setting_text"  # a name blank or too long, a text too long
+    SETTING_NAME_TAKEN = "setting_name_taken"  # another type (or stage) has that name
+    SETTING_NOT_FOUND = "setting_not_found"  # an unknown type or stage, or a list that isn't whole
     SIGNUP_LINK_INVALID = "signup_link_invalid"  # an office signup link used, expired or unknown
     OFFICE_ADDRESS_TAKEN = "office_address_taken"  # another office has that address
     INVALID_OFFICE_ADDRESS = "invalid_office_address"  # not a usable subdomain, or reserved
@@ -49,6 +53,7 @@ class ErrorCode(StrEnum):
     INVALID_PROJECT_NAME = "invalid_project_name"
     INVALID_CLIENT_NAME = "invalid_client_name"
     UNKNOWN_PROJECT_TYPE = "unknown_project_type"
+    INVALID_CUSTOM_TYPE = "invalid_custom_type"  # "Outro" needs its name; only it has one
     UNKNOWN_STAGE = "unknown_stage"  # not a built-in stage, or chosen twice
     UNKNOWN_MEMBER = "unknown_member"  # not one of the office's staff (A41)
     FEATURE_OFF = "feature_off"  # not switched on for this office (A40)
@@ -62,18 +67,19 @@ class ErrorCode(StrEnum):
     PROJECT_ARCHIVED = "project_archived"  # viewable, not changed (plan section 22)
     COVER_WRONG_TYPE = "cover_wrong_type"
     COVER_TOO_LARGE = "cover_too_large"
+    COVER_PHOTO_NOT_FOUND = "cover_photo_not_found"
     PAGE_NOT_FOUND = "page_not_found"  # unknown address, draft or deleted: never told apart
     PAGE_LOCKED = "page_locked"  # protected by a password
     PAGE_UNAVAILABLE = "page_unavailable"  # Drive disconnected: back once reconnected
     WRONG_PAGE_PASSWORD = "wrong_page_password"
     TOO_MANY_ATTEMPTS = "too_many_attempts"  # wait 15 minutes
     RECIPIENTS_FULL = "recipients_full"  # the project has as many addresses as it may (20)
-    INVALID_PHONE = "invalid_phone"  # not a WhatsApp number we can write to (A44)
+    INVALID_PHONE = "invalid_phone"  # not a WhatsApp number we can write to (A47)
     WHATSAPP_FULL = "whatsapp_full"  # the project has as many numbers as it may (20)
-    # The number declined or replied SAIR: only the client can sign up again (A44).
+    # The number declined or replied SAIR: only the client can sign up again (A47).
     WHATSAPP_REFUSED = "whatsapp_refused"
     # Staff signed in on the page: they add a client's number in the painel, where
-    # the client is asked first (A44).
+    # the client is asked first (A47).
     WHATSAPP_STAFF = "whatsapp_staff"
     PASSWORD_REQUIRED = "password_required"  # password access needs a password
     INVALID_DETAIL = "invalid_detail"  # unknown, repeated, or a value of the wrong kind
@@ -93,6 +99,12 @@ class ErrorCode(StrEnum):
     UPLOAD_FAILED = "upload_failed"  # the browser couldn't finish sending: logged, with the code
     FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
     FILE_NOT_OURS_TO_MOVE = "file_not_ours_to_move"  # put straight into Drive: move it there
+    # A before-and-after comparison (A46): one of that title is already in the folder.
+    COMPARISON_EXISTS = "comparison_exists"
+    COMPARISON_NOT_IMAGE = "comparison_not_image"  # a side that isn't a JPEG, PNG, WebP or GIF
+    COMPARISON_TITLE_INVALID = "comparison_title_invalid"  # blank, too long, or starts with "_"
+    COMPARISON_LABEL_INVALID = "comparison_label_invalid"  # it would read as a version: "v2"
+    COMPARISON_NOT_OURS = "comparison_not_ours"  # a side put straight into Drive: change it there
     INVALID_STAFF_NAME = "invalid_staff_name"  # blank, or over 80 characters
     ALREADY_STAFF = "already_staff"  # `conflict_name`: the account with that email
     NOT_AN_INVITE = "not_an_invite"  # unknown, or already in (only pending invites)
@@ -114,6 +126,11 @@ class ErrorCode(StrEnum):
     WRONG_SHARE_PASSWORD = "wrong_share_password"
     PROPOSAL_NOT_FOUND = "proposal_not_found"  # no such version, or none saved yet
     PROPOSAL_ACCEPTED = "proposal_accepted"  # the project now: its proposal stays as accepted
+    PORTFOLIO_FULL = "portfolio_full"  # as many works, or photos in one, as it holds
+    PORTFOLIO_ENTRY_NOT_FOUND = "portfolio_entry_not_found"  # removed meanwhile: reload
+    PORTFOLIO_VIDEO_REFUSED = "portfolio_video_refused"  # not an MP4 or WebM, or over 200 MB
+    PORTFOLIO_LINK_INVALID = "portfolio_link_invalid"  # not a profile on its network
+    PORTFOLIO_PHOTO_COMPARED = "portfolio_photo_compared"  # already in another comparison (A46)
 
 
 class ErrorOut(BaseModel):

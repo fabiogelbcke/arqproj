@@ -4,6 +4,7 @@ import { cleanup, configure } from "@testing-library/react";
 import { afterEach } from "vitest";
 
 import i18next from "../i18n";
+import { resetCoverPhotos } from "../projects/coverPhotos";
 
 // The dialogs' tests type and click through several steps; on a busy machine
 // (the full suite runs files in parallel) the default 1 s wait for what follows
@@ -16,5 +17,6 @@ URL.revokeObjectURL ??= () => {};
 
 afterEach(async () => {
   cleanup();
+  resetCoverPhotos(); // each test answers /api/cover-photos its own way
   await i18next.changeLanguage("pt-BR");
 });

@@ -16,6 +16,7 @@ import {
   matches,
   peopleOf,
   projectTypes,
+  typeGroup,
   responsibles,
   saveSort,
   useProjects,
@@ -88,6 +89,33 @@ function Group({
         >
           {all ? t("projects.showFewer") : t("projects.showAll", { count: projects.length })}
         </Button>
+      )}
+    </section>
+  );
+}
+
+/** Archived projects, out of the way under the groups: "Arquivados (n)" opens them,
+ *  and each card's "⋯" takes one out of the archive. Only with some to show. Declined
+ *  proposals are archived too, but they belong to the Propostas tab (A42). */
+function ArchivedProjects({ sort, timeZone }: { sort: Sort; timeZone: string }) {
+  const { t, i18n } = useTranslation();
+  const projects = useProjects(true);
+  const [open, setOpen] = useState(false);
+  const archived = (projects.data ?? [])
+    .filter((project) => project.status === "archived" && project.archived_from !== "proposal")
+    .sort(compareProjects(sort, i18n.language));
+  if (archived.length === 0) return null;
+  return (
+    <section className={styles.archived}>
+      <Button size="small" aria-expanded={open} onPress={() => setOpen(!open)}>
+        {t("projects.archivedGroup", { count: archived.length })}
+      </Button>
+      {open && (
+        <ul className={styles.rows}>
+          {archived.map((project) => (
+            <ProjectCard key={project.id} project={project} timeZone={timeZone} />
+          ))}
+        </ul>
       )}
     </section>
   );
@@ -190,7 +218,7 @@ export function ProjectsPage() {
   const types = useMemo(
     () =>
       projectTypes(projects.data ?? [], i18n.language, (key, label) =>
-        t(`projectTypeShort.${key}`, { defaultValue: label }),
+        key.startsWith("other/") ? label : t(`projectTypeShort.${key}`, { defaultValue: label }),
       ),
     [projects.data, i18n.language, t],
   );
@@ -225,7 +253,7 @@ export function ProjectsPage() {
         .filter(
           (project) =>
             matches(project, query) &&
-            (type === ALL_TYPES || project.project_type === type) &&
+            (type === ALL_TYPES || typeGroup(project) === type) &&
             (person === EVERYONE ||
               (person === MINE
                 ? isMine(project, myself, byMembers)
@@ -373,6 +401,8 @@ export function ProjectsPage() {
           )}
         </div>
       )}
+      {/* Outside the groups: an office with only archived projects still reaches them. */}
+      {!hidden && projects.data && !drive.isPending && <ArchivedProjects sort={sort} timeZone={timeZone} />}
     </>
   );
 }

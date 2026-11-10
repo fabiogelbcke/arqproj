@@ -1,0 +1,454 @@
+// The Portfólio tab: /painel/portfolio, behind the `portfolio` feature (A40).
+// Whether the office's address shows the portfolio, its opening text, the
+// works in order, and the office's social networks; each work opens in its editor (PortfolioEntryPage). A work starts
+// from one of the office's projects or from nothing.
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Link, useNavigate } from "react-router";
+
+import { plain, useProjects, type ProjectSummary } from "../projects/projects";
+import { useMe } from "../session/session";
+import { Button } from "../ui/Button";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { DialogFrame } from "../ui/DialogFrame";
+import { ErrorNotice } from "../ui/ErrorNotice";
+import { IconButton } from "../ui/IconButton";
+import { LinkButton } from "../ui/LinkButton";
+import { NameDialog } from "../ui/NameDialog";
+import { Panel } from "../ui/Panel";
+import { SearchBox } from "../ui/SearchBox";
+import { TextAreaField, TextField } from "../ui/TextField";
+import { toast, toastError } from "../ui/Toast";
+import { ToggleSwitch } from "../ui/ToggleSwitch";
+import {
+  FORMATS,
+  LIMITS,
+  NETWORKS,
+  moved,
+  useAddEntry,
+  useOrderEntries,
+  usePortfolio,
+  useRemoveEntry,
+  useSavePortfolio,
+  type Entry,
+  type Portfolio,
+} from "./portfolio";
+import styles from "./portfolio.module.css";
+
+/** The office's address as visitors type it: this page's own host. */
+export const officeAddress = () => window.location.host;
+
+export function PortfolioPage() {
+  const { t } = useTranslation();
+  const me = useMe();
+  const portfolio = usePortfolio();
+  return (
+    <div className={styles.page}>
+      <div className={styles.head}>
+        <div className={styles.headText}>
+          <p className={styles.kicker}>
+            {me.data?.tenant_name} / {t("portfolio.kicker")}
+          </p>
+          <h1 className={styles.title}>{t("portfolio.title")}</h1>
+          <p className={styles.lead}>{t("portfolio.lead", { address: officeAddress() })}</p>
+        </div>
+        {portfolio.data && <SeePortfolio published={portfolio.data.published} />}
+      </div>
+      {portfolio.error ? (
+        <ErrorNotice error={portfolio.error} />
+      ) : !portfolio.data ? (
+        <p className={styles.hint}>{t("app.loading")}</p>
+      ) : (
+        <>
+          <Publishing portfolio={portfolio.data} />
+          <Works portfolio={portfolio.data} />
+          <Social portfolio={portfolio.data} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// A small drawing of how a format lays the page out: the gallery's covers in
+// one landscape frame, in rows; the mosaic's images in their own shapes, in
+// columns.
+function FormatSketch({ format }: { format: Portfolio["format"] }) {
+  const blocks =
+    format === "gallery"
+      ? [
+          [6, 6, 34, 26],
+          [43, 6, 34, 26],
+          [80, 6, 34, 26],
+          [6, 36, 34, 26],
+          [43, 36, 34, 26],
+          [80, 36, 34, 26],
+          [6, 66, 34, 8],
+          [43, 66, 34, 8],
+          [80, 66, 34, 8],
+        ]
+      : [
+          [6, 6, 34, 26],
+          [6, 36, 34, 38],
+          [43, 6, 34, 34],
+          [43, 44, 34, 30],
+          [80, 6, 34, 20],
+          [80, 30, 34, 44],
+        ];
+  return (
+    <svg className={styles.sketch} viewBox="0 0 120 80" aria-hidden="true">
+      {blocks.map(([x, y, width, height]) => (
+        <rect key={`${x}-${y}`} x={x} y={y} width={width} height={height} rx="1.5" />
+      ))}
+    </svg>
+  );
+}
+
+/** The way to the portfolio itself, at the top of the tab and of a work's
+ *  editor: the published page, or its preview while unpublished (staff only);
+ *  `work` opens one work. In a new tab, so the painel stays. */
+export function SeePortfolio({ published, work }: { published: boolean; work?: string }) {
+  const { t } = useTranslation();
+  const query = [work && `projeto=${work}`, !published && "previa=1"].filter(Boolean).join("&");
+  return (
+    <LinkButton variant="primary" href={query ? `/?${query}` : "/"} target="_blank" rel="noreferrer">
+      {t(work ? "portfolio.viewWork" : published ? "portfolio.view" : "portfolio.preview")} <span aria-hidden="true">↗</span>
+    </LinkButton>
+  );
+}
+
+function Publishing({ portfolio }: { portfolio: Portfolio }) {
+  const { t } = useTranslation();
+  const save = useSavePortfolio();
+  const [intro, setIntro] = useState(portfolio.intro);
+  const shown = portfolio.entries.some((entry) => entry.photos.length > 0);
+  const change = (body: { published?: boolean; intro?: string; format?: Portfolio["format"] }, done: string) =>
+    save.mutate(body, { onSuccess: () => toast(done), onError: (failure) => toastError(failure) });
+  return (
+    <Panel className={styles.section} aria-labelledby="portfolio-publishing">
+      <h2 id="portfolio-publishing" className="sr-only">
+        {t("portfolio.publishing")}
+      </h2>
+      <ToggleSwitch
+        label={t("portfolio.publish")}
+        isSelected={portfolio.published}
+        isDisabled={save.isPending}
+        onChange={(on) => change({ published: on }, t(on ? "portfolio.publishedDone" : "portfolio.unpublishedDone"))}
+      >
+        <span className={styles.switchLabel}>{t("portfolio.publish")}</span>
+      </ToggleSwitch>
+      <p className={styles.hint}>
+        {t(portfolio.published ? "portfolio.publishedHint" : "portfolio.unpublishedHint", { address: officeAddress() })}
+      </p>
+      {portfolio.published && !shown && <p className={styles.warning}>{t("portfolio.nothingShown")}</p>}
+      <div className={styles.format} role="radiogroup" aria-labelledby="portfolio-format">
+        <span id="portfolio-format" className={styles.switchLabel}>
+          {t("portfolio.format")}
+        </span>
+        <div className={styles.formats}>
+          {FORMATS.map((format) => (
+            <label key={format} className={styles.formatCard} data-on={portfolio.format === format || undefined}>
+              <input
+                type="radio"
+                name="portfolio-format"
+                value={format}
+                className="sr-only"
+                checked={portfolio.format === format}
+                disabled={save.isPending}
+                onChange={() => change({ format }, t("portfolio.saved"))}
+              />
+              <FormatSketch format={format} />
+              <span className={styles.formatName}>{t(`portfolio.formats.${format}`)}</span>
+              <span className={styles.hint}>{t(`portfolio.formatHint.${format}`)}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <TextAreaField
+        label={t("portfolio.intro")}
+        description={t("portfolio.introHint")}
+        placeholder={t("portfolio.introPlaceholder")}
+        value={intro}
+        onChange={setIntro}
+        maxLength={LIMITS.intro}
+        rows={3}
+      />
+      <Button
+        size="small"
+        className={styles.save}
+        isDisabled={save.isPending || intro.trim() === portfolio.intro}
+        onPress={() => change({ intro }, t("portfolio.saved"))}
+      >
+        {t("portfolio.save")}
+      </Button>
+    </Panel>
+  );
+}
+
+function Social({ portfolio }: { portfolio: Portfolio }) {
+  const { t } = useTranslation();
+  const save = useSavePortfolio();
+  const [links, setLinks] = useState<Record<string, string>>(portfolio.links);
+  const changed = NETWORKS.some((network) => (links[network] ?? "").trim() !== (portfolio.links[network] ?? ""));
+  return (
+    <Panel className={styles.section} aria-labelledby="portfolio-social">
+      <h2 id="portfolio-social">{t("portfolio.links")}</h2>
+      <p className={styles.hint}>{t("portfolio.linksHint")}</p>
+      <div className={styles.networks}>
+        {NETWORKS.map((network) => (
+          <TextField
+            key={network}
+            label={t(`portfolio.networks.${network}`)}
+            placeholder={network === "linkedin" ? "https://www.linkedin.com/company/…" : "@"}
+            value={links[network] ?? ""}
+            onChange={(value) => setLinks({ ...links, [network]: value })}
+            maxLength={LIMITS.link}
+          />
+        ))}
+      </div>
+      <Button
+        size="small"
+        className={styles.save}
+        isDisabled={save.isPending || !changed}
+        onPress={() =>
+          save.mutate(
+            { links },
+            {
+              // As the server wrote them: "@alinea" becomes the profile's address.
+              onSuccess: (saved) => {
+                setLinks(saved.links);
+                toast(t("portfolio.saved"));
+              },
+              onError: (failure) => toastError(failure),
+            },
+          )
+        }
+      >
+        {t("portfolio.save")}
+      </Button>
+    </Panel>
+  );
+}
+
+function Works({ portfolio }: { portfolio: Portfolio }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const add = useAddEntry();
+  const order = useOrderEntries();
+  const [adding, setAdding] = useState<"project" | "new" | null>(null);
+  const full = portfolio.entries.length >= LIMITS.entries;
+  // A new work opens in its editor, to choose its photos.
+  const created = (before: Portfolio, after: Portfolio) => {
+    const known = new Set(before.entries.map((entry) => entry.id));
+    const entry = after.entries.find((item) => !known.has(item.id));
+    setAdding(null);
+    if (entry) navigate(`/portfolio/${entry.id}${adding === "project" ? "?fotos=projeto" : ""}`);
+  };
+  const create = (body: { title: string; project_id?: string }) =>
+    add.mutate(
+      { place: "", description: "", ...body },
+      { onSuccess: (after) => created(portfolio, after), onError: (failure) => toastError(failure) },
+    );
+  return (
+    <section className={styles.section} aria-labelledby="portfolio-works">
+      <div className={styles.sectionHead}>
+        <h2 id="portfolio-works">
+          {t("portfolio.works")} <span className={styles.count}>{portfolio.entries.length}</span>
+        </h2>
+        <div className={styles.actions}>
+          <Button size="small" variant="primary" isDisabled={full} onPress={() => setAdding("project")}>
+            {t("portfolio.addFromProject")}
+          </Button>
+          <Button size="small" isDisabled={full} onPress={() => setAdding("new")}>
+            {t("portfolio.addNew")}
+          </Button>
+        </div>
+      </div>
+      {portfolio.entries.length === 0 ? (
+        <p className={styles.empty}>{t("portfolio.noWorks")}</p>
+      ) : (
+        <ol className={styles.works}>
+          {portfolio.entries.map((entry, index) => (
+            <Work
+              key={entry.id}
+              entry={entry}
+              first={index === 0}
+              last={index === portfolio.entries.length - 1}
+              busy={order.isPending}
+              onMove={(step) =>
+                order.mutate(moved(portfolio.entries, index, step), { onError: (failure) => toastError(failure) })
+              }
+            />
+          ))}
+        </ol>
+      )}
+      {adding === "project" && (
+        <ProjectChoice
+          taken={new Set(portfolio.entries.map((entry) => entry.project_id).filter(Boolean) as string[])}
+          busy={add.isPending}
+          onChoose={(project) => create({ title: project.name.slice(0, LIMITS.title), project_id: project.id })}
+          onClose={() => setAdding(null)}
+        />
+      )}
+      {adding === "new" && (
+        <NameDialog
+          title={t("portfolio.newTitle")}
+          label={t("portfolio.titleLabel")}
+          initial=""
+          confirm={t("portfolio.create")}
+          maxLength={LIMITS.title}
+          busy={add.isPending}
+          onConfirm={(title) => create({ title })}
+          onCancel={() => setAdding(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+export function describe(entry: Entry): string {
+  return [entry.place, entry.year].filter(Boolean).join(" · ");
+}
+
+function Work({
+  entry,
+  first,
+  last,
+  busy,
+  onMove,
+}: {
+  entry: Entry;
+  first: boolean;
+  last: boolean;
+  busy: boolean;
+  onMove: (step: number) => void;
+}) {
+  const { t } = useTranslation();
+  const remove = useRemoveEntry();
+  const [confirming, setConfirming] = useState(false);
+  // The first photo the page shows: a comparison's "after" isn't shown on its own (A46).
+  const afters = new Set(entry.photos.flatMap((photo) => (photo.comparison ? [photo.comparison.after] : [])));
+  const cover = entry.photos.find((photo) => !afters.has(photo.id));
+  const meta = describe(entry);
+  return (
+    <li className={styles.work}>
+      <Link className={styles.workMain} to={`/portfolio/${entry.id}`}>
+        {cover ? (
+          <img className={styles.thumb} src={`${cover.url}?size=card`} alt="" loading="lazy" />
+        ) : (
+          <span className={styles.thumb} aria-hidden="true" />
+        )}
+        <span className={styles.workText}>
+          <span className={styles.workTitle}>{entry.title}</span>
+          {meta && <span className={styles.workMeta}>{meta}</span>}
+          <span className={entry.photos.length ? styles.workMeta : styles.warning}>
+            {entry.photos.length
+              ? t("portfolio.photoCount", { count: entry.photos.length })
+              : t("portfolio.noPhotos")}
+          </span>
+        </span>
+      </Link>
+      <span className={styles.tools}>
+        <IconButton label={t("portfolio.moveUp")} isDisabled={first || busy} onPress={() => onMove(-1)}>
+          ↑
+        </IconButton>
+        <IconButton label={t("portfolio.moveDown")} isDisabled={last || busy} onPress={() => onMove(1)}>
+          ↓
+        </IconButton>
+        <Button size="small" variant="ghost" onPress={() => setConfirming(true)}>
+          {t("portfolio.remove")}
+        </Button>
+      </span>
+      {confirming && (
+        <ConfirmDialog
+          title={t("portfolio.removeTitle")}
+          text={t("portfolio.removeText", { title: entry.title })}
+          confirm={t("portfolio.remove")}
+          danger
+          busy={remove.isPending}
+          onConfirm={() =>
+            remove.mutate(entry.id, {
+              onSuccess: () => {
+                setConfirming(false);
+                toast(t("portfolio.removed", { title: entry.title }));
+              },
+              onError: (failure) => toastError(failure),
+            })
+          }
+          onCancel={() => setConfirming(false)}
+        />
+      )}
+    </li>
+  );
+}
+
+/** The office's projects to draw a work from; those already in it say so. */
+export function ProjectChoice({
+  taken,
+  busy,
+  onChoose,
+  onClose,
+  title,
+}: {
+  taken: Set<string>;
+  busy: boolean;
+  onChoose: (project: ProjectSummary) => void;
+  onClose: () => void;
+  title?: string;
+}) {
+  const { t } = useTranslation();
+  const projects = useProjects(true); // archived ones too: finished work
+  const [query, setQuery] = useState("");
+  const shown = useMemo(() => {
+    const words = plain(query).trim().split(/\s+/).filter(Boolean);
+    return (projects.data ?? []).filter((project) => {
+      const haystack = plain(`${project.name} ${project.client_name}`);
+      return words.every((word) => haystack.includes(word));
+    });
+  }, [projects.data, query]);
+  return (
+    <DialogFrame title={title ?? t("portfolio.chooseProject")} onClose={onClose}>
+      <div className={styles.dialogBody}>
+        <SearchBox
+          label={t("portfolio.searchProjects")}
+          placeholder={t("portfolio.searchPlaceholder")}
+          value={query}
+          onChange={setQuery}
+        />
+        {projects.error ? (
+          <ErrorNotice error={projects.error} />
+        ) : !projects.data ? (
+          <p className={styles.hint}>{t("app.loading")}</p>
+        ) : shown.length === 0 ? (
+          <p className={styles.hint}>{t("portfolio.noProjects")}</p>
+        ) : (
+          <ul className={styles.choices}>
+            {shown.map((project) => (
+              <li key={project.id}>
+                <button
+                  type="button"
+                  className={styles.choice}
+                  disabled={busy}
+                  onClick={() => onChoose(project)}
+                >
+                  {project.cover_url ? (
+                    <img className={styles.choiceThumb} src={project.cover_url} alt="" loading="lazy" />
+                  ) : (
+                    <span className={styles.choiceThumb} aria-hidden="true" />
+                  )}
+                  <span className={styles.workText}>
+                    <span className={styles.workTitle}>{project.name}</span>
+                    <span className={styles.workMeta}>
+                      {project.client_name}
+                      {project.status === "archived" ? ` · ${t("projectStatus.archived")}` : ""}
+                      {taken.has(project.id) ? ` · ${t("portfolio.alreadyIn")}` : ""}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </DialogFrame>
+  );
+}

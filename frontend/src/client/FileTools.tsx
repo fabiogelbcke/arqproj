@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Schemas } from "../api/client";
+import { BeforeAfter } from "../ui/BeforeAfter";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
@@ -309,6 +310,7 @@ export function FilePreview({
   const url = fileSource.address(slug, file.key, "file")!;
   const shown = fileSource.address(slug, file.key, "inline")!;
   const inline = file.kind === "image" || file.kind === "pdf";
+  const comparison = file.comparison;
   const pageUrl = fileLink(slug, place, file.name);
   const message = `${file.name} · ${page.name}\n${pageUrl}`;
   useEffect(() => {
@@ -363,20 +365,52 @@ export function FilePreview({
           <CloseIcon />
         </button>
       </div>
-      <div className="file-preview__content">
-        {file.kind === "image" && !broken ? (
+      <div className={`file-preview__content${comparison ? " file-preview__content--compare" : ""}`}>
+        {comparison && !broken ? (
+          <BeforeAfter
+            title={file.name}
+            before={{ src: shown, label: comparison.before_label ?? t("compare.before") }}
+            after={{
+              src: fileSource.address(slug, comparison.after.key, "inline")!,
+              label: comparison.after_label ?? t("compare.after"),
+            }}
+            onBroken={() => setBroken(true)}
+          />
+        ) : comparison ? (
+          <p>{t("compare.broken")}</p>
+        ) : file.kind === "image" && !broken ? (
           <img src={shown} alt={file.name} onError={() => setBroken(true)} />
         ) : (
           <p>{file.kind === "pdf" ? t("files.pdfHint") : t("files.otherHint")}</p>
         )}
       </div>
       <div className="file-preview__actions">
-        <button type="button" onClick={() => void save()}>
-          {t("files.save")}
-        </button>
-        <a href={inline ? shown : url} {...(inline ? { target: "_blank", rel: "noopener" } : {})}>
-          {t("files.openOriginal")}
-        </a>
+        {comparison ? (
+          // Each image on its own, by its label: "Baixar Antes", "Baixar Depois".
+          (
+            [
+              [url, comparison.before_label ?? t("compare.before"), comparison.before_name],
+              [
+                fileSource.address(slug, comparison.after.key, "file")!,
+                comparison.after_label ?? t("compare.after"),
+                comparison.after_name,
+              ],
+            ] as const
+          ).map(([href, label, name]) => (
+            <a key={name} href={href} download={fileSource.bundled ? name : undefined}>
+              {t("compare.download", { label })}
+            </a>
+          ))
+        ) : (
+          <>
+            <button type="button" onClick={() => void save()}>
+              {t("files.save")}
+            </button>
+            <a href={inline ? shown : url} {...(inline ? { target: "_blank", rel: "noopener" } : {})}>
+              {t("files.openOriginal")}
+            </a>
+          </>
+        )}
         <button
           ref={sendButton}
           type="button"
@@ -401,7 +435,8 @@ export function FilePreview({
 
 /** A document's versions (A25), newest first: the current one marked, each with
  *  its date and size, to open or download. Opened from "6 versões" on its
- *  card, so a card stays one size however many versions there are. */
+ *  card, so a card stays one size however many versions there are. A
+ *  comparison's (A46) lists each image's versions under its label. */
 export function FileVersions({
   file,
   slug,
@@ -423,7 +458,18 @@ export function FileVersions({
     }
     return () => (typeof element?.close === "function" ? element.close() : element?.removeAttribute("open"));
   }, []);
-  const all = [file, ...file.older];
+  const comparison = file.comparison;
+  const sides: { label: string | null; name: string; versions: FileItem[] }[] = comparison
+    ? [
+        { label: comparison.before_label ?? t("compare.before"), name: comparison.before_name, versions: [file, ...file.older] },
+        {
+          label: comparison.after_label ?? t("compare.after"),
+          name: comparison.after_name,
+          versions: [comparison.after, ...comparison.after.older],
+        },
+      ]
+    : [{ label: null, name: file.name, versions: [file, ...file.older] }];
+  const count = sides.reduce((sum, side) => sum + side.versions.length, 0);
   return (
     <dialog
       ref={dialog}
@@ -435,47 +481,55 @@ export function FileVersions({
       <div className="file-preview__head">
         <div>
           <h2 id="file-versions-title">{file.name}</h2>
-          <p>{t("files.versionCount", { count: all.length })}</p>
+          <p>{t("files.versionCount", { count })}</p>
         </div>
         <button className="file-preview__close" type="button" aria-label={t("files.close")} onClick={onClose}>
           <CloseIcon />
         </button>
       </div>
-      <ol className="file-versions__list">
-        {all.map((version, i) => {
-          const inline = version.kind === "image" || version.kind === "pdf";
-          return (
-            <li key={version.key} className={i === 0 ? "is-current" : undefined}>
-              <span className="file-versions__number">{t("files.version", { version: version.version ?? 1 })}</span>
-              <span className="file-versions__about">
-                {i === 0 && <span className="file-versions__current">{t("files.current")}</span>}
-                {[day(version.modified_at, i18n.language, timeZone), fileSize(version.size, i18n.language)]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-              <span className="file-versions__actions">
-                {inline && (
-                  <a
-                    href={fileSource.address(slug, version.key, "inline")!}
-                    target="_blank"
-                    rel="noopener"
-                    aria-label={t("files.openVersion", { version: version.version ?? 1, name: file.name })}
-                  >
-                    {t("files.open")}
-                  </a>
-                )}
-                <a
-                  href={fileSource.address(slug, version.key, "file")!}
-                  download={fileSource.bundled ? version.name : undefined}
-                  aria-label={t("files.downloadVersion", { version: version.version ?? 1, name: file.name })}
-                >
-                  {t("files.download")}
-                </a>
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      <div className="file-versions__sides">
+        {sides.map((side) => (
+          <section key={side.name} aria-label={side.label ?? undefined}>
+            {side.label && <h3 className="file-versions__side">{side.label}</h3>}
+            <ol className="file-versions__list">
+              {side.versions.map((version, i) => {
+                const inline = version.kind === "image" || version.kind === "pdf";
+                return (
+                  <li key={version.key} className={i === 0 ? "is-current" : undefined}>
+                    <span className="file-versions__number">{t("files.version", { version: version.version ?? 1 })}</span>
+                    <span className="file-versions__about">
+                      {i === 0 && <span className="file-versions__current">{t("files.current")}</span>}
+                      {[day(version.modified_at, i18n.language, timeZone), fileSize(version.size, i18n.language)]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                    <span className="file-versions__actions">
+                      {inline && (
+                        <a
+                          href={fileSource.address(slug, version.key, "inline")!}
+                          target="_blank"
+                          rel="noopener"
+                          aria-label={t("files.openVersion", { version: version.version ?? 1, name: side.name })}
+                        >
+                          {t("files.open")}
+                        </a>
+                      )}
+                      <a
+                        href={fileSource.address(slug, version.key, "file")!}
+                        // A comparison's card goes by its title: its own image by its name.
+                        download={fileSource.bundled ? (version === file ? side.name : version.name) : undefined}
+                        aria-label={t("files.downloadVersion", { version: version.version ?? 1, name: side.name })}
+                      >
+                        {t("files.download")}
+                      </a>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        ))}
+      </div>
     </dialog>
   );
 }

@@ -43,3 +43,39 @@ async def stage_texts(db: AsyncSession, project: Project, locale: Locale) -> lis
             about = own or general  # the type's own words, else the general text
             out.append(StageText(stage, in_language(titles, locale), in_language(about, locale)))
     return out
+
+
+@dataclass(frozen=True)
+class BuiltinText:
+    key: str
+    title: str
+    about: str
+    usual: bool  # one of the type's ticked stages, and not hidden (A44)
+
+
+async def builtin_texts(db: AsyncSession, project_type: str, locale: Locale) -> list[BuiltinText]:
+    """Every built-in stage in order, in the type's own words where it has them."""
+    return [
+        BuiltinText(
+            key,
+            in_language(titles, locale),
+            in_language(own or general, locale),
+            bool(usual) and not hidden,
+        )
+        for key, titles, general, own, usual, hidden in await db.execute(
+            select(
+                StageDef.key,
+                StageDef.titles,
+                StageDef.about,
+                ProjectTypeStage.about,
+                ProjectTypeStage.usual,
+                StageDef.hidden,
+            )
+            .outerjoin(
+                ProjectTypeStage,
+                (ProjectTypeStage.stage_key == StageDef.key)
+                & (ProjectTypeStage.project_type == project_type),
+            )
+            .order_by(StageDef.position)
+        )
+    ]

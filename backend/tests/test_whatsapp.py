@@ -1,4 +1,4 @@
-"""Client updates by WhatsApp (A44): numbers, what the messages say, who gets a
+"""Client updates by WhatsApp (A47): numbers, what the messages say, who gets a
 batch's message, signing up on the page, staff adding a number, and Meta's webhook."""
 
 import hashlib
@@ -814,7 +814,7 @@ async def test_a_failure_asks_meta_to_send_it_again(client, app, db_session, met
 
 
 async def test_staff_signed_in_cant_sign_a_client_up_on_the_page(client, db_session, owner, phone):
-    """It would skip the client's confirmation, or lift their SAIR (A44)."""
+    """It would skip the client's confirmation, or lift their SAIR (A47)."""
     await switch_on(db_session)
     attempts.reset()
     response = await sign_up(client, CLIENT)

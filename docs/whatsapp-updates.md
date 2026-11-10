@@ -17,7 +17,7 @@ Today's client updates are emails (decision A32: new files, a stage completed or
 reopened, the project completed, a meeting scheduled, changed or removed;
 batched 45 minutes, at most 2 hours).
 
-**Client updates by WhatsApp were agreed on 2 Nov 2026 as decision A44** (in the
+**Client updates by WhatsApp were agreed on 2 Nov 2026 as decision A47** (in the
 [register](multi-tenant-implementation-plan.md#2-decision-register)) and built
 behind the `whatsapp_updates` feature: one Unio number, Meta directly, each
 client choosing email, WhatsApp or both, staff-added numbers confirmed by the

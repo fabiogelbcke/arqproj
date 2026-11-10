@@ -1,4 +1,4 @@
-"""Sending WhatsApp messages (A44): Meta's Cloud API when configured, else a
+"""Sending WhatsApp messages (A47): Meta's Cloud API when configured, else a
 local folder beside the emails.
 
 A message a client didn't just ask for (an update, the welcome, the staff's

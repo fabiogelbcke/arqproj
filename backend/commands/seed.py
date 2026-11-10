@@ -3,8 +3,11 @@
     uv run python -m backend.commands.seed
 
 Then open http://alinea.localhost:8000/ and http://norte.localhost:8000/ (browsers
-send every *.localhost address to this machine). Safe to run repeatedly. Only
-ever writes to a local database. Real addresses (alineaarquitetos.com, the
+send every *.localhost address to this machine), and sign in to the painel as
+each office's owner (each `TENANTS` entry's `staff`, password `STAFF_PASSWORD`:
+laura@alinea.example, 1234). Safe to run repeatedly: it adds what is missing and
+puts the owners' passwords back, so the documented login always works. Only ever
+writes to a local database. Real addresses (alineaarquitetos.com, the
 staging host) are added to staging and production in step 1.7, not here.
 """
 
@@ -13,12 +16,15 @@ from __future__ import annotations
 import asyncio
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from backend.commands import local_db
-from backend.identity.passwords import hash_password
+from backend.identity.models import Role, User
+from backend.identity.passwords import hash_password, verify_password
+from backend.office.models import LogoType, OfficeProfile
 from backend.projects.enums import AccessMode, DetailKey, ProjectStatus, ProjectType
 from backend.projects.models import (
     DetailTypeDef,
@@ -138,17 +144,31 @@ TENANTS = [
         "slug": "alinea",
         "name": "Alinea (dev)",
         "domains": [("alinea.localhost", True), ("alinea-old.localhost", False)],
+        "logo": True,
+        "staff": ("laura@alinea.example", "Laura Mendes"),
     },
     {
         "slug": "norte",
         "name": "Estúdio Norte (dev)",
         "domains": [("norte.localhost", True)],
+        "staff": ("bruno@norte.example", "Bruno Sales"),
     },
 ]
 
 
-async def seed(session: AsyncSession) -> list[str]:
-    """Create any missing tenants and addresses. Returns what was added."""
+# Every dev office's owner signs in with this password (README): the seed puts
+# it back whenever it runs, so a password changed while trying things out, or
+# forgotten, never locks a developer out of their own machine.
+STAFF_PASSWORD = "1234"
+
+
+async def seed(
+    session: AsyncSession, *, with_logo: bool = False, with_staff: bool = False
+) -> list[str]:
+    """Create any missing tenants and addresses, and with `with_staff` each
+    office's owner (`STAFF_PASSWORD` put back where it was changed): for a
+    developer's own setup, while the test suite makes the accounts it needs.
+    Returns what was added."""
     added = []
     for spec in TENANTS:
         tenant = await session.scalar(select(Tenant).where(Tenant.slug == spec["slug"]))
@@ -164,6 +184,8 @@ async def seed(session: AsyncSession) -> list[str]:
                 session.add(TenantDomain(tenant=tenant, hostname=hostname, is_primary=primary))
                 added.append(f"address {hostname}")
         await session.flush()
+        if with_staff and await _add_staff(session, tenant, *spec["staff"]):
+            added.append(f"login {spec['staff'][0]}")
         has_storage = await session.scalar(
             select(StorageConnection.id).where(StorageConnection.tenant_id == tenant.id)
         )
@@ -171,11 +193,66 @@ async def seed(session: AsyncSession) -> list[str]:
             # Files from the fictional dataset on this machine (folder storage).
             session.add(StorageConnection(tenant_id=tenant.id, kind=StorageKind.FOLDER))
             added.append(f"storage {spec['slug']}")
+        # The logo writes files into the local storage: for a developer's own
+        # setup and the browser tests, not for the test suite.
+        if with_logo and spec.get("logo") and await _add_logo(session, tenant):
+            added.append(f"logo {spec['slug']}")
         for project in PROJECTS.get(spec["slug"], []):
             if await _add_project(session, tenant, project):
                 added.append(f"project {spec['slug']}/{project['slug']}")
     await session.commit()
     return added
+
+
+# A fictional logo (light and dark, and the PNG emails show), drawn for the dev office.
+BRAND = Path(__file__).with_name("brand")
+BRAND_FILES = {
+    "logo-dev.svg": "logo-light.svg",
+    "logo-dev.png": "logo-light.png",
+    "logo-dev-escuro.svg": "logo-dark.svg",
+}
+
+
+async def _add_staff(session: AsyncSession, tenant: Tenant, email: str, name: str) -> bool:
+    """The office's owner, with `STAFF_PASSWORD`: created, or given the password
+    back where it was changed. True when something was written."""
+    user = await session.scalar(
+        select(User).where(User.tenant_id == tenant.id, User.email == email)
+    )
+    if user is not None and await verify_password(user.password_hash, STAFF_PASSWORD):
+        return False
+    if user is None:
+        user = User(tenant_id=tenant.id, email=email, name=name, role=Role.OWNER)
+        session.add(user)
+    user.password_hash = await hash_password(STAFF_PASSWORD)
+    await session.flush()
+    return True
+
+
+async def _add_logo(session: AsyncSession, tenant: Tenant) -> bool:
+    """The logo, unless the office already has one (an uploaded one is kept)."""
+    profile = await session.scalar(
+        select(OfficeProfile).where(OfficeProfile.tenant_id == tenant.id)
+    )
+    if profile is not None and profile.logo_file_id is not None:
+        return False
+    connection = await session.scalar(
+        select(StorageConnection).where(StorageConnection.tenant_id == tenant.id)
+    )
+    if connection is None or connection.kind is not StorageKind.FOLDER:
+        return False
+    folder = Path(Settings().local_storage_root) / connection.root_id / "_marca"
+    folder.mkdir(parents=True, exist_ok=True)
+    for name, source in BRAND_FILES.items():
+        (folder / name).write_bytes((BRAND / source).read_bytes())
+    if profile is None:
+        profile = OfficeProfile(tenant_id=tenant.id, display_name=tenant.name)
+        session.add(profile)
+    profile.logo_file_id, profile.logo_type = "_marca/logo-dev.svg", LogoType.SVG
+    profile.logo_png_file_id = "_marca/logo-dev.png"
+    profile.logo_dark_file_id, profile.logo_dark_type = "_marca/logo-dev-escuro.svg", LogoType.SVG
+    await session.flush()
+    return True
 
 
 async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> bool:
@@ -195,7 +272,7 @@ async def _add_project(session: AsyncSession, tenant: Tenant, spec: dict) -> boo
             await session.scalars(
                 select(StageDef.key)
                 .join(ProjectTypeStage, ProjectTypeStage.stage_key == StageDef.key)
-                .where(ProjectTypeStage.project_type == spec["type"])
+                .where(ProjectTypeStage.project_type == spec["type"], ProjectTypeStage.usual)
                 .order_by(StageDef.position)
             )
         )
@@ -288,7 +365,7 @@ async def main() -> None:
     local_db.require_local_server(url)  # before writing anything
     engine = create_async_engine(url)
     async with AsyncSession(engine, expire_on_commit=False) as session:
-        added = await seed(session)
+        added = await seed(session, with_logo=True, with_staff=True)
     await engine.dispose()
     print("Added: " + ", ".join(added) if added else "Nothing to add; already seeded.")
 

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi, ME, renderAt, TENANT } from "../test/render";
+import { stagesFromServices } from "./StageChoice";
 import {
   compareProjects,
   coverIndex,
@@ -20,8 +21,19 @@ const LOCAL = { kind: "folder", writer_status: "none", reader_status: "unknown",
 const NONE = { ...LOCAL, kind: null };
 const OPTIONS = {
   types: [
-    { key: "architecture", label: "Projeto Arquitetônico", stages: ["briefing", "survey", "permit_documents"] },
-    { key: "interiors", label: "Projeto de Interiores", stages: ["briefing", "survey", "detailing"] },
+    {
+      key: "architecture",
+      label: "Projeto Arquitetônico",
+      stages: ["briefing", "survey", "permit_documents"],
+      offered: ["briefing", "survey", "permit_documents", "detailing"],
+    },
+    // Without a permit stage among the ones it lists (behind "Mostrar todas as etapas").
+    {
+      key: "interiors",
+      label: "Projeto de Interiores",
+      stages: ["briefing", "survey", "detailing"],
+      offered: ["briefing", "survey", "detailing"],
+    },
   ],
   stages: [
     { key: "briefing", title: "Briefing" },
@@ -30,6 +42,13 @@ const OPTIONS = {
     { key: "detailing", title: "Detalhamentos" },
   ],
 };
+// "Outro" (2 Nov 2026): named per project; every stage listed, Briefing ticked.
+OPTIONS.types.push({
+  key: "other",
+  label: "Outro",
+  stages: ["briefing"],
+  offered: ["briefing", "survey", "permit_documents", "detailing"],
+});
 
 function project(changes: Partial<ProjectSummary>): ProjectSummary {
   return {
@@ -84,6 +103,20 @@ function api(drive: object = LOCAL, extra = {}) {
   });
 }
 
+/** "Nova proposta" (the Propostas tab): the form that still asks for everything. */
+async function openNewProposal(extra = {}) {
+  const sent = api(LOCAL, {
+    "GET /api/me": () => ({ body: WITH_PROPOSALS }),
+    "GET /api/proposals": () => ({ body: [] }),
+    "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago", status: "proposal" }) }),
+    ...extra,
+  });
+  const router = renderAt("/propostas");
+  await userEvent.click(await screen.findByRole("button", { name: "Nova proposta" }));
+  const dialog = await screen.findByRole("dialog", { name: "Nova proposta" });
+  return { sent, dialog, router };
+}
+
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.unstubAllGlobals());
 
@@ -112,6 +145,44 @@ describe("the project list", () => {
     expect(within(casa!).getByText("2 de 7 etapas concluídas")).toBeInTheDocument();
     expect(within(casa!).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "2");
     expect(within(empty!).queryByRole("progressbar")).toBeNull(); // nothing to fill
+  });
+
+  it("shows a project's own cover, or one of the suggested photos while it has none", async () => {
+    const photos = ["a", "b", "c"].map((name) => ({ name, small_url: `/api/cover-photos/${name}/small` }));
+    api(LOCAL, {
+      "GET /api/projects": () => ({
+        body: [project({ cover_url: "/api/projects/1/cover?v=1" }), project({ id: "5", name: "Sem capa", slug: "sem-capa", cover_url: null })],
+      }),
+      "GET /api/cover-photos": () => ({ body: photos }),
+    });
+    renderAt("/");
+    const [own, none] = await screen.findAllByTestId("project-card");
+    expect(own!.querySelector("img")).toHaveAttribute("src", "/api/projects/1/cover?v=1");
+    const placeholder = photos[coverIndex("5", photos.length)]!.small_url;
+    await waitFor(() => expect(none!.querySelector("img")).toHaveAttribute("src", placeholder));
+  });
+
+  it("gives each Outro name its own chip, whatever its capitals", async () => {
+    const outro = (id: string, name: string, label: string) =>
+      project({ id, name, slug: name.toLowerCase(), project_type: "other", project_type_label: label });
+    api(LOCAL, {
+      "GET /api/projects": () => ({
+        body: [...LIST, outro("7", "Maquete A", "Maquete"), outro("8", "Maquete B", "maquete"), outro("9", "Sala", "Mobiliário")],
+      }),
+    });
+    renderAt("/");
+    const chips = await screen.findByRole("radiogroup", { name: "Tipos de projeto" });
+    expect(within(chips).getAllByRole("radio").map((chip) => chip.textContent)).toEqual([
+      "Todos",
+      "Arquitetônico",
+      "Maquete",
+      "Mobiliário",
+    ]);
+    await userEvent.click(within(chips).getByRole("radio", { name: "Maquete" }));
+    expect(screen.getAllByTestId("project-card").map((card) => within(card).getByRole("heading").textContent)).toEqual([
+      "Maquete A",
+      "Maquete B",
+    ]);
   });
 
   it("filters by project type with a chip for each type in use", async () => {
@@ -506,7 +577,7 @@ describe("Novo projeto", () => {
     expect(sent.some((r) => r.method === "POST")).toBe(false);
   });
 
-  it("sends the project with an address from its name and a one-time key, then opens its page", async () => {
+  it("asks only for the name, client, type and address, then opens its page's setup steps", async () => {
     const assign = vi.fn();
     vi.stubGlobal("location", { ...window.location, assign });
     const sent = api(LOCAL, {
@@ -518,34 +589,101 @@ describe("Novo projeto", () => {
     renderAt("/");
     await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
     const dialog = await screen.findByRole("dialog");
+    // Quick on purpose: no steps counted here; the page's personalisation follows (trial, 1 Nov 2026).
+    expect(within(dialog).queryByRole("progressbar")).toBeNull();
+    expect(within(dialog).queryByRole("checkbox")).toBeNull(); // stages come on the page
+    expect(within(dialog).queryByLabelText("Novo e-mail")).toBeNull();
     await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa do Lago — Conceição");
     await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Família Souza");
     expect(within(dialog).getByLabelText(/Endereço da página/)).toHaveValue("casa-do-lago-conceicao");
+    expect(await within(dialog).findByRole("radio", { name: "Projeto Arquitetônico" })).toBeChecked(); // the first
     await userEvent.click(within(dialog).getByText("Projeto de Interiores"));
-    // The type's usual stages come ticked; any can be ticked or unticked.
-    expect(within(dialog).getByRole("checkbox", { name: "Detalhamentos" })).toBeChecked();
-    expect(within(dialog).getByRole("checkbox", { name: "Projeto Legal" })).not.toBeChecked();
-    await userEvent.click(within(dialog).getByText("Levantamento"));
-    await userEvent.click(within(dialog).getByText("Projeto Legal"));
-    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    // The whole address: the office's part fixed before what is typed.
+    expect(within(dialog).getByText(`${window.location.host}/`)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e continuar" }));
 
-    // Straight to the new project's page, to fill it in.
-    await waitFor(() => expect(assign).toHaveBeenCalledWith("/casa-do-lago-conceicao"));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/casa-do-lago-conceicao?configurar"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     const request = sent.find((r) => r.method === "POST");
     expect(request?.body).toMatchObject({
       name: "Casa do Lago — Conceição",
       client_name: "Família Souza",
       project_type: "interiors",
+      custom_type: null, // only "Outro" has a name
+      stages: [], // from the type's, in the page's first setup step
+      custom_stages: [],
+      recipients: [],
       slug: "casa-do-lago-conceicao",
       proposal: false, // live at once; "Nova proposta" (the Propostas tab) starts one as a proposal (A42)
-      custom_stages: [],
     });
-    expect(new Set((request?.body as { stages: string[] }).stages)).toEqual(
-      new Set(["briefing", "detailing", "permit_documents"]),
-    );
     expect((request?.body as { creation_key: string }).creation_key.length).toBeGreaterThanOrEqual(16);
     expect(request?.headers.get("X-CSRF-Token")).toBe("csrf-123");
+  });
+
+  it("asks Outro's name, and sends it only with that type", async () => {
+    vi.stubGlobal("location", { ...window.location, assign: vi.fn() });
+    const sent = api(LOCAL, { "POST /api/projects": () => ({ status: 201, body: project({ id: "9" }) }) });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa");
+    await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Ana");
+    expect(within(dialog).queryByLabelText(/Qual é o tipo de projeto/)).toBeNull();
+    await userEvent.click(await within(dialog).findByText("Outro"));
+    const name = within(dialog).getByLabelText(/Qual é o tipo de projeto/);
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e continuar" }));
+    expect(sent.some((r) => r.method === "POST")).toBe(false); // required
+    await userEvent.type(name, " Maquete física ");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e continuar" }));
+    await waitFor(() => expect(sent.some((r) => r.method === "POST")).toBe(true));
+    expect(sent.find((r) => r.method === "POST")?.body).toMatchObject({ project_type: "other", custom_type: "Maquete física" });
+  });
+
+  it("if the types fail to load, offers to try again and blocks creating", async () => {
+    let fail = true;
+    api(LOCAL, {
+      "GET /api/project-types": () => (fail ? { status: 503, body: { error: "unexpected" } } : { body: OPTIONS }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
+    const dialog = await screen.findByRole("dialog");
+    const retry = await within(dialog).findByRole("button", { name: "Tentar novamente" });
+    expect(within(dialog).getByRole("button", { name: "Criar e continuar" })).toBeDisabled();
+    fail = false;
+    await userEvent.click(retry);
+    expect(await within(dialog).findByRole("radio", { name: "Projeto Arquitetônico" })).toBeChecked();
+    expect(within(dialog).getByRole("button", { name: "Criar e continuar" })).toBeEnabled();
+  });
+
+  it("doesn't offer a type hidden for new projects (A44)", async () => {
+    const hidden = { ...OPTIONS, types: [{ ...OPTIONS.types[0]!, hidden: true }, ...OPTIONS.types.slice(1)] };
+    const { dialog } = await openNewProposal({ "GET /api/project-types": () => ({ body: hidden }) });
+    await within(dialog).findByText("Projeto de Interiores");
+    expect(within(dialog).queryByText("Projeto Arquitetônico")).toBeNull();
+    // The first type that may be chosen is the one selected.
+    expect(within(dialog).getByRole("radio", { name: "Projeto de Interiores" })).toBeChecked();
+  });
+
+  it("a proposal is the same short form, and goes on to its generator", async () => {
+    const { sent, dialog, router } = await openNewProposal();
+    // No stages or emails: they come once it's accepted, in the project's setup steps.
+    expect(within(dialog).queryByRole("checkbox")).toBeNull();
+    expect(within(dialog).queryByLabelText("Novo e-mail")).toBeNull();
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa do Lago");
+    await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Família Souza");
+    await userEvent.click(within(dialog).getByText("Projeto de Interiores"));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar proposta" }));
+    await waitFor(() => expect(sent.some((r) => r.method === "POST")).toBe(true));
+    expect(sent.find((r) => r.method === "POST")?.body).toMatchObject({
+      project_type: "interiors",
+      proposal: true,
+      stages: [],
+      custom_stages: [],
+      recipients: [],
+    });
+    // Its services chosen first, on the generator (2 Nov 2026).
+    await waitFor(() => expect(router.state.location.pathname).toBe("/projetos/9/proposta"));
+    expect(router.state.location.search).toBe("?configurar");
   });
 
   it("offers only Novo projeto: proposals start in their own tab (A42)", async () => {
@@ -553,57 +691,6 @@ describe("Novo projeto", () => {
     renderAt("/");
     expect(await screen.findByRole("button", { name: "Novo projeto" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nova proposta" })).toBeNull();
-  });
-
-  it("adds the office's own stages after the built-in ones, and unticking one drops it", async () => {
-    const assign = vi.fn();
-    vi.stubGlobal("location", { ...window.location, assign });
-    const sent = api(LOCAL, {
-      "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago", slug: "casa-do-lago" }) }),
-    });
-    renderAt("/");
-    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
-    const dialog = await screen.findByRole("dialog");
-    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa do Lago");
-    await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Família Souza");
-    const own = within(dialog).getByLabelText(/Outra etapa/);
-    await userEvent.type(own, "Visita técnica{Enter}"); // Enter adds it; the form isn't sent
-    await userEvent.type(own, "Maquete");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar etapa" }));
-    await userEvent.type(own, "levantamento{Enter}"); // a built-in stage's name
-    expect(within(dialog).getByRole("alert")).toHaveTextContent("Já existe uma etapa chamada “levantamento”.");
-    await userEvent.clear(own);
-    expect(within(dialog).getByRole("checkbox", { name: "Visita técnica" })).toBeChecked();
-    await userEvent.click(within(dialog).getByRole("checkbox", { name: "Maquete" }));
-    expect(within(dialog).queryByRole("checkbox", { name: "Maquete" })).toBeNull();
-    expect(sent.some((r) => r.method === "POST")).toBe(false);
-    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
-    await waitFor(() => expect(sent.some((r) => r.method === "POST")).toBe(true));
-    expect(sent.find((r) => r.method === "POST")?.body).toMatchObject({ custom_stages: ["Visita técnica"] });
-  });
-
-  it("sends the client's emails with the project, a typed one too, and stops for one that isn't an email", async () => {
-    const assign = vi.fn();
-    vi.stubGlobal("location", { ...window.location, assign });
-    const sent = api(LOCAL, {
-      "POST /api/projects": () => ({ status: 201, body: project({ id: "9", name: "Casa do Lago" }) }),
-    });
-    renderAt("/");
-    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
-    const dialog = await screen.findByRole("dialog");
-    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa do Lago");
-    await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Família Souza");
-    const emails = within(dialog).getByLabelText("Novo e-mail");
-    await userEvent.type(emails, "ana@souza.com.br{Enter}joao@souza");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
-    expect(within(dialog).getByRole("alert")).toHaveTextContent("Este não parece um e-mail: joao@souza");
-    expect(sent.some((r) => r.method === "POST")).toBe(false);
-    await userEvent.type(emails, ".com.br");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
-    await waitFor(() => expect(assign).toHaveBeenCalled());
-    expect(sent.find((r) => r.method === "POST")?.body).toMatchObject({
-      recipients: ["ana@souza.com.br", "joao@souza.com.br"],
-    });
   });
 
   it("flags an active project nobody gets updates for, and its flag opens where to add them", async () => {
@@ -630,35 +717,6 @@ describe("Novo projeto", () => {
     expect(screen.getByLabelText("Novo e-mail")).toHaveFocus();
   });
 
-  it("if the types fail to load, offers to try again and blocks creating", async () => {
-    let fail = true;
-    api(LOCAL, {
-      "GET /api/project-types": () => (fail ? { status: 503, body: { error: "unexpected" } } : { body: OPTIONS }),
-    });
-    renderAt("/");
-    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
-    const dialog = await screen.findByRole("dialog");
-    const retry = await within(dialog).findByRole("button", { name: "Tentar novamente" });
-    expect(within(dialog).getByRole("button", { name: "Criar projeto" })).toBeDisabled();
-    fail = false;
-    await userEvent.click(retry);
-    expect(await within(dialog).findByRole("checkbox", { name: "Briefing" })).toBeChecked();
-    expect(within(dialog).getByRole("button", { name: "Criar projeto" })).toBeEnabled();
-  });
-
-  it("changing the type ticks its usual stages again", async () => {
-    api();
-    renderAt("/");
-    await userEvent.click(await screen.findByRole("button", { name: "Novo projeto" }));
-    const dialog = await screen.findByRole("dialog");
-    expect(await within(dialog).findByRole("checkbox", { name: "Projeto Legal" })).toBeChecked();
-    await userEvent.click(within(dialog).getByText("Briefing")); // untick
-    await userEvent.click(within(dialog).getByText("Projeto de Interiores"));
-    expect(within(dialog).getByRole("checkbox", { name: "Briefing" })).toBeChecked();
-    expect(within(dialog).getByRole("checkbox", { name: "Projeto Legal" })).not.toBeChecked();
-    expect(within(dialog).getByText(/3 etapas marcadas/)).toBeInTheDocument();
-  });
-
   it("a retry after a failure reuses the same key, so it never makes two", async () => {
     let calls = 0;
     const sent = api(LOCAL, {
@@ -670,9 +728,9 @@ describe("Novo projeto", () => {
     const dialog = await screen.findByRole("dialog");
     await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa");
     await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Ana");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e continuar" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Não foi possível conectar o Google Drive");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e continuar" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const keys = sent.filter((r) => r.method === "POST").map((r) => (r.body as { creation_key: string }).creation_key);
     expect(keys).toHaveLength(2);
@@ -688,7 +746,7 @@ describe("Novo projeto", () => {
     const dialog = await screen.findByRole("dialog");
     await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "Casa Jardim");
     await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Ana");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e continuar" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "Este endereço já é do projeto “Casa Jardim”. Escolha outro.",
     );
@@ -703,7 +761,7 @@ describe("Novo projeto", () => {
     const dialog = await screen.findByRole("dialog");
     await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), "casa jardim");
     await userEvent.type(within(dialog).getByLabelText(/Cliente/), "Ana");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Criar projeto" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar e continuar" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Já existe o projeto “Casa Jardim”.");
   });
 
@@ -740,6 +798,34 @@ describe("Novo projeto", () => {
 });
 
 describe("helpers", () => {
+  it("turns an accepted proposal's services into stages, one each", () => {
+    const stages = [
+      { key: "briefing", title: "Briefing" },
+      { key: "construction_documents", title: "Projeto Executivo" },
+      { key: "permit_documents", title: "Projeto Legal" },
+      { key: "revisions", title: "Revisões" },
+      { key: "detailing", title: "Detalhamentos" },
+      { key: "specifications", title: "Especificações" },
+    ];
+    expect(
+      stagesFromServices(stages, [
+        "Revisão", // the same name, however short, its plural aside (ões → ão)
+        "Detalhamento executivo", // a plural aside
+        "Especificação de Materiais", // ões → ão
+        "Projeto Executivo de Arquitetura", // contains a stage's name
+        "projeto legal", // case and accents aside
+        "Imagens renderizadas", // no stage: the office's own
+        "Projeto", // too short to match any: its own too
+        "imagens  renderizadas!", // the same service twice
+        "  ",
+      ]),
+    ).toEqual({
+      builtin: ["revisions", "detailing", "specifications", "construction_documents", "permit_documents"],
+      own: ["Imagens renderizadas", "Projeto"],
+    });
+  });
+
+
   it("suggests a plain lowercase address", () => {
     expect(suggestedSlug("  Casa Jardim — Lagoa da Conceição! ")).toBe("casa-jardim-lagoa-da-conceicao");
     expect(suggestedSlug("—")).toBe("");

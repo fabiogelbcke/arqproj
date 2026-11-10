@@ -1,4 +1,4 @@
-"""Client updates by WhatsApp (A44): what the messages say, who gets them, and
+"""Client updates by WhatsApp (A47): what the messages say, who gets them, and
 sending a batch's message to each number.
 
 The batches are the emails' (digest.py): the same news, gathered and checked

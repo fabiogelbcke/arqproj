@@ -12,7 +12,21 @@
           "permit_documents",
           "construction_documents",
           "coordination"
-        ]
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "feasibility_study",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
+          "specifications"
+        ],
+        "hidden": false
       },
       {
         "key": "interiors",
@@ -25,7 +39,19 @@
           "construction_documents",
           "detailing",
           "specifications"
-        ]
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "preliminary_study",
+          "schematic_design",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
+          "specifications"
+        ],
+        "hidden": false
       },
       {
         "key": "renovation",
@@ -39,7 +65,21 @@
           "permit_documents",
           "construction_documents",
           "coordination"
-        ]
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "feasibility_study",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
+          "specifications"
+        ],
+        "hidden": false
       },
       {
         "key": "landscaping",
@@ -52,7 +92,65 @@
           "construction_documents",
           "complementary_projects",
           "specifications"
-        ]
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "feasibility_study",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
+          "specifications"
+        ],
+        "hidden": false
+      },
+      {
+        "key": "visualization",
+        "label": "Visualização Arquitetônica",
+        "stages": [
+          "briefing",
+          "documentation",
+          "preview_delivery",
+          "revisions",
+          "final_delivery"
+        ],
+        "offered": [
+          "briefing",
+          "documentation",
+          "preview_delivery",
+          "revisions",
+          "final_delivery"
+        ],
+        "hidden": false
+      },
+      {
+        "key": "other",
+        "label": "Outro",
+        "stages": [
+          "briefing"
+        ],
+        "offered": [
+          "briefing",
+          "survey",
+          "feasibility_study",
+          "preliminary_study",
+          "schematic_design",
+          "permit_documents",
+          "construction_documents",
+          "detailing",
+          "coordination",
+          "complementary_projects",
+          "specifications",
+          "documentation",
+          "preview_delivery",
+          "revisions",
+          "final_delivery"
+        ],
+        "hidden": false
       }
     ],
     "stages": [
@@ -99,6 +197,22 @@
       {
         "key": "specifications",
         "title": "Especificações"
+      },
+      {
+        "key": "documentation",
+        "title": "Documentação"
+      },
+      {
+        "key": "preview_delivery",
+        "title": "Entrega Prévia"
+      },
+      {
+        "key": "revisions",
+        "title": "Revisões"
+      },
+      {
+        "key": "final_delivery",
+        "title": "Entrega Final"
       }
     ]
   },

@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { Link, useBlocker, useParams } from "react-router";
+import { Link, useBlocker, useParams, useSearchParams } from "react-router";
 
 import type { Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
@@ -15,6 +15,7 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextAreaField, TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
+import { SETUP_PARAM } from "../projects/setup";
 import { ProposalLetter } from "./ProposalLetter";
 import {
   formatAmount,
@@ -33,6 +34,7 @@ import {
   type ProposalView,
 } from "./proposals";
 import styles from "./proposals.module.css";
+import { ServicesStep } from "./ServicesStep";
 import { useOffice } from "../office/office";
 import { useMe } from "../session/session";
 
@@ -162,6 +164,17 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
   // Waiting for an owner's answer: update the office's details too, or not.
   const [askOffice, setAskOffice] = useState<{ content: ProposalContent; fields: string[] } | null>(null);
   const [draft, setDraft] = useState<Draft>(() => draftFrom(data.start, locale));
+  // Just created ("Nova proposta"): first, which stages it offers as services.
+  const [search, setSearch] = useSearchParams();
+  const choosing = search.has(SETUP_PARAM) && data.versions.length === 0 && data.status === "proposal";
+  const chosen = () =>
+    setSearch(
+      (was) => {
+        was.delete(SETUP_PARAM);
+        return was;
+      },
+      { replace: true },
+    );
   const [dirty, setDirty] = useState(false);
   const edits = useRef(0); // counts changes, so a save knows whether more came after it
   const change = (next: Partial<Draft>) => {
@@ -317,6 +330,17 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
 
   return (
     <div className={styles.page}>
+      {choosing && (
+        <ServicesStep
+          data={data}
+          onClose={chosen}
+          onChosen={(services) => {
+            // How it starts, not an edit: leaving still asks nothing.
+            setDraft((was) => ({ ...was, services: services.map(draftService) }));
+            chosen();
+          }}
+        />
+      )}
       {/* Writing it, nothing else: accepting it and opening its page come after,
           on the proposal's page (Fabio, 29 Oct 2026). */}
       <header className={styles.head}>

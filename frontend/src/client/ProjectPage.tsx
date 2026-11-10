@@ -44,13 +44,18 @@ const ReorderStages = lazy(() => import("./StageEditing").then((m) => ({ default
 const StageEditForm = lazy(() => import("./StageEditing").then((m) => ({ default: m.StageEditForm })));
 const StageDrop = lazy(() => import("./StageUploads").then((m) => ({ default: m.StageDrop })));
 const FileMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.FileMenu })));
+const ComparisonMenu = lazy(() => import("./Comparisons").then((m) => ({ default: m.ComparisonMenu })));
+const AddCard = lazy(() => import("./Comparisons").then((m) => ({ default: m.AddCard })));
 const AddSection = lazy(() => import("./StageUploads").then((m) => ({ default: m.AddSection })));
 const SectionMenu = lazy(() => import("./StageUploads").then((m) => ({ default: m.SectionMenu })));
 const CoverPicker = lazy(() => import("./CoverEditing").then((m) => ({ default: m.CoverPicker })));
+// A new project's setup steps, opened by the painel's "Novo projeto" (trial, 1 Nov 2026).
+const SetupSteps = lazy(() => import("./SetupSteps").then((m) => ({ default: m.SetupSteps })));
 // "Compartilhar arquivos" (A37), loaded when it opens.
 const SharePanel = lazy(() => import("./SharePanel").then((m) => ({ default: m.SharePanel })));
 import { capitalized, day, detailValue, fileSource, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 import { capture } from "../posthog";
+import { SETUP_PARAM } from "../projects/setup";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -97,6 +102,34 @@ function filesFor(state: FilesState | null, position: number) {
   return { files, reference: state.reference };
 }
 
+/** An image's small preview: Drive's thumbnail, else (local folders) the image. */
+function Thumb({ slug, fileKey, className }: { slug: string; fileKey: string; className?: string }) {
+  const [original, setOriginal] = useState(false);
+  const [broken, setBroken] = useState(false);
+  if (broken) return null;
+  return (
+    <img
+      className={className}
+      src={fileSource.address(slug, fileKey, original ? "inline" : "thumb") ?? fileSource.address(slug, fileKey, "inline")!}
+      alt=""
+      loading="lazy"
+      onError={() => (original ? setBroken(true) : setOriginal(true))}
+    />
+  );
+}
+
+/** A comparison's card (A46): its two images side by side, split where the
+ *  slider starts, so it reads as one before and after. */
+function CompareThumb({ slug, file }: { slug: string; file: FileItem }) {
+  return (
+    <span className="file__compare" aria-hidden="true">
+      <Thumb slug={slug} fileKey={file.comparison!.after.key} />
+      <Thumb slug={slug} fileKey={file.key} className="file__compare-before" />
+      <span className="file__compare-handle" />
+    </span>
+  );
+}
+
 function FileCard({
   file,
   slug,
@@ -133,7 +166,9 @@ function FileCard({
     >
       <button className="file__open" type="button" onClick={onOpen} aria-label={t("page.openFile", { name: file.name })}>
         <span className="file__thumb">
-          {src ? (
+          {file.comparison ? (
+            <CompareThumb slug={slug} file={file} />
+          ) : src ? (
             <img
               src={src}
               alt=""
@@ -151,6 +186,7 @@ function FileCard({
             {file.name}
           </span>
           <span className="file__meta">
+            {file.comparison && <span className="file__compare-tag">{t("compare.tag")}</span>}
             {/* Read out, and shown in the list view, where the badge isn't. */}
             {file.version != null && (
               <span className="file__version" aria-label={t("files.versionLabel", { version: file.version })}>
@@ -171,7 +207,7 @@ function FileCard({
           {t("files.version", { version: file.version })}
         </span>
       )}
-      {file.older.length > 0 && (
+      {(file.older.length > 0 || (file.comparison?.after.older.length ?? 0) > 0) && (
         <button
           className="older-button"
           type="button"
@@ -181,7 +217,10 @@ function FileCard({
             setVersions(true);
           }}
         >
-          {t("files.versionCount", { count: file.older.length + 1 })}
+          {/* A comparison's (A46): both its images' versions. */}
+          {t("files.versionCount", {
+            count: file.older.length + 1 + (file.comparison ? file.comparison.after.older.length + 1 : 0),
+          })}
         </button>
       )}
       {versions && <FileVersions file={file} slug={slug} timeZone={timeZone} onClose={() => setVersions(false)} />}
@@ -198,6 +237,7 @@ function StageFilesList({
   fileMenu,
   section,
   sectionMenu,
+  addCard,
   uploads,
   moving,
   position,
@@ -212,6 +252,8 @@ function StageFilesList({
   fileMenu?: (file: FileItem, folder: string | null) => ReactNode;
   section?: (folder: string) => ReactNode; // edit mode: a section's drop area, under its files
   sectionMenu?: (folder: string, count: number) => ReactNode; // edit mode: its "⋯", on its title
+  // Edit mode: the "+" card after the files of the stage (null) or of a section.
+  addCard?: (folder: string | null) => ReactNode;
   moving?: Moving;
   position: number; // the stage's, from 1
   // Edit mode: the stage's own drop area and "Nova seção", at the stage's end, after
@@ -232,6 +274,17 @@ function StageFilesList({
           {t("page.filesUnavailable")}
           {reference && ` ${t("errors.reference", { id: reference })}`}
         </p>
+        {uploads}
+      </>
+    );
+  if (!files.groups.length && addCard)
+    return (
+      <>
+        <div className="file-group">
+          <div className="files" data-view={view}>
+            {addCard(null)}
+          </div>
+        </div>
         {uploads}
       </>
     );
@@ -265,10 +318,27 @@ function StageFilesList({
           slug={slug}
           timeZone={timeZone}
           menu={fileMenu?.(file, group.folder ?? null)}
-          drag={moving && { key: file.key, name: file.name, position, folder: group.folder ?? null }}
+          drag={
+            moving && {
+              key: file.key,
+              name: file.name,
+              position,
+              folder: group.folder ?? null,
+              comparison: !!file.comparison,
+            }
+          }
           onOpen={() => onOpen(file, group.folder ?? null)}
         />
       ))}
+      {addCard?.(group.folder ?? null)}
+    </div>
+  );
+  // Edit mode, no files of the stage's own yet: its "+" card still, before its drop area.
+  const rootCard = addCard && !files.groups.some((group) => !group.folder) && (
+    <div className="file-group">
+      <div className="files" data-view={view}>
+        {addCard(null)}
+      </div>
     </div>
   );
   // The stage's own files first; then each section in its own box, which folds
@@ -300,7 +370,10 @@ function StageFilesList({
               cards(group)
             ) : (
               // Only in edit mode: clients never get an empty section.
-              <p className="file-group__empty">{t("edit.sectionEmpty")}</p>
+              <>
+                <p className="file-group__empty">{t("edit.sectionEmpty")}</p>
+                {addCard && cards(group)}
+              </>
             )}
             {section?.(group.folder)}
           </details>
@@ -310,6 +383,7 @@ function StageFilesList({
           </div>
         ),
       )}
+      {rootCard}
       {uploads}
     </>
   );
@@ -632,6 +706,7 @@ function Stage({
   fileMenu,
   section,
   sectionMenu,
+  addCard,
   moving,
   view = "grid",
   progress,
@@ -658,6 +733,7 @@ function Stage({
   fileMenu?: (file: FileItem, folder: string | null) => ReactNode;
   section?: (folder: string) => ReactNode; // edit mode: each section's drop area
   sectionMenu?: (folder: string, count: number) => ReactNode; // edit mode: each section's "⋯"
+  addCard?: (folder: string | null) => ReactNode; // edit mode: the "+" card of the stage or a section
   moving?: Moving; // edit mode: file cards dragged onto the stage or a section move there
   view?: FileView;
   progress?: ReactNode; // edit mode: "Marcar como concluída" or "Reabrir etapa"
@@ -809,6 +885,7 @@ function Stage({
             fileMenu={fileMenu}
             section={section}
             sectionMenu={sectionMenu}
+            addCard={addCard}
             uploads={uploads}
             moving={moving}
             position={index + 1}
@@ -931,9 +1008,12 @@ function StaffBar({
   );
 }
 
-/** The cover shrinks away as the page scrolls (prototype), unless motion is reduced. */
-function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
+/** The cover shrinks away as the page scrolls (prototype), unless motion is reduced.
+ *  Not with the band behind it (the `cover_band` feature): the cover collapsing to
+ *  a strip while the name stayed looked broken; the opening scrolls as usual. */
+function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
   useEffect(() => {
+    if (!enabled) return;
     let frame = 0;
     const update = () => {
       frame = 0;
@@ -954,7 +1034,7 @@ function useCoverWipe(ref: React.RefObject<HTMLDivElement | null>) {
       window.removeEventListener("resize", schedule);
       cancelAnimationFrame(frame);
     };
-  }, [ref]);
+  }, [ref, enabled]);
 }
 
 /** The project's name, in capitals (painel redesign: no more "/casa jardim"). */
@@ -989,13 +1069,24 @@ export function ProjectPage({
 }) {
   const { t } = useTranslation();
   const narrow = useNarrow();
+  // The opening on a band made from the cover: the `cover_band` feature (A40).
+  const band = !!page.cover_url && (page.features ?? []).includes("cover_band");
   const cover = useRef<HTMLDivElement>(null);
-  useCoverWipe(cover);
+  useCoverWipe(cover, !band);
   const mainColumn = useRef<HTMLDivElement>(null);
   const sideColumn = useRef<HTMLDivElement>(null);
   const moved = useBalancedColumns(mainColumn, sideColumn);
   const stageFiles = useStageFiles(slug, page);
   const [editing, setEditing] = useState(false);
+  // Straight from "Novo projeto": the setup steps open over the page, once (a
+  // reload of the address doesn't open them again).
+  const [settingUp, setSettingUp] = useState(() => new URLSearchParams(window.location.search).has(SETUP_PARAM));
+  useEffect(() => {
+    if (!settingUp) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(SETUP_PARAM);
+    window.history.replaceState(window.history.state, "", url);
+  }, []); // on arrival only
   // The guided tour (Tour.ts, loaded only for staff): once per account, then from the account menu
   // (not on an archived page, which can't be edited).
   const tour = (first: boolean) =>
@@ -1004,10 +1095,11 @@ export function ProjectPage({
     );
   useEffect(() => {
     const archived = page.staff?.status === "archived";
-    if (!page.staff || !ready || tourSeen || archived || tourOffered) return;
+    // After the setup steps, not over them.
+    if (!page.staff || !ready || tourSeen || archived || tourOffered || settingUp) return;
     tourOffered = true; // once per visit, even if the page mounts again
     tour(true);
-  }, [ready, tourSeen, page.staff]); // once, when the session is ready
+  }, [ready, tourSeen, page.staff, settingUp]); // once, when the session is ready
   const [openEditor, setOpenEditor] = useState<string | null>(null);
   const staff = page.staff;
   // Stage controls wait for the reloaded page after each change (a new row version).
@@ -1059,8 +1151,13 @@ export function ProjectPage({
   const moveTo = async (file: DraggedFile, to: DropPlace) => {
     const title = page.stages[to.position - 1]!.title;
     try {
-      const { moveRequest } = await import("./StageUploads");
-      await moveRequest(page, slug, file.key, to);
+      if (file.comparison) {
+        const { moveComparison } = await import("./Comparisons");
+        await moveComparison(page, slug, file.key, to);
+      } else {
+        const { moveRequest } = await import("./StageUploads");
+        await moveRequest(page, slug, file.key, to);
+      }
       toast(t("edit.fileMoved", { name: file.name, stage: to.section ? `${title} › ${to.section}` : title }));
       onChanged?.();
     } catch (failure) {
@@ -1081,6 +1178,10 @@ export function ProjectPage({
   const sections = page.stages.map(
     (_, i) => filesFor(stageFiles, i + 1).files?.groups.flatMap((g) => (g.folder ? [g.folder] : [])) ?? [],
   );
+  // The file chooser of a stage's drop area (StageDrop's own id), or of one of its
+  // sections', which the "+" card opens.
+  const chooserId = (i: number, section: string | null) =>
+    section === null ? `up-${i + 1}` : `up-${i + 1}-s${sections[i]!.indexOf(section)}`;
   // The share panel: undefined while closed; null opened above the stages, or
   // the row of the stage it was opened from.
   const [shareFrom, setShareFrom] = useState<number | null | undefined>(undefined);
@@ -1157,7 +1258,7 @@ export function ProjectPage({
           <div key="subscribe" data-movable="1">
             <Subscribe slug={slug} />
           </div>,
-          // And to WhatsApp, where the office has it (A44).
+          // And to WhatsApp, where the office has it (A47).
           ...(page.whatsapp
             ? [
                 <div key="subscribe-whatsapp" data-movable="1">
@@ -1210,7 +1311,13 @@ export function ProjectPage({
               </div>
             )
           ))}
-        <div className="project-opening">
+        <div className={`project-opening${band ? " project-opening--band" : ""}`}>
+          {/* The cover again, blurred wide: the band the opening sits on. */}
+          {band && (
+            <div className="project-opening__backdrop" aria-hidden="true">
+              <img src={page.cover_url ?? undefined} alt="" />
+            </div>
+          )}
           <header className="project-heading">
             {canEdit && openEditor === "name" ? (
               <Suspense fallback={null}>
@@ -1396,6 +1503,7 @@ export function ProjectPage({
                         position={i + 1}
                         folder={`${pad(i + 1)} - ${page.stages[i]!.title}/${section}`}
                         section={section}
+                        inputId={chooserId(i, section)}
                         onChanged={() => onChanged?.()}
                       />
                     </Suspense>
@@ -1403,6 +1511,23 @@ export function ProjectPage({
                 : undefined
             }
             moving={moving}
+            addCard={
+              // The "+" card offers comparisons, a feature switched on per office (A40, A46).
+              canEdit && !unreadable(i) && (page.features ?? []).includes("before_after")
+                ? (section) => (
+                    <Suspense fallback={null}>
+                      <AddCard
+                        staff={staff!}
+                        position={i + 1}
+                        section={section}
+                        inputId={chooserId(i, section)}
+                        folder={`${pad(i + 1)} - ${page.stages[i]!.title}${section ? `/${section}` : ""}`}
+                        onChanged={() => onChanged?.()}
+                      />
+                    </Suspense>
+                  )
+                : undefined
+            }
             sectionMenu={
               canEdit
                 ? (section, count) => (
@@ -1423,15 +1548,27 @@ export function ProjectPage({
               canEdit
                 ? (file, folder) => (
                     <Suspense fallback={null}>
-                      <FileMenu
-                        slug={slug}
-                        file={file}
-                        page={page}
-                        position={i + 1}
-                        folder={folder}
-                        sections={sections}
-                        onChanged={() => onChanged?.()}
-                      />
+                      {file.comparison ? (
+                        <ComparisonMenu
+                          slug={slug}
+                          file={file}
+                          page={page}
+                          position={i + 1}
+                          folder={folder}
+                          sections={sections}
+                          onChanged={() => onChanged?.()}
+                        />
+                      ) : (
+                        <FileMenu
+                          slug={slug}
+                          file={file}
+                          page={page}
+                          position={i + 1}
+                          folder={folder}
+                          sections={sections}
+                          onChanged={() => onChanged?.()}
+                        />
+                      )}
                     </Suspense>
                   )
                 : undefined
@@ -1486,6 +1623,11 @@ export function ProjectPage({
         />
       )}
       {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}
+      {settingUp && page.staff && ready && page.staff.status !== "archived" && (
+        <Suspense fallback={null}>
+          <SetupSteps page={page} onChanged={() => onChanged?.()} onClose={() => setSettingUp(false)} />
+        </Suspense>
+      )}
       {shareFrom !== undefined && (
         <Suspense fallback={null}>
           <SharePanel

@@ -1,4 +1,4 @@
-"""Client updates by email (A32) and WhatsApp (A44): who receives them (plan
+"""Client updates by email (A32) and WhatsApp (A47): who receives them (plan
 section 14), and the client-visible changes they are made of (A28)."""
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ class ProjectRecipient(IdMixin, TimestampsMixin, TenantOwned, Base):
 
 
 class WhatsAppStatus(StrEnum):
-    """Where a number stands for a project's WhatsApp updates (A44)."""
+    """Where a number stands for a project's WhatsApp updates (A47)."""
 
     # Staff added it: the client was asked ("Quero receber" / "Não quero") and
     # gets nothing more until they answer yes.
@@ -78,7 +78,7 @@ class WhatsAppSource(StrEnum):
 
 
 class ProjectWhatsApp(IdMixin, TimestampsMixin, TenantOwned, Base):
-    """A client's number for this project's WhatsApp updates (A44)."""
+    """A client's number for this project's WhatsApp updates (A47)."""
 
     __tablename__ = "project_whatsapp_recipients"
     __table_args__ = (
@@ -106,7 +106,7 @@ class ProjectWhatsApp(IdMixin, TimestampsMixin, TenantOwned, Base):
 
 class WhatsAppOptOut(Base):
     """A number that replied SAIR: no WhatsApp updates from any project of any
-    office, since they all come from the one Unio number (A44). No office's, so
+    office, since they all come from the one Unio number (A47). No office's, so
     it holds no number, only its keyed hash. Dated by the client's own messages,
     so whichever Meta delivers last, the latest choice stands: stopped while the
     latest SAIR is newer than the latest time they chose the updates again."""
@@ -123,7 +123,7 @@ class WhatsAppOptOut(Base):
 
 
 class WhatsAppMessageSeen(CreatedAtMixin, Base):
-    """A message Meta's webhook brought that was handled (A44): Meta delivers a
+    """A message Meta's webhook brought that was handled (A47): Meta delivers a
     message again when it isn't sure we got it, and an answer handled twice
     could undo a later SAIR. No office's: one Unio number serves them all."""
 
@@ -269,7 +269,7 @@ class NotificationDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
 
 
 class WhatsAppDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
-    """A batch's WhatsApp message to one number (A44), as `NotificationDelivery`
+    """A batch's WhatsApp message to one number (A47), as `NotificationDelivery`
     is its email to one address. Meta has no idempotency key: a message is
     marked sent once Meta accepts it, and a failure Meta reported is tried again."""
 

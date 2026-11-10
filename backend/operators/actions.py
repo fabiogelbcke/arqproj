@@ -16,6 +16,11 @@ from backend.web.errors import ApiError, ErrorCode
 
 # Child tables first. Explicit list: a new dependency fails closed until reviewed.
 TENANT_TABLES = (
+    "portfolio_details",
+    "portfolio_photos",
+    "portfolio_videos",
+    "portfolio_entries",
+    "portfolios",
     "share_link_files",
     "proposals",
     "proposal_service_presets",
@@ -53,6 +58,11 @@ def audit(db, actor: str, action: str, tenant: Tenant, request_id: str) -> None:
             request_id=request_id,
         )
     )
+
+
+def audit_site(db, actor: str, action: str, request_id: str) -> None:
+    """A change to the whole site rather than one office, e.g. its types and stages."""
+    db.add(OperatorAuditEvent(actor=actor, action=action, request_id=request_id))
 
 
 async def owner_link(db, tenant: Tenant, local_port: int = 5173) -> str:

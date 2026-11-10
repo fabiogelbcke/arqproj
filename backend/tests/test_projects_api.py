@@ -47,6 +47,11 @@ async def create(client, headers, **changes):
     return await client.post("/api/projects", json=body(**changes), headers=headers)
 
 
+def stage_folders(project_folder):
+    """The folders in a project's folder, leaving out its cover's `_capa`."""
+    return sorted(p.name for p in project_folder.iterdir() if p.name != "_capa")
+
+
 async def project_count(db, slug="alinea"):
     t = await tenant_id(db, slug)
     await db.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(t)})
@@ -70,7 +75,7 @@ async def test_a_new_project_is_published_with_its_type_ticked_stages_and_folder
     assert created["project_type"] == "architecture"
     assert created["completed_stage_count"] == 0
 
-    folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
+    folders = stage_folders(tmp_path / "Casa do Lago")
     assert len(folders) == 7 and folders[0] == "01 - Briefing"
     assert folders[-1] == "07 - Compatibilização"
     stages = list(
@@ -100,7 +105,7 @@ async def test_ticked_stages_come_in_the_shared_order_whatever_the_type(client, 
     )
     assert response.status_code == 201, response.text
     assert (response.json()["project_type"], response.json()["stage_count"]) == ("interiors", 2)
-    folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
+    folders = stage_folders(tmp_path / "Casa do Lago")
     assert folders == ["01 - Projeto Legal", "02 - Especificações"]
 
 
@@ -111,7 +116,7 @@ async def test_the_offices_own_stages_come_after_the_built_in_ones_as_typed(
         client, owner, stages=["survey"], custom_stages=["  Visita técnica ", "Maquete"]
     )
     assert response.status_code == 201, response.text
-    folders = sorted(p.name for p in (tmp_path / "Casa do Lago").iterdir())
+    folders = stage_folders(tmp_path / "Casa do Lago")
     assert folders == ["01 - Levantamento", "02 - Visita técnica", "03 - Maquete"]
     stages = list(
         await db_session.scalars(
@@ -149,7 +154,33 @@ async def test_an_own_stage_that_cant_be_told_apart_is_refused(
 async def test_with_every_stage_unticked_only_the_project_folder_is_made(client, owner, tmp_path):
     response = await create(client, owner, stages=[])
     assert (response.json()["stage_count"], response.json()["completed_stage_count"]) == (0, 0)
-    assert list((tmp_path / "Casa do Lago").iterdir()) == []
+    assert stage_folders(tmp_path / "Casa do Lago") == []
+
+
+async def test_outro_keeps_the_name_the_office_typed(client, owner):
+    """2 Nov 2026: shown wherever a type's label is; a built-in type keeps none."""
+    response = await create(
+        client, owner, project_type="other", custom_type=" Maquete física ", stages=["briefing"]
+    )
+    assert response.status_code == 201, response.text
+    assert (response.json()["project_type"], response.json()["project_type_label"]) == (
+        "other",
+        "Maquete física",
+    )
+    built_in = await create(
+        client, owner, name="Outra Casa", slug="outra-casa", creation_key="key-fedcba9876543210",
+        custom_type="Maquete",
+    )  # fmt: skip
+    assert built_in.json()["project_type_label"] == "Projeto Arquitetônico"
+
+
+@pytest.mark.parametrize("typed", [None, "   ", "x" * (creation.CUSTOM_TYPE_LIMIT + 1)])
+async def test_outro_without_a_usable_name_is_refused_before_anything_is_made(
+    client, owner, tmp_path, typed
+):
+    response = await create(client, owner, project_type="other", custom_type=typed)
+    assert (response.status_code, response.json()["error"]) == (422, "invalid_custom_type")
+    assert list(tmp_path.iterdir()) == []
 
 
 async def test_sending_the_same_creation_twice_makes_one_project(
@@ -219,7 +250,7 @@ async def test_a_deleted_projects_name_can_be_used_again(client, db_session, own
         ({"slug": "painel"}, "invalid_slug"),
         ({"slug": "tour-projeto"}, "invalid_slug"),  # the example project (plan section 16)
         ({"slug": ""}, "invalid_slug"),
-        ({"slug": "a" * 81}, "invalid_slug"),  # the screens stop at 80 (FIELD_LIMITS)
+        ({"slug": "a" * (creation.SLUG_MAX + 1)}, "invalid_slug"),  # past FIELD_LIMITS
         ({"recipients": ["ana@x.com", "joao@x"]}, "invalid_email"),
     ],
 )
@@ -232,7 +263,7 @@ async def test_bad_details_are_refused_before_anything_is_made(
 
 
 async def test_an_address_may_be_as_long_as_the_limit(client, owner):
-    response = await create(client, owner, slug="a" * 80)
+    response = await create(client, owner, slug="a" * creation.SLUG_MAX)
     assert response.status_code == 201
 
 
@@ -313,7 +344,8 @@ async def test_on_drive_folders_go_inside_the_offices_folder(client, owner, on_g
     fake, _ = on_google
     response = await create(client, owner)
     assert response.status_code == 201, response.text
-    assert fake.calls.count("POST /drive/v3/files") == 1 + 7  # project + stages
+    assert fake.calls.count("POST /drive/v3/files") == 1 + 7 + 1  # project, stages, _capa
+    assert fake.calls.count("POST /upload/drive/v3/files") == 1  # the default cover
 
 
 class FailsOnThirdFolder(FakeGoogle):
@@ -452,10 +484,35 @@ async def test_the_dialog_gets_every_stage_and_each_types_usual_ones(client, own
         "Projeto de Interiores",
         "Projeto de Reforma",
         "Projeto de Paisagismo",
+        "Visualização Arquitetônica",
+        "Outro",
     ]
     assert options["types"][0]["stages"] == ARCHITECTURE
-    assert len(options["stages"]) == 11
+    assert len(options["stages"]) == 15
     assert options["stages"][0] == {"key": "briefing", "title": "Briefing"}
     every = [stage["key"] for stage in options["stages"]]
     for kind in options["types"]:  # each type's stages, in the shared order
         assert kind["stages"] == [key for key in every if key in kind["stages"]]
+        # Its list holds its usual stages, in the same order.
+        assert kind["offered"] == [key for key in every if key in kind["offered"]]
+        assert set(kind["stages"]) <= set(kind["offered"])
+
+
+async def test_a_type_lists_only_the_stages_that_suit_it(client, owner):
+    """A27, trial since 1 Nov 2026: an interiors project has no permit or
+    feasibility study; visualization has its own stages and Briefing, which the
+    building types don't list."""
+    options = (await client.get("/api/project-types", headers=ALINEA)).json()
+    offered = {kind["key"]: kind["offered"] for kind in options["types"]}
+    assert "permit_documents" not in offered["interiors"]
+    assert "feasibility_study" not in offered["interiors"]
+    assert "coordination" in offered["interiors"]
+    assert offered["visualization"] == [
+        "briefing", "documentation", "preview_delivery", "revisions", "final_delivery",
+    ]  # fmt: skip
+    for kind in ("architecture", "interiors", "renovation", "landscaping"):
+        assert not set(offered[kind]) & {"preview_delivery", "revisions", "final_delivery"}
+    # "Outro": anything, Briefing ticked.
+    other = next(kind for kind in options["types"] if kind["key"] == "other")
+    assert other["offered"] == [stage["key"] for stage in options["stages"]]
+    assert other["stages"] == ["briefing"]

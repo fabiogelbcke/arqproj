@@ -34,7 +34,7 @@ APP_URL = make_url(OWNER_URL).set(username=LOCAL_RUNTIME_ROLE).render_as_string(
 async def _seed() -> None:
     engine = create_async_engine(OWNER_URL)
     async with AsyncSession(engine) as session:
-        await seed(session)
+        await seed(session, with_logo=True)
         await session.commit()
     await engine.dispose()
 

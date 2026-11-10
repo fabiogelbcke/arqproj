@@ -10,6 +10,7 @@ import { shareToken } from "./shareToken";
 
 const PAGE: Page = {
   id: "6f1c1d1e-0000-4000-8000-0000000000b1",
+  features: [],
   office: { name: "Alinea", logo_url: null, logo_dark_url: null },
   team: [],
   locale: "pt-BR",

@@ -248,6 +248,12 @@ make e2e          # browser tests against the built app on a fresh local databas
 make lint
 ```
 
+Local copies from different worktrees can run side by side on different ports,
+each with its own database, and you stay signed in to each: locally, cookies are
+kept per port (`backend/web/local_cookies.py`). Every copy has the same login,
+laura@alinea.example or bruno@norte.example with password `1234`; if one stops
+working, run `make seed` against that copy's database, which puts it back.
+
 Staging deploys itself when a pull request merges into `staging`; the admin
 commands also take `ENV=staging` (see `docs/infrastructure.md`, which records
 everything on Google Cloud). Open the invite link (it points to `make dev`'s
@@ -262,7 +268,10 @@ The office is chosen by the exact hostname of each request (`tenant_domains`).
 Locally, every `*.localhost` address reaches this machine: the seed creates
 `alinea.localhost` (alias `alinea-old.localhost`, which redirects) and
 `norte.localhost`, e.g. `http://alinea.localhost:8000/`. Unknown hosts get 404;
-`/health` works on any host. Every response has an `X-Request-ID` header, also
+`/health` works on any host. The seed also gives each office an owner to sign in
+with at `/painel`: `laura@alinea.example` and `bruno@norte.example`, password
+`1234`. Running the seed again (`make seed`) puts that password back
+if it was changed. Every response has an `X-Request-ID` header, also
 printed on each log line.
 
 Staff accounts belong to one office each, and people choose their own passwords.

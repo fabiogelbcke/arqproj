@@ -19,12 +19,15 @@ from backend.projects.enums import EXAMPLE_PAGES
 from backend.tenancy.resolve import normalize_host, resolve
 
 # The maintenance pass is every office's: called by the scheduler, never a page.
-# Meta's WhatsApp webhook too: one Unio number serves every office (A44).
-# Unio's public home, its assets and legal pages belong to no office (A33).
+# Meta's WhatsApp webhook too: one Unio number serves every office (A47).
+# Unio's public home, its assets and legal pages belong to no office (A33); an
+# office's portfolio at `/` looks its office up itself (portfolio_page.py).
 EXEMPT_PATHS = frozenset(
     {
         "/",
         "/brand/landing.css",
+        "/brand/portfolio.css",
+        "/brand/portfolio.js",
         "/brand/unio.png",
         "/health",
         "/api/docs",
@@ -85,7 +88,7 @@ class TenantMiddleware:
             await PlainTextResponse("Not found", status_code=404)(scope, receive, send)
             return
         if resolution.redirect_host:
-            target = _redirect_url(scope, host, resolution.redirect_host, state.settings.deployed)
+            target = redirect_url(scope, host, resolution.redirect_host, state.settings.deployed)
             # 301 for page loads; 308 keeps a POST a POST.
             status = 301 if scope["method"] in ("GET", "HEAD") else 308
             response = RedirectResponse(
@@ -100,9 +103,7 @@ class TenantMiddleware:
         await self.app(scope, receive, send)
 
 
-def _redirect_url(
-    scope: Scope, requested_host: str | None, target_host: str, deployed: bool
-) -> str:
+def redirect_url(scope: Scope, requested_host: str | None, target_host: str, deployed: bool) -> str:
     # Deployed traffic always arrives over HTTPS at Google's front end, even though
     # the app itself sees plain HTTP. Locally, keep the scheme and the dev port.
     scheme = "https" if deployed else scope.get("scheme", "http")

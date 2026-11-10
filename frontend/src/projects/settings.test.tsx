@@ -47,6 +47,14 @@ const CASA: ProjectSummary = {
   whatsapp: [],
 };
 const PATH = `/api/projects/${CASA.id}`;
+const PHOTOS = {
+  "GET /api/cover-photos": () => ({
+    body: [
+      { name: "capa-01", small_url: "/api/cover-photos/capa-01/small" },
+      { name: "capa-02", small_url: "/api/cover-photos/capa-02/small" },
+    ],
+  }),
+};
 
 function api(extra = {}) {
   return fakeApi({
@@ -206,6 +214,9 @@ describe("the Projeto dialog", () => {
     await userEvent.click(within(dialog).getByText("Com senha"));
     const password = within(dialog).getByLabelText(/^Senha/);
     await userEvent.type(password, "segredo");
+    // The shared password field: the office can check what it typed before saving.
+    await userEvent.click(within(dialog).getByRole("button", { name: "Mostrar senha" }));
+    expect(password).toHaveAttribute("type", "text");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
     expect(await screen.findByText("Salvo.")).toBeInTheDocument();
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({
@@ -256,7 +267,7 @@ describe("the Projeto dialog", () => {
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ recipients: ["ana@example.com", "joao@example.com"] });
   });
 
-  describe("WhatsApp do cliente (A44)", () => {
+  describe("WhatsApp do cliente (A47)", () => {
     const on = { ...ME, features: ["whatsapp_updates"] };
 
     it("adds a number as people write it and sends it in international digits", async () => {
@@ -363,12 +374,50 @@ describe("the card's menu", () => {
   });
 
   it("uploads a chosen photo at once, cropped to 3:2", async () => {
-    const sent = api({ [`PUT ${PATH}/cover`]: () => ({ body: { ...CASA, cover_url: "/c?v=2" } }) });
+    const sent = api({ [`PUT ${PATH}/cover`]: () => ({ body: { ...CASA, cover_url: "/c?v=2" } }), ...PHOTOS });
+    const click = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
     await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Adicionar foto" }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(within(picker).getByRole("button", { name: "Enviar do computador" }));
+    expect(click).toHaveBeenCalled(); // the file chooser
+    click.mockRestore();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Escolher foto de capa" })).toBeNull());
     await chooseCover();
     expect(await screen.findByText("Foto atualizada.")).toBeInTheDocument();
     const request = sent.find((r) => r.method === "PUT");
     expect(request?.headers.get("Content-Type")).toMatch(/^multipart\/form-data/);
+  });
+
+  it("sets one of the suggested photos at once", async () => {
+    const sent = api({ [`PUT ${PATH}/cover/stock`]: () => ({ body: { ...CASA, cover_url: "/c?v=3" } }), ...PHOTOS });
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Adicionar foto" }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    const photos = await within(picker).findAllByRole("button", { name: /^Foto \d+$/ });
+    expect(photos.map((photo) => photo.querySelector("img")?.getAttribute("src"))).toEqual([
+      "/api/cover-photos/capa-01/small",
+      "/api/cover-photos/capa-02/small",
+    ]);
+    await userEvent.click(within(picker).getByRole("button", { name: "Foto 2" }));
+    expect(await screen.findByText("Foto atualizada.")).toBeInTheDocument();
+    expect(sent.find((r) => r.method === "PUT")).toMatchObject({ path: `${PATH}/cover/stock`, body: { name: "capa-02" } });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Escolher foto de capa" })).toBeNull());
+  });
+
+  it("keeps the photos open when a suggested one fails, saying why", async () => {
+    api({ [`PUT ${PATH}/cover/stock`]: () => ({ status: 503, body: { error: "drive_connect_failed" }, headers: { "X-Request-ID": "abc123" } }), ...PHOTOS });
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Adicionar foto" }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(await within(picker).findByRole("button", { name: "Foto 1" }));
+    expect(await screen.findByText(/Não foi possível conectar o Google Drive.*Código de suporte: abc123/)).toBeInTheDocument();
+    expect(within(picker).getByRole("button", { name: "Foto 1" })).toBeEnabled(); // another try
+  });
+
+  it("still offers an upload when the suggested photos can't be loaded", async () => {
+    api({ "GET /api/cover-photos": () => ({ status: 503, body: { error: "drive_connect_failed" } }) });
+    await userEvent.click(within(await openMenu()).getByRole("menuitem", { name: "Adicionar foto" }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    expect(await within(picker).findByRole("alert")).toHaveTextContent("Não foi possível carregar as fotos.");
+    expect(within(picker).getByRole("button", { name: "Enviar do computador" })).toBeEnabled();
   });
 
   it("says why a photo failed, with the support code", async () => {
@@ -439,6 +488,76 @@ describe("the card's menu", () => {
     await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Arquivar" }));
     await userEvent.click(await screen.findByRole("button", { name: "Desfazer" }));
     expect(await screen.findByText(/alterado por outra pessoa.*Código de suporte: abc123/)).toBeInTheDocument();
+  });
+});
+
+describe("archived projects in the painel", () => {
+  const ARCHIVED: ProjectSummary = { ...CASA, status: "archived", archived_from: "completed", row_version: 5 };
+  const DECLINED: ProjectSummary = {
+    ...CASA,
+    id: "22222222-2222-2222-2222-222222222222",
+    name: "Proposta Recusada",
+    status: "archived",
+    archived_from: "proposal",
+  };
+  /** The list as the server has it: archived ones only with `archived=true`. */
+  function office(projects: ProjectSummary[], extra = {}) {
+    return api({
+      "GET /api/projects": (_body: unknown, query: URLSearchParams) => ({
+        body: query.has("archived") ? projects : projects.filter((p) => p.status !== "archived"),
+      }),
+      ...extra,
+    });
+  }
+
+  it("says nothing when none are archived", async () => {
+    office([CASA]);
+    renderAt("/");
+    await screen.findByTestId("project-card");
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Arquivados/ })).toBeNull());
+  });
+
+  it("leaves declined proposals to their own tab", async () => {
+    office([{ ...CASA, id: "33333333-3333-3333-3333-333333333333", name: "Outra" }, DECLINED]);
+    renderAt("/");
+    await screen.findByTestId("project-card");
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Arquivados/ })).toBeNull());
+  });
+
+  it("opens them from Arquivados, and Desarquivar returns one to what it was", async () => {
+    const projects = [ARCHIVED];
+    const sent = office(projects, {
+      [`PATCH ${PATH}`]: () => {
+        projects[0] = { ...CASA, status: "completed", row_version: 6 };
+        return { body: projects[0] };
+      },
+    });
+    renderAt("/");
+    // An office with only archived projects still reaches them.
+    await userEvent.click(await screen.findByRole("button", { name: "Arquivados (1)" }));
+    const card = await screen.findByTestId("project-card");
+    await userEvent.click(within(card).getByRole("button", { name: "Opções do projeto Casa Jardim" }));
+    const menu = await screen.findByRole("menu");
+    // It can't be changed while archived, so the menu offers nothing else.
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Desarquivar projeto"]);
+    await userEvent.click(within(menu).getByRole("menuitem"));
+
+    expect(await screen.findByText("Projeto “Casa Jardim” restaurado.")).toBeInTheDocument();
+    expect(sent.filter((r) => r.method === "PATCH").map((r) => r.body)).toEqual([{ row_version: 5, status: "completed" }]);
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Arquivados/ })).toBeNull());
+    expect(await screen.findByRole("heading", { name: "Casa Jardim" })).toBeInTheDocument();
+  });
+
+  it("a failed Desarquivar says why, and the project stays in the archive", async () => {
+    office([ARCHIVED], {
+      [`PATCH ${PATH}`]: () => ({ status: 409, body: { error: "project_changed" }, headers: { "X-Request-ID": "abc123" } }),
+    });
+    renderAt("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Arquivados (1)" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Opções do projeto Casa Jardim" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Desarquivar projeto" }));
+    expect(await screen.findByText(/alterado por outra pessoa.*Código de suporte: abc123/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Arquivados (1)" })).toBeInTheDocument();
   });
 });
 

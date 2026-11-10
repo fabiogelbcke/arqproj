@@ -11,6 +11,7 @@ import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { addEmails } from "../ui/EmailListField";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { PasswordField } from "../ui/PasswordField";
 import { TextField } from "../ui/TextField";
 import { toast } from "../ui/Toast";
 import { useChangeProject, type ProjectSummary } from "./projects";
@@ -24,7 +25,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 /** The project's settings (A24), after the prototype's "Projeto" dialog, opened
  *  from the card's menu ("Configurações do projeto"): name, client, client link,
  *  access, the client's email addresses and, where the office has the features
- *  (A40), their WhatsApp numbers (A44) and who works on it (A41), saved together
+ *  (A40), their WhatsApp numbers (A47) and who works on it (A41), saved together
  *  by Salvar. The photo
  *  and archiving are in the menu itself (ProjectMenu). */
 export function ProjectDialog({ project, onClose }: { project: ProjectSummary; onClose: () => void }) {
@@ -44,7 +45,7 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
   const unsubscribed = new Set(saved.recipients.filter((r) => !r.subscribed).map((r) => r.email));
   const features = useMe().data?.features ?? [];
   const withMembers = features.includes("project_members");
-  // The client's WhatsApp numbers (A44), where the office has them: the whole list.
+  // The client's WhatsApp numbers (A47), where the office has them: the whole list.
   const withWhatsApp = features.includes("whatsapp_updates");
   const [phones, setPhones] = useState(() => project.whatsapp.map((n) => n.phone));
   const [newPhone, setNewPhone] = useState("");
@@ -199,14 +200,13 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
           </Radio>
         </RadioGroup>
         {access === "password" && (
-          <TextField
+          <PasswordField
             label={t("projectSettings.password")}
             description={
               saved.access_mode === "password"
                 ? t("projectSettings.passwordKeep")
                 : t("projectSettings.passwordNew")
             }
-            type="password"
             value={password}
             onChange={setPassword}
             isRequired={saved.access_mode !== "password"}

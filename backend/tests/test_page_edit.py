@@ -241,6 +241,29 @@ async def test_the_project_type_changes_and_the_stages_stay(client, owner):
     assert (bad.status_code, bad.json()["error"]) == (422, "unknown_project_type")
 
 
+async def test_outro_is_named_on_the_page_renamed_and_dropped_with_the_type(client, owner):
+    """2 Nov 2026: "Outro" needs its name; it shows instead of a label; only it
+    can be renamed; another type drops the name."""
+    unnamed = await edit(client, owner, "PATCH", "/content", project_type="other")
+    assert (unnamed.status_code, unnamed.json()["error"]) == (422, "invalid_custom_type")
+    not_other = await edit(client, owner, "PATCH", "/content", custom_type="Maquete")
+    assert (not_other.status_code, not_other.json()["error"]) == (422, "invalid_custom_type")
+
+    named = await edit(
+        client, owner, "PATCH", "/content", project_type="other", custom_type="  Maquete física "
+    )
+    assert named.status_code == 204, named.text
+    shown = await page(client)
+    assert (shown["project_type"], shown["project_type_key"]) == ("Maquete física", "other")
+    renamed = await edit(client, owner, "PATCH", "/content", custom_type="Maquete")
+    assert renamed.status_code == 204, renamed.text  # the app may change the column
+    assert (await page(client))["project_type"] == "Maquete"
+
+    back = await edit(client, owner, "PATCH", "/content", project_type="interiors")
+    assert back.status_code == 204, back.text
+    assert (await page(client))["project_type"] == "Projeto de Interiores"
+
+
 async def test_an_archived_project_cant_be_edited(client, db_session, owner):
     from sqlalchemy import text
 

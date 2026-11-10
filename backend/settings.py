@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     email_domain: str | None = None
     # Offices that send from their own verified domain, as JSON: {"alinea": "alineaarquitetos.com"}.
     email_office_domains: dict[str, str] = {}
-    # Client updates by WhatsApp (A44), through Meta's Cloud API: the Unio number's
+    # Client updates by WhatsApp (A47), through Meta's Cloud API: the Unio number's
     # id and a permanent access token. Without them, messages are written to
     # `email_outbox` locally and not sent at all when deployed.
     whatsapp_token: str | None = None

@@ -19,6 +19,379 @@ a new entry too.
 
 ---
 
+## 2026-11-05 — A46: comparisons behind the `before_after` feature
+
+**Was:** before-and-after comparisons were on for every office as soon as they
+merged.
+
+**Now:** they are a feature switched on per office from the operator dashboard
+(A40), off by default. Switched off, a pair of images is two plain files and
+nothing offers to make one.
+
+**Why:** Fabio asked for it while reviewing (5 Nov 2026), so his partners can try
+it on staging and main before every office gets it, as with the other new work.
+
+## 2026-11-05 — A46: a portfolio work's comparisons are kept in the database
+
+**Was:** comparisons came only from file names in a project's Drive folders.
+
+**Now:** a portfolio work (A45) has comparisons too, kept as a reference from
+its "before" photo to its "after" photo plus the two labels (migration 0052).
+
+**Why not names here:** a portfolio's photos are copies the app names itself
+(`foto-<id>.jpg`) and lists from its own rows, never from Drive, so there is no
+name for staff to read or write; a column on the row is the portfolio's own way
+of keeping a photo's facts (its order, size). Fabio asked for comparisons in
+portfolio works (5 Nov 2026); the schema change is his to approve.
+
+## 2026-11-05 — A46: before-and-after comparisons, paired by name
+
+**Was:** no comparisons. Two related images ("antes" and "depois") showed as two
+unrelated files.
+
+**Now:** two images of one folder named `Título (antes).jpg` and `Título
+(depois).jpg` (a label after a dash: `(antes - Projeto)`) are one comparison,
+shown as one card that opens on a slider. Uploaded from the "+" card's
+"Comparação antes e depois", or named so in Drive.
+
+**Why names, not a table:** Fabio asked for a way to upload a before and an
+after image and slide between them (5 Nov 2026), and chose pairing by name.
+The page already works out versions from names and stores nothing about files
+(A25, A10); a table of pairs would be the first stored fact about files, would
+need a migration, and would go stale when a file is moved, renamed or deleted
+in Drive. Names keep working for files put straight into Drive, and a wrong
+pair is fixed the way a wrong version is: by renaming. Labels went into the
+names for the same reason (Fabio, 5 Nov 2026), so changing one renames the
+files, and only files the app made can be renamed (drive.file).
+
+## 2026-11-05 — A45: no "Situação"; the editor is media beside words; a phone shows a profile grid
+
+**Was:** a work had a status, "Concluído" or "Em andamento", drawn from its
+project and shown last in its sheet on the public page, with a "Situação"
+select in the editor. The editor ran down the page: photos, then the words,
+then the videos. On a phone the home showed two covers across (Galeria) or a
+single column (Mosaico), each cover with its title over it.
+
+**Now:** no status anywhere: not asked, not drawn from the project, not shown
+(the column stays in `portfolio_entries` until a migration drops it, which is
+a schema change awaiting approval). The editor puts the photos and the videos
+together on the left, taking most of the page, and the words in one panel on
+the right, below them on a narrow screen; a "Ver no portfólio" button at the
+top opens the work's public page in a new tab, and the tab's "Ver portfólio"
+(or "Ver prévia") is a button at the top too. On a phone the page is a profile
+as the networks show one: Galeria three square covers across with hairline
+gaps, Mosaico two columns, and no titles over the covers.
+
+**Why:** Fabio, 5 Nov 2026: "I don't think we need the 'situation' field, so
+pls remove that"; "photos and videos input should be near each other … and
+they should be before the text. Either that or they should both be on the left
+column taking up most of the page (~70%) and the right 30% could be the box
+with the text inputs" (the second taken: the media is what the portfolio is
+made of, and the words beside it stay in view while photos are arranged);
+"add a more prominent 'see portfolio' button at the top"; "make it a mosaic
+and grid in mobile? See how instagram has a grid and vsco has a mosaic in
+mobile". The titles leave the phone's covers because neither reference shows
+any and three across leaves no room for one.
+
+---
+
+## 2026-11-05 — A45: the images are the portfolio's page; a work's words come after its photos
+
+**Was:** the home opened on a full-width carousel of the first eight covers
+with their type, title, place and year, then the office's opening text, then a
+"Projetos" heading and a grid of covers each captioned with its title, type,
+place and year. A work's page opened on its cover at two thirds of the screen,
+with its sheet and text right under it and the other photos as small
+thumbnails after them. In the painel a work's editor opened on eight text
+fields, the photos below.
+
+**Now:** the home is the grid, from the first screen: covers with thin gaps,
+nothing written under them, a title shown over its cover under the pointer
+(always on a phone); the opening text after the grid as "Escritório"; no
+carousel. A work opens in a layer over the grid (its page fetched by
+`portfolio.js`, the address following, the back button, × or Escape closing
+it back to the same place in the grid), and that page is its photos large,
+one at a time, in a track that slides from one to the next (arrows, the
+keyboard or a swipe, with a count), the type, title, place and year over the
+first, with the sheet, text and credits only after the photos under "Sobre o
+projeto". The
+editor is the photos first, then the title, with the rest folded under "Mais
+informações".
+
+**Why:** Fabio, 5 Nov 2026: "less text on the screen and focused pretty much
+only on images", with two PDF portfolios (a full-bleed render per page, a small
+title over it) and Rojkind's work grid (uniform covers, no captions, the types
+as plain tabs) as the references, and "with the image focus it should make
+creation very simple too". Chosen over its own page for the work ("opens
+something where you can scroll through photos") so the grid stays where it
+was; over always-visible titles (Fabio picked "only on hover"). The photos
+slide one at a time rather than running down the page because, seeing the
+first version, Fabio asked for "an arrow based horizontal scroll, or something
+like instagram". The title is the one text a work needs, so it is the one text
+asked for.
+
+---
+
+## 2026-11-05 — A24: archived projects can be found and unarchived in the painel
+
+**Was:** the only way back from the archive was "Desfazer" on the toast right
+after archiving. The painel didn't list archived projects, though the project
+page and an error message told staff to unarchive them there.
+
+**Now:** "Arquivados (n)" under the painel's groups, shown only when there are
+any, opens the archived projects. An archived card's "⋯" offers only "Desarquivar
+projeto", with no confirmation, and the project returns to the status it had
+(`archived_from`, now in the project list). Declined proposals, archived too,
+stay in the Propostas tab (A42).
+
+**Why:** Fabio, 5 Nov 2026: "do we have no mechanism to unarchive projects?" A
+filter or a page of its own would be more than a handful of archived projects
+needs. No confirmation, as archiving it again is as easy.
+
+---
+
+## 2026-11-04 — A45: a work's sheet is a list of details, with the office's own labels
+
+**Was:** a work's sheet had three fixed lines: area in m², status, and team, each
+a column of `portfolio_entries`. A work drawn from a project copied its built
+(else total) area and its lead architect into them.
+
+**Now:** a work's sheet is a list of lines (`portfolio_details`), edited as a
+project's details are (A27): the same built-in details, each once and typed, and
+lines with a label of the office's own (up to 40 characters), text only (up to
+200, room for a team's names), in the order added; the usual portfolio labels a
+project's page lacks (Fotografia, Construtora, Marcenaria, Paisagismo,
+Iluminação, Estrutura, Colaboradores, Fornecedores: ArchDaily's project sheets
+list architects, area, year, photographs and manufacturers; office sites credit
+the builder, woodwork, landscape and lighting) come ready-made in the menu. Status stays a fixed line, shown last. A work drawn from a project
+starts with the project's details in their order, never its client or address,
+with "Responsável" as the members' names where the office has them (A41). Each
+existing work's area became its "Área construída" line and its team its
+"Responsável" line (migration 0051).
+
+**Why:** Fabio, 4 Nov 2026: "in the project edit menu for the portfolio, can't we
+allow dynamic details like we do for the normal client facing project page";
+asked whether the sheet should take the project page's list, the office's own
+labels, or both, he chose both. The office's own labels are an exception, for
+the portfolio only, to A27's "custom details are a later addition": a public
+portfolio names things a project's page doesn't (photography, builder), and a
+label typed per work costs nothing to keep.
+
+---
+
+## 2026-11-04 — A45: a portfolio format for material made for the social networks
+
+**Was:** one layout: one landscape cover per work in a carousel, and a work's page
+opening on its cover at two thirds of the screen with the title over a dark
+shading. Every image was cropped to a landscape frame.
+
+**Now:** the Portfólio tab chooses the portfolio's format, each with a small
+drawing of its layout. "Galeria" is that layout. "Mosaico" shows each image in its own shape, square or upright, as the networks show
+them: the works as a mosaic, a work's page as a grid of its images under its
+title (a profile on the networks, not a column of posts), no carousel, hero or
+shading. In "Galeria", an upright cover is no longer
+cropped: it stands whole on a blurred copy of itself. Photos and posters record
+their pixel size when added, so the page lays them out at their shape before they
+load (a file added before, or one the server can't read, has none and takes its
+shape as it loads). Still deferred: captions, posts as entries of their own with a
+date and a link to the original, and bringing posts in from Instagram (see
+`future-ideas.md`).
+
+**Why:** Fabio, 4 Nov 2026: an office whose material is what it made for its
+posts (square and 9:16, text and logos already on the image) looked wrong in a
+layout built for architecture photography. Posts as entries of their own were
+dropped because offices only make the media for their posts, not the text.
+
+---
+
+## 2026-11-03 — A24 and section 10: a new project starts with a stock cover, which clients see
+
+**Was:** a project had no cover until staff uploaded one. The painel showed a
+placeholder photo from a small bundled set (26 CC0 photos) meanwhile, and
+**clients only ever saw a cover the architect uploaded**: the client page showed
+no hero without one. "Trocar foto" opened the file picker and the cropper
+straight away.
+
+**Now:** at creation, a project gets one of the bundled photos (now 57: 14 of the 26
+plus 43 Fabio chose, in a mixed order) as its real cover, stored in its `_capa` folder like an
+upload, so clients see it too. Wherever staff choose a cover, a dialog offers an
+upload or another bundled photo. "Remover foto" leaves the project without a
+cover (no new photo is picked); the painel placeholder and the empty client hero
+stay as they were for that case and for projects created before. The new
+project's setup steps lose their cover step ("Passo 1 de 3" now): the project
+already has one, changed later from the "⋯" or edit mode.
+
+**Why:** Fabio, 3 Nov 2026: new projects should look finished from the start
+instead of waiting for a photo. Asked whether clients should see the stock
+photo or only the painel, he chose clients too; asked about removal, he chose
+"no photo after removing"; he then added the choice of a bundled photo when
+picking a cover. Storing the photo like an upload (rather than a reference to a
+bundled file) keeps one cover path for the client page, its preview tags and
+removal, with no schema change. The cover step went because showing the stock
+photo there looked done, and showing an empty slot would hide a cover the
+client already sees; Fabio, the same day, also noted an office may have no
+photos at the start.
+
+## 2026-11-03 — A44 (new), A27: types and stages edited from the operator dashboard
+
+**Was:** the built-in project types, stages and their texts changed only through
+a migration, and which stages each type lists was a table in the code
+(`OFFERED_STAGES`). Office-defined types and stages were a later addition.
+
+**Now:** Unio's operators edit them in the operator dashboard's new
+"Configurações" tab: names and descriptions in both languages, which stages each
+type lists and ticks, order, new types and stages, and hiding (no delete). The
+one list still serves every office. Edits apply live, existing projects
+included, after a red warning with how many projects change.
+
+**Why:** Fabio, 3 Nov 2026: texts like Visualização's took a pull request and a
+migration each time (three that night). Considered and set aside: per-office
+lists (much bigger: every office would get its own copy); changes reaching only
+new projects (each project would need its own copy, and a typo fix would never
+reach existing ones); Portuguese only (offices may be set to English).
+
+## 2026-11-03 — A27: Visualização's Documentação before Entrega Prévia
+
+**Was:** Entrega Prévia, Documentação, Revisões, Entrega Final.
+
+**Now:** Documentação, Entrega Prévia, Revisões, Entrega Final.
+
+**Why:** Fabio asked for it, 3 Nov 2026.
+
+## 2026-11-02 — A27: Visualização without Pós-Produção, all its stages ticked
+
+**Was:** Visualização Arquitetônica had five stages of its own (Entrega Prévia,
+Documentação, Revisões, Entrega Final, Pós-Produção) after Briefing, ticking all
+but Revisões and Pós-Produção, with draft descriptions.
+
+**Now:** no Pós-Produção stage. Its five (Briefing and its own four) are all
+ticked, each described in the texts Alinea uses in its proposals.
+
+**Why:** Fabio, the same night, with Alinea's texts for these services.
+
+## 2026-11-02 — A42: a new proposal chooses its services first
+
+**Was:** with the short creation form (same day), a new proposal had no stages,
+so its services started from the office's services: the same list for every
+proposal, whatever its type.
+
+**Now:** right after "Nova proposta", a first step on the generator, "Serviços
+da proposta", lists the type's stages with its usual ones ticked, and the
+office's own by name. Those ticked become the services, one each, with the
+office's text for a service of the same name, else the stage's description in
+the type's words. Skipped, the type's usual stages that way.
+
+**Why:** Fabio, the same night: proposals were all starting with the same
+services. The short form had been agreed on the understanding that a proposal's
+services would still start from its type's stages, and since services map 1:1
+to the stages on acceptance, choosing them is the proposal's own setup step.
+
+## 2026-11-02 — A24, A42: short creation form; an accepted proposal sets up its stages
+
+**Was:** creation asked for name, client, type, stages and the client's emails,
+for a project and a proposal alike. A proposal's services started from the
+stages ticked at creation; acceptance only switched the status, the stages being
+those from creation.
+
+**Now:** creation asks only for name, client, type and address. A project's page
+then opens setup steps (stages, description and details, cover, client's emails),
+each skippable. A proposal has no stages while a proposal, and its services start
+from the office's services. "Proposta aceita" opens the same setup steps, the
+stages step starting from the services, one stage each: the built-in stage a
+service's name loosely matches, else the office's own stage named as the service.
+Nothing else is ticked; staff tick or untick any stage before it is made.
+
+**Why:** Fabio, 1–2 Nov 2026, trying it locally: a long first form makes creating
+look like work. After going back and forth (a stage is not necessarily a service,
+nor a service a stage), he concluded that an accepted proposal's services map 1:1
+to the project's stages, the setup step still letting staff change the selection.
+
+**Alternatives rejected:**
+- *On acceptance, rebuild the stages from the services automatically* (names
+  and order, unmatched stages removed): it would drop stages that are no service,
+  like Briefing.
+- *Ticking the type's usual stages too*, or *leaving out services that match no
+  stage*: considered the same day; Fabio settled on one stage per service.
+- *Exact name matching*: offices word services freely ("Projeto Executivo de
+  Arquitetura").
+
+---
+
+## 2026-11-02 — A27: a fifth project type, and each type lists only its stages
+
+**Was:** four built-in types, all for building work, and 11 built-in stages; creation
+listed every stage for every type, the type's usual ones ticked.
+
+**Now:** a fifth type, Visualização Arquitetônica, with stages of its
+own (Entrega Prévia, Documentação, Revisões, Entrega Final, Pós-Produção) after
+the 11, Briefing shared. As a trial, each type lists only the stages that suit it,
+its usual ones ticked, the rest behind "Mostrar todas as etapas".
+
+**Why:** Fabio, 2 Nov 2026: a rendering studio's project never has
+Compatibilização or Especificações; showing the building stages to it, or its
+stages to an architecture project, is noise. The list per type is kept in the
+code for the trial and moves to the reference tables if it stays.
+
+Also 2 Nov 2026: **"Outro"**. Was: only built-in types; office-defined types a
+later addition. Now: a project may be of type "Outro" with a name the office
+types for that project (no list of the office's own types yet), listing every
+stage with Briefing ticked. Why: an office whose work fits none of the five
+types shouldn't have to pick a wrong one; a per-project name is the smallest
+step, and a reusable list of the office's types can follow if they repeat.
+
+---
+
+## 2026-10-31 — A45: an office's address can show its portfolio at `/`
+
+**Was:** `/` showed Unio's home on every address, an office's own included
+(future ideas, "What an office's own address shows at its root"), and Unio's home
+never touched the database.
+
+**Now:** behind the `portfolio` feature, an office with a published portfolio
+shows it at `/` on its own address. Unio's address, and every office without
+the feature or without a published portfolio, keeps Unio's home. Looking the
+office up from `/` falls back to the home on any failure, so the home still never
+depends on the database.
+
+**Why:** Fabio, 31 Oct 2026: "What if we created a portfolio page for the
+address at the root? Let's do it to test", with works either uploaded or drawn
+from existing projects with chosen images. Of the options in future ideas (a
+redirect to the office's site, to the painel sign-in, or a simple page of its
+own), this is the third, grown into a portfolio.
+
+Later the same day Fabio asked for it to be "a little nicer": a logo for the dev
+office, "a pretty carousel with name/type of project and some menu to access
+projects of different types". Modelled on architecture offices' own sites (a
+full-width carousel of covers, a menu of project types over the grid), works now
+carry a project type, and the page gained one small script of its own for the
+carousel's arrows; it was first drawn with no script at all.
+
+On 1 Nov 2026 Fabio asked to "pull in more data from the projects", "add links
+to social", make images smaller, "specially on smaller screens", and "allow
+opening", and how to allow videos (someone makes architecture videos and
+renderings for Instagram). A work drawn from a project now starts with its area,
+status, year and lead architect, never its client or address, which the office
+may not want public. Works also take photo credits and videos. Videos
+were first links to YouTube, Vimeo or Instagram, played in those services'
+players, so they would stream at those services' cost. Fabio rejected that the
+same day: "if we're showing things we're storing in our storage or on google
+drive then we don't wanna just have a youtube widget or vimeo widget". Videos
+are now files in the office's storage like the photos, sent there by the
+browser directly and streamed through the app in parts; each view's bytes pass
+through Cloud Run, as clients' file downloads already do. They were first
+played on the work's page itself, landscape ones large and 9:16 stories in a row;
+Fabio found them "gigantic": "we can have just an icon or something and
+miniatures and then show a modal with some arrows to cycle through media". So
+a video is a thumbnail among the photos and plays only in the same full-screen
+viewer, whose arrows go through photos and videos alike. The work's page then
+had its cover filling the screen and its text at 19 px across 760 px, which
+Fabio found too large (2 Nov 2026); it now takes the layout of architecture
+offices' own project pages (Snøhetta's, Jacobsen's): the cover at about two
+thirds of the screen, the sheet of facts beside the text in a reading measure.
+The office's social profiles show in the footer. Photos on a work's page are now small and open large over the page.
+
+---
+
 ## 2026-10-30 — A38, A43: operators can enter an office's painel
 
 **Was:** the operator dashboard showed counts and health only: no file names,

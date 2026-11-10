@@ -5,23 +5,23 @@ photo button.
                                       emails and WhatsApp numbers; archive or restore
     POST   /api/projects/{id}/publish a draft goes live (from the page's staff bar)
     PUT    /api/projects/{id}/cover   upload the cover photo
-    DELETE /api/projects/{id}/cover   back to the placeholder photo
+    PUT    /api/projects/{id}/cover/stock  one of the bundled photos as the cover
+    DELETE /api/projects/{id}/cover   no cover (the painel shows a placeholder)
     GET    /api/projects/{id}/cover   the cover (staff only until the client page)
 
 Anyone signed in may change these. A change carries the `row_version` the screen
 loaded; if someone else saved the project meanwhile, it is refused with
 `project_changed` instead of silently overwriting their change (plan section 7).
 
-The cover lives in the office's storage, in a `_capa` folder inside the
-project's folder: Google Drive through the office's grant, or the local folder
-in development. Like the office logo, its type is read from the bytes.
+The cover lives in the office's storage (see `backend/web/covers.py`). A new
+project starts with a stock photo as its cover; staff can choose another stock
+photo or upload their own.
 """
 
 from __future__ import annotations
 
 import logging
 import uuid
-from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
@@ -50,11 +50,11 @@ from backend.projects.enums import AccessMode, CoverType, ProjectStatus
 from backend.projects.models import Project, ProjectMember, ProjectSlug
 from backend.storage.base import StorageError
 from backend.storage.connections import storage_for
-from backend.storage.google_connect import ConnectError
-from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
+from backend.storage.models import StorageConnection, StorageKind
 from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
+from backend.web.covers import COVER_MAX_BYTES, local_root, stock_photo_bytes, store_cover
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.office import image_type
@@ -63,13 +63,10 @@ from backend.web.projects import ProjectSummary, summaries
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 
-COVER_MAX_BYTES = 10 * 1024 * 1024
 PAGE_PASSWORD_MIN = 6  # Fabio, 16 Oct 2026
 PAGE_PASSWORD_MAX = 25  # Fabio, 20 Oct 2026
-COVER_FOLDER = "_capa"
 MEMBERS_MAX = 100  # more than any office's team
 COVER_SIZE = 1280  # pixels on the long side, from Drive's thumbnails: enough for a card
-_EXTENSIONS = {CoverType.PNG: "png", CoverType.JPEG: "jpg", CoverType.WEBP: "webp"}
 COVER_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; sandbox",
     "X-Content-Type-Options": "nosniff",
@@ -96,7 +93,7 @@ class ProjectChange(BaseModel):
     # Who works on it: the whole list of staff accounts (A41), if the office has
     # the feature (A40).
     members: list[uuid.UUID] | None = Field(default=None, max_length=MEMBERS_MAX)
-    # The client's WhatsApp numbers, the whole list as typed (A44), if the office
+    # The client's WhatsApp numbers, the whole list as typed (A47), if the office
     # has the feature. A new one is asked whether it wants the updates.
     whatsapp: list[str] | None = Field(default=None, max_length=RECIPIENTS_MAX)
 
@@ -149,7 +146,7 @@ def _phones(given: list[str]) -> list[str]:
 async def _set_whatsapp(
     db: AsyncSession, settings, project_id: uuid.UUID, wanted: list[str]
 ) -> tuple[bool, list[ProjectWhatsApp]]:
-    """Add the new numbers (asked, A44), remove the ones left out; one that
+    """Add the new numbers (asked, A47), remove the ones left out; one that
     answered "Não quero" stays, so it is never asked again. A number that
     declined or replied SAIR can't be added: only the client can sign up again.
     Whether anything changed, and the numbers added."""
@@ -383,23 +380,6 @@ async def publish(
     return await _summary(db, tenant, project_id)
 
 
-async def _connection(request: Request, db: AsyncSession) -> StorageConnection | None:
-    connection = await db.scalar(select(StorageConnection))
-    if connection is not None and connection.kind is StorageKind.FOLDER:
-        if request.app.state.settings.deployed:
-            raise ApiError(409, ErrorCode.DRIVE_NOT_CONNECTED)
-        return connection
-    if connection is not None and connection.reader_status is not ReaderStatus.OK:
-        # Uploaded through the office's grant, shown through the reader: it would
-        # never display.
-        raise ApiError(409, ErrorCode.DRIVE_UNREADABLE)
-    return connection
-
-
-def _local_root(request: Request, connection: StorageConnection) -> Path:
-    return Path(request.app.state.settings.local_storage_root) / connection.root_id
-
-
 @router.put("/projects/{project_id}/cover", responses=documented(401, 404, 409, 413, 415, 503))
 async def upload_cover(
     request: Request,
@@ -418,50 +398,26 @@ async def upload_cover(
     return await _summary(db, tenant, project_id)
 
 
-async def store_cover(
-    request: Request, db: AsyncSession, tenant: CurrentTenant, project: Project, content: bytes
-) -> None:
-    """Make `content` the project's cover, in its `_capa` folder; the previous
-    one is removed (to the Drive trash). Committed."""
-    if len(content) > COVER_MAX_BYTES:
-        raise ApiError(413, ErrorCode.COVER_TOO_LARGE)
-    try:
-        cover_type = CoverType(image_type(content))
-    except ValueError:  # not an image, or an SVG
-        raise ApiError(415, ErrorCode.COVER_WRONG_TYPE) from None
-    if project.folder_id is None:
-        raise ApiError(409, ErrorCode.PROJECT_HAS_NO_FOLDER)
-    name = f"capa.{_EXTENSIONS[cover_type]}"
-    connection = await _connection(request, db)
-    previous = project.cover_file_id
+class StockCoverChoice(BaseModel):
+    name: str = Field(max_length=40)  # one of GET /api/cover-photos
 
-    if connection is not None and connection.kind is StorageKind.FOLDER:
-        root = _local_root(request, connection)
-        folder = Path(project.folder_id) / COVER_FOLDER
-        (root / folder).mkdir(parents=True, exist_ok=True)
-        (root / folder / name).write_bytes(content)
-        project.cover_folder_id = folder.as_posix()
-        project.cover_file_id = (folder / name).as_posix()
-        if previous and previous != project.cover_file_id:
-            (root / previous).unlink(missing_ok=True)
-    else:
-        connection, writer = await writer_for(request, db)
-        try:
-            if not (project.cover_folder_id and await writer.can_open(project.cover_folder_id)):
-                project.cover_folder_id = await writer.create_folder(
-                    COVER_FOLDER, project.folder_id
-                )
-            project.cover_file_id = await writer.upload(
-                name, project.cover_folder_id, content, cover_type
-            )
-        except ConnectError as error:
-            log.error("cover upload to Drive failed for %s: %s", tenant.slug, error.detail)
-            raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-        if previous:
-            await writer.trash(previous)
-    project.cover_type = cover_type
-    await db.commit()
-    db.expire_all()
+
+@router.put("/projects/{project_id}/cover/stock", responses=documented(401, 404, 409, 503))
+async def choose_stock_cover(
+    request: Request,
+    project_id: uuid.UUID,
+    body: StockCoverChoice,
+    _staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> ProjectSummary:
+    """One of the bundled photos as the cover, stored like an uploaded one."""
+    project = await _project(db, project_id)
+    if project.status is ProjectStatus.ARCHIVED:
+        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
+    await store_cover(request, db, tenant, project, stock_photo_bytes(body.name))
+    capture(request, "project_cover_set", {"stock": True})
+    return await _summary(db, tenant, project_id)
 
 
 @router.delete("/projects/{project_id}/cover", responses=documented(401, 404, 409, 503))
@@ -477,7 +433,7 @@ async def remove_cover(
     if previous is not None:
         connection = await db.scalar(select(StorageConnection))
         if connection is not None and connection.kind is StorageKind.FOLDER:
-            (_local_root(request, connection) / previous).unlink(missing_ok=True)
+            (local_root(request, connection) / previous).unlink(missing_ok=True)
         else:
             # The photo goes to the office's Drive trash, where it can be recovered.
             _, writer = await writer_for(request, db)
@@ -511,19 +467,37 @@ async def serve_cover(
 ) -> Response:
     """The cover through the office's storage, shrunk by Drive to `size` pixels
     where it can; otherwise the original. 404 when there is none to show."""
+    if project is None or project.cover_file_id is None:
+        return Response(status_code=404)
+    return await serve_stored_image(
+        request, db, project.cover_file_id, project.cover_type, size, headers
+    )
+
+
+async def serve_stored_image(
+    request: Request,
+    db: AsyncSession,
+    file_id: str,
+    media_type: CoverType,
+    size: int,
+    headers: dict[str, str],
+) -> Response:
+    """A photo kept in the office's storage (a cover, a portfolio photo), shrunk
+    by Drive to `size` pixels where it can; otherwise the original. 404 when it
+    can't be read."""
     connection = await db.scalar(select(StorageConnection))
-    if project is None or project.cover_file_id is None or connection is None:
+    if connection is None:
         return Response(status_code=404)
     try:
         google = getattr(request.app.state, "google", None)  # set up at app start
         storage = storage_for(connection, request.app.state.settings, google)
-        item = await storage.get(project.cover_file_id)
+        item = await storage.get(file_id)
         small = await storage.thumbnail(item, size)
         if small is not None and (kind := image_type(small)) in set(CoverType):
             return Response(small, media_type=kind, headers=headers)
         download = await storage.download(item)
     except StorageError as error:
-        log.warning("cover unavailable: %s %s", error.problem, error.detail)
+        log.warning("photo unavailable: %s %s", error.problem, error.detail)
         return Response(status_code=404)
 
     async def body():
@@ -533,6 +507,5 @@ async def serve_cover(
         finally:
             await download.aclose()
 
-    media_type = project.cover_type.value
     await db.close()  # before streaming: never hold a database connection meanwhile
-    return StreamingResponse(body(), media_type=media_type, headers=headers)
+    return StreamingResponse(body(), media_type=media_type.value, headers=headers)

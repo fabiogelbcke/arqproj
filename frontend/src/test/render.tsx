@@ -7,7 +7,7 @@ import { makeQueryClient } from "../app/App";
 import { routes } from "../app/routes";
 
 type Reply = { status?: number; body?: unknown; headers?: Record<string, string> };
-type Handler = (body: unknown) => Reply | Promise<Reply>;
+type Handler = (body: unknown, query: URLSearchParams) => Reply | Promise<Reply>;
 
 /** Fake API: handlers keyed by "METHOD /path"; records what the app sent. */
 export function fakeApi(handlers: Record<string, Handler>) {
@@ -20,7 +20,7 @@ export function fakeApi(handlers: Record<string, Handler>) {
       const body = input.method === "GET" ? undefined : await input.clone().json().catch(() => undefined);
       sent.push({ method: input.method, path, query, body, headers: input.headers });
       const handler = handlers[`${input.method} ${path}`];
-      const answer = handler ? handler(body) : { status: 404, body: { error: "not_found" } };
+      const answer = handler ? handler(body, new URLSearchParams(query)) : { status: 404, body: { error: "not_found" } };
       // Only a handler that answers later is waited for: other replies keep their timing.
       const reply = answer instanceof Promise ? await answer : answer;
       return new Response(reply.status === 204 ? null : JSON.stringify(reply.body ?? {}), {

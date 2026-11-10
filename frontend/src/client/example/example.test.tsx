@@ -85,7 +85,10 @@ describe("the example project", () => {
     expect(within(ready).getByLabelText("Link para compartilhar")).toHaveValue(`${window.location.origin}/share/exemplo`);
     const kept = JSON.parse(localStorage.getItem("example-share")!);
     expect(kept.label).toBe("Marcenaria Silva");
-    expect(kept.files.map((f: { name: string }) => f.name)).toContain("Implantação - estudo A.pdf");
+    const names = kept.files.map((f: { name: string }) => f.name);
+    expect(names).toContain("Implantação - estudo A.pdf");
+    // A comparison (A46) is shared as its two images.
+    expect(names).toEqual(expect.arrayContaining(["Fachada (antes - Estudo).jpg", "Fachada (depois - Render).jpg"]));
     expect(sent.some((r) => r.path.includes("/shares"))).toBe(false); // nothing reached the server
   });
 

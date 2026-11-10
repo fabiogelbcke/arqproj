@@ -33,6 +33,7 @@ from backend.projects.enums import (
     CoverType,
     DetailType,
     ProjectStatus,
+    ProjectType,
 )
 from backend.tenancy.models import Locale
 
@@ -40,6 +41,7 @@ CLIENT_NAME_MAX = 48
 MEETING_TITLE_MAX = 40
 MEETING_LOCATION_MAX = 60
 STAGE_TITLE_MAX = 80  # a stage's name as the office types it
+CUSTOM_TYPE_MAX = 80  # an "Outro" type's name as typed; the screens ask for less
 
 
 # -- built-in content: reference tables shared by all offices (migration 0008) ---
@@ -62,6 +64,8 @@ class ProjectTypeDef(Base):
     key: Mapped[str] = mapped_column(Text, primary_key=True)
     position: Mapped[int] = mapped_column()
     labels: Mapped[dict[str, str]] = mapped_column(JSONB)
+    # Not offered for new projects; those that have it keep it (A44).
+    hidden: Mapped[bool] = mapped_column(server_default=text("false"))
 
 
 class DetailTypeDef(Base):
@@ -92,11 +96,14 @@ class StageDef(Base):
     position: Mapped[int] = mapped_column()
     titles: Mapped[dict[str, str]] = mapped_column(JSONB)
     about: Mapped[dict[str, str]] = mapped_column(JSONB)
+    # Not offered for new projects; those that have it keep it (A44).
+    hidden: Mapped[bool] = mapped_column(server_default=text("false"))
 
 
 class ProjectTypeStage(Base):
-    """A project type's usual stages (ticked at creation), each described in the
-    type's own words (A27)."""
+    """A stage a project type lists (A27): ticked at creation if `usual`, described
+    in the type's own words if it has them, else by the stage's general text.
+    "Outro" lists every stage; only its ticked ones are here (A44)."""
 
     __tablename__ = "project_type_stages"
     __table_args__ = (_in_every_language("about"),)
@@ -107,7 +114,9 @@ class ProjectTypeStage(Base):
     stage_key: Mapped[str] = mapped_column(
         Text, ForeignKey("stage_definitions.key", ondelete="CASCADE"), primary_key=True
     )
-    about: Mapped[dict[str, str]] = mapped_column(JSONB)
+    usual: Mapped[bool] = mapped_column(server_default=text("true"))
+    # SQL NULL, not JSON null, when it has no words of its own.
+    about: Mapped[dict[str, str] | None] = mapped_column(JSONB(none_as_null=True))
 
 
 # -- projects -------------------------------------------------------------------
@@ -152,6 +161,15 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
         ),
         enum_check("cover_type", CoverType),
         CheckConstraint("(cover_file_id IS NULL) = (cover_type IS NULL)", name="cover_complete"),
+        # "Outro" (2 Nov 2026): named by the office; a built-in type never is.
+        CheckConstraint(
+            f"(project_type = '{ProjectType.OTHER.value}') = (custom_type IS NOT NULL)",
+            name="custom_type_named",
+        ),
+        CheckConstraint(
+            f"custom_type IS NULL OR length(btrim(custom_type)) BETWEEN 1 AND {CUSTOM_TYPE_MAX}",
+            name="custom_type_length",
+        ),
     )
 
     name: Mapped[str] = mapped_column(Text)
@@ -159,6 +177,8 @@ class Project(IdMixin, TimestampsMixin, TenantOwned, Base):
     project_type: Mapped[str] = mapped_column(
         Text, ForeignKey("project_types.key", name="fk_projects_project_type")
     )
+    # The type's name as the office typed it, for "Outro" only.
+    custom_type: Mapped[str | None] = mapped_column(Text)
     description: Mapped[str] = mapped_column(Text, server_default=text("''"))
     status: Mapped[ProjectStatus] = mapped_column(
         TextEnum(ProjectStatus), server_default=text("'draft'")
@@ -266,8 +286,9 @@ _VALUE_COLUMNS = {
 }
 
 
-def _value_matches_type() -> str:
-    """Exactly the value column of the row's value type is filled."""
+def value_matches_type() -> str:
+    """Exactly the value column of the row's value type is filled (a check for
+    every table that keeps a detail's value: a project's, a portfolio work's)."""
     cases = []
     for value_type, column in _VALUE_COLUMNS.items():
         filled = [f"{c} IS {'NOT ' if c == column else ''}NULL" for c in _VALUE_COLUMNS.values()]
@@ -296,7 +317,7 @@ class ProjectDetail(IdMixin, TenantOwned, Base):
             name="fk_project_details_detail_type",
         ),
         enum_check("value_type", DetailType),
-        CheckConstraint(_value_matches_type(), name="value_matches_type"),
+        CheckConstraint(value_matches_type(), name="value_matches_type"),
         CheckConstraint(
             "value_text IS NULL OR length(btrim(value_text)) > 0", name="text_not_blank"
         ),

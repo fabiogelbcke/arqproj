@@ -6,7 +6,13 @@ import type { DragEvent } from "react";
 const FILE_DRAG = "application/x-unio-file";
 
 /** The card being dragged: which file, and where it is now. */
-export type DraggedFile = { key: string; name: string; position: number; folder: string | null };
+export type DraggedFile = {
+  key: string;
+  name: string;
+  position: number;
+  folder: string | null;
+  comparison?: boolean; // a before-and-after comparison's card (A46): both its images move
+};
 
 /** Where a card can go: a stage (from 1) and one of its sections, or none. */
 export type DropPlace = { position: number; section: string | null };

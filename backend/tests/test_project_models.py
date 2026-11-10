@@ -271,6 +271,9 @@ async def test_a_project_can_have_several_meetings(db_session, alinea):
         ({"client_name": "x" * 49}, "client_name_length"),
         ({"client_name": "  "}, "client_name_length"),
         ({"access_mode": "password"}, "password_set"),  # password mode without a password
+        ({"project_type": "other"}, "custom_type_named"),  # "Outro" without its name
+        ({"custom_type": "Maquete"}, "custom_type_named"),  # a built-in type with one
+        ({"project_type": "other", "custom_type": " "}, "custom_type_length"),
     ],
 )
 async def test_project_values_are_checked(db_session, alinea, values, constraint):

@@ -7,7 +7,7 @@ import type { Schemas } from "../../api/client";
 import { fileSource, type Page } from "../format";
 import { EXAMPLE_OFFICE, EXAMPLE_SHARE, EXAMPLE_SHARE_KEY, EXAMPLE_SLUG } from "./address";
 import builtins from "./builtins.json";
-import { atOfficeTime, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
+import { atOfficeTime, EXAMPLE_COVER_PHOTOS, EXAMPLE_TIMEZONE, exampleProject, type ExampleFile, type ExampleProject } from "./fixture";
 
 const READS = ["/api/me", "/api/tenant", "/api/project-types", "/api/detail-types"];
 // What edit mode offers (types, stages, details), for whoever the server won't
@@ -34,6 +34,7 @@ type Route = [method: string, path: RegExp, answer: (match: string[], body: Body
 
 const done: Reply = { status: 204 };
 const refused = (error: Schemas["ErrorCode"], status = 422): Reply => ({ status, body: { error } });
+const withoutUrl = ({ url: _url, ...shown }: Schemas["FileOut"] & { url?: string }): Schemas["FileOut"] => shown;
 
 /** Answers the example page's API calls from now on, starting from the fixture
  *  (or from the preview page's data, with no request reaching the server). */
@@ -52,7 +53,10 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
   let recipients = preview?.recipients ?? ["marina.andrade@exemplo.com.br"];
   let options: Schemas["CreationOptions"] | null = null;
   let detailTypes: Schemas["DetailTypeOut"][] | null = null;
-  const pending = new Map<string, { position: number; name: string; versionOf?: string }>();
+  type Pending = { position: number; name: string; versionOf?: string; pair?: { id: string; side: "before" | "after" } };
+  const pending = new Map<string, Pending>();
+  // A comparison's images as they arrive, until both have: then its card.
+  const pairs = new Map<string, { title: string; labels: (string | null)[]; arrived: Partial<Record<"before" | "after", ExampleFile>> }>();
   let counter = 0;
   const id = () => `exemplo-n${(counter += 1)}`;
 
@@ -68,6 +72,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     project_type_key: project.project_type_key,
     description: project.description,
     cover_url: project.cover_url,
+    features: project.features,
     completed: project.status === "completed",
     current_position: null, // the previous release's (A30); this page doesn't read it
     last_update: project.last_update,
@@ -88,7 +93,6 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     staff: staffView
       ? {
           project_id: EXAMPLE_SLUG,
-          features: [], // no proposal link on the example
           status: project.status,
           row_version: version,
           recipients: recipients.map((email) => ({ email, subscribed: true })),
@@ -102,7 +106,12 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       unavailable: false,
       groups: stage.groups
         .filter((group) => group.files.length)
-        .map((group) => ({ folder: group.folder, files: group.files.map(({ url: _url, ...shown }) => shown) })),
+        .map((group) => ({
+          folder: group.folder,
+          files: group.files.map(({ url: _url, ...shown }) =>
+            shown.comparison ? { ...shown, comparison: { ...shown.comparison, after: withoutUrl(shown.comparison.after) } } : shown,
+          ),
+        })),
     })),
     updates: project.updates,
   });
@@ -115,6 +124,12 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       }
     return null;
   };
+  /** A comparison's "after" image (A46), which sits in its card. */
+  const afterSide = (key: string) =>
+    project.stages
+      .flatMap((stage) => stage.groups.flatMap((group) => group.files))
+      .map((card) => card.comparison?.after as ExampleFile | undefined)
+      .find((after) => after?.key === key);
   const addFile = (position: number, file: ExampleFile) => {
     const stage = project.stages[position - 1]!;
     const top = stage.groups.find((group) => group.folder === null);
@@ -168,7 +183,13 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     links = [{ link, keys }, ...links];
     const picked = keys.flatMap((key) =>
       project.stages.flatMap((s, i) =>
-        s.groups.flatMap((g) => g.files.filter((f) => f.key === key).map((f) => ({ ...f, position: i + 1, stage: s.title }))),
+        s.groups.flatMap((g) =>
+          g.files
+            // A comparison's card (A46) is two images, each shared on its own.
+            .flatMap((f) => (f.comparison ? [{ ...f, name: f.comparison.before_name }, f.comparison.after as ExampleFile] : [f]))
+            .filter((f) => f.key === key)
+            .map((f) => ({ ...f, position: i + 1, stage: s.title })),
+        ),
       ),
     );
     try {
@@ -245,6 +266,9 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
           const chosen = types.find((type) => type.key === body.project_type);
           if (chosen) [project.project_type_key, project.project_type] = [chosen.key, chosen.label];
         }
+        // "Outro": its name, as typed, in place of the label.
+        if (typeof body.custom_type === "string" && project.project_type_key === "other")
+          project.project_type = body.custom_type.trim();
         return changed();
       },
     ],
@@ -403,6 +427,48 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
         return { body: { upload_url: `${UPLOADS}${upload}` } };
       },
     ],
+    // Before-and-after comparisons (A46): named for it on Drive; here, one card.
+    [
+      "POST",
+      new RegExp(`^${PROJECT}/stages/(\\d+)/comparisons$`),
+      (match, body) => {
+        if (!stage(match)) return refused("project_not_found", 404);
+        const title = String(body.title).trim();
+        if (sameName(Number(match[1]), title)) return refused("comparison_exists", 409);
+        const pair = id();
+        const labels = [body.before_label, body.after_label].map((label) => (label ? String(label) : null));
+        pairs.set(pair, { title, labels, arrived: {} });
+        const urls = (["before", "after"] as const).map((side, i) => {
+          const upload = id();
+          const word = side === "before" ? "antes" : "depois";
+          const chosen = String((body[side] as Body).name);
+          const extension = chosen.includes(".") ? chosen.slice(chosen.lastIndexOf(".")).toLowerCase() : "";
+          const name = `${title} (${labels[i] ? `${word} - ${labels[i]}` : word})${extension}`;
+          pending.set(upload, { position: Number(match[1]), name, pair: { id: pair, side } });
+          return `${UPLOADS}${upload}`;
+        });
+        return { body: { before_url: urls[0], after_url: urls[1] } };
+      },
+    ],
+    [
+      "POST",
+      new RegExp(`^${PAGE}/comparisons/([^/]+)/(hide|move|edit)$`),
+      (match, body) => {
+        const found = find(decodeURIComponent(match[1]!));
+        if (!found?.file.comparison) return refused("file_not_found", 404);
+        if (match[2] === "edit") {
+          found.file.name = String(body.title).trim();
+          found.file.comparison.before_label = body.before_label ? String(body.before_label) : null;
+          found.file.comparison.after_label = body.after_label ? String(body.after_label) : null;
+          return changed();
+        }
+        const position = Number(body.position);
+        if (match[2] === "move" && !project.stages[position - 1]) return refused("file_not_found", 404);
+        found.group.files.splice(found.index, 1);
+        if (match[2] === "move") addFile(position, found.file);
+        return changed();
+      },
+    ],
     [
       "POST",
       new RegExp(`^${PAGE}/files/([^/]+)/hide$`),
@@ -432,6 +498,23 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
         const chosen = (await request.formData()).get("file");
         if (!(chosen instanceof Blob)) return refused("invalid_status_change");
         project.cover_url = URL.createObjectURL(chosen);
+        return changed();
+      },
+    ],
+    [
+      "GET",
+      /^\/api\/cover-photos$/,
+      () => ({
+        body: Object.entries(EXAMPLE_COVER_PHOTOS).map(([name, url]) => ({ name, small_url: url })),
+      }),
+    ],
+    [
+      "PUT",
+      new RegExp(`^${PROJECT}/cover/stock$`),
+      (_, body) => {
+        const url = EXAMPLE_COVER_PHOTOS[String(body.name) as keyof typeof EXAMPLE_COVER_PHOTOS];
+        if (!url) return refused("cover_photo_not_found", 404);
+        project.cover_url = url;
         return changed();
       },
     ],
@@ -534,8 +617,38 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
               ? "pdf"
               : "other";
           const at = new Date().toISOString();
-          const current = target.versionOf ? find(target.versionOf)?.file : undefined;
-          if (current) {
+          const current = target.versionOf ? (find(target.versionOf)?.file ?? afterSide(target.versionOf)) : undefined;
+          const made: ExampleFile = {
+            key: id(),
+            name: target.name,
+            kind,
+            size: body.size,
+            modified_at: at,
+            url: URL.createObjectURL(body),
+            updated: false,
+            clash: false,
+            older: [],
+          };
+          const pair = target.pair && pairs.get(target.pair.id);
+          if (pair && target.pair) {
+            pair.arrived[target.pair.side] = made;
+            const { before, after } = pair.arrived;
+            if (before && after) {
+              pairs.delete(target.pair.id);
+              addFile(target.position, {
+                ...before,
+                name: pair.title,
+                comparison: {
+                  after,
+                  before_label: pair.labels[0] ?? null,
+                  after_label: pair.labels[1] ?? null,
+                  before_name: before.name,
+                  after_name: after.name,
+                },
+              });
+              changed({ kind: "file_published", stage_position: target.position, name: pair.title, comparison: true });
+            }
+          } else if (current) {
             // The new version takes the card; the one before goes to "Versões anteriores".
             const version = (current.version ?? 1) + 1;
             const before = { ...current, older: [], version: current.version ?? 1 };
@@ -551,17 +664,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
             });
             changed({ kind: "file_published", stage_position: target.position, name: current.name, version });
           } else {
-            addFile(target.position, {
-              key: id(),
-              name: target.name,
-              kind,
-              size: body.size,
-              modified_at: at,
-              url: URL.createObjectURL(body),
-              updated: false,
-              clash: false,
-              older: [],
-            });
+            addFile(target.position, made);
             changed({ kind: "file_published", stage_position: target.position, name: target.name });
           }
           this.status = 200;
@@ -576,6 +679,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
   fileSource.address = (_slug, key, as) => {
     const file =
       find(key)?.file ??
+      afterSide(key) ??
       // An older version keeps its upload's address.
       (project.stages
         .flatMap((stage) => stage.groups.flatMap((group) => group.files.flatMap((shown) => shown.older)))

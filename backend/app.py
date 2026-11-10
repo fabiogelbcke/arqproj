@@ -26,7 +26,9 @@ from backend.tenancy.middleware import TenantMiddleware
 from backend.web import (
     account,
     admin,
+    admin_settings,
     auth,
+    covers,
     drive,
     email_confirmation,
     google_signin,
@@ -37,12 +39,14 @@ from backend.web import (
     office,
     office_signup,
     onboarding,
+    page_comparisons,
     page_edit,
     page_files,
     page_stages,
     page_uploads,
     pages,
     painel,
+    portfolio,
     project_settings,
     projects,
     proposals,
@@ -56,6 +60,7 @@ from backend.web import (
 from backend.web.auth import SUPPORT_TAG
 from backend.web.build import BuildIdMiddleware
 from backend.web.errors import ApiError, handle_api_error, handle_invalid_request
+from backend.web.local_cookies import LocalCookiesMiddleware
 from backend.web.request_id import RequestIdLogFilter, RequestIdMiddleware
 
 
@@ -260,6 +265,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(maintenance.router)
     app.include_router(whatsapp.router)  # Meta's webhook: no office's
     app.include_router(admin.router)  # before the pages: /admin is no project's
+    app.include_router(admin_settings.router)
     app.include_router(office_signup.router)  # likewise /criar-escritorio
     app.include_router(auth.router)
     app.include_router(account.router)
@@ -274,12 +280,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(subscribe.router)
     app.include_router(shares.router)
     app.include_router(project_settings.router)
+    app.include_router(covers.router)
     app.include_router(proposals.router)
+    app.include_router(portfolio.router)
     app.include_router(painel.router)
     app.include_router(page_edit.router)
     app.include_router(page_files.router)
     app.include_router(page_stages.router)
     app.include_router(page_uploads.router)
+    app.include_router(page_comparisons.router)
     app.include_router(unsubscribe.router)
     # Last: `/{slug}` answers any single-segment address the routes above don't.
     app.include_router(pages.router)
@@ -292,4 +301,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(TenantMiddleware)
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(BuildIdMiddleware, build_id=settings.build_id)
+    if not settings.deployed:
+        app.add_middleware(LocalCookiesMiddleware)
     return app

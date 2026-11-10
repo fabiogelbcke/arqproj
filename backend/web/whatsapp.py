@@ -1,4 +1,4 @@
-"""Meta's WhatsApp webhook (A44): what clients answer, and what became of our messages.
+"""Meta's WhatsApp webhook (A47): what clients answer, and what became of our messages.
 
     GET  /api/whatsapp/webhook   Meta checks the address when it is registered
     POST /api/whatsapp/webhook   messages and delivery statuses

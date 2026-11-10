@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
+import { SETUP_PARAM } from "../projects/setup";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Toaster, toast, toastError } from "../ui/Toast";
 import { SiteFooter } from "../ui/UnioMark";
@@ -18,7 +19,7 @@ function StaffBar({ page, ready, onChanged }: { page: Page; ready: boolean; onCh
   const [asking, setAsking] = useState<"accept" | "decline" | null>(null);
   const [busy, setBusy] = useState(false);
   // Changing or accepting it needs proposals switched on (A40); the page still shows it.
-  const open = staff.status === "proposal" && !!staff.features?.includes("proposals");
+  const open = staff.status === "proposal" && page.features.includes("proposals");
   const answer = async (accepted: boolean) => {
     setBusy(true);
     const path = { params: { path: { project_id: staff.project_id } } };
@@ -31,6 +32,13 @@ function StaffBar({ page, ready, onChanged }: { page: Page; ready: boolean; onCh
         await call(api.PATCH("/api/projects/{project_id}", { ...path, body: { status: "archived", row_version: staff.row_version } }));
       setAsking(null);
       toast(t(accepted ? "proposal.accept.done" : "proposal.accept.declineDone"));
+      if (accepted) {
+        // The project's page opens its setup steps, the services suggesting its
+        // stages (2 Nov 2026), as "Novo projeto" does.
+        const url = new URL(window.location.href);
+        url.searchParams.set(SETUP_PARAM, "");
+        window.history.replaceState(window.history.state, "", url);
+      }
       onChanged?.();
     } catch (failure) {
       setAsking(null);

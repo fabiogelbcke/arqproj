@@ -168,6 +168,8 @@
 
 /* "Ver todos (n)" under a cut group; "Limpar busca" beside "nothing found". */
 .showAll { justify-self: center; }
+.archived { display: grid; gap: 20px; justify-items: start; margin-top: 32px; }
+.archived .rows { justify-self: stretch; }
 .noResults { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
 
 /* Before the first project: four faded cards where the projects will be, and
@@ -289,3 +291,42 @@
 /* "Outra etapa": a name and "Adicionar", its button on the field's line. */
 .ownStage { display: flex; align-items: flex-end; gap: 10px; }
 .ownStage > :first-child { flex: 1; min-width: 0; }
+
+/* A new project's setup steps: a bar of segments over the dialog's form, filled
+   up to the current step (trial, 1 Nov 2026). */
+.setupProgress { display: grid; gap: 8px; }
+/* The project page's stylesheet spaces paragraphs; the dialog's gaps do it here. */
+.setupProgress > p, .setupHint { margin: 0; }
+.setupBar { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.setupBar > span { height: 4px; border-radius: 999px; background: var(--line); }
+.setupBar > [data-state="done"] { background: var(--ink); }
+/* "Mostrar todas as etapas": a quiet link under the list. */
+.moreStages {
+  justify-self: start; padding: 4px 0; border: 0; background: none; color: var(--muted);
+  font: inherit; font-size: var(--text-sm); text-decoration: underline; cursor: pointer;
+}
+.moreStages:hover { color: var(--ink); }
+.moreStages:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* The setup's two buttons side by side, sharing the dialog's width, and kept at
+   the dialog's foot while a long step (16 stages on a phone) scrolls under them. */
+.setupActions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  position: sticky; bottom: 0; z-index: 1;
+  margin: 0 calc(-1 * var(--dialog-pad)) calc(-1 * var(--dialog-pad));
+  padding: 16px var(--dialog-pad) var(--dialog-pad); background: var(--raise);
+}
+/* Choosing a cover (CoverPhotoDialog): upload one's own, or one of the bundled photos. */
+.coverUpload { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.coverGallery { display: grid; gap: 12px; }
+.coverGalleryTitle { margin: 0; font-size: var(--text-md); font-weight: 500; }
+.coverGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 480px) { .coverGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.coverChoice {
+  display: block; padding: 0; aspect-ratio: 3 / 2; overflow: hidden; cursor: pointer;
+  border: 0; border-radius: var(--r-field); background: var(--surface);
+}
+.coverChoice img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 0.2s var(--ease); }
+.coverChoice:hover:not(:disabled) img { transform: scale(1.04); }
+.coverChoice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.coverChoice:disabled { cursor: default; opacity: 0.5; }
+.coverChoice[data-saving] { opacity: 1; outline: 2px solid var(--focus); outline-offset: 2px; }

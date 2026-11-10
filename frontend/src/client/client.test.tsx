@@ -33,6 +33,7 @@ const PAGE: Page = {
   project_type_key: "architecture",
   description: "Residência no alto.\n- Concreto aparente\n- Brises de madeira",
   cover_url: null,
+  features: [],
   completed: false,
   current_position: null, // the previous release's (A30), unread now
   last_update: "2026-10-15T23:30:00Z", // 20:30 in São Paulo: still the 15th there
@@ -147,7 +148,7 @@ describe("the client page", () => {
     expect(sent.find((r) => r.path.endsWith("/subscribe"))?.body).toEqual({ email: "ana@gmail.com" });
   });
 
-  it("signs a client up for the updates by WhatsApp, where the office has them (A44)", async () => {
+  it("signs a client up for the updates by WhatsApp, where the office has them (A47)", async () => {
     window.history.pushState({}, "", "/casa-jardim");
     const sent = fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
@@ -702,12 +703,28 @@ describe("edit mode", () => {
     expect(screen.queryByRole("button", { name: /Adicionar foto de capa/ })).toBeNull(); // not for clients
     await startEditing();
     await userEvent.click(await screen.findByRole("button", { name: /Adicionar foto de capa/ }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(within(picker).getByRole("button", { name: "Enviar do computador" }));
     const input = document.querySelector('.client input[type="file"][hidden]') as HTMLInputElement;
     await userEvent.upload(input, new File(["jpg"], "obra.jpg", { type: "image/jpeg" }));
     const crop = await screen.findByRole("dialog", { name: "Ajustar a capa" });
     await userEvent.click(await within(crop).findByRole("button", { name: "Usar recorte" }));
     expect(await screen.findByText("Capa atualizada.")).toBeInTheDocument();
     expect(sent.some((r) => r.method === "PUT" && r.path === "/api/projects/p-1/cover")).toBe(true);
+  });
+
+  it("in edit mode, one of the suggested photos can be the cover", async () => {
+    const { sent } = asStaff({
+      "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
+      "GET /api/cover-photos": () => ({ body: [{ name: "capa-07", small_url: "/api/cover-photos/capa-07/small" }] }),
+      "PUT /api/projects/p-1/cover/stock": () => ({ body: {} }),
+    });
+    await startEditing();
+    await userEvent.click(await screen.findByRole("button", { name: /Adicionar foto de capa/ }));
+    const picker = await screen.findByRole("dialog", { name: "Escolher foto de capa" });
+    await userEvent.click(await within(picker).findByRole("button", { name: "Foto 1" }));
+    expect(await screen.findByText("Capa atualizada.")).toBeInTheDocument();
+    expect(sent.find((r) => r.method === "PUT")).toMatchObject({ path: "/api/projects/p-1/cover/stock", body: { name: "capa-07" } });
   });
 
   it("in edit mode, a cover can be changed from the page", async () => {
@@ -724,6 +741,24 @@ describe("edit mode", () => {
     await startEditing();
     expect(await screen.findByRole("button", { name: "Trocar capa" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Adicionar foto de capa/ })).toBeNull();
+  });
+
+  it("opens on a band made from the cover only with the office's cover_band feature (A40)", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    let features: string[] = [];
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, cover_url: "/api/pages/casa-jardim/cover?v=1", features } }),
+      "GET /api/pages/casa-jardim/files": () => ({ body: { stages: [], updates: [] } }),
+    });
+    const { unmount } = render(<ClientApp />);
+    expect(await screen.findByRole("img", { name: /Capa/ })).toBeInTheDocument();
+    expect(document.querySelector(".project-opening__backdrop")).toBeNull();
+    unmount();
+    features = ["cover_band"];
+    render(<ClientApp />);
+    expect(await screen.findByRole("img", { name: /Capa/ })).toBeInTheDocument();
+    expect(document.querySelector(".project-opening__backdrop img")).toHaveAttribute("src", "/api/pages/casa-jardim/cover?v=1");
   });
 
   it("in edit mode, a cover can be removed from the page", async () => {
@@ -1375,6 +1410,83 @@ describe("edit mode", () => {
     expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({ project_type: "renovation" });
   });
 
+  it("keeps showing the project's own type when it is hidden for new projects (A44)", async () => {
+    const { sent } = asStaff({
+      "GET /api/detail-types": () => ({ body: [] }),
+      // The page's type, Projeto Arquitetônico, is hidden: the list leaves it out.
+      "GET /api/project-types": () => ({ body: { types: [{ key: "renovation", label: "Projeto de Reforma" }] } }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    const type = (await screen.findByLabelText("Tipo de projeto")) as HTMLSelectElement;
+    await screen.findByRole("option", { name: "Projeto de Reforma" });
+    expect(type.selectedOptions[0]?.textContent).toBe("Projeto Arquitetônico");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).not.toHaveProperty("project_type");
+  });
+
+  it("names an Outro type, renames it alone, and sends no name for a built-in type", async () => {
+    const { sent } = asStaff({
+      "GET /api/detail-types": () => ({ body: [] }),
+      "GET /api/project-types": () => ({
+        body: {
+          types: [
+            { key: "architecture", label: "Projeto Arquitetônico" },
+            { key: "other", label: "Outro" },
+          ],
+        },
+      }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    const type = await screen.findByLabelText("Tipo de projeto");
+    await screen.findByRole("option", { name: "Outro" });
+    expect(screen.queryByLabelText("Qual é o tipo de projeto?")).toBeNull(); // a built-in type
+    await userEvent.selectOptions(type, "other");
+    await userEvent.type(screen.getByLabelText("Qual é o tipo de projeto?"), "Maquete física");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    expect(sent.find((r) => r.method === "PATCH")?.body).toMatchObject({
+      project_type: "other",
+      custom_type: "Maquete física",
+    });
+  });
+
+  it("an Outro project's editor starts from its name and sends only a new one", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: {
+          ...PAGE,
+          project_type: "Maquete física",
+          project_type_key: "other",
+          staff: { project_id: "p-1", status: "active", row_version: 4 },
+        },
+      }),
+      "GET /api/detail-types": () => ({ body: [] }),
+      "GET /api/project-types": () => ({ body: { types: [{ key: "other", label: "Outro" }] } }),
+      "PATCH /api/projects/p-1/content": () => ({ status: 204 }),
+    });
+    render(<ClientApp />);
+    expect(await screen.findByText("Maquete física")).toBeInTheDocument(); // in place of a label
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    const name = await screen.findByLabelText("Qual é o tipo de projeto?");
+    expect(name).toHaveValue("Maquete física");
+    await userEvent.clear(name);
+    await userEvent.type(name, "Maquete");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvo.");
+    const body = sent.find((r) => r.method === "PATCH")?.body as Record<string, unknown>;
+    expect(body).toMatchObject({ custom_type: "Maquete" });
+    expect(body).not.toHaveProperty("project_type"); // unchanged
+  });
+
   it("adds a detail from a menu, and areas are typed with no steppers", async () => {
     const { sent } = asStaff({
       "GET /api/detail-types": () => ({
@@ -1389,7 +1501,7 @@ describe("edit mode", () => {
     await startEditing();
     await userEvent.click(screen.getByRole("button", { name: "Editar informações" }));
     // A menu, not a select: nothing in it is marked as chosen.
-    await userEvent.click(await screen.findByRole("button", { name: "Adicionar informação" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Adicionar detalhes" }));
     const added = await screen.findByRole("menuitem", { name: "Área construída" });
     expect(screen.queryByRole("option")).toBeNull();
     await userEvent.click(added);

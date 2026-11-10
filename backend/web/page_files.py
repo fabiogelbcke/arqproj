@@ -16,7 +16,9 @@ new password or access mode ends every key handed out before.
 A folder's files are grouped into documents by name (A25, plan section 12):
 `Planta.pdf` and `Planta v2.pdf` show as one "Planta.pdf", v2 current, with v1
 under its older versions. Nothing is stored; each listing works it out again.
-An older version is a file like any other, with its own key.
+An older version is a file like any other, with its own key. Two images named
+as a comparison (A46), `Cozinha (antes).jpg` and `Cozinha (depois).jpg`, show as
+one card, "Cozinha": the "before" side's, with the "after" side in it.
 
 Bytes come through the office's storage view (the reader identity on Drive),
 which refuses anything outside the office's folder; a stage's folder shows only
@@ -46,7 +48,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
-from backend.documents import versions
+from backend.documents import comparisons, versions
 from backend.documents.versions import shown_name
 from backend.notifications.models import EventKind, ProjectEvent
 from backend.projects.enums import AccessMode, ProjectStatus
@@ -55,7 +57,7 @@ from backend.security import keys
 from backend.storage.base import StorageError, StorageItem, StorageProblem
 from backend.storage.connections import storage_for
 from backend.storage.models import StorageConnection
-from backend.tenancy.models import Locale
+from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.transfers import measured
 from backend.web.auth import CurrentStaff, optional_staff
@@ -93,6 +95,21 @@ class FileOut(BaseModel):
     # staff are asked to rename one.
     clash: bool = False
     older: list[FileOut] = []  # "Versões anteriores", newest first, by Drive's names
+    # A before-and-after comparison (A46): this card is its "before" side, named
+    # by the comparison's title ("Cozinha"), with the "after" side here.
+    comparison: ComparisonOut | None = None
+
+
+class ComparisonOut(BaseModel):
+    after: FileOut
+    # The slider's words, from the names; None: the page's own ("Antes", "Depois").
+    before_label: str | None = None
+    after_label: str | None = None
+    before_name: str  # each side's document as Drive names it: "Cozinha (antes).jpg"
+    after_name: str
+
+
+FileOut.model_rebuild()
 
 
 class GroupOut(BaseModel):
@@ -119,6 +136,7 @@ class UpdateOut(BaseModel):
     # A file's name as the page shows it now; a cancelled meeting's title.
     name: str | None = None
     version: int | None = None  # a file's, when its document has versions (A25)
+    comparison: bool | None = None  # True: a file of a comparison (A46), by its title
 
 
 class PageFilesOut(BaseModel):
@@ -244,6 +262,52 @@ def _document(
     return shown
 
 
+def _is_image(item: StorageItem) -> bool:
+    return _kind(item) == "image"
+
+
+def _entry(
+    request: Request,
+    project: Project,
+    entry: versions.Document | comparisons.Comparison,
+    stage: int,
+    folder: str,
+    now: datetime,
+) -> FileOut:
+    """A document's card, or a comparison's: its "before" side under the
+    comparison's title, with the "after" side in it."""
+    if isinstance(entry, versions.Document):
+        return _document(request, project, entry, stage, folder, now)
+    shown = _document(request, project, entry.before, stage, folder, now)
+    after = _document(request, project, entry.after, stage, folder, now)
+    shown.comparison = ComparisonOut(
+        after=after,
+        before_label=entry.before_label,
+        after_label=entry.after_label,
+        before_name=shown.name,
+        after_name=after.name,
+    )
+    shown.name = entry.title
+    # The card dates and sorts by its newer side; each side keeps its own date.
+    shown.modified_at = max(shown.modified_at, after.modified_at)
+    shown.updated = shown.updated or after.updated
+    return shown
+
+
+def _note_visible(visible: dict, entry, position: int, folder: str) -> None:
+    """Each file the page shows, older versions too: (stage, name, version, and
+    for a comparison's files its folder). They all go by its title, as its card
+    does; the folder tells apart two comparisons of one title in two sections."""
+    if isinstance(entry, comparisons.Comparison):
+        for side in (entry.before, entry.after):
+            for _number, item in side.versions:
+                visible.setdefault(item.identity, (position, entry.title, None, folder))
+        return
+    for number, item in entry.versions:
+        version = number if entry.version is not None else None
+        visible.setdefault(item.identity, (position, entry.name, version, None))
+
+
 async def _storage(request: Request, db: AsyncSession):
     """The office's storage view, or None when there is none to read (no
     connection, or Drive disconnected)."""
@@ -276,9 +340,12 @@ async def page_files(
     slug: str,
     response: Response,
     staff: CurrentStaff | None = Depends(optional_staff),
+    tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> PageFilesOut:
     project = await _readable(db, slug, staff, request)
+    # Switched off (A40), a comparison's two images are the plain files they are.
+    compare = tenant.has(Feature.BEFORE_AFTER)
     response.headers.update({**PAGE_HEADERS, **_listing_cache(project, staff)})
     storage = await _storage(request, db)
     has_connection = await db.scalar(select(StorageConnection.id)) is not None
@@ -331,16 +398,13 @@ async def page_files(
                 storage, folder, empty=staff is not None
             ):
                 documents = versions.group(files)
-                for document in documents:
-                    for number, item in document.versions:
-                        version = number if document.version is not None else None
-                        visible.setdefault(item.identity, (position, document.name, version))
+                entries = comparisons.pair(documents, _is_image) if compare else documents
+                for entry in entries:
+                    _note_visible(visible, entry, position, parent)
                 shown.groups.append(
                     GroupOut(
                         folder=group,
-                        files=[
-                            _document(request, project, d, position, parent, now) for d in documents
-                        ],
+                        files=[_entry(request, project, e, position, parent, now) for e in entries],
                     )
                 )
         except StorageError as error:
@@ -397,11 +461,12 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
     updates = []
     counted = set()  # the notes, advance and meeting already listed
     async for event in events:  # until 30 survive the filtering, however many it takes
-        position, name, version = event.stage_position, None, None
+        # `compared`: the folder of the comparison a file is in (A46), if it is in one.
+        position, name, version, compared = event.stage_position, None, None, None
         if event.kind is EventKind.FILE_PUBLISHED:
             if event.item_id not in visible:
                 continue
-            position, name, version = visible[event.item_id]
+            position, name, version, compared = visible[event.item_id]
         elif event.stage_id is not None:
             if event.stage_id not in positions:
                 continue  # its stage was removed
@@ -422,6 +487,8 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
             once = "completed"
         elif event.kind is not EventKind.FILE_PUBLISHED:
             once = "meeting"  # the latest change says what the meeting is now
+        elif compared:
+            once = ("comparison", compared, name)  # its two images are one entry, as one card
         else:
             once = None
         if once is not None:
@@ -438,6 +505,7 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
                 stage_position=position,
                 name=name,
                 version=version,
+                comparison=True if compared else None,
             )
         )
         if len(updates) == UPDATES_SHOWN:

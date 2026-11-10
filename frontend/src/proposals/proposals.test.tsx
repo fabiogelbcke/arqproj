@@ -102,6 +102,7 @@ const PROPOSAL: ProposalView = {
 
 const PAGE: Page = {
   id: "6f1c1d1e-0000-4000-8000-0000000000b1",
+  features: [],
   office: { name: "Alinea", logo_url: null, logo_dark_url: null },
   locale: "pt-BR",
   timezone: "America/Sao_Paulo",
@@ -217,12 +218,12 @@ describe("a project's page while it is a proposal", () => {
   it("lets staff change the proposal or mark it accepted, after asking", async () => {
     const staffPage = {
       ...PAGE,
+      features: ["proposals" as const],
       staff: {
         project_id: "p-1",
         status: "proposal" as const,
         row_version: 7,
         recipients: [],
-        features: ["proposals" as const],
       },
     };
     let accepted = false;
@@ -256,17 +257,19 @@ describe("a project's page while it is a proposal", () => {
     expect(sent.find((r) => r.path.endsWith("accept-proposal"))!.body).toEqual({
       row_version: 7,
     });
+    // The project's page opens its setup steps, the services as its stages (2 Nov 2026).
+    expect(new URLSearchParams(window.location.search).has("configurar")).toBe(true);
   });
 
   it("lets staff mark the proposal declined, after asking", async () => {
     const staffPage = {
       ...PAGE,
+      features: ["proposals" as const],
       staff: {
         project_id: "p-1",
         status: "proposal" as const,
         row_version: 7,
         recipients: [],
-        features: ["proposals" as const],
       },
     };
     const sent = client(staffPage, {
@@ -296,12 +299,12 @@ describe("a project's page while it is a proposal", () => {
   it("offers staff neither when proposals are switched off, though the page still shows it (A40)", async () => {
     const staffPage = {
       ...PAGE,
+      features: [],
       staff: {
         project_id: "p-1",
         status: "proposal" as const,
         row_version: 7,
         recipients: [],
-        features: [],
       },
     };
     client(staffPage, { "GET /api/me": () => ({ body: ME }) });
@@ -342,9 +345,8 @@ describe("an accepted proposal", () => {
       status: "active" as const,
       row_version: 7,
       recipients: [],
-      features: ["proposals" as const],
     };
-    client({ ...PAGE, in_proposal: false, proposal: null, staff });
+    client({ ...PAGE, features: ["proposals" as const], in_proposal: false, proposal: null, staff });
     const bar = await screen.findByRole("navigation", {
       name: "Ferramentas do escritório",
     });
@@ -383,6 +385,13 @@ const GENERATOR: Generator = {
     { title: "Anteprojeto", description: "Planta humanizada." },
     { title: "Imagens renderizadas", description: "Perspectivas." },
   ],
+  project_type: "interiors",
+  stage_about: {
+    briefing: "Conversa inicial.",
+    survey: "Medições do local.",
+    detailing: "Desenhos de marcenaria.",
+    permit_documents: "Projeto para a prefeitura.",
+  },
   office: {
     address: "",
     city: "Joinville",
@@ -405,6 +414,7 @@ const editService = async (title: string) =>
 
 function generator(
   extra: Record<string, (body: unknown) => Reply | Promise<Reply>> = {},
+  at = "/projetos/p-1/proposta",
 ) {
   const sent = fakeApi({
     "GET /api/tenant": () => ({ body: TENANT }),
@@ -416,9 +426,123 @@ function generator(
     }),
     ...extra,
   });
-  const router = renderAt("/projetos/p-1/proposta");
+  const router = renderAt(at);
   return Object.assign(sent, { router });
 }
+
+const TYPES = {
+  types: [
+    {
+      key: "interiors",
+      label: "Projeto de Interiores",
+      stages: ["briefing", "survey", "detailing"],
+      offered: ["briefing", "survey", "detailing"],
+    },
+  ],
+  stages: [
+    { key: "briefing", title: "Briefing" },
+    { key: "survey", title: "Levantamento" },
+    { key: "permit_documents", title: "Projeto Legal" },
+    { key: "detailing", title: "Detalhamentos" },
+  ],
+};
+
+const SAVED = {
+  "POST /api/projects/p-1/proposals": () => ({
+    status: 201,
+    body: { version: 1, created_at: "2026-11-02T12:00:00Z", created_by: "Ana" },
+  }),
+};
+
+/** The services the form saves, once the fee is typed. */
+async function savedServices(sent: { path: string; body?: unknown }[]) {
+  await userEvent.type(screen.getByLabelText(/Valor total/), "29.000,00");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Salvar proposta" }),
+  );
+  await waitFor(() =>
+    expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(true),
+  );
+  return (
+    sent.find((r) => r.path.endsWith("/proposals"))!.body as {
+      services: unknown;
+    }
+  ).services;
+}
+
+describe("a new proposal's services step (2 Nov 2026)", () => {
+  it("opens after Nova proposta with the type's usual stages ticked; those chosen become the services", async () => {
+    const sent = generator(
+      { "GET /api/project-types": () => ({ body: TYPES }), ...SAVED },
+      "/projetos/p-1/proposta?configurar",
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Serviços da proposta",
+    });
+    const ticked = () =>
+      within(dialog)
+        .getAllByRole("checkbox")
+        .filter((box) => (box as HTMLInputElement).checked)
+        .map((box) => box.closest("label")?.textContent);
+    await waitFor(() =>
+      expect(ticked()).toEqual(["Briefing", "Levantamento", "Detalhamentos"]),
+    );
+    await userEvent.click(
+      within(dialog).getByRole("checkbox", { name: "Levantamento" }),
+    );
+    await userEvent.type(
+      within(dialog).getByLabelText(/Outra etapa/),
+      "Imagens renderizadas",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Adicionar etapa" }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Continuar" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // Asked once: the address no longer opens it.
+    expect(sent.router.state.location.search).toBe("");
+    // The office's text for a service of the same name, else the stage's in the type's words.
+    expect(await savedServices(sent)).toEqual([
+      { title: "Briefing", description: "Conversas." },
+      { title: "Detalhamentos", description: "Desenhos de marcenaria." },
+      { title: "Imagens renderizadas", description: "Perspectivas." },
+    ]);
+  });
+
+  it("skipped, keeps the services the proposal opened with", async () => {
+    const sent = generator(
+      { "GET /api/project-types": () => ({ body: TYPES }), ...SAVED },
+      "/projetos/p-1/proposta?configurar",
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Serviços da proposta",
+    });
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Pular" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(await savedServices(sent)).toEqual(GENERATOR.start.services);
+  });
+
+  it("isn't asked again once a version is saved, nor without the address's mark", async () => {
+    const saved = {
+      ...GENERATOR,
+      versions: [
+        { version: 1, created_at: "2026-11-02T12:00:00Z", created_by: "Ana" },
+      ],
+    };
+    generator(
+      { "GET /api/projects/p-1/proposal": () => ({ body: saved }) },
+      "/projetos/p-1/proposta?configurar",
+    );
+    expect(
+      await screen.findByRole("button", { name: "Salvar proposta" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
 
 describe("the proposal generator", () => {
   it("asks for the fee before saving, then saves amounts in centavos", async () => {

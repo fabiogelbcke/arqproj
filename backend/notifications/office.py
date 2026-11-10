@@ -31,7 +31,7 @@ class Office:
     reply_to: str | None
     sender: str
     staff: frozenset[str]  # its staff accounts' addresses
-    whatsapp: bool = False  # client updates by WhatsApp switched on (A40, A44)
+    whatsapp: bool = False  # client updates by WhatsApp switched on (A40, A47)
 
 
 async def office_of(db: AsyncSession, settings: Settings, tenant_id: uuid.UUID) -> Office:

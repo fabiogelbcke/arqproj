@@ -375,11 +375,45 @@ async def test_a_new_proposal_lists_every_stage_a_project_can_be_created_with(cl
     assert saved.status_code == 201, saved.text
 
 
-async def test_a_new_proposal_without_stages_lists_the_offices_services(client, owner):
-    mine = [{"title": "Consultoria", "description": "Uma visita."}]
+async def test_a_new_proposal_without_stages_lists_its_types_usual_stages(client, owner):
+    # Every proposal since 2 Nov 2026 is created without stages: it starts from its
+    # type's, so an interiors proposal and a visualization one start differently.
+    mine = [{"title": "Briefing", "description": "Nossa conversa inicial."}]
     await client.put("/api/proposal-presets", json={"services": mine}, headers=owner)
-    created = await create(client, owner, stages=[], proposal=True)
-    assert await start_of(client, owner, created.json()["id"]) == mine
+    options = (await client.get("/api/project-types", headers=owner)).json()
+    titles = {stage["key"]: stage["title"] for stage in options["stages"]}
+    usual = {kind["key"]: kind["stages"] for kind in options["types"]}
+    firsts = {}
+    for n, kind in enumerate(["interiors", "visualization"]):
+        created = await create(
+            client,
+            owner,
+            name=f"Proposta {n}",
+            slug=f"proposta-{n}",
+            creation_key=f"key-proposta-{n}-0123456789",
+            project_type=kind,
+            stages=[],
+            proposal=True,
+        )
+        firsts[kind] = await start_of(client, owner, created.json()["id"])
+        assert [s["title"] for s in firsts[kind]] == [titles[key] for key in usual[kind]]
+        # The office's text for a service of the same name, else the type's words.
+        assert firsts[kind][0]["description"] == "Nossa conversa inicial."
+        assert all(s["description"] for s in firsts[kind])
+    assert firsts["interiors"] != firsts["visualization"]
+
+
+async def test_the_generator_gives_each_stages_text_for_a_new_proposals_first_step(client, owner):
+    created = await create(client, owner, project_type="visualization", stages=[], proposal=True)
+    found = (
+        await client.get(f"/api/projects/{created.json()['id']}/proposal", headers=owner)
+    ).json()
+    assert found["project_type"] == "visualization"
+    every = (await client.get("/api/project-types", headers=owner)).json()["stages"]
+    assert set(found["stage_about"]) == {stage["key"] for stage in every}
+    # In the type's own words where it has them: the same text its first services use.
+    final = next(s for s in found["start"]["services"] if s["title"] == "Entrega Final")
+    assert found["stage_about"]["final_delivery"] == final["description"]
 
 
 async def test_a_saved_proposal_is_where_the_generator_starts_next(client, db_session, owner):
@@ -550,13 +584,19 @@ async def test_without_the_feature_the_office_api_leaves_out_what_proposals_prin
     assert office["city"] == "Joinville"
 
 
-async def test_the_staff_bar_knows_whether_proposals_are_on(client, db_session, office_owner):
+async def test_the_page_knows_the_office_features(client, db_session, office_owner):
+    """The staff bar's "Proposta" needs `proposals`; a client's page shows its
+    office's features too (the cover band), so anyone's page carries them."""
     await casa_jardim(client)
     page = (await client.get("/api/pages/casa-jardim", headers=office_owner)).json()
-    assert page["staff"]["features"] == []
+    assert page["features"] == []
     await switch_on(db_session)
+    await db_session.execute(
+        text("UPDATE tenants SET features = features || '{cover_band}' WHERE slug = 'alinea'")
+    )
     page = (await client.get("/api/pages/casa-jardim", headers=office_owner)).json()
-    assert page["staff"]["features"] == ["proposals"]
+    assert page["features"] == ["cover_band", "proposals"]
+    assert "features" not in page["staff"]  # the page's, not the staff view's
 
 
 async def test_a_missing_version_says_so(client, owner):

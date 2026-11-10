@@ -12,7 +12,7 @@ Each maintenance pass, for each published project:
 4. One email per address, each with its own idempotency key and recorded as sent,
    so a retry never sends twice. A failure is retried on the next pass.
 5. The same news as one WhatsApp message to each subscribed number, in offices
-   with WhatsApp (A44, whatsapp_updates.py).
+   with WhatsApp (A47, whatsapp_updates.py).
 """
 
 from __future__ import annotations
@@ -190,7 +190,7 @@ async def _visible_files(db: AsyncSession, storage, project: Project) -> dict:
 
 @dataclass(frozen=True)
 class StageNews:
-    """One stage's changes, for messages that word them their own way (A44)."""
+    """One stage's changes, for messages that word them their own way (A47)."""
 
     name: str | None  # its current title; None if the stage was removed meanwhile
     files: int  # new files still on the page

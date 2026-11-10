@@ -41,7 +41,12 @@ from backend.projects.creation import (
     NewProject,
     create_project,
 )
-from backend.projects.enums import AccessMode, DetailKey, ProjectStatus
+from backend.projects.enums import (
+    AccessMode,
+    DetailKey,
+    ProjectStatus,
+    ProjectType,
+)
 from backend.projects.models import (
     STAGE_TITLE_MAX,
     Meeting,
@@ -60,6 +65,7 @@ from backend.storage.models import ReaderStatus, StorageConnection, StorageKind
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
+from backend.web.covers import give_default_cover
 from backend.web.drive import writer_for
 from backend.web.errors import ApiError, ErrorCode, documented
 
@@ -84,7 +90,7 @@ class RecipientOut(BaseModel):
 
 
 class WhatsAppState(StrEnum):
-    """Where a client's number stands, as the painel shows it (A44)."""
+    """Where a client's number stands, as the painel shows it (A47)."""
 
     INVITED = "invited"  # asked, no answer yet: "Aguardando confirmação"
     SUBSCRIBED = "subscribed"
@@ -109,7 +115,10 @@ class ProjectSummary(BaseModel):
     client_name: str
     slug: str
     status: ProjectStatus
+    # What an archived project was, which is what it can go back to; None otherwise.
+    archived_from: ProjectStatus | None = None
     project_type: str
+    # A built-in type's label in the office's language; "Outro"'s name as typed.
     project_type_label: str
     stage_count: int
     completed_stage_count: int  # stages marked as completed, in any order (0032)
@@ -132,7 +141,7 @@ class ProjectSummary(BaseModel):
     responsible: str | None = None
     # Who works on it, by name (A41); empty unless the office has the feature (A40).
     members: list[MemberRef] = []
-    # The client's WhatsApp numbers (A44), in the order they were added; empty
+    # The client's WhatsApp numbers (A47), in the order they were added; empty
     # unless the office has the feature (A40).
     whatsapp: list[WhatsAppOut] = []
 
@@ -147,6 +156,12 @@ class ProjectTypeOption(BaseModel):
     label: str
     # Its usual stages, ticked when it is chosen.
     stages: list[str]
+    # The stages listed when it is chosen, its usual ones among them; the rest stay
+    # behind "Mostrar todas as etapas".
+    offered: list[str]
+    # Not offered for a new choice, but a project that has it still finds its
+    # stages here (A44).
+    hidden: bool = False
 
 
 class CreationOptions(BaseModel):
@@ -159,6 +174,8 @@ class ProjectIn(BaseModel):
     name: str = Field(max_length=500)
     client_name: str = Field(max_length=500)
     project_type: str = Field(max_length=100)
+    # "Outro"'s name (2 Nov 2026); ignored for a built-in type.
+    custom_type: str | None = Field(default=None, max_length=500)
     stages: list[str] = Field(max_length=50)
     # The office's own stages, named as typed: after the built-in ones.
     custom_stages: list[Annotated[str, Field(max_length=STAGE_TITLE_MAX)]] = Field(
@@ -178,6 +195,8 @@ async def summaries(
     db: AsyncSession,
     tenant: CurrentTenant,
     only: uuid.UUID | None = None,
+    *,
+    archived: bool = False,
     settings: Settings | None = None,
 ) -> list[ProjectSummary]:
     """The painel's cards. With `settings`, a WhatsApp number that replied SAIR
@@ -189,12 +208,14 @@ async def summaries(
         .join(ProjectTypeDef, ProjectTypeDef.key == Project.project_type)
         .where(Project.deleted_at.is_(None))
     )
-    # The list leaves archived projects and proposals (their own tab, A42) out; one
-    # asked for by id is returned as is.
+    # The list leaves proposals (their own tab, A42) out, and archived projects
+    # unless asked for them (the portfolio draws on finished work, A45); one asked
+    # for by id is returned as is.
     if only is not None:
         query = query.where(Project.id == only)
     else:
-        query = query.where(Project.status.not_in([ProjectStatus.ARCHIVED, ProjectStatus.PROPOSAL]))
+        left_out = [ProjectStatus.PROPOSAL] + ([] if archived else [ProjectStatus.ARCHIVED])
+        query = query.where(Project.status.not_in(left_out))
     rows = (await db.execute(query)).all()
     ids = [project.id for project, _, _ in rows]
     if not ids:
@@ -305,8 +326,9 @@ async def summaries(
             client_name=project.client_name,
             slug=slug,
             status=project.status,
+            archived_from=project.archived_from,
             project_type=project.project_type,
-            project_type_label=_text(labels, locale),
+            project_type_label=project.custom_type or _text(labels, locale),
             stage_count=counts.get(project.id, 0),
             completed_stage_count=completed.get(project.id, 0),
             current_position=(
@@ -344,11 +366,13 @@ def cover_url(project: Project) -> str | None:
 @router.get("/projects", responses=documented(401))
 async def projects(
     request: Request,
+    archived: bool = False,
     _staff: CurrentStaff = Depends(current_staff),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> list[ProjectSummary]:
-    return await summaries(db, tenant, settings=request.app.state.settings)
+    """The office's projects; with `archived=true`, the archived ones too."""
+    return await summaries(db, tenant, archived=archived, settings=request.app.state.settings)
 
 
 @router.get("/project-types", responses=documented(401))
@@ -357,18 +381,35 @@ async def project_types(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> CreationOptions:
-    stages = list(await db.scalars(select(StageDef).order_by(StageDef.position)))
+    # Hidden stages may not be chosen any more (A44); hidden types are listed,
+    # marked, for the projects that have them, and the screens offer them for no
+    # new choice.
+    stages = list(
+        await db.scalars(select(StageDef).where(~StageDef.hidden).order_by(StageDef.position))
+    )
+    listed: dict[str, set[str]] = {}
     usual: dict[str, set[str]] = {}
-    for kind, stage in await db.execute(
-        select(ProjectTypeStage.project_type, ProjectTypeStage.stage_key)
+    for kind, stage, ticked in await db.execute(
+        select(ProjectTypeStage.project_type, ProjectTypeStage.stage_key, ProjectTypeStage.usual)
     ):
-        usual.setdefault(kind, set()).add(stage)
+        listed.setdefault(kind, set()).add(stage)
+        if ticked:
+            usual.setdefault(kind, set()).add(stage)
+    every = {stage.key for stage in stages}
     return CreationOptions(
         types=[
             ProjectTypeOption(
                 key=kind.key,
                 label=_text(kind.labels, tenant.locale),
                 stages=[stage.key for stage in stages if stage.key in usual.get(kind.key, set())],
+                # "Outro" lists every stage; the others, those set for them.
+                offered=[
+                    stage.key
+                    for stage in stages
+                    if stage.key
+                    in (every if kind.key == ProjectType.OTHER else listed.get(kind.key, set()))
+                ],
+                hidden=kind.hidden,
             )
             for kind in await db.scalars(select(ProjectTypeDef).order_by(ProjectTypeDef.position))
         ],
@@ -409,6 +450,7 @@ async def new_project(
         name=body.name,
         client_name=body.client_name,
         project_type=body.project_type,
+        custom_type=body.custom_type,
         stages=tuple(body.stages),
         slug=body.slug.strip().lower(),
         creation_key=body.creation_key,
@@ -438,4 +480,9 @@ async def new_project(
                 "proposal": body.proposal,
             },
         )
-    return (await summaries(db, tenant, only=project.id))[0]
+    project_id = project.id  # giving the cover expires the loaded rows
+    # Only a project that never had a cover: not a resent creation, even one whose
+    # cover was removed since (removing keeps the `_capa` folder).
+    if project.cover_folder_id is None:
+        await give_default_cover(request, db, tenant, project)
+    return (await summaries(db, tenant, only=project_id))[0]

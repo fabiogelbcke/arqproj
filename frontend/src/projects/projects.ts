@@ -13,8 +13,14 @@ export type NewProject = Schemas["ProjectIn"];
 export const PROJECTS = ["projects"] as const;
 const CREATION_OPTIONS = ["project-types"] as const;
 
-export function useProjects() {
-  return useQuery({ queryKey: PROJECTS, queryFn: () => call(api.GET("/api/projects")) });
+/** The office's projects; with `archived`, the archived ones too (the
+ *  portfolio draws on finished work). */
+export function useProjects(archived = false) {
+  return useQuery({
+    queryKey: archived ? [...PROJECTS, "archived"] : PROJECTS,
+    queryFn: () =>
+      call(archived ? api.GET("/api/projects", { params: { query: { archived: true } } }) : api.GET("/api/projects")),
+  });
 }
 
 /** The project types, each with its usual stages, and every built-in stage in order. */
@@ -80,6 +86,16 @@ export function useUploadCover() {
           },
         }),
       ),
+    onSuccess: store,
+  });
+}
+
+/** One of the bundled photos as the cover (backend/projects/covers). */
+export function useChooseStockCover() {
+  const store = useStoreProject();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      call(api.PUT("/api/projects/{project_id}/cover/stock", { params: { path: { project_id: id } }, body: { name } })),
     onSuccess: store,
   });
 }
@@ -164,11 +180,21 @@ export function projectTypes(
   locale: string,
   name: (key: string, label: string) => string = (_key, label) => label,
 ): { id: string; label: string }[] {
-  const labels = new Map(projects.map((p) => [p.project_type, p.project_type_label]));
+  // The first spelling of an "Outro" name names its chip.
+  const labels = new Map<string, string>();
+  for (const p of projects) if (!labels.has(typeGroup(p))) labels.set(typeGroup(p), p.project_type_label);
   const text = new Intl.Collator(locale, { sensitivity: "base" });
   return [...labels]
     .map(([id, label]) => ({ id, label: name(id, label) }))
     .sort((a, b) => text.compare(a.label, b.label));
+}
+
+/** What a type chip groups by: the type, or for "Outro" its name as typed (case
+ *  aside), so "Maquete" and "Mobiliário" get a chip each. */
+export function typeGroup(project: ProjectSummary): string {
+  return project.project_type === "other"
+    ? `other/${project.project_type_label.toLocaleLowerCase()}`
+    : project.project_type;
 }
 
 export const SORT_KEYS = ["updated", "created", "name", "client", "type"] as const;

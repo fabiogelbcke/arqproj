@@ -170,13 +170,15 @@ class StaffView(BaseModel):
     row_version: int
     # Who gets the project's updates (A32): edit mode says when nobody does.
     recipients: list[RecipientOut] = []
-    # The office's switched-on features (A40): the bar's "Proposta" needs `proposals`.
-    features: list[Feature] = []
 
 
 class PageOut(BaseModel):
     # The project's id: analytics names a project by it, never by its name or address (A39).
     id: uuid.UUID
+    # The office's switched-on features (A40) that change what the page shows, to
+    # anyone: `cover_band` (the opening on a band made from the cover); the staff
+    # bar's "Proposta" needs `proposals`.
+    features: list[Feature] = []
     office: OfficeOut
     locale: Locale
     timezone: str
@@ -203,7 +205,7 @@ class PageOut(BaseModel):
     # when the project never had one).
     proposal: ProposalOut | None = None
     proposal_url: str | None = None
-    # Clients may sign up for WhatsApp updates too (A44): the office has them.
+    # Clients may sign up for WhatsApp updates too (A47): the office has them.
     whatsapp: bool = False
     staff: StaffView | None = None
 
@@ -234,6 +236,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
         # Nothing but the proposal: the work hasn't started (A42).
         return PageOut(
             id=project.id,
+            features=sorted(tenant.features),
             office=await _office(db, tenant),
             locale=locale,
             timezone=tenant.timezone,
@@ -311,12 +314,14 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
     )
     return PageOut(
         id=project.id,
+        features=sorted(tenant.features),
         office=await _office(db, tenant),
         locale=locale,
         timezone=tenant.timezone,
         name=project.name,
         client_name=project.client_name,
-        project_type=_text(type_label, locale),
+        # "Outro"'s name as the office typed it; a built-in type's in the office's language.
+        project_type=project.custom_type or _text(type_label, locale),
         project_type_key=project.project_type,
         description=project.description,
         cover_url=(
@@ -411,7 +416,6 @@ async def page(
     shown = await _page(db, tenant, project, slug)
     if staff is not None:
         shown.staff = StaffView(
-            features=sorted(tenant.features),
             project_id=project.id,
             status=project.status,
             row_version=project.row_version,

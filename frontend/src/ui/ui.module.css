@@ -2,7 +2,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: var(--control-main); padding: 0 var(--control-pad-main); border: 1px solid var(--line-strong); border-radius: var(--r-pill);
   background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-weight: 500; font-size: var(--text-sm);
-  white-space: nowrap; transition: background 0.2s, border-color 0.2s, transform 0.15s var(--ease);
+  white-space: nowrap; text-decoration: none; transition: background 0.2s, border-color 0.2s, transform 0.15s var(--ease);
 }
 .button[data-hovered] { border-color: var(--ink); }
 .button[data-pressed] { transform: scale(0.98); }
@@ -105,7 +105,8 @@
   font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums;
 }
 
-/* TextField's `suffix`: the field's frame holds the input and the fixed text after it. */
+/* TextField's `suffix` and `prefix`: the field's frame holds the input and the fixed
+   text after or before it. */
 .affixed {
   display: flex; min-height: var(--control-main); border: 1px solid var(--line); border-radius: var(--r-field);
   background: var(--raise); overflow: hidden; transition: border-color 0.2s;
@@ -125,6 +126,14 @@
   display: flex; align-items: center; padding: 0 14px; border-left: 1px solid var(--line);
   background: var(--surface); color: var(--muted); white-space: nowrap;
 }
+/* Before what is typed, with no gap, so the two read as one address. On a narrow
+   screen it gives way first, cut at its start ("…unio.app/"), the typed part kept. */
+.prefix {
+  display: flex; align-items: center; flex: 0 1 auto; min-width: 0; max-width: 50%; padding: 0 6px 0 14px;
+  background: var(--surface); color: var(--muted); white-space: nowrap; overflow: hidden;
+  direction: rtl; text-overflow: ellipsis;
+}
+.affixed > .prefix + input { padding-left: 8px; }
 
 /* PasswordField: the eye button and the Caps Lock mark in the input's right edge. */
 .password { position: relative; }
@@ -371,8 +380,9 @@
 .dialogModal[data-entering] { animation: rise 0.3s var(--ease); }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
-.dialog { position: relative; padding: 28px; display: grid; gap: 20px; outline: none; }
-@media (max-width: 480px) { .dialog { padding: 20px; } }
+/* --dialog-pad: what a part reaching the box's edges (a step's buttons) undoes. */
+.dialog { --dialog-pad: 28px; position: relative; padding: var(--dialog-pad); display: grid; gap: 20px; outline: none; }
+@media (max-width: 480px) { .dialog { --dialog-pad: 20px; } }
 .dialogTitle { margin: 0; padding-right: 40px; font-size: 24px; font-weight: 400; letter-spacing: -0.02em; }
 
 /* Panel: a grey rounded panel holding a section (Primeiros passos, each
@@ -459,4 +469,40 @@
 .linkToCopy input {
   flex: 1; min-width: 0; min-height: var(--control-small); padding: 0 10px; border: 1px solid var(--line);
   border-radius: var(--r); background: var(--bg); color: var(--ink); font: 13px/1 ui-monospace, monospace;
+}
+
+/* A before-and-after comparison (BeforeAfter): as wide as there is room, in the
+   "before" image's shape, never taller than --compare-max (the viewer sets it). */
+.compare {
+  --shape: 4 / 3;
+  position: relative; overflow: hidden; margin-inline: auto; aspect-ratio: var(--shape);
+  width: min(100%, calc(var(--compare-max, 70dvh) * var(--shape)));
+  border-radius: var(--r-field, 8px); background: var(--line); cursor: ew-resize;
+  touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+.compareImage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.compareBefore { clip-path: inset(0 calc(100% - var(--at)) 0 0); }
+/* Photos are light and dark: the labels keep their own colours over them. */
+.compareLabel {
+  position: absolute; top: 12px; max-width: 40%; padding: 4px 10px; border-radius: 4px;
+  background: rgb(255 255 255 / 0.88); color: #1d1f22; font-size: var(--text-sm); line-height: 1.4;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none;
+}
+.compareLabel[data-side="before"] { left: 12px; }
+.compareLabel[data-side="after"] { right: 12px; }
+.compareHandle {
+  position: absolute; top: 0; bottom: 0; left: var(--at); width: 0; border-left: 2px solid #fff;
+  box-shadow: 0 0 6px rgb(0 0 0 / 0.35); outline: none;
+}
+.compareHandle svg {
+  position: absolute; top: 50%; left: -1px; width: 44px; height: 44px; padding: 10px;
+  transform: translate(-50%, -50%); border-radius: 50%; background: rgb(255 255 255 / 0.92); color: #1d1f22;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.3);
+}
+/* Its ring goes round the round grip, not down the line. */
+.compareHandle:focus-visible { outline: none; }
+.compareHandle:focus-visible svg { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .compareHandle svg { transition: transform 0.15s var(--ease, ease); }
+  .compare:active .compareHandle svg { transform: translate(-50%, -50%) scale(1.06); }
 }

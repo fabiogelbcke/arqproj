@@ -1,4 +1,4 @@
-// WhatsApp numbers (A44), read as the server reads them (backend/notifications/
+// WhatsApp numbers (A47), read as the server reads them (backend/notifications/
 // whatsapp.py, same cases in phone.cases.json): kept in international digits,
 // shown as people write them.
 

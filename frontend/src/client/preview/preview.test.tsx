@@ -6,6 +6,7 @@ import { fakeApi } from "../../test/render";
 import { PreviewApp, PreviewFrame } from "./PreviewApp";
 import { LIMITS } from "../../api/limits";
 import { CONTROLS, KEYS, readSettings, writeSettings } from "./settings";
+import { extension } from "../FileTools";
 import { previewData } from "./variant";
 import clientEntry from "../main.tsx?raw";
 import previewEntry from "./main.tsx?raw";
@@ -110,7 +111,7 @@ describe("the preview's data", () => {
     // A long name is still its file's kind: a photo's ends in .jpg, a drawing's in .dwg.
     const all = project.stages.flatMap((stage) => stage.groups.flatMap((group) => group.files));
     const usual = data("").project.stages.flatMap((stage) => stage.groups.flatMap((group) => group.files));
-    all.forEach((file, i) => expect(file.name.split(".").pop()).toBe(usual[i]!.name.split(".").pop()));
+    all.forEach((file, i) => expect(extension(file.name)).toBe(extension(usual[i]!.name)));
     expect(project.stages.some((stage) => stage.title.length > 60)).toBe(true);
     expect(data("").project.stages.every((stage) => stage.title.length < 60)).toBe(true);
   });
