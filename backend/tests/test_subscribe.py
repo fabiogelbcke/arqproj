@@ -108,12 +108,17 @@ async def test_a_locked_or_unknown_page_takes_no_sign_ups(client, db_session, se
 
 
 async def test_an_archived_project_takes_no_sign_ups(client, db_session, sent):
+    page = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()
+    assert page["archived"] is False
     await db_session.execute(
         text("UPDATE projects SET status = 'archived', archived_from = 'active' WHERE id = :p"),
         {"p": str(await project_id(db_session, "casa-jardim"))},
     )
     response = await ask(client, "ana@gmail.com")
     assert (response.status_code, response.json()["error"]) == (409, "project_archived")
+    # The page says so, and offers no form that would always fail.
+    page = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()
+    assert page["archived"] is True
 
 
 async def test_a_full_list_takes_no_more(client, db_session, sent):

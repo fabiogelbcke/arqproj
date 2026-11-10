@@ -8068,7 +8068,7 @@
     "/api/pages/{slug}/files/{key}/hide": {
       "post": {
         "summary": "Hide File",
-        "description": "The file stays in Drive, renamed \"_name\", which the page doesn't show.",
+        "description": "The file stays in Drive, renamed \"_name\", which the page doesn't show: every\nversion of its document, so the client doesn't see the one before instead;\nand only if the app may rename all of them, checked before any is renamed\n(as a comparison is hidden).",
         "operationId": "hide_file_api_pages__slug__files__key__hide_post",
         "parameters": [
           {
@@ -11625,6 +11625,11 @@
           "completed": {
             "type": "boolean",
             "title": "Completed"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
           },
           "current_position": {
             "anyOf": [

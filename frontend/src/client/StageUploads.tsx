@@ -33,6 +33,23 @@ const UPLOAD_MAX = UPLOAD_MAX_MB * 1024 * 1024;
 
 // Waits before trying again after a break: about half a minute in all.
 const RETRY_WAITS = [1000, 2000, 4000, 8000, 16000];
+// Files going up at once from one drop; the rest wait their turn, so a drop of
+// dozens neither shares the connection between them all nor opens every upload.
+export const SENDING_AT_ONCE = 3;
+
+/** `work` on each item, at most `limit` at a time, results in the items' order. */
+export async function inTurns<T, R>(items: T[], limit: number, work: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await work(items[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
 
 /** One PUT, reporting how much of its body went (which fetch can't). Resolves
  *  with any answer; rejects only when the connection breaks. */
@@ -239,9 +256,13 @@ export function StageDrop({
     setSending((all) => all.map((item) => (item.id === id ? { ...item, ...change } : item)));
   const [asking, setAsking] = useState<{ match: Match; answer: (answer: Answer) => void } | null>(null);
 
-  const sendOne = async (file: File, versionOf?: string) => {
+  /** Listed at once, waiting its turn at 0%. */
+  const listed = (file: File) => {
     const id = (next.current += 1);
     setSending((all) => [...all, { id, name: file.name, progress: 0 }]);
+    return id;
+  };
+  const sendOne = async (id: number, file: File, versionOf?: string) => {
     try {
       await uploadFile(staff, position, file, (progress) => update(id, { progress }), versionOf, section);
       setSending((all) => all.filter((item) => item.id !== id));
@@ -257,17 +278,24 @@ export function StageDrop({
    *  nothing: it fails on its own when sent. */
   const choose = async (files: File[]) => {
     const names = files.filter((file) => file.size <= UPLOAD_MAX).map((file) => file.name);
-    const found = names.length
-      ? await call(
-          api.POST("/api/projects/{project_id}/stages/{position}/uploads/check", {
-            params: { path: { project_id: staff.project_id, position } },
-            body: { row_version: staff.row_version, names, ...(section ? { folder: section } : {}) },
-          }),
-        )
-      : { matches: [] };
+    // The server takes so many names a check: a large drop asks in batches.
+    const matches: Match[] = [];
+    for (let from = 0; from < names.length; from += LIMITS.uploadCheckNames) {
+      const found = await call(
+        api.POST("/api/projects/{project_id}/stages/{position}/uploads/check", {
+          params: { path: { project_id: staff.project_id, position } },
+          body: {
+            row_version: staff.row_version,
+            names: names.slice(from, from + LIMITS.uploadCheckNames),
+            ...(section ? { folder: section } : {}),
+          },
+        }),
+      );
+      matches.push(...found.matches);
+    }
     const chosen: { file: File; versionOf?: string }[] = [];
     for (const file of files) {
-      const match = file.size <= UPLOAD_MAX && found.matches.find((candidate) => candidate.name === file.name);
+      const match = file.size <= UPLOAD_MAX && matches.find((candidate) => candidate.name === file.name);
       if (!match) {
         chosen.push({ file });
         continue;
@@ -289,8 +317,10 @@ export function StageDrop({
       toastError(failure, { max: UPLOAD_MAX_MB });
       return;
     }
-    const sent = (await Promise.all(chosen.map(({ file, versionOf }) => sendOne(file, versionOf)))).filter(Boolean)
-      .length;
+    const queued = chosen.map(({ file, versionOf }) => ({ id: listed(file), file, versionOf }));
+    const sent = (
+      await inTurns(queued, SENDING_AT_ONCE, ({ id, file, versionOf }) => sendOne(id, file, versionOf))
+    ).filter(Boolean).length;
     if (sent) {
       capture("files_uploaded", { file_count: sent, stage_position: position });
       toast(t("edit.uploaded", { count: sent }));
@@ -468,7 +498,8 @@ export function FileMenu({
   const hide = () =>
     act(
       () => call(api.POST("/api/pages/{slug}/files/{key}/hide", { params: { path } })),
-      t("edit.fileHidden", { name: file.name }),
+      // Every version goes (the server hides the whole document).
+      t(file.older.length ? "edit.fileHiddenVersions" : "edit.fileHidden", { name: file.name }),
     );
   // "Definir como capa": the image, cropped to the cover's shape here, goes up as the
   // cover (a copy: the file stays where it is).

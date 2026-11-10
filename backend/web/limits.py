@@ -1,5 +1,6 @@
 """The longest text staff can enter in each field, how many client addresses a
-project keeps, and how much a share link holds: the limits the server enforces.
+project keeps, how much a share link holds and how many names an upload's version
+check takes: the limits the server enforces.
 
 `make api-types` writes them to `frontend/src/api/limits.json`, which the screens'
 inputs (maxLength) and the preview page read. So a limit changes here, in the
@@ -22,8 +23,9 @@ from backend.proposals.models import SERVICE_DESCRIPTION_MAX, SERVICE_TITLE_MAX
 from backend.shares.models import LABEL_MAX as SHARE_LABEL_MAX
 from backend.web.office import NAME_LIMIT as OFFICE_NAME_LIMIT
 from backend.web.page_edit import DESCRIPTION_MAX, DETAIL_TEXT_MAX, NOTES_MAX
-from backend.web.page_uploads import SECTION_NAME_MAX
+from backend.web.page_uploads import CHECK_NAMES_MAX, SECTION_NAME_MAX
 from backend.web.project_settings import PAGE_PASSWORD_MAX, PAGE_PASSWORD_MIN
+from backend.web.shares import FILES_MAX as SHARE_FILES_MAX
 from backend.web.shares import SIZE_MAX as SHARE_BYTES_MAX
 from backend.web.team import NAME_MAX as STAFF_NAME_MAX
 
@@ -36,6 +38,7 @@ FIELD_LIMITS: dict[str, int] = {
     "stageTitle": STAGE_TITLE_MAX,
     "stageNotes": NOTES_MAX,
     "sectionName": SECTION_NAME_MAX,
+    "uploadCheckNames": CHECK_NAMES_MAX,  # file names one version check takes
     "comparisonTitle": COMPARISON_TITLE_MAX,  # A46
     "comparisonLabel": COMPARISON_LABEL_MAX,
     "detailText": DETAIL_TEXT_MAX,
@@ -49,6 +52,7 @@ FIELD_LIMITS: dict[str, int] = {
     "recipients": RECIPIENTS_MAX,
     "shareLabel": SHARE_LABEL_MAX,
     "shareBytes": SHARE_BYTES_MAX,
+    "shareFiles": SHARE_FILES_MAX,  # a comparison counts as its two images
     # Proposals (A42).
     "proposalClient": proposal.CLIENT_MAX,
     "proposalCity": proposal.CITY_MAX,
