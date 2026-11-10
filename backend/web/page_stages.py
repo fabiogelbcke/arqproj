@@ -79,6 +79,21 @@ async def _title(db: AsyncSession, stage: ProjectStage, locale: Locale) -> str:
     return _text(titles, locale)
 
 
+async def _named_like_another(
+    db: AsyncSession,
+    stages: list[ProjectStage],
+    title: str,
+    locale: Locale,
+    but: ProjectStage | None = None,
+) -> bool:
+    """Whether another of the project's stages has this name, case aside: Drive
+    would hold two folders a person can't tell apart (as at creation)."""
+    for stage in stages:
+        if stage is not but and (await _title(db, stage, locale)).casefold() == title.casefold():
+            return True
+    return False
+
+
 def _folder_name(position: int, title: str) -> str:
     return f"{position:02d} - {title}"
 
@@ -192,6 +207,8 @@ async def add_stage(
         if not title:
             raise ApiError(422, ErrorCode.INVALID_STAGE)
         values = {"title": title}
+    if await _named_like_another(db, stages, title, tenant.locale):
+        raise ApiError(422, ErrorCode.INVALID_STAGE)
     # The Drive connection first: getting it may itself save (an expired grant).
     current = await _project(db, project_id)
     maker = await _maker(request, db, current)
@@ -249,9 +266,12 @@ async def rename_stage(
     title = body.title.strip()
     if not title:
         raise ApiError(422, ErrorCode.INVALID_STAGE)
-    stage = next((s for s in await _stages(db, project_id) if s.position == position), None)
+    stages = await _stages(db, project_id)
+    stage = next((s for s in stages if s.position == position), None)
     if stage is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
+    if await _named_like_another(db, stages, title, tenant.locale, but=stage):
+        raise ApiError(422, ErrorCode.INVALID_STAGE)
     maker = await _maker(request, db, await _project(db, project_id))
     project = await _change(db, project_id, body.row_version)
     old_title = await _title(db, stage, tenant.locale)

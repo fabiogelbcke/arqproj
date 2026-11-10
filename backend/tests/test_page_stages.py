@@ -93,6 +93,22 @@ async def test_renaming_renames_the_folder_and_keeps_the_description(client, own
     assert (folders / "02 - Medição" / "Croqui.pdf").exists()  # files move with it
 
 
+async def test_a_stage_is_never_named_like_another_of_its_project(client, owner, folders):
+    """As when the project is created: Drive would hold two folders a person can't
+    tell apart. Case and spaces aside; a stage may keep its own name re-cased."""
+    before = on_disk(folders)
+    added = await call(client, owner, "POST", "/stages", title=" anteprojeto ")
+    assert (added.status_code, added.json()["error"]) == (422, "invalid_stage")
+    renamed = await call(client, owner, "PATCH", "/stages/2", title="BRIEFING")
+    assert (renamed.status_code, renamed.json()["error"]) == (422, "invalid_stage")
+    assert on_disk(folders) == before
+    await call(client, owner, "POST", "/stages", title="Aprovação")
+    again = await call(client, owner, "PATCH", "/stages/3", title="aprovação")
+    assert (again.status_code, again.json()["error"]) == (422, "invalid_stage")
+    recased = await call(client, owner, "PATCH", "/stages/2", title="CONCEITO")
+    assert recased.status_code == 204, recased.text
+
+
 async def test_moving_a_stage_swaps_folders_and_each_keeps_its_completion(client, owner, folders):
     before = await page(client)  # 01 and 02 completed
     assert (await call(client, owner, "POST", "/stages/3/move", direction=-1)).status_code == 204
