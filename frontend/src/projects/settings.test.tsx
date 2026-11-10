@@ -175,6 +175,39 @@ describe("the Projeto dialog", () => {
     expect(within(dialog).getByLabelText(/Nome do projeto/)).toHaveValue("Casa Jardim II"); // kept
   });
 
+  it("after someone else's change, fetches the list again, so reopening it saves on their version", async () => {
+    let lists = 0;
+    let version = 4;
+    const sent = api({
+      "GET /api/projects": (_body: unknown, query: URLSearchParams) =>
+        query.has("archived")
+          ? { body: [] }
+          : ++lists === 1
+            ? { body: [CASA] }
+            : { body: [{ ...CASA, client_name: "Família Souza", row_version: 7 }] },
+      [`PATCH ${PATH}`]: (body: unknown) =>
+        (body as { row_version: number }).row_version === version
+          ? { body: { ...CASA, ...(body as object), row_version: version + 1 } }
+          : { status: 409, body: { error: "project_changed" } },
+    });
+    version = 7; // a colleague saved meanwhile
+    let dialog = await openSettings();
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), " II");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("alterado por outra pessoa");
+    await waitFor(() => expect(lists).toBe(2)); // the list again, with their change
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Opções do projeto Casa Jardim" }));
+    await userEvent.click(within(await screen.findByRole("menu")).getByRole("menuitem", { name: "Configurações do projeto" }));
+    dialog = await screen.findByRole("dialog", { name: "Projeto" });
+    expect(within(dialog).getByLabelText(/Cliente/)).toHaveValue("Família Souza");
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), " II");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Salvo.")).toBeInTheDocument();
+    expect(sent.filter((r) => r.method === "PATCH").map((r) => (r.body as { row_version: number }).row_version)).toEqual([4, 7]);
+  });
+
   it("stays open while it saves, so a failure is never hidden by closing it", async () => {
     let answer: (reply: { status: number; body: unknown }) => void = () => undefined;
     api({ [`PATCH ${PATH}`]: () => new Promise((resolve) => (answer = resolve)) });
