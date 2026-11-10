@@ -29,7 +29,6 @@ from backend.projects.models import (
 from backend.tenancy.models import Locale, Tenant
 
 TYPE_LABEL_MAX = 40  # a type's name: it fits its button in the creation form
-STAGE_TITLE_MAX = 80  # as an office's own stage (STAGE_TITLE_MAX in projects.models)
 STAGE_ABOUT_MAX = 1000  # as a proposal's service description, which starts from it
 KEY_MAX = 40
 
