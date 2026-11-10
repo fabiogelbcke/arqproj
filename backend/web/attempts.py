@@ -4,13 +4,16 @@ Five wrong passwords from one device (its address) for one project within 15
 minutes, then that device waits 15 minutes from the fifth. Kept in this
 server's memory: Cloud Run runs at most a couple of instances, so a guesser gets
 at most a few more tries; a shared link's password guarded this way is
-proportional to the risk (AGENTS.md).
+proportional to the risk (AGENTS.md). Staff sign-in, Google's returns and
+other limited requests count the same way, each under its own key.
 """
 
 from __future__ import annotations
 
 import time
 from collections import defaultdict
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from fastapi import Request
 
@@ -92,6 +95,37 @@ def failed(project_id: str, who: str, now: float | None = None) -> None:
 def succeeded(project_id: str, who: str) -> None:
     _release((project_id, who))
     _failures.pop((project_id, who), None)
+
+
+class Try:
+    """A try `admit` reserved, being checked: end it with `failed` or `succeeded`."""
+
+    def __init__(self, project_id: str, who: str) -> None:
+        self.key = (project_id, who)
+        self.ended = False
+
+    def failed(self) -> None:
+        if not self.ended:
+            self.ended = True
+            failed(*self.key)
+
+    def succeeded(self) -> None:
+        if not self.ended:
+            self.ended = True
+            succeeded(*self.key)
+
+
+@contextmanager
+def trying(project_id: str, who: str) -> Iterator[Try]:
+    """Around the check of a try `admit` reserved. A try the block leaves unended
+    (an unexpected error, a cancelled request) counts as failed: it is never left
+    reserved, which would shrink the device's tries for good, and an error is
+    never a free guess."""
+    attempt = Try(project_id, who)
+    try:
+        yield attempt
+    finally:
+        attempt.failed()  # nothing if it ended already
 
 
 def reset() -> None:

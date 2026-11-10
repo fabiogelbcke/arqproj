@@ -489,17 +489,14 @@ async def unlock(
     who, key = attempts.device(request), str(project.id)
     if not attempts.admit(key, who):  # reserved before the (slow) hash check
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS, headers=challenge)
-    try:
-        right = await verify_password(project.password_hash, body.password)
-    except BaseException:
-        attempts.failed(key, who)  # a try that didn't finish still counts
-        raise
-    if not right:
-        attempts.failed(key, who)
-        log.info("wrong page password for %s", slug)
-        capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": False})
-        raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD, headers=challenge)
-    attempts.succeeded(key, who)
+    await db.commit()  # the connection goes back while the password is checked
+    with attempts.trying(key, who) as attempt:  # a try that didn't finish still counts
+        if not await verify_password(project.password_hash, body.password):
+            attempt.failed()
+            log.info("wrong page password for %s", slug)
+            capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": False})
+            raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD, headers=challenge)
+        attempt.succeeded()
     capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": True})
     token = keys.sign(
         request.app.state.settings.app_secret,

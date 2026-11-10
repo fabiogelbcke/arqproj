@@ -13,7 +13,7 @@ from backend.identity.models import Role
 from backend.operators.google_signin import GoogleSignIn, Identity, SignInError, challenge
 from backend.security import keys
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as, tenant_id
-from backend.web import attempts, google_signin
+from backend.web import attempts, auth, google_signin
 
 pytestmark = pytest.mark.anyio
 
@@ -137,21 +137,99 @@ async def test_googles_failure_is_logged_and_said_only_to_have_failed(client, go
     assert "token endpoint 500: detail" in caplog.text
 
 
-async def test_google_confirms_a_pending_sign_ups_email(client, google, db_session):
+async def _joined_as(client, db_session, email="caio@gmail.com", password="a good password"):
+    """Someone joined through the office's shared link with this address (A36):
+    signed in, unconfirmed. The browser's session cookie, then signed out here."""
     t = await tenant_id(db_session, "alinea")
     await db_session.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(t)})
     await accounts.create_user(
-        db_session,
-        email="caio@gmail.com",
-        name="Caio",
-        password="a good password",
-        email_confirmed=False,
+        db_session, email=email, name="Caio", password=password, email_confirmed=False
     )
+    joined = await client.post(
+        "/api/session", json={"email": email, "password": password}, headers=ALINEA
+    )
+    assert (joined.status_code, joined.json()["email_confirmed"]) == (200, False)
+    cookie = client.cookies.get(auth.COOKIE)
+    client.cookies.clear()
+    return cookie
+
+
+async def test_google_confirms_a_pending_sign_ups_email(client, google, db_session):
+    await _joined_as(client, db_session)
     google["identity"] = Identity("caio@gmail.com", "Caio")
     query = await start(client)
     await returned(client, query)
     me = (await client.get("/api/me", headers=ALINEA)).json()
     assert (me["email"], me["email_confirmed"]) == ("caio@gmail.com", True)
+
+
+async def test_google_confirming_a_sign_up_keeps_nothing_its_maker_chose(
+    client, google, db_session
+):
+    """Anyone holding the shared link can sign up with a colleague's address. When
+    the colleague then proves it with Google, the one who signed up must not end up
+    with a working account: their session ends and their password stops working."""
+    joiners_cookie = await _joined_as(client, db_session)
+    google["identity"] = Identity("caio@gmail.com", "Caio")
+    await returned(client, await start(client))
+    real_caio = client.cookies.get(auth.COOKIE)
+    assert (await client.get("/api/team", headers=ALINEA)).status_code == 200
+
+    client.cookies.clear()
+    client.cookies.set(auth.COOKIE, joiners_cookie)
+    assert (await client.get("/api/me", headers=ALINEA)).status_code == 401
+    client.cookies.clear()
+    password = await client.post(
+        "/api/session",
+        json={"email": "caio@gmail.com", "password": "a good password"},
+        headers=ALINEA,
+    )
+    assert (password.status_code, password.json()) == (401, {"error": "invalid_credentials"})
+
+    # The address's owner carries on, and is a member like any other: not shown as
+    # an invite (which could be cancelled) and let in by Google again.
+    client.cookies.set(auth.COOKIE, real_caio)
+    team = (await client.get("/api/team", headers=ALINEA)).json()["members"]
+    assert {m["email"]: m["status"] for m in team}["caio@gmail.com"] == "active"
+    client.cookies.clear()
+    again = await returned(client, await start(client))
+    assert again.headers["location"] == "/painel/"
+
+
+async def test_google_ends_no_sign_in_of_a_confirmed_account(client, google, db_session):
+    """Signing in with Google on one device leaves the account's password and its
+    other devices alone."""
+    elsewhere = await client.post(
+        "/api/session", json={"email": ANA, "password": "a good password"}, headers=ALINEA
+    )
+    assert elsewhere.status_code == 200
+    other_device = client.cookies.get(auth.COOKIE)
+    client.cookies.clear()
+    await returned(client, await start(client))
+    assert (await client.get("/api/me", headers=ALINEA)).status_code == 200
+    client.cookies.clear()
+    client.cookies.set(auth.COOKIE, other_device)
+    assert (await client.get("/api/me", headers=ALINEA)).status_code == 200
+    client.cookies.clear()
+    again = await client.post(
+        "/api/session", json={"email": ANA, "password": "a good password"}, headers=ALINEA
+    )
+    assert again.status_code == 200
+
+
+async def test_an_unexpected_failure_at_google_still_counts_as_a_try(client, google, monkeypatch):
+    """The try reserved before asking Google ends however the exchange ends: an
+    error is no free try, and doesn't keep the device waiting for good."""
+    clock = [1000.0]
+    monkeypatch.setattr(attempts.time, "monotonic", lambda: clock[0])
+    google["identity"] = RuntimeError("unexpected")
+    for _ in range(attempts.LIMIT):
+        assert (await returned(client, await start(client))).status_code == 500
+    google["identity"] = Identity(ANA, "Ana")
+    blocked = await returned(client, await start(client))
+    assert blocked.headers["location"].startswith("/painel/entrar?google=tentativas&ref=")
+    clock[0] += attempts.WINDOW_SECONDS + 1
+    assert (await returned(client, await start(client))).headers["location"] == "/painel/"
 
 
 async def test_not_configured_says_so_without_detail(app, client, google):

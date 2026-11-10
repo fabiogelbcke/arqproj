@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.identity.emails import tidy_email
 from backend.identity.models import LoginSession, Role, User
-from backend.identity.passwords import hash_password
+from backend.identity.passwords import NO_PASSWORD, hash_password
 
 MIN_PASSWORD_LENGTH = 8
 # One change to an account's email confirmation at a time: a code, a link, or a
@@ -107,10 +107,26 @@ async def confirm_email(session: AsyncSession, user: User) -> None:
         await session.refresh(user, ["email_confirmed_at"])
 
 
+async def confirm_by_google(session: AsyncSession, user: User) -> None:
+    """Google has shown the address is theirs, but not that they made the account:
+    anyone holding the office's shared link can sign up with a colleague's address
+    (A36). So an unconfirmed account confirmed this way keeps nothing its sign-up
+    chose: every sign-in ends and its password stops working ("Esqueceu a senha?"
+    sets a new one). A confirmed account is only signed in."""
+    if user.email_confirmed_at is None:
+        user.password_hash = NO_PASSWORD
+        await _end_sign_ins(session, user)
+        await confirm_email(session, user)
+
+
 async def set_password(session: AsyncSession, user: User, password_hash: str) -> None:
     """Store a hash from `new_password_hash`."""
     user.password_hash = password_hash
     # A new password ends every existing sign-in (e.g. after a stolen cookie).
+    await _end_sign_ins(session, user)
+
+
+async def _end_sign_ins(session: AsyncSession, user: User) -> None:
     await session.execute(
         update(LoginSession)
         .where(LoginSession.user_id == user.id, LoginSession.revoked_at.is_(None))
