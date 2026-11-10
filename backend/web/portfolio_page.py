@@ -58,6 +58,7 @@ from backend.web.portfolio import (
     entries_with_photos,
     links,
     photo_url,
+    sections,
     video_url,
     videos_by_entry,
 )
@@ -78,6 +79,8 @@ REDIRECT_HEADERS = {"Cache-Control": f"public, max-age={REDIRECT_MAX_AGE}"}
 PUBLISHED = {**HEADERS, "Cache-Control": "public, max-age=60"}
 Works = list[tuple[PortfolioEntry, list[PortfolioPhoto]]]
 Label = Callable[[PortfolioEntry], str]
+# Each section, in the office's order: its slug in the address and its public name.
+Menu = dict[uuid.UUID, tuple[str, str | None]]
 PREVIEW = {**HEADERS, "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex"}
 
 
@@ -243,18 +246,27 @@ async def _page(request: Request) -> Response | None:
             chosen = next((work for work in works if work[0].id == wanted_id), None)
         videos = (await videos_by_entry(db)).get(chosen[0].id, []) if chosen else []
         sheet = (await details_by_entry(db, tenant.locale)).get(chosen[0].id, []) if chosen else []
-        kinds = list(await db.scalars(select(ProjectTypeDef).order_by(ProjectTypeDef.position)))
+        kinds = list(await db.scalars(select(ProjectTypeDef)))
+        found_sections = await sections(db)
     types = _type_labels(kinds, tenant.locale)
+    # The menu: the office's sections in its order, each by its public name.
+    menu = {
+        section.id: (
+            section.slug,
+            section.label if section.label is not None else types.get(section.project_type or ""),
+        )
+        for section in found_sections
+    }
     document = _document(
-        tenant, office, found, works, chosen, videos, sheet, types, preview, request, pairs
+        tenant, office, found, works, chosen, videos, sheet, menu, preview, request, pairs
     )
     return HTMLResponse(document, headers=PREVIEW if preview else PUBLISHED)
 
 
 def _type_labels(kinds: list[ProjectTypeDef], locale: Locale) -> dict[str, str]:
-    """The public label of each of the site's project types, in the dashboard's
-    order: a short word for the built-in ones ("Arquitetura", not "Projeto
-    Arquitetônico"), a type the operator added by its own name (A44)."""
+    """The public label of each of the site's project types: a short word for
+    the built-in ones ("Arquitetura", not "Projeto Arquitetônico"), a type the
+    operator added by its own name (A44)."""
     short = _texts(locale)["types"]
 
     def own(kind: ProjectTypeDef) -> str:
@@ -271,12 +283,12 @@ def _document(
     chosen: tuple[PortfolioEntry, list[PortfolioPhoto]] | None,
     videos: list[PortfolioVideo],
     sheet: list[SheetLineOut],
-    types: dict[str, str],
+    menu: Menu,
     preview: bool,
     request: Request,
     pairs: dict | None = None,
 ) -> str:
-    t = {**_texts(tenant.locale), "types": types}
+    t = _texts(tenant.locale)
     pairs = pairs or {}
     deployed = request.app.state.settings.deployed
     intro = found.intro if found else ""
@@ -289,7 +301,12 @@ def _document(
         return f"/?projeto={entry.id}" + (f"&amp;{keep}" if keep else "")
 
     def kind(entry: PortfolioEntry) -> str:
-        return types.get(entry.project_type or "", "")
+        """The piece's section's name, or nothing."""
+        return (menu.get(entry.section_id) or ("", ""))[1] or ""
+
+    def named(entry: PortfolioEntry) -> str:
+        """Its title; a piece without one is named by its section, or "Projeto"."""
+        return entry.title or kind(entry) or t["work"]
 
     light, dark = logo_urls(office)
     if light:
@@ -302,7 +319,7 @@ def _document(
 
     if chosen:
         entry, photos = chosen
-        title = f"{escape(entry.title)} · {name}"
+        title = f"{escape(named(entry))} · {name}"
         description = entry.description or intro
         # Type, place and year are on the cover, with the title; the sheet below
         # it: its lines in the office's order.
@@ -320,12 +337,14 @@ def _document(
                 f'<a class="following" href="{link(upcoming)}">'
                 f'<img src="{photo_url(upcoming_photos[0])}?size=card" alt="" loading="lazy">'
                 f'<span><span class="label">{escape(t["nextWork"])}</span>'
-                f'<span class="title">{_title(upcoming.title)}</span></span></a>'
+                f'<span class="title">{_title(named(upcoming))}</span></span></a>'
             )
         back = f'<a class="back" href="{home}#projetos">← {escape(t["back"])}</a>'
+        # The section's name, the title (the heading, when there is one: a piece
+        # needs none) and the place and year.
         heading = (
             (f'<p class="label">{escape(kind(entry))}</p>' if kind(entry) else "")
-            + f"<h1>{_title(entry.title)}</h1>"
+            + (f"<h1>{_title(entry.title)}</h1>" if entry.title else "")
             + (f'<p class="meta">{escape(_meta(entry))}</p>' if _meta(entry) else "")
         )
         about = _about(t, facts, entry.description, entry.credits)
@@ -351,7 +370,7 @@ def _document(
         description = intro
         # The works first, the office's words after them, and the layer the
         # script opens a work in (empty until then).
-        main = _works(t, works, link, kind, keep, request.query_params.get("tipo"), mosaic)
+        main = _works(t, works, link, menu, keep, request.query_params.get("tipo"), mosaic)
         if intro.strip():
             main += (
                 f'<section class="intro wrap" id="escritorio">'
@@ -596,19 +615,34 @@ def _lightbox(t: dict, label: str) -> str:
     )
 
 
+STACK = (
+    '<svg class="stack" viewBox="0 0 16 16" aria-hidden="true">'
+    '<rect x="5" y="1.5" width="9.5" height="9.5" rx="1.5" fill="none" stroke="currentColor" '
+    'stroke-width="1.6"/>'
+    '<rect x="1.5" y="5" width="9.5" height="9.5" rx="1.5" fill="currentColor"/>'
+    "</svg>"
+)
+
+
 def _works(
-    t: dict, works: Works, link: Label, kind: Label, keep: str, wanted: str | None, mosaic: bool
+    t: dict, works: Works, link: Label, menu: Menu, keep: str, wanted: str | None, mosaic: bool
 ) -> str:
-    """The works under the menu of types: a grid of covers cropped to one frame,
-    or, in the mosaic format, every cover in its own shape, each with only its
-    title, shown over the cover under the pointer (the stylesheet). Every work
-    is in the page, those of other types hidden, so the menu switches types in
-    place (`portfolio.js`); without the script its links reload the page."""
+    """The pieces under the menu of sections: a grid of covers cropped to one
+    frame, or, in the mosaic format, every cover in its own shape, each with
+    only its title, if it has one, shown over the cover under the pointer (the
+    stylesheet), and a stack mark when it holds several images. Every piece is
+    in the page, those of other sections hidden, so the menu switches sections
+    in place (`portfolio.js`); without the script its links reload the page."""
     if not works:
         return f'<p class="empty wrap">{escape(t["empty"])}</p>'
-    present = [key for key in t["types"] if any(e.project_type == key for e, _ in works)]
-    wanted = wanted if wanted in present else None
-    menu = ""
+
+    def slug(entry: PortfolioEntry) -> str:
+        return (menu.get(entry.section_id) or ("", ""))[0]
+
+    used = {slug(entry) for entry, _ in works}
+    present = [(key, label) for key, label in menu.values() if key in used and label]
+    wanted = wanted if any(key == wanted for key, _ in present) else None
+    nav = ""
     if len(present) > 1:
         extra = f"&amp;{keep}" if keep else ""
 
@@ -617,10 +651,10 @@ def _works(
             current = ' aria-current="page"' if key == wanted else ""
             return f'<li><a href="{href}"{current}>{escape(label)}</a></li>'
 
-        menu = (
+        nav = (
             f'<nav class="types" aria-label="{escape(t["menu"])}"><ul>'
             + item(None, t["all"])
-            + "".join(item(key, t["types"][key]) for key in present)
+            + "".join(item(key, label) for key, label in present)
             + "</ul></nav>"
         )
 
@@ -636,15 +670,24 @@ def _works(
             + "</span>"
         )
 
+    def label(entry: PortfolioEntry) -> str:
+        """A link's name for a screen reader where no title gives it one."""
+        if entry.title:
+            return ""
+        name = (menu.get(entry.section_id) or ("", ""))[1] or t["work"]
+        return f' aria-label="{escape(name)}"'
+
     cards = "".join(
-        f"<li{'' if wanted in (None, entry.project_type) else ' hidden'} "
-        f'data-type="{escape(entry.project_type or "")}">'
-        f'<a href="{link(entry)}">{cover(photos[0])}'
-        f'<span class="title">{_title(entry.title)}</span></a></li>'
+        f"<li{'' if wanted in (None, slug(entry)) else ' hidden'} "
+        f'data-type="{escape(slug(entry))}">'
+        f'<a href="{link(entry)}"{label(entry)}>{cover(photos[0])}'
+        + (STACK if len(photos) > 1 else "")
+        + (f'<span class="title">{_title(entry.title)}</span>' if entry.title else "")
+        + "</a></li>"
         for entry, photos in works
     )
     return (
         f'<section class="projects wrap" id="projetos" aria-labelledby="works">'
-        f'<h2 id="works" class="sr-only">{escape(t["works"])}</h2>{menu}'
+        f'<h2 id="works" class="sr-only">{escape(t["works"])}</h2>{nav}'
         f'<ul class="{"mosaic" if mosaic else "works"}">{cards}</ul></section>'
     )

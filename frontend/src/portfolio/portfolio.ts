@@ -8,6 +8,8 @@ import { COVER_OUTPUT, cropToFile, loadImage } from "../ui/imageCrop";
 
 export type Portfolio = Schemas["PortfolioOut"];
 export type Entry = Schemas["EntryOut"];
+/** A section of the tab and an item of the public page's menu: a site type's, or the office's own. */
+export type Section = Schemas["SectionOut"];
 /** A line of a work's sheet: a built-in detail (its `key`) or one with the office's own label. */
 export type SheetLine = Schemas["SheetLineOut"];
 export type DetailType = Schemas["DetailTypeOut"];
@@ -23,10 +25,11 @@ export const LIMITS = {
   title: 80,
   place: 80,
   description: 2000,
-  entries: 60,
-  photos: 30,
+  entries: 3000, // pieces: no practical limit, only a stop to a runaway
+  photos: 100, // images in one project
   credits: 120,
   label: 40,
+  section: 40, // an own section's name
   details: 20, // lines of a work's sheet
   detail: 200, // a text value: room for a team's names
   link: 300,
@@ -125,6 +128,59 @@ export const useRemoveEntry = () =>
 
 export const useOrderEntries = () =>
   useChange((entries: string[]) => call(api.PUT("/api/portfolio/order", { body: { entries } })));
+
+/** A section to add: one of the site's types, or a name of the office's own. */
+export type NewSection = { project_type?: string | null; label?: string | null };
+
+export const useAddSection = () =>
+  useChange((body: NewSection) => call(api.POST("/api/portfolio/sections", { body })));
+
+export const useRenameSection = () =>
+  useChange(({ id, label }: { id: string; label: string }) =>
+    call(api.PATCH("/api/portfolio/sections/{section_id}", { params: { path: { section_id: id } }, body: { label } })),
+  );
+
+export const useRemoveSection = () =>
+  useChange((id: string) =>
+    call(api.DELETE("/api/portfolio/sections/{section_id}", { params: { path: { section_id: id } } })),
+  );
+
+export const useOrderSections = () =>
+  useChange((sections: string[]) => call(api.PUT("/api/portfolio/sections/order", { body: { sections } })));
+
+/** Grouping: the other pieces' images join `into`, after its own, and those pieces go. */
+export const useMergeEntries = () =>
+  useChange(({ into, entries }: { into: string; entries: string[] }) =>
+    call(api.POST("/api/portfolio/entries/{entry_id}/merge", { params: { path: { entry_id: into } }, body: { entries } })),
+  );
+
+/** Ungrouping: every image after the first becomes a piece of its own, right after it. */
+export const useSplitEntry = () =>
+  useChange((id: string) =>
+    call(api.POST("/api/portfolio/entries/{entry_id}/split", { params: { path: { entry_id: id } } })),
+  );
+
+/** A photo as a piece of its own, first in its section. */
+export const useAddLoosePhoto = () =>
+  useChange(({ file, section, title }: { file: File; section: string | null; title: string }) =>
+    call(
+      api.POST("/api/portfolio/photos", {
+        // OpenAPI describes an uploaded file as a binary string; it is the File.
+        body: { file: file as unknown as string, section_id: section, title },
+        bodySerializer: () => {
+          const form = new FormData();
+          form.append("file", file, file.name);
+          if (section) form.append("section_id", section);
+          if (title) form.append("title", title);
+          return form;
+        },
+      }),
+    ),
+  );
+
+/** What reads as a project: a piece of several images, one with videos, or one
+ *  still waiting for its photos; a single photo is a photo, captioned or not. */
+export const isProject = (entry: Entry) => entry.photos.length !== 1 || entry.videos.length > 0;
 
 /** "Antes e depois" (A46): a photo, the "before", with another of the work's
  *  photos as its "after"; `after: null` undoes it. */
