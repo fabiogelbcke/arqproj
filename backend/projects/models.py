@@ -380,3 +380,7 @@ class Meeting(IdMixin, TimestampsMixin, TenantOwned, Base):
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     location: Mapped[str | None] = mapped_column(Text)
     link: Mapped[str | None] = mapped_column(Text)
+    # The start each reminder was sent for (A48): once per meeting time, so a
+    # meeting moved is reminded again.
+    reminded_day_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reminded_soon_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

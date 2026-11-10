@@ -40,6 +40,10 @@ UPDATE_TEMPLATE = "unio_atualizacao"  # button: "Abrir o projeto"
 UPDATE_MEETING_TEMPLATE = "unio_atualizacao_reuniao"
 WELCOME_TEMPLATE = "unio_boas_vindas"
 INVITE_TEMPLATE = "unio_convite"
+# Meeting reminders (A48): the day's ("Abrir o projeto"), and before a video
+# meeting ("Entrar na reunião").
+REMINDER_TEMPLATE = "unio_lembrete_reuniao"
+REMINDER_VIDEO_TEMPLATE = "unio_lembrete_video"
 LANGUAGES = {Locale.PT_BR: "pt_BR", Locale.EN: "en"}
 PHONE_MAX = 40  # a number as typed, with its spaces and punctuation
 # Meta's error for a number that has no WhatsApp.
@@ -130,7 +134,8 @@ def param(text: str) -> str:
 @dataclass(frozen=True)
 class Token:
     # "yes" or "no" (the question's buttons), "sent" (a message's status): about
-    # a number's row; "page" or "agenda" (a link button): about a project.
+    # a number's row; "page" or "agenda" (a link button): about a project;
+    # "join" (a reminder's button, A48): about a meeting.
     action: str
     tenant_id: uuid.UUID
     recipient_id: uuid.UUID
@@ -155,14 +160,15 @@ def read_token(settings: Settings, value: str) -> Token | None:
         return None
 
 
-def short_link(settings: Settings, action: str, tenant_id: uuid.UUID, project_id: uuid.UUID) -> str:
-    """A link button's address: Unio's own, whichever office it is about."""
+def short_link(settings: Settings, action: str, tenant_id: uuid.UUID, item_id: uuid.UUID) -> str:
+    """A link button's address: Unio's own, whichever office it is about. The
+    item is the project, or for "join" the meeting."""
     origin = (
         f"https://{settings.operator_host}"
         if settings.deployed
         else f"http://localhost:{settings.local_site_port}"
     )
-    return f"{origin}{LINK_PATH}{token(settings, action, tenant_id, project_id)}"
+    return f"{origin}{LINK_PATH}{token(settings, action, tenant_id, item_id)}"
 
 
 # -- sending --------------------------------------------------------------------------

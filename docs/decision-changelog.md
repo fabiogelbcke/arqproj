@@ -19,6 +19,30 @@ a new entry too.
 
 ---
 
+## 2026-11-10 — A48: meeting reminders; A12's windows and A47's resend become settings
+
+**Was:** clients heard of a meeting only when it was scheduled or changed, in
+that batch's email or WhatsApp message. The quiet period and the maximum hold
+were fixed in the code at 45 minutes and 2 hours (A12 said "configurable per
+office", never built), as was the 3 days before an unanswered WhatsApp question
+is asked again (A47), and every kind of news went by WhatsApp.
+
+**Now:** reminders by email and WhatsApp on the meeting's day at 8:30, at 18:00
+the evening before for a meeting starting before 9:30, and 30 minutes before a
+video meeting with an "Entrar na reunião" button. These times, the batching
+windows, the resend wait and which news goes by WhatsApp are one Unio-wide
+setting in the operator dashboard's "Configurações" → "Avisos".
+
+**Why:** Fabio asked for reminders (9 Nov 2026): 8:30 for both kinds, plus 30
+minutes before for video. "Before 8:30 → evening before" was Claude's, widened
+to "less than an hour after 8:30" while building: the pass runs every 10
+minutes, so a meeting at 8:40 would otherwise be reminded at its start or after
+it. Fabio asked for the times to be changeable from the admin panel without
+Meta's approval, which covers only the templates' fixed text. Unio-wide, not
+per office: one place to tune during the pilot; per office can follow.
+
+---
+
 ## 2026-11-10 — A47: a choice made after SAIR counts for its project only
 
 **Was:** signing up again on a project page, or tapping "Quero receber", lifted

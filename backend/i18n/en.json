@@ -371,6 +371,7 @@
     "wrong_share_password": "Wrong password. Check with whoever sent the link.",
     "operator_action_conflict": "Could not complete this action. Check the address, office status and confirmation.",
     "invalid_setting_text": "Check the texts: the Portuguese name is required, and no text may exceed its limit.",
+    "invalid_notice_settings": "Check the values: each must be within its limits, the longest wait can't be shorter than the quiet period, and the evening reminder must come after the morning one.",
     "setting_name_taken": "Another item already has that Portuguese name. Choose another name.",
     "setting_not_found": "The list changed while you were editing. Reload the page and try again.",
     "operator_action_failed": "Could not complete this action. Try again and contact support with the code if it continues.",
@@ -825,6 +826,17 @@
     "weekday5": "Saturday",
     "weekday6": "Sunday"
   },
+  "reminders": {
+    "today": "today at {{time}}",
+    "tomorrow": "tomorrow at {{time}}",
+    "subject": "Reminder: {{title}}, {{when}}",
+    "emailDay": "Reminder: the meeting “{{title}}” on the project {{project}} is {{when}}.",
+    "emailSoon": "The meeting “{{title}}” on the project {{project}} starts at {{when}}.",
+    "where": "Where: {{location}}",
+    "join": "Join the meeting",
+    "whatsappDay": "Hello! A reminder of the meeting {{title}} on the project {{project}}, from {{office}}: {{when}}.",
+    "whatsappSoon": "Hello! The meeting {{title}} on the project {{project}}, from {{office}}, starts at {{when}}."
+  },
   "compare": {
     "before": "Before",
     "after": "After",
@@ -1235,6 +1247,7 @@
         "cancel": "Go back and review"
       }
     },
+    "notices": {"title": "Notices", "intro": "When clients get project updates and meeting reminders, by email and on WhatsApp.", "everywhere": "These values apply to every office, from the next check, within 10 minutes.", "between": "Between {{least}} and {{most}}.", "updates": "Updates", "quiet": "Quiet time before sending (minutes)", "quietHint": "The update goes once the project has had no news for this long, so files sent one after another make one notice.", "hold": "Longest wait (minutes)", "holdHint": "Even with news coming in, the update goes this long after the first. It can't be shorter than the quiet time.", "reminders": "Meeting reminders", "morning": "Reminder on the meeting's day", "morningHint": "In the office's time zone.", "evening": "Reminder the evening before", "eveningHint": "For meetings starting less than an hour after the day's reminder. It must come after the day's reminder.", "before": "Reminder before video meetings (minutes)", "beforeHint": "With the “Join the meeting” button.", "whatsapp": "WhatsApp", "askAgain": "Ask again those who didn't answer, after (days)", "askAgainHint": "For numbers the team added: the question is asked again only once.", "news": "What goes by WhatsApp", "newsHint": "Email still carries everything. An update with none of these sends no message. The messages' wording is approved by Meta and doesn't change here.", "kind": {"files": "New files", "stages": "Stages completed or reopened", "project": "Project completed", "meetings": "Meetings scheduled, changed or cancelled", "reminders": "Meeting reminders"}},
     "title": "Unio operations",
     "features": "Features in testing",
     "featuresHint": "Features already released, but switched on only for the offices chosen here. Others don't see them.",
