@@ -289,15 +289,22 @@ async def sign_in(
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
     with attempts.trying(key, who) as attempt:
         user = await accounts.find_user(db, body.email)
+        checked = user.password_hash if user else None
         # Hand the database connection back before the slow part (a queued password
         # check, then the delay), so failed attempts cannot hold the whole pool.
         await db.commit()
         # Same work and the same answer whether the email or the password is wrong.
-        if not await verify_password(user.password_hash if user else None, body.password):
+        if not await verify_password(checked, body.password):
             attempt.failed()
             await anyio.sleep(FAILED_LOGIN_DELAY)
             raise ApiError(401, ErrorCode.INVALID_CREDENTIALS)
         attempt.succeeded()
+    # Checked with no lock held: the password may have been replaced or taken away
+    # meanwhile (a reset, Google confirming a sign-up, which ends every session).
+    # Under the account's lock until the session is made, it must still be the one.
+    user = await accounts.password_still(db, user.id, checked)
+    if user is None:
+        raise ApiError(401, ErrorCode.INVALID_CREDENTIALS)
     return await signed_in(request, response, tenant, db, user)
 
 

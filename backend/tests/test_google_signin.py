@@ -10,6 +10,7 @@ from sqlalchemy import text
 from backend.commands.seed import seed
 from backend.identity import accounts
 from backend.identity.models import Role
+from backend.identity.passwords import hash_password
 from backend.operators.google_signin import GoogleSignIn, Identity, SignInError, challenge
 from backend.security import keys
 from backend.tests.test_office import ALINEA, NORTE, sign_in_as, tenant_id
@@ -199,6 +200,42 @@ async def test_google_confirming_a_sign_up_keeps_nothing_its_maker_chose(
     client.cookies.clear()
     again = await returned(client, await start(client))
     assert again.headers["location"] == "/painel/"
+
+
+@pytest.mark.parametrize("meanwhile", ["google", "reset"])
+async def test_a_password_sign_in_overtaken_meanwhile_gets_no_session(
+    client, google, db_session, monkeypatch, meanwhile
+):
+    """The password is checked with no lock held. If the owner confirms the address
+    with Google (or a reset sets a new password) while the joiner's sign-in is
+    being checked, that sign-in must not start a session afterwards."""
+    await _joined_as(client, db_session)
+    real_verify = auth.verify_password
+
+    async def overtaken(stored, password):
+        right = await real_verify(stored, password)
+        user = await accounts.find_user(db_session, "caio@gmail.com")
+        if meanwhile == "google":
+            await accounts.confirm_by_google(db_session, user)
+        else:
+            await accounts.set_password(db_session, user, await hash_password("chosen by Caio"))
+        await db_session.commit()
+        return right
+
+    monkeypatch.setattr(auth, "verify_password", overtaken)
+    late = await client.post(
+        "/api/session",
+        json={"email": "caio@gmail.com", "password": "a good password"},
+        headers=ALINEA,
+    )
+    assert (late.status_code, late.json()) == (401, {"error": "invalid_credentials"})
+    live = await db_session.scalar(
+        text(
+            "SELECT count(*) FROM sessions JOIN users ON users.id = sessions.user_id "
+            "WHERE users.email = 'caio@gmail.com' AND sessions.revoked_at IS NULL"
+        )
+    )
+    assert live == 0
 
 
 async def test_google_confirming_a_changed_email_keeps_the_account_as_it_is(

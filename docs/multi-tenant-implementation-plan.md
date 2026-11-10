@@ -615,7 +615,9 @@ a colleague's, A36): a sign-up still unconfirmed (`users.unconfirmed_signup`,
 set by the signup links, cleared by the first confirmation of any kind) that
 Google confirms has every session ended and its password made unusable, in the
 same transaction, so only the address's owner is left signed in; a password is
-set again through "Esqueceu a senha?". An account confirming a changed email
+set again through "Esqueceu a senha?". A password sign-in being checked
+meanwhile gets no session: before making one it reads the account again under
+its row lock, which Google's confirmation and a new password take first. An account confirming a changed email
 ("Minha conta") was the person's before, so Google only confirms it. (The emailed confirmation link stays as A36 has it: it
 reaches only the address, and its email says to ignore it if the person didn't
 sign up.) Code exchanges are rate-limited per device (5 failures in 15 minutes,

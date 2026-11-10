@@ -116,6 +116,7 @@ async def confirm_by_google(session: AsyncSession, user: User) -> None:
     (A36). So a sign-up confirmed this way keeps nothing it chose: every sign-in
     ends and its password stops working ("Esqueceu a senha?" sets a new one). Any
     other account (one confirming a changed email, too) is only confirmed."""
+    await lock_sign_ins(session, user)
     if user.unconfirmed_signup:
         user.password_hash = NO_PASSWORD
         await _end_sign_ins(session, user)
@@ -124,9 +125,32 @@ async def confirm_by_google(session: AsyncSession, user: User) -> None:
 
 async def set_password(session: AsyncSession, user: User, password_hash: str) -> None:
     """Store a hash from `new_password_hash`."""
+    await lock_sign_ins(session, user)
     user.password_hash = password_hash
     # A new password ends every existing sign-in (e.g. after a stolen cookie).
     await _end_sign_ins(session, user)
+
+
+async def lock_sign_ins(session: AsyncSession, user: User) -> None:
+    """Lock the account's row until the transaction ends, and read it again.
+
+    Taken before a password is replaced and its sign-ins ended, and by a password
+    sign-in before it starts a session (`password_still`). The slow password check
+    runs with no lock, so whichever comes second waits: a sign-in checked against
+    a password replaced meanwhile is refused, and one that got in first has its
+    session ended with the others."""
+    await session.execute(select(User.id).where(User.id == user.id).with_for_update())
+    await session.refresh(user)
+
+
+async def password_still(session: AsyncSession, user_id, checked: str | None) -> User | None:
+    """The account, locked, if its password is still the one `checked` was read
+    from (checked with no lock held); None if it changed or was taken away."""
+    user = await session.get(User, user_id, populate_existing=True)
+    if user is None:
+        return None
+    await lock_sign_ins(session, user)
+    return user if user.password_hash == checked else None
 
 
 async def _end_sign_ins(session: AsyncSession, user: User) -> None:
