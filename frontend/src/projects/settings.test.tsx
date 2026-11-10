@@ -214,6 +214,8 @@ describe("the Projeto dialog", () => {
     const password = within(dialog).getByLabelText(/^Senha/);
     await userEvent.type(password, "segredo");
     // The shared password field: the office can check what it typed before saving.
+    // Hidden as it's typed, so the counter is the only sign a long one was cut.
+    expect(within(dialog).getByText("7/25")).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: "Mostrar senha" }));
     expect(password).toHaveAttribute("type", "text");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));

@@ -13941,6 +13941,11 @@
             "type": "boolean",
             "title": "Unavailable",
             "default": false
+          },
+          "folder_missing": {
+            "type": "boolean",
+            "title": "Folder Missing",
+            "default": false
           }
         },
         "type": "object",

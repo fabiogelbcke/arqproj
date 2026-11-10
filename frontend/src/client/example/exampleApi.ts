@@ -103,6 +103,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     stages: project.stages.map((stage, i) => ({
       position: i + 1,
       unavailable: false,
+      folder_missing: false,
       groups: stage.groups
         .filter((group) => group.files.length)
         .map((group) => ({

@@ -227,6 +227,18 @@ async def test_a_missing_stage_folder_marks_that_stage_unavailable(client, owner
     assert stages[5]["unavailable"] is False  # no folder bound: simply empty
 
 
+async def test_staff_are_told_when_the_project_folder_is_gone(client, owner, tmp_path):
+    """Deleted or trashed in Drive, the project's folder won't come back by retrying:
+    staff are told to look for it; visitors see only "unavailable" (the office's
+    Drive is none of their business)."""
+    stages = (await listing(client)).json()["stages"]
+    assert stages[0]["unavailable"] is True and stages[0]["folder_missing"] is True
+    assert stages[5]["folder_missing"] is False  # no folder bound
+    Roles(client).visitor()
+    stages = (await listing(client)).json()["stages"]
+    assert stages[0]["unavailable"] is True and stages[0]["folder_missing"] is False
+
+
 async def test_a_file_moved_out_of_the_stage_no_longer_opens(client, owner, files):
     """A key opens what the page listed only while it's still there (A05)."""
     first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
@@ -260,6 +272,7 @@ async def test_disconnected_storage_marks_stages_unavailable_with_a_reference(
     assert response.status_code == 200
     shown = response.json()
     assert shown["stages"][0]["unavailable"] is True
+    assert shown["stages"][0]["folder_missing"] is False  # Drive itself, not the folder
     assert shown["stages"][5]["unavailable"] is False  # no folder bound
     assert shown["reference"] == response.headers["x-request-id"]
 
