@@ -369,10 +369,10 @@ async def page_files(
         try:
             in_project = await _in_project(storage, project)
         except StorageError as error:
-            folder_missing = staff is not None and error.problem in (
-                StorageProblem.NOT_FOUND,
-                StorageProblem.NO_ACCESS,
-            )
+            # Deleted, trashed or moved out of the reader's reach: Drive says 404
+            # (a trashed one too, google.py). Not NO_ACCESS: that is also a revoked
+            # or broken connection, where "look in the trash" would mislead.
+            folder_missing = staff is not None and error.problem is StorageProblem.NOT_FOUND
             log.error(
                 "files: listing the folder of %s/%s failed: %s %s",
                 project.tenant_id,

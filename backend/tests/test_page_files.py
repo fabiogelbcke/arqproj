@@ -239,6 +239,19 @@ async def test_staff_are_told_when_the_project_folder_is_gone(client, owner, tmp
     assert stages[0]["unavailable"] is True and stages[0]["folder_missing"] is False
 
 
+async def test_a_refused_project_folder_is_not_called_gone(client, owner, files, monkeypatch):
+    """Drive refuses a revoked or broken connection the same way it refuses one
+    folder (403, no_access): that is no reason to send staff to the trash."""
+    from backend.storage.base import StorageError, StorageProblem
+
+    async def refused(*_args):
+        raise StorageError(StorageProblem.NO_ACCESS, "403")
+
+    monkeypatch.setattr(page_files, "_in_project", refused)
+    stages = (await listing(client)).json()["stages"]
+    assert stages[0]["unavailable"] is True and stages[0]["folder_missing"] is False
+
+
 async def test_a_file_moved_out_of_the_stage_no_longer_opens(client, owner, files):
     """A key opens what the page listed only while it's still there (A05)."""
     first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
