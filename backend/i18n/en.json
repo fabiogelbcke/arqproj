@@ -656,6 +656,7 @@
     "sectionPlaceholder": "E.g. Plans, Renders, Specifications",
     "sectionAdded": "Section “{{name}}” created.",
     "sectionEmpty": "No files in this section yet. The client will see it once it has files.",
+    "sendToStage": "Send files to the stage",
     "sendToSection": "Send files to the section {{section}}",
     "sectionActions": "Actions for the section {{section}}",
     "renameSection": "Rename section",

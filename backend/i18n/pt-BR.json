@@ -656,6 +656,7 @@
     "sectionPlaceholder": "Ex.: Plantas, Renders, Memorial",
     "sectionAdded": "Seção “{{name}}” criada.",
     "sectionEmpty": "Nenhum arquivo nesta seção ainda. O cliente verá a seção quando houver arquivos.",
+    "sendToStage": "Enviar arquivos para a etapa",
     "sendToSection": "Enviar arquivos para a seção {{section}}",
     "sectionActions": "Ações da seção {{section}}",
     "renameSection": "Renomear seção",
