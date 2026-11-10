@@ -36,6 +36,27 @@ whole stage being droppable is simpler. The drop area's note (the Drive folder,
 the size limit) no longer shows; a file over the limit still fails with its
 message.
 
+---
+
+## 2026-11-10 — A45: the office's networks at the top of the page as well as in the footer
+
+**Was:** the office's social profiles showed only in the footer, as plain names
+under "Redes".
+
+**Now:** they also show at the top of the page, after the sections (Projetos,
+Escritório, Contato), each as its mark in the text's muted grey, named for
+screen readers, where the header has room for them (wider than 820 px: a laptop
+or a tablet on its side; narrower, the footer alone carries them). In the footer
+each has its mark and its name, in the page's ink.
+
+**Why:** Fabio, 4 Nov 2026: "make social still subtle but more prominent". The
+marks are Simple Icons' paths drawn inline, so nothing is fetched from elsewhere
+and the page's policy stays strict. The cut at 820 px rather than at phones
+(540 px) came from review on 10 Nov 2026: between the two widths seven networks
+beside the logo and the sections overflow the header, which does not wrap.
+
+---
+
 ## 2026-11-09 — A45: the image is the atom; the tab in sections by type; one dialog per drop
 
 **Was:** the portfolio was a list of works. Each work needed a title and was
