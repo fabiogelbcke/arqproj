@@ -133,6 +133,9 @@ the same pull request:
 - Start the application locally when testing UI changes.
 - Verify that the local server starts successfully.
 - Provide the localhost URL to the user.
+- Before handing over a local copy, run the seed on its database, and give the
+  seed's login (laura@alinea.example, `1234`). Don't create other accounts or
+  passwords for Fabio to use: he runs several copies and can't track them.
 - If browser testing is available, verify the changed UI.
 - Never claim that something was tested if it wasn't.
 - Demo and manual test data is fictional and in Brazilian Portuguese. Never copy
