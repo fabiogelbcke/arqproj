@@ -5347,10 +5347,518 @@
         }
       }
     },
+    "/api/portfolio/sections": {
+      "post": {
+        "summary": "Add Section",
+        "description": "A section, last in the office's order: one of the site's types (one\nsection per type), or a name of the office's own.",
+        "operationId": "add_section_api_portfolio_sections_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/backend__web__portfolio__SectionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolio/sections/{section_id}": {
+      "patch": {
+        "summary": "Change Section",
+        "description": "An own section's name; its slug stays, so links to it keep working. A\ntype's section is named by the type.",
+        "operationId": "change_section_api_portfolio_sections__section_id__patch",
+        "parameters": [
+          {
+            "name": "section_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Section Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove Section",
+        "description": "An empty section goes; one with pieces is kept (move them out first).",
+        "operationId": "remove_section_api_portfolio_sections__section_id__delete",
+        "parameters": [
+          {
+            "name": "section_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Section Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolio/sections/order": {
+      "put": {
+        "summary": "Order Sections",
+        "operationId": "order_sections_api_portfolio_sections_order_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionOrderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolio/entries/{entry_id}/merge": {
+      "post": {
+        "summary": "Merge Entries",
+        "description": "Grouping: the other pieces' photos and videos join this one, after its\nown, in the order given, and those pieces go. Whatever words this one lacks\n(title, section, place, year, description, credits, its sheet, the project\nit was drawn from) come from the first of the others that has them; the\nrest of their words go with them.",
+        "operationId": "merge_entries_api_portfolio_entries__entry_id__merge_post",
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/portfolio/entries/{entry_id}/split": {
+      "post": {
+        "summary": "Split Entry",
+        "description": "Ungrouping: every photo after the first becomes a piece of its own, in\nthe same section, right after this one; this one keeps its first photo, its\nwords and its videos. Comparisons between the photos no longer hold.",
+        "operationId": "split_entry_api_portfolio_entries__entry_id__split_post",
+        "parameters": [
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolio/photos": {
+      "post": {
+        "summary": "Add Loose Photo",
+        "description": "A photo as a piece of its own, first in its section (the painel sends a\ndrop's photos last to first, so they land in the order dropped).",
+        "operationId": "add_loose_photo_api_portfolio_photos_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_loose_photo_api_portfolio_photos_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Content Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/portfolio/entries/{entry_id}/photos": {
       "post": {
         "summary": "Add Photo",
-        "description": "A photo, at the end of the work's photos (the first is its cover).",
+        "description": "A photo, at the end of the piece's photos (the first is its cover).",
         "operationId": "add_photo_api_portfolio_entries__entry_id__photos_post",
         "parameters": [
           {
@@ -7239,7 +7747,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SectionIn"
+                "$ref": "#/components/schemas/backend__web__page_uploads__SectionIn"
               }
             }
           }
@@ -8373,6 +8881,13 @@
             "type": "integer",
             "title": "Downloads"
           },
+          "portfolio": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Portfolio"
+          },
           "usage": {
             "additionalProperties": {
               "type": "integer"
@@ -8436,6 +8951,7 @@
           "emails_sent",
           "share_links",
           "downloads",
+          "portfolio",
           "usage",
           "link_statuses",
           "project_types",
@@ -8529,6 +9045,38 @@
           "file"
         ],
         "title": "Body_add_logo_png_api_office_logo_png_put"
+      },
+      "Body_add_loose_photo_api_portfolio_photos_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "section_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Title",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_add_loose_photo_api_portfolio_photos_post"
       },
       "Body_add_photo_api_portfolio_entries__entry_id__photos_post": {
         "properties": {
@@ -9328,8 +9876,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 80,
-                "minLength": 1
+                "maxLength": 80
               },
               {
                 "type": "null"
@@ -9374,17 +9921,17 @@
             ],
             "title": "Description"
           },
-          "project_type": {
+          "section_id": {
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 100
+                "format": "uuid"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Project Type"
+            "title": "Section Id"
           },
           "details": {
             "anyOf": [
@@ -9437,7 +9984,7 @@
                   "format": "uuid"
                 },
                 "type": "array",
-                "maxItems": 30
+                "maxItems": 100
               },
               {
                 "type": "null"
@@ -9454,8 +10001,8 @@
           "title": {
             "type": "string",
             "maxLength": 80,
-            "minLength": 1,
-            "title": "Title"
+            "title": "Title",
+            "default": ""
           },
           "place": {
             "type": "string",
@@ -9482,17 +10029,17 @@
             "title": "Description",
             "default": ""
           },
-          "project_type": {
+          "section_id": {
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 100
+                "format": "uuid"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Project Type"
+            "title": "Section Id"
           },
           "project_id": {
             "anyOf": [
@@ -9508,9 +10055,6 @@
           }
         },
         "type": "object",
-        "required": [
-          "title"
-        ],
         "title": "EntryIn"
       },
       "EntryOut": {
@@ -9543,16 +10087,17 @@
             "type": "string",
             "title": "Description"
           },
-          "project_type": {
+          "section_id": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "format": "uuid"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Project Type"
+            "title": "Section Id"
           },
           "details": {
             "items": {
@@ -9610,7 +10155,7 @@
           "place",
           "year",
           "description",
-          "project_type",
+          "section_id",
           "details",
           "credits",
           "videos",
@@ -9726,7 +10271,10 @@
           "portfolio_entry_not_found",
           "portfolio_video_refused",
           "portfolio_link_invalid",
-          "portfolio_photo_compared"
+          "portfolio_photo_compared",
+          "portfolio_section_not_found",
+          "portfolio_section_exists",
+          "portfolio_section_not_empty"
         ],
         "title": "ErrorCode"
       },
@@ -10616,6 +11164,25 @@
         ],
         "title": "MemberRef"
       },
+      "MergeIn": {
+        "properties": {
+          "entries": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "title": "MergeIn"
+      },
       "NameIn": {
         "properties": {
           "name": {
@@ -11425,6 +11992,13 @@
             "type": "object",
             "title": "Links"
           },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionOut"
+            },
+            "type": "array",
+            "title": "Sections"
+          },
           "entries": {
             "items": {
               "$ref": "#/components/schemas/EntryOut"
@@ -11439,6 +12013,7 @@
           "format",
           "intro",
           "links",
+          "sections",
           "entries"
         ],
         "title": "PortfolioOut"
@@ -12395,6 +12970,21 @@
         ],
         "title": "Role"
       },
+      "SectionChange": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "SectionChange"
+      },
       "SectionChangeIn": {
         "properties": {
           "row_version": {
@@ -12414,24 +13004,64 @@
         ],
         "title": "SectionChangeIn"
       },
-      "SectionIn": {
+      "SectionOrderIn": {
         "properties": {
-          "row_version": {
-            "type": "integer",
-            "title": "Row Version"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 80,
-            "title": "Name"
+          "sections": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 3000,
+            "title": "Sections"
           }
         },
         "type": "object",
         "required": [
-          "row_version",
-          "name"
+          "sections"
         ],
-        "title": "SectionIn"
+        "title": "SectionOrderIn"
+      },
+      "SectionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "project_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Type"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "position",
+          "name",
+          "project_type",
+          "slug"
+        ],
+        "title": "SectionOut"
       },
       "SectionRenameIn": {
         "properties": {
@@ -14198,6 +14828,25 @@
         ],
         "title": "MoveIn"
       },
+      "backend__web__page_uploads__SectionIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "name"
+        ],
+        "title": "SectionIn"
+      },
       "backend__web__pages__OfficeOut": {
         "properties": {
           "name": {
@@ -14243,7 +14892,7 @@
               "format": "uuid"
             },
             "type": "array",
-            "maxItems": 60,
+            "maxItems": 3000,
             "title": "Entries"
           }
         },
@@ -14252,6 +14901,36 @@
           "entries"
         ],
         "title": "OrderIn"
+      },
+      "backend__web__portfolio__SectionIn": {
+        "properties": {
+          "project_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Type"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "title": "SectionIn"
       }
     }
   }

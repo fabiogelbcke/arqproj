@@ -12,6 +12,7 @@ export function SelectField({
   onChange,
   className,
   id,
+  disabled = false,
 }: {
   label: string;
   labelHidden?: boolean;
@@ -20,6 +21,7 @@ export function SelectField({
   onChange: (value: string) => void;
   className?: string;
   id?: string;
+  disabled?: boolean;
 }) {
   const own = useId();
   const selectId = id ?? own;
@@ -28,7 +30,13 @@ export function SelectField({
       <label className={labelHidden ? styles.visuallyHidden : styles.selectLabel} htmlFor={selectId}>
         {label}
       </label>
-      <select id={selectId} className={styles.select} value={value} onChange={(event) => onChange(event.target.value)}>
+      <select
+        id={selectId}
+        className={styles.select}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

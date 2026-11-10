@@ -77,6 +77,25 @@ hand, so a reader of the app's code sees only what actually runs:
 One-off code may import runtime code, never the reverse. A test fails if the app
 loads anything from `backend/migrations/` or `backend/commands/`.
 
+### What we measure changes with the feature
+
+Two things describe the product from outside and go stale silently when a
+feature changes (Fabio, 6 Nov 2026): the PostHog events (A39;
+`backend/analytics.py`, `frontend/src/posthog.ts`) and the operator dashboard's
+counts per office (A38; `AdminOfficeOut` in `backend/web/admin.py`). A change
+that adds, removes or reshapes something staff or visitors do settles both in
+the same pull request:
+
+- **Events.** A new action gets an event named like its neighbours
+  (`portfolio_photo_added`); a removed action's event goes; a changed action's
+  properties change with it. A39's limits hold: account ids, never emails,
+  names or file names; visitors stay personless. Update A39's list of events.
+- **Counts.** Decide whether the operator dashboard should show a new count
+  (the office's portfolio works, say) or stop showing one, and change the
+  admin tests with it.
+- When neither changes, the pull request description says so in one line
+  ("Metrics: nothing new to measure"), so the reviewer knows it was weighed.
+
 ## Testing
 
 - Add or update automated tests for changed functionality. Be thorough about
@@ -114,6 +133,9 @@ loads anything from `backend/migrations/` or `backend/commands/`.
 - Start the application locally when testing UI changes.
 - Verify that the local server starts successfully.
 - Provide the localhost URL to the user.
+- Before handing over a local copy, run the seed on its database, and give the
+  seed's login (laura@alinea.example, `1234`). Don't create other accounts or
+  passwords for Fabio to use: he runs several copies and can't track them.
 - If browser testing is available, verify the changed UI.
 - Never claim that something was tested if it wasn't.
 - Demo and manual test data is fictional and in Brazilian Portuguese. Never copy
@@ -173,6 +195,9 @@ checks the change against them, in addition to looking for bugs:
 - Anything the documentation requires for this area is present, unless the
   description or the documentation records it as deferred.
 - Documentation that describes the changed behaviour still matches the code.
+- What we measure followed the change: PostHog events and the operator
+  dashboard's counts were updated, or the description says why not (see "What
+  we measure changes with the feature").
 
 Report a mismatch with the documentation as a finding like any other, citing
 the section.

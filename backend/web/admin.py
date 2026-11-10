@@ -135,6 +135,7 @@ class AdminOfficeOut(BaseModel):
     emails_sent: int
     share_links: int
     downloads: int
+    portfolio: dict[str, int]  # pieces, images, published (A45)
     usage: dict[str, int]
     link_statuses: dict[str, int]
     project_types: dict[str, int]

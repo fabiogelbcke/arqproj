@@ -342,6 +342,12 @@ function OfficePage() {
           {o.share_links} · {t("admin.downloads", { count: o.downloads })}
           {o.link_statuses && <span className={styles.muted}>{t("admin.linkStates", { ...o.link_statuses })}</span>}
         </Fact>
+        <Fact label={t("admin.portfolio")}>
+          {t("admin.portfolioCount", { images: o.portfolio.images, pieces: o.portfolio.pieces })}
+          <span className={styles.muted}>
+            {t(o.portfolio.published ? "admin.portfolioPublished" : "admin.portfolioUnpublished")}
+          </span>
+        </Fact>
       </dl>
       <Panel aria-labelledby="team">
         <h2 id="team">{t("admin.team")}</h2>
