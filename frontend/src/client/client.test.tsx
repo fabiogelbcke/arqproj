@@ -157,6 +157,11 @@ describe("the client page", () => {
     });
     render(<ClientApp />);
     const box = await screen.findByRole("region", { name: "Atualizações pelo WhatsApp" });
+    // Each card that may change columns has its own place in the order: two with
+    // the same one swapped on every render, and the page never settled (balance.ts).
+    const order = [...document.querySelectorAll("[data-movable]")].map((card) => card.getAttribute("data-movable"));
+    expect(order.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(order).size).toBe(order.length);
     expect(within(box).getByText(/responda SAIR/)).toBeInTheDocument(); // what they agree to
     const field = within(box).getByLabelText("Seu WhatsApp");
     await userEvent.type(field, "(11) 3456-7890"); // a landline

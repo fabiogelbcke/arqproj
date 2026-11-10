@@ -1261,7 +1261,7 @@ export function ProjectPage({
           // And to WhatsApp, where the office has it (A47).
           ...(page.whatsapp
             ? [
-                <div key="subscribe-whatsapp" data-movable="1">
+                <div key="subscribe-whatsapp" data-movable="2">
                   <SubscribeWhatsApp slug={slug} />
                 </div>,
               ]
