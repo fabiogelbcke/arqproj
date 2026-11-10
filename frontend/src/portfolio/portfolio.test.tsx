@@ -586,6 +586,14 @@ describe("a work's editor", () => {
 });
 
 describe("picking a project's images", () => {
+  it("says so when the projects can't be loaded, instead of opening nothing", async () => {
+    api({ ...NO_TYPES, "GET /api/projects": () => ({ status: 500, body: {} }) });
+    renderAt("/portfolio/e-1");
+    await userEvent.click(await screen.findByRole("button", { name: "Escolher fotos de um projeto" }));
+    const dialog = await screen.findByRole("dialog", { name: "Escolher projeto" });
+    expect(await within(dialog).findByRole("alert", {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+
   it("offers both images of a before-and-after comparison, each under its own name (A46)", async () => {
     const image = (key: string, name: string) => ({ key, name, kind: "image", size: 10, modified_at: "2026-11-01T12:00:00Z", older: [] });
     api({

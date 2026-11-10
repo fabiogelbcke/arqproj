@@ -822,7 +822,7 @@ function ProjectPhotos({
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [choosing, setChoosing] = useState(false);
   const shown = project ?? projects.data?.find((item) => item.id === entry.project_id) ?? null;
-  if (!projects.data) return null;
+  // Until the projects are in (or if they fail), the choice: it says it is loading, or what failed.
   if (choosing || !shown) {
     return (
       <ProjectChoice
