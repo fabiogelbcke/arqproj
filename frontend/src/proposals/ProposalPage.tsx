@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { Link, useBlocker, useParams, useSearchParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 
 import type { Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
@@ -15,6 +15,7 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextAreaField, TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
+import { useUnsavedChangesGuard } from "../ui/useUnsavedChangesGuard";
 import { SETUP_PARAM } from "../projects/setup";
 import { ProposalLetter } from "./ProposalLetter";
 import {
@@ -206,19 +207,9 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
   const [problem, setProblem] = useState<string | null>(null);
   const [instalmentCount, setInstalmentCount] = useState("4");
 
-  // Leaving with unsaved changes asks first: the browser's own question when the
-  // tab closes or reloads, ours when a link in the painel is followed. Not after
-  // a save, which goes to the proposal's page on purpose.
-  const leaving = useBlocker(dirty);
-  const saved = useRef(false);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      if (!saved.current) event.preventDefault();
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Leaving with unsaved changes asks first. Not after a save, which goes to the
+  // proposal's page on purpose.
+  const { leaving, release } = useUnsavedChangesGuard(dirty);
 
   // The live preview, a moment after typing stops; the last good one stays meanwhile.
   const [preview, setPreview] = useState<ProposalView | null>(null);
@@ -335,7 +326,7 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
           return;
         }
         // Saved as shown: on to the proposal's page, as the client sees it (Fabio, 29 Oct 2026).
-        saved.current = true;
+        release();
         setDirty(false);
         window.location.assign(pageUrl);
       },

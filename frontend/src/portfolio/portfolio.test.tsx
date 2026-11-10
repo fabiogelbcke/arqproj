@@ -415,6 +415,30 @@ describe("the Portfólio tab", () => {
 });
 
 describe("a work's editor", () => {
+  it("asks before leaving with its words unsaved, and the browser does too", async () => {
+    api(NO_TYPES);
+    const router = renderAt("/portfolio/e-1");
+    const title = await screen.findByLabelText(/^Título/);
+    const unload = () => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(unload()).toBe(false); // nothing changed yet
+    await userEvent.type(title, " II");
+    expect(unload()).toBe(true);
+
+    await userEvent.click(screen.getAllByRole("link", { name: "Portfólio" })[0]!); // the tab
+    const ask = await screen.findByRole("alertdialog", { name: "Sair sem salvar as informações?" });
+    await userEvent.click(within(ask).getByRole("button", { name: "Continuar editando" }));
+    expect(router.state.location.pathname).toBe("/portfolio/e-1");
+    expect(screen.getByLabelText(/^Título/)).toHaveValue("Casa Jardim II");
+
+    await userEvent.click(screen.getAllByRole("link", { name: "Portfólio" })[0]!); // the tab
+    await userEvent.click(await screen.findByRole("button", { name: "Sair sem salvar" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/portfolio"));
+  });
+
   it("opens on the photos, asks for the title, and folds the rest away until something is there", async () => {
     const bare = { ...PORTFOLIO, entries: [entry({ place: "", year: null, section_id: null, project_id: null })] };
     api({ ...NO_TYPES, "GET /api/portfolio": () => ({ body: bare }) });

@@ -24,6 +24,7 @@ import { Panel } from "../ui/Panel";
 import { SelectField } from "../ui/SelectField";
 import { TextAreaField, TextField } from "../ui/TextField";
 import { toast, toastError, toastProblem } from "../ui/Toast";
+import { useUnsavedChangesGuard } from "../ui/useUnsavedChangesGuard";
 import {
   LIMITS,
   PORTFOLIO,
@@ -158,6 +159,7 @@ function Details({ entry, sections }: { entry: Entry; sections: Section[] }) {
     kind !== (entry.section_id ?? "") ||
     JSON.stringify(lines) !== JSON.stringify(entry.details.map(sentLine)) ||
     credits.trim() !== entry.credits;
+  const { leaving } = useUnsavedChangesGuard(changed);
   return (
     <Panel className={`${styles.section} ${styles.words}`} aria-labelledby="portfolio-details">
       <h2 id="portfolio-details">{t("portfolio.details")}</h2>
@@ -258,6 +260,17 @@ function Details({ entry, sections }: { entry: Entry; sections: Section[] }) {
       >
         {t("portfolio.save")}
       </Button>
+      {leaving.state === "blocked" && (
+        <ConfirmDialog
+          title={t("portfolio.leave.ask")}
+          text={t("portfolio.leave.means")}
+          confirm={t("portfolio.leave.confirm")}
+          cancel={t("portfolio.leave.cancel")}
+          danger
+          onCancel={() => leaving.reset()}
+          onConfirm={() => leaving.proceed()}
+        />
+      )}
     </Panel>
   );
 }
