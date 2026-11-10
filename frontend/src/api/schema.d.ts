@@ -1492,8 +1492,10 @@ export interface paths {
         /**
          * Merge Entries
          * @description Grouping: the other pieces' photos and videos join this one, after its
-         *     own, in the order given, and those pieces go (their words with them). A
-         *     piece without a title or section takes the first found among them.
+         *     own, in the order given, and those pieces go. Whatever words this one lacks
+         *     (title, section, place, year, description, credits, its sheet, the project
+         *     it was drawn from) come from the first of the others that has them; the
+         *     rest of their words go with them.
          */
         post: operations["merge_entries_api_portfolio_entries__entry_id__merge_post"];
         delete?: never;

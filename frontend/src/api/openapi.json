@@ -5607,7 +5607,7 @@
     "/api/portfolio/entries/{entry_id}/merge": {
       "post": {
         "summary": "Merge Entries",
-        "description": "Grouping: the other pieces' photos and videos join this one, after its\nown, in the order given, and those pieces go (their words with them). A\npiece without a title or section takes the first found among them.",
+        "description": "Grouping: the other pieces' photos and videos join this one, after its\nown, in the order given, and those pieces go. Whatever words this one lacks\n(title, section, place, year, description, credits, its sheet, the project\nit was drawn from) come from the first of the others that has them; the\nrest of their words go with them.",
         "operationId": "merge_entries_api_portfolio_entries__entry_id__merge_post",
         "parameters": [
           {

@@ -20,6 +20,7 @@ TENANT_TABLES = (
     "portfolio_photos",
     "portfolio_videos",
     "portfolio_entries",
+    "portfolio_sections",
     "portfolios",
     "share_link_files",
     "proposals",
