@@ -26,9 +26,9 @@ dev = [
     "pytest~=9.1.1",
     "ruff~=0.17.0",
 ]
-# The current single-office app (app.py, arq/, tools/) until cutover. Mirrors
-# requirements.txt and requirements-dev.txt, which production still deploys from.
-# Never installed into the new backend's production image.
+# The old single-office app (app.py, arq/, tools/), no longer in use or deployed
+# (docs/old-app.md). Mirrors its requirements.txt and requirements-dev.txt.
+# Never installed into the production image (deploy/Dockerfile).
 legacy = [
     "flask>=3.0",
     "requests>=2.31",
