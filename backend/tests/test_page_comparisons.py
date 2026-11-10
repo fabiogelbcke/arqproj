@@ -375,6 +375,38 @@ async def test_one_side_put_straight_into_drive_stops_any_change(
     assert (stage / "Cozinha (antes).jpg").exists()
 
 
+@pytest.mark.parametrize("action", ["edit", "hide", "move"])
+async def test_a_drive_failure_halfway_puts_back_what_was_changed(
+    client, owner, folders, monkeypatch, action
+):
+    """The "before" side changed, then Drive fails on the "after": the first is
+    put back, so the two are never left as two loose images."""
+    from backend.storage.google_connect import ConnectError, ConnectProblem
+
+    stage = folders / "01 - Briefing"
+    put(stage, "Cozinha (antes).jpg", "Cozinha (antes) v2.jpg", "Cozinha (depois).jpg")
+    for method in ("rename", "move"):
+        real = getattr(creation.LocalFolders, method)
+
+        async def fails_on_after(self, item_id, *args, real=real):
+            if "depois" in item_id:
+                raise ConnectError(ConnectProblem.FOLDER_FAILED, "Drive gave up")
+            return await real(self, item_id, *args)
+
+        monkeypatch.setattr(creation.LocalFolders, method, fails_on_after)
+    key = (await card(client, "Cozinha"))["key"]
+    staff = await staff_of(client)
+    body = {"title": "Copa", "position": 2, "row_version": staff["row_version"]}
+    response = await act(client, owner, action, key, **body)
+    assert (response.status_code, response.json()["error"]) == (503, "drive_connect_failed")
+    assert sorted(p.name for p in stage.iterdir() if p.suffix == ".jpg") == [
+        "Cozinha (antes) v2.jpg",
+        "Cozinha (antes).jpg",
+        "Cozinha (depois).jpg",
+    ]
+    assert [p.name for p in (folders / "02 - Conceito").iterdir() if p.suffix == ".jpg"] == []
+
+
 async def test_a_key_that_isnt_a_comparisons_card_is_not_found(client, owner, folders):
     put(folders / "01 - Briefing", "Cozinha (antes).jpg", "Cozinha (depois).jpg")
     plain = (await card(client, "Programa.pdf"))["key"]
