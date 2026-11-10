@@ -489,8 +489,8 @@ async def unlock(
     who, key = attempts.device(request), str(project.id)
     if not attempts.admit(key, who):  # reserved before the (slow) hash check
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS, headers=challenge)
-    await db.commit()  # the connection goes back while the password is checked
     with attempts.trying(key, who) as attempt:  # a try that didn't finish still counts
+        await db.commit()  # the connection goes back while the password is checked
         if not await verify_password(project.password_hash, body.password):
             attempt.failed()
             log.info("wrong page password for %s", slug)

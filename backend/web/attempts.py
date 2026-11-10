@@ -19,6 +19,9 @@ from fastapi import Request
 
 LIMIT = 5
 WINDOW_SECONDS = 15 * 60
+# Every this many wrong tries, entries older than the window are dropped: keys
+# include whatever address was typed, so they must not pile up for good.
+PRUNE_EVERY = 1000
 
 # (project id, device) -> times of recent wrong passwords
 _failures: dict[tuple[str, str], list[float]] = defaultdict(list)
@@ -27,6 +30,7 @@ _blocked_until: dict[tuple[str, str], float] = {}
 # (project id, device) -> tries being checked right now: they count too, so a
 # batch sent at once can't all slip past the limit while the hashes run.
 _in_flight: dict[tuple[str, str], int] = defaultdict(int)
+_since_pruned = 0
 
 
 def device(request: Request) -> str:
@@ -81,8 +85,23 @@ def _release(key: tuple[str, str]) -> None:
         _in_flight.pop(key, None)
 
 
+def _prune(now: float) -> None:
+    """Forget keys with no wrong try within the window and no wait left."""
+    for key in [
+        k for k, times in _failures.items() if all(now - t >= WINDOW_SECONDS for t in times)
+    ]:
+        del _failures[key]
+    for key in [k for k, until in _blocked_until.items() if now >= until]:
+        del _blocked_until[key]
+
+
 def failed(project_id: str, who: str, now: float | None = None) -> None:
+    global _since_pruned
     now = time.monotonic() if now is None else now
+    _since_pruned += 1
+    if _since_pruned >= PRUNE_EVERY:
+        _since_pruned = 0
+        _prune(now)
     key = (project_id, who)
     _release(key)
     _recent(key, now)
@@ -130,6 +149,8 @@ def trying(project_id: str, who: str) -> Iterator[Try]:
 
 def reset() -> None:
     """For tests."""
+    global _since_pruned
+    _since_pruned = 0
     _failures.clear()
     _blocked_until.clear()
     _in_flight.clear()

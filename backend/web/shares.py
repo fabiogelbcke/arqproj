@@ -719,8 +719,8 @@ async def unlock_share(
     who, key = attempts.device(request), f"share:{link.id}"
     if not attempts.admit(key, who):  # reserved before the (slow) hash check
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS, headers=challenge)
-    await db.commit()  # the connection goes back while the password is checked
     with attempts.trying(key, who) as attempt:
+        await db.commit()  # the connection goes back while the password is checked
         if not await verify_password(link.password_hash, body.password):
             attempt.failed()
             capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": False})

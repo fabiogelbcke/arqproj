@@ -141,6 +141,26 @@ def test_a_try_left_unended_counts_as_failed(monkeypatch):
     assert attempts.admit("p", "device", now=1.0 + attempts.WINDOW_SECONDS + 1)
 
 
+def test_old_entries_are_forgotten_so_typed_keys_dont_pile_up(monkeypatch):
+    """Keys include whatever address was typed at sign-in: entries past the window
+    are dropped every so often, while a device still waiting keeps its wait."""
+    attempts.reset()
+    monkeypatch.setattr(attempts, "PRUNE_EVERY", 11)
+    for n in range(5):  # five addresses tried once each, long ago
+        assert attempts.admit(f"sign-in:{n}@example.com", "device", now=1.0)
+        attempts.failed(f"sign-in:{n}@example.com", "device", now=1.0)
+    later = 1.0 + attempts.WINDOW_SECONDS
+    for _ in range(attempts.LIMIT):  # one device now waiting
+        assert attempts.admit("p", "guesser", now=later)
+        attempts.failed("p", "guesser", now=later)
+    assert len(attempts._failures) == 5  # ten calls: not pruned yet
+    assert attempts.admit("q", "device", now=later)
+    attempts.failed("q", "device", now=later)  # the eleventh prunes
+    assert set(attempts._failures) == {("q", "device")}
+    assert set(attempts._blocked_until) == {("p", "guesser")}
+    assert not attempts.admit("p", "guesser", now=later + 1)
+
+
 def test_a_try_ends_once():
     attempts.reset()
     assert attempts.admit("p", "device", now=1.0)
