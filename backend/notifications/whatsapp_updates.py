@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.isolation import scope_to_tenant
+from backend.notifications.events import CLIENT_VISIBLE
 from backend.notifications.models import (
     DeliveryStatus,
     NotificationBatch,
@@ -61,7 +62,6 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 5  # as an email's: then that number is given up on for this message
-NEVER = datetime(1970, 1, 1, tzinfo=UTC)  # a choice recorded before any SAIR
 
 
 def _w(locale: Locale, key: str, count: int | None = None, **values) -> str:
@@ -259,25 +259,34 @@ async def auto_reply(sessionmaker, settings: Settings, phone: str) -> WhatsAppMe
 # -- SAIR -----------------------------------------------------------------------------
 
 
-async def opted_out(db: AsyncSession, settings: Settings, phones: set[str]) -> set[str]:
-    """Those of `phones` that replied SAIR."""
+async def stops(db: AsyncSession, settings: Settings, phones: set[str]) -> dict[str, datetime]:
+    """When each of `phones` last replied SAIR, for those that did."""
     if not phones:
-        return set()
+        return {}
     by_hash = {opt_out_hash(settings, p): p for p in phones}
-    found = await db.scalars(
-        select(WhatsAppOptOut.phone_hash).where(
-            WhatsAppOptOut.phone_hash.in_(by_hash), WhatsAppOptOut.in_force()
+    found = await db.execute(
+        select(WhatsAppOptOut.phone_hash, WhatsAppOptOut.stopped_at).where(
+            WhatsAppOptOut.phone_hash.in_(by_hash)
         )
     )
-    return {by_hash[h] for h in found}
+    return {by_hash[h]: at for h, at in found}
+
+
+def stopped(recipient: ProjectWhatsApp, found: dict[str, datetime]) -> bool:
+    """Whether a SAIR stops this project's updates to the number: every project's,
+    unless the client chose this one again after it (signed up on its page, or
+    tapped "Quero receber" on its question), which counts for this project only.
+    Both are dated by when the client did them, so whichever Meta delivers last,
+    the latest choice stands."""
+    at = found.get(recipient.phone)
+    return at is not None and (recipient.answered_at is None or at >= recipient.answered_at)
 
 
 async def opt_out(
     db: AsyncSession, settings: Settings, phone: str, sent_at: datetime | None = None
 ) -> None:
     """A SAIR, dated by when the client sent it (`sent_at`: Meta may deliver it
-    late), keeping the latest: it stops the updates only if newer than their
-    latest choice to have them (`opt_back_in`)."""
+    late), keeping the latest (`stopped`)."""
     when = sent_at or datetime.now(UTC)
     query = insert(WhatsAppOptOut).values(phone_hash=opt_out_hash(settings, phone), stopped_at=when)
     await db.execute(
@@ -286,26 +295,6 @@ async def opt_out(
             set_={
                 "stopped_at": func.greatest(WhatsAppOptOut.stopped_at, query.excluded.stopped_at)
             },
-        )
-    )
-
-
-async def opt_back_in(
-    db: AsyncSession, settings: Settings, phone: str, chosen_at: datetime | None = None
-) -> None:
-    """The client chose the updates again (`chosen_at`: when; Meta may deliver
-    a tap late): it lifts a SAIR sent before it, and a SAIR sent before it that
-    arrives later stays lifted. Kept as the latest such time."""
-    when = chosen_at or datetime.now(UTC)
-    # Kept even with no SAIR yet, so one sent before it that arrives later
-    # finds it (a row with no SAIR newer than its choice stops nothing).
-    query = insert(WhatsAppOptOut).values(
-        phone_hash=opt_out_hash(settings, phone), stopped_at=NEVER, resumed_at=when
-    )
-    await db.execute(
-        query.on_conflict_do_update(
-            index_elements=[WhatsAppOptOut.phone_hash],
-            set_={"resumed_at": func.greatest(WhatsAppOptOut.resumed_at, when)},
         )
     )
 
@@ -343,7 +332,7 @@ async def greet(
     question once more, to a number that left it unanswered (`reinvited_at`)."""
     if sender is None or not may_receive(settings, recipient.phone):
         return False
-    if await opted_out(db, settings, {recipient.phone}):
+    if stopped(recipient, await stops(db, settings, {recipient.phone})):
         return False
     try:
         await sender.send(greeting(settings, office, tenant_id, project, recipient))
@@ -378,7 +367,9 @@ async def greet_now(
             )
         ):
             project = await db.scalar(select(Project).where(Project.id == recipient.project_id))
-            if project is not None:
+            # Not to a page clients can't see (a draft, archived): the maintenance
+            # pass greets it once the project is published.
+            if project is not None and project.status in CLIENT_VISIBLE:
                 await greet(
                     db, settings, sender, office, tenant_id, project, recipient, datetime.now(UTC)
                 )
@@ -433,8 +424,8 @@ async def receivers(
     """Who may get this project's WhatsApp updates now."""
     if not office.whatsapp:
         return set()
-    subscribed = {
-        r.phone
+    subscribed = [
+        r
         for r in await db.scalars(
             select(ProjectWhatsApp).where(
                 ProjectWhatsApp.project_id == project.id,
@@ -442,8 +433,9 @@ async def receivers(
             )
         )
         if may_receive(settings, r.phone)
-    }
-    return subscribed - await opted_out(db, settings, subscribed)
+    ]
+    found = await stops(db, settings, {r.phone for r in subscribed})
+    return {r.phone for r in subscribed if not stopped(r, found)}
 
 
 def start(db: AsyncSession, batch: NotificationBatch, phones: set[str]) -> None:

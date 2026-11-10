@@ -109,6 +109,24 @@ async def number(db_session, phone=CLIENT):
     return tuple(row) if row else None
 
 
+async def sair_recorded(app, db_session, phone=CLIENT):
+    """Whether the number's SAIR is on the shared list."""
+    return bool(await whatsapp_updates.stops(db_session, app.state.settings, {phone}))
+
+
+async def stops_casa(app, db_session, phone=CLIENT):
+    """Whether a SAIR stops Casa Jardim's updates to the number (`stopped`)."""
+    answered = await db_session.scalar(
+        text(
+            "SELECT answered_at FROM project_whatsapp_recipients "
+            f"WHERE phone = :p AND project_id = {CASA}"
+        ),
+        {"p": phone},
+    )
+    found = await whatsapp_updates.stops(db_session, app.state.settings, {phone})
+    return whatsapp_updates.stopped(SimpleNamespace(phone=phone, answered_at=answered), found)
+
+
 async def run(app, outbox, phone_box):
     return await run_maintenance(
         app.state.sessionmaker, app.state.settings, None, outbox, whatsapp=phone_box
@@ -553,7 +571,7 @@ async def test_signing_up_again_lifts_a_sair_and_a_no(client, app, db_session, v
     response = await sign_up(client, CLIENT)
     assert response.status_code == 204
     assert (await number(db_session))[:2] == ("subscribed", "client")
-    assert not await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert not await stops_casa(app, db_session)
     assert len(visitor.to(CLIENT)) == 1
 
 
@@ -699,7 +717,7 @@ async def test_sair_stops_every_project_and_says_so(client, app, db_session, met
         client, incoming({"from": CLIENT, "type": "text", "text": {"body": " Sair! "}})
     )
     assert response.status_code == 200
-    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert await sair_recorded(app, db_session, CLIENT)
     [reply] = meta.to(CLIENT)
     assert reply.template is None and "não vai mais receber" in reply.text
     # Only a hash is kept, never the number.
@@ -710,12 +728,12 @@ async def test_sair_stops_every_project_and_says_so(client, app, db_session, met
 @pytest.mark.parametrize("word", ["PARAR", "cancelar", "Stop", "pare"])
 async def test_other_ways_of_saying_stop(client, app, db_session, meta, word):
     await post(client, incoming({"from": CLIENT, "type": "text", "text": {"body": word}}))
-    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert await sair_recorded(app, db_session, CLIENT)
 
 
 async def test_a_number_reported_without_its_9_is_stopped_as_stored(client, app, db_session, meta):
     await post(client, incoming({"from": "551187654321", "type": "text", "text": {"body": "SAIR"}}))
-    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert await sair_recorded(app, db_session, CLIENT)
 
 
 async def test_anything_else_gets_one_automatic_reply_a_day(client, db_session, meta):
@@ -806,7 +824,7 @@ async def test_an_answer_delivered_again_after_sair_doesnt_undo_it(
     await post(client, tap(question.buttons[0], "wamid.yes"))
     await post(client, sair())
     await post(client, tap(question.buttons[0], "wamid.yes"))  # Meta, unsure we got it
-    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert await stops_casa(app, db_session)
 
 
 async def test_an_answer_delivered_late_doesnt_undo_a_later_sair(
@@ -816,7 +834,7 @@ async def test_an_answer_delivered_late_doesnt_undo_a_later_sair(
     await post(client, sair())
     an_hour_ago = datetime.now(ZoneInfo("UTC")) - timedelta(hours=1)
     await post(client, tap(question.buttons[0], "wamid.old-yes", at=an_hour_ago))
-    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert await stops_casa(app, db_session)
     # Tapped after the SAIR: their new choice lifts it.
     await post(
         client,
@@ -826,7 +844,7 @@ async def test_an_answer_delivered_late_doesnt_undo_a_later_sair(
             at=datetime.now(ZoneInfo("UTC")) + timedelta(minutes=1),
         ),
     )
-    assert not await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert not await stops_casa(app, db_session)
 
 
 async def test_a_message_handled_once_even_if_meta_sends_it_again(client, db_session, meta):
@@ -844,10 +862,10 @@ async def test_a_failure_asks_meta_to_send_it_again(client, app, db_session, met
 
     monkeypatch.setattr(whatsapp_updates, "opt_out", broken)
     assert (await post(client, sair())).status_code == 500
-    assert not await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert not await sair_recorded(app, db_session, CLIENT)
     monkeypatch.setattr(whatsapp_updates, "opt_out", real)
     assert (await post(client, sair())).status_code == 200
-    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert await sair_recorded(app, db_session, CLIENT)
 
 
 async def test_staff_signed_in_cant_sign_a_client_up_on_the_page(client, db_session, owner, phone):
@@ -873,7 +891,7 @@ async def test_sair_from_a_number_meta_reports_another_way_stops_it(
         "text": {"body": "SAIR"},
     }
     await post(client, incoming(message))
-    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {typed})
+    assert await sair_recorded(app, db_session, typed)
 
 
 async def test_a_first_message_failing_for_a_day_is_given_up(app, db_session, subscribed, phone):
@@ -896,7 +914,7 @@ async def test_a_second_sair_outlasts_an_answer_tapped_before_it(
     tapped = datetime.now(ZoneInfo("UTC")) - timedelta(hours=1)  # between the two SAIRs
     await post(client, sair("wamid.sair-2"))
     await post(client, tap(question.buttons[0], "wamid.yes-between", at=tapped))  # arrives late
-    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert await stops_casa(app, db_session)
 
 
 async def test_a_sair_delivered_after_a_later_answer_doesnt_undo_it(
@@ -917,7 +935,7 @@ async def test_a_sair_delivered_after_a_later_answer_doesnt_undo_it(
         }
     )
     await post(client, late)
-    assert not await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert not await stops_casa(app, db_session)
 
 
 async def test_a_sair_delivered_after_a_page_sign_up_doesnt_undo_it(
@@ -936,10 +954,10 @@ async def test_a_sair_delivered_after_a_page_sign_up_doesnt_undo_it(
         }
     )
     await post(client, late)
-    assert not await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert not await stops_casa(app, db_session)
     # A SAIR sent now stops it again.
     await post(client, sair("wamid.sair-now"))
-    assert await whatsapp_updates.opted_out(db_session, app.state.settings, {CLIENT})
+    assert await stops_casa(app, db_session)
 
 
 async def test_an_older_answer_delivered_last_doesnt_undo_the_newer_one(
@@ -1108,3 +1126,87 @@ async def test_the_question_isnt_asked_again_otherwise(
     await asked_ago(db_session, interval, status)
     await run(app, Outbox(), phone)
     assert phone.to(OTHER) == []
+
+
+# -- a choice made after SAIR counts for its project only -----------------------------
+
+
+ANOTHER = (
+    "(SELECT id FROM projects WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea') "
+    f"AND id <> {CASA} ORDER BY name LIMIT 1)"
+)
+
+
+async def subscribed_elsewhere(app, db_session):
+    """The number also gets another project's updates; whether a SAIR stops them."""
+    await db_session.execute(
+        text(
+            "INSERT INTO project_whatsapp_recipients "
+            "(tenant_id, project_id, phone, status, source, greeted_at, answered_at) "
+            "SELECT tenant_id, id, :p, 'subscribed', 'client', now() - interval '1 day', "
+            f"now() - interval '1 day' FROM projects WHERE id = {ANOTHER} "
+            "ON CONFLICT DO NOTHING"
+        ),
+        {"p": CLIENT},
+    )
+
+    async def stopped_there():
+        answered = await db_session.scalar(
+            text(
+                "SELECT answered_at FROM project_whatsapp_recipients "
+                f"WHERE phone = :p AND project_id = {ANOTHER}"
+            ),
+            {"p": CLIENT},
+        )
+        found = await whatsapp_updates.stops(db_session, app.state.settings, {CLIENT})
+        return whatsapp_updates.stopped(SimpleNamespace(phone=CLIENT, answered_at=answered), found)
+
+    return stopped_there
+
+
+async def test_signing_up_after_sair_restarts_that_project_only(
+    client, app, db_session, meta, visitor
+):
+    """A sign-up needs no confirmation from the number: it can't restart the
+    messages of other projects (or other offices') the client stopped."""
+    stopped_there = await subscribed_elsewhere(app, db_session)
+    await post(client, sair())
+    assert await stopped_there()
+    await sign_up(client, CLIENT)
+    assert not await stops_casa(app, db_session)
+    assert await stopped_there()
+
+
+async def test_quero_receber_after_sair_restarts_that_project_only(
+    client, app, db_session, owner, meta
+):
+    question = await asked(client, db_session, owner, meta)
+    stopped_there = await subscribed_elsewhere(app, db_session)
+    await post(client, sair())
+    later = datetime.now(ZoneInfo("UTC")) + timedelta(minutes=1)
+    await post(client, tap(question.buttons[0], "wamid.yes-after-sair", at=later))
+    assert not await stops_casa(app, db_session)
+    assert await stopped_there()
+
+
+async def test_the_calendar_button_doesnt_get_round_a_password(app, client, db_session, owner):
+    tenant, project_id = await casa_ids(db_session)
+    await db_session.execute(
+        text(f"UPDATE projects SET access_mode = 'password', password_hash = 'x' WHERE id = {CASA}")
+    )
+    path = urlsplit(short_link(app.state.settings, "agenda", tenant, project_id)).path
+    response = await client.get(path)
+    assert response.status_code == 302  # to the page, which asks for it
+    assert "/casa-jardim?" in response.headers["location"]
+
+
+async def test_a_number_added_to_an_archived_project_isnt_asked(client, db_session, owner, phone):
+    await switch_on(db_session)
+    await db_session.execute(
+        text(f"UPDATE projects SET status = 'archived', archived_from = status WHERE id = {CASA}")
+    )
+    listed = (await client.get("/api/projects?archived=true", headers=owner)).json()
+    [casa_jardim] = [p for p in listed if p["slug"] == "casa-jardim"]
+    response = await change(client, owner, casa_jardim, whatsapp=[CLIENT])
+    assert response.status_code == 200, response.text
+    assert phone.to(CLIENT) == []

@@ -156,7 +156,7 @@ async def _set_whatsapp(
             select(ProjectWhatsApp).where(ProjectWhatsApp.project_id == project_id)
         )
     }
-    refused = await whatsapp_updates.opted_out(db, settings, set(wanted) - set(have))
+    refused = await whatsapp_updates.stops(db, settings, set(wanted) - set(have))
     if refused:
         raise ApiError(409, ErrorCode.WHATSAPP_REFUSED)
     changed, added = False, []

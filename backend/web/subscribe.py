@@ -173,9 +173,10 @@ async def subscribe_whatsapp(
             ProjectWhatsApp.project_id == project.id, ProjectWhatsApp.phone == phone
         )
     )
-    stopped = bool(await whatsapp_updates.opted_out(db, settings, {phone}))
-    if recipient is not None and recipient.status is WhatsAppStatus.SUBSCRIBED and not stopped:
-        return  # already in: nothing new to say
+    if recipient is not None and recipient.status is WhatsAppStatus.SUBSCRIBED:
+        found = await whatsapp_updates.stops(db, settings, {phone})
+        if not whatsapp_updates.stopped(recipient, found):
+            return  # already in: nothing new to say
     if recipient is None:
         count = await db.scalar(
             select(func.count()).where(ProjectWhatsApp.project_id == project.id)
@@ -192,8 +193,8 @@ async def subscribe_whatsapp(
     else:
         recipient.status, recipient.source = WhatsAppStatus.SUBSCRIBED, WhatsAppSource.CLIENT
         recipient.greeted_at = None  # welcomed again
-    recipient.answered_at = datetime.now(UTC)  # their latest choice
-    await whatsapp_updates.opt_back_in(db, settings, phone, recipient.answered_at)
+    # Their latest choice: newer than a SAIR, it lifts it for this project only.
+    recipient.answered_at = datetime.now(UTC)
     await db.flush()
     recipient_id = recipient.id
     await db.commit()

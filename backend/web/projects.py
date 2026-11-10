@@ -25,15 +25,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity.models import User
+from backend.notifications import whatsapp_updates
 from backend.notifications.models import (
     RECIPIENTS_MAX,
     ProjectRecipient,
     ProjectWhatsApp,
     RecipientStatus,
-    WhatsAppOptOut,
     WhatsAppStatus,
 )
-from backend.notifications.whatsapp import opt_out_hash
 from backend.projects.creation import (
     CreationProblem,
     FolderMaker,
@@ -301,20 +300,15 @@ async def summaries(
                 .order_by(ProjectWhatsApp.created_at, ProjectWhatsApp.phone)
             )
         )
-        stopped: set[str] = set()
+        found: dict = {}
         if settings is not None and numbers:
-            by_hash = {opt_out_hash(settings, n.phone): n.phone for n in numbers}
-            stopped = {
-                by_hash[h]
-                for h in await db.scalars(
-                    select(WhatsAppOptOut.phone_hash).where(
-                        WhatsAppOptOut.phone_hash.in_(by_hash), WhatsAppOptOut.in_force()
-                    )
-                )
-            }
+            found = await whatsapp_updates.stops(db, settings, {n.phone for n in numbers})
         for number in numbers:
             state = WhatsAppState(number.status.value)
-            if number.phone in stopped and number.status is not WhatsAppStatus.DECLINED:
+            if (
+                whatsapp_updates.stopped(number, found)
+                and number.status is not WhatsAppStatus.DECLINED
+            ):
                 state = WhatsAppState.STOPPED
             whatsapp.setdefault(number.project_id, []).append(
                 WhatsAppOut(phone=number.phone, state=state)

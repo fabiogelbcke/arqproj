@@ -7,8 +7,8 @@ for emails. Both are isolated per office like every project table.
 
 `whatsapp_opt_outs` belongs to no office: a number that replied SAIR gets no
 WhatsApp updates from any project, since they all come from one Unio number. It
-holds only a keyed hash of the number, dated by the latest SAIR and the latest
-time the client chose the updates again. The app reads, adds and re-dates rows.
+holds only a keyed hash of the number, dated by the latest SAIR: a project the
+client chose again after it gets updates again. The app reads, adds and re-dates rows.
 `whatsapp_messages_seen`, no office's either, holds the ids of messages Meta's
 webhook brought that were handled, so one delivered again is handled once.
 
@@ -54,7 +54,6 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.Column("resumed_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("phone_hash", name=op.f("pk_whatsapp_opt_outs")),
     )
     op.execute(

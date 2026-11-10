@@ -19,6 +19,21 @@ a new entry too.
 
 ---
 
+## 2026-11-10 — A47: a choice made after SAIR counts for its project only
+
+**Was:** signing up again on a project page, or tapping "Quero receber", lifted
+a number's SAIR for every project of every office.
+
+**Now:** SAIR stays in force everywhere except the project the client chose
+again, dated by when they chose it. The shared SAIR list keeps only the date of
+the latest SAIR; each project's number keeps the date of its latest choice.
+
+**Why:** a page sign-up needs no confirmation from the number (as with email,
+A32), so anyone with a page's link could type a number that had replied SAIR and
+restart messages from every office's projects. Found in the review of PR #184.
+
+---
+
 ## 2026-11-09 — A47: the WhatsApp texts after Fabio's answers
 
 **Was:** an update linked the page at the end of its text, listed the first

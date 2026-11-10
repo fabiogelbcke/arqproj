@@ -9,7 +9,7 @@ signed code naming the office and the project (`short_link`):
 - "page": a redirect to the project's page;
 - "agenda": the project's next meeting as a calendar file, as the page's
   "Adicionar à agenda" gives it; the page instead when none is to come (it was
-  cancelled or has passed since the message).
+  cancelled or has passed since the message), or when the page has a password.
 
 The code is the client's message: it was sent only to their number. One that
 doesn't check out, an office no longer active, or a project that is gone or no
@@ -28,6 +28,7 @@ from backend.db.isolation import scope_to_tenant
 from backend.notifications.events import CLIENT_VISIBLE
 from backend.notifications.office import office_of
 from backend.notifications.whatsapp import LINK_PATH, read_token
+from backend.projects.enums import AccessMode
 from backend.projects.models import Meeting, Project, ProjectSlug
 from backend.tenancy.models import Tenant, TenantStatus
 from backend.web.pages import (
@@ -67,7 +68,9 @@ async def follow(request: Request, code: str) -> Response:
         )
         office = await office_of(db, settings, tenant.id)
         page = f"{office.base}/{slug}"
-        if found.action == "agenda":
+        # Behind a password, the page asks for it first and offers the calendar
+        # itself: the link isn't a way round the password (plan section 6).
+        if found.action == "agenda" and project.access_mode is not AccessMode.PASSWORD:
             meeting = await db.scalar(
                 select(Meeting)
                 .where(Meeting.project_id == project.id, Meeting.ends_at > datetime.now(UTC))

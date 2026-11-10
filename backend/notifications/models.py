@@ -15,7 +15,6 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
-    or_,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -109,19 +108,14 @@ class ProjectWhatsApp(IdMixin, TimestampsMixin, TenantOwned, Base):
 class WhatsAppOptOut(Base):
     """A number that replied SAIR: no WhatsApp updates from any project of any
     office, since they all come from the one Unio number (A47). No office's, so
-    it holds no number, only its keyed hash. Dated by the client's own messages,
-    so whichever Meta delivers last, the latest choice stands: stopped while the
-    latest SAIR is newer than the latest time they chose the updates again."""
+    it holds no number, only its keyed hash, dated by the latest SAIR as the client
+    sent it. A project the client chose again after it (its `answered_at`) gets
+    updates again; the others don't (`whatsapp_updates.stopped`)."""
 
     __tablename__ = "whatsapp_opt_outs"
 
     phone_hash: Mapped[str] = mapped_column(Text, primary_key=True)
     stopped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    @classmethod
-    def in_force(cls):
-        return or_(cls.resumed_at.is_(None), cls.stopped_at > cls.resumed_at)
 
 
 class WhatsAppMessageSeen(CreatedAtMixin, Base):

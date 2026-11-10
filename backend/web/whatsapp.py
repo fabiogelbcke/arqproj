@@ -18,7 +18,8 @@ the app's secret; anything unsigned gets a 404, as if nothing were here.
 Meta resends what doesn't get a 200: a message whose handling failed answers 500
 so it comes again, and each message's id is recorded as handled in the same
 transaction as what it changed, so one that comes again is handled once. An
-answer Meta delivers late doesn't undo a SAIR the client sent after it.
+answer Meta delivers late doesn't undo a SAIR the client sent after it, and
+"Quero receber" after a SAIR restarts that project's updates only.
 """
 
 from __future__ import annotations
@@ -171,7 +172,6 @@ async def _message(request: Request, message: dict) -> None:
 
 async def _answer(request: Request, phone: str, found, message_id: str, sent_at: datetime) -> None:
     """ "Quero receber" or "Não quero", from the number the question went to."""
-    settings = request.app.state.settings
     async with request.app.state.sessionmaker() as db:
         scope_to_tenant(db.sync_session, found.tenant_id)
         if not await whatsapp_updates.first_time(db, message_id):
@@ -189,10 +189,8 @@ async def _answer(request: Request, phone: str, found, message_id: str, sent_at:
         locale = await db.scalar(select(Tenant.locale).where(Tenant.id == found.tenant_id))
         recipient.answered_at = sent_at
         if found.action == "yes":
+            # Newer than a SAIR, it lifts it for this project only (`stopped`).
             recipient.status = WhatsAppStatus.SUBSCRIBED
-            # Their own choice lifts a SAIR sent before it, not one sent after.
-            for form in forms(phone):
-                await whatsapp_updates.opt_back_in(db, settings, form, sent_at)
         else:
             recipient.status = WhatsAppStatus.DECLINED
         await db.commit()
