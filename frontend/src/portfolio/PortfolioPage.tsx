@@ -25,14 +25,17 @@ import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
 import { TextAreaField, TextField } from "../ui/TextField";
 import { copyText } from "../ui/copyText";
-import { toast, toastError } from "../ui/Toast";
+import { toast, toastError, toastProblem } from "../ui/Toast";
 import { ToggleSwitch } from "../ui/ToggleSwitch";
 import {
   FORMATS,
   LIMITS,
   NETWORKS,
+  fileNames,
   isProject,
   lostInMerge,
+  PHOTO_TYPES,
+  UnreadableImage,
   resized,
   useAddEntry,
   useAddLoosePhoto,
@@ -715,11 +718,17 @@ function UploadIcon() {
  *  dropped or chosen go to the dialog; "envie um projeto inteiro" too, as one
  *  project. */
 function DropArea({ section, onFiles }: { section: Section | null; onFiles: (files: File[], asProject: boolean) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [over, setOver] = useState(false);
   const photos = useRef<HTMLInputElement>(null);
   const project = useRef<HTMLInputElement>(null);
-  const images = (list: FileList | null) => [...(list ?? [])].filter((file) => file.type.startsWith("image/"));
+  // The photos a browser opens; another image (a HEIC, a TIFF) is named and left out.
+  const images = (list: FileList | null) => {
+    const all = [...(list ?? [])].filter((file) => file.type.startsWith("image/"));
+    const refused = all.filter((file) => !PHOTO_TYPES.includes(file.type)).map((file) => file.name);
+    if (refused.length) toastProblem(t("portfolio.photosUnreadable", { names: fileNames(refused, i18n.language) }));
+    return all.filter((file) => PHOTO_TYPES.includes(file.type));
+  };
   return (
     <div
       className={styles.drop}
@@ -748,7 +757,7 @@ function DropArea({ section, onFiles }: { section: Section | null; onFiles: (fil
         <input
           ref={photos}
           type="file"
-          accept="image/*"
+          accept={PHOTO_TYPES.join(",")}
           multiple
           className="sr-only"
           aria-label={t("portfolio.sendToSection", { section: section?.name ?? t("portfolio.typeNone") })}
@@ -765,7 +774,7 @@ function DropArea({ section, onFiles }: { section: Section | null; onFiles: (fil
         <input
           ref={project}
           type="file"
-          accept="image/*"
+          accept={PHOTO_TYPES.join(",")}
           multiple
           className="sr-only"
           aria-label={t("portfolio.sendProjectTo", { section: section?.name ?? t("portfolio.typeNone") })}
@@ -1043,7 +1052,7 @@ function ReviewDialog({
   known: Set<string>; // every piece there is: the one made for a new project is the other
   onClose: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const addLoose = useAddLoosePhoto();
   const addEntry = useAddEntry();
   const addPhoto = useAddPhoto();
@@ -1063,6 +1072,7 @@ function ReviewDialog({
   // their place in the drop) and the project made for them.
   const sent = useRef(new Set<number>());
   const made = useRef<string | null>(null);
+  const unreadable = useRef(new Set<number>()); // skipped: the browser couldn't open them
   const [failed, setFailed] = useState(false);
 
   async function send() {
@@ -1072,7 +1082,7 @@ function ReviewDialog({
     try {
       // Loose photos go last to first: each lands first in its section, so the
       // first dropped ends first. A project's go in order, after its own.
-      const order = [...drop.files.keys()].filter((index) => !sent.current.has(index));
+      const order = [...drop.files.keys()].filter((index) => !sent.current.has(index) && !unreadable.current.has(index));
       if (where === "loose") order.reverse();
       let target = project;
       if (where === "new") {
@@ -1083,7 +1093,14 @@ function ReviewDialog({
         target = made.current;
       }
       for (const index of order) {
-        const file = await resized(drop.files[index]!, drop.files[index]!.name);
+        let file: File;
+        try {
+          file = await resized(drop.files[index]!, drop.files[index]!.name);
+        } catch (failure) {
+          if (!(failure instanceof UnreadableImage)) throw failure;
+          unreadable.current.add(index); // said once all the others are in
+          continue;
+        }
         if (where === "loose") {
           await addLoose.mutateAsync({ file, section: sectionId, title: captions[index]!.trim().slice(0, LIMITS.title) });
         } else {
@@ -1092,7 +1109,10 @@ function ReviewDialog({
         sent.current.add(index);
         setProgress({ done: sent.current.size, total: count });
       }
-      toast(where === "new" ? t("portfolio.projectCreated") : t("portfolio.photosAdded", { count }));
+      // One message at a time: the photos left out matter more than the others' arrival, in sight.
+      const names = [...unreadable.current].map((index) => drop.files[index]!.name);
+      if (names.length) toastProblem(t("portfolio.photosUnreadable", { names: fileNames(names, i18n.language) }));
+      else toast(where === "new" ? t("portfolio.projectCreated") : t("portfolio.photosAdded", { count }));
       onClose();
     } catch (failure) {
       toastError(failure);

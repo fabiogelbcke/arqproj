@@ -29,8 +29,10 @@ import {
   PORTFOLIO,
   SUGGESTED_LINES,
   VIDEO_TYPES,
+  fileNames,
   moved,
   parsedArea,
+  PHOTO_TYPES,
   resized,
   sendVideo,
   useAddPhoto,
@@ -45,6 +47,7 @@ import {
   type Entry,
   type Section,
   type SheetLine,
+  UnreadableImage,
 } from "./portfolio";
 import { useFeature } from "../session/session";
 import { ProjectChoice, SeePortfolio } from "./PortfolioPage";
@@ -396,7 +399,7 @@ function Sheet({ lines, onChange }: { lines: SheetLine[]; onChange: (lines: Shee
 }
 
 function Photos({ entry }: { entry: Entry }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [params, setParams] = useSearchParams();
   const change = useChangeEntry();
   const remove = useRemovePhoto();
@@ -419,17 +422,31 @@ function Photos({ entry }: { entry: Entry }) {
   const free = (id: string) =>
     entry.photos.some((other) => other.id !== id && !other.comparison && !afterOf.has(other.id));
 
-  /** Each source shrunk and uploaded in turn, so the order is kept. */
+  /** Each source shrunk and uploaded in turn, so the order is kept. One the
+   *  browser can't open is skipped, and named once the others are in. */
   async function upload(sources: { blob: () => Promise<Blob>; name: string }[]) {
     const chosen = sources.slice(0, Math.max(0, room));
+    const unreadable: string[] = [];
+    let added = 0;
     setProgress({ done: 0, total: chosen.length });
     try {
       for (const [index, source] of chosen.entries()) {
-        const file = await resized(await source.blob(), source.name);
+        const blob = await source.blob();
+        let file: File;
+        try {
+          file = await resized(blob, source.name);
+        } catch (failure) {
+          if (!(failure instanceof UnreadableImage)) throw failure;
+          unreadable.push(source.name);
+          continue;
+        }
         await add.mutateAsync({ entry: entry.id, file });
+        added += 1;
         setProgress({ done: index + 1, total: chosen.length });
       }
-      if (chosen.length) toast(t("portfolio.photosAdded", { count: chosen.length }));
+      // One message at a time: the photos left out matter more than the others' arrival, in sight.
+      if (unreadable.length) toastProblem(t("portfolio.photosUnreadable", { names: fileNames(unreadable, i18n.language) }));
+      else if (added) toast(t("portfolio.photosAdded", { count: added }));
       if (sources.length > chosen.length) toast(t("portfolio.tooManyPhotos", { count: LIMITS.photos }));
     } catch (failure) {
       toastError(failure);
@@ -457,7 +474,7 @@ function Photos({ entry }: { entry: Entry }) {
           <input
             ref={input}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept={PHOTO_TYPES.join(",")}
             multiple
             hidden
             onChange={(event) => {

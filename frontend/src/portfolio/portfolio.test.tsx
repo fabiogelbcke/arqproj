@@ -3,7 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi, ME, renderAt, TENANT } from "../test/render";
-import { lostInMerge, moved, parsedArea, sendVideo, videoPoster, type Entry, type Portfolio } from "./portfolio";
+import {
+  lostInMerge,
+  moved,
+  parsedArea,
+  resized,
+  sendVideo,
+  UnreadableImage,
+  videoPoster,
+  type Entry,
+  type Portfolio,
+} from "./portfolio";
 
 // A browser decodes the video for its poster and sends it to Drive: neither
 // happens in the test's document, so both are stood in for.
@@ -698,6 +708,43 @@ describe("a work's before and after (A46)", () => {
     const own = await screen.findByRole("dialog", { name: "Antes e depois" });
     await userEvent.click(within(own).getByRole("button", { name: "Desfazer comparação" }));
     await waitFor(() => expect(sent.find((call) => call.method === "PUT")?.body).toMatchObject({ after: null }));
+  });
+});
+
+describe("photos the browser can't open (HEIC, TIFF, a damaged file)", () => {
+  const jpeg = (name: string) => new File([name], name, { type: "image/jpeg" });
+
+  it("are named and left out of a drop in the tab; the others go on to the dialog", async () => {
+    api();
+    renderAt("/portfolio");
+    const input = await screen.findByLabelText("Enviar fotos para Interiores");
+    expect(input).toHaveAttribute("accept", "image/jpeg,image/png,image/webp");
+    fireEvent.change(input, { target: { files: [new File(["h"], "obra.heic", { type: "image/heic" }), jpeg("sala.jpg")] } });
+    expect(await screen.findByText(/Não foi possível abrir “obra.heic” no navegador/)).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "1 foto" })).toBeInTheDocument();
+  });
+
+  it("are skipped by the drop's upload, which sends the others and names them", async () => {
+    vi.mocked(resized).mockRejectedValueOnce(new UnreadableImage("quarto.jpg")); // the last, sent first
+    const sent = api({ "POST /api/portfolio/photos": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio");
+    await userEvent.upload(await screen.findByLabelText("Enviar fotos para Interiores"), [jpeg("sala.jpg"), jpeg("quarto.jpg")]);
+    const dialog = await screen.findByRole("dialog", { name: "2 fotos" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar" }));
+    expect(await screen.findByText(/Não foi possível abrir “quarto.jpg” no navegador/)).toBeInTheDocument();
+    expect(sent.filter((call) => call.path === "/api/portfolio/photos")).toHaveLength(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("are skipped by a work's upload, which sends the others and names them", async () => {
+    vi.mocked(resized).mockRejectedValueOnce(new UnreadableImage("planta.jpg"));
+    const sent = api({ ...NO_TYPES, "POST /api/portfolio/entries/e-1/photos": () => ({ body: PORTFOLIO }) });
+    renderAt("/portfolio/e-1");
+    await screen.findByRole("region", { name: /Fotos/ });
+    const input = document.querySelector<HTMLInputElement>('input[accept="image/jpeg,image/png,image/webp"]')!;
+    fireEvent.change(input, { target: { files: [jpeg("planta.jpg"), jpeg("fachada.jpg")] } });
+    expect(await screen.findByText(/Não foi possível abrir “planta.jpg” no navegador/)).toBeInTheDocument();
+    expect(sent.filter((call) => call.path === "/api/portfolio/entries/e-1/photos")).toHaveLength(1);
   });
 });
 

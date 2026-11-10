@@ -222,12 +222,31 @@ export const useComparePhoto = () =>
 export const useRemovePhoto = () =>
   useChange((id: string) => call(api.DELETE("/api/portfolio/photos/{photo_id}", { params: { path: { photo_id: id } } })));
 
+/** The photos every browser opens: what the portfolio's file choosers take
+ *  (a HEIC or TIFF photo, say, many browsers can't). */
+export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/** A photo the browser couldn't open (a format it doesn't read, a damaged
+ *  file): its upload skips it, says which, and goes on with the others. */
+export class UnreadableImage extends Error {
+  constructor(readonly file: string) {
+    super("unreadable image");
+  }
+}
+
+/** Files' names for a message: “sala.heic” e “quarto.tif”. */
+export const fileNames = (names: string[], locale: string) =>
+  new Intl.ListFormat(locale).format(names.map((name) => `“${name}”`));
+
 /** A photo as the server keeps it: a JPEG of at most 2400 px, like a cover. */
 export async function resized(source: Blob, name: string): Promise<File> {
   const address = URL.createObjectURL(source);
   try {
     const whole = { x: 0, y: 0, width: 100, height: 100 }; // in percent
-    return await cropToFile(await loadImage(address), whole, COVER_OUTPUT, name.replace(/\.[^.]*$/, "") + ".jpg");
+    const image = await loadImage(address).catch(() => {
+      throw new UnreadableImage(name);
+    });
+    return await cropToFile(image, whole, COVER_OUTPUT, name.replace(/\.[^.]*$/, "") + ".jpg");
   } finally {
     URL.revokeObjectURL(address);
   }
