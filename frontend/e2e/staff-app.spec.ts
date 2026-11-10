@@ -1520,7 +1520,8 @@ test("an open stage is as tall as its files, for clients and in edit mode @safar
     .getByRole("button", { name: "Editar" })
     .click();
   await openThirdStage(page);
-  await page.locator("#stage-2 .drop").waitFor();
+  // Edit mode is drawn: its drop area, or with comparisons on (A46) its "+" card.
+  await page.locator("#stage-2 .drop, #stage-2 .file--add").first().waitFor();
   expect(await openStageMisfit(page)).toBeLessThan(3);
 });
 

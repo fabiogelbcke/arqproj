@@ -1182,6 +1182,10 @@ export function ProjectPage({
   // sections', which the "+" card opens.
   const chooserId = (i: number, section: string | null) =>
     section === null ? `up-${i + 1}` : `up-${i + 1}-s${sections[i]!.indexOf(section)}`;
+  // The "+" card offers comparisons, a feature switched on per office (A40, A46).
+  // With it, the stage and its sections take dropped files themselves, in place
+  // of their drop areas.
+  const plusCard = (i: number) => canEdit && !unreadable(i) && (page.features ?? []).includes("before_after");
   // The share panel: undefined while closed; null opened above the stages, or
   // the row of the stage it was opened from.
   const [shareFrom, setShareFrom] = useState<number | null | undefined>(undefined);
@@ -1478,6 +1482,7 @@ export function ProjectPage({
                     staff={staff!}
                     position={i + 1}
                     folder={`${pad(i + 1)} - ${page.stages[i]!.title}`}
+                    bare={plusCard(i)}
                     onChanged={() => onChanged?.()}
                   />
                   {!unreadable(i) && (
@@ -1496,6 +1501,7 @@ export function ProjectPage({
                         folder={`${pad(i + 1)} - ${page.stages[i]!.title}/${section}`}
                         section={section}
                         inputId={chooserId(i, section)}
+                        bare={plusCard(i)}
                         onChanged={() => onChanged?.()}
                       />
                     </Suspense>
@@ -1504,8 +1510,7 @@ export function ProjectPage({
             }
             moving={moving}
             addCard={
-              // The "+" card offers comparisons, a feature switched on per office (A40, A46).
-              canEdit && !unreadable(i) && (page.features ?? []).includes("before_after")
+              plusCard(i)
                 ? (section) => (
                     <Suspense fallback={null}>
                       <AddCard
