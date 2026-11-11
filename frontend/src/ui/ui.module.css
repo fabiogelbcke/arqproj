@@ -139,6 +139,11 @@
 .password { position: relative; }
 .password > input { padding-right: 44px; }
 .password[data-caps-lock] > input { padding-right: 72px; }
+.password[data-counted] > input { padding-right: 88px; }
+.password[data-counted][data-caps-lock] > input { padding-right: 116px; }
+.passwordCount {
+  padding-right: 4px; font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums;
+}
 .passwordTools {
   position: absolute; right: 6px; top: 50%; translate: 0 -50%;
   display: flex; align-items: center; gap: 2px; color: var(--muted);

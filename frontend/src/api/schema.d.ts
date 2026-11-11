@@ -4017,6 +4017,11 @@ export interface components {
              * @default false
              */
             unavailable: boolean;
+            /**
+             * Folder Missing
+             * @default false
+             */
+            folder_missing: boolean;
         };
         /** StageOption */
         StageOption: {
