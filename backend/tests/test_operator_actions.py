@@ -2,21 +2,25 @@
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ProgrammingError
 
 from backend.tests import test_admin
-from backend.tests.conftest import _session_on
+from backend.tests.conftest import TEST_DATABASE_URL, _session_on
 
 operators = test_admin.operators
 UNIO = test_admin.UNIO
 pytestmark = pytest.mark.anyio
+# The migrations grant the operator's rights to "<database>_operator", so the role
+# follows TEST_DATABASE_URL (a separate test database per working copy).
+OPERATOR_ROLE = f"{make_url(TEST_DATABASE_URL).database}_operator"
 
 
 @pytest.fixture
 async def actions_enabled(app, db_connection, operators):
     class OperatorSession:
         async def __aenter__(self):
-            await db_connection.exec_driver_sql('SET ROLE "arqproj_test_operator"')
+            await db_connection.exec_driver_sql(f'SET ROLE "{OPERATOR_ROLE}"')
             self.session = _session_on(db_connection)
             return self.session
 
