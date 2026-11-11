@@ -346,6 +346,46 @@ async def test_published_the_offices_address_shows_the_portfolio_and_unios_keeps
     assert "Arquitetura residencial." not in (await client.get("/", headers=UNIO)).text
 
 
+async def test_only_a_published_photo_may_be_kept_by_the_cdn(client, staff):
+    """The CDN in front of the load balancer (A21) keeps what says `s-maxage`, for
+    every visitor: a published photo, never one staff see before publishing."""
+    entry = await add(client, staff)
+    url = (await photo(client, staff, entry)).json()["entries"][0]["photos"][0]["url"]
+    unpublished = await client.get(url, headers=staff)
+    assert unpublished.status_code == 200
+    assert unpublished.headers["cache-control"].startswith("private")
+    assert "s-maxage" not in unpublished.headers["cache-control"]
+    await publish(client, staff)
+    client.cookies.clear()
+    for size in ("thumb", "card", "full"):
+        served = await client.get(f"{url}?size={size}", headers=ALINEA)
+        assert served.status_code == 200
+        assert "s-maxage=86400" in served.headers["cache-control"]
+        assert served.headers["cache-control"].startswith("public")
+    # Nothing is kept for a photo that isn't there (no header: the CDN skips it).
+    gone = await client.get(url.rsplit("/", 1)[0] + f"/{uuid.uuid4()}", headers=ALINEA)
+    assert gone.status_code == 404 and "cache-control" not in gone.headers
+
+
+def test_each_image_offers_the_sizes_drive_will_give_never_enlarged():
+    from types import SimpleNamespace
+
+    from backend.web import portfolio_page
+
+    def offered(width, height, names=("thumb", "card")):
+        shot = SimpleNamespace(id=uuid.uuid4(), width=width, height=height)
+        return portfolio_page._srcset(shot, names, portfolio_page.TILE)
+
+    # Upright 3000×4000: the long side shrinks to 480 and 960, so 360 and 720 wide.
+    assert "?size=thumb 360w" in offered(3000, 4000)
+    assert "?size=card 720w" in offered(3000, 4000)
+    # A small original (600×400) is never enlarged: one entry, at its own width.
+    small = offered(600, 400, ("card", "full"))
+    assert small.count("?size=") == 1 and "?size=card 600w" in small
+    # Shape unknown: no srcset, the `src` alone serves.
+    assert offered(None, None) == ""
+
+
 async def test_staff_preview_an_unpublished_portfolio_and_visitors_dont(client, staff):
     entry = await add(client, staff, title="Casa Jardim")
     await photo(client, staff, entry)

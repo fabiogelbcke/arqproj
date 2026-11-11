@@ -123,6 +123,9 @@ class StageFilesOut(BaseModel):
     position: int  # the stage's place on the page, from 1
     groups: list[GroupOut]
     unavailable: bool = False  # Drive couldn't be read just now
+    # Staff only: the project's own folder is gone from Drive (deleted, trashed or
+    # moved out of reach), so retrying won't help; the page says where to look.
+    folder_missing: bool = False
 
 
 class UpdateOut(BaseModel):
@@ -361,10 +364,15 @@ async def page_files(
     visible: dict[str, tuple[int, str, int | None]] = {}
     now = datetime.now(UTC)
     in_project: set[str] | None = None
+    folder_missing = False
     if storage is not None and any(folders):
         try:
             in_project = await _in_project(storage, project)
         except StorageError as error:
+            # Deleted, trashed or moved out of the reader's reach: Drive says 404
+            # (a trashed one too, google.py). Not NO_ACCESS: that is also a revoked
+            # or broken connection, where "look in the trash" would mislead.
+            folder_missing = staff is not None and error.problem is StorageProblem.NOT_FOUND
             log.error(
                 "files: listing the folder of %s/%s failed: %s %s",
                 project.tenant_id,
@@ -381,6 +389,7 @@ async def page_files(
             continue
         if storage is None:  # a bound folder that can't be read at all
             shown.unavailable = has_connection
+            shown.folder_missing = folder_missing
             stages.append(shown)
             continue
         if folder not in (in_project or set()):

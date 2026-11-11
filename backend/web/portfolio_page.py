@@ -53,6 +53,7 @@ from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, normalize_host, resolve
 from backend.web.auth import COOKIE
 from backend.web.portfolio import (
+    SIZES,
     SheetLineOut,
     compared,
     details_by_entry,
@@ -163,6 +164,27 @@ def _size(item: PortfolioPhoto | PortfolioVideo) -> str:
     return f' width="{item.width}" height="{item.height}"' if item.width and item.height else ""
 
 
+# What the page's tiles are as wide as: a grid's column (three across on a
+# desktop, two below 1100 px). The browser picks the smallest size that covers it.
+TILE = "(max-width:1100px) 50vw, 440px"
+# A work's photos on their own: at most 1100 px or 72% of the screen across.
+LARGE = "(max-width:820px) 100vw, min(1100px, 72vw)"
+
+
+def _srcset(photo: PortfolioPhoto, names: tuple[str, ...], sizes: str) -> str:
+    """`srcset` and `sizes` for an image's tag: each named size by the width
+    Drive gives it (the long side shrunk to the size, never enlarged). Nothing
+    for a photo whose shape isn't known: its `src` alone serves."""
+    if not (photo.width and photo.height):
+        return ""
+    long = max(photo.width, photo.height)
+    widths: dict[int, str] = {}
+    for name in names:
+        widths.setdefault(round(photo.width * min(1, SIZES[name] / long)), name)
+    candidates = ", ".join(f"{photo_url(photo)}?size={n} {w}w" for w, n in widths.items())
+    return f' srcset="{candidates}" sizes="{sizes}"'
+
+
 def _loading(first: bool) -> str:
     """The first image fetched at once, the others as they come into view."""
     return 'fetchpriority="high"' if first else 'loading="lazy"'
@@ -178,11 +200,15 @@ def _cover_img(photo: PortfolioPhoto, attributes: str) -> str:
     """A cover filling the grid's landscape frame; an upright one whole, over a
     blurred copy of itself (the frame gets the `tall` class)."""
     backdrop = (
-        f'<img class="backdrop" src="{photo_url(photo)}?size=card" alt="" aria-hidden="true">'
+        # Blurred: the smallest size is plenty.
+        f'<img class="backdrop" src="{photo_url(photo)}?size=thumb" alt="" aria-hidden="true">'
         if _tall(photo)
         else ""
     )
-    return f'{backdrop}<img src="{photo_url(photo)}?size=card" alt="" {attributes}>'
+    return (
+        f'{backdrop}<img src="{photo_url(photo)}?size=card"'
+        f'{_srcset(photo, ("thumb", "card"), TILE)} alt="" {attributes}>'
+    )
 
 
 def _meta(entry: PortfolioEntry) -> str:
@@ -509,10 +535,16 @@ def _compare_data(t: dict, photo: PortfolioPhoto, pairs: dict) -> str:
 
 
 def _figure(
-    t: dict, entry: PortfolioEntry, photo: PortfolioPhoto, n: int, pairs: dict, attributes: str
+    t: dict,
+    entry: PortfolioEntry,
+    photo: PortfolioPhoto,
+    n: int,
+    pairs: dict,
+    attributes: str,
+    size: str = "card",
 ) -> str:
     """A photo's post in the mosaic."""
-    return f"<li>{_photo_link(t, entry, photo, n, pairs, 'card', attributes)}</li>"
+    return f"<li>{_photo_link(t, entry, photo, n, pairs, size, attributes)}</li>"
 
 
 def _photo_link(
@@ -528,11 +560,18 @@ def _photo_link(
     photos split down the middle, tagged, opening on the slider."""
     after = pairs.get(photo.id)
     alt = escape(_fill(t["photo"], n=n, title=t["name"]))
-    image = f'<img src="{photo_url(photo)}?size={size}" alt="{alt}"{attributes} decoding="async">'
+    # A work's photo: the slide's (full) or the mosaic's post (card), with the
+    # smaller sizes offered for narrow screens and small posts.
+    names, sizes = (("card", "full"), LARGE) if size == "full" else (("thumb", "card"), TILE)
+    image = (
+        f'<img src="{photo_url(photo)}?size={size}"{_srcset(photo, names, sizes)} '
+        f'alt="{alt}"{attributes} decoding="async">'
+    )
     if after is not None:
         image = (
             f'<span class="split">{image}'
-            f'<img class="after" src="{photo_url(after)}?size={size}" alt="" loading="lazy" '
+            f'<img class="after" src="{photo_url(after)}?size={size}"'
+            f'{_srcset(after, names, sizes)} alt="" loading="lazy" '
             'decoding="async"></span>'
             f'<span class="compare-tag">{escape(t["compareTag"])}</span>'
         )
@@ -613,9 +652,17 @@ def _posts(
         '<span class="play" aria-hidden="true"></span></a></li>'
         for n, video in enumerate(videos, start=1)
     )
+    # One or two images fill a column each, far wider than a post: offered large.
+    size = "full" if len(photos) + len(videos) < 3 else "card"
     figures = "".join(
         _figure(
-            t, entry, photo, n, pairs or {}, f"{_size(photo)} {_loading(n == 1 and not videos)}"
+            t,
+            entry,
+            photo,
+            n,
+            pairs or {},
+            f"{_size(photo)} {_loading(n == 1 and not videos)}",
+            size,
         )
         for n, photo in enumerate(photos, start=1)
     )
@@ -688,7 +735,8 @@ def _works(
     def cover(photo: PortfolioPhoto) -> str:
         if mosaic:
             return (
-                f'<img src="{photo_url(photo)}?size=card" alt=""{_size(photo)} '
+                f'<img src="{photo_url(photo)}?size=card"'
+                f'{_srcset(photo, ("thumb", "card"), TILE)} alt=""{_size(photo)} '
                 'loading="lazy" decoding="async">'
             )
         return (
