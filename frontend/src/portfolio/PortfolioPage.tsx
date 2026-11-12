@@ -19,6 +19,7 @@ import { ErrorNotice } from "../ui/ErrorNotice";
 import { IconButton } from "../ui/IconButton";
 import { LinkButton } from "../ui/LinkButton";
 import { NameDialog } from "../ui/NameDialog";
+import { ProgressBar } from "../ui/ProgressBar";
 import { Panel } from "../ui/Panel";
 import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
@@ -904,7 +905,13 @@ function SelectionBar({
         {t("portfolio.selectedCount", { count: chosen.length })}
         {images !== chosen.length && <span className={styles.dockMeta}> · {t("portfolio.photoCount", { count: images })}</span>}
       </span>
-      <Button size="small" variant="primary" isDisabled={busy || chosen.length < 2} onPress={group}>
+      <Button
+        size="small"
+        variant="primary"
+        isDisabled={chosen.length < 2 || (busy && !merge.isPending)}
+        pending={merge.isPending}
+        onPress={group}
+      >
         {t("portfolio.group")}
       </Button>
       {others.length > 0 && (
@@ -1139,9 +1146,12 @@ function ReviewDialog({
         </div>
         <div className={styles.dialogActions}>
           {progress && (
-            <span className={styles.hint} aria-live="polite">
-              {t("portfolio.uploading", { done: progress.done, total: progress.total })}
-            </span>
+            <ProgressBar
+              className={styles.uploadProgress}
+              value={progress.done / progress.total}
+              label={t("portfolio.uploading", progress)}
+              caption={t("portfolio.uploading", progress)}
+            />
           )}
           {failed && (
             <span className={styles.warning} role="status">
@@ -1200,7 +1210,7 @@ function PhotoSheet({ entry, sections, onClose }: { entry: Entry; sections: Sect
           </Button>
           <Button
             variant="primary"
-            isDisabled={change.isPending}
+            pending={change.isPending}
             onPress={() =>
               change.mutate(
                 { id: entry.id, title: title.trim(), section_id: section || null },
@@ -1274,7 +1284,13 @@ function NewSectionDialog({ sections, onClose }: { sections: Section[]; onClose:
               {types.map((type) => {
                 const name = t(`portfolio.types.${type.key}`, type.label);
                 return (
-                  <Button key={type.key} size="small" isDisabled={add.isPending} onPress={() => create({ project_type: type.key }, name)}>
+                  <Button
+                    key={type.key}
+                    size="small"
+                    isDisabled={add.isPending && add.variables?.project_type !== type.key}
+                    pending={add.isPending && add.variables?.project_type === type.key}
+                    onPress={() => create({ project_type: type.key }, name)}
+                  >
                     {name}
                   </Button>
                 );
@@ -1286,7 +1302,12 @@ function NewSectionDialog({ sections, onClose }: { sections: Section[]; onClose:
           <Button variant="ghost" isDisabled={add.isPending} onPress={onClose}>
             {t("portfolio.cancel")}
           </Button>
-          <Button variant="primary" isDisabled={!label.trim() || add.isPending} onPress={() => create({ label: label.trim() }, label.trim())}>
+          <Button
+            variant="primary"
+            isDisabled={!label.trim() || (add.isPending && !add.variables?.label)}
+            pending={add.isPending && !!add.variables?.label}
+            onPress={() => create({ label: label.trim() }, label.trim())}
+          >
             {t("portfolio.createSection")}
           </Button>
         </div>

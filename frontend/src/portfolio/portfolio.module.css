@@ -90,6 +90,8 @@
 /* Dialogs: a project to draw from, a project's images to pick. */
 .dialogBody { display: grid; gap: 16px; min-width: 0; }
 .dialogActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+/* An upload's bar (ui/ProgressBar): a line of its own, above the buttons or the list. */
+.uploadProgress { flex-basis: 100%; margin-block: 4px 8px; }
 .choices { display: grid; gap: 4px; max-height: 55vh; overflow: auto; margin: 0; padding: 0; list-style: none; }
 .choice {
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 6px; border: 0; border-radius: var(--r-card);

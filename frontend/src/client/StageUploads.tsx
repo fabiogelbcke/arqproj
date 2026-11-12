@@ -18,6 +18,8 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { MoreIcon } from "../ui/MoreIcon";
 import { NameDialog } from "../ui/NameDialog";
+import { PendingContent } from "../ui/PendingContent";
+import { ProgressBar } from "../ui/ProgressBar";
 import { TextInput } from "../ui/TextInput";
 import { toast, toastError } from "../ui/Toast";
 import styles from "../ui/ui.module.css";
@@ -364,11 +366,10 @@ export function StageDrop({
                   <span className="uploads__percent" aria-hidden="true">
                     {Math.round(item.progress * 100)}%
                   </span>
-                  <progress
-                    className="upload-bar"
-                    max={1}
+                  <ProgressBar
+                    className="uploads__bar"
                     value={item.progress}
-                    aria-label={t("edit.sending", { name: item.name })}
+                    label={t("edit.sending", { name: item.name })}
                   />
                 </>
               )}
@@ -522,11 +523,10 @@ export function FileMenu({
         }}
       />
       {sendingVersion !== null && (
-        <progress
-          className="upload-bar filemenu__progress"
-          max={1}
+        <ProgressBar
+          className="filemenu__progress"
           value={sendingVersion}
-          aria-label={t("edit.sending", { name: file.name })}
+          label={t("edit.sending", { name: file.name })}
         />
       )}
       {open === "menu" && (
@@ -693,8 +693,14 @@ export function AddSection({
         <button className="b b--small" type="button" onClick={close}>
           {t("projectSettings.cancel")}
         </button>
-        <button className="b b--small b--primary" type="button" disabled={busy || !name.trim() || taken} onClick={submit}>
-          {t("edit.add")}
+        <button
+          className="b b--small b--primary"
+          type="button"
+          disabled={busy || !name.trim() || taken}
+          aria-busy={busy || undefined}
+          onClick={submit}
+        >
+          <PendingContent pending={busy}>{t("edit.add")}</PendingContent>
         </button>
       </div>
     </div>

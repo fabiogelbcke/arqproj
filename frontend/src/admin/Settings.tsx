@@ -107,7 +107,12 @@ export function ChangeWarning({
 }) {
   const { t } = useTranslation();
   return (
-    <ModalOverlay className={styles.warningOverlay} isOpen onOpenChange={(open) => !open && onCancel()}>
+    <ModalOverlay
+      className={styles.warningOverlay}
+      isOpen
+      isKeyboardDismissDisabled={busy} // it runs: its outcome is never hidden
+      onOpenChange={(open) => !open && onCancel()}
+    >
       <Modal className={styles.warningModal}>
         <Dialog role="alertdialog" className={styles.warning}>
           <div className={styles.warningSign} aria-hidden="true">
@@ -127,10 +132,10 @@ export function ChangeWarning({
           </ul>
           <p className={styles.warningNote}>{t("admin.settings.warning.note")}</p>
           <div className={styles.dialogActions}>
-            <Button onPress={onCancel} autoFocus>
+            <Button onPress={onCancel} isDisabled={busy} autoFocus>
               {t("admin.settings.warning.cancel")}
             </Button>
-            <Button variant="danger" onPress={onConfirm} isDisabled={busy}>
+            <Button variant="danger" onPress={onConfirm} pending={busy}>
               {t("admin.settings.warning.confirm")}
             </Button>
           </div>

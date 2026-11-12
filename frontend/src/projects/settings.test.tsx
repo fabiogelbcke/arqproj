@@ -181,7 +181,9 @@ describe("the Projeto dialog", () => {
     const dialog = await openSettings();
     await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), " II");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
-    expect(await within(dialog).findByRole("button", { name: "Salvando…" })).toBeDisabled();
+    const save = within(dialog).getByRole("button", { name: /^Salvar/ });
+    expect(await within(save).findByRole("progressbar", { name: "Aguarde…" })).toBeInTheDocument();
+    expect(save).toHaveAttribute("aria-disabled", "true");
     expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
     expect(within(dialog).getByRole("button", { name: "Fechar" })).toBeDisabled();
     within(dialog).getByLabelText(/Nome do projeto/).focus();

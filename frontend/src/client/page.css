@@ -26,6 +26,8 @@ a.site__brand { color: inherit; text-decoration: none; }
    ready): faded, the cursor saying no, and no hover or press of their own, as
    ui/Button's disabled state. */
 .b:disabled { opacity: .45; cursor: not-allowed; }
+/* Its action running (ui/PendingContent's spinner): not faded like one that can't be used. */
+.b[aria-busy="true"]:disabled { opacity: 1; cursor: progress; }
 .b:disabled:active { transform: none; }
 .b:disabled:hover { border-color: var(--line-strong); }
 .b--ghost:disabled:hover { border-color: transparent; }
@@ -165,16 +167,8 @@ a.site__brand { color: inherit; text-decoration: none; }
 }
 .uploads__name { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
 .uploads__percent { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.uploads .upload-bar { flex-basis: 100%; }
-/* An upload's bar: a soft rounded track filling smoothly (the browser's own bar
-   is drawn three ways, so each is restyled). */
-.upload-bar {
-  appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 6px;
-  border: 0; border-radius: 999px; overflow: hidden; background: var(--line); color: var(--ink);
-}
-.upload-bar::-webkit-progress-bar { background: var(--line); border-radius: 999px; }
-.upload-bar::-webkit-progress-value { background: var(--ink); border-radius: 999px; transition: width .25s ease; }
-.upload-bar::-moz-progress-bar { background: var(--ink); border-radius: 999px; }
+/* Its bar (ui/ProgressBar) takes a line of its own. */
+.uploads__bar { flex-basis: 100%; }
 .uploads__failed [role="alert"] { flex-basis: 100%; color: var(--danger, #9b3d1d); }
 
 /* The current stage is a dark band, open or not (in the dark theme too). The prototype keeps

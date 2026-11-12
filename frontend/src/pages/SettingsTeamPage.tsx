@@ -185,8 +185,8 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
             <Button onPress={onClose} isDisabled={invite.isPending}>
               {t("team.close")}
             </Button>
-            <Button type="submit" variant="primary" isDisabled={invite.isPending}>
-              {invite.isPending ? t("team.inviting") : t("team.invite")}
+            <Button type="submit" variant="primary" pending={invite.isPending}>
+              {t("team.invite")}
             </Button>
           </div>
         </Form>

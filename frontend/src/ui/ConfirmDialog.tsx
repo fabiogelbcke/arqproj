@@ -51,7 +51,7 @@ export function ConfirmDialog({
             <Button onPress={onCancel} isDisabled={busy} autoFocus={danger}>
               {cancel ?? t("confirm.cancel")}
             </Button>
-            <Button variant={danger ? "danger" : "primary"} isDisabled={busy} onPress={onConfirm} autoFocus={!danger}>
+            <Button variant={danger ? "danger" : "primary"} pending={busy} onPress={onConfirm} autoFocus={!danger}>
               {confirm}
             </Button>
           </div>

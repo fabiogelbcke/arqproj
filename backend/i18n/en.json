@@ -2,7 +2,8 @@
   "app": {
     "name": "Dashboard",
     "loading": "Loading…",
-    "close": "Close"
+    "close": "Close",
+    "working": "Please wait…"
   },
   "footer": {
     "tagline": "Projects connect people.",
@@ -144,7 +145,6 @@
     "slugTakenBy": "This address already belongs to “{{name}}”. Choose another.",
     "publishNote": "The project is published at once: the client can open its link right away. Its folder is created in the office's Google Drive.",
     "create": "Create project",
-    "creating": "Creating…",
     "cancel": "Cancel",
     "created": "Project “{{name}}” created.",
     "noStagesHint": "No stages selected. You can add stages on the project page.",
@@ -176,8 +176,7 @@
     "done": "Project set up. You can change any of this in edit mode.",
     "skip": "Skip",
     "next": "Continue",
-    "finish": "Finish",
-    "saving": "Saving…"
+    "finish": "Finish"
   },
   "projectTypeShort": {
     "architecture": "Architecture",
@@ -210,7 +209,6 @@
     "archive": "Archive",
     "cancel": "Cancel",
     "save": "Save",
-    "saving": "Saving…",
     "saved": "Saved.",
     "archived": "Project “{{name}}” archived.",
     "undo": "Undo",
@@ -929,7 +927,6 @@
     "name": "Name",
     "email": "Email",
     "invite": "Send invite",
-    "inviting": "Sending…",
     "invited": "Invitation sent to {{email}}. You can also share the link:",
     "notEmailed": "The email could not be sent. Copy the link and share it with the person you invited:",
     "inviteLink": "Invite link",
@@ -1125,7 +1122,6 @@
       "en": "English",
       "enHint": "Left blank, the Portuguese is used.",
       "save": "Save changes",
-      "saving": "Saving…",
       "saved": "Changes saved.",
       "add": "Add",
       "notFound": "This item no longer exists. Go back to the list and reload the page.",
@@ -1458,7 +1454,6 @@
       "email": "Email",
       "viewPdf": "View PDF",
       "save": "Save proposal",
-      "saving": "Saving…",
       "saveHint": "Each save makes a new version. The client always sees the latest.",
       "saved": "Proposal saved (version {{version}}).",
       "officeUpdate": {
@@ -1760,7 +1755,7 @@
     "videos": "Videos",
     "videosHint": "MP4 or WebM videos up to 200 MB, kept in the office's Google Drive like the photos. They show among this project's photos and open full screen.",
     "uploadVideos": "Upload videos",
-    "videoUploading": "Uploading video {{n}} of {{total}}: {{percent}}%",
+    "videoUploading": "Uploading video {{n}} of {{total}}…",
     "videosAdded_one": "{{count}} video added.",
     "videosAdded_other": "{{count}} videos added.",
     "tooManyVideos": "Each project can have up to {{count}} videos; the rest weren't uploaded.",

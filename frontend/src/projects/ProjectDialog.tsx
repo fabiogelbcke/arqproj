@@ -209,8 +209,8 @@ export function ProjectDialog({ project, onClose }: { project: ProjectSummary; o
         )}
         <div className={styles.actions}>
           <Button onPress={onClose} isDisabled={saving}>{t("projectSettings.cancel")}</Button>
-          <Button type="submit" variant="primary" isDisabled={saving}>
-            {saving ? t("projectSettings.saving") : t("projectSettings.save")}
+          <Button type="submit" variant="primary" pending={saving}>
+            {t("projectSettings.save")}
           </Button>
         </div>
       </Form>

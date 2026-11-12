@@ -20,6 +20,7 @@ import { ErrorNotice } from "../ui/ErrorNotice";
 import { BeforeAfter } from "../ui/BeforeAfter";
 import { IconButton } from "../ui/IconButton";
 import { Panel } from "../ui/Panel";
+import { ProgressBar } from "../ui/ProgressBar";
 import { SelectField } from "../ui/SelectField";
 import { TextAreaField, TextField } from "../ui/TextField";
 import { toast, toastError, toastProblem } from "../ui/Toast";
@@ -468,9 +469,12 @@ function Photos({ entry }: { entry: Entry }) {
       </div>
       <p className={styles.hint}>{t("portfolio.photosHint")}</p>
       {progress && (
-        <p className={styles.hint} role="status">
-          {t("portfolio.uploading", progress)}
-        </p>
+        <ProgressBar
+          className={styles.uploadProgress}
+          value={progress.done / progress.total}
+          label={t("portfolio.uploading", progress)}
+          caption={t("portfolio.uploading", progress)}
+        />
       )}
       {entry.photos.length === 0 ? (
         <p className={styles.empty}>{t("portfolio.noPhotosYet")}</p>
@@ -618,9 +622,13 @@ function Videos({ entry }: { entry: Entry }) {
       </div>
       <p className={styles.hint}>{t("portfolio.videosHint")}</p>
       {progress && (
-        <p className={styles.hint} role="status">
-          {t("portfolio.videoUploading", progress)}
-        </p>
+        <ProgressBar
+          className={styles.uploadProgress}
+          // The whole choice, not only this video: one bar filling once.
+          value={(progress.n - 1 + progress.percent / 100) / progress.total}
+          label={t("portfolio.videoUploading", progress)}
+          caption={t("portfolio.videoUploading", progress)}
+        />
       )}
       {entry.videos.length === 0 ? (
         <p className={styles.empty}>{t("portfolio.noVideosYet")}</p>
@@ -746,14 +754,23 @@ function ComparePhotos({ entry, before, onClose }: { entry: Entry; before: strin
         )}
         <div className={ui.confirmActions}>
           {photo.comparison && (
-            <Button isDisabled={compare.isPending} onPress={() => save(null)}>
+            <Button
+              isDisabled={compare.isPending && compare.variables?.after !== null}
+              pending={compare.isPending && compare.variables?.after === null}
+              onPress={() => save(null)}
+            >
               {t("portfolio.uncompare")}
             </Button>
           )}
           <Button onPress={onClose} isDisabled={compare.isPending}>
             {t("confirm.cancel")}
           </Button>
-          <Button variant="primary" isDisabled={!after || compare.isPending} onPress={() => save(after)}>
+          <Button
+            variant="primary"
+            isDisabled={!after || (compare.isPending && compare.variables?.after === null)}
+            pending={compare.isPending && compare.variables?.after !== null}
+            onPress={() => save(after)}
+          >
             {t("projectSettings.save")}
           </Button>
         </div>

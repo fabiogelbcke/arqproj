@@ -111,7 +111,7 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
           <ErrorNotice error={create.error} />
           <div className={styles.dialogActions}>
             <Button onPress={onClose} isDisabled={create.isPending}>{t("admin.actions.cancel")}</Button>
-            <Button type="submit" variant="primary" isDisabled={create.isPending}>{t("admin.actions.createConfirm")}</Button>
+            <Button type="submit" variant="primary" pending={create.isPending}>{t("admin.actions.createConfirm")}</Button>
           </div>
         </Form>
       )}
@@ -149,7 +149,7 @@ function SignupLinkDialog({ onClose }: { onClose: () => void }) {
           <ErrorNotice error={make.error} />
           <div className={styles.dialogActions}>
             <Button onPress={onClose} isDisabled={make.isPending}>{t("admin.actions.cancel")}</Button>
-            <Button type="submit" variant="primary" isDisabled={make.isPending}>{t("admin.actions.signupLinkMake")}</Button>
+            <Button type="submit" variant="primary" pending={make.isPending}>{t("admin.actions.signupLinkMake")}</Button>
           </div>
         </Form>
       )}
@@ -201,7 +201,7 @@ function ActionDialog({ office, action, onClose }: { office: Schemas["AdminOffic
           <ErrorNotice error={run.error} />
           <div className={styles.dialogActions}>
             <Button onPress={onClose} isDisabled={run.isPending}>{t("admin.actions.cancel")}</Button>
-            <Button type="submit" variant={action === "delete" || action === "suspend" ? "danger" : "primary"} isDisabled={run.isPending || (action === "delete" && confirmation !== office.name)}>
+            <Button type="submit" variant={action === "delete" || action === "suspend" ? "danger" : "primary"} isDisabled={action === "delete" && confirmation !== office.name} pending={run.isPending}>
               {t("admin.actions.confirm")}
             </Button>
           </div>
