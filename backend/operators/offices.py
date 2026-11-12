@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from backend.comments.models import Author, Comment
 from backend.db.isolation import scope_to_tenant
 from backend.identity.models import LoginSession, Role, User
 from backend.notifications.models import DeliveryStatus, NotificationDelivery
@@ -63,6 +64,8 @@ class OfficeSummary:
     # The office's portfolio (A45): its pieces and images, and whether its
     # address shows it (1) or not (0).
     portfolio: dict[str, int] = field(default_factory=dict)
+    # Comments on its projects' pages (A49), clients' and staff's, removed ones too.
+    comments: dict[str, int] = field(default_factory=dict)
     usage: dict[str, int] = field(default_factory=dict)
     link_statuses: dict[str, int] = field(default_factory=dict)
     project_types: dict[str, int] = field(default_factory=dict)
@@ -157,6 +160,10 @@ async def _fill(session: AsyncSession, office: OfficeSummary, now: datetime, tea
         )
     ).one()
     office.portfolio = {"pieces": pieces, "images": images, "published": int(bool(published))}
+    by_author = dict(
+        (await session.execute(select(Comment.author, func.count()).group_by(Comment.author))).all()
+    )
+    office.comments = {author.value: by_author.get(author, 0) for author in Author}
 
     if team:
         projects = list(await session.scalars(select(Project).where(Project.deleted_at.is_(None))))

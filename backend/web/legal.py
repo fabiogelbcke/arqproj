@@ -72,7 +72,9 @@ dos registros técnicos e do acesso ao Google descrito abaixo.</li>
 <ul>
 <li><strong>Clientes e visitantes das páginas de projeto:</strong> o conteúdo que o escritório
 publica sobre o projeto (por exemplo, o nome do cliente, descrições, datas de reunião e
-arquivos) e os endereços de e-mail que o escritório cadastra para receber atualizações.</li>
+arquivos), os endereços de e-mail que o escritório cadastra para receber atualizações e, onde o
+escritório usa comentários, o nome e o texto que cada pessoa escreve ao comentar, que todos que
+abrem a página veem.</li>
 <li><strong>Equipe dos escritórios:</strong> nome, e-mail, senha (guardada apenas de forma
 cifrada) e, se uma conta Google for conectada, o acesso descrito abaixo.</li>
 <li><strong>Uso do painel:</strong> as ações da equipe e as páginas que ela visita no painel
@@ -84,7 +86,8 @@ para corrigi-los.</li>
 páginas são abertas, de onde (por exemplo, do link de um e-mail de atualização), em que tipo de
 aparelho, o que é aberto ou baixado, em que partes da página se clica, se a senha digitada estava
 certa (nunca a senha), links de arquivos criados ou desativados e inscrições ou cancelamentos dos
-e-mails de atualização (nunca o e-mail), sem o texto mostrado na tela, sem nomes de projetos ou
+e-mails de atualização (nunca o e-mail), comentários publicados ou removidos (nunca o
+nome nem o texto), sem o texto mostrado na tela, sem nomes de projetos ou
 arquivos, sem cookies e sem identificar quem visita: cada visitante é contado por um código
 anônimo que muda todos os dias,
 para entendermos como os clientes usam as páginas e quanto custa servi-las.</li>
@@ -95,7 +98,8 @@ lembrar uma senha de projeto já digitada) e, só para a equipe conectada ao pai
 identificador da PostHog para as estatísticas de uso acima. Não usamos cookies de publicidade,
 e as estatísticas das páginas de projeto não usam cookies nem guardam nada no navegador de quem
 as visita.
-A preferência de tema claro ou escuro e as atualizações já lidas ficam só no seu navegador.</li>
+A preferência de tema claro ou escuro, as atualizações já lidas e, ao comentar, o nome digitado
+e o código que permite remover os próprios comentários ficam só no seu navegador.</li>
 </ul>
 
 <h2>E-mails de atualização</h2>
@@ -167,8 +171,9 @@ the Google access described below.</li>
 <h2>What we process</h2>
 <ul>
 <li><strong>Clients and visitors of project pages:</strong> what the office publishes about the
-project (such as the client's name, descriptions, meeting dates and files) and the email
-addresses the office adds to receive updates.</li>
+project (such as the client's name, descriptions, meeting dates and files), the email
+addresses the office adds to receive updates and, where the office uses comments, the name and
+text each person writes when commenting, which everyone who opens the page sees.</li>
 <li><strong>Office staff:</strong> name, email, password (stored only in hashed form) and, if a
 Google account is connected, the access described below.</li>
 <li><strong>Use of the dashboard:</strong> staff actions and the dashboard pages they visit (such
@@ -178,8 +183,9 @@ used. Server and browser errors are recorded too, to fix them.</li>
 <li><strong>Use of project pages and shared files:</strong> how often pages are opened, from
 where (for example an update email's link), on what kind of device, what is opened or downloaded,
 which parts of the page are clicked, whether a password typed was right (never the password), file
-links made or turned off, and update emails subscribed to or unsubscribed from (never the
-address), without the text shown on screen, without project or file names, without cookies and
+links made or turned off, update emails subscribed to or unsubscribed from (never the
+address), and comments posted or removed (never the name or text), without the text shown
+on screen, without project or file names, without cookies and
 without identifying visitors: each visitor is counted by an anonymous code that changes every
 day, so we understand
 how clients use the pages and what serving them costs.</li>
@@ -189,7 +195,8 @@ troubleshooting, kept for up to 30 days.</li>
 remembering a project password already entered) and, only for staff signed in to the dashboard, a
 PostHog identifier for the usage statistics above. No advertising cookies, and project pages'
 statistics use no cookies and store nothing in visitors' browsers. The light
-or dark theme choice and which updates were read stay in your browser.</li>
+or dark theme choice, which updates were read and, when commenting, the name typed and the
+code that lets you remove your own comments stay in your browser.</li>
 </ul>
 
 <h2>Update emails</h2>

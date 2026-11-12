@@ -52,6 +52,15 @@ export function entriesFor(
           context: `${pad(index + 1)} ${stage.title}`,
           target: index,
         });
+    } else if (update.kind === "office_commented") {
+      // The server lists one per stage or file (A49): the file by its name now.
+      if (!stage) continue;
+      entries.push({
+        ...base,
+        title: t("updates.officeCommented"),
+        context: update.name ? `${update.name} · ${pad(index + 1)} ${stage.title}` : `${pad(index + 1)} ${stage.title}`,
+        target: index,
+      });
     } else if (update.kind === "note_changed") {
       if (!stage || notes.has(index)) continue;
       notes.add(index);

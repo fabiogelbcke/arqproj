@@ -69,6 +69,7 @@ class EventKind(StrEnum):
     MEETING_CHANGED = "meeting_changed"
     MEETING_CLEARED = "meeting_cleared"
     NOTE_CHANGED = "note_changed"
+    OFFICE_COMMENTED = "office_commented"  # staff commented on a stage or file (A49)
 
 
 class ProjectEvent(IdMixin, TenantOwned, Base):

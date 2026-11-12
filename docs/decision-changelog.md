@@ -35,6 +35,22 @@ shows. Unio's home still shows whenever the lookup fails.
 **Why:** Fabio, 12 Nov 2026: "there's no way to see the portfolio in staging
 now?"
 
+## 2026-11-11 — A49: who removes a comment
+
+**Was:** any of the office's staff, owner or member, removed any comment;
+clients couldn't remove theirs, even one sent by mistake.
+
+**Now:** an owner removes any comment (a client's spam, anyone's mistake); a
+member removes only their own. A client removes their own, from the device they
+posted it on: posting hands the page a signed receipt for that comment, kept on
+the device, and removing shows it. No account, so no other way to tell the
+client is the same person; from another device, or after clearing the site's
+data, they ask the office.
+
+**Why:** Fabio, 11 Nov 2026, asked whether "admins" could remove anyone's
+comments; offered tighter rules, he chose both: members limited to their own,
+and clients able to take back theirs.
+
 ## 2026-11-11 — A45: the portfolio for every office; the tab says less
 
 **Was:** the portfolio was behind the `portfolio` feature (A40): an office had
@@ -67,6 +83,25 @@ office's own website (a new setting, and most offices come for the portfolio
 because they have no site) and a redirect to the painel sign-in (a login the
 office's clients can't use). Unio's home still shows there when the office can't
 be read, so the address always answers.
+
+## 2026-11-10 — A49: comments on files and stages
+
+**Was:** comments and approvals were explicitly deferred from the pilot (plan
+section 2, "Explicitly deferred"), and clients have no accounts (A06).
+
+**Now:** clients and staff comment on each stage and each file, behind the
+`comments` feature (A40). A client signs with a name remembered on their
+device, nothing more; everyone who can open the page sees the whole
+conversation. A client's comment emails the project's team (or every staff
+account); a staff comment reaches the client through the update email (A32)
+and the updates panel. Approvals stay deferred.
+
+**Why:** Fabio, 10 Nov 2026: "we need to allow comments on files and on
+stages". Asked how a client signs, he chose a name only, over a name and email
+or a link sent to an address on the project's list: the simplest for clients.
+Their replies still reach them, through the project's update emails. A comment
+stays with a file by its identity in storage rather than by its name, so a new
+version, a rename or a move made on the site keeps the conversation.
 
 ## 2026-11-10 — A21, A45: a CDN for published portfolio photos; a work's images fit the screen
 

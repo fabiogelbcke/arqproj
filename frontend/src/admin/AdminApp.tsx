@@ -348,6 +348,9 @@ function OfficePage() {
             {t(o.portfolio.published ? "admin.portfolioPublished" : "admin.portfolioUnpublished")}
           </span>
         </Fact>
+        <Fact label={t("admin.comments")}>
+          {t("admin.commentCount", { client: o.comments.client ?? 0, staff: o.comments.staff ?? 0 })}
+        </Fact>
       </dl>
       <Panel aria-labelledby="team">
         <h2 id="team">{t("admin.team")}</h2>
