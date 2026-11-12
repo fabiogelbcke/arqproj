@@ -10,6 +10,8 @@
   "uploadCheckNames": 100,
   "comparisonTitle": 120,
   "comparisonLabel": 40,
+  "commentBody": 2000,
+  "commentName": 60,
   "detailText": 40,
   "meetingTitle": 40,
   "meetingLocation": 60,

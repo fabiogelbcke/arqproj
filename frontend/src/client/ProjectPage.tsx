@@ -17,6 +17,7 @@ import { SiteFooter } from "../ui/UnioMark";
 import { EditButton, openOnClick } from "./EditButton";
 import { useBalancedColumns } from "./balance";
 import { dropTarget, placeId, startDrag, type DraggedFile, type DropPlace } from "./fileDrag";
+import { CommentIcon, CommentListsProvider, StageComments, fileThread, useCommentList } from "./Comments";
 import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import type { StageEditParts } from "./StageEditing";
@@ -217,6 +218,7 @@ function FileCard({
           {menu && file.clash && <span className="file__clash">{t("edit.versionClash")}</span>}
         </span>
       </button>
+      {file.comments && <CommentCount fileKey={file.key} listed={file.comments} />}
       {file.version != null && (
         <span className="vbadge" aria-hidden="true">
           {t("files.version", { version: file.version })}
@@ -241,6 +243,19 @@ function FileCard({
       {versions && <FileVersions file={file} slug={slug} timeZone={timeZone} onClose={() => setVersions(false)} />}
       {menu}
     </div>
+  );
+}
+
+/** A card's count of comments (A49), as its conversation is now. */
+function CommentCount({ fileKey, listed }: { fileKey: string; listed: Schemas["CommentOut"][] }) {
+  const { t } = useTranslation();
+  const [comments] = useCommentList(fileThread(fileKey), listed);
+  if (!comments.length) return null;
+  return (
+    <span className="file__comments" role="img" aria-label={t("comments.count", { count: comments.length })}>
+      <CommentIcon />
+      {comments.length}
+    </span>
   );
 }
 
@@ -731,9 +746,11 @@ function Stage({
   help,
   onHelp,
   onShare,
+  comments,
 }: {
   page: Page;
   index: number;
+  comments?: ReactNode; // its conversation (A49), while comments are on
   onShare?: () => void; // "Compartilhar arquivos" with this stage's files ticked
   open: boolean;
   onToggle: () => void;
@@ -908,6 +925,7 @@ function Stage({
             onOpen={onOpenFile}
             empty={editor ? null : state === "done" ? "done" : "waiting"}
           />
+          {!parts && comments}
           {parts?.remove}
         </div>
       </div>
@@ -1277,378 +1295,394 @@ export function ProjectPage({
   ];
 
   return (
-    <div className={`client${canEdit ? " editing" : ""}`}>
-      <SiteHeader
-        office={page.office}
-        painel={!!page.staff}
-        person={page.staff ? person : null}
-        onTour={page.staff && page.staff.status !== "archived" ? (onTour ?? (() => tour(false))) : undefined}
-        onSignOut={page.staff ? onSignOut : undefined}
-        tools={
-          stageFiles && (
-            <UpdatesBell
-              page={page}
-              slug={slug}
-              updates={stageFiles.updates}
-              onStage={jump}
-            />
-          )
-        }
-      />
-      <div className="cwrap">
-        {canEdit &&
-          (openEditor === "emails" ? (
-            <Suspense fallback={null}>
-              <RecipientsEditor staff={staff!} onDone={done} />
-            </Suspense>
-          ) : (
-            staff!.status === "active" &&
-            // (A page from a server before this list came along says nothing.)
-            staff!.recipients !== undefined &&
-            !staff!.recipients.some((recipient) => recipient.subscribed) && (
-              // Nobody gets this project's updates (A32): said first, with the way to fix it.
-              <div className="client-email-notice" role="note">
-                <p>
-                  <strong>{t("edit.noClientEmail")}</strong> {t("edit.noClientEmailWhy")}
-                </p>
-                <button type="button" className="b b--small b--primary" onClick={() => setOpenEditor("emails")}>
-                  {t("edit.addClientEmail")}
-                </button>
-              </div>
+    // Comments posted or removed here since the files were listed (A49).
+    <CommentListsProvider listing={stageFiles}>
+      <div className={`client${canEdit ? " editing" : ""}`}>
+        <SiteHeader
+          office={page.office}
+          painel={!!page.staff}
+          person={page.staff ? person : null}
+          onTour={page.staff && page.staff.status !== "archived" ? (onTour ?? (() => tour(false))) : undefined}
+          onSignOut={page.staff ? onSignOut : undefined}
+          tools={
+            stageFiles && (
+              <UpdatesBell
+                page={page}
+                slug={slug}
+                updates={stageFiles.updates}
+                onStage={jump}
+              />
             )
-          ))}
-        <div className={`project-opening${band ? " project-opening--band" : ""}`}>
-          {/* The cover again, blurred wide: the band the opening sits on. */}
-          {band && (
-            <div className="project-opening__backdrop" aria-hidden="true">
-              <img src={page.cover_url ?? undefined} alt="" />
-            </div>
-          )}
-          <header className="project-heading">
-            {canEdit && openEditor === "name" ? (
+          }
+        />
+        <div className="cwrap">
+          {canEdit &&
+            (openEditor === "emails" ? (
               <Suspense fallback={null}>
-                <NameEditor page={page} staff={staff!} onDone={done} />
+                <RecipientsEditor staff={staff!} onDone={done} />
               </Suspense>
             ) : (
-              <div
-                className="project-heading__title"
-                data-editable
-                {...openOnClick(canEdit ? () => setOpenEditor("name") : undefined)}
-              >
-                {canEdit && <EditButton label={t("edit.name")} onClick={() => setOpenEditor("name")} />}
-                <Title name={page.name} />
+              staff!.status === "active" &&
+              // (A page from a server before this list came along says nothing.)
+              staff!.recipients !== undefined &&
+              !staff!.recipients.some((recipient) => recipient.subscribed) && (
+                // Nobody gets this project's updates (A32): said first, with the way to fix it.
+                <div className="client-email-notice" role="note">
+                  <p>
+                    <strong>{t("edit.noClientEmail")}</strong> {t("edit.noClientEmailWhy")}
+                  </p>
+                  <button type="button" className="b b--small b--primary" onClick={() => setOpenEditor("emails")}>
+                    {t("edit.addClientEmail")}
+                  </button>
+                </div>
+              )
+            ))}
+          <div className={`project-opening${band ? " project-opening--band" : ""}`}>
+            {/* The cover again, blurred wide: the band the opening sits on. */}
+            {band && (
+              <div className="project-opening__backdrop" aria-hidden="true">
+                <img src={page.cover_url ?? undefined} alt="" />
               </div>
             )}
-            {/* The kind of project, under its name (edited with the details). */}
-            {page.project_type && <p className="project-kind">{page.project_type}</p>}
-          </header>
-          {narrow && <MobileSummary page={page} />}
-          {page.cover_url && (
-            <figure className="banner">
-              <div className="banner__img" ref={cover}>
-                <img src={page.cover_url} alt={t("page.cover", { name: page.name })} />
-              </div>
-              {canEdit && (
+            <header className="project-heading">
+              {canEdit && openEditor === "name" ? (
                 <Suspense fallback={null}>
-                  <CoverPicker page={page} onChanged={() => onChanged?.()} />
-                </Suspense>
-              )}
-            </figure>
-          )}
-          {/* No cover yet: in edit mode, its place, to add one. */}
-          {!page.cover_url && canEdit && (
-            <Suspense fallback={null}>
-              <CoverPicker page={page} onChanged={() => onChanged?.()} />
-            </Suspense>
-          )}
-        </div>
-        {/* Two columns that stack on their own: the description then the timeline,
-            the details then the meeting. A short description lets the timeline rise;
-            without a cover, both start under the title. Phones: one column. */}
-        <div className="project-status project-layout">
-          <div className="project-layout__main" ref={mainColumn}>
-            {/* No description: nothing for the client (staff in edit mode can add one). */}
-            {(page.description || canEdit) && (
-              <div className={`project-layout__desc${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
-                {canEdit && openEditor === "desc" ? (
-                  <Suspense fallback={null}>
-                    <DescriptionEditor page={page} staff={staff!} onDone={done} />
-                  </Suspense>
-                ) : (
-                  <div className="desc" data-editable {...openOnClick(canEdit ? () => setOpenEditor("desc") : undefined)}>
-                    {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
-                    {page.description ? (
-                      <Description text={page.description} />
-                    ) : (
-                      canEdit && <p className="desc__empty">{t("edit.noDescription")}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-            {!narrow && page.stages.length > 0 && (
-              <div className="project-status__timeline">
-                <Timeline
-                  page={page}
-                  onJump={(n) => {
-                    capture("timeline_jumped");
-                    jump(n);
-                  }}
-                />
-              </div>
-            )}
-            {movable.slice(0, moved)}
-          </div>
-          <div className="project-layout__side" ref={sideColumn}>
-            <div className={narrow && !canEdit ? "mobile-view-hidden" : undefined}>
-              {canEdit && openEditor === "facts" ? (
-                <Suspense fallback={null}>
-                  <DetailsEditor page={page} staff={staff!} onDone={done} />
+                  <NameEditor page={page} staff={staff!} onDone={done} />
                 </Suspense>
               ) : (
-                <dl className="details-list" data-editable {...openOnClick(canEdit ? () => setOpenEditor("facts") : undefined)}>
-                  {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
-                  <Facts page={page} />
-                </dl>
-              )}
-            </div>
-            {movable.slice(moved)}
-          </div>
-        </div>
-        {/* With the stages, even before any files, so the page keeps its spacing. */}
-        {page.stages.length > 0 && (
-          <FileToolbar
-            query={query}
-            onQuery={setQuery}
-            prefs={prefs}
-            onPrefs={setPrefs}
-            found={filtering ? shown.reduce((sum, stage) => sum + stage.count, 0) : null}
-            narrow={narrow}
-            share={
-              canShare && (
-                <button
-                  type="button"
-                  className="b b--small client-share"
-                  onClick={() => {
-                    capture("share_panel_opened");
-                    setShareFrom(null);
-                  }}
+                <div
+                  className="project-heading__title"
+                  data-editable
+                  {...openOnClick(canEdit ? () => setOpenEditor("name") : undefined)}
                 >
-                  <ShareIcon />
-                  <span>{t("share.open")}</span>
-                </button>
-              )
-            }
-          />
-        )}
-        {narrow && page.stages.length > 0 && (
-          <>
-            <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>
-            <StageCompletion page={page} />
-          </>
-        )}
-        {page.proposal_url && !filtering && <ProposalStage page={page} url={page.proposal_url} />}
-        {page.stages.map((_, i) => (
-          <Stage
-            key={i}
-            page={page}
-            index={i}
-            // Searching or filtering opens every stage with a match and hides the rest,
-            // except one whose files couldn't be read: it says so.
-            open={
-              filtering
-                ? (shown[i]!.count > 0 || unreadable(i)) && !closed.has(i)
-                : openStages.has(i) || (canEdit && editingStages.has(i))
-            }
-            hidden={filtering && shown[i]!.count === 0 && !unreadable(i)}
-            help={openHelp === i}
-            onHelp={(open) => {
-              if (open) capture("stage_help_opened", { stage_position: i + 1 });
-              setOpenHelp(open ? i : null);
-            }}
-            onShare={canShare && !canEdit ? () => setShareFrom(i) : undefined}
-            onToggle={() => {
-              capture("stage_toggled", { stage_position: i + 1 });
-              if (filtering) setClosed((was) => toggled(was, i));
-              else setOpenStages((was) => (was.has(i) ? new Set() : new Set([i])));
-            }}
-            {...filesFor(stageFiles, i + 1)}
-            files={shown[i]!.files}
-            total={countFiles(filesFor(stageFiles, i + 1).files)}
-            view={prefs.view}
-            progress={
-              canEdit ? (
-                <Suspense fallback={null}>
-                  <StageProgress page={page} staff={staff!} index={i} onChanged={stagesChanged} locked={stagesLocked} />
-                </Suspense>
-              ) : undefined
-            }
-            onOpenFile={(file, folder) => setPreview({ file, place: { position: i + 1, folder } })}
-            slug={slug}
-            uploads={
-              canEdit ? (
-                <Suspense fallback={null}>
-                  <StageDrop
-                    staff={staff!}
-                    position={i + 1}
-                    folder={`${pad(i + 1)} - ${page.stages[i]!.title}`}
-                    bare={plusCard(i)}
-                    onChanged={() => onChanged?.()}
-                  />
-                  {!unreadable(i) && (
-                    <AddSection staff={staff!} position={i + 1} sections={sections[i]!} onChanged={() => onChanged?.()} />
-                  )}
-                </Suspense>
-              ) : undefined
-            }
-            section={
-              canEdit
-                ? (section) => (
+                  {canEdit && <EditButton label={t("edit.name")} onClick={() => setOpenEditor("name")} />}
+                  <Title name={page.name} />
+                </div>
+              )}
+              {/* The kind of project, under its name (edited with the details). */}
+              {page.project_type && <p className="project-kind">{page.project_type}</p>}
+            </header>
+            {narrow && <MobileSummary page={page} />}
+            {page.cover_url && (
+              <figure className="banner">
+                <div className="banner__img" ref={cover}>
+                  <img src={page.cover_url} alt={t("page.cover", { name: page.name })} />
+                </div>
+                {canEdit && (
+                  <Suspense fallback={null}>
+                    <CoverPicker page={page} onChanged={() => onChanged?.()} />
+                  </Suspense>
+                )}
+              </figure>
+            )}
+            {/* No cover yet: in edit mode, its place, to add one. */}
+            {!page.cover_url && canEdit && (
+              <Suspense fallback={null}>
+                <CoverPicker page={page} onChanged={() => onChanged?.()} />
+              </Suspense>
+            )}
+          </div>
+          {/* Two columns that stack on their own: the description then the timeline,
+              the details then the meeting. A short description lets the timeline rise;
+              without a cover, both start under the title. Phones: one column. */}
+          <div className="project-status project-layout">
+            <div className="project-layout__main" ref={mainColumn}>
+              {/* No description: nothing for the client (staff in edit mode can add one). */}
+              {(page.description || canEdit) && (
+                <div className={`project-layout__desc${narrow && !canEdit ? " mobile-view-hidden" : ""}`}>
+                  {canEdit && openEditor === "desc" ? (
                     <Suspense fallback={null}>
-                      <StageDrop
-                        staff={staff!}
-                        position={i + 1}
-                        folder={`${pad(i + 1)} - ${page.stages[i]!.title}/${section}`}
-                        section={section}
-                        inputId={chooserId(i, section)}
-                        bare={plusCard(i)}
-                        onChanged={() => onChanged?.()}
-                      />
+                      <DescriptionEditor page={page} staff={staff!} onDone={done} />
                     </Suspense>
-                  )
-                : undefined
-            }
-            moving={moving}
-            addCard={
-              plusCard(i)
-                ? (section) => (
-                    <Suspense fallback={null}>
-                      <AddCard
-                        staff={staff!}
-                        position={i + 1}
-                        section={section}
-                        inputId={chooserId(i, section)}
-                        folder={`${pad(i + 1)} - ${page.stages[i]!.title}${section ? `/${section}` : ""}`}
-                        onChanged={() => onChanged?.()}
-                      />
-                    </Suspense>
-                  )
-                : undefined
-            }
-            sectionMenu={
-              canEdit
-                ? (section, count) => (
-                    <Suspense fallback={null}>
-                      <SectionMenu
-                        staff={staff!}
-                        position={i + 1}
-                        section={section}
-                        count={count}
-                        sections={sections[i]!}
-                        onChanged={() => onChanged?.()}
-                      />
-                    </Suspense>
-                  )
-                : undefined
-            }
-            fileMenu={
-              canEdit
-                ? (file, folder) => (
-                    <Suspense fallback={null}>
-                      {file.comparison ? (
-                        <ComparisonMenu
-                          slug={slug}
-                          file={file}
-                          page={page}
-                          position={i + 1}
-                          folder={folder}
-                          sections={sections}
-                          onChanged={() => onChanged?.()}
-                        />
+                  ) : (
+                    <div className="desc" data-editable {...openOnClick(canEdit ? () => setOpenEditor("desc") : undefined)}>
+                      {canEdit && <EditButton label={t("edit.description")} onClick={() => setOpenEditor("desc")} />}
+                      {page.description ? (
+                        <Description text={page.description} />
                       ) : (
-                        <FileMenu
-                          slug={slug}
-                          file={file}
-                          page={page}
-                          position={i + 1}
-                          folder={folder}
-                          sections={sections}
-                          onChanged={() => onChanged?.()}
-                        />
+                        canEdit && <p className="desc__empty">{t("edit.noDescription")}</p>
                       )}
-                    </Suspense>
-                  )
-                : undefined
-            }
-            editor={
-              canEdit
-                ? {
-                    editing: editingStages.has(i),
-                    onEdit: () => setEditingStages((was) => new Set(was).add(i)),
-                    form: (layout) => (
-                      // Until the form's code is in, the stage as it was.
-                      <Suspense fallback={layout()}>
-                        <StageEditForm
-                          page={page}
+                    </div>
+                  )}
+                </div>
+              )}
+              {!narrow && page.stages.length > 0 && (
+                <div className="project-status__timeline">
+                  <Timeline
+                    page={page}
+                    onJump={(n) => {
+                      capture("timeline_jumped");
+                      jump(n);
+                    }}
+                  />
+                </div>
+              )}
+              {movable.slice(0, moved)}
+            </div>
+            <div className="project-layout__side" ref={sideColumn}>
+              <div className={narrow && !canEdit ? "mobile-view-hidden" : undefined}>
+                {canEdit && openEditor === "facts" ? (
+                  <Suspense fallback={null}>
+                    <DetailsEditor page={page} staff={staff!} onDone={done} />
+                  </Suspense>
+                ) : (
+                  <dl className="details-list" data-editable {...openOnClick(canEdit ? () => setOpenEditor("facts") : undefined)}>
+                    {canEdit && <EditButton label={t("edit.details")} onClick={() => setOpenEditor("facts")} />}
+                    <Facts page={page} />
+                  </dl>
+                )}
+              </div>
+              {movable.slice(moved)}
+            </div>
+          </div>
+          {/* With the stages, even before any files, so the page keeps its spacing. */}
+          {page.stages.length > 0 && (
+            <FileToolbar
+              query={query}
+              onQuery={setQuery}
+              prefs={prefs}
+              onPrefs={setPrefs}
+              found={filtering ? shown.reduce((sum, stage) => sum + stage.count, 0) : null}
+              narrow={narrow}
+              share={
+                canShare && (
+                  <button
+                    type="button"
+                    className="b b--small client-share"
+                    onClick={() => {
+                      capture("share_panel_opened");
+                      setShareFrom(null);
+                    }}
+                  >
+                    <ShareIcon />
+                    <span>{t("share.open")}</span>
+                  </button>
+                )
+              }
+            />
+          )}
+          {narrow && page.stages.length > 0 && (
+            <>
+              <h2 className="stage-timeline-heading">{t("page.timeline").toLocaleUpperCase()}</h2>
+              <StageCompletion page={page} />
+            </>
+          )}
+          {page.proposal_url && !filtering && <ProposalStage page={page} url={page.proposal_url} />}
+          {page.stages.map((_, i) => (
+            <Stage
+              key={i}
+              page={page}
+              index={i}
+              // Searching or filtering opens every stage with a match and hides the rest,
+              // except one whose files couldn't be read: it says so.
+              open={
+                filtering
+                  ? (shown[i]!.count > 0 || unreadable(i)) && !closed.has(i)
+                  : openStages.has(i) || (canEdit && editingStages.has(i))
+              }
+              hidden={filtering && shown[i]!.count === 0 && !unreadable(i)}
+              help={openHelp === i}
+              onHelp={(open) => {
+                if (open) capture("stage_help_opened", { stage_position: i + 1 });
+                setOpenHelp(open ? i : null);
+              }}
+              onShare={canShare && !canEdit ? () => setShareFrom(i) : undefined}
+              comments={
+                // Comments are switched on per office (A40, A49): null from the API while off.
+                filesFor(stageFiles, i + 1).files?.comments != null && (
+                  <StageComments
+                    slug={slug}
+                    comments={filesFor(stageFiles, i + 1).files!.comments!}
+                    position={i + 1}
+                    title={page.stages[i]!.title}
+                    staff={!!staff}
+                    timeZone={page.timezone}
+                  />
+                )
+              }
+              onToggle={() => {
+                capture("stage_toggled", { stage_position: i + 1 });
+                if (filtering) setClosed((was) => toggled(was, i));
+                else setOpenStages((was) => (was.has(i) ? new Set() : new Set([i])));
+              }}
+              {...filesFor(stageFiles, i + 1)}
+              files={shown[i]!.files}
+              total={countFiles(filesFor(stageFiles, i + 1).files)}
+              view={prefs.view}
+              progress={
+                canEdit ? (
+                  <Suspense fallback={null}>
+                    <StageProgress page={page} staff={staff!} index={i} onChanged={stagesChanged} locked={stagesLocked} />
+                  </Suspense>
+                ) : undefined
+              }
+              onOpenFile={(file, folder) => setPreview({ file, place: { position: i + 1, folder } })}
+              slug={slug}
+              uploads={
+                canEdit ? (
+                  <Suspense fallback={null}>
+                    <StageDrop
+                      staff={staff!}
+                      position={i + 1}
+                      folder={`${pad(i + 1)} - ${page.stages[i]!.title}`}
+                      bare={plusCard(i)}
+                      onChanged={() => onChanged?.()}
+                    />
+                    {!unreadable(i) && (
+                      <AddSection staff={staff!} position={i + 1} sections={sections[i]!} onChanged={() => onChanged?.()} />
+                    )}
+                  </Suspense>
+                ) : undefined
+              }
+              section={
+                canEdit
+                  ? (section) => (
+                      <Suspense fallback={null}>
+                        <StageDrop
                           staff={staff!}
-                          index={i}
-                          locked={stagesLocked}
-                          onChanged={stagesChanged}
-                          // A removed stage's row shows the next one: every edit closes.
-                          onDone={(removed) => setEditingStages((was) => (removed ? new Set() : toggled(was, i)))}
-                          layout={layout}
+                          position={i + 1}
+                          folder={`${pad(i + 1)} - ${page.stages[i]!.title}/${section}`}
+                          section={section}
+                          inputId={chooserId(i, section)}
+                          bare={plusCard(i)}
+                          onChanged={() => onChanged?.()}
                         />
                       </Suspense>
-                    ),
-                  }
-                : undefined
-            }
-          />
-        ))}
-        {canEdit && (
-          <div className="stage-list-actions">
-            <Suspense fallback={null}>
-              <AddStage page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
-              <ReorderStages page={page} staff={staff!} onChanged={stagesChanged} onReordered={reordered} locked={stagesLocked} />
-              <CompleteProject page={page} staff={staff!} onChanged={stagesChanged} />
-            </Suspense>
-          </div>
-        )}
-        <SiteFooter office={page.office.name} className="client-footer" />
-      </div>
-      {page.staff && (
-        <StaffBar
-          page={page}
-          ready={ready}
-          painel={painel}
-          editing={editing}
-          onMode={(next) => {
-            setEditing(next);
-            setOpenEditor(null);
-            setEditingStages(new Set());
-          }}
-        />
-      )}
-      {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}
-      {settingUp && page.staff && ready && page.staff.status !== "archived" && (
-        <Suspense fallback={null}>
-          <SetupSteps page={page} onChanged={() => onChanged?.()} onClose={() => setSettingUp(false)} />
-        </Suspense>
-      )}
-      {shareFrom !== undefined && (
-        <Suspense fallback={null}>
-          <SharePanel
+                    )
+                  : undefined
+              }
+              moving={moving}
+              addCard={
+                plusCard(i)
+                  ? (section) => (
+                      <Suspense fallback={null}>
+                        <AddCard
+                          staff={staff!}
+                          position={i + 1}
+                          section={section}
+                          inputId={chooserId(i, section)}
+                          folder={`${pad(i + 1)} - ${page.stages[i]!.title}${section ? `/${section}` : ""}`}
+                          onChanged={() => onChanged?.()}
+                        />
+                      </Suspense>
+                    )
+                  : undefined
+              }
+              sectionMenu={
+                canEdit
+                  ? (section, count) => (
+                      <Suspense fallback={null}>
+                        <SectionMenu
+                          staff={staff!}
+                          position={i + 1}
+                          section={section}
+                          count={count}
+                          sections={sections[i]!}
+                          onChanged={() => onChanged?.()}
+                        />
+                      </Suspense>
+                    )
+                  : undefined
+              }
+              fileMenu={
+                canEdit
+                  ? (file, folder) => (
+                      <Suspense fallback={null}>
+                        {file.comparison ? (
+                          <ComparisonMenu
+                            slug={slug}
+                            file={file}
+                            page={page}
+                            position={i + 1}
+                            folder={folder}
+                            sections={sections}
+                            onChanged={() => onChanged?.()}
+                          />
+                        ) : (
+                          <FileMenu
+                            slug={slug}
+                            file={file}
+                            page={page}
+                            position={i + 1}
+                            folder={folder}
+                            sections={sections}
+                            onChanged={() => onChanged?.()}
+                          />
+                        )}
+                      </Suspense>
+                    )
+                  : undefined
+              }
+              editor={
+                canEdit
+                  ? {
+                      editing: editingStages.has(i),
+                      onEdit: () => setEditingStages((was) => new Set(was).add(i)),
+                      form: (layout) => (
+                        // Until the form's code is in, the stage as it was.
+                        <Suspense fallback={layout()}>
+                          <StageEditForm
+                            page={page}
+                            staff={staff!}
+                            index={i}
+                            locked={stagesLocked}
+                            onChanged={stagesChanged}
+                            // A removed stage's row shows the next one: every edit closes.
+                            onDone={(removed) => setEditingStages((was) => (removed ? new Set() : toggled(was, i)))}
+                            layout={layout}
+                          />
+                        </Suspense>
+                      ),
+                    }
+                  : undefined
+              }
+            />
+          ))}
+          {canEdit && (
+            <div className="stage-list-actions">
+              <Suspense fallback={null}>
+                <AddStage page={page} staff={staff!} onChanged={stagesChanged} locked={stagesLocked} />
+                <ReorderStages page={page} staff={staff!} onChanged={stagesChanged} onReordered={reordered} locked={stagesLocked} />
+                <CompleteProject page={page} staff={staff!} onChanged={stagesChanged} />
+              </Suspense>
+            </div>
+          )}
+          <SiteFooter office={page.office.name} className="client-footer" />
+        </div>
+        {page.staff && (
+          <StaffBar
             page={page}
-            slug={slug}
-            stages={stageFiles && !stageFiles.failed ? stageFiles.stages : null}
-            from={shareFrom}
-            staff={!!page.staff && ready}
-            onClose={() => setShareFrom(undefined)}
+            ready={ready}
+            painel={painel}
+            editing={editing}
+            onMode={(next) => {
+              setEditing(next);
+              setOpenEditor(null);
+              setEditingStages(new Set());
+            }}
           />
-        </Suspense>
-      )}
-      <Toaster />
-    </div>
+        )}
+        {preview && <FilePreview {...preview} slug={slug} page={page} onClose={closePreview} />}
+        {settingUp && page.staff && ready && page.staff.status !== "archived" && (
+          <Suspense fallback={null}>
+            <SetupSteps page={page} onChanged={() => onChanged?.()} onClose={() => setSettingUp(false)} />
+          </Suspense>
+        )}
+        {shareFrom !== undefined && (
+          <Suspense fallback={null}>
+            <SharePanel
+              page={page}
+              slug={slug}
+              stages={stageFiles && !stageFiles.failed ? stageFiles.stages : null}
+              from={shareFrom}
+              staff={!!page.staff && ready}
+              onClose={() => setShareFrom(undefined)}
+            />
+          </Suspense>
+        )}
+        <Toaster />
+      </div>
+    </CommentListsProvider>
   );
 }
 

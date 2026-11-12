@@ -104,6 +104,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     stages: project.stages.map((stage, i) => ({
       position: i + 1,
       unavailable: false,
+      comments: stage.comments,
       folder_missing: false,
       groups: stage.groups
         .filter((group) => group.files.length)
@@ -216,8 +217,42 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     return { link, url: `${window.location.origin}/share/${EXAMPLE_SHARE}`, owner: link.id };
   };
 
+  // Comments (A49), in this browser: on a card (its key, or its comparison's
+  // "after" image's) or on a stage, signed as the office when signed in.
+  const comment = (body: Body) => {
+    const posted: Schemas["CommentOut"] = {
+      id: id(),
+      author: signedIn ? "staff" : "client",
+      name: signedIn ? "Você" : String(body.name ?? "").trim(),
+      body: String(body.body ?? "").trim(),
+      created_at: new Date().toISOString(),
+      removable: signedIn, // the visitor's own, either way: staff by the server's
+      receipt: signedIn ? null : "exemplo", // word, a client by their device's receipt
+    };
+    const key = body.key as string | undefined;
+    const card = key
+      ? project.stages
+          .flatMap((stage) => stage.groups.flatMap((group) => group.files))
+          .find((file) => file.key === key || file.comparison?.after.key === key)
+      : undefined;
+    const where = card ? card.comments : project.stages[Number(body.position) - 1]?.comments;
+    if (!where) return { status: 404, body: { error: "file_not_found" } };
+    where.push(posted);
+    return { body: posted };
+  };
+  const uncomment = (commentId: string) => {
+    for (const stage of project.stages)
+      for (const list of [stage.comments, ...stage.groups.flatMap((group) => group.files.map((file) => file.comments ?? []))]) {
+        const index = list.findIndex((c) => c.id === commentId);
+        if (index >= 0) list.splice(index, 1);
+      }
+    return done;
+  };
+
   const routes: Route[] = [
     ["GET", new RegExp(`^${PAGE}$`), () => ({ body: page() })],
+    ["POST", new RegExp(`^${PAGE}/comments$`), (_, body) => comment(body)],
+    ["DELETE", new RegExp(`^${PAGE}/comments/([^/]+)$`), (match) => uncomment(match[1]!)],
     ["GET", new RegExp(`^${PAGE}/files$`), () => ({ body: files() })],
     ["POST", /^\/api\/me\/tour-seen$/, () => done], // the example's tour stores nothing
     // "Novidades por e-mail": as if signed up; nothing leaves the browser.
@@ -353,7 +388,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
           title = options?.stages.find((option) => option.key === body.builtin_key)?.title ?? title;
         }
         if (!title) return refused("invalid_status_change");
-        project.stages.push({ title, about: null, notes: "", completed: false, groups: [] });
+        project.stages.push({ title, about: null, notes: "", completed: false, groups: [], comments: [] });
         project.status = "active"; // a new stage is open
         return changed();
       },
