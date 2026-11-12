@@ -962,8 +962,8 @@ function SelectionBar({
       <Button
         size="small"
         variant="primary"
-        isDisabled={chosen.length < 2 || (busy && !merge.isPending)}
-        pending={merge.isPending}
+        isDisabled={chosen.length < 2 || (busy && !joining.busy)}
+        pending={joining.busy}
         onPress={group}
       >
         {t("portfolio.group")}
