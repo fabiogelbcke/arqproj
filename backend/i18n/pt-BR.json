@@ -584,6 +584,7 @@
     "fileCount_one": "{{padded}} arquivo",
     "fileCount_other": "{{padded}} arquivos",
     "filesUnavailable": "Não foi possível carregar os arquivos agora. Tente novamente em instantes.",
+    "folderMissing": "A pasta deste projeto não está mais no Drive: foi excluída ou movida para fora da pasta do escritório. Procure na lixeira do Drive.",
     "openFile": "Abrir {{name}}",
     "downloadFile": "Baixar {{name}}",
     "backToShare": "Voltar aos arquivos"

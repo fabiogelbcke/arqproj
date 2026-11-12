@@ -4094,6 +4094,11 @@ export interface components {
              * @default false
              */
             unavailable: boolean;
+            /**
+             * Folder Missing
+             * @default false
+             */
+            folder_missing: boolean;
             /** Comments */
             comments?: components["schemas"]["CommentOut"][] | null;
         };

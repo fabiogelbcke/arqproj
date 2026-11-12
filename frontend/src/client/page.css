@@ -18,8 +18,8 @@ a.site__brand { color: inherit; text-decoration: none; }
 /* The password box on a protected page. */
 .password-gate { display: grid; gap: 8px; margin-top: 18px; max-width: 420px; }
 .password-gate label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-muted, var(--muted)); }
-.password-gate__row { display: flex; gap: 8px; }
-.password-gate__row .input { flex: 1; min-height: var(--control-main); padding: 8px 12px; border: 1px solid var(--line); background: transparent; color: inherit; }
+.password-gate__row { display: flex; gap: 8px; align-items: end; }
+.password-gate__row > :first-child { flex: 1; min-width: 0; }
 .password-gate__problem { color: var(--danger, #9b3d1d); font-size: 14px; }
 
 /* Files (2.5): the prototype's cards; subfolders as small titled groups. */

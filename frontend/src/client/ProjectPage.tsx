@@ -98,7 +98,7 @@ type Moving = { over: string | null; target: (place: DropPlace) => ReturnType<ty
 function filesFor(state: FilesState | null, position: number) {
   if (state === null) return { files: undefined, reference: null };
   const files = state.failed
-    ? { position, groups: [], unavailable: true }
+    ? { position, groups: [], unavailable: true, folder_missing: false }
     : state.stages.find((s) => s.position === position);
   return { files, reference: state.reference };
 }
@@ -278,7 +278,7 @@ function StageFilesList({
     return (
       <>
         <p className="empty-stage">
-          {t("page.filesUnavailable")}
+          {t(files.folder_missing ? "page.folderMissing" : "page.filesUnavailable")}
           {reference && ` ${t("errors.reference", { id: reference })}`}
         </p>
         {uploads}

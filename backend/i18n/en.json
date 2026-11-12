@@ -584,6 +584,7 @@
     "fileCount_one": "{{padded}} file",
     "fileCount_other": "{{padded}} files",
     "filesUnavailable": "The files couldn't be loaded just now. Try again in a moment.",
+    "folderMissing": "This project's folder is no longer in Drive: it was deleted or moved out of the office's folder. Look in Drive's trash.",
     "openFile": "Open {{name}}",
     "downloadFile": "Download {{name}}",
     "backToShare": "Back to the files"

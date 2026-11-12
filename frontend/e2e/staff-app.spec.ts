@@ -703,10 +703,10 @@ test("staff protect a page with a password; a client unlocks it once", async ({
     client.getByRole("heading", { name: "Página protegida" }),
   ).toBeVisible();
   await expect(client.getByText("Copacabana")).toHaveCount(0);
-  await client.getByLabel("Senha").fill("errada");
+  await client.getByLabel("Senha", { exact: true }).fill("errada");
   await client.getByRole("button", { name: "Entrar" }).click();
   await expect(client.getByRole("alert")).toContainText("Senha incorreta");
-  await client.getByLabel("Senha").fill("praia-123");
+  await client.getByLabel("Senha", { exact: true }).fill("praia-123");
   await client.getByRole("button", { name: "Entrar" }).click();
   await expect(
     client.getByRole("heading", {
