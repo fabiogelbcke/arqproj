@@ -11,6 +11,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
+import { copyText } from "../ui/copyText";
 import { Toaster, toast, toastError } from "../ui/Toast";
 import { SiteFooter } from "../ui/UnioMark";
 import { EditButton, openOnClick } from "./EditButton";
@@ -97,7 +98,7 @@ type Moving = { over: string | null; target: (place: DropPlace) => ReturnType<ty
 function filesFor(state: FilesState | null, position: number) {
   if (state === null) return { files: undefined, reference: null };
   const files = state.failed
-    ? { position, groups: [], unavailable: true }
+    ? { position, groups: [], unavailable: true, folder_missing: false }
     : state.stages.find((s) => s.position === position);
   return { files, reference: state.reference };
 }
@@ -285,7 +286,7 @@ function StageFilesList({
     return (
       <>
         <p className="empty-stage">
-          {t("page.filesUnavailable")}
+          {t(files.folder_missing ? "page.folderMissing" : "page.filesUnavailable")}
           {reference && ` ${t("errors.reference", { id: reference })}`}
         </p>
         {uploads}
@@ -1008,13 +1009,7 @@ function StaffBar({
         data-tour="link"
         aria-label={t("page.copyLink")}
         title={t("page.copyLink")}
-        onClick={() => {
-          const link = window.location.origin + window.location.pathname;
-          navigator.clipboard?.writeText(link).then(
-            () => toast(t("page.linkCopied")),
-            () => toast(link),
-          );
-        }}
+        onClick={() => void copyText(window.location.origin + window.location.pathname)}
       >
         <Icon name="link" />
       </button>
@@ -1196,6 +1191,10 @@ export function ProjectPage({
   // sections', which the "+" card opens.
   const chooserId = (i: number, section: string | null) =>
     section === null ? `up-${i + 1}` : `up-${i + 1}-s${sections[i]!.indexOf(section)}`;
+  // The "+" card offers comparisons, a feature switched on per office (A40, A46).
+  // With it, the stage and its sections take dropped files themselves, in place
+  // of their drop areas.
+  const plusCard = (i: number) => canEdit && !unreadable(i) && (page.features ?? []).includes("before_after");
   // The share panel: undefined while closed; null opened above the stages, or
   // the row of the stage it was opened from.
   const [shareFrom, setShareFrom] = useState<number | null | undefined>(undefined);
@@ -1493,6 +1492,7 @@ export function ProjectPage({
                     staff={staff!}
                     position={i + 1}
                     folder={`${pad(i + 1)} - ${page.stages[i]!.title}`}
+                    bare={plusCard(i)}
                     onChanged={() => onChanged?.()}
                   />
                   {!unreadable(i) && (
@@ -1511,6 +1511,7 @@ export function ProjectPage({
                         folder={`${pad(i + 1)} - ${page.stages[i]!.title}/${section}`}
                         section={section}
                         inputId={chooserId(i, section)}
+                        bare={plusCard(i)}
                         onChanged={() => onChanged?.()}
                       />
                     </Suspense>
@@ -1519,8 +1520,7 @@ export function ProjectPage({
             }
             moving={moving}
             addCard={
-              // The "+" card offers comparisons, a feature switched on per office (A40, A46).
-              canEdit && !unreadable(i) && (page.features ?? []).includes("before_after")
+              plusCard(i)
                 ? (section) => (
                     <Suspense fallback={null}>
                       <AddCard

@@ -367,6 +367,9 @@ describe("the client page", () => {
     expect(await screen.findByRole("heading", { name: "Página protegida" })).toBeInTheDocument();
     expect(screen.queryByText("Refúgio")).toBeNull();
     await userEvent.type(screen.getByLabelText("Senha"), "errada");
+    // The client can check what they typed (the shared password field's eye).
+    await userEvent.click(screen.getByRole("button", { name: "Mostrar senha" }));
+    expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "text");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Senha incorreta.");
     await userEvent.clear(screen.getByLabelText("Senha"));
@@ -471,6 +474,22 @@ describe("the files", () => {
     });
     const open = await screen.findByRole("button", { name: "Abrir Planta.pdf" });
     expect(open).toHaveAccessibleDescription(/v3.*Atualizado.*2 KB, 10\/10\/2026/);
+  });
+
+  it("tells staff where to look when the project's folder is gone from Drive, not to try again", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({
+        body: {
+          stages: [{ position: 1, groups: [], unavailable: true, folder_missing: true }],
+          reference: "abc123",
+        },
+      }),
+    });
+    const first = await screen.findByRole("region", { name: "Briefing" });
+    expect(await within(first).findByText(/A pasta deste projeto não está mais no Drive/)).toBeInTheDocument();
+    expect(within(first).getByText(/Código de suporte: abc123/)).toBeInTheDocument();
+    expect(within(first).queryByText(/Tente novamente/)).toBeNull();
   });
 });
 

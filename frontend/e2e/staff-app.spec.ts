@@ -703,10 +703,10 @@ test("staff protect a page with a password; a client unlocks it once", async ({
     client.getByRole("heading", { name: "Página protegida" }),
   ).toBeVisible();
   await expect(client.getByText("Copacabana")).toHaveCount(0);
-  await client.getByLabel("Senha").fill("errada");
+  await client.getByLabel("Senha", { exact: true }).fill("errada");
   await client.getByRole("button", { name: "Entrar" }).click();
   await expect(client.getByRole("alert")).toContainText("Senha incorreta");
-  await client.getByLabel("Senha").fill("praia-123");
+  await client.getByLabel("Senha", { exact: true }).fill("praia-123");
   await client.getByRole("button", { name: "Entrar" }).click();
   await expect(
     client.getByRole("heading", {
@@ -932,7 +932,6 @@ test("a portfolio work's before and after opens on a slider, by pointer and keyb
   browser,
 }) => {
   await signInAsNewStaff(page, "portfolio@alinea.example");
-  switchOn("portfolio");
   switchOn("before_after");
   const me = await (await page.request.get("/api/me")).json();
   const headers = { "X-CSRF-Token": me.csrf_token };
@@ -1525,7 +1524,8 @@ test("an open stage is as tall as its files, for clients and in edit mode @safar
     .getByRole("button", { name: "Editar" })
     .click();
   await openThirdStage(page);
-  await page.locator("#stage-2 .drop").waitFor();
+  // Edit mode is drawn: its drop area, or with comparisons on (A46) its "+" card.
+  await page.locator("#stage-2 .drop, #stage-2 .file--add").first().waitFor();
   expect(await openStageMisfit(page)).toBeLessThan(3);
 });
 

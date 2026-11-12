@@ -656,8 +656,8 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
             <ErrorNotice error={save.error} />
             <div className={styles.buttons}>
               <Button onPress={openPdf}>{t("proposal.generator.viewPdf")}</Button>
-              <Button type="submit" variant="primary" isDisabled={save.isPending || archived || accepted}>
-                {save.isPending ? t("proposal.generator.saving") : t("proposal.generator.save")}
+              <Button type="submit" variant="primary" isDisabled={archived || accepted} pending={save.isPending}>
+                {t("proposal.generator.save")}
               </Button>
             </div>
             <p className={styles.hint}>{t("proposal.generator.saveHint")}</p>

@@ -17,36 +17,41 @@ import { StageChoiceFields, stagesFromServices, useStageChoice } from "../projec
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { EmailListField, addEmails } from "../ui/EmailListField";
+import { ProgressBar } from "../ui/ProgressBar";
 import { toast } from "../ui/Toast";
 import { DetailRows, useDetailTypes, useSave, type DetailRow } from "./Editors";
 import type { Page } from "./format";
 
 type Staff = NonNullable<Page["staff"]>;
 
-/** The step's buttons: "Pular" and "Continuar" (on the last step, "Concluir"). */
+/** The step's buttons: "Pular" and "Continuar" (on the last step, "Concluir"),
+ *  and above them, for a save in steps, how far it has got. */
 function Actions({
   busy,
   last,
   onSkip,
-  saving,
+  progress,
   ready = true,
 }: {
   busy: boolean;
   last: boolean;
   onSkip: () => void;
-  saving?: string; // what the button says while saving, if more than "Salvando…"
+  progress?: { value: number; caption: string }; // a save in several steps ("Criando etapas (2 de 7)…")
   ready?: boolean; // false: nothing to save yet (still loading, or it failed); "Pular" still works
 }) {
   const { t } = useTranslation();
   return (
-    <div className={projectStyles.setupActions}>
-      <Button onPress={onSkip} isDisabled={busy}>
-        {t("setup.skip")}
-      </Button>
-      <Button type="submit" variant="primary" isDisabled={busy || !ready}>
-        {busy ? (saving ?? t("setup.saving")) : t(last ? "setup.finish" : "setup.next")}
-      </Button>
-    </div>
+    <>
+      {busy && progress && <ProgressBar value={progress.value} label={progress.caption} caption={progress.caption} />}
+      <div className={projectStyles.setupActions}>
+        <Button onPress={onSkip} isDisabled={busy}>
+          {t("setup.skip")}
+        </Button>
+        <Button type="submit" variant="primary" isDisabled={!ready} pending={busy}>
+          {t(last ? "setup.finish" : "setup.next")}
+        </Button>
+      </div>
+    </>
   );
 }
 
@@ -151,7 +156,7 @@ function StagesStep({ page, staff, version, onSaved, onSkip, last }: StepProps) 
         last={last}
         // Some stages made before a failure: the next steps need the version they left.
         onSkip={() => (saved.current !== version ? onSaved(saved.current) : onSkip())}
-        saving={making ? t("setup.makingStages", making) : undefined}
+        progress={making ? { value: (making.done - 1) / making.total, caption: t("setup.makingStages", making) } : undefined}
       />
     </form>
   );

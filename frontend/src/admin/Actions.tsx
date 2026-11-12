@@ -99,9 +99,8 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
     onSuccess: () => void cache.invalidateQueries({ queryKey: ["admin", "offices"] }),
   });
   // Open until the request answers: its owner link is shown only here (Codex, PR #149).
-  const close = () => !create.isPending && onClose();
   return (
-    <DialogFrame title={t("admin.actions.create")} onClose={close}>
+    <DialogFrame title={t("admin.actions.create")} onClose={onClose} busy={create.isPending}>
       {create.data?.owner_url ? (
         <OwnerLink url={create.data.owner_url} onDone={onClose} />
       ) : (
@@ -111,8 +110,8 @@ function CreateTenantDialog({ onClose }: { onClose: () => void }) {
           <TextField label={t("admin.actions.slug")} description={t("admin.actions.slugHint")} value={slug} onChange={setEdited} isRequired autoComplete="off" />
           <ErrorNotice error={create.error} />
           <div className={styles.dialogActions}>
-            <Button onPress={close} isDisabled={create.isPending}>{t("admin.actions.cancel")}</Button>
-            <Button type="submit" variant="primary" isDisabled={create.isPending}>{t("admin.actions.createConfirm")}</Button>
+            <Button onPress={onClose} isDisabled={create.isPending}>{t("admin.actions.cancel")}</Button>
+            <Button type="submit" variant="primary" pending={create.isPending}>{t("admin.actions.createConfirm")}</Button>
           </div>
         </Form>
       )}
@@ -134,9 +133,8 @@ export function SignupLink() {
 function SignupLinkDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const make = useMutation({ mutationFn: () => call(api.POST("/api/admin/signup-links")) });
-  const close = () => !make.isPending && onClose();
   return (
-    <DialogFrame title={t("admin.actions.signupLink")} onClose={close}>
+    <DialogFrame title={t("admin.actions.signupLink")} onClose={onClose} busy={make.isPending}>
       {make.data ? (
         <div className={styles.dialogBody} role="status">
           <p>{t("admin.actions.signupLinkHelp")}</p>
@@ -150,8 +148,8 @@ function SignupLinkDialog({ onClose }: { onClose: () => void }) {
           <p>{t("admin.actions.signupLinkExplain")}</p>
           <ErrorNotice error={make.error} />
           <div className={styles.dialogActions}>
-            <Button onPress={close} isDisabled={make.isPending}>{t("admin.actions.cancel")}</Button>
-            <Button type="submit" variant="primary" isDisabled={make.isPending}>{t("admin.actions.signupLinkMake")}</Button>
+            <Button onPress={onClose} isDisabled={make.isPending}>{t("admin.actions.cancel")}</Button>
+            <Button type="submit" variant="primary" pending={make.isPending}>{t("admin.actions.signupLinkMake")}</Button>
           </div>
         </Form>
       )}
@@ -190,9 +188,8 @@ function ActionDialog({ office, action, onClose }: { office: Schemas["AdminOffic
     },
   });
   // As creating: closing mid-request would hide its result, or seem to cancel it.
-  const close = () => !run.isPending && onClose();
   return (
-    <DialogFrame title={t(`admin.actions.${action}`)} onClose={close}>
+    <DialogFrame title={t(`admin.actions.${action}`)} onClose={onClose} busy={run.isPending}>
       {run.data?.owner_url ? (
         <OwnerLink url={run.data.owner_url} onDone={onClose} />
       ) : run.data?.support_url ? (
@@ -203,8 +200,8 @@ function ActionDialog({ office, action, onClose }: { office: Schemas["AdminOffic
           {action === "delete" && <TextField label={t("admin.actions.confirmName")} value={confirmation} onChange={setConfirmation} isRequired autoComplete="off" />}
           <ErrorNotice error={run.error} />
           <div className={styles.dialogActions}>
-            <Button onPress={close} isDisabled={run.isPending}>{t("admin.actions.cancel")}</Button>
-            <Button type="submit" variant="primary" className={action === "delete" || action === "suspend" ? ui.dangerAction : undefined} isDisabled={run.isPending || (action === "delete" && confirmation !== office.name)}>
+            <Button onPress={onClose} isDisabled={run.isPending}>{t("admin.actions.cancel")}</Button>
+            <Button type="submit" variant={action === "delete" || action === "suspend" ? "danger" : "primary"} isDisabled={action === "delete" && confirmation !== office.name} pending={run.isPending}>
               {t("admin.actions.confirm")}
             </Button>
           </div>

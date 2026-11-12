@@ -2694,7 +2694,7 @@ export interface components {
          *     Remove a feature from here once every office has it.
          * @enum {string}
          */
-        Feature: "project_members" | "proposals" | "portfolio" | "cover_band" | "before_after";
+        Feature: "project_members" | "proposals" | "cover_band" | "before_after";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -4025,6 +4025,11 @@ export interface components {
              * @default false
              */
             unavailable: boolean;
+            /**
+             * Folder Missing
+             * @default false
+             */
+            folder_missing: boolean;
         };
         /** StageOption */
         StageOption: {
@@ -5466,6 +5471,15 @@ export interface operations {
             };
             /** @description Unprocessable Content */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

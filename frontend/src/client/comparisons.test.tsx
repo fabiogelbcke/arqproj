@@ -391,11 +391,54 @@ describe("comparisons in edit mode", () => {
     expect(within(region).queryByRole("button", { name: "Adicionar à etapa" })).not.toBeInTheDocument();
   });
 
+  it("takes files dropped anywhere on the stage or a section, with no drop area", async () => {
+    const sent = asStaff({
+      "GET /api/pages/casa-jardim/files": () => ({
+        body: {
+          stages: [
+            {
+              position: 1,
+              groups: [
+                { folder: null, files: [KITCHEN] },
+                { folder: "Renders", files: [image("r1", "Sala.jpg")] },
+              ],
+            },
+            { position: 2, groups: [] },
+          ],
+        },
+      }),
+      "POST /api/projects/p-1/stages/1/uploads/check": () => ({ body: { matches: [] } }),
+      "POST /api/projects/p-1/stages/1/uploads": () => ({ body: { upload_url: "https://upload.example/u" } }),
+    });
+    await startEditing();
+    const stage = await screen.findByRole("region", { name: "Briefing" });
+    const renders = (await within(stage).findByRole("heading", { name: "Renders" })).closest("details")!;
+    expect(within(stage).queryByText(/Solte arquivos aqui/)).not.toBeInTheDocument();
+    const fromComputer = (name: string) => ({ types: ["Files"], files: [new File(["x"], name)] });
+    // Over a section: that section is outlined, not its stage.
+    fireEvent.dragOver(within(renders).getByRole("button", { name: "Abrir Sala.jpg" }), { dataTransfer: fromComputer("") });
+    expect(renders).toHaveClass("is-drop-target");
+    expect(stage).not.toHaveClass("is-drop-target");
+    fireEvent.drop(renders, { dataTransfer: fromComputer("Corte.jpg") });
+    expect(renders).not.toHaveClass("is-drop-target");
+    await screen.findByText("Arquivo enviado.");
+    // Anywhere else on the stage, its own files.
+    fireEvent.dragOver(stage, { dataTransfer: fromComputer("") });
+    expect(stage).toHaveClass("is-drop-target");
+    fireEvent.drop(stage, { dataTransfer: fromComputer("Planta.pdf") });
+    await waitFor(() => expect(FakeXhr.sent).toHaveLength(2));
+    expect(sent.filter((r) => r.path.endsWith("/uploads")).map((r) => r.body)).toMatchObject([
+      { name: "Corte.jpg", folder: "Renders" },
+      { name: "Planta.pdf" },
+    ]);
+    expect(sent.filter((r) => r.path.endsWith("/uploads"))[1]!.body).not.toHaveProperty("folder");
+  });
+
   it("offers the stage's own file chooser from the \"+\" card too", async () => {
     asStaff();
     await startEditing();
     const region = await screen.findByRole("region", { name: "Briefing" });
-    const chooser = (await within(region).findByLabelText("escolha no computador")) as HTMLInputElement;
+    const chooser = (await within(region).findByLabelText("Enviar arquivos para a etapa")) as HTMLInputElement;
     const opened = vi.spyOn(chooser, "click");
     await userEvent.click(await within(region).findByRole("button", { name: "Adicionar à etapa" }));
     await userEvent.click(within(region).getByRole("menuitem", { name: /Enviar arquivos/ }));

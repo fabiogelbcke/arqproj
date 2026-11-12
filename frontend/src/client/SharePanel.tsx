@@ -10,6 +10,7 @@ import { LIMITS } from "../api/limits";
 import { Button } from "../ui/Button";
 import { ChipGroup } from "../ui/ChipGroup";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { copyText } from "../ui/copyText";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { PasswordField } from "../ui/PasswordField";
@@ -41,15 +42,6 @@ function keepOwned(slug: string, owned: Owned) {
     localStorage.setItem(storageKey(slug), JSON.stringify([owned, ...readOwned(slug)]));
   } catch {
     // Not remembered on this device: the link still works, but can't be managed here.
-  }
-}
-
-async function copy(text: string, t: (key: string) => string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast(t("share.copied"));
-  } catch {
-    toast(t("share.copyFailed")); // the link stays on screen to copy by hand
   }
 }
 
@@ -183,7 +175,7 @@ export function SharePanel({
                 {t("share.shareSheet")}
               </Button>
             )}
-            <Button onPress={() => void copy(made.url, t)}>{t("share.copy")}</Button>
+            <Button onPress={() => void copyText(made.url)}>{t("share.copy")}</Button>
             <Button variant="primary" onPress={onClose}>
               {t("share.done")}
             </Button>
@@ -514,7 +506,7 @@ function ShareLinks({
               {live && (
                 <div className="share-actions share-actions--row">
                   {url && (
-                    <Button size="small" onPress={() => void copy(url, t)}>
+                    <Button size="small" onPress={() => void copyText(url)}>
                       {t("share.copy")}
                     </Button>
                   )}

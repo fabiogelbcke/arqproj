@@ -19,6 +19,82 @@ a new entry too.
 
 ---
 
+## 2026-11-11 — A45: the portfolio for every office; the tab says less
+
+**Was:** the portfolio was behind the `portfolio` feature (A40): an office had
+the Portfólio tab, and its address could show the portfolio, only after the
+operator switched it on. The tab opened with a paragraph explaining the page
+("Uma página com os projetos do escritório, no endereço …"), the publishing
+switch had a line under it saying what the address showed in each state, the
+format cards carried a full sentence each, and an empty section said it "enters
+the portfolio's menu once it has photos".
+
+**Now:** every office has the tab; nothing to switch on. A portfolio starts
+unpublished: the switch alone decides whether the address shows it, which is
+what the feature's "off" state did. The `Feature`
+enum loses `portfolio`; a tenant row still naming it is ignored, as A40 says, so
+no migration. The tab's copy is shorter: no lead paragraph, no line under the
+switch, the switch itself naming the address ("Mostrar portfólio do escritório no
+endereço alinea.myunio.app"), one short line per format, and the empty-section
+text says the section only shows once it has a photo or a project.
+
+**Why:** Fabio, 11 Nov 2026: "Remove portfolio from feature flags, it should be
+available to all offices now (default off)", with the copy trims in the same
+message. The feature flag had done its job: the portfolio was tried on the test
+offices and is the shape he wants.
+
+**Also:** while the portfolio is unpublished, the office's address no longer
+shows Unio's home (a visitor typed the office's address and met our product's
+page) but a card of the office: its logo or name, the ways to reach it and its
+networks where saved, and "Acesso da equipe". Set aside: a redirect to the
+office's own website (a new setting, and most offices come for the portfolio
+because they have no site) and a redirect to the painel sign-in (a login the
+office's clients can't use). Unio's home still shows there when the office can't
+be read, so the address always answers.
+
+## 2026-11-10 — A21, A45: a CDN for published portfolio photos; a work's images fit the screen
+
+**Was:** every portfolio photo was fetched through the app, which made three calls
+to Drive for each (about 0.7 s, up to 1.6 s, measured on Alinea's page), and was
+kept five minutes by the visitor's browser only. Grid tiles about 440 px wide
+fetched 960 px images. In Mosaico, a work of one image (most of them since
+pieces became single images, 9 Nov) showed it the full width of the page, at
+twice the screen's height on a laptop.
+
+**Now:** Cloud CDN on the load balancer keeps published photos a day
+(`s-maxage`), the browser an hour; a 480 px size joins the two others, offered
+as a `srcset`; on a desktop a work's images are capped at 72% of the screen's
+width or 1100 px and 82% of its height.
+
+**Why:** almost all the waiting was the app reaching Drive, not the download, so
+smaller images alone would not fix it. A CDN costs about what plain outbound
+transfer does (it replaces it for cached content; lookups are $0.0075 per
+10,000), so no added cost to speak of. Considered and left: keeping our own small
+copy of each photo, the fastest even for a first visitor, but a second store
+beside Drive (A10); and remembering Drive's thumbnail links, which expire. The
+cost of the CDN: a photo removed, or a portfolio unpublished, can still be
+served from it for up to a day, at an address no longer linked anywhere (Fabio
+accepted, 10 Nov 2026). Purging the CDN on removal can come if that matters.
+
+## 2026-11-10 — A46: with comparisons on, the whole stage takes dropped files
+
+**Was:** with `before_after` on, a stage and each section showed both the "+"
+card and their drop area ("Solte arquivos aqui ou escolha no computador"), two
+ways to add files side by side.
+
+**Now:** with the feature on, the drop areas go. Files dropped anywhere on a
+stage or a section upload there (the section, not its stage, when dropped on
+it), the place outlined while they are over it; the "+" card's "Enviar
+arquivos" opens the same chooser. Switched off, the page keeps its drop areas
+and has no "+" card, as before.
+
+**Why:** Fabio, looking at the "+" card: the drop area repeated it, and the
+whole stage being droppable is simpler. The drop area's note (the Drive folder,
+the size limit) no longer shows; a file over the limit still fails with its
+message.
+
+---
+
 ## 2026-11-10 — A45: the office's networks at the top of the page as well as in the footer
 
 **Was:** the office's social profiles showed only in the footer, as plain names
