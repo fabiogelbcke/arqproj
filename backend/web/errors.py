@@ -164,7 +164,10 @@ log = logging.getLogger(__name__)
 
 async def handle_invalid_request(request: Request, error: RequestValidationError) -> JSONResponse:
     # The details (which field, why) are for us, in the log; never in the response.
-    log.warning("invalid request to %s: %s", request.url.path, error.errors())
+    # Only where and what kind: each error also carries the value sent, which may
+    # be a password.
+    problems = [(problem["loc"], problem["type"]) for problem in error.errors()]
+    log.warning("invalid request to %s: %s", request.url.path, problems)
     return JSONResponse({"error": ErrorCode.INVALID_REQUEST.value}, status_code=422)
 
 

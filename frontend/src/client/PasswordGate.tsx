@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, api, call } from "../api/client";
 import { PasswordField } from "../ui/PasswordField";
 import { SiteHeader } from "./ProjectPage";
+import { PendingContent } from "../ui/PendingContent";
 
 /** A protected page: the client types the password once per device (A06). With
  *  `unlock`, a shared link's own password (A37), in the link's words. */
@@ -61,8 +62,8 @@ export function PasswordGate({
               isRequired
               autoFocus
             />
-            <button className="b b--primary" type="submit" disabled={busy || !password}>
-              {t("page.enter")}
+            <button className="b b--primary" type="submit" disabled={busy || !password} aria-busy={busy || undefined}>
+              <PendingContent pending={busy}>{t("page.enter")}</PendingContent>
             </button>
           </div>
           {problem && (

@@ -1111,6 +1111,11 @@ test("staff edit the page in place and the client sees it", async ({
   });
   expect(contrast).toBe(true);
   await remove.click();
+  // Removing the cover asks first: the photo goes to the office's Drive trash.
+  await page
+    .getByRole("alertdialog", { name: "Remover a capa?" })
+    .getByRole("button", { name: "Remover capa" })
+    .click();
   await expect(
     page.getByRole("button", { name: /Adicionar foto de capa/ }),
   ).toBeVisible();

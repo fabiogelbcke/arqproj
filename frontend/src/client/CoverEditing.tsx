@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 
 import { api, call } from "../api/client";
 import { CoverPhotoDialog } from "../projects/CoverPhotoDialog";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { toast, toastError } from "../ui/Toast";
 import type { Page } from "./format";
@@ -19,6 +20,7 @@ export function CoverPicker({ page, onChanged }: { page: Page; onChanged: () => 
   const [cropping, setCropping] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [choosing, setChoosing] = useState(false);
+  const [removing, setRemoving] = useState(false); // asked first: the photo goes to the trash
   const stop = () => {
     if (cropping) URL.revokeObjectURL(cropping);
     setCropping(null);
@@ -35,6 +37,7 @@ export function CoverPicker({ page, onChanged }: { page: Page; onChanged: () => 
       toastError(failure);
     } finally {
       setBusy(false);
+      setRemoving(false);
     }
   };
   const upload = async (file: File) => {
@@ -95,7 +98,7 @@ export function CoverPicker({ page, onChanged }: { page: Page; onChanged: () => 
           <button className="editbtn" type="button" disabled={busy} onClick={() => setChoosing(true)}>
             {t("edit.changeCover")}
           </button>
-          <button className="editbtn" type="button" disabled={busy} onClick={() => void remove()}>
+          <button className="editbtn" type="button" disabled={busy} onClick={() => setRemoving(true)}>
             {t("edit.removeCover")}
           </button>
         </div>
@@ -108,6 +111,17 @@ export function CoverPicker({ page, onChanged }: { page: Page; onChanged: () => 
         </figure>
       )}
       {chooser}
+      {removing && (
+        <ConfirmDialog
+          title={t("edit.removeCoverAsk")}
+          text={t("edit.removeCoverMeans")}
+          confirm={t("edit.removeCover")}
+          danger
+          busy={busy}
+          onCancel={() => setRemoving(false)}
+          onConfirm={() => void remove()}
+        />
+      )}
       {choosing && (
         <CoverPhotoDialog onClose={() => setChoosing(false)} onUpload={() => input.current?.click()} onPick={pick} />
       )}

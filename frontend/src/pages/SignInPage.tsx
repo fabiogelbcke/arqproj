@@ -68,7 +68,7 @@ export function SignInPage() {
           <EmailField name="email" autoComplete="username" isRequired lookup label={t("signIn.email")} />
           <PasswordField name="password" autoComplete="current-password" isRequired label={t("signIn.password")} />
           <ErrorNotice error={signIn.error} />
-          <Button type="submit" variant="primary" isDisabled={signIn.isPending}>
+          <Button type="submit" variant="primary" pending={signIn.isPending}>
             {t("signIn.submit")}
           </Button>
         </Form>

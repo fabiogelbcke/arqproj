@@ -232,6 +232,44 @@ async def test_a_reset_link_confirms_the_email_too(client, joined, sent):
     assert chosen.json()["email_confirmed"] is True
 
 
+async def _signup_flag(db_session):
+    return await db_session.scalar(
+        text("SELECT unconfirmed_signup FROM users WHERE email = 'caio@gmail.com'")
+    )
+
+
+@pytest.mark.parametrize("how", ["code", "link", "reset"])
+async def test_any_confirmation_makes_a_sign_up_an_account_like_any_other(
+    client, db_session, joined, sent, how
+):
+    """Joining marks the account as a sign-up (Google confirming it would end what
+    its maker chose); the first confirmation, by any path, clears the mark."""
+    assert await _signup_flag(db_session) is True
+    if how == "code":
+        done = await enter(client, joined, code_in(sent.emails[0].text))
+    elif how == "link":
+        token = token_in(sent.emails[0].text)
+        done = await client.post("/api/email-confirmation", json={"token": token}, headers=ALINEA)
+    else:
+        await client.post("/api/password-reset", json={"email": "caio@gmail.com"}, headers=ALINEA)
+        done = await client.post(
+            "/api/password",
+            json={"token": token_in(sent.emails[-1].text), "password": "a new password"},
+            headers=ALINEA,
+        )
+    assert done.status_code in (200, 204), done.text
+    assert await _signup_flag(db_session) is False
+
+
+async def test_a_corrected_address_is_still_a_sign_up(client, db_session, joined, sent):
+    fixed = await client.put("/api/me/email", json={"email": "caio.reis@gmail.com"}, headers=joined)
+    assert fixed.status_code == 200, fixed.text
+    marked = await db_session.scalar(
+        text("SELECT unconfirmed_signup FROM users WHERE email = 'caio.reis@gmail.com'")
+    )
+    assert marked is True
+
+
 async def test_the_same_address_again_is_a_resend_and_waits_like_one(
     client, db_session, joined, sent
 ):

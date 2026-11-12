@@ -254,6 +254,7 @@ async def test_google_sign_in_returns_signed_in(client, operators, google):
     ("change", "said"),
     [
         ({"state": "forged"}, "expirado"),  # not the state this browser started
+        ({"state": "forjadá"}, "expirado"),  # any characters: refused, not an error
         ({"error": "access_denied"}, "cancelado"),
     ],
 )

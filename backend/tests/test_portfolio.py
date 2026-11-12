@@ -133,6 +133,23 @@ async def test_unpublished_the_offices_address_shows_its_card_and_unios_keeps_it
     assert unios.headers["cache-control"] == "public, max-age=3600"
 
 
+async def test_an_address_that_is_both_unios_and_an_offices_shows_the_office(
+    client, office_owner, db_session
+):
+    """Staging: its one address, staging.myunio.app, is Unio's and the test
+    office's. The office's page wins there; an address no office owns (Unio's own
+    in production) keeps Unio's home, as the test above shows for localhost."""
+    await db_session.execute(
+        text(
+            "UPDATE tenant_domains SET hostname = 'localhost' WHERE is_primary "
+            "AND tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
+        )
+    )
+    answer = await client.get("/", headers={"host": "localhost"})
+    assert answer.status_code == 200 and 'href="/painel/"' in answer.text
+    assert "UNIO" not in answer.text
+
+
 async def test_an_office_with_nothing_saved_still_has_its_card(client, office_owner):
     card = await client.get("/", headers=ALINEA)
     assert card.status_code == 200 and "<h1>" in card.text and "UNIO" not in card.text
@@ -151,6 +168,11 @@ async def test_unios_home_shows_when_the_office_cant_be_read(client, staff, monk
     client.cookies.clear()
     answer = await client.get("/", headers=ALINEA)
     assert answer.status_code == 200 and "UNIO" in answer.text
+    # Not kept by the browser, on Unio's own address either: on staging that
+    # address is the office's too, and the home is standing in for its page.
+    unios = await client.get("/", headers={"host": "localhost"})
+    assert unios.status_code == 200 and "UNIO" in unios.text
+    assert unios.headers["cache-control"] == "no-cache"
 
 
 async def test_a_type_the_operator_added_is_shown_by_its_own_name(client, staff, db_session):

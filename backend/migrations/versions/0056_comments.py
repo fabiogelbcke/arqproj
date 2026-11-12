@@ -8,8 +8,8 @@
 - `project_events.kind` takes `office_commented`: a staff comment is client news
   (A28, A32).
 
-Revision: 0054
-Previous: 0053
+Revision: 0056
+Previous: 0055
 """
 
 from collections.abc import Sequence
@@ -17,8 +17,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0054"
-down_revision: str | None = "0053"
+revision: str = "0056"
+down_revision: str | None = "0055"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

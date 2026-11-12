@@ -216,7 +216,9 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
     updates: [
       { id: "exemplo-u7", kind: "office_commented", occurred_at: ago(1), stage_position: 2, name: null },
       { id: "exemplo-u1", kind: "file_published", occurred_at: ago(1), stage_position: 2, name: "Estudo de cobertura.jpg" },
-      { id: "exemplo-u6", kind: "file_published", occurred_at: ago(1), stage_position: 2, name: "Planta baixa - térreo.pdf" },
+      // Its second version (A25), and the comparison (A46) by its title.
+      { id: "exemplo-u6", kind: "file_published", occurred_at: ago(1), stage_position: 2, name: "Planta baixa - térreo.pdf", version: 2 },
+      { id: "exemplo-u7", kind: "file_published", occurred_at: ago(2), stage_position: 2, name: "Fachada", comparison: true },
       { id: "exemplo-u2", kind: "note_changed", occurred_at: ago(3), stage_position: 2 },
       { id: "exemplo-u3", kind: "file_published", occurred_at: ago(3), stage_position: 2, name: "Implantação - estudo A.pdf" },
       { id: "exemplo-u4", kind: "meeting_scheduled", occurred_at: ago(4), stage_position: null },

@@ -127,8 +127,8 @@ describe("the Portfólio tab", () => {
     // Each format is a card: its name, what it is for, and a drawing of its layout.
     const cards = within(formats).getAllByRole("radio");
     expect(cards.map((card) => card.closest("label")?.textContent)).toEqual([
-      "GaleriaCapas na horizontal, em linhas. Cada projeto em fotos grandes, uma de cada vez.",
-      "MosaicoCada imagem no formato original. Para posts, stories e reels.",
+      "GaleriaTodas as imagens em formato padrão.",
+      "MosaicoCada foto no seu formato original.",
     ]);
     expect(cards.map((card) => card.closest("label")?.querySelector("svg") !== null)).toEqual([true, true]);
     expect(within(formats).getByRole("radio", { name: /Galeria/ })).toBeChecked();
@@ -227,6 +227,26 @@ describe("the Portfólio tab", () => {
     // Two more, never the one already in: four calls for three photos.
     await waitFor(() => expect(sent.filter((call) => call.path === "/api/portfolio/photos")).toHaveLength(4));
     expect(await screen.findByText("3 fotos adicionadas.")).toBeInTheDocument();
+  });
+
+  it("can't be closed while the photos go up, so the upload's outcome is never hidden", async () => {
+    let answer: (reply: { body: unknown }) => void = () => undefined;
+    api({ "POST /api/portfolio/photos": () => new Promise((resolve) => (answer = resolve)) });
+    renderAt("/portfolio");
+    const input = await screen.findByLabelText("Enviar fotos para Interiores");
+    await userEvent.upload(input, [new File(["a"], "sala.jpg", { type: "image/jpeg" })]);
+    const dialog = await screen.findByRole("dialog", { name: "1 foto" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar" }));
+    expect(await within(dialog).findByText("Enviando 0 de 1…")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    expect(screen.getByRole("dialog", { name: "1 foto" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Fechar" })).toBeDisabled();
+    within(dialog).getByRole("combobox", { name: "Em um projeto" }).focus();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("dialog", { name: "1 foto" })).toBeInTheDocument();
+    answer({ body: PORTFOLIO });
+    expect(await screen.findByText("1 foto adicionada.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("makes one project of a drop when asked, opened on its photos", async () => {

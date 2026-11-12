@@ -37,6 +37,7 @@ const PAGE: Page = {
   in_proposal: false,
   proposal: null,
   proposal_url: null,
+  archived: false,
 };
 
 const said = (id: string, name: string, body: string, author: "client" | "staff" = "client") => ({

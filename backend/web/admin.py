@@ -180,7 +180,7 @@ def current_operator(request: Request) -> dict:
 
 def operator_with_csrf(request: Request, session: dict = Depends(current_operator)) -> dict:
     sent = request.headers.get(CSRF_HEADER, "")
-    if not secrets.compare_digest(sent, session.get("csrf", "")):
+    if not keys.same(sent, session.get("csrf", "")):
         raise ApiError(403, ErrorCode.CSRF_TOKEN_MISSING_OR_WRONG)
     return session
 
@@ -270,25 +270,26 @@ async def callback(request: Request) -> Response:
         flow = keys.verify(settings.app_secret, FLOW_PURPOSE, request.cookies.get(FLOW_COOKIE, ""))
     except keys.BadToken:
         return _back("expirado")
-    if not secrets.compare_digest(request.query_params.get("state", ""), flow["state"]):
+    if not keys.same(request.query_params.get("state", ""), flow["state"]):
         return _back("expirado")
     if request.query_params.get("error") or not request.query_params.get("code"):
         return _back("cancelado")
     who = attempts.device(request)  # as office sign-in (google_signin.TRIES)
     if not attempts.admit(google_signin.TRIES, who):
         return _back("tentativas")
-    try:
-        identity = await _google(request).identify(
-            getattr(request.app.state, "http", None),  # set up at app start
-            request.query_params["code"],
-            flow["verifier"],
-            flow["nonce"],
-        )
-    except SignInError as error:
-        attempts.failed(google_signin.TRIES, who)
-        log.error("operator sign-in failed: route=%s %s", CALLBACK, error.detail)
-        return _back("falhou")
-    attempts.succeeded(google_signin.TRIES, who)
+    with attempts.trying(google_signin.TRIES, who) as attempt:
+        try:
+            identity = await _google(request).identify(
+                getattr(request.app.state, "http", None),  # set up at app start
+                request.query_params["code"],
+                flow["verifier"],
+                flow["nonce"],
+            )
+        except SignInError as error:
+            attempt.failed()
+            log.error("operator sign-in failed: route=%s %s", CALLBACK, error.detail)
+            return _back("falhou")
+        attempt.succeeded()
     if identity.email not in settings.operator_allowlist:
         # Who tried is worth knowing; the page only says "not allowed".
         log.warning("operator sign-in refused for %s", identity.email)

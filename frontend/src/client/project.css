@@ -516,7 +516,7 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
   .client .proposal-top .proposal-download { width: 100%; }
   /* Once scrolled, the PDF stays at the bottom of a phone's screen. */
   .client .proposal-download--pinned {
-    display: inline-flex; position: fixed; z-index: 40; left: 16px; right: 16px;
+    display: inline-flex; position: fixed; z-index: var(--z-floating); left: 16px; right: 16px;
     bottom: calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 6px 20px rgb(0 0 0 / 22%);
   }
   .client.proposal-phase:has(.proposal-download--pinned) .cwrap { padding-bottom: 88px; }
@@ -595,7 +595,7 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
   .client .file--add__button { min-height: 0; gap: 4px; padding: 8px; }
   .client .file--add__button svg { width: 44px; height: 44px; }
   .client .file--add__label { font-size: var(--text-xs); }
-  .client .file--add .menu__list { position: fixed; z-index: 55; left: 12px; right: 12px; top: auto; bottom: 88px; min-width: 0; transform: none; }
+  .client .file--add .menu__list { position: fixed; z-index: var(--z-sheet); left: 12px; right: 12px; top: auto; bottom: 88px; min-width: 0; transform: none; }
 }
 /* In the list: a row like the files', "+" and label side by side. */
 .client .stage .files[data-view="list"] .file--add { min-height: 64px; margin-top: 8px; }
