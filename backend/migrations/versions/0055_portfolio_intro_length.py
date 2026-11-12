@@ -1,16 +1,16 @@
 """The portfolio's opening text ("Apresentação") takes up to 1000 characters, 600
 until now (A45; Fabio, 12 Nov 2026).
 
-Revision: 0054
-Previous: 0053
+Revision: 0055
+Previous: 0054
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0054"
-down_revision: str | None = "0053"
+revision: str = "0055"
+down_revision: str | None = "0054"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
