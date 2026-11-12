@@ -225,6 +225,8 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
       name: signedIn ? "Você" : String(body.name ?? "").trim(),
       body: String(body.body ?? "").trim(),
       created_at: new Date().toISOString(),
+      removable: signedIn, // the visitor's own, either way: staff by the server's
+      receipt: signedIn ? null : "exemplo", // word, a client by their device's receipt
     };
     const key = body.key as string | undefined;
     const card = key

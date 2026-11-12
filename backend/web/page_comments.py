@@ -1,7 +1,8 @@
 """Comments on a project's files and stages (A49).
 
     POST   /api/pages/{slug}/comments        a comment, on a stage or a file
-    DELETE /api/pages/{slug}/comments/{id}   staff remove one
+    DELETE /api/pages/{slug}/comments/{id}   removed: by an owner, its staff author,
+                                             or the client's device that posted it
 
 Anyone who can open the page may comment: a client signs with the name they
 type (clients have no accounts, A06), staff with their account's name. The
@@ -13,12 +14,13 @@ staff from the maintenance pass (`backend/comments/alerts.py`).
 
 from __future__ import annotations
 
+import hmac
 import time
 import uuid
 from collections import defaultdict, deque
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,14 +29,16 @@ from backend.analytics import capture, capture_visit
 from backend.comments.models import BODY_MAX, NAME_MAX, Author, Comment
 from backend.db.engine import get_tenant_session
 from backend.documents.versions import shown_name
+from backend.identity.models import Role
 from backend.notifications.events import record
 from backend.notifications.models import EventKind
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Project, ProjectStage
+from backend.security import keys
 from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
-from backend.web.auth import CurrentStaff, _check_csrf, optional_staff, require_csrf
+from backend.web.auth import CurrentStaff, _check_csrf, optional_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_files import CommentOut, _item_at, comment_out
 from backend.web.pages import _readable
@@ -131,7 +135,9 @@ async def add_comment(
         await db.execute(touched.values(last_activity_at=now))
     await db.flush()
     await db.refresh(comment)
-    shown = comment_out(comment)
+    shown = comment_out(comment, staff)
+    if staff is None:
+        shown.receipt = _receipt(request, comment.id)  # kept by this device (A49)
     await db.commit()
     on = "file" if body.key is not None else "stage"
     if staff is None:
@@ -141,17 +147,33 @@ async def add_comment(
     return shown
 
 
+RECEIPT_PURPOSE = "comment-receipt"
+
+
+def _receipt(request: Request, comment_id: uuid.UUID) -> str:
+    """What only the device that posted a client's comment holds: it can remove it."""
+    return keys.keyed_hash(request.app.state.settings.app_secret, RECEIPT_PURPOSE, str(comment_id))
+
+
 @router.delete(
-    "/api/pages/{slug}/comments/{comment_id}", status_code=204, responses=documented(403, 404)
+    "/api/pages/{slug}/comments/{comment_id}",
+    status_code=204,
+    responses=documented(401, 403, 404),
 )
 async def remove_comment(
     slug: str,
     comment_id: uuid.UUID,
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    receipt: str | None = Header(default=None, alias="X-Comment-Receipt", max_length=200),
+    staff: CurrentStaff | None = Depends(optional_staff),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
-    """Any comment, by any of the office's staff: spam, or a mistake."""
+    """By an owner, any comment (spam, a mistake); by a member, their own; by a
+    client, their own, from the device that posted it, which shows its receipt."""
+    if staff is not None:
+        _check_csrf(request, staff)
+    elif receipt is None:
+        raise ApiError(401, ErrorCode.NOT_SIGNED_IN)
     project = await _readable(db, slug, staff, request)
     comment = await db.scalar(
         select(Comment).where(
@@ -162,6 +184,16 @@ async def remove_comment(
     )
     if comment is None:
         raise ApiError(404, ErrorCode.COMMENT_NOT_FOUND)
+    if staff is not None:
+        if staff.role is not Role.OWNER and comment.user_id != staff.user_id:
+            raise ApiError(403, ErrorCode.COMMENT_NOT_YOURS)
+    elif comment.author is not Author.CLIENT or not hmac.compare_digest(
+        receipt, _receipt(request, comment.id)
+    ):
+        raise ApiError(403, ErrorCode.COMMENT_NOT_YOURS)
     comment.removed_at = datetime.now(UTC)
     await db.commit()
-    capture(request, "comment_removed", {"author": comment.author.value})
+    if staff is None:
+        capture_visit(request, project.tenant_id, "client_comment_removed")
+    else:
+        capture(request, "comment_removed", {"author": comment.author.value})

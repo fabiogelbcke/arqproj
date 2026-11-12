@@ -19,6 +19,22 @@ a new entry too.
 
 ---
 
+## 2026-11-11 — A49: who removes a comment
+
+**Was:** any of the office's staff, owner or member, removed any comment;
+clients couldn't remove theirs, even one sent by mistake.
+
+**Now:** an owner removes any comment (a client's spam, anyone's mistake); a
+member removes only their own. A client removes their own, from the device they
+posted it on: posting hands the page a signed receipt for that comment, kept on
+the device, and removing shows it. No account, so no other way to tell the
+client is the same person; from another device, or after clearing the site's
+data, they ask the office.
+
+**Why:** Fabio, 11 Nov 2026, asked whether "admins" could remove anyone's
+comments; offered tighter rules, he chose both: members limited to their own,
+and clients able to take back theirs.
+
 ## 2026-11-11 — A45: the portfolio for every office; the tab says less
 
 **Was:** the portfolio was behind the `portfolio` feature (A40): an office had

@@ -52,6 +52,7 @@ from backend.comments.threads import Threads, office_said, still_said, threads
 from backend.db.engine import get_tenant_session
 from backend.documents import comparisons, versions
 from backend.documents.versions import shown_name
+from backend.identity.models import Role
 from backend.notifications.models import EventKind, ProjectEvent
 from backend.projects.enums import AccessMode, ProjectStatus
 from backend.projects.models import Project, ProjectStage
@@ -110,10 +111,17 @@ class CommentOut(BaseModel):
     name: str
     body: str
     created_at: datetime
+    removable: bool = False  # by the signed-in staff member asking (owner: any; member: own)
+    # Only in the answer to a client posting it: the device keeps it, to remove it later.
+    receipt: str | None = None
 
 
-def comment_out(comment: Comment) -> CommentOut:
+def comment_out(comment: Comment, staff: CurrentStaff | None = None) -> CommentOut:
+    """As the page shows it; `removable` for staff who may remove it (A49): an
+    owner any, a member their own. A client's own go by the receipt the device kept."""
     return CommentOut(
+        removable=staff is not None
+        and (staff.role is Role.OWNER or comment.user_id == staff.user_id),
         id=comment.id,
         author=comment.author,
         name=comment.author_name,
@@ -420,7 +428,7 @@ async def page_files(
     for position, (stage_id, folder) in enumerate(rows, start=1):
         shown = StageFilesOut(position=position, groups=[])
         if talk is not None:
-            shown.comments = [comment_out(c) for c in talk.by_stage.get(stage_id, [])]
+            shown.comments = [comment_out(c, staff) for c in talk.by_stage.get(stage_id, [])]
         if folder is None:
             stages.append(shown)
             continue
@@ -451,7 +459,8 @@ async def page_files(
                 for entry in entries:
                     card = _entry(request, project, entry, position, parent, now)
                     if talk is not None:
-                        card.comments = [comment_out(c) for c in talk.of_items(_identities(entry))]
+                        said = talk.of_items(_identities(entry))
+                        card.comments = [comment_out(c, staff) for c in said]
                     cards.append(card)
                 shown.groups.append(GroupOut(folder=group, files=cards))
         except StorageError as error:

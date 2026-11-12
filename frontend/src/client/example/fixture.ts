@@ -86,6 +86,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
     name,
     body,
     created_at: ago(days),
+    removable: false, // not the visitor's: the example's office and client wrote them
   });
   const meetingDay = inDays(6);
   return {

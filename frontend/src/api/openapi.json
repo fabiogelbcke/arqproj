@@ -8697,7 +8697,7 @@
     "/api/pages/{slug}/comments/{comment_id}": {
       "delete": {
         "summary": "Remove Comment",
-        "description": "Any comment, by any of the office's staff: spam, or a mistake.",
+        "description": "By an owner, any comment (spam, a mistake); by a member, their own; by a\nclient, their own, from the device that posted it, which shows its receipt.",
         "operationId": "remove_comment_api_pages__slug__comments__comment_id__delete",
         "parameters": [
           {
@@ -8718,11 +8718,38 @@
               "format": "uuid",
               "title": "Comment Id"
             }
+          },
+          {
+            "name": "X-Comment-Receipt",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Comment-Receipt"
+            }
           }
         ],
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
           },
           "403": {
             "content": {
@@ -9438,6 +9465,22 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "removable": {
+            "type": "boolean",
+            "title": "Removable",
+            "default": false
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt"
           }
         },
         "type": "object",
@@ -10523,6 +10566,7 @@
           "portfolio_entry_not_found",
           "comment_not_found",
           "invalid_comment",
+          "comment_not_yours",
           "too_many_comments",
           "portfolio_video_refused",
           "portfolio_link_invalid",

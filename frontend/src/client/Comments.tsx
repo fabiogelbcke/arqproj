@@ -1,12 +1,12 @@
 // Comments on a stage or a file (A49): the conversation, oldest first, and a box
 // to add to it. A client signs with a name typed once and remembered on this
-// device; staff comment as their account. Staff may remove any comment.
+// device; staff comment as their account. An owner may remove any comment, a
+// member their own, a client theirs from the device that posted it (its receipt).
 import { createContext, useContext, useEffect, useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
-import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { toastError } from "../ui/Toast";
 import { day } from "./format";
 
@@ -49,6 +49,35 @@ function rememberedName(): string {
   }
 }
 
+const RECEIPTS_KEY = "comment-receipts";
+
+/** The receipts this device holds, by comment: each comment it posted (A49). */
+function receipts(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(RECEIPTS_KEY) ?? "{}") as Record<string, string>;
+  } catch {
+    return {}; // storage blocked or unreadable: none kept
+  }
+}
+
+function keepReceipt(id: string, receipt: string | null | undefined) {
+  if (!receipt) return;
+  try {
+    localStorage.setItem(RECEIPTS_KEY, JSON.stringify({ ...receipts(), [id]: receipt }));
+  } catch {
+    // storage blocked: this comment can't be taken back from here
+  }
+}
+
+function dropReceipt(id: string) {
+  try {
+    const { [id]: _gone, ...rest } = receipts();
+    localStorage.setItem(RECEIPTS_KEY, JSON.stringify(rest));
+  } catch {
+    // storage blocked
+  }
+}
+
 function remember(name: string) {
   try {
     localStorage.setItem(NAME_KEY, name);
@@ -68,7 +97,7 @@ export function CommentThread({
   slug: string;
   comments: Comment[];
   where: { key: string } | { position: number }; // a file (its key) or a stage (from 1)
-  staff: boolean; // signed in as the office's staff: signs as them, may remove any
+  staff: boolean; // signed in as the office's staff: signs as them
   timeZone: string;
   label: string; // what it is about, for screen readers: "Comentários sobre Planta.pdf"
 }) {
@@ -93,6 +122,7 @@ export function CommentThread({
           body: { body: sent, ...where, ...(staff ? {} : { name: name.trim() }) },
         }),
       );
+      keepReceipt(posted.id, posted.receipt); // a client's: theirs to take back
       setList((all) => [...all, posted]);
       // Emptied for the next one, unless a next one was begun while this went.
       setBody((now) => (now === sent ? "" : now));
@@ -107,14 +137,24 @@ export function CommentThread({
     }
   };
 
+  // Staff: what the server says they may (an owner any, a member their own);
+  // a client: what this device posted.
+  const held = staff ? {} : receipts();
+  const removable = (comment: Comment) => (staff ? comment.removable : !!held[comment.id]);
+
   const remove = async (comment: Comment) => {
     setBusy(true);
     try {
+      const receipt = held[comment.id];
       await call(
         api.DELETE("/api/pages/{slug}/comments/{comment_id}", {
-          params: { path: { slug, comment_id: comment.id } },
+          params: {
+            path: { slug, comment_id: comment.id },
+            ...(receipt ? { header: { "X-Comment-Receipt": receipt } } : {}),
+          },
         }),
       );
+      dropReceipt(comment.id);
       setList((all) => all.filter((other) => other.id !== comment.id));
       setRemoving(null);
     } catch (failure) {
@@ -134,7 +174,7 @@ export function CommentThread({
                 <strong>{comment.name}</strong>
                 {comment.author === "staff" && <span className="comment__staff">{t("comments.staffTag")}</span>}
                 <time dateTime={comment.created_at}>{day(comment.created_at, i18n.language, timeZone)}</time>
-                {staff && (
+                {removable(comment) && (
                   <button
                     type="button"
                     className="comment__remove"
@@ -146,6 +186,24 @@ export function CommentThread({
                 )}
               </p>
               <p className="comment__body">{comment.body}</p>
+              {/* Asked here, not in a dialog: a file's conversation is inside the
+                  file's preview, a modal dialog that would cover another one. */}
+              {removing?.id === comment.id && (
+                <div className="comment__confirm" role="group" aria-label={t("comments.removeTitle")}>
+                  <span>{t("comments.removeText", { name: comment.name })}</span>
+                  <button type="button" className="b b--small" onClick={() => setRemoving(null)} autoFocus>
+                    {t("comments.keep")}
+                  </button>
+                  <button
+                    type="button"
+                    className="b b--small b--danger"
+                    disabled={busy}
+                    onClick={() => void remove(comment)}
+                  >
+                    {t("comments.remove")}
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ol>
@@ -206,17 +264,6 @@ export function CommentThread({
           </button>
         </div>
       </form>
-      {removing && (
-        <ConfirmDialog
-          title={t("comments.removeTitle")}
-          text={t("comments.removeText", { name: removing.name })}
-          confirm={t("comments.remove")}
-          danger
-          busy={busy}
-          onConfirm={() => void remove(removing)}
-          onCancel={() => setRemoving(null)}
-        />
-      )}
     </section>
   );
 }

@@ -45,6 +45,16 @@ const said = (id: string, name: string, body: string, author: "client" | "staff"
   name,
   body,
   created_at: "2026-11-02T15:00:00Z",
+  removable: false,
+});
+
+/** As an owner signed in gets them: every comment removable. */
+const asOwner = () => ({
+  stages: FILES_BASE().stages.map((stage) => ({
+    ...stage,
+    comments: stage.comments.map((c) => ({ ...c, removable: true })),
+    groups: stage.groups.map((g) => ({ ...g, files: g.files.map((f) => ({ ...f, comments: f.comments.map((c) => ({ ...c, removable: true })) })) })),
+  })),
 });
 
 const PLANTA = {
@@ -57,12 +67,15 @@ const PLANTA = {
   comments: [said("c1", "Maria", "Faltou a garagem")],
 };
 
-const FILES = {
+function FILES_BASE() {
+  return {
   stages: [
     { position: 1, groups: [{ folder: null, files: [PLANTA] }], comments: [said("c2", "Equipe Alinea", "Revisão enviada.", "staff")] },
-    { position: 2, groups: [], comments: [] },
+    { position: 2, groups: [], comments: [] as ReturnType<typeof said>[] },
   ],
-};
+  };
+}
+const FILES = FILES_BASE();
 
 function open(page: Partial<Page> = {}, extra: Parameters<typeof fakeApi>[0] = {}, files: unknown = FILES) {
   window.history.pushState({}, "", "/casa-jardim");
@@ -171,6 +184,7 @@ describe("comments", () => {
         "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
         "DELETE /api/pages/casa-jardim/comments/c1": () => ({ status: 204 }),
       },
+      asOwner(),
     );
     await userEvent.click(await screen.findByRole("button", { name: "Abrir Planta.pdf" }));
     const preview = await screen.findByRole("dialog", { name: "Planta.pdf" });
@@ -178,7 +192,12 @@ describe("comments", () => {
     expect(within(thread).queryByLabelText("Seu nome")).not.toBeInTheDocument();
     expect(within(thread).getByText("Você comenta pela equipe do escritório.")).toBeInTheDocument();
     await userEvent.click(within(thread).getByRole("button", { name: "Remover o comentário de Maria" }));
-    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remover" }));
+    // Asked in the comment itself: a dialog would sit under the preview's.
+    const asked = within(thread).getByRole("group", { name: "Remover este comentário?" });
+    await userEvent.click(within(asked).getByRole("button", { name: "Manter" }));
+    expect(within(thread).getByText("Faltou a garagem")).toBeInTheDocument();
+    await userEvent.click(within(thread).getByRole("button", { name: "Remover o comentário de Maria" }));
+    await userEvent.click(within(thread).getByRole("button", { name: "Remover" }));
     await waitFor(() => expect(within(thread).queryByText("Faltou a garagem")).not.toBeInTheDocument());
     expect(sent.some((r) => r.method === "DELETE" && r.path.endsWith("/comments/c1"))).toBe(true);
   });
@@ -236,9 +255,10 @@ describe("a conversation closed and opened again", () => {
       { staff: { project_id: "p-1", status: "active", row_version: 4, recipients: [] } } as Partial<Page>,
       {
         "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
-        "POST /api/pages/casa-jardim/comments": () => ({ body: said("c9", "Ana", "Recebido", "staff") }),
+        "POST /api/pages/casa-jardim/comments": () => ({ body: { ...said("c9", "Ana", "Recebido", "staff"), removable: true } }),
         "DELETE /api/pages/casa-jardim/comments/c1": () => ({ status: 204 }),
       },
+      asOwner(),
     );
     const card = (await screen.findByRole("button", { name: "Abrir Planta.pdf" })).closest(".file") as HTMLElement;
     await userEvent.click(within(card).getByRole("button", { name: "Abrir Planta.pdf" }));
@@ -247,7 +267,7 @@ describe("a conversation closed and opened again", () => {
     await userEvent.click(within(preview).getByRole("button", { name: "Enviar comentário" }));
     await within(preview).findByText("Recebido");
     await userEvent.click(within(preview).getByRole("button", { name: "Remover o comentário de Maria" }));
-    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remover" }));
+    await userEvent.click(within(preview).getByRole("button", { name: "Remover" }));
     await waitFor(() => expect(within(preview).queryByText("Faltou a garagem")).not.toBeInTheDocument());
     await userEvent.click(within(preview).getByRole("button", { name: "Fechar" }));
     // Opened again: as it was left, not as first listed.
@@ -256,5 +276,48 @@ describe("a conversation closed and opened again", () => {
     expect(within(preview).getByText("Recebido")).toBeInTheDocument();
     expect(within(preview).queryByText("Faltou a garagem")).not.toBeInTheDocument();
     expect(within(card).getByLabelText("1 comentário")).toBeInTheDocument();
+  });
+});
+
+describe("removing", () => {
+  it("lets a client take back what this device posted, and only that", async () => {
+    localStorage.setItem("comment-name", "Maria");
+    const sent = open({}, {
+      "POST /api/pages/casa-jardim/comments": () => ({ body: { ...said("c7", "Maria", "Por engano"), receipt: "r-7" } }),
+      "DELETE /api/pages/casa-jardim/comments/c7": () => ({ status: 204 }),
+    });
+    const stage = await screen.findByRole("region", { name: "Briefing" });
+    await userEvent.click(await within(stage).findByRole("button", { name: "1 comentário" }));
+    const thread = within(stage).getByRole("region", { name: "Comentários sobre Briefing" });
+    expect(within(thread).queryByRole("button", { name: /Remover/ })).not.toBeInTheDocument(); // the office's
+    await userEvent.type(within(thread).getByLabelText("Seu comentário"), "Por engano");
+    await userEvent.click(within(thread).getByRole("button", { name: "Enviar comentário" }));
+    await userEvent.click(await within(thread).findByRole("button", { name: "Remover o comentário de Maria" }));
+    await userEvent.click(within(thread).getByRole("button", { name: "Remover" }));
+    await waitFor(() => expect(within(thread).queryByText("Por engano")).not.toBeInTheDocument());
+    const removal = sent.find((r) => r.method === "DELETE")!;
+    expect(removal.headers.get("X-Comment-Receipt")).toBe("r-7");
+    expect(JSON.parse(localStorage.getItem("comment-receipts")!)).toEqual({});
+  });
+
+  it("remembers on the device which comments it may take back", async () => {
+    localStorage.setItem("comment-receipts", JSON.stringify({ c1: "r-1" }));
+    open();
+    await userEvent.click(await screen.findByRole("button", { name: "Abrir Planta.pdf" }));
+    const preview = await screen.findByRole("dialog", { name: "Planta.pdf" });
+    expect(within(preview).getByRole("button", { name: "Remover o comentário de Maria" })).toBeInTheDocument();
+  });
+
+  it("offers a member removal only where the server allows it", async () => {
+    const files = asOwner();
+    files.stages[0]!.comments[0]!.removable = false; // someone else's
+    open(
+      { staff: { project_id: "p-1", status: "active", row_version: 4, recipients: [] } } as Partial<Page>,
+      { "GET /api/me": () => ({ body: { name: "Bia", email: "bia@alinea.example", csrf_token: "csrf-9" } }) },
+      files,
+    );
+    const stage = await screen.findByRole("region", { name: "Briefing" });
+    await userEvent.click(await within(stage).findByRole("button", { name: "1 comentário" }));
+    expect(within(stage).queryByRole("button", { name: /Remover/ })).not.toBeInTheDocument();
   });
 });

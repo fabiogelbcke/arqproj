@@ -281,11 +281,64 @@ async def test_staff_remove_any_comment(client, visitor, owner, folders):
     assert (again.status_code, again.json()["error"]) == (404, "comment_not_found")
 
 
-async def test_a_client_cannot_remove_a_comment(visitor, owner, folders):
-    shown = await said(visitor, "Olá", position=1, name="Maria")
-    refused = await visitor.delete(f"/api/pages/casa-jardim/comments/{shown['id']}", headers=ALINEA)
-    assert refused.status_code == 401
-    assert len(await stage_comments(visitor)) == 1
+async def remove(who, comment_id, headers=ALINEA, receipt=None):
+    extra = {"X-Comment-Receipt": receipt} if receipt is not None else {}
+    return await who.delete(
+        f"/api/pages/casa-jardim/comments/{comment_id}", headers={**headers, **extra}
+    )
+
+
+async def test_a_client_removes_their_own_with_the_receipt_their_device_kept(
+    visitor, owner, folders
+):
+    mine = await said(visitor, "Mandei por engano", position=1, name="Maria")
+    other = await said(visitor, "Outro", position=1, name="João")
+    assert mine["receipt"] and mine["receipt"] != other["receipt"]
+    # Without its receipt, or with another comment's, it stays.
+    for receipt, status in ((None, 401), (other["receipt"], 403), ("x" * 64, 403)):
+        refused = await remove(visitor, mine["id"], receipt=receipt)
+        assert refused.status_code == status
+    assert len(await stage_comments(visitor)) == 2
+    assert (await remove(visitor, mine["id"], receipt=mine["receipt"])).status_code == 204
+    assert [c["body"] for c in await stage_comments(visitor)] == ["Outro"]
+    assert (await remove(visitor, mine["id"], receipt=mine["receipt"])).status_code == 404
+
+
+async def test_staff_get_no_receipt_and_a_client_cannot_take_theirs(
+    client, visitor, owner, folders
+):
+    office = await said(client, "Da equipe", owner, position=1)
+    assert office["receipt"] is None
+    guess = await remove(visitor, office["id"], receipt="x" * 64)
+    assert (guess.status_code, guess.json()["error"]) == (403, "comment_not_yours")
+
+
+async def test_a_member_removes_only_their_own_and_an_owner_any(
+    client, visitor, db_session, owner, folders
+):
+    by_client = await said(visitor, "Do cliente", position=1, name="Maria")
+    by_owner = await said(client, "Da dona", owner, position=1)
+    member = await sign_in_as(client, db_session, "bruno@alinea.example", Role.MEMBER)
+    by_member = await said(client, "Do Bruno", member, position=1)
+    # What the listing says each may remove, for the member asking.
+    shown = {c["body"]: c["removable"] for c in await stage_comments(client)}
+    assert shown == {"Do cliente": False, "Da dona": False, "Do Bruno": True}
+    for other in (by_client, by_owner):
+        refused = await remove(client, other["id"], member)
+        assert (refused.status_code, refused.json()["error"]) == (403, "comment_not_yours")
+    assert (await remove(client, by_member["id"], member)).status_code == 204
+    # The owner: anyone's.
+    again = await sign_in_as(client, db_session, "dona2@alinea.example", Role.OWNER)
+    assert all(c["removable"] for c in await stage_comments(client))
+    assert (await remove(client, by_client["id"], again)).status_code == 204
+    assert (await remove(client, by_owner["id"], again)).status_code == 204
+    assert await stage_comments(client) == []
+
+
+async def test_a_client_sees_nothing_marked_removable(visitor, client, owner, folders):
+    await said(client, "Da equipe", owner, position=1)
+    await said(visitor, "Do cliente", position=1, name="Maria")
+    assert not any(c["removable"] for c in await stage_comments(visitor))
 
 
 # -- the updates panel ----------------------------------------------------------------------

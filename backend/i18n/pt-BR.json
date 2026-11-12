@@ -261,6 +261,7 @@
     "portfolio_section_not_empty": "Mova as fotos e os projetos desta seção antes de removê-la.",
     "comment_not_found": "Este comentário foi removido. Recarregue a página.",
     "too_many_comments": "Muitos comentários seguidos. Aguarde um minuto e envie de novo.",
+    "comment_not_yours": "Só quem escreveu este comentário, ou o responsável pelo escritório, pode removê-lo.",
     "invalid_comment": "Escreva o comentário e o seu nome.",
     "portfolio_entry_not_found": "Este item do portfólio não existe mais. Recarregue a página.",
     "portfolio_video_refused": "Envie vídeos em MP4 ou WebM, de até 200 MB. No celular e no Instagram, os vídeos já são salvos em MP4.",
@@ -839,6 +840,7 @@
     "remove": "Remover",
     "removeOf": "Remover o comentário de {{name}}",
     "removeTitle": "Remover este comentário?",
+    "keep": "Manter",
     "removeText": "O comentário de {{name}} deixará de aparecer na página para todos."
   },
   "updates": {

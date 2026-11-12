@@ -691,3 +691,17 @@ html:has(.client .dock) { scroll-padding-bottom: 96px; }
 .client .files[data-view="list"] .file__comments { position: static; align-self: center; margin-right: 8px; }
 .client .file-preview__comments { padding: 4px 16px 16px; border-top: 1px solid var(--line); }
 .client .file-preview__comments h3 { margin: 12px 0; font-size: var(--text-sm); }
+
+/* The file preview (and its versions) in the page's theme: the prototype drew it
+   white in both, so in dark mode it glared, and its conversation (A49) sat on white. */
+.client .file-preview { border-color: var(--line); background: var(--bg); color: var(--ink); }
+.client .file-preview__head { border-bottom-color: var(--line); }
+.client .file-preview__content iframe { border-color: var(--line); }
+.client .file-preview__actions a, .client .file-preview__actions button, .client .file-preview__send-menu a {
+  border-color: var(--line-strong); background: var(--bg); color: var(--ink);
+}
+.client .file-preview__actions button:first-child { border-color: var(--primary); background: var(--primary); color: var(--on-primary); }
+/* Where to write: a step lighter than the dialog, so it reads as the place to type. */
+.client .comments__new .textarea { background: var(--surface); }
+.client .comment__confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-size: var(--text-xs); }
+.client .comment__confirm span { flex: 1; min-width: 180px; color: var(--muted); }

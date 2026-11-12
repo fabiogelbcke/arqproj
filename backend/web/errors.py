@@ -123,6 +123,7 @@ class ErrorCode(StrEnum):
     PORTFOLIO_ENTRY_NOT_FOUND = "portfolio_entry_not_found"  # removed meanwhile: reload
     COMMENT_NOT_FOUND = "comment_not_found"  # removed meanwhile, or another project's (A49)
     INVALID_COMMENT = "invalid_comment"  # blank, or a client's without a name
+    COMMENT_NOT_YOURS = "comment_not_yours"  # a member removes only their own (A49)
     TOO_MANY_COMMENTS = "too_many_comments"  # a device's few a minute (A49)
     PORTFOLIO_VIDEO_REFUSED = "portfolio_video_refused"  # not an MP4 or WebM, or over 200 MB
     PORTFOLIO_LINK_INVALID = "portfolio_link_invalid"  # not a profile on its network
