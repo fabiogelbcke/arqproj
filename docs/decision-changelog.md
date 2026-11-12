@@ -19,6 +19,39 @@ a new entry too.
 
 ---
 
+## 2026-11-11 — A45: the portfolio for every office; the tab says less
+
+**Was:** the portfolio was behind the `portfolio` feature (A40): an office had
+the Portfólio tab, and its address could show the portfolio, only after the
+operator switched it on. The tab opened with a paragraph explaining the page
+("Uma página com os projetos do escritório, no endereço …"), the publishing
+switch had a line under it saying what the address showed in each state, the
+format cards carried a full sentence each, and an empty section said it "enters
+the portfolio's menu once it has photos".
+
+**Now:** every office has the tab; nothing to switch on. A portfolio starts
+unpublished: the switch alone decides whether the address shows it, which is
+what the feature's "off" state did. The `Feature`
+enum loses `portfolio`; a tenant row still naming it is ignored, as A40 says, so
+no migration. The tab's copy is shorter: no lead paragraph, no line under the
+switch, the switch itself naming the address ("Mostrar portfólio do escritório no
+endereço alinea.myunio.app"), one short line per format, and the empty-section
+text says the section only shows once it has a photo or a project.
+
+**Why:** Fabio, 11 Nov 2026: "Remove portfolio from feature flags, it should be
+available to all offices now (default off)", with the copy trims in the same
+message. The feature flag had done its job: the portfolio was tried on the test
+offices and is the shape he wants.
+
+**Also:** while the portfolio is unpublished, the office's address no longer
+shows Unio's home (a visitor typed the office's address and met our product's
+page) but a card of the office: its logo or name, the ways to reach it and its
+networks where saved, and "Acesso da equipe". Set aside: a redirect to the
+office's own website (a new setting, and most offices come for the portfolio
+because they have no site) and a redirect to the painel sign-in (a login the
+office's clients can't use). Unio's home still shows there when the office can't
+be read, so the address always answers.
+
 ## 2026-11-10 — A21, A45: a CDN for published portfolio photos; a work's images fit the screen
 
 **Was:** every portfolio photo was fetched through the app, which made three calls
