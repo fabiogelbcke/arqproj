@@ -47,6 +47,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.comments.models import Author, Comment
+from backend.comments.threads import Threads, threads
 from backend.db.engine import get_tenant_session
 from backend.documents import comparisons, versions
 from backend.documents.versions import shown_name
@@ -98,6 +100,26 @@ class FileOut(BaseModel):
     # A before-and-after comparison (A46): this card is its "before" side, named
     # by the comparison's title ("Cozinha"), with the "after" side here.
     comparison: ComparisonOut | None = None
+    # Its conversation (A49), oldest first; None while comments are switched off.
+    comments: list[CommentOut] | None = None
+
+
+class CommentOut(BaseModel):
+    id: uuid.UUID
+    author: Author  # a client (by the name they typed) or the office's staff
+    name: str
+    body: str
+    created_at: datetime
+
+
+def comment_out(comment: Comment) -> CommentOut:
+    return CommentOut(
+        id=comment.id,
+        author=comment.author,
+        name=comment.author_name,
+        body=comment.body,
+        created_at=comment.created_at,
+    )
 
 
 class ComparisonOut(BaseModel):
@@ -123,6 +145,8 @@ class StageFilesOut(BaseModel):
     position: int  # the stage's place on the page, from 1
     groups: list[GroupOut]
     unavailable: bool = False  # Drive couldn't be read just now
+    # The stage's own conversation (A49); None while comments are switched off.
+    comments: list[CommentOut] | None = None
 
 
 class UpdateOut(BaseModel):
@@ -294,6 +318,12 @@ def _entry(
     return shown
 
 
+def _identities(entry: versions.Document | comparisons.Comparison) -> list[str]:
+    """Every file of a card: its versions, and a comparison's two sides'."""
+    sides = (entry.before, entry.after) if isinstance(entry, comparisons.Comparison) else (entry,)
+    return [item.identity for side in sides for _number, item in side.versions]
+
+
 def _note_visible(visible: dict, entry, position: int, folder: str) -> None:
     """Each file the page shows, older versions too: (stage, name, version, and
     for a comparison's files its folder). They all go by its title, as its card
@@ -346,16 +376,21 @@ async def page_files(
     project = await _readable(db, slug, staff, request)
     # Switched off (A40), a comparison's two images are the plain files they are.
     compare = tenant.has(Feature.BEFORE_AFTER)
-    response.headers.update({**PAGE_HEADERS, **_listing_cache(project, staff)})
+    # Comments (A49) come with the files, so a hidden file's go with it. Never kept
+    # in the browser then: a comment just posted must be there on a reload.
+    talk: Threads | None = await threads(db, project.id) if tenant.has(Feature.COMMENTS) else None
+    cache = NO_STORE if talk is not None else _listing_cache(project, staff)
+    response.headers.update({**PAGE_HEADERS, **cache})
     storage = await _storage(request, db)
     has_connection = await db.scalar(select(StorageConnection.id)) is not None
-    folders = list(
-        await db.scalars(
-            select(ProjectStage.folder_id)
+    rows = (
+        await db.execute(
+            select(ProjectStage.id, ProjectStage.folder_id)
             .where(ProjectStage.project_id == project.id)
             .order_by(ProjectStage.position)
         )
-    )
+    ).all()
+    folders = [folder for _id, folder in rows]
     stages = []
     # Each file shown, older versions too: its stage, name and version.
     visible: dict[str, tuple[int, str, int | None]] = {}
@@ -374,8 +409,10 @@ async def page_files(
             )
             storage = None  # every bound stage shows as unavailable
             has_connection = True
-    for position, folder in enumerate(folders, start=1):
+    for position, (stage_id, folder) in enumerate(rows, start=1):
         shown = StageFilesOut(position=position, groups=[])
+        if talk is not None:
+            shown.comments = [comment_out(c) for c in talk.by_stage.get(stage_id, [])]
         if folder is None:
             stages.append(shown)
             continue
@@ -401,12 +438,13 @@ async def page_files(
                 entries = comparisons.pair(documents, _is_image) if compare else documents
                 for entry in entries:
                     _note_visible(visible, entry, position, parent)
-                shown.groups.append(
-                    GroupOut(
-                        folder=group,
-                        files=[_entry(request, project, e, position, parent, now) for e in entries],
-                    )
-                )
+                cards = []
+                for entry in entries:
+                    card = _entry(request, project, entry, position, parent, now)
+                    if talk is not None:
+                        card.comments = [comment_out(c) for c in talk.of_items(_identities(entry))]
+                    cards.append(card)
+                shown.groups.append(GroupOut(folder=group, files=cards))
         except StorageError as error:
             # AGENTS.md: the detail in the log at ERROR, with the support code shown.
             log.error(
@@ -424,7 +462,7 @@ async def page_files(
     return PageFilesOut(
         stages=stages,
         reference=current_request_id() if unavailable else None,
-        updates=await _updates(db, project, visible),
+        updates=await _updates(db, project, visible, comments=talk is not None),
     )
 
 
@@ -432,13 +470,16 @@ UPDATES_SHOWN = 30
 UPDATES_DAYS = 180
 
 
-async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[UpdateOut]:
+async def _updates(
+    db: AsyncSession, project: Project, visible: dict, comments: bool = False
+) -> list[UpdateOut]:
     """The latest changes the client can see now. A file appears only while the
     page shows it, under its current name and stage; one taken down, or in a stage
     that couldn't be read just now, is left out. A note or a stage advance points at
     where its stage is now, and is left out if the stage was removed. Like the
     panel, only a stage's latest note, the latest advance that still holds and the
-    latest meeting change count, so repeated edits never crowd out older news."""
+    latest meeting change count, so repeated edits never crowd out older news. The
+    office's comments (A49) count once per stage or file, while comments are on."""
     since = datetime.now(UTC) - timedelta(days=UPDATES_DAYS)
     stages = (
         await db.execute(
@@ -463,10 +504,15 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
     async for event in events:  # until 30 survive the filtering, however many it takes
         # `compared`: the folder of the comparison a file is in (A46), if it is in one.
         position, name, version, compared = event.stage_position, None, None, None
-        if event.kind is EventKind.FILE_PUBLISHED:
+        commented = event.kind is EventKind.OFFICE_COMMENTED
+        if commented and not comments:
+            continue
+        if event.kind is EventKind.FILE_PUBLISHED or (commented and event.item_id is not None):
             if event.item_id not in visible:
                 continue
             position, name, version, compared = visible[event.item_id]
+            if commented:
+                version = None  # on the document, not one of its versions
         elif event.stage_id is not None:
             if event.stage_id not in positions:
                 continue  # its stage was removed
@@ -485,6 +531,10 @@ async def _updates(db: AsyncSession, project: Project, visible: dict) -> list[Up
             if project.status is not ProjectStatus.COMPLETED:
                 continue
             once = "completed"
+        elif commented:
+            # A stage's, or a card's: all its versions, and a comparison's two
+            # sides, by its name in its folder.
+            once = ("comment", event.stage_id, position, compared, name)
         elif event.kind is not EventKind.FILE_PUBLISHED:
             once = "meeting"  # the latest change says what the meeting is now
         elif compared:

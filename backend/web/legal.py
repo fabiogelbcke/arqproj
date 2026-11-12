@@ -72,7 +72,9 @@ dos registros técnicos e do acesso ao Google descrito abaixo.</li>
 <ul>
 <li><strong>Clientes e visitantes das páginas de projeto:</strong> o conteúdo que o escritório
 publica sobre o projeto (por exemplo, o nome do cliente, descrições, datas de reunião e
-arquivos) e os endereços de e-mail que o escritório cadastra para receber atualizações.</li>
+arquivos), os endereços de e-mail que o escritório cadastra para receber atualizações e, onde o
+escritório usa comentários, o nome e o texto que cada pessoa escreve ao comentar, que todos que
+abrem a página veem.</li>
 <li><strong>Equipe dos escritórios:</strong> nome, e-mail, senha (guardada apenas de forma
 cifrada) e, se uma conta Google for conectada, o acesso descrito abaixo.</li>
 <li><strong>Uso do painel:</strong> as ações da equipe e as páginas que ela visita no painel
@@ -167,8 +169,9 @@ the Google access described below.</li>
 <h2>What we process</h2>
 <ul>
 <li><strong>Clients and visitors of project pages:</strong> what the office publishes about the
-project (such as the client's name, descriptions, meeting dates and files) and the email
-addresses the office adds to receive updates.</li>
+project (such as the client's name, descriptions, meeting dates and files), the email
+addresses the office adds to receive updates and, where the office uses comments, the name and
+text each person writes when commenting, which everyone who opens the page sees.</li>
 <li><strong>Office staff:</strong> name, email, password (stored only in hashed form) and, if a
 Google account is connected, the access described below.</li>
 <li><strong>Use of the dashboard:</strong> staff actions and the dashboard pages they visit (such

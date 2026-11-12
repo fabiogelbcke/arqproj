@@ -27,6 +27,7 @@ from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from backend.comments import alerts
 from backend.db.isolation import scope_to_tenant
 from backend.documents.versions import shown_name
 from backend.notifications import digest
@@ -60,6 +61,7 @@ class Report:
     busy: int = 0  # being scanned by another pass just then
     emails: int = 0
     emails_by_tenant: dict[str, int] = field(default_factory=dict)  # for analytics
+    staff_emails: int = 0  # clients' comments, to the office (A49)
     unfinished: int = 0  # not reached before the time budget ran out: the next pass
 
 
@@ -148,6 +150,9 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
             await db.commit()  # a file still changing, or files unreadable: next pass
             return
     await digest.gather(db, project)
+    if sender is not None:
+        # Clients' comments, to the office's staff (A49).
+        report.staff_emails += await alerts.deliver(db, sender, office, project, now)
     await db.commit()
 
 

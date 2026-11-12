@@ -33,6 +33,7 @@ class Feature(StrEnum):
     PORTFOLIO = "portfolio"  # the office's portfolio at its address's root
     COVER_BAND = "cover_band"  # the project page opens on a band made from its cover
     BEFORE_AFTER = "before_after"  # before-and-after comparisons, on a slider (A46)
+    COMMENTS = "comments"  # comments on files and stages, by clients and staff (A49)
 
 
 class Locale(StrEnum):

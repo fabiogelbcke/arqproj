@@ -20,6 +20,7 @@ export const EXAMPLE_TIMEZONE = "America/Sao_Paulo"; // without a signed-in offi
 export type ExampleFile = Schemas["FileOut"] & { url: string };
 export type ExampleStage = Omit<Schemas["StageOut"], "position"> & {
   groups: { folder: string | null; files: ExampleFile[] }[];
+  comments: Schemas["CommentOut"][]; // its conversation (A49)
 };
 export type ExampleProject = {
   name: string;
@@ -76,6 +77,15 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
     updated: false,
     clash: false,
     older: [],
+    comments: [],
+  });
+  let said = 0;
+  const comment = (author: "client" | "staff", name: string, body: string, days: number): Schemas["CommentOut"] => ({
+    id: `exemplo-c${(said += 1)}`,
+    author,
+    name,
+    body,
+    created_at: ago(days),
   });
   const meetingDay = inDays(6);
   return {
@@ -90,7 +100,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       "- Três suítes e escritório\n" +
       "- Piscina na cota mais baixa do terreno",
     cover_url: house,
-    features: ["cover_band", "before_after"], // the opening on a band (A40); the example shows everything
+    features: ["cover_band", "before_after", "comments"], // the opening on a band (A40); the example shows everything
     team: ["Paula Ribeiro"],
     proposal_url: pdf,
     status: "active",
@@ -108,6 +118,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
         completed: true,
         about: "Entendimento das necessidades e das características do espaço.",
         notes: "Levantamento topográfico recebido. As árvores marcadas no mapa ficam onde estão.",
+        comments: [],
         groups: [
           { folder: null, files: [file("Programa de necessidades.pdf", "pdf", pdf, 96_256, 52)] },
           {
@@ -124,11 +135,19 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
         completed: false,
         about: "Organização dos ambientes e definição do conceito.",
         notes: "Enviamos duas opções de implantação. Vamos conversar sobre elas na próxima reunião.",
+        // A conversation (A49): the client asks, the office answers.
+        comments: [
+          comment("client", "Carla Andrade", "Podemos ver uma opção com o escritório no térreo?", 2),
+          comment("staff", "Paula Ribeiro", "Podemos sim. Levamos essa variação para a reunião.", 1),
+        ],
         groups: [
           {
             folder: null,
             files: [
-              file("Implantação - estudo A.pdf", "pdf", pdf, 2_412_544, 3),
+              {
+                ...file("Implantação - estudo A.pdf", "pdf", pdf, 2_412_544, 3),
+                comments: [comment("client", "Carla Andrade", "Gostamos desta opção. A varanda pode ficar mais perto das araucárias?", 2)],
+              },
               // A document in its second version (A25): "Atualizado", with the first kept.
               {
                 ...file("Planta baixa - térreo.pdf", "pdf", pdf, 1_310_720, 1),
@@ -158,6 +177,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
         completed: false,
         about: "Visualização dos espaços, materiais e volumes.",
         notes: "",
+        comments: [],
         groups: [],
       },
       {
@@ -165,6 +185,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
         completed: false,
         about: "Documentos para a aprovação na prefeitura.",
         notes: "",
+        comments: [],
         groups: [],
       },
       {
@@ -172,6 +193,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
         completed: false,
         about: "Detalhamento técnico das soluções aprovadas.",
         notes: "",
+        comments: [],
         groups: [],
       },
       {
@@ -179,6 +201,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
         completed: false,
         about: "Organização da documentação final do projeto.",
         notes: "",
+        comments: [],
         groups: [],
       },
     ],
@@ -190,6 +213,7 @@ export function exampleProject(now: Date, timeZone: string): ExampleProject {
       link: null,
     },
     updates: [
+      { id: "exemplo-u7", kind: "office_commented", occurred_at: ago(1), stage_position: 2, name: null },
       { id: "exemplo-u1", kind: "file_published", occurred_at: ago(1), stage_position: 2, name: "Estudo de cobertura.jpg" },
       { id: "exemplo-u6", kind: "file_published", occurred_at: ago(1), stage_position: 2, name: "Planta baixa - térreo.pdf" },
       { id: "exemplo-u2", kind: "note_changed", occurred_at: ago(3), stage_position: 2 },

@@ -10,6 +10,8 @@ database allows more, and a name saved before the limit stays as it is.
 
 from __future__ import annotations
 
+from backend.comments.models import BODY_MAX as COMMENT_BODY_MAX
+from backend.comments.models import NAME_MAX as COMMENT_NAME_MAX
 from backend.documents.comparisons import LABEL_MAX as COMPARISON_LABEL_MAX
 from backend.documents.comparisons import TITLE_MAX as COMPARISON_TITLE_MAX
 from backend.identity.emails import EMAIL_LIMIT
@@ -38,6 +40,8 @@ FIELD_LIMITS: dict[str, int] = {
     "sectionName": SECTION_NAME_MAX,
     "comparisonTitle": COMPARISON_TITLE_MAX,  # A46
     "comparisonLabel": COMPARISON_LABEL_MAX,
+    "commentBody": COMMENT_BODY_MAX,  # A49
+    "commentName": COMMENT_NAME_MAX,
     "detailText": DETAIL_TEXT_MAX,
     "meetingTitle": MEETING_TITLE_MAX,
     "meetingLocation": MEETING_LOCATION_MAX,

@@ -11,6 +11,7 @@ import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
 import { sortFromValue, sortLabelKey, sortOptions, sortValue, type Sort } from "../ui/sort";
 import { useDismiss } from "../ui/useDismiss";
+import { CommentThread } from "./Comments";
 import { day, fileSource, type Page } from "./format";
 
 type FileItem = Schemas["FileOut"];
@@ -429,6 +430,20 @@ export function FilePreview({
           WhatsApp
         </a>
       </div>
+      {/* Its conversation (A49), while comments are switched on: null from the API while off. */}
+      {file.comments != null && (
+        <div className="file-preview__comments">
+          <h3>{t("comments.title")}</h3>
+          <CommentThread
+            slug={slug}
+            comments={file.comments}
+            where={{ key: file.key }}
+            staff={!!page.staff}
+            timeZone={page.timezone}
+            label={t("comments.about", { name: file.name })}
+          />
+        </div>
+      )}
     </dialog>
   );
 }

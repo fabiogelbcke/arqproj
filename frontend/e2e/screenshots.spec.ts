@@ -59,7 +59,7 @@ test("@screenshots owner signup", async ({ page }) => {
 });
 
 test("@screenshots staff app", async ({ page, browser }) => {
-  test.setTimeout(60_000); // one long walk through every screen; the default 30 s is close
+  test.setTimeout(90_000); // one long walk through every screen; the default 30 s is close
   await page.emulateMedia({ reducedMotion: "reduce" }); // no half-faded dialogs
   mkdirSync(OUT, { recursive: true });
   await page.goto("/painel/entrar");
@@ -329,6 +329,28 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await shoot(page, "06x-comparacao-aberta", "dark");
   await page.keyboard.press("Escape");
 
+  // Comments (A49): a stage's conversation, and a file's under its preview.
+  switchOn("comments");
+  await page.reload();
+  const talk = page.locator("#stage-2");
+  await talk.getByRole("button", { name: "Comentar" }).click();
+  const stageThread = talk.getByRole("region", { name: /^Comentários sobre / });
+  for (const text of ["Enviamos a revisão da planta com a varanda ampliada.", "Confirmem se a escada pode ficar junto à parede norte."]) {
+    await stageThread.getByLabel("Seu comentário").fill(text);
+    await stageThread.getByRole("button", { name: "Enviar" }).click();
+    await stageThread.getByRole("listitem").filter({ hasText: text }).waitFor();
+  }
+  await stageThread.scrollIntoViewIfNeeded();
+  await shoot(page, "06y-comentarios-etapa");
+  await talk.getByRole("button", { name: "Abrir Fachada" }).click();
+  const fileThread = page.getByRole("dialog", { name: "Fachada" }).getByRole("region", { name: "Comentários sobre Fachada" });
+  await fileThread.getByLabel("Seu comentário").fill("O render já considera o brise de madeira.");
+  await fileThread.getByRole("button", { name: "Enviar" }).click();
+  await fileThread.getByText("O render já considera o brise de madeira.").waitFor();
+  await shoot(page, "06y-comentarios-arquivo");
+  await shoot(page, "06y-comentarios-arquivo", "dark");
+  await page.keyboard.press("Escape");
+
   // Details are added from a menu (no select marking its placeholder as chosen).
   await page.goto("/casa-jardim");
   await page.getByRole("navigation", { name: "Ferramentas do escritório" }).getByRole("button", { name: "Editar" }).click();
@@ -393,8 +415,9 @@ test("@screenshots staff app", async ({ page, browser }) => {
   const visitor = await browser.newPage();
   await visitor.emulateMedia({ reducedMotion: "reduce" });
   await visitor.goto("/casa-jardim");
-  // The note, and the stage reopened above ("Etapa reaberta").
-  await visitor.getByLabel(/Últimas atualizações, 2 não lidas/).click();
+  // The note, the stage reopened above ("Etapa reaberta"), and the office's comments
+  // on a stage and on a file (A49).
+  await visitor.getByLabel(/Últimas atualizações, 4 não lidas/).click();
   await visitor.getByRole("region", { name: "Últimas atualizações" }).waitFor();
   await shoot(visitor, "06c-atualizacoes");
   await visitor.keyboard.press("Escape");

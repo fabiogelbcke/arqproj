@@ -16,6 +16,7 @@ import { SiteFooter } from "../ui/UnioMark";
 import { EditButton, openOnClick } from "./EditButton";
 import { useBalancedColumns } from "./balance";
 import { dropTarget, placeId, startDrag, type DraggedFile, type DropPlace } from "./fileDrag";
+import { CommentIcon, StageComments } from "./Comments";
 import { Subscribe } from "./Subscribe";
 import { UpdatesBell } from "./Updates";
 import type { StageEditParts } from "./StageEditing";
@@ -202,6 +203,12 @@ function FileCard({
           {menu && file.clash && <span className="file__clash">{t("edit.versionClash")}</span>}
         </span>
       </button>
+      {!!file.comments?.length && (
+        <span className="file__comments" role="img" aria-label={t("comments.count", { count: file.comments.length })}>
+          <CommentIcon />
+          {file.comments.length}
+        </span>
+      )}
       {file.version != null && (
         <span className="vbadge" aria-hidden="true">
           {t("files.version", { version: file.version })}
@@ -716,9 +723,11 @@ function Stage({
   help,
   onHelp,
   onShare,
+  comments,
 }: {
   page: Page;
   index: number;
+  comments?: ReactNode; // its conversation (A49), while comments are on
   onShare?: () => void; // "Compartilhar arquivos" with this stage's files ticked
   open: boolean;
   onToggle: () => void;
@@ -893,6 +902,7 @@ function Stage({
             onOpen={onOpenFile}
             empty={editor ? null : state === "done" ? "done" : "waiting"}
           />
+          {!parts && comments}
           {parts?.remove}
         </div>
       </div>
@@ -1457,6 +1467,19 @@ export function ProjectPage({
               setOpenHelp(open ? i : null);
             }}
             onShare={canShare && !canEdit ? () => setShareFrom(i) : undefined}
+            comments={
+              // Comments are switched on per office (A40, A49): null from the API while off.
+              filesFor(stageFiles, i + 1).files?.comments != null && (
+                <StageComments
+                  slug={slug}
+                  comments={filesFor(stageFiles, i + 1).files!.comments!}
+                  position={i + 1}
+                  title={page.stages[i]!.title}
+                  staff={!!staff}
+                  timeZone={page.timezone}
+                />
+              )
+            }
             onToggle={() => {
               capture("stage_toggled", { stage_position: i + 1 });
               if (filtering) setClosed((was) => toggled(was, i));

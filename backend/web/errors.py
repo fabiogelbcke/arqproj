@@ -121,6 +121,9 @@ class ErrorCode(StrEnum):
     PROPOSAL_ACCEPTED = "proposal_accepted"  # the project now: its proposal stays as accepted
     PORTFOLIO_FULL = "portfolio_full"  # as many works, or photos in one, as it holds
     PORTFOLIO_ENTRY_NOT_FOUND = "portfolio_entry_not_found"  # removed meanwhile: reload
+    COMMENT_NOT_FOUND = "comment_not_found"  # removed meanwhile, or another project's (A49)
+    INVALID_COMMENT = "invalid_comment"  # blank, or a client's without a name
+    TOO_MANY_COMMENTS = "too_many_comments"  # a device's few a minute (A49)
     PORTFOLIO_VIDEO_REFUSED = "portfolio_video_refused"  # not an MP4 or WebM, or over 200 MB
     PORTFOLIO_LINK_INVALID = "portfolio_link_invalid"  # not a profile on its network
     PORTFOLIO_PHOTO_COMPARED = "portfolio_photo_compared"  # already in another comparison (A46)

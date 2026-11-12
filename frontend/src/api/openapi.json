@@ -8605,6 +8605,158 @@
         }
       }
     },
+    "/api/pages/{slug}/comments": {
+      "post": {
+        "summary": "Add Comment",
+        "operationId": "add_comment_api_pages__slug__comments_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/comments/{comment_id}": {
+      "delete": {
+        "summary": "Remove Comment",
+        "description": "Any comment, by any of the office's staff: spam, or a mistake.",
+        "operationId": "remove_comment_api_pages__slug__comments__comment_id__delete",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Comment Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/pages/{slug}": {
       "get": {
         "summary": "Page",
@@ -8888,6 +9040,13 @@
             "type": "object",
             "title": "Portfolio"
           },
+          "comments": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Comments"
+          },
           "usage": {
             "additionalProperties": {
               "type": "integer"
@@ -8952,6 +9111,7 @@
           "share_links",
           "downloads",
           "portfolio",
+          "comments",
           "usage",
           "link_statuses",
           "project_types",
@@ -9031,6 +9191,14 @@
         ],
         "title": "AnalyticsOut",
         "description": "Product analytics for the browser (A39), given only to signed-in staff and\nonly where the server has PostHog set, so one image serves staging and\nproduction with each one's own key. Visitors get their own, cookieless setup\nfrom `/api/tenant` (`web.tenant.VisitorAnalyticsOut`)."
+      },
+      "Author": {
+        "type": "string",
+        "enum": [
+          "client",
+          "staff"
+        ],
+        "title": "Author"
       },
       "Body_add_logo_png_api_office_logo_png_put": {
         "properties": {
@@ -9197,6 +9365,90 @@
           "code"
         ],
         "title": "CodeIn"
+      },
+      "CommentIn": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Body"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "CommentIn"
+      },
+      "CommentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "author",
+          "name",
+          "body",
+          "created_at"
+        ],
+        "title": "CommentOut"
       },
       "ComparisonEditIn": {
         "properties": {
@@ -10269,6 +10521,9 @@
           "proposal_accepted",
           "portfolio_full",
           "portfolio_entry_not_found",
+          "comment_not_found",
+          "invalid_comment",
+          "too_many_comments",
           "portfolio_video_refused",
           "portfolio_link_invalid",
           "portfolio_photo_compared",
@@ -10312,7 +10567,8 @@
           "meeting_scheduled",
           "meeting_changed",
           "meeting_cleared",
-          "note_changed"
+          "note_changed",
+          "office_commented"
         ],
         "title": "EventKind",
         "description": "What a client can notice on the page (A28). All but a note email (A32)."
@@ -10324,7 +10580,8 @@
           "proposals",
           "portfolio",
           "cover_band",
-          "before_after"
+          "before_after",
+          "comments"
         ],
         "title": "Feature",
         "description": "Work merged but switched on only for some offices, from the operator\ndashboard (A40): staging and main deploy it switched off for everyone else.\nRemove a feature from here once every office has it."
@@ -10397,6 +10654,20 @@
                 "type": "null"
               }
             ]
+          },
+          "comments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CommentOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
           }
         },
         "type": "object",
@@ -13941,6 +14212,20 @@
             "type": "boolean",
             "title": "Unavailable",
             "default": false
+          },
+          "comments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CommentOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
           }
         },
         "type": "object",

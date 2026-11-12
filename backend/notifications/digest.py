@@ -46,6 +46,8 @@ from backend.projects.enums import ProjectStatus
 from backend.projects.models import Meeting, Project, ProjectSlug, ProjectStage
 from backend.security import keys
 from backend.settings import Settings
+from backend.tenancy.models import Feature, Tenant
+from backend.tenancy.resolve import known_features
 from backend.web.page_files import _in_project, stage_groups
 from backend.web.page_stages import _title
 
@@ -210,19 +212,25 @@ async def summarize(
     events: list[ProjectEvent],
     office: Office,
     now: datetime,
+    comments: bool = False,
 ) -> Summary:
     """What the email says, as things are now (section 14: a file taken down
     meanwhile is left out; several meeting changes read as the latest): each
     stage's changes, in general terms ("3 arquivos enviados", no file names:
-    Fabio, 26 Oct 2026), then the project and the meeting."""
+    Fabio, 26 Oct 2026), then the project and the meeting. The office's comments
+    (A49) count under the stage they are on, or their file is in now, while
+    comments are switched on."""
     locale = office.locale
     summary = Summary()
     changes: dict[int, list[str]] = {}  # by stage position
     files = [e for e in events if e.kind is EventKind.FILE_PUBLISHED]
-    if files:
+    said = [e for e in events if e.kind is EventKind.OFFICE_COMMENTED] if comments else []
+    visible = {}
+    if files or any(e.item_id is not None for e in said):
         if storage is None:
             raise Wait  # the page can't show its files now either
         visible = await _visible_files(db, storage, project)
+    if files:
         # As the page shows them now: renamed or moved meanwhile, by their current
         # name and stage; taken down, left out (section 14).
         shown = {e.item_id: visible[e.item_id] for e in files if e.item_id in visible}
@@ -254,6 +262,17 @@ async def summarize(
             changes.setdefault(stage.position, []).append(t(locale, key))
     # By position, under each stage's current title; files in a stage removed
     # meanwhile are on the page under no stage, and say so by number.
+    # Comments on a stage, or on a file the page still shows, where it is now.
+    noted: dict[int, int] = {}
+    for e in said:
+        if e.stage_id is not None:
+            position = stages[e.stage_id].position if e.stage_id in stages else None
+        else:
+            position = visible[e.item_id][0] if e.item_id in visible else None
+        if position is not None:
+            noted[position] = noted.get(position, 0) + 1
+    for position, count in noted.items():
+        changes.setdefault(position, []).append(t(locale, "officeComments", count=count))
     by_position = {s.position: s for s in stages.values()}
     for position in sorted(changes):
         stage = by_position.get(position)
@@ -378,7 +397,9 @@ async def deliver(
             .order_by(ProjectEvent.occurred_at)
         )
     )
-    summary = await summarize(db, storage, project, events, office, now)  # may raise Wait
+    tenant = await db.get(Tenant, project.tenant_id)
+    comments = Feature.COMMENTS in known_features(tenant.features)
+    summary = await summarize(db, storage, project, events, office, now, comments)  # may Wait
     # Who may get it now: subscribed, and outside production staff only (section 14).
     allowed = {
         r.email

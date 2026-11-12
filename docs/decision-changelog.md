@@ -19,6 +19,25 @@ a new entry too.
 
 ---
 
+## 2026-11-10 — A49: comments on files and stages
+
+**Was:** comments and approvals were explicitly deferred from the pilot (plan
+section 2, "Explicitly deferred"), and clients have no accounts (A06).
+
+**Now:** clients and staff comment on each stage and each file, behind the
+`comments` feature (A40). A client signs with a name remembered on their
+device, nothing more; everyone who can open the page sees the whole
+conversation. A client's comment emails the project's team (or every staff
+account); a staff comment reaches the client through the update email (A32)
+and the updates panel. Approvals stay deferred.
+
+**Why:** Fabio, 10 Nov 2026: "we need to allow comments on files and on
+stages". Asked how a client signs, he chose a name only, over a name and email
+or a link sent to an address on the project's list: the simplest for clients.
+Their replies still reach them, through the project's update emails. A comment
+stays with a file by its identity in storage rather than by its name, so a new
+version, a rename or a move made on the site keeps the conversation.
+
 ## 2026-11-10 — A21, A45: a CDN for published portfolio photos; a work's images fit the screen
 
 **Was:** every portfolio photo was fetched through the app, which made three calls
