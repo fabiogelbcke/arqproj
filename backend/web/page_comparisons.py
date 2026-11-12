@@ -35,12 +35,11 @@ from backend.storage.base import StorageError
 from backend.storage.google_connect import ConnectError
 from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
-from backend.web.auth import CurrentStaff, require_csrf
+from backend.web.access import changeable_project
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_files import INLINE_IMAGES, _in_project, _is_image, _item_at
 from backend.web.page_uploads import (
     UPLOAD_MAX,
-    _changeable,
     _clean,
     _documents,
     _listing_failed,
@@ -49,7 +48,7 @@ from backend.web.page_uploads import (
     local_upload_url,
     upload_origin,
 )
-from backend.web.pages import _readable
+from backend.web.pages import changeable_page
 from backend.web.projects import _folders
 
 log = logging.getLogger(__name__)
@@ -137,7 +136,7 @@ async def start_comparison(
     project_id: uuid.UUID,
     position: int,
     body: ComparisonIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ComparisonUploadOut:
@@ -257,14 +256,12 @@ async def edit_comparison(
     slug: str,
     key: str,
     body: ComparisonEditIn,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Its title and labels are in its files' names: each version of both sides
     is renamed, keeping its version (`Cozinha (antes - Obra) v2.jpg`)."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
     title = _title(body.title)
     _reader, documents, comparison, _found = await _comparison_at(request, db, tenant, project, key)
     besides = (comparison.before, comparison.after)
@@ -297,13 +294,11 @@ async def hide_comparison(
     request: Request,
     slug: str,
     key: str,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Both sides, every version, stay in Drive renamed "_name" (A05)."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
     _reader, _listed, comparison, _found = await _comparison_at(request, db, tenant, project, key)
 
     async def hide(maker, item):
@@ -330,14 +325,12 @@ async def move_comparison(
     slug: str,
     key: str,
     body: ComparisonMoveIn,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Both sides, every version, into a stage's folder or one of its sections,
     as "Mover para…" moves a file; refused where that title is already compared."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
     if project.row_version != body.row_version:
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)  # that position may be another stage now
     stage = await db.scalar(

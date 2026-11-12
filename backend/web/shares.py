@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
+from typing import Annotated
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
@@ -244,7 +245,9 @@ async def _files(db: AsyncSession, links: list[ShareLink]) -> dict[uuid.UUID, li
 
 
 class ShareIn(BaseModel):
-    files: list[str] = Field(min_length=1, max_length=FILES_MAX)  # the page's file keys
+    files: list[Annotated[str, Field(max_length=2000)]] = Field(  # the page's file keys
+        min_length=1, max_length=FILES_MAX
+    )
     label: str | None = Field(default=None, max_length=LABEL_MAX)  # "Para quem?"
     expiry: ShareExpiry
     password: str | None = Field(default=None, max_length=PAGE_PASSWORD_MAX)
@@ -278,7 +281,7 @@ class ShareMadeOut(BaseModel):
 
 
 class OwnedIn(BaseModel):
-    owners: list[str] = Field(max_length=200)
+    owners: list[Annotated[str, Field(max_length=2000)]] = Field(max_length=200)
 
 
 class OwnerIn(BaseModel):

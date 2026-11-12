@@ -46,6 +46,7 @@ import logging
 import time
 import uuid
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, Response
@@ -58,12 +59,12 @@ from backend.db.engine import get_tenant_session
 from backend.documents import versions
 from backend.documents.versions import shown_name
 from backend.projects.creation import LocalFolders
-from backend.projects.enums import ProjectStatus
 from backend.projects.models import Project, ProjectStage
 from backend.security import keys
 from backend.storage.base import StorageError
 from backend.storage.google_connect import ConnectError
 from backend.tenancy.resolve import CurrentTenant, current_tenant
+from backend.web.access import changeable, changeable_project
 from backend.web.auth import CurrentStaff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_files import (
@@ -76,7 +77,7 @@ from backend.web.page_files import (
     _showable,
     _storage,
 )
-from backend.web.pages import _origin, _readable
+from backend.web.pages import _origin, changeable_page
 from backend.web.projects import _folders
 
 log = logging.getLogger(__name__)
@@ -121,22 +122,11 @@ def _clean(name: str) -> str:
     return cleaned
 
 
-async def _changeable(db: AsyncSession, project_id: uuid.UUID) -> Project:
-    project = await db.scalar(
-        select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
-    )
-    if project is None:
-        raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
-    if project.status is ProjectStatus.ARCHIVED:
-        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)  # viewable, not changed (section 22)
-    return project
-
-
 async def _stage_for_upload(
     request: Request, db: AsyncSession, tenant: CurrentTenant, project_id, position, row_version
 ):
     """The project, the stage and the office's storage view, if files may go in."""
-    project = await _changeable(db, project_id)
+    project = await changeable(db, project_id)
     if project.row_version != row_version:
         # Someone moved or removed stages meanwhile: this position may now be
         # another stage, and the file would go to its folder.
@@ -246,7 +236,7 @@ async def start_upload(
     project_id: uuid.UUID,
     position: int,
     body: UploadIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> UploadOut:
@@ -305,7 +295,7 @@ async def start_upload(
 
 class CheckIn(BaseModel):
     row_version: int
-    names: list[str] = Field(max_length=100)
+    names: list[Annotated[str, Field(max_length=255)]] = Field(max_length=100)
     folder: str | None = Field(default=None, max_length=255)  # a section, as for uploads
 
 
@@ -332,7 +322,7 @@ async def check_upload(
     project_id: uuid.UUID,
     position: int,
     body: CheckIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> CheckOut:
@@ -386,7 +376,7 @@ async def create_section(
     project_id: uuid.UUID,
     position: int,
     body: SectionIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -479,7 +469,7 @@ async def rename_section(
     project_id: uuid.UUID,
     position: int,
     body: SectionRenameIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -517,7 +507,7 @@ async def hide_section(
     project_id: uuid.UUID,
     position: int,
     body: SectionChangeIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -629,13 +619,11 @@ async def hide_file(
     request: Request,
     slug: str,
     key: str,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """The file stays in Drive, renamed "_name", which the page doesn't show."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
     _storage, item = await _item(request, db, project, key)
     maker, _root = await _folders(request, db)
     try:
@@ -666,15 +654,13 @@ async def move_file(
     slug: str,
     key: str,
     body: MoveIn,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Into a stage's folder, at its top or into one of its sections (the same
     stage's too). The file keeps its identity, so it is not "new" again and sends
     no email (A10)."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
     if project.row_version != body.row_version:
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)  # that position may be another stage now
     stage = await db.scalar(

@@ -105,7 +105,7 @@ class SigninOut(BaseModel):
 
 
 class DevSessionIn(BaseModel):
-    email: str
+    email: str = Field(max_length=500)
 
 
 class AdminStaffOut(BaseModel):
@@ -418,7 +418,7 @@ class TenantActionIn(BaseModel):
         "support_owner",
         "support_member",
     ]
-    confirmation: str = ""
+    confirmation: str = Field(default="", max_length=200)
     # For "feature_on" and "feature_off" (A40).
     feature: Feature | None = None
 
