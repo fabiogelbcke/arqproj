@@ -339,6 +339,7 @@
     "invalid_detail": "Check the details: use each field once, keep text within 40 characters, enter numbers for areas and valid dates.",
     "invalid_meeting": "Check the meeting details: a subject of up to 40 characters, a future date, an end time after the start and a link beginning with https://.",
     "invalid_stage": "This stage couldn't be changed. Reload the page and try again.",
+    "stage_name_taken": "This project already has a stage with that name. Choose another name.",
     "files_unavailable": "The file couldn't be opened just now. Try again in a moment.",
     "share_not_found": "This link is no longer available. Ask whoever sent it for a new one.",
     "share_too_large": "Each link can hold up to 300 MB. Untick some files or make more than one link.",

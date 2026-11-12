@@ -153,6 +153,13 @@ class NotificationBatch(IdMixin, TimestampsMixin, TenantOwned, Base):
             unique=True,
             postgresql_where=text("state = 'open'"),
         ),
+        # Closed (`closed_at`) exactly when it has gone or been dropped.
+        CheckConstraint(
+            f"(state IN ('{BatchState.SENT.value}', '{BatchState.DROPPED.value}')) "
+            "= (closed_at IS NOT NULL)",
+            name="closed_when_done",
+        ),
+        CheckConstraint("last_event_at >= first_event_at", name="events_in_order"),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(index=True)
@@ -184,6 +191,7 @@ class NotificationDelivery(IdMixin, TimestampsMixin, TenantOwned, Base):
             name="fk_notification_deliveries_batch",
             ondelete="CASCADE",
         ),
+        CheckConstraint("attempts >= 0", name="attempts_not_negative"),
     )
 
     batch_id: Mapped[uuid.UUID] = mapped_column(index=True)

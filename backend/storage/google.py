@@ -36,7 +36,8 @@ FIELDS = "id,name,mimeType,size,modifiedTime,md5Checksum,trashed,shortcutDetails
 # Drive ids are letters, digits, `-` and `_`. Anything else is refused before it
 # can reach the `q` search expression.
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,200}$")
-_THROTTLED = {"rateLimitExceeded", "userRateLimitExceeded"}
+# Drive slowing down, which it answers with 403 (or 429): wait and try again.
+THROTTLED = {"rateLimitExceeded", "userRateLimitExceeded"}
 RETRIES = 3
 
 TokenSource = Callable[[], Awaitable[str]]
@@ -293,7 +294,7 @@ def _classify(response: httpx2.Response) -> tuple[StorageProblem, bool]:
         reasons = {e.get("reason") for e in response.json()["error"].get("errors", [])}
     except (ValueError, KeyError, TypeError, AttributeError):
         reasons = set()
-    if reasons & _THROTTLED:
+    if reasons & THROTTLED:
         return StorageProblem.RATE_LIMITED, True
     return StorageProblem.NO_ACCESS, False
 

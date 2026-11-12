@@ -394,4 +394,5 @@ async def logo(
             await download.aclose()
 
     media_type = (LogoType.PNG if png else found.logo_dark_type if dark else found.logo_type).value
+    await db.close()  # before streaming: never hold a database connection meanwhile
     return StreamingResponse(body(), media_type=media_type, headers=LOGO_HEADERS)

@@ -226,19 +226,38 @@ def _items(comparison: comparisons.Comparison) -> list:
 
 async def _change(request, db, tenant, project, comparison, operation, action) -> None:
     """`action(maker, item)` on every file of the comparison, once the app may
-    change all of them: one made straight in Drive stops it before any changes."""
+    change all of them: one made straight in Drive stops it before any changes.
+    Each action returns how to undo it, or None when it changed nothing: a
+    failure partway puts back the files already changed, so the two sides are
+    never left apart (as stage folders' renames, page_stages.Renames)."""
     maker, _root = await _folders(request, db)
+    undos = []
     try:
         for item in _items(comparison):
             if not await maker.can_rename(item.id):
                 raise ApiError(409, ErrorCode.COMPARISON_NOT_OURS)
         for item in _items(comparison):
-            await action(maker, item)
+            if (undo := await action(maker, item)) is not None:
+                undos.append(undo)
     except ConnectError as error:
         log.error(
             "comparisons: %s failed for %s/%s: %s", operation, tenant.id, project.id, error.detail
         )
+        await _put_back(undos, operation, tenant, project)
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    except BaseException:
+        await _put_back(undos, operation, tenant, project)
+        raise
+
+
+async def _put_back(undos, operation, tenant, project) -> None:
+    for undo in reversed(undos):
+        try:
+            await undo()
+        except Exception:  # noqa: BLE001 - the original failure is what matters
+            log.exception(
+                "comparisons: could not undo %s for %s/%s", operation, tenant.id, project.id
+            )
 
 
 class ComparisonEditIn(BaseModel):
@@ -280,8 +299,10 @@ async def edit_comparison(
     names = {item.id: item.name for item in _items(comparison)}
 
     async def rename(maker, item):
-        if new[item.id] != names[item.id]:
-            await maker.rename(item.id, new[item.id])
+        if new[item.id] == names[item.id]:
+            return None
+        renamed = await maker.rename(item.id, new[item.id])  # locally, a new path
+        return lambda: maker.rename(renamed, names[item.id])
 
     await _change(request, db, tenant, project, comparison, "renaming", rename)
     capture(request, "comparison_edited")
@@ -307,7 +328,8 @@ async def hide_comparison(
     _reader, _listed, comparison, _found = await _comparison_at(request, db, tenant, project, key)
 
     async def hide(maker, item):
-        await maker.rename(item.id, f"_{item.name}")
+        hidden = await maker.rename(item.id, f"_{item.name}")
+        return lambda: maker.rename(hidden, item.name)
 
     await _change(request, db, tenant, project, comparison, "hiding", hide)
     capture(request, "comparison_hidden")
@@ -363,7 +385,8 @@ async def move_comparison(
         raise ApiError(409, ErrorCode.COMPARISON_EXISTS)
 
     async def move(maker, item):
-        await maker.move(item.id, target)
+        moved = await maker.move(item.id, target)
+        return lambda: maker.move(moved, found["f"])  # back where the page listed it
 
     await _change(request, db, tenant, project, comparison, "moving", move)
     capture(request, "comparison_moved")

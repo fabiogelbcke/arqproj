@@ -886,6 +886,19 @@ describe("edit mode", () => {
     );
   });
 
+  it("says so when a stage would take another stage's name", async () => {
+    asStaff({
+      "GET /api/project-types": () => ({ body: { types: [], stages: [] } }),
+      "POST /api/projects/p-1/stages": () => ({ status: 409, body: { error: "stage_name_taken" } }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "+ Adicionar etapa" }));
+    await userEvent.selectOptions(await screen.findByLabelText("Etapa"), "Etapa personalizada…");
+    await userEvent.type(screen.getByLabelText("Nome da etapa"), "levantamento{Enter}");
+    expect(await screen.findByText("Já existe uma etapa com esse nome neste projeto. Escolha outro nome.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nome da etapa")).toHaveValue("levantamento"); // kept, to change
+  });
+
   it("adds a custom stage on Enter in its name", async () => {
     const { sent } = asStaff({
       "GET /api/project-types": () => ({ body: { types: [], stages: [] } }),

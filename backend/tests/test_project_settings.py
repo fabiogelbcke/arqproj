@@ -201,6 +201,16 @@ async def test_another_offices_project_is_not_found(client, db_session, owner):
     assert (response.status_code, response.json()["error"]) == (404, "project_not_found")
 
 
+async def test_only_the_taken_address_itself_is_reported_as_taken(client, db_session, owner):
+    """The database's refusal is told by the rule it broke, not by its wording,
+    which names the addresses' table whatever rule it was."""
+    await db_session.execute(
+        text("ALTER TABLE project_slugs ADD CONSTRAINT refuses CHECK (slug <> 'bloqueado')")
+    )
+    response = await change(client, owner, await project(client), slug="bloqueado")
+    assert response.status_code == 500
+
+
 async def test_changes_need_the_csrf_token(client, owner):
     response = await change(client, ALINEA, await project(client), name="Sem token")
     assert response.status_code in (401, 403)
@@ -308,6 +318,48 @@ async def test_on_drive_the_cover_goes_into_a_capa_folder_and_replaces_the_old(
     assert "POST /upload/drive/v3/files" in fake.calls
     await upload(client, owner, found, PNG)
     assert "PATCH /drive/v3/files/new2" in fake.calls  # the first photo, trashed
+
+
+async def test_on_drive_the_old_cover_stays_until_the_new_one_is_saved(
+    client, db_session, owner, on_google
+):
+    """Trashed only once the project points at the new one: had the save failed,
+    the project would still show a photo in the trash."""
+    fake, _ = on_google
+    found = await project(client)
+    await upload(client, owner, found, PNG)  # new1: the _capa folder, new2: the photo
+    await db_session.execute(  # the next photo (new3) can't be saved
+        text("ALTER TABLE projects ADD CONSTRAINT refuses_new3 CHECK (cover_file_id <> 'new3')")
+    )
+    assert (await upload(client, owner, found, PNG)).status_code == 500
+    assert "PATCH /drive/v3/files/new2" not in fake.calls
+
+
+async def test_on_drive_a_saved_cover_stays_saved_when_the_old_one_cant_be_trashed(
+    app, client, owner, on_google
+):
+    """Trashing the old photo comes after the save and is best effort: Drive
+    refusing it leaves a file behind, never an error for a cover that changed."""
+    import httpx2
+
+    fake, _ = on_google
+    found = await project(client)
+    await upload(client, owner, found, PNG)  # new2: the photo
+    refused = []
+
+    def refusing_trash(request):
+        if request.method == "PATCH":
+            refused.append(request.url.path)
+            return httpx2.Response(503)
+        return fake(request)
+
+    app.state.http = httpx2.AsyncClient(transport=httpx2.MockTransport(refusing_trash))
+    first_url = (await project(client))["cover_url"]
+    second = await upload(client, owner, found, PNG)
+    assert second.status_code == 200, second.text
+    assert second.json()["cover_url"] != first_url
+    assert (await project(client))["cover_url"] == second.json()["cover_url"]
+    assert refused == ["/drive/v3/files/new2"]  # the old photo's trashing, refused
 
 
 async def test_on_drive_a_failure_says_try_again(app, client, owner, on_google):

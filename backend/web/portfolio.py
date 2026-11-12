@@ -46,6 +46,7 @@ from functools import cache
 from io import BytesIO
 from pathlib import Path
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
@@ -573,7 +574,7 @@ def _profiles(given: dict[SocialNetwork, str]) -> dict[str, str]:
 
 
 async def _project_facts(
-    db: AsyncSession, project: Project, members: bool
+    db: AsyncSession, project: Project, members: bool, zone: ZoneInfo
 ) -> tuple[dict, list[PortfolioDetail]]:
     """What a work drawn from `project` starts with, besides its name and type:
     its year (of completion for a project completed, else of expected delivery)
@@ -594,7 +595,7 @@ async def _project_facts(
         finished = await db.scalar(
             select(func.max(ProjectStage.completed_at)).where(ProjectStage.project_id == project.id)
         )
-        year = finished.year if finished else None
+        year = finished.astimezone(zone).year if finished else None  # the office's year
     else:
         delivery = details.get(DetailKey.EXPECTED_DELIVERY)
         year = delivery.value_date.year if delivery and delivery.value_date else None
@@ -762,7 +763,9 @@ async def add_entry(
             raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
         if section_id is None and project.project_type:
             section_id = (await _section_for_type(db, project.project_type)).id
-        facts, sheet = await _project_facts(db, project, tenant.has(Feature.PROJECT_MEMBERS))
+        facts, sheet = await _project_facts(
+            db, project, tenant.has(Feature.PROJECT_MEMBERS), ZoneInfo(tenant.timezone)
+        )
         facts["year"] = body.year or facts["year"]
     if await db.scalar(select(func.count()).select_from(PortfolioEntry)) >= ENTRIES_MAX:
         raise ApiError(409, ErrorCode.PORTFOLIO_FULL)
@@ -1423,7 +1426,6 @@ async def add_video(
         raise ApiError(422, ErrorCode.INVALID_REQUEST)  # the painel sends back what it was given
     found = await _portfolio(db)  # locked: positions are counted one at a time
     entry = await _entry(db, entry_id)
-    position = await _room_for_video(db, entry)
     connection = await db.scalar(select(StorageConnection))
     folder = FOLDER if connection and connection.kind is StorageKind.FOLDER else found.folder_id
     if connection is None or folder is None:
@@ -1449,6 +1451,10 @@ async def add_video(
         kind = None
     if kind is None or not sent.size or sent.size > VIDEO_MAX_BYTES:
         raise ApiError(415, ErrorCode.PORTFOLIO_VIDEO_REFUSED)
+    if await db.scalar(select(PortfolioVideo.id).where(PortfolioVideo.file_id == sent.id)):
+        # Sent twice (a double click, a retry after a lost answer): it is in already.
+        return await _out(db, tenant)
+    position = await _room_for_video(db, entry)
     video = PortfolioVideo(
         entry_id=entry.id,
         position=position,

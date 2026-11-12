@@ -3,7 +3,7 @@
 
 import re
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import text
@@ -822,6 +822,16 @@ async def test_with_project_members_the_team_is_the_members_not_a_typed_responsi
     assert "responsible" not in [t["key"] for t in project_page]
 
 
+async def test_a_work_completed_on_new_years_eve_is_of_the_offices_year(client, db_session, staff):
+    """Completed at 22:30 on 31 Dec in São Paulo: 2027 already in UTC, the
+    database's time zone in production (Cloud SQL)."""
+    await db_session.execute(text("SET TIME ZONE 'UTC'"))
+    late = datetime(2027, 1, 1, 1, 30, tzinfo=UTC)
+    await _project_facts(db_session, status="completed", completed=late)
+    drawn = await add(client, staff, project_id=await project_id(client))
+    assert drawn["year"] == 2026
+
+
 async def test_a_work_in_progress_takes_its_expected_year_unless_given_one(
     client, db_session, staff
 ):
@@ -1080,6 +1090,20 @@ async def test_only_a_video_sent_for_the_portfolio_is_registered(client, staff, 
     other = await register_video(client, staff, entry, "Planta.mp4")
     assert other.status_code == 422
     assert (await client.get("/api/portfolio", headers=staff)).json()["entries"][0]["videos"] == []
+
+
+async def test_a_video_registered_twice_is_kept_once(client, staff, tmp_path):
+    """A double click or a retry after a lost answer: two rows would share one
+    file, and removing either would take the other's video from storage."""
+    entry = await add(client, staff)
+    first = await send_video(client, staff, entry)
+    (video,) = first.json()["entries"][0]["videos"]
+    name = next(p.name for p in (tmp_path / "_portfolio").iterdir() if p.suffix == ".mp4")
+    again = await register_video(client, staff, entry, name)
+    assert again.status_code == 200, again.text
+    assert again.json()["entries"][0]["videos"] == [video]
+    posters = [p for p in (tmp_path / "_portfolio").iterdir() if p.name.endswith("-capa.jpg")]
+    assert len(posters) == 1  # the retry's frame isn't stored either
 
 
 @pytest.mark.parametrize(

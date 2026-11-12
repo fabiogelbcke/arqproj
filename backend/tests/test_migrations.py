@@ -993,3 +993,101 @@ def test_support_accounts_go_on_downgrade_and_what_they_made_stays(migrated_url)
     finally:
         command.upgrade(alembic_config(migrated_url), "head")
         engine.dispose()
+
+
+def test_rows_breaking_the_new_rules_are_put_right_in_every_office(migrated_url):
+    """0054 adds rules the code already kept (#210). Rows from before that break
+    them are put right first, every office's, even as an owner that tenant
+    isolation binds (Cloud SQL's migration login): two pieces in one place are
+    renumbered in their order, a video file registered twice keeps its first row."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0054"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0053")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        for slug in ("alinea", "norte"):
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES (:s, 'A') RETURNING id"), {"s": slug}
+            )
+            pieces = [
+                connection.scalar(
+                    text(
+                        "INSERT INTO portfolio_entries "
+                        "(tenant_id, position, title, place, description, created_at) "
+                        "VALUES (:t, :p, :title, '', '', now() + make_interval(secs => :n)) "
+                        "RETURNING id"
+                    ),
+                    {"t": tenant, "p": position, "title": title, "n": n},
+                )
+                for n, (position, title) in enumerate(((1, "Casa"), (1, "Loja"), (2, "Sala")))
+            ]
+            for n in range(2):
+                connection.execute(
+                    text(
+                        "INSERT INTO portfolio_videos (tenant_id, entry_id, position, file_id, "
+                        "video_type, poster_file_id, poster_type, created_at) VALUES (:t, :e, "
+                        ":p, 'video-1', 'video/mp4', 'capa', 'image/jpeg', "
+                        "now() + make_interval(secs => :n))"
+                    ),
+                    {"t": tenant, "e": pieces[0], "p": n + 1, "n": n},
+                )
+            connection.execute(
+                text(
+                    "INSERT INTO users (tenant_id, email, name, role, support, password_hash) "
+                    "VALUES (:t, 'suporte-owner@unio.invalid', 'Suporte Unio', 'owner', true, 'h')"
+                ),
+                {"t": tenant},
+            )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    as_owner = alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False))
+    try:
+        command.upgrade(as_owner, "0054")
+        with engine.connect() as connection:
+            pieces = connection.execute(
+                text(
+                    "SELECT tenants.slug, title, position FROM portfolio_entries "
+                    "JOIN tenants ON tenants.id = tenant_id ORDER BY tenants.slug, position"
+                )
+            ).all()
+            assert [tuple(piece) for piece in pieces] == [
+                (slug, title, position)
+                for slug in ("alinea", "norte")
+                for position, title in ((1, "Casa"), (2, "Loja"), (3, "Sala"))
+            ]
+            assert connection.scalar(text("SELECT count(*) FROM portfolio_videos")) == 2
+            assert connection.execute(
+                text("SELECT DISTINCT position FROM portfolio_videos")
+            ).all() == [(1,)]
+            assert connection.execute(text("SELECT password_hash FROM users")).all() == [
+                (None,),
+                (None,),
+            ]
+            forced = connection.scalar(
+                text(
+                    "SELECT count(*) FROM pg_class WHERE relname IN "
+                    "('portfolio_entries', 'portfolio_videos', 'users') AND relforcerowsecurity"
+                )
+            )
+            assert forced == 3  # the policy is forced again once they are put right
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()

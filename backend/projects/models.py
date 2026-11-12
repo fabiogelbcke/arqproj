@@ -262,6 +262,7 @@ class ProjectStage(IdMixin, TimestampsMixin, TenantOwned, Base):
         CheckConstraint("(builtin_key IS NULL) = (title IS NOT NULL)", name="builtin_or_custom"),
         CheckConstraint("builtin_key IS NULL OR about IS NULL", name="builtin_texts_translated"),
         CheckConstraint("title IS NULL OR length(btrim(title)) > 0", name="title_not_blank"),
+        CheckConstraint(f"length(title) <= {STAGE_TITLE_MAX}", name="title_length"),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(index=True)

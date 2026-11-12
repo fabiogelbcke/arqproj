@@ -322,6 +322,16 @@ async def test_a_database_failure_removes_the_folders_already_made(
     assert await project_count(db_session) == before
 
 
+async def test_only_the_taken_address_itself_is_reported_as_taken(client, db_session, owner):
+    """The database's refusal is told by the rule it broke, not by words in its
+    message: another rule whose name happens to say "slug" is no taken address."""
+    await db_session.execute(
+        text("ALTER TABLE project_stages ADD CONSTRAINT not_like_a_slug CHECK (title <> 'x-y')")
+    )
+    response = await create(client, owner, custom_stages=["x-y"])
+    assert response.status_code == 500
+
+
 async def test_the_check_above_would_catch_folders_left_behind(
     client, db_session, owner, tmp_path, monkeypatch
 ):
