@@ -100,6 +100,13 @@ async def deliver(
         for comment in pending:  # switched off meanwhile: never news later
             comment.staff_notified_at = now
         return 0
+    if batch is not None and now - pending[0].alert_tried_at >= GIVE_UP:
+        # Not sent again: Resend forgets its keys after a day, so an address that
+        # got it already would get it twice.
+        log.error("comments: giving up emailing staff of %s/%s", project.tenant_id, project.id)
+        for comment in pending:
+            comment.staff_notified_at = now
+        return 0
     if batch is None:
         if now - pending[-1].created_at < QUIET and now - pending[0].created_at < HOLD:
             return 0
@@ -145,10 +152,8 @@ async def deliver(
                 project.id,
                 error.detail,
             )
-    if failed and now - pending[0].alert_tried_at < GIVE_UP:
-        return sent  # tried again next pass; those already sent aren't sent twice
     if failed:
-        log.error("comments: giving up emailing staff of %s/%s", project.tenant_id, project.id)
+        return sent  # tried again next pass; those already sent aren't sent twice
     for comment in pending:
         comment.staff_notified_at = now
     return sent

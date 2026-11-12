@@ -460,10 +460,10 @@ async def test_a_day_of_retries_counts_from_the_first_try(
     await db_session.execute(
         text("UPDATE comments SET alert_tried_at = alert_tried_at - interval '25 hours'")
     )
-    outbox.fail.add("bruno@alinea.example")
-    await run_with(app, outbox)  # a day after the first try: the last
+    await run_with(app, outbox)  # a day after the first try: given up, not sent again
     await run_with(app, outbox)
-    assert [e.to for e in outbox.sent] == [STAFF, STAFF, STAFF]
+    # Resend keeps a key for a day only: Ana would have got it twice.
+    assert [e.to for e in outbox.sent] == [STAFF, STAFF]
 
 
 async def test_a_comment_just_before_archiving_still_reaches_staff(
