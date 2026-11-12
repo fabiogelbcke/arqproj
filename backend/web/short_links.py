@@ -1,6 +1,7 @@
 """WhatsApp's link buttons (A47).
 
-    GET /w/{code}   on to a project's page, or its next meeting for a calendar
+    GET /w/{code}   on to a project's page, its next meeting for a calendar, or a
+                    meeting's video call
 
 A template's link button is fixed at Meta up to its last part, and each office
 has its own address, so the buttons point here, on Unio's own address, with a
@@ -9,7 +10,11 @@ signed code naming the office and the project (`short_link`):
 - "page": a redirect to the project's page;
 - "agenda": the project's next meeting as a calendar file, as the page's
   "Adicionar à agenda" gives it; the page instead when none is to come (it was
-  cancelled or has passed since the message), or when the page has a password.
+  cancelled or has passed since the message), or when the page has a password;
+- "join": a reminder's "Entrar na reunião" (A48), on to the meeting's video link;
+  the page instead when the meeting is over or has no link, or when the page has
+  a password. The code names the meeting alone, so one deleted since is not
+  found (its update says it was cancelled).
 
 The code is the client's message: it was sent only to their number. One that
 doesn't check out, an office no longer active, or a project that is gone or no
@@ -46,13 +51,18 @@ router = APIRouter(include_in_schema=False)
 async def follow(request: Request, code: str) -> Response:
     settings = request.app.state.settings
     found = read_token(settings, code)
-    if found is None or found.action not in ("page", "agenda"):
+    if found is None or found.action not in ("page", "agenda", "join"):
         return Response(status_code=404, headers=PAGE_HEADERS)
     async with request.app.state.sessionmaker() as db:
         scope_to_tenant(db.sync_session, found.tenant_id)
         tenant = await db.get(Tenant, found.tenant_id)
+        meeting = None
+        project_id = found.recipient_id
+        if found.action == "join":  # the code names the meeting
+            meeting = await db.scalar(select(Meeting).where(Meeting.id == found.recipient_id))
+            project_id = meeting.project_id if meeting else None
         project = await db.scalar(
-            select(Project).where(Project.id == found.recipient_id, Project.deleted_at.is_(None))
+            select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
         )
         if (
             tenant is None
@@ -69,8 +79,12 @@ async def follow(request: Request, code: str) -> Response:
         office = await office_of(db, settings, tenant.id)
         page = f"{office.base}/{slug}"
         # Behind a password, the page asks for it first and offers the calendar
-        # itself: the link isn't a way round the password (plan section 6).
-        if found.action == "agenda" and project.access_mode is not AccessMode.PASSWORD:
+        # and the call itself: the link isn't a way round the password (section 6).
+        open_page = project.access_mode is AccessMode.PASSWORD
+        live = meeting is not None and meeting.link and meeting.ends_at > datetime.now(UTC)
+        if live and not open_page:
+            return RedirectResponse(meeting.link, status_code=302, headers=PRIVATE)
+        if found.action == "agenda" and not open_page:
             meeting = await db.scalar(
                 select(Meeting)
                 .where(Meeting.project_id == project.id, Meeting.ends_at > datetime.now(UTC))
@@ -85,4 +99,5 @@ async def follow(request: Request, code: str) -> Response:
                     headers={**CALENDAR_HEADERS, **PAGE_HEADERS, **PRIVATE},
                 )
     # Tagged so page analytics (A39) can tell visits that came from WhatsApp.
-    return RedirectResponse(f"{page}?utm_source=whatsapp&utm_medium=update", status_code=302)
+    medium = "reminder" if found.action == "join" else "update"
+    return RedirectResponse(f"{page}?utm_source=whatsapp&utm_medium={medium}", status_code=302)

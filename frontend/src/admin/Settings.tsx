@@ -1,10 +1,10 @@
 // "Configurações" (A44): what is set for the whole site, beside "Escritórios".
-// A side list of sections (Tipos de projeto, Etapas for now); each list in its
+// A side list of sections (Tipos de projeto, Etapas, Avisos); each list in its
 // order, moved up or down, with what's hidden marked and a form to add one.
 import { useState, type ReactNode } from "react";
 import { Dialog, Form, Heading, Modal, ModalOverlay } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
@@ -17,6 +17,7 @@ import { moved, useAddStage, useAddType, useCatalog, useReorder, type Catalog, t
 export function SettingsLayout() {
   const { t } = useTranslation();
   const catalog = useCatalog();
+  const notices = useLocation().pathname.endsWith("/avisos");
   return (
     <>
       <header className={styles.pageHead}>
@@ -29,10 +30,11 @@ export function SettingsLayout() {
         <nav className={styles.sideNav} aria-label={t("admin.settings.sections")}>
           <NavLink to="tipos">{t("admin.settings.types")}</NavLink>
           <NavLink to="etapas">{t("admin.settings.stages")}</NavLink>
+          <NavLink to="avisos">{t("admin.notices.title")}</NavLink>
         </nav>
         <div className={styles.stack}>
           <p className={styles.everywhere} role="note">
-            <span aria-hidden="true">⚠</span> {t("admin.settings.everywhere")}
+            <span aria-hidden="true">⚠</span> {t(notices ? "admin.notices.everywhere" : "admin.settings.everywhere")}
           </p>
           {catalog.data && !catalog.data.can_change && <p className={styles.mutedText}>{t("admin.settings.readOnly")}</p>}
           {catalog.isPending && <p className={styles.muted}>{t("app.loading")}</p>}

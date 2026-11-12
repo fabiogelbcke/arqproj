@@ -79,6 +79,18 @@ async def maintenance(request: Request) -> Response:
                 "count": sent,
             },
         )
+    for tenant_id, sent in report.reminders_by_tenant.items() if client is not None else ():
+        # Meeting reminders (A48), paid per email and per WhatsApp message: per office.
+        client.capture(
+            "meeting_reminders_sent",
+            distinct_id=f"tenant:{tenant_id}",
+            properties={
+                "$process_person_profile": False,
+                "$groups": {"tenant": tenant_id},
+                "emails": sent["emails"],
+                "whatsapp": sent["whatsapp"],
+            },
+        )
     if report.unfinished:
         log.warning(
             "maintenance: out of time, %s projects left for the next pass", report.unfinished

@@ -214,6 +214,23 @@ async def test_a_change_made_before_the_email_came_due_joins_it(
     assert "- 03 Estudo Preliminar: marcada como concluída" in email.text
 
 
+async def test_a_change_joins_by_the_quiet_period_in_the_settings(
+    app, client, db_session, owner, outbox, ready
+):
+    """The same changes with a 5-minute quiet period (A48): the email came due at
+    10:10, so the stage at 10:45 waits its turn."""
+    from backend.tests.test_maintenance_scan import call
+
+    await db_session.execute(text("UPDATE notice_settings SET quiet_minutes = 5"))
+    await new_file(app, outbox, ready)
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    await shift(db_session, first=50, last=50, change=10)
+    await run(app, outbox)
+    [email] = outbox.sent
+    assert "foi atualizada: 1 arquivo enviado." in email.text  # the stage not with it
+    assert await batches(db_session) == [("sent",), ("open",)]
+
+
 async def test_a_change_never_holds_an_email_past_its_2_hours(
     app, client, db_session, owner, outbox, ready
 ):

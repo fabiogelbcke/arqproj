@@ -1020,6 +1020,120 @@
         }
       }
     },
+    "/api/admin/settings/notices": {
+      "get": {
+        "summary": "Notice Settings",
+        "operationId": "notice_settings_api_admin_settings_notices_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoticeSettingsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Change Notice Settings",
+        "operationId": "change_notice_settings_api_admin_settings_notices_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoticeSettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoticeSettingsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/office-signup/check": {
       "post": {
         "summary": "Check",
@@ -10269,6 +10383,7 @@
           "invalid_setting_text",
           "setting_name_taken",
           "setting_not_found",
+          "invalid_notice_settings",
           "signup_link_invalid",
           "office_address_taken",
           "invalid_office_address",
@@ -11401,6 +11516,120 @@
           "notes"
         ],
         "title": "NotesIn"
+      },
+      "NoticeSettingsIn": {
+        "properties": {
+          "quiet_minutes": {
+            "type": "integer",
+            "title": "Quiet Minutes"
+          },
+          "hold_minutes": {
+            "type": "integer",
+            "title": "Hold Minutes"
+          },
+          "reminder_morning": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Reminder Morning"
+          },
+          "reminder_evening": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Reminder Evening"
+          },
+          "reminder_before_minutes": {
+            "type": "integer",
+            "title": "Reminder Before Minutes"
+          },
+          "ask_again_days": {
+            "type": "integer",
+            "title": "Ask Again Days"
+          },
+          "whatsapp_news": {
+            "items": {
+              "$ref": "#/components/schemas/WhatsAppNews"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Whatsapp News"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quiet_minutes",
+          "hold_minutes",
+          "reminder_morning",
+          "reminder_evening",
+          "reminder_before_minutes",
+          "ask_again_days",
+          "whatsapp_news"
+        ],
+        "title": "NoticeSettingsIn"
+      },
+      "NoticeSettingsOut": {
+        "properties": {
+          "quiet_minutes": {
+            "type": "integer",
+            "title": "Quiet Minutes"
+          },
+          "hold_minutes": {
+            "type": "integer",
+            "title": "Hold Minutes"
+          },
+          "reminder_morning": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Reminder Morning"
+          },
+          "reminder_evening": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Reminder Evening"
+          },
+          "reminder_before_minutes": {
+            "type": "integer",
+            "title": "Reminder Before Minutes"
+          },
+          "ask_again_days": {
+            "type": "integer",
+            "title": "Ask Again Days"
+          },
+          "whatsapp_news": {
+            "items": {
+              "$ref": "#/components/schemas/WhatsAppNews"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Whatsapp News"
+          },
+          "can_change": {
+            "type": "boolean",
+            "title": "Can Change"
+          },
+          "limits": {
+            "additionalProperties": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Limits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quiet_minutes",
+          "hold_minutes",
+          "reminder_morning",
+          "reminder_evening",
+          "reminder_before_minutes",
+          "ask_again_days",
+          "whatsapp_news",
+          "can_change",
+          "limits"
+        ],
+        "title": "NoticeSettingsOut"
       },
       "OfficeDetailsOut": {
         "properties": {
@@ -14709,6 +14938,18 @@
           "phone"
         ],
         "title": "WhatsAppIn"
+      },
+      "WhatsAppNews": {
+        "type": "string",
+        "enum": [
+          "files",
+          "stages",
+          "project",
+          "meetings",
+          "reminders"
+        ],
+        "title": "WhatsAppNews",
+        "description": "What may go by WhatsApp (A48): each update's news, and the reminders."
       },
       "WhatsAppOut": {
         "properties": {

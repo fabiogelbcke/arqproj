@@ -133,6 +133,24 @@ Estudo Preliminar. Veja em alinea.myunio.app/casa-jardim". The same 45-minute
 batching applies, so one message covers a burst of uploads. No promotional
 text, or it becomes marketing.
 
+**Meeting reminders (A48)**, two more templates to submit, with the footer
+"Para não receber mais estas mensagens, responda SAIR." as the updates':
+
+| Template | Text | Button |
+| --- | --- | --- |
+| `unio_lembrete_reuniao` | Olá! Lembrete da reunião {{1}} do projeto {{2}}, do {{3}}: {{4}}. | "Abrir o projeto", `https://myunio.app/w/{{1}}` |
+| `unio_lembrete_video` | Olá! A reunião {{1}} do projeto {{2}}, do {{3}}, começa às {{4}}. | "Entrar na reunião", `https://myunio.app/w/{{1}}` |
+
+Examples for Meta: {{1}} "Apresentação do layout", {{2}} "Casa Jardim", {{3}}
+"Alinea Arquitetos", {{4}} "hoje às 14:00" (or "amanhã às 08:00"), and "14:00"
+for the video one. English versions as the updates'. Until they are approved, a
+reminder by WhatsApp fails and is logged; the email still goes.
+
+**What can change without Meta** ("Configurações" → "Avisos" in the operator
+dashboard): the batching windows, the reminder times, the days before an
+unanswered question is asked again, and which news goes by WhatsApp. Only the
+templates' fixed text needs approval.
+
 ## Setting up with Meta (outside the code)
 
 Both features share this setup. No setup or monthly fee and no App Review (we
@@ -146,13 +164,37 @@ businesses' numbers, which offices' own numbers would need later).
 | Phone number | A number not on WhatsApp, confirmed once by SMS or voice call (below) | ~10 min |
 | Display name | "Unio", reviewed by Meta | Usually 1–2 days |
 | Payment method | A card in WhatsApp Manager, or BRL billing | ~5 min |
-| Templates | `unio_atualizacao` (button "Abrir o projeto"), `unio_atualizacao_reuniao` (also "Adicionar à agenda"), `unio_boas_vindas`, `unio_convite` (buttons "Quero receber" / "Não quero"), in the approved Portuguese texts. Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
+| Templates | `unio_atualizacao` (button "Abrir o projeto"), `unio_atualizacao_reuniao` (also "Adicionar à agenda"), `unio_boas_vindas`, `unio_convite` (buttons "Quero receber" / "Não quero"), and the meeting reminders (A48) `unio_lembrete_reuniao` ("Abrir o projeto") and `unio_lembrete_video` ("Entrar na reunião"), in the approved Portuguese texts (reminders: below). Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
 | Access token and webhook | A permanent token in Secret Manager, our webhook registered with Meta | Part of the coding |
 | Business verification (later) | Below | A few days to ~2 weeks |
 
 **Building needs no number yet.** Meta's free test number, created with the
 app, messages up to 5 numbers we register, which is enough to build and test
 both features.
+
+### An email address of Unio's own
+
+The Meta business portfolio, the number's provider and Google Cloud should
+belong to an address of Unio's, not a person's, so they outlive whoever set
+them up. **Chosen (11 Nov 2026): Zoho Mail's free plan** on myunio.app, the
+cheapest with an inbox of its own and sending. Use its address for the Meta
+portfolio and the number.
+
+The domain's DNS is at GoDaddy. Zoho's records there: its verification TXT,
+MX `mx.zoho.com` (10), `mx2.zoho.com` (20), `mx3.zoho.com` (50), the SPF on
+`myunio.app` (GoDaddy's SPF include, which includes `zohomail.com`) and DKIM at
+`zmail._domainkey`. The app's own emails go out through Resend on
+`send.myunio.app` and `resend._domainkey`, which the inbox doesn't touch: leave
+those records as they are. Another mail service's MX records would take the
+domain's mail from Zoho: one service at a time.
+
+| Option | Cost | Notes |
+| --- | --- | --- |
+| **Zoho Mail Forever Free** | Free | Chosen. Inbox and sending, up to 5 users, 5 GB each; webmail and Zoho's app only (no IMAP) |
+| Zoho Mail Lite | ~US$1 a user a month | Adds IMAP, to read it in Gmail or Apple Mail |
+| Google Workspace Business Starter | ~R$40 a user a month | A Gmail inbox on myunio.app; for when someone else takes the account over |
+| Forwarding (ImprovMX) | Free | Mail reaches an existing Gmail; receive only |
+
 
 ### The number
 
@@ -218,7 +260,7 @@ A second delivery channel on the existing pipeline (plan section 14):
 File uploaded / stage completed
         │
         ▼
-ProjectEvent ──► NotificationBatch (45 min quiet, 2 h max)       ← exists
+ProjectEvent ──► NotificationBatch (45 min quiet, 2 h max: "Avisos")
         │
         ▼  batch due (maintenance, every 10 minutes)
 For each recipient:

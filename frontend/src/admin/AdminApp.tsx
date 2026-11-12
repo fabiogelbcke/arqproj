@@ -17,6 +17,7 @@ import { officeErrorsUrl, SUPPORT_CODE, supportCodeUrl, type LogsTarget } from "
 import styles from "./admin.module.css";
 import { CreateTenant, Features, SignupLink, TenantActions } from "./Actions";
 import { SettingsLayout } from "./Settings";
+import { NoticesPage } from "./Notices";
 import { StagePage, StagesPage, TypePage, TypesPage } from "./SettingsEditors";
 import { AnalyticsLink, FileStatistics, Usage } from "./Usage";
 
@@ -428,6 +429,7 @@ export const adminRoutes = [
           { path: "tipos/:key", element: <TypePage /> },
           { path: "etapas", element: <StagesPage /> },
           { path: "etapas/:key", element: <StagePage /> },
+          { path: "avisos", element: <NoticesPage /> },
         ],
       },
     ],

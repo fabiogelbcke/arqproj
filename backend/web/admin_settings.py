@@ -1,5 +1,5 @@
 """The operator dashboard's "Configurações" (A44): the site's built-in project
-types and stages, the same for every office.
+types and stages, the same for every office, and how clients are notified (A48).
 
     GET  /api/admin/settings/types-and-stages      both lists, with how many projects use each
     POST /api/admin/settings/types                 a new type
@@ -7,6 +7,8 @@ types and stages, the same for every office.
     POST /api/admin/settings/stages                a new stage
     PUT  /api/admin/settings/stages/{key}          a stage's name, description, hidden
     PUT  /api/admin/settings/order                 the types' or the stages' order
+    GET  /api/admin/settings/notices               "Avisos": batching, reminders, WhatsApp
+    PUT  /api/admin/settings/notices               "Avisos" changed
 
 Signed-in operators only, on Unio's own address (as the rest of /api/admin).
 Changes use the operator's login and are audited in the same transaction; each
@@ -15,12 +17,23 @@ answers with both lists as they now are.
 
 from __future__ import annotations
 
+from datetime import time, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
+from sqlalchemy import update
 from sqlalchemy.exc import SQLAlchemyError
 
+from backend.notifications import notices
+from backend.notifications.models import (
+    ASK_AGAIN_DAYS,
+    BEFORE_MINUTES,
+    HOLD_MINUTES_MAX,
+    QUIET_MINUTES,
+    NoticeSettings,
+    WhatsAppNews,
+)
 from backend.operators import actions, catalog
 from backend.projects.enums import ProjectType
 from backend.projects.models import ProjectTypeDef, StageDef
@@ -272,3 +285,99 @@ def _checked(given: SiteTexts, limit: int) -> dict[str, str]:
         return catalog.texts(given.pt, given.en, limit)
     except catalog.CatalogProblem as problem:
         raise ApiError(422, ErrorCode(problem.code)) from None
+
+
+# -- "Avisos" (A48) ---------------------------------------------------------------------
+
+HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
+_MINUTE = timedelta(minutes=1)
+
+
+class NoticeSettingsIn(BaseModel):
+    quiet_minutes: int
+    hold_minutes: int
+    reminder_morning: str = Field(pattern=HHMM)  # "08:30", the office's time zone
+    reminder_evening: str = Field(pattern=HHMM)
+    reminder_before_minutes: int
+    ask_again_days: int
+    whatsapp_news: list[WhatsAppNews] = Field(max_length=len(WhatsAppNews))
+
+
+class NoticeSettingsOut(NoticeSettingsIn):
+    can_change: bool  # the operator's login is set up for this deployment
+    limits: dict[str, list[int]]  # each number's [least, most]
+
+
+def _hhmm(value: time) -> str:
+    return value.strftime("%H:%M")
+
+
+async def _notices(request: Request) -> NoticeSettingsOut:
+    async with request.app.state.sessionmaker() as db:
+        found = await notices.current(db)
+    return NoticeSettingsOut(
+        quiet_minutes=found.quiet // _MINUTE,
+        hold_minutes=found.hold // _MINUTE,
+        reminder_morning=_hhmm(found.morning),
+        reminder_evening=_hhmm(found.evening),
+        reminder_before_minutes=found.before // _MINUTE,
+        ask_again_days=found.ask_again.days,
+        whatsapp_news=[news for news in WhatsAppNews if news in found.whatsapp],
+        can_change=getattr(request.app.state, "operator_sessionmaker", None) is not None,
+        limits={
+            "quietMinutes": list(QUIET_MINUTES),
+            "holdMinutes": [QUIET_MINUTES[0], HOLD_MINUTES_MAX],
+            "reminderBeforeMinutes": list(BEFORE_MINUTES),
+            "askAgainDays": list(ASK_AGAIN_DAYS),
+        },
+    )
+
+
+@router.get(f"{PREFIX}/notices", responses=documented(401, 404))
+async def notice_settings(
+    request: Request, response: Response, _session: dict = Depends(current_operator)
+) -> NoticeSettingsOut:
+    response.headers["Cache-Control"] = "private, no-store"
+    return await _notices(request)
+
+
+def _within(value: int, bounds: tuple[int, int]) -> bool:
+    return bounds[0] <= value <= bounds[1]
+
+
+@router.put(f"{PREFIX}/notices", responses=documented(401, 403, 404, 422, 503))
+async def change_notice_settings(
+    body: NoticeSettingsIn, request: Request, operator: dict = Depends(operator_with_csrf)
+) -> NoticeSettingsOut:
+    morning = time.fromisoformat(body.reminder_morning)
+    evening = time.fromisoformat(body.reminder_evening)
+    if not (
+        _within(body.quiet_minutes, QUIET_MINUTES)
+        and _within(body.hold_minutes, (body.quiet_minutes, HOLD_MINUTES_MAX))
+        and _within(body.reminder_before_minutes, BEFORE_MINUTES)
+        and _within(body.ask_again_days, ASK_AGAIN_DAYS)
+        and evening > morning
+    ):
+        raise ApiError(422, ErrorCode.INVALID_NOTICE_SETTINGS)
+    try:
+        async with _action_sessionmaker(request)() as db:
+            await db.execute(
+                update(NoticeSettings)
+                .where(NoticeSettings.id == 1)
+                .values(
+                    quiet_minutes=body.quiet_minutes,
+                    hold_minutes=body.hold_minutes,
+                    reminder_morning=morning,
+                    reminder_evening=evening,
+                    reminder_before_minutes=body.reminder_before_minutes,
+                    ask_again_days=body.ask_again_days,
+                    whatsapp_news=[
+                        news.value for news in WhatsAppNews if news in body.whatsapp_news
+                    ],
+                )
+            )
+            actions.audit_site(db, operator["email"], "settings:notices", current_request_id())
+            await db.commit()
+    except SQLAlchemyError as error:
+        raise _action_failure(request, "settings", error) from None
+    return await _notices(request)

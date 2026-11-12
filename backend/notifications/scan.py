@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.db.isolation import scope_to_tenant
 from backend.documents.versions import shown_name
-from backend.notifications import digest, whatsapp_updates
+from backend.notifications import digest, notices, reminders, whatsapp_updates
 from backend.notifications.email import EmailSender
 from backend.notifications.events import CLIENT_VISIBLE, record
 from backend.notifications.models import (
@@ -54,9 +54,6 @@ GREETING_GRACE = timedelta(minutes=10)
 # A first message still failing a day later (a template Meta hasn't approved, a
 # number that replied SAIR since) is no longer tried.
 GREETING_TRIES = timedelta(days=1)
-# Staff's question left unanswered this long is asked once more (A47), tried
-# for GREETING_TRIES like a first message.
-ASK_AGAIN_AFTER = timedelta(days=3)
 MAINTENANCE_LOCK = 7_202_611  # next to the migrations' (backend/migrations/registry.py)
 _LOCK_PROJECT = text("SELECT pg_try_advisory_xact_lock(:key, hashtext(:project))")
 _WAIT_FOR_PROJECT = text("SELECT pg_advisory_xact_lock(:key, hashtext(:project))")
@@ -74,6 +71,10 @@ class Report:
     emails_by_tenant: dict[str, int] = field(default_factory=dict)  # for analytics
     greeted: int = 0  # WhatsApp numbers sent their first message, left over by a request
     asked_again: int = 0  # numbers staff added, asked once more after no answer
+    reminder_emails: int = 0  # meeting reminders (A48)
+    reminder_messages: int = 0
+    # Per office, for analytics: {"emails": n, "whatsapp": n} (both are paid for).
+    reminders_by_tenant: dict[str, dict[str, int]] = field(default_factory=dict)
     unfinished: int = 0  # not reached before the time budget ran out: the next pass
 
 
@@ -138,7 +139,7 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
 
 
 async def _project_pass(
-    db, settings, sender, storage, office, project, report, whatsapp=None
+    db, settings, sender, storage, office, project, report, whatsapp=None, rules=notices.DEFAULT
 ) -> None:
     """One project, under its lock (taken by the caller), in one transaction: its
     new files, WhatsApp first messages that didn't go, then its email if one is due."""
@@ -159,7 +160,9 @@ async def _project_pass(
             report.greeted += await whatsapp_updates.greet(
                 db, settings, whatsapp, office, project.tenant_id, project, recipient, now
             )
-        asked = now - ASK_AGAIN_AFTER
+        # Staff's question left unanswered is asked once more (A47), tried for
+        # GREETING_TRIES like a first message.
+        asked = now - rules.ask_again
         for recipient in await whatsapp_updates.unanswered(
             db, project.id, asked, asked - GREETING_TRIES
         ):
@@ -176,10 +179,10 @@ async def _project_pass(
             )
     # Batches that came due, or are being retried, go as they were: changes made
     # after start the next one, with its own quiet period (section 14).
-    for due in await digest.to_send(db, project, now) if sender is not None else []:
+    for due in await digest.to_send(db, project, now, rules) if sender is not None else []:
         try:
             sent = await digest.deliver(
-                db, settings, sender, storage, office, project, due, now, whatsapp
+                db, settings, sender, storage, office, project, due, now, whatsapp, rules
             )
             report.emails += sent
             if sent:
@@ -197,8 +200,38 @@ async def _project_pass(
     await db.commit()
 
 
+async def _remind(db, settings, sender, whatsapp, office, project, report, rules) -> None:
+    """The project's meeting reminders now due (A48)."""
+    emailed, messaged = await reminders.remind(
+        db,
+        settings,
+        sender,
+        whatsapp if office.whatsapp else None,
+        office,
+        project,
+        rules,
+        datetime.now(UTC),
+    )
+    report.reminder_emails += emailed
+    report.reminder_messages += messaged
+    if emailed or messaged:
+        counts = report.reminders_by_tenant.setdefault(
+            str(project.tenant_id), {"emails": 0, "whatsapp": 0}
+        )
+        counts["emails"] += emailed
+        counts["whatsapp"] += messaged
+
+
 async def _scan_office(
-    sessionmaker, settings, google, sender, tenant_id, report: Report, deadline: float, whatsapp
+    sessionmaker,
+    settings,
+    google,
+    sender,
+    tenant_id,
+    report: Report,
+    deadline: float,
+    whatsapp,
+    rules: notices.Notices,
 ) -> None:
     async with sessionmaker() as db:
         scope_to_tenant(db.sync_session, tenant_id)
@@ -238,13 +271,23 @@ async def _scan_office(
                     _LOCK_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project_id)}
                 ):
                     raise Busy
+                # Reminders first, saved on their own: a folder Drive can't read
+                # (rolled back below) must neither hold them nor send them twice.
+                project = await db.scalar(select(Project).where(Project.id == project_id))
+                if project is not None and project.status in CLIENT_VISIBLE:
+                    await _remind(db, settings, sender, whatsapp, office, project, report, rules)
+                    await db.commit()  # which ends the lock: taken again
+                    if not await db.scalar(
+                        _LOCK_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project_id)}
+                    ):
+                        raise Busy
                 # None without Drive: no scan. A due email with files, or any while
                 # the office is disconnected, waits for Drive to be back.
                 storage = await storage_view(db, settings, google)
                 project = await db.scalar(select(Project).where(Project.id == project_id))
                 if project is not None:
                     await _project_pass(
-                        db, settings, sender, storage, office, project, report, whatsapp
+                        db, settings, sender, storage, office, project, report, whatsapp, rules
                     )
             except Busy:
                 report.busy += 1
@@ -278,22 +321,23 @@ async def run_maintenance(
     budget: float | None = None,
     whatsapp: WhatsAppSender | None = None,
 ) -> Report:
-    """One pass over every active office: new files, then the emails that are due
-    (none without a `sender`) and their WhatsApp messages (none without
-    `whatsapp`). With a `budget` in seconds, no new project starts
+    """One pass over every active office: new files, meeting reminders, then the
+    emails that are due (none without a `sender`) and their WhatsApp messages
+    (none without `whatsapp`). With a `budget` in seconds, no new project starts
     after it: each project's work is saved as it finishes, and the rest is the
     next pass's (section 4: bounded work)."""
     async with sessionmaker() as db:
         offices = list(
             await db.scalars(select(Tenant.id).where(Tenant.status == TenantStatus.ACTIVE))
         )
+        rules = await notices.current(db)  # "Avisos" (A48), as they are for this pass
     report = Report()
     deadline = time.monotonic() + budget if budget is not None else float("inf")
     random.shuffle(offices)
     for tenant_id in offices:
         try:
             await _scan_office(
-                sessionmaker, settings, google, sender, tenant_id, report, deadline, whatsapp
+                sessionmaker, settings, google, sender, tenant_id, report, deadline, whatsapp, rules
             )
         except Exception:
             # One office's trouble (once, a time zone Python doesn't know) is that

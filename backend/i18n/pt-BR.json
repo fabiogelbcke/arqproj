@@ -369,6 +369,7 @@
     "wrong_share_password": "Senha incorreta. Confira com quem enviou o link.",
     "operator_action_conflict": "Não foi possível concluir. Confira o endereço, o estado do escritório e a confirmação.",
     "invalid_setting_text": "Confira os textos: o nome em português é obrigatório, e nenhum texto pode passar do limite.",
+    "invalid_notice_settings": "Confira os valores: cada um deve estar dentro dos limites indicados, a espera máxima não pode ser menor que o tempo sem novidades, e o lembrete da noite deve ser depois do da manhã.",
     "setting_name_taken": "Já existe um item com esse nome em português. Escolha outro nome.",
     "setting_not_found": "A lista mudou enquanto você editava. Recarregue a página e tente novamente.",
     "operator_action_failed": "Não foi possível concluir a ação. Tente novamente e, se continuar, informe o código ao suporte.",
@@ -829,6 +830,17 @@
     "weekday5": "sábado",
     "weekday6": "domingo"
   },
+  "reminders": {
+    "today": "hoje às {{time}}",
+    "tomorrow": "amanhã às {{time}}",
+    "subject": "Lembrete: {{title}}, {{when}}",
+    "emailDay": "Lembrete: a reunião “{{title}}” do projeto {{project}} é {{when}}.",
+    "emailSoon": "A reunião “{{title}}” do projeto {{project}} começa às {{when}}.",
+    "where": "Local: {{location}}",
+    "join": "Entrar na reunião",
+    "whatsappDay": "Olá! Lembrete da reunião {{title}} do projeto {{project}}, do {{office}}: {{when}}.",
+    "whatsappSoon": "Olá! A reunião {{title}} do projeto {{project}}, do {{office}}, começa às {{when}}."
+  },
   "compare": {
     "before": "Antes",
     "after": "Depois",
@@ -1234,6 +1246,7 @@
         "cancel": "Voltar e revisar"
       }
     },
+    "notices": {"title": "Avisos", "intro": "Quando os clientes recebem as atualizações dos projetos e os lembretes de reunião, por e-mail e pelo WhatsApp.", "everywhere": "Estes valores valem para todos os escritórios e passam a valer na próxima verificação, em até 10 minutos.", "between": "Entre {{least}} e {{most}}.", "updates": "Atualizações", "quiet": "Tempo sem novidades antes de enviar (minutos)", "quietHint": "A atualização sai quando o projeto fica este tempo sem novidades, para juntar arquivos enviados em sequência num só aviso.", "hold": "Espera máxima (minutos)", "holdHint": "Mesmo com novidades seguidas, a atualização sai este tempo depois da primeira. Não pode ser menor que o tempo sem novidades.", "reminders": "Lembretes de reunião", "morning": "Lembrete no dia da reunião", "morningHint": "No fuso do escritório.", "evening": "Lembrete na véspera", "eveningHint": "Para reuniões que começam menos de uma hora depois do lembrete do dia. Deve ser depois do lembrete do dia.", "before": "Lembrete antes de reuniões por vídeo (minutos)", "beforeHint": "Com o botão “Entrar na reunião”.", "whatsapp": "WhatsApp", "askAgain": "Perguntar de novo a quem não respondeu, depois de (dias)", "askAgainHint": "Para números cadastrados pela equipe: a pergunta é repetida uma única vez.", "news": "O que é enviado pelo WhatsApp", "newsHint": "O e-mail continua levando tudo. Uma atualização sem nenhum destes itens não gera mensagem. O texto das mensagens é aprovado pela Meta e não muda aqui.", "kind": {"files": "Arquivos novos", "stages": "Etapas concluídas ou reabertas", "project": "Projeto concluído", "meetings": "Reuniões marcadas, alteradas ou canceladas", "reminders": "Lembretes de reunião"}},
     "title": "Operação Unio",
     "features": "Funções em teste",
     "featuresHint": "Funções já publicadas, mas ativadas só para os escritórios escolhidos aqui. Os outros não as veem.",

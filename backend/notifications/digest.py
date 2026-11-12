@@ -4,8 +4,9 @@ into one email, sent once things have been quiet.
 Each maintenance pass, for each published project:
 
 1. Changes not yet in an email (all but notes, A32) join the project's open batch.
-2. The batch is due 45 minutes after its last change, or 2 hours after its first.
-   A change made between two passes, before the batch came due, joins it first.
+2. The batch is due 45 minutes after its last change, or 2 hours after its first
+   (by default: "Configurações" → "Avisos" sets both, A48). A change made
+   between two passes, before the batch came due, joins it first.
 3. Just before sending: the project must still be published, files must still be
    on its page and unchanged for a minute (section 11's settling check), and the
    address still subscribed; outside production, only the office's own staff.
@@ -45,6 +46,7 @@ from backend.notifications.models import (
     ProjectRecipient,
     RecipientStatus,
 )
+from backend.notifications.notices import DEFAULT, Notices
 from backend.notifications.office import Office
 from backend.notifications.texts import t
 from backend.notifications.whatsapp import WhatsAppSender
@@ -59,8 +61,6 @@ from backend.web.page_stages import _title
 
 log = logging.getLogger(__name__)
 
-QUIET = timedelta(minutes=45)  # A12
-HOLD = timedelta(hours=2)
 SETTLE = timedelta(minutes=1)  # section 11: a file still changing waits
 EMAILED = [kind for kind in EventKind if kind is not EventKind.NOTE_CHANGED]  # A32
 MEETINGS = {EventKind.MEETING_SCHEDULED, EventKind.MEETING_CHANGED, EventKind.MEETING_CLEARED}
@@ -68,7 +68,7 @@ PROGRESS = {EventKind.STAGE_COMPLETED: 1, EventKind.STAGE_REOPENED: -1}
 MAX_ATTEMPTS = 5  # then that address is given up on for this email (logged)
 UNSUBSCRIBE_PURPOSE = "unsubscribe"
 # Inline styles only: email programs ignore stylesheets.
-_TEMPLATE = Template((Path(__file__).parent / "templates" / "update.html").read_text("utf-8"))
+TEMPLATE = Template((Path(__file__).parent / "templates" / "update.html").read_text("utf-8"))
 
 
 # -- unsubscribe links ----------------------------------------------------------------
@@ -107,10 +107,12 @@ async def open_batch(db: AsyncSession, project: Project) -> NotificationBatch | 
 UNSENT = (BatchState.OPEN, BatchState.SENDING)
 
 
-async def to_send(db: AsyncSession, project: Project, now: datetime) -> list[NotificationBatch]:
+async def to_send(
+    db: AsyncSession, project: Project, now: datetime, notices: Notices = DEFAULT
+) -> list[NotificationBatch]:
     """Batches going out: any still sending (retried as they are), then the open
     one if it has come due."""
-    await _join_before_due(db, project)
+    await _join_before_due(db, project, notices)
     batches = list(
         await db.scalars(
             select(NotificationBatch)
@@ -118,7 +120,7 @@ async def to_send(db: AsyncSession, project: Project, now: datetime) -> list[Not
             .order_by(NotificationBatch.first_event_at)
         )
     )
-    return [b for b in batches if b.state is BatchState.SENDING or is_due(b, now)]
+    return [b for b in batches if b.state is BatchState.SENDING or is_due(b, now, notices)]
 
 
 async def drop_unsent(db: AsyncSession, project: Project) -> None:
@@ -148,7 +150,7 @@ async def _loose(db: AsyncSession, project: Project) -> list[ProjectEvent]:
     )
 
 
-async def _join_before_due(db: AsyncSession, project: Project) -> None:
+async def _join_before_due(db: AsyncSession, project: Project, notices: Notices) -> None:
     """Changes made since the last pass but before the open batch came due join it
     first: it was not quiet for 45 minutes after all (A12), so it is due later, as
     one email (still within its 2 hours). Changes after it came due wait their turn."""
@@ -156,7 +158,7 @@ async def _join_before_due(db: AsyncSession, project: Project) -> None:
     if batch is None:
         return
     for event in await _loose(db, project):
-        if event.occurred_at >= due_at(batch):
+        if event.occurred_at >= due_at(batch, notices):
             break
         event.batch_id = batch.id
         batch.last_event_at = max(batch.last_event_at, event.occurred_at)
@@ -182,16 +184,34 @@ async def gather(db: AsyncSession, project: Project) -> NotificationBatch | None
     return batch
 
 
-def due_at(batch: NotificationBatch) -> datetime:
-    """45 minutes after its last change, or 2 hours after its first (A12)."""
-    return min(batch.last_event_at + QUIET, batch.first_event_at + HOLD)
+def due_at(batch: NotificationBatch, notices: Notices = DEFAULT) -> datetime:
+    """The quiet period after its last change, or the maximum hold after its first
+    (A12; 45 minutes and 2 hours by default, A48)."""
+    return min(batch.last_event_at + notices.quiet, batch.first_event_at + notices.hold)
 
 
-def is_due(batch: NotificationBatch, now: datetime) -> bool:
-    return now >= due_at(batch)
+def is_due(batch: NotificationBatch, now: datetime, notices: Notices = DEFAULT) -> bool:
+    return now >= due_at(batch, notices)
 
 
-# -- who it is from -------------------------------------------------------------------
+# -- who gets it ----------------------------------------------------------------------
+
+
+async def subscribed(
+    db: AsyncSession, settings: Settings, office: Office, project: Project
+) -> set[str]:
+    """Who may get the project's emails now: subscribed, and outside production
+    the office's staff only (section 14)."""
+    return {
+        r.email
+        for r in await db.scalars(
+            select(ProjectRecipient).where(
+                ProjectRecipient.project_id == project.id,
+                ProjectRecipient.status == RecipientStatus.SUBSCRIBED,
+            )
+        )
+        if not settings.email_staff_only or r.email in office.staff
+    }
 
 
 # -- what it says ---------------------------------------------------------------------
@@ -357,6 +377,16 @@ async def summarize(
     return summary
 
 
+def email_header(office: Office) -> str:
+    """The office's logo, else its name, atop its emails."""
+    if office.logo_url:
+        return (
+            f'<img src="{escape(office.logo_url)}" alt="{escape(office.name)}" height="40" '
+            'style="height:40px;max-width:200px;display:block">'
+        )
+    return f'<strong style="font-size:18px">{escape(office.name)}</strong>'
+
+
 def render(
     office: Office, project: Project, link: str, summary: Summary, unsubscribe: str
 ) -> tuple[str, str]:
@@ -365,12 +395,7 @@ def render(
     locale = office.locale
     intro = t(locale, "intro", project=project.name)
     why = t(locale, "why", office=office.name, project=project.name)
-    header = (
-        f'<img src="{escape(office.logo_url)}" alt="{escape(office.name)}" height="40" '
-        'style="height:40px;max-width:200px;display:block">'
-        if office.logo_url
-        else f'<strong style="font-size:18px">{escape(office.name)}</strong>'
-    )
+    header = email_header(office)
     p = '<p style="margin:0 0 12px">{}</p>'
     html_parts: list[str] = []
     text_parts: list[str] = []
@@ -389,7 +414,7 @@ def render(
     for other in summary.others:
         html_parts.append(p.format(escape(other)))
         text_parts.append(other)
-    html = _TEMPLATE.substitute(
+    html = TEMPLATE.substitute(
         lang=locale.value,
         header=header,
         intro=escape(intro),
@@ -430,6 +455,7 @@ async def deliver(
     batch: NotificationBatch,
     now: datetime,
     whatsapp: WhatsAppSender | None = None,
+    notices: Notices = DEFAULT,
 ) -> int:
     """Send a due batch; how many emails went. A batch with a failure stays
     `sending`, retried by the next pass for the addresses it started with."""
@@ -450,17 +476,7 @@ async def deliver(
     if connection is not None and connection.disconnected:
         raise Wait("the office disconnected Drive: its pages are offline")
     summary = await summarize(db, storage, project, events, office, now)  # may raise Wait
-    # Who may get it now: subscribed, and outside production staff only (section 14).
-    allowed = {
-        r.email
-        for r in await db.scalars(
-            select(ProjectRecipient).where(
-                ProjectRecipient.project_id == project.id,
-                ProjectRecipient.status == RecipientStatus.SUBSCRIBED,
-            )
-        )
-        if not settings.email_staff_only or r.email in office.staff
-    }
+    allowed = await subscribed(db, settings, office, project)
     # No WhatsApp sender (not set up): no messages are started that can't go.
     phones = await whatsapp_updates.receivers(db, settings, office, project) if whatsapp else set()
     if batch.state is BatchState.OPEN:
@@ -542,6 +558,7 @@ async def deliver(
         batch,
         summary,
         phones,
+        notices.whatsapp,
     )
     if messages:
         log.info(

@@ -4,7 +4,7 @@ section 14), and the client-visible changes they are made of (A28)."""
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 from enum import StrEnum
 
 from sqlalchemy import (
@@ -13,11 +13,12 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Text,
+    Time,
     UniqueConstraint,
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.db.base import Base, CreatedAtMixin, IdMixin, TimestampsMixin
@@ -301,3 +302,60 @@ class MaintenanceRun(Base):
     # Every office and project reached, none failed.
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_report: Mapped[dict] = mapped_column(JSONB)
+
+
+class WhatsAppNews(StrEnum):
+    """What may go by WhatsApp (A48): each update's news, and the reminders."""
+
+    FILES = "files"
+    STAGES = "stages"  # completed or reopened
+    PROJECT = "project"  # completed
+    MEETINGS = "meetings"  # scheduled, changed or cancelled
+    REMINDERS = "reminders"
+
+
+# The notice settings' bounds, checked by the database too.
+QUIET_MINUTES = (5, 120)  # section 14
+HOLD_MINUTES_MAX = 12 * 60
+BEFORE_MINUTES = (5, 180)
+ASK_AGAIN_DAYS = (1, 30)
+
+
+class NoticeSettings(Base):
+    """How clients' updates and reminders go, for every office (A48): one row,
+    "Configurações" → "Avisos". The app reads it; operators change it."""
+
+    __tablename__ = "notice_settings"
+    __table_args__ = (
+        CheckConstraint("id = 1", name="one_row"),
+        CheckConstraint(
+            f"quiet_minutes BETWEEN {QUIET_MINUTES[0]} AND {QUIET_MINUTES[1]}", name="quiet_range"
+        ),
+        CheckConstraint(
+            f"hold_minutes BETWEEN quiet_minutes AND {HOLD_MINUTES_MAX}", name="hold_range"
+        ),
+        CheckConstraint(
+            f"reminder_before_minutes BETWEEN {BEFORE_MINUTES[0]} AND {BEFORE_MINUTES[1]}",
+            name="before_range",
+        ),
+        CheckConstraint(
+            f"ask_again_days BETWEEN {ASK_AGAIN_DAYS[0]} AND {ASK_AGAIN_DAYS[1]}",
+            name="ask_again_range",
+        ),
+        CheckConstraint("reminder_evening > reminder_morning", name="evening_after_morning"),
+        CheckConstraint(
+            "whatsapp_news <@ ARRAY["
+            + ", ".join(f"'{news.value}'" for news in WhatsAppNews)
+            + "]::text[]",
+            name="whatsapp_news_known",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    quiet_minutes: Mapped[int] = mapped_column()
+    hold_minutes: Mapped[int] = mapped_column()
+    reminder_morning: Mapped[time] = mapped_column(Time)
+    reminder_evening: Mapped[time] = mapped_column(Time)
+    reminder_before_minutes: Mapped[int] = mapped_column()
+    ask_again_days: Mapped[int] = mapped_column()
+    whatsapp_news: Mapped[list[str]] = mapped_column(ARRAY(Text))
