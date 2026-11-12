@@ -35,7 +35,7 @@ from backend.db.types import TextEnum, enum_check
 from backend.projects.enums import CoverType, DetailType
 from backend.projects.models import value_matches_type
 
-INTRO_MAX = 600
+INTRO_MAX = 1000
 TITLE_MAX = 80
 PLACE_MAX = 80
 DESCRIPTION_MAX = 2000
