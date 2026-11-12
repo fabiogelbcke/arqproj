@@ -117,8 +117,20 @@
   .thumb { width: 72px; }
   .photos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 }
+/* The publishing box: the switch on its own line, flush with the text below it,
+   then the format on the left and the opening text on the right. */
+.publishing { display: grid; gap: 20px; }
+/* The ui switch is a small-print row (padding 0 2px, the small size): here it heads
+   the box, so it sits flush with the labels below and in their size. */
+.publishing .publishSwitch { padding: 0; font-size: inherit; }
+.publishingBody {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px 40px; align-items: start;
+  padding-top: 20px; border-top: 1px solid var(--line);
+}
+.introField { display: grid; gap: 12px; }
+@media (max-width: 800px) { .publishingBody { grid-template-columns: minmax(0, 1fr); } }
 .format { display: grid; gap: 8px; }
-.formats { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 12px; }
+.formats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-width: 480px; }
 .formatCard {
   position: relative; display: grid; gap: 4px; padding: 8px; border: 2px solid var(--line); border-radius: var(--r-card);
   cursor: pointer;

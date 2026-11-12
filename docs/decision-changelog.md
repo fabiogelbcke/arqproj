@@ -19,6 +19,22 @@ a new entry too.
 
 ---
 
+## 2026-11-12 — A45: on an address Unio shares with an office, the office's page
+
+**Was:** `/` on Unio's own address (the operator host) always showed Unio's
+home, before the office was even looked up. On staging the one address,
+`staging.myunio.app`, is both the operator host and the test office's, so the
+portfolio and the office's card could never be seen there.
+
+**Now:** the question at `/` is whether the address is an office's, not whether
+it is Unio's: an address that resolves to an office shows that office's card or
+portfolio; an address no office owns keeps Unio's home. In production nothing
+changes, since no office owns `myunio.app`; on staging the test office's page
+shows. Unio's home still shows whenever the lookup fails.
+
+**Why:** Fabio, 12 Nov 2026: "there's no way to see the portfolio in staging
+now?"
+
 ## 2026-11-11 — A45: the portfolio for every office; the tab says less
 
 **Was:** the portfolio was behind the `portfolio` feature (A40): an office had

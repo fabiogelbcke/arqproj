@@ -191,15 +191,15 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
   const { t } = useTranslation();
   const save = useSavePortfolio();
   const [intro, setIntro] = useState(portfolio.intro);
-  const shown = portfolio.entries.some((entry) => entry.photos.length > 0);
   const change = (body: { published?: boolean; intro?: string; format?: Portfolio["format"] }, done: string) =>
     save.mutate(body, { onSuccess: () => toast(done), onError: (failure) => toastError(failure) });
   return (
-    <Panel className={styles.section} aria-labelledby="portfolio-publishing">
+    <Panel className={styles.publishing} aria-labelledby="portfolio-publishing">
       <h2 id="portfolio-publishing" className="sr-only">
         {t("portfolio.publishing")}
       </h2>
       <ToggleSwitch
+        className={styles.publishSwitch}
         label={t("portfolio.publish", { address: officeAddress() })}
         isSelected={portfolio.published}
         isDisabled={save.isPending}
@@ -207,7 +207,8 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
       >
         <span className={styles.switchLabel}>{t("portfolio.publish", { address: officeAddress() })}</span>
       </ToggleSwitch>
-      {portfolio.published && !shown && <p className={styles.warning}>{t("portfolio.nothingShown")}</p>}
+      {/* Below the switch: the format on the left, the opening text on the right. */}
+      <div className={styles.publishingBody}>
       <div className={styles.format} role="radiogroup" aria-labelledby="portfolio-format">
         <span id="portfolio-format" className={styles.switchLabel}>
           {t("portfolio.format")}
@@ -231,23 +232,26 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
           ))}
         </div>
       </div>
-      <TextAreaField
-        label={t("portfolio.intro")}
-        description={t("portfolio.introHint")}
-        placeholder={t("portfolio.introPlaceholder")}
-        value={intro}
-        onChange={setIntro}
-        maxLength={LIMITS.intro}
-        rows={3}
-      />
-      <Button
-        size="small"
-        className={styles.save}
-        isDisabled={save.isPending || intro.trim() === portfolio.intro}
-        onPress={() => change({ intro }, t("portfolio.saved"))}
-      >
-        {t("portfolio.save")}
-      </Button>
+      <div className={styles.introField}>
+        <TextAreaField
+          label={t("portfolio.intro")}
+          description={t("portfolio.introHint")}
+          placeholder={t("portfolio.introPlaceholder")}
+          value={intro}
+          onChange={setIntro}
+          maxLength={LIMITS.intro}
+          rows={4}
+        />
+        <Button
+          size="small"
+          className={styles.save}
+          isDisabled={save.isPending || intro.trim() === portfolio.intro}
+          onPress={() => change({ intro }, t("portfolio.saved"))}
+        >
+          {t("portfolio.save")}
+        </Button>
+      </div>
+      </div>
     </Panel>
   );
 }

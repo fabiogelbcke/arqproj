@@ -1619,7 +1619,6 @@
     "publish": "Show the office's portfolio at {{address}}",
     "publishedDone": "Portfolio published.",
     "unpublishedDone": "The portfolio no longer shows at the office's address.",
-    "nothingShown": "No project has photos yet: the portfolio shows empty.",
     "view": "View portfolio",
     "preview": "View preview",
     "viewWork": "View in portfolio",
