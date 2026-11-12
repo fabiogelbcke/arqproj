@@ -1206,7 +1206,7 @@ async def test_switched_off_photos_arent_compared_and_a_pair_shows_as_two_photos
 
 
 async def test_a_photo_is_compared_with_another_of_its_work_and_undone(client, staff):
-    entry, (first, second, third) = await three_photos(client, staff)
+    entry, (_first, second, third) = await three_photos(client, staff)
     answer = await compare(client, staff, second, third, before_label=" Obra\n (antes) ")
     assert answer.status_code == 200, answer.text
     shown = photos_of(answer, entry)
@@ -1262,6 +1262,8 @@ async def test_a_comparison_shows_as_one_photo_opening_on_the_slider(client, sta
     page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
     # The first photo, then the comparison as one: its "after" in it.
     first_shown, photos = slides(page)
+    assert f'href="/api/portfolio/photos/{first}?size=full"' in first_shown
+    assert "data-after=" not in first_shown and "compare-tag" not in first_shown
     assert f'href="/api/portfolio/photos/{second}?size=full"' in photos
     assert f'data-after="/api/portfolio/photos/{third}?size=full"' in photos
     assert 'data-before-label="Antes" data-after-label="Obra pronta"' in photos
@@ -1286,7 +1288,7 @@ async def test_a_comparison_as_the_cover_opens_on_the_slider_and_its_after_is_ne
 
 async def test_the_mosaic_shows_a_comparison_in_its_grid(client, staff):
     await client.patch("/api/portfolio", json={"format": "mosaic"}, headers=staff)
-    entry, (first, second, third) = await three_photos(client, staff)
+    entry, (first, _second, third) = await three_photos(client, staff)
     await compare(client, staff, first, third)
     await publish(client, staff)
     client.cookies.clear()

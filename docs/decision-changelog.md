@@ -142,6 +142,24 @@ once. What the server keeps is unchanged.
 **Why:** the overnight audit (issue #210) found that a drop a little off a
 tile's edge merged two works irreversibly, deleting the dragged one's texts.
 
+## 2026-11-10 — A23, A33: Alinea's primary address is `alinea.myunio.app` (changed 25 Oct 2026, recorded now)
+
+**Was:** Alinea was served on its own domain, `alineaarquitetos.com`, as the one
+exception to `{office}.myunio.app` (A23, A33).
+
+**Now:** since 25 Oct 2026 Alinea's primary address is `alinea.myunio.app`, the
+shape every office has (A21). `alineaarquitetos.com` and `www.` stay its addresses
+and redirect there, except the `/` home page, which every address shows. Its
+emails still send from `alineaarquitetos.com` (A32).
+
+**Why:** Fabio's call on 25 Oct 2026. The change was made and recorded in
+`docs/infrastructure.md` then (commit c5174b2, "Share links: …", which notes
+"Production's main address"), but the register rows were not updated; the
+overnight audit of 10 Nov 2026 (issue #210) found the drift. A12's "configurable
+per office" was corrected in the same change to the pilot's fixed timings (the per-office
+setting was already recorded as deferred in section 24), and A33's "hosting region
+is still open" to `us-east1` (A16): corrections, not changes.
+
 ## 2026-11-10 — A46: with comparisons on, the whole stage takes dropped files
 
 **Was:** with `before_after` on, a stage and each section showed both the "+"

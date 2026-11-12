@@ -108,7 +108,7 @@ class Renames:
         for item_id, old in reversed(self.done):
             try:
                 await self.maker.rename(item_id, old)
-            except Exception:  # noqa: BLE001 - the original failure is what matters
+            except Exception:  # the original failure is what matters
                 log.exception("could not put back the name of folder %s", item_id)
 
 

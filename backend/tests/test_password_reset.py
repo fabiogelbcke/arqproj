@@ -15,6 +15,7 @@ from backend.identity import accounts
 from backend.notifications.email import EmailError
 from backend.tenancy.models import Tenant
 from backend.tests.conftest import TEST_DATABASE_URL
+from backend.tests.test_team import lock_waiters
 from backend.web import attempts, auth
 
 pytestmark = pytest.mark.anyio
@@ -142,12 +143,13 @@ async def test_requests_for_one_account_wait_for_each_other(client, sent, db_ses
                     text("SELECT pg_advisory_xact_lock(hashtext('password-reset'), hashtext(:u))"),
                     {"u": str(user)},
                 )
-                async with anyio.create_task_group() as tasks:
-                    tasks.start_soon(request)
-                    await anyio.sleep(0.5)
-                    assert not done.is_set()  # waiting for the lock
-                    await holder.commit()  # let go
-            await done.wait()
+                with anyio.fail_after(10):
+                    async with anyio.create_task_group() as tasks:
+                        tasks.start_soon(request)
+                        await lock_waiters(other, stop=done.is_set)
+                        assert not done.is_set()  # waiting for the lock
+                        await holder.commit()  # let go
+            assert done.is_set()
     finally:
         await other.dispose()
     assert len(sent.emails) == 1
