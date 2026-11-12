@@ -428,7 +428,7 @@ async def test_a_clients_comment_reaches_staff_while_drive_fails(
     from backend.notifications import scan
     from backend.storage.base import StorageError, StorageProblem
 
-    async def gone(storage, project):
+    async def gone(db, storage, project):
         raise StorageError(StorageProblem.NOT_FOUND, "folder gone")
 
     outbox = Outbox()
@@ -439,6 +439,50 @@ async def test_a_clients_comment_reaches_staff_while_drive_fails(
     assert [e.to for e in outbox.sent] == [STAFF]
     await run_with(app, outbox)
     assert len(outbox.sent) == 1  # marked as told, though the scan failed after
+
+
+async def test_a_bug_in_the_scan_still_keeps_the_comments_told(
+    app, visitor, db_session, owner, folders, monkeypatch
+):
+    from backend.notifications import scan
+
+    async def broken(db, storage, project):
+        raise RuntimeError("a bug")
+
+    outbox = Outbox()
+    await said(visitor, "Olá", position=1, name="Maria")
+    await age_comments(db_session, 6)
+    monkeypatch.setattr(scan, "scan_project", broken)
+    await run_with(app, outbox)
+    await run_with(app, outbox)
+    assert len(outbox.sent) == 1
+
+
+async def test_a_retry_sends_the_same_email_though_comments_came_meanwhile(
+    app, client, visitor, db_session, owner, folders
+):
+    """A comment arriving between a failed send and its retry waits for the next
+    email: the retry is the same email, under the same key, so nobody gets two."""
+    await sign_in_as(client, db_session, "bruno@alinea.example", Role.MEMBER)
+    outbox = Outbox()
+    outbox.fail.add("bruno@alinea.example")
+    await said(visitor, "Primeiro", position=1, name="Maria")
+    await age_comments(db_session, 6)
+    await run_with(app, outbox)  # Ana got it; Bruno's failed
+    await said(visitor, "Segundo", position=1, name="Maria")
+    await run_with(app, outbox)  # the retry: the first email again
+    to_ana = [e for e in outbox.sent if e.to == STAFF]
+    assert len({e.idempotency_key for e in to_ana}) == 1  # Resend sends it once
+    assert all("Segundo" not in e.text for e in outbox.sent)
+    await age_comments(db_session, 6)
+    await run_with(app, outbox)  # then the next email, with the new comment
+    last = [e for e in outbox.sent if "Segundo" in e.text]
+    assert sorted(e.to for e in last) == ["bruno@alinea.example", STAFF]
+    assert "Primeiro" not in last[0].text
+    # Each address got the first comment under one key only: one email from Resend.
+    for to in ("bruno@alinea.example", STAFF):
+        first = {e.idempotency_key for e in outbox.sent if e.to == to and "Primeiro" in e.text}
+        assert len(first) == 1
 
 
 async def test_an_office_comment_removed_is_no_news(app, client, db_session, owner, folders):
@@ -465,3 +509,33 @@ async def test_an_office_comment_removed_is_no_news(app, client, db_session, own
     [email] = [e for e in outbox.sent if e.to == STAFF]
     assert "A etapa 02 Levantamento foi atualizada: 1 comentário do escritório." in email.text
     assert "01 Briefing" not in email.text
+
+
+async def test_the_project_stays_locked_while_its_files_are_scanned(
+    app, visitor, db_session, owner, folders, monkeypatch
+):
+    """Emailing staff first must not end the project's lock (a commit would):
+    another pass, or a switch of Drive account, waits for the scan (plan section 9)."""
+    from backend.notifications import scan
+
+    real = scan.scan_project
+    held = []
+
+    async def watched(db, storage, project):
+        held.append(
+            await db.scalar(
+                text(
+                    "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' "
+                    "AND pid = pg_backend_pid() AND classid = :key"
+                ),
+                {"key": scan.MAINTENANCE_LOCK},
+            )
+        )
+        return await real(db, storage, project)
+
+    await said(visitor, "Olá", position=1, name="Maria")
+    await age_comments(db_session, 6)
+    monkeypatch.setattr(scan, "scan_project", watched)
+    outbox = Outbox()
+    await run_with(app, outbox)
+    assert len(outbox.sent) == 1 and held and all(held)

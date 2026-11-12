@@ -2,15 +2,18 @@
 
 A project's new client comments go in one email, once quiet for a few minutes
 (or a while after the first, if they keep coming), to the project's members
-(A41) or, with none, to every staff account. Each address's email has its own
-idempotency key, so a retry after a failure never sends one twice; the comments
-are marked as told once every address got it.
+(A41) or, with none, to every staff account. The comments an email holds are
+fixed when it first goes (`alert_batch`): a retry after a failure sends that same
+email under the same idempotency key per address, so nobody gets it twice, and
+comments arriving meanwhile wait for the next. They are marked as told once
+every address got it.
 """
 
 from __future__ import annotations
 
 import hashlib
 import logging
+import uuid
 from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
@@ -67,20 +70,27 @@ async def _where(db: AsyncSession, comment: Comment, office: Office) -> str:
 async def deliver(
     db: AsyncSession, sender: EmailSender, office: Office, project: Project, now: datetime
 ) -> int:
-    """Email the office about its new client comments, if due; how many emails
-    went. The caller commits."""
-    pending = list(
-        await db.scalars(
-            select(Comment)
-            .where(
-                Comment.project_id == project.id,
-                Comment.author == Author.CLIENT,
-                Comment.staff_notified_at.is_(None),
-                Comment.removed_at.is_(None),
-            )
-            .order_by(Comment.created_at, Comment.id)
+    """Email the office about its new client comments, if due, or again an email
+    that failed for some address; how many emails went. The caller commits."""
+    untold = (
+        select(Comment)
+        .where(
+            Comment.project_id == project.id,
+            Comment.author == Author.CLIENT,
+            Comment.staff_notified_at.is_(None),
         )
+        .order_by(Comment.created_at, Comment.id)
     )
+    # An email already begun goes again as it was, removed comments and all.
+    pending = list(await db.scalars(untold.where(Comment.alert_batch.is_not(None))))
+    batch = pending[0].alert_batch if pending else None
+    pending = [c for c in pending if c.alert_batch == batch]
+    if not pending:
+        pending = list(
+            await db.scalars(
+                untold.where(Comment.alert_batch.is_(None), Comment.removed_at.is_(None))
+            )
+        )
     if not pending:
         return 0
     features = known_features((await db.get(Tenant, project.tenant_id)).features)
@@ -88,8 +98,12 @@ async def deliver(
         for comment in pending:  # switched off meanwhile: never news later
             comment.staff_notified_at = now
         return 0
-    if now - pending[-1].created_at < QUIET and now - pending[0].created_at < HOLD:
-        return 0
+    if batch is None:
+        if now - pending[-1].created_at < QUIET and now - pending[0].created_at < HOLD:
+            return 0
+        batch = uuid.uuid4()
+        for comment in pending:
+            comment.alert_batch = batch
     recipients = await _recipients(db, project, Feature.PROJECT_MEMBERS in features)
     slug = await db.scalar(
         select(ProjectSlug.slug).where(ProjectSlug.project_id == project.id, ProjectSlug.is_current)
@@ -103,7 +117,6 @@ async def deliver(
         lines.append((who, quoted))
     html, text = _render(office, project, link, lines)
     subject = t(office.locale, "commentsSubject", count=len(pending), project=project.name)
-    batch = hashlib.sha256(",".join(str(c.id) for c in pending).encode()).hexdigest()[:24]
     sent, failed = 0, False
     for to in recipients:
         try:
@@ -115,7 +128,7 @@ async def deliver(
                     html=html,
                     text=text,
                     # The address hashed: Resend keeps keys in its logs.
-                    idempotency_key=f"comments-{batch}-{hashlib.sha256(to.encode()).hexdigest()[:24]}",
+                    idempotency_key=f"comments-{batch.hex}-{hashlib.sha256(to.encode()).hexdigest()[:24]}",
                     reply_to=office.reply_to,
                 )
             )

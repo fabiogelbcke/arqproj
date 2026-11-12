@@ -2,8 +2,8 @@
 
 - `comments`: one comment, on a stage (`stage_id`, gone with the stage) or on a
   file (`item_id`, its identity in storage; `item_name`, its name then), by a
-  client (a typed name) or a staff account. `staff_notified_at`: when staff
-  were emailed about a client's.
+  client (a typed name) or a staff account. `alert_batch` and `staff_notified_at`:
+  the email to staff a client's is in, and when it went to every address.
 - `project_events.kind` takes `office_commented`: a staff comment is client news
   (A28, A32).
 
@@ -46,6 +46,7 @@ def upgrade() -> None:
         sa.Column("author_name", sa.Text(), nullable=False),
         sa.Column("body", sa.Text(), nullable=False),
         sa.Column("removed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("alert_batch", sa.Uuid(), nullable=True),
         sa.Column("staff_notified_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column(
@@ -112,8 +113,8 @@ def upgrade() -> None:
                 operator_role text := current_database() || '_operator';
         BEGIN
             EXECUTE format('GRANT SELECT, INSERT ON comments TO %I', app_role);
-            EXECUTE format('GRANT UPDATE (removed_at, staff_notified_at) ON comments TO %I',
-                           app_role);
+            EXECUTE format('GRANT UPDATE (removed_at, alert_batch, staff_notified_at) '
+                           'ON comments TO %I', app_role);
             EXECUTE format('GRANT SELECT, DELETE ON comments TO %I', operator_role);
         END $$
         """

@@ -137,12 +137,19 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
         await db.commit()
         return
     if sender is not None:
-        # Clients' comments, to the office's staff (A49): saved on their own, as
-        # they need nothing from Drive, which may fail or hold the update email.
+        # Clients' comments, to the office's staff (A49), first: they need nothing
+        # from Drive, which may fail below or hold the update email back.
         report.staff_emails += await alerts.deliver(db, sender, office, project, datetime.now(UTC))
-        await db.commit()
     if storage is not None and project.folder_id is not None:
-        report.new_files += await scan_project(db, storage, project)
+        try:
+            async with db.begin_nested():  # a failed scan undoes only its own work
+                report.new_files += await scan_project(db, storage, project)
+        except Exception:
+            # Drive failing, or a bug: the comments' emails went, so they are saved
+            # (which ends the project's lock: its pass stops here), then the
+            # failure is the caller's to log.
+            await db.commit()
+            raise
     now = datetime.now(UTC)
     # Batches that came due, or are being retried, go as they were: changes made
     # after start the next one, with its own quiet period (section 14).
