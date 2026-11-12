@@ -86,7 +86,8 @@ para corrigi-los.</li>
 páginas são abertas, de onde (por exemplo, do link de um e-mail de atualização), em que tipo de
 aparelho, o que é aberto ou baixado, em que partes da página se clica, se a senha digitada estava
 certa (nunca a senha), links de arquivos criados ou desativados e inscrições ou cancelamentos dos
-e-mails de atualização (nunca o e-mail), sem o texto mostrado na tela, sem nomes de projetos ou
+e-mails de atualização (nunca o e-mail), comentários publicados ou removidos (nunca o
+nome nem o texto), sem o texto mostrado na tela, sem nomes de projetos ou
 arquivos, sem cookies e sem identificar quem visita: cada visitante é contado por um código
 anônimo que muda todos os dias,
 para entendermos como os clientes usam as páginas e quanto custa servi-las.</li>
@@ -97,7 +98,8 @@ lembrar uma senha de projeto já digitada) e, só para a equipe conectada ao pai
 identificador da PostHog para as estatísticas de uso acima. Não usamos cookies de publicidade,
 e as estatísticas das páginas de projeto não usam cookies nem guardam nada no navegador de quem
 as visita.
-A preferência de tema claro ou escuro e as atualizações já lidas ficam só no seu navegador.</li>
+A preferência de tema claro ou escuro, as atualizações já lidas e, ao comentar, o nome digitado
+e o código que permite remover os próprios comentários ficam só no seu navegador.</li>
 </ul>
 
 <h2>E-mails de atualização</h2>
@@ -181,8 +183,9 @@ used. Server and browser errors are recorded too, to fix them.</li>
 <li><strong>Use of project pages and shared files:</strong> how often pages are opened, from
 where (for example an update email's link), on what kind of device, what is opened or downloaded,
 which parts of the page are clicked, whether a password typed was right (never the password), file
-links made or turned off, and update emails subscribed to or unsubscribed from (never the
-address), without the text shown on screen, without project or file names, without cookies and
+links made or turned off, update emails subscribed to or unsubscribed from (never the
+address), and comments posted or removed (never the name or text), without the text shown
+on screen, without project or file names, without cookies and
 without identifying visitors: each visitor is counted by an anonymous code that changes every
 day, so we understand
 how clients use the pages and what serving them costs.</li>
@@ -192,7 +195,8 @@ troubleshooting, kept for up to 30 days.</li>
 remembering a project password already entered) and, only for staff signed in to the dashboard, a
 PostHog identifier for the usage statistics above. No advertising cookies, and project pages'
 statistics use no cookies and store nothing in visitors' browsers. The light
-or dark theme choice and which updates were read stay in your browser.</li>
+or dark theme choice, which updates were read and, when commenting, the name typed and the
+code that lets you remove your own comments stay in your browser.</li>
 </ul>
 
 <h2>Update emails</h2>

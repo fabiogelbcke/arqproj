@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.comments import alerts
+from backend.comments.models import Author, Comment
 from backend.db.isolation import scope_to_tenant
 from backend.documents.versions import shown_name
 from backend.notifications import digest
@@ -130,16 +131,17 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
 async def _project_pass(db, settings, sender, storage, office, project, report) -> None:
     """One project, under its lock (taken by the caller): its clients' comments to
     the office first, then its new files and its email if one is due."""
+    if sender is not None:
+        # Clients' comments, to the office's staff (A49), first: they need nothing
+        # from Drive, which may fail below or hold the update email back. Archived
+        # since, the project's last comments still reach them.
+        report.staff_emails += await alerts.deliver(db, sender, office, project, datetime.now(UTC))
     if project.status not in CLIENT_VISIBLE:
         # Archived (or back to draft) while an email or a change waited: it is
         # never sent, even if the project comes back later (section 14).
         await digest.drop_unsent(db, project)
         await db.commit()
         return
-    if sender is not None:
-        # Clients' comments, to the office's staff (A49), first: they need nothing
-        # from Drive, which may fail below or hold the update email back.
-        report.staff_emails += await alerts.deliver(db, sender, office, project, datetime.now(UTC))
     try:
         # A failure below (Drive, or a bug) undoes only its own work: the comments'
         # emails went, so they are saved (which ends the project's lock: its pass
@@ -183,12 +185,16 @@ async def _scan_office(
     async with sessionmaker() as db:
         scope_to_tenant(db.sync_session, tenant_id)
         # Published projects, and any with an email waiting or changes not yet in
-        # one (to drop them if the project was archived meanwhile).
+        # one (to drop them if the project was archived meanwhile), or clients'
+        # comments not yet emailed to staff.
         waiting = select(NotificationBatch.project_id).where(
             NotificationBatch.state.in_(digest.UNSENT)
         )
         loose = select(ProjectEvent.project_id).where(
             ProjectEvent.batch_id.is_(None), ProjectEvent.kind.in_(digest.EMAILED)
+        )
+        untold = select(Comment.project_id).where(
+            Comment.author == Author.CLIENT, Comment.staff_notified_at.is_(None)
         )
         project_ids = list(
             await db.scalars(
@@ -196,7 +202,8 @@ async def _scan_office(
                     Project.deleted_at.is_(None),
                     Project.status.in_(CLIENT_VISIBLE)
                     | Project.id.in_(waiting)
-                    | Project.id.in_(loose),
+                    | Project.id.in_(loose)
+                    | Project.id.in_(untold),
                 )
             )
         )

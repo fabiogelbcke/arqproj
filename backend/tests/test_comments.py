@@ -466,6 +466,19 @@ async def test_a_day_of_retries_counts_from_the_first_try(
     assert [e.to for e in outbox.sent] == [STAFF, STAFF, STAFF]
 
 
+async def test_a_comment_just_before_archiving_still_reaches_staff(
+    app, visitor, db_session, owner, folders
+):
+    outbox = Outbox()
+    await said(visitor, "Olá", position=1, name="Maria")
+    await db_session.execute(
+        text(f"UPDATE projects SET status = 'archived', archived_from = 'active' WHERE id = {CASA}")
+    )
+    await age_comments(db_session, 6)
+    await run_with(app, outbox)
+    assert [e.to for e in outbox.sent] == [STAFF]
+
+
 async def test_removed_or_switched_off_comments_never_email(
     app, client, visitor, db_session, owner, folders
 ):
