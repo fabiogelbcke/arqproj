@@ -114,6 +114,40 @@ beside the logo and the sections overflow the header, which does not wrap.
 
 ---
 
+## 2026-11-10 — A47: a choice made after SAIR counts for its project only
+
+**Was:** signing up again on a project page, or tapping "Quero receber", lifted
+a number's SAIR for every project of every office.
+
+**Now:** SAIR stays in force everywhere except the project the client chose
+again, dated by when they chose it. The shared SAIR list keeps only the date of
+the latest SAIR; each project's number keeps the date of its latest choice.
+
+**Why:** a page sign-up needs no confirmation from the number (as with email,
+A32), so anyone with a page's link could type a number that had replied SAIR and
+restart messages from every office's projects. Found in the review of PR #184.
+
+---
+
+## 2026-11-09 — A47: the WhatsApp texts after Fabio's answers
+
+
+**Was:** an update linked the page at the end of its text, listed the first
+three stages that changed and "e mais N etapas", and dated meetings "12/11 às
+14h". A number staff added got the "Quero receber" question once; with no
+answer, nothing more was sent. The automatic reply pointed to the project page.
+
+**Now:** the update starts "Olá! Você tem novidades no projeto…", lists every
+stage, dates meetings "quinta, 12/11, às 14:00", and links the page through an
+"Abrir o projeto" button, plus "Adicionar à agenda" when a meeting was scheduled
+or changed. An unanswered question goes once more after 3 days. The automatic
+reply gives the office's contacts.
+
+**Why:** Fabio's answers to the questions in the partners' review document
+(9 Nov 2026). Updates can't go without the client's yes, so an unanswered
+question would otherwise leave the client without them for good; one resend, not
+more, because repeated messages lead to blocks, and blocks cost the number.
+
 ## 2026-11-09 — A45: the image is the atom; the tab in sections by type; one dialog per drop
 
 **Was:** the portfolio was a list of works. Each work needed a title and was

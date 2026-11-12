@@ -48,6 +48,8 @@ describe("the example project keeps up with the project page", () => {
   it("fills in everything a page shows", async () => {
     const { page, files } = await exampleAnswers();
     expect(unfilled("PageOut", [page], PAGE_LEFT_OUT)).toEqual([]);
+    // A switch, not a list: false wouldn't count as empty above (A47's sign-up).
+    expect(page.whatsapp).toBe(true);
     expect(unfilled("PageFilesOut", [files], FILES_LEFT_OUT)).toEqual([]);
     const stages = page.stages as Fields[];
     expect(unfilled("StageOut", stages, {})).toEqual([]);

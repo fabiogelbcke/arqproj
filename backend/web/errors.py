@@ -74,6 +74,13 @@ class ErrorCode(StrEnum):
     WRONG_PAGE_PASSWORD = "wrong_page_password"
     TOO_MANY_ATTEMPTS = "too_many_attempts"  # wait 15 minutes
     RECIPIENTS_FULL = "recipients_full"  # the project has as many addresses as it may (20)
+    INVALID_PHONE = "invalid_phone"  # not a WhatsApp number we can write to (A47)
+    WHATSAPP_FULL = "whatsapp_full"  # the project has as many numbers as it may (20)
+    # The number declined or replied SAIR: only the client can sign up again (A47).
+    WHATSAPP_REFUSED = "whatsapp_refused"
+    # Staff signed in on the page: they add a client's number in the painel, where
+    # the client is asked first (A47).
+    WHATSAPP_STAFF = "whatsapp_staff"
     PASSWORD_REQUIRED = "password_required"  # password access needs a password
     INVALID_DETAIL = "invalid_detail"  # unknown, repeated, or a value of the wrong kind
     INVALID_STAGE = "invalid_stage"  # unknown, already there, blank, or nowhere to move

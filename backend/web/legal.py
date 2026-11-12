@@ -104,6 +104,14 @@ A preferência de tema claro ou escuro e as atualizações já lidas ficam só n
 mudança. Cada e-mail tem um link para deixar de recebê-los; depois disso, aquele endereço não
 recebe mais nada do projeto.</p>
 
+<h2>Mensagens pelo WhatsApp</h2>
+<p>Onde o escritório oferece, o cliente pode receber os mesmos avisos pelo WhatsApp, de um número
+do {PRODUCT}. Guardamos o número informado e quando ele foi cadastrado. Quem se cadastra na página
+do projeto recebe uma mensagem de boas-vindas; quando é o escritório que informa o número, o
+cliente recebe uma pergunta e só passa a receber avisos se responder que quer. Responder SAIR
+encerra as mensagens de todos os projetos; desse número guardamos apenas um código que não
+permite reconstituí-lo, para não voltar a escrever para ele.</p>
+
 <h2>Dados do Google</h2>
 <p>A equipe de um escritório pode conectar uma conta Google ao {PRODUCT}. O {PRODUCT} pede apenas
 a permissão <code>drive.file</code>, que dá acesso somente aos arquivos e pastas que o próprio
@@ -121,7 +129,9 @@ Google seguem a {_LINK_GOOGLE_POLICY}, incluindo os requisitos de Uso Limitado.<
 <h2>Com quem compartilhamos</h2>
 <p>O {PRODUCT} funciona na infraestrutura do Google Cloud (servidores nos Estados Unidos), e os
 arquivos ficam no Google Drive de cada escritório. Os e-mails de atualização são enviados pela
-Resend, que recebe apenas o necessário para a entrega. As estatísticas de uso e os erros do
+Resend, que recebe apenas o necessário para a entrega, e as mensagens de WhatsApp pela Meta
+(WhatsApp Business), que recebe o número e o texto da mensagem. As estatísticas de uso e os
+erros do
 servidor vão para a PostHog (servidores nos Estados Unidos). Esses provedores tratam os dados por
 nossa conta, sob contrato. A transferência internacional segue a Lei Geral de Proteção de Dados
 (LGPD). Os dados de um escritório nunca são mostrados a outro escritório.</p>
@@ -198,6 +208,13 @@ files, stage changes and meetings), grouped so that not every change sends an em
 has a link to stop receiving them; after that, the address gets nothing more from that
 project.</p>
 
+<h2>WhatsApp messages</h2>
+<p>Where the office offers it, a client can get the same notices by WhatsApp, from a {PRODUCT}
+number. We keep the number given and when it was added. Someone who signs up on the project page
+gets a welcome message; when the office gives the number, the client is asked first and gets
+notices only after saying yes. Replying STOP (SAIR) ends the messages from every project; of that
+number we keep only a code it can't be rebuilt from, so we never write to it again.</p>
+
 <h2>Google user data</h2>
 <p>An office's staff may connect a Google account to {PRODUCT}. {PRODUCT} requests only the
 <code>drive.file</code> permission, which covers only files and folders {PRODUCT} itself creates
@@ -215,8 +232,9 @@ adhere to the {_LINK_GOOGLE_POLICY_EN}, including the Limited Use requirements.<
 <h2>Sharing</h2>
 <p>{PRODUCT} runs on Google Cloud (servers in the United States), and files are kept in each
 office's Google Drive. Update emails are sent through Resend, which receives only what delivery
-requires. Usage statistics and server errors go to PostHog (servers in the United States). These
-providers process data on our behalf under contract. International transfers
+requires, and WhatsApp messages through Meta (WhatsApp Business), which receives the number and
+the message's text. Usage statistics and server errors go to PostHog (servers in the United
+States). These providers process data on our behalf under contract. International transfers
 follow Brazil's General Data Protection Law (LGPD). One office's data is never shown to another
 office.</p>
 

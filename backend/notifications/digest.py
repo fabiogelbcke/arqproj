@@ -13,6 +13,8 @@ Each maintenance pass, for each published project:
    Nothing left to say, or nobody to say it to: the batch is dropped.
 4. One email per address, each with its own idempotency key and recorded as sent,
    so a retry never sends twice. A failure is retried on the next pass.
+5. The same news as one WhatsApp message to each subscribed number, in offices
+   with WhatsApp (A47, whatsapp_updates.py).
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from string import Template
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.notifications import whatsapp_updates
 from backend.notifications.email import Email, EmailError, EmailSender
 from backend.notifications.events import CLIENT_VISIBLE
 from backend.notifications.models import (
@@ -44,6 +47,7 @@ from backend.notifications.models import (
 )
 from backend.notifications.office import Office
 from backend.notifications.texts import t
+from backend.notifications.whatsapp import WhatsAppSender
 from backend.projects.enums import ProjectStatus
 from backend.projects.models import Meeting, Project, ProjectSlug, ProjectStage
 from backend.security import keys
@@ -217,13 +221,27 @@ async def _visible_files(db: AsyncSession, storage, project: Project) -> dict:
     return visible
 
 
+@dataclass(frozen=True)
+class StageNews:
+    """One stage's changes, for messages that word them their own way (A47)."""
+
+    name: str | None  # its current title; None if the stage was removed meanwhile
+    files: int  # new files still on the page
+    progress: str | None  # "completed", "reopened" or None
+
+
 @dataclass
 class Summary:
     """An email's news: each stage's changes (its title, then phrases such as
-    "3 arquivos enviados"), and the rest (the project, the meeting) as sentences."""
+    "3 arquivos enviados"), and the rest (the project, the meeting) as sentences.
+    The same news as data (`news`, `project_completed`, `meeting`) for WhatsApp."""
 
     stages: list[tuple[str, list[str]]] = field(default_factory=list)
     others: list[str] = field(default_factory=list)
+    news: list[StageNews] = field(default_factory=list)
+    project_completed: bool = False
+    # ("scheduled" | "changed", title, starts in the office's zone) or ("cleared", title, None)
+    meeting: tuple[str, str, datetime | None] | None = None
 
     def __bool__(self) -> bool:
         return bool(self.stages or self.others)
@@ -251,6 +269,8 @@ async def summarize(
     locale = office.locale
     summary = Summary()
     changes: dict[int, list[str]] = {}  # by stage position
+    counts: dict[int, int] = {}
+    progress: dict[int, str] = {}
     files = [e for e in events if e.kind is EventKind.FILE_PUBLISHED]
     if files:
         if storage is None:
@@ -266,7 +286,6 @@ async def summarize(
         listed = datetime.now(UTC)
         if any(listed - SETTLE < item.modified_at <= listed for _position, item in shown.values()):
             raise Wait("a file changed in the last minute")
-        counts: dict[int, int] = {}
         for position, _item in shown.values():
             counts[position] = counts.get(position, 0) + 1
         for position, count in counts.items():
@@ -290,17 +309,21 @@ async def summarize(
         if turns[stage.id] == (1 if completed else -1):
             key = "markedCompleted" if completed else "markedReopened"
             changes.setdefault(stage.position, []).append(t(locale, key))
+            progress[stage.position] = "completed" if completed else "reopened"
     # By position, under each stage's current title; files in a stage removed
     # meanwhile are on the page under no stage, and say so by number.
     by_position = {s.position: s for s in stages.values()}
     for position in sorted(changes):
         stage = by_position.get(position)
-        title = f"{position:02d} {await _title(db, stage, locale)}" if stage else f"{position:02d}"
+        name = await _title(db, stage, locale) if stage else None
+        title = f"{position:02d} {name}" if stage else f"{position:02d}"
         summary.stages.append((title, changes[position]))
+        summary.news.append(StageNews(name, counts.get(position, 0), progress.get(position)))
     if project.status is ProjectStatus.COMPLETED and any(
         e.kind is EventKind.PROJECT_COMPLETED for e in events
     ):
         summary.others.append(t(locale, "completed"))
+        summary.project_completed = True
     meetings = [e for e in events if e.kind in MEETINGS]
     if meetings:
         upcoming = await db.scalar(
@@ -315,6 +338,7 @@ async def summarize(
             # as the portfolio page does.
             day = "%d/%m/%Y" if locale is Locale.PT_BR else "%m/%d/%Y"
             new = any(e.kind is EventKind.MEETING_SCHEDULED for e in meetings)
+            summary.meeting = ("scheduled" if new else "changed", upcoming.title, when)
             summary.others.append(
                 t(
                     locale,
@@ -329,6 +353,7 @@ async def summarize(
             # Only a meeting the client heard of: one scheduled and cancelled within
             # this quiet period was never news (section 14).
             summary.others.append(t(locale, "meetingCleared", title=cleared[-1].title))
+            summary.meeting = ("cleared", cleared[-1].title, None)
     return summary
 
 
@@ -404,9 +429,11 @@ async def deliver(
     project: Project,
     batch: NotificationBatch,
     now: datetime,
+    whatsapp: WhatsAppSender | None = None,
 ) -> int:
     """Send a due batch; how many emails went. A batch with a failure stays
     `sending`, retried by the next pass for the addresses it started with."""
+
     if project.status not in CLIENT_VISIBLE or project.deleted_at is not None:
         batch.state, batch.closed_at = BatchState.DROPPED, now
         return 0
@@ -434,8 +461,10 @@ async def deliver(
         )
         if not settings.email_staff_only or r.email in office.staff
     }
+    # No WhatsApp sender (not set up): no messages are started that can't go.
+    phones = await whatsapp_updates.receivers(db, settings, office, project) if whatsapp else set()
     if batch.state is BatchState.OPEN:
-        if not summary or not allowed:
+        if not summary or not (allowed or phones):
             batch.state, batch.closed_at = BatchState.DROPPED, now
             return 0
         # Going out: frozen from now on. Later changes start a new batch, and its
@@ -445,6 +474,7 @@ async def deliver(
             db.add(
                 NotificationDelivery(batch_id=batch.id, email=email, status=DeliveryStatus.PENDING)
             )
+        whatsapp_updates.start(db, batch, phones)
         await db.flush()
     elif not summary:
         batch.state, batch.closed_at = BatchState.DROPPED, now
@@ -503,6 +533,25 @@ async def deliver(
                 error.detail,
             )
             pending = pending or delivery.attempts < MAX_ATTEMPTS
+    messages, waiting = await whatsapp_updates.send_batch(
+        db,
+        settings,
+        whatsapp,
+        office,
+        project,
+        batch,
+        summary,
+        phones,
+    )
+    if messages:
+        log.info(
+            "whatsapp: batch %s of %s/%s went to %s numbers",
+            batch.id,
+            project.tenant_id,
+            project.id,
+            messages,
+        )
+    pending = pending or waiting
     if not pending:
         batch.state, batch.closed_at = BatchState.SENT, now
     return sent

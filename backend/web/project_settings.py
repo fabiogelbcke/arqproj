@@ -1,7 +1,8 @@
 """A project's settings in the painel (A24): the "Projeto" dialog and the card's
 photo button.
 
-    PATCH  /api/projects/{id}         name, client, address, access, members; archive or restore
+    PATCH  /api/projects/{id}         name, client, address, access, members, client's
+                                      emails and WhatsApp numbers; archive or restore
     POST   /api/projects/{id}/publish a draft goes live (from the page's staff bar)
     PUT    /api/projects/{id}/cover   upload the cover photo
     PUT    /api/projects/{id}/cover/stock  one of the bundled photos as the cover
@@ -22,7 +23,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
@@ -34,11 +35,16 @@ from backend.db.engine import get_tenant_session
 from backend.identity.emails import InvalidEmail, email_list
 from backend.identity.models import User
 from backend.identity.passwords import hash_password
+from backend.notifications import whatsapp_updates
 from backend.notifications.models import (
     RECIPIENTS_MAX,
     ProjectRecipient,
+    ProjectWhatsApp,
     RecipientStatus,
+    WhatsAppSource,
+    WhatsAppStatus,
 )
+from backend.notifications.whatsapp import parse_phone
 from backend.projects.creation import CLIENT_NAME_LIMIT, NAME_MAX, project_named, valid_slug
 from backend.projects.enums import AccessMode, CoverType, ProjectStatus
 from backend.projects.models import Project, ProjectMember, ProjectSlug
@@ -87,6 +93,9 @@ class ProjectChange(BaseModel):
     # Who works on it: the whole list of staff accounts (A41), if the office has
     # the feature (A40).
     members: list[uuid.UUID] | None = Field(default=None, max_length=MEMBERS_MAX)
+    # The client's WhatsApp numbers, the whole list as typed (A47), if the office
+    # has the feature. A new one is asked whether it wants the updates.
+    whatsapp: list[str] | None = Field(default=None, max_length=RECIPIENTS_MAX)
 
 
 async def _project(db: AsyncSession, project_id: uuid.UUID, lock: bool = False) -> Project:
@@ -126,6 +135,53 @@ async def _set_recipients(db: AsyncSession, project_id: uuid.UUID, wanted: list[
     return changed
 
 
+def _phones(given: list[str]) -> list[str]:
+    """Each number in international digits, once, in the order given."""
+    phones = [parse_phone(raw) for raw in given if raw.strip()]
+    if None in phones:
+        raise ApiError(422, ErrorCode.INVALID_PHONE)
+    return list(dict.fromkeys(phones))
+
+
+async def _set_whatsapp(
+    db: AsyncSession, settings, project_id: uuid.UUID, wanted: list[str]
+) -> tuple[bool, list[ProjectWhatsApp]]:
+    """Add the new numbers (asked, A47), remove the ones left out; one that
+    answered "Não quero" stays, so it is never asked again. A number that
+    declined or replied SAIR can't be added: only the client can sign up again.
+    Whether anything changed, and the numbers added."""
+    have = {
+        r.phone: r
+        for r in await db.scalars(
+            select(ProjectWhatsApp).where(ProjectWhatsApp.project_id == project_id)
+        )
+    }
+    refused = await whatsapp_updates.stops(db, settings, set(wanted) - set(have))
+    if refused:
+        raise ApiError(409, ErrorCode.WHATSAPP_REFUSED)
+    changed, added = False, []
+    for phone, recipient in have.items():
+        if phone not in wanted and recipient.status is not WhatsAppStatus.DECLINED:
+            await db.delete(recipient)
+            changed = True
+    for phone in wanted:
+        if phone not in have:
+            recipient = ProjectWhatsApp(
+                project_id=project_id,
+                phone=phone,
+                status=WhatsAppStatus.INVITED,
+                source=WhatsAppSource.STAFF,
+            )
+            db.add(recipient)
+            added.append(recipient)
+            changed = True
+    kept = {p for p, r in have.items() if p in wanted or r.status is WhatsAppStatus.DECLINED}
+    if len(kept | set(wanted)) > RECIPIENTS_MAX:
+        raise ApiError(409, ErrorCode.WHATSAPP_FULL)
+    await db.flush()
+    return changed, added
+
+
 async def _set_members(db: AsyncSession, project_id: uuid.UUID, wanted: list[uuid.UUID]) -> bool:
     """Add the new members, remove the ones left out. Each must be one of the
     office's accounts (another office's don't exist here). Whether anything changed."""
@@ -148,20 +204,25 @@ async def _set_members(db: AsyncSession, project_id: uuid.UUID, wanted: list[uui
     return set(have) != known
 
 
-async def _summary(db: AsyncSession, tenant: CurrentTenant, project_id: uuid.UUID):
-    return (await summaries(db, tenant, only=project_id))[0]
+async def _summary(db: AsyncSession, tenant: CurrentTenant, project_id: uuid.UUID, settings=None):
+    return (await summaries(db, tenant, only=project_id, settings=settings))[0]
 
 
 @router.patch("/projects/{project_id}", responses=documented(401, 404, 409, 422))
 async def change_project(
     project_id: uuid.UUID,
     body: ProjectChange,
+    request: Request,
+    background: BackgroundTasks,
     _staff: CurrentStaff = Depends(require_csrf),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ProjectSummary:
     if body.members is not None and not tenant.has(Feature.PROJECT_MEMBERS):
         raise ApiError(409, ErrorCode.FEATURE_OFF)
+    if body.whatsapp is not None and not tenant.has(Feature.WHATSAPP_UPDATES):
+        raise ApiError(409, ErrorCode.FEATURE_OFF)
+    settings = request.app.state.settings
     new_password = None
     if body.access_mode is AccessMode.PASSWORD and body.password is not None:
         if len(body.password) < PAGE_PASSWORD_MIN:
@@ -212,6 +273,7 @@ async def change_project(
     if access_changed:
         values["access_version"] = Project.access_version + 1  # ends every unlock
     recipients = _addresses(body.recipients) if body.recipients is not None else None
+    phones = _phones(body.whatsapp) if body.whatsapp is not None else None
     new_slug = None
     if body.slug is not None:
         new_slug = body.slug.strip().lower()
@@ -236,7 +298,11 @@ async def change_project(
         db, project.id, recipients
     )
     members_changed = body.members is not None and await _set_members(db, project.id, body.members)
-    if values or new_slug or recipients_changed or members_changed:
+    whatsapp_changed, added = (
+        await _set_whatsapp(db, settings, project.id, phones) if phones is not None else (False, [])
+    )
+    added_ids = [r.id for r in added]
+    if values or new_slug or recipients_changed or members_changed or whatsapp_changed:
         # Only if nobody saved it since the screen loaded it.
         changed = await db.execute(
             update(Project)
@@ -258,8 +324,17 @@ async def change_project(
             raise
     elif project.row_version != body.row_version:
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)
+    if added_ids:
+        background.add_task(
+            whatsapp_updates.greet_now,
+            request.app.state.sessionmaker,
+            settings,
+            getattr(request.app.state, "http", None),
+            tenant.id,
+            added_ids,
+        )
     db.expire_all()
-    return await _summary(db, tenant, project_id)
+    return await _summary(db, tenant, project_id, settings)
 
 
 async def _move_address(db: AsyncSession, project_id: uuid.UUID, slug: str) -> None:

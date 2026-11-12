@@ -19,6 +19,7 @@ from backend.projects.enums import EXAMPLE_PAGES
 from backend.tenancy.resolve import normalize_host, resolve
 
 # The maintenance pass is every office's: called by the scheduler, never a page.
+# Meta's WhatsApp webhook too: one Unio number serves every office (A47).
 # Unio's public home, its assets and legal pages belong to no office (A33); an
 # office's portfolio at `/` looks its office up itself (portfolio_page.py).
 EXEMPT_PATHS = frozenset(
@@ -32,12 +33,15 @@ EXEMPT_PATHS = frozenset(
         "/api/docs",
         "/api/openapi.json",
         "/internal/maintenance",
+        "/api/whatsapp/webhook",
         "/privacidade",
         "/termos",
     }
 )
 # The staff app's built files are the same for every tenant: no lookup per file.
-EXEMPT_PREFIXES = ("/painel/assets/",)
+# WhatsApp's link buttons, on Unio's own address, name their office themselves
+# (short_links.py, LINK_PATH).
+EXEMPT_PREFIXES = ("/painel/assets/", "/w/")
 # Google's shared return address is no office's: let it through without a tenant
 # (backend/web/drive.py forwards it to the office that started).
 UNOWNED_PATHS = frozenset({"/api/drive/callback"})

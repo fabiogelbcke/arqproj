@@ -77,6 +77,8 @@ decision in the [decision changelog](decision-changelog.md).
   consent/template requirements before choosing an implementation.
 - Research done 28 Oct 2026: [whatsapp-updates.md](whatsapp-updates.md)
   (costs, provider, whose number, consent, effort).
+- **Agreed 2 Nov 2026 as A47** and built behind the `whatsapp_updates` feature
+  (A40). Still open here: offices' own numbers, and the file bot below.
 - Decide whether recipients choose one channel or can receive both, and how to
   avoid unwanted duplicate notifications.
 - A **file bot** on the same number: staff forward files they received in other

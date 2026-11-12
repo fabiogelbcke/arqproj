@@ -51,10 +51,12 @@ from backend.web import (
     projects,
     proposals,
     shares,
+    short_links,
     subscribe,
     team,
     tenant,
     unsubscribe,
+    whatsapp,
 )
 from backend.web.auth import SUPPORT_TAG
 from backend.web.build import BuildIdMiddleware
@@ -262,6 +264,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(home.router)
     app.include_router(legal.router)
     app.include_router(maintenance.router)
+    app.include_router(whatsapp.router)  # Meta's webhook: no office's
+    app.include_router(short_links.router)  # WhatsApp's buttons: no office's address
     app.include_router(admin.router)  # before the pages: /admin is no project's
     app.include_router(admin_settings.router)
     app.include_router(office_signup.router)  # likewise /criar-escritorio

@@ -38,6 +38,7 @@ const PAGE: Page = {
   in_proposal: false,
   proposal: null,
   proposal_url: null,
+  whatsapp: false,
 };
 
 const image = (key: string, name: string) => ({

@@ -18,7 +18,7 @@ from backend.identity.models import Role, User
 from backend.notifications.email import RESEND_TEST_SENDER
 from backend.office.models import LogoType, OfficeProfile
 from backend.settings import Settings
-from backend.tenancy.models import Locale, Tenant, TenantDomain
+from backend.tenancy.models import Feature, Locale, Tenant, TenantDomain
 
 
 @dataclass(frozen=True)
@@ -31,6 +31,7 @@ class Office:
     reply_to: str | None
     sender: str
     staff: frozenset[str]  # its staff accounts' addresses
+    whatsapp: bool = False  # client updates by WhatsApp switched on (A40, A47)
 
 
 async def office_of(db: AsyncSession, settings: Settings, tenant_id: uuid.UUID) -> Office:
@@ -69,4 +70,5 @@ async def office_of(db: AsyncSession, settings: Settings, tenant_id: uuid.UUID) 
         reply_to=(profile.contact_email if profile else None) or owner,
         sender=formataddr((name, f"atualizacoes@{domain}" if domain else RESEND_TEST_SENDER)),
         staff=frozenset(email for email, _ in users),
+        whatsapp=Feature.WHATSAPP_UPDATES.value in tenant.features,
     )

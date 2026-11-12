@@ -47,6 +47,7 @@ const NEW: Page = {
   in_proposal: false,
   proposal: null,
   proposal_url: null,
+  whatsapp: false,
   staff: { project_id: "p-1", status: "active", row_version: 1, recipients: [] },
 };
 

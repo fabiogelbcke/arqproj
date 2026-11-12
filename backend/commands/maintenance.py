@@ -16,6 +16,7 @@ import httpx2
 from backend.db.engine import create_engine, create_sessionmaker
 from backend.notifications.email import sender_for
 from backend.notifications.scan import run_maintenance
+from backend.notifications.whatsapp import whatsapp_sender_for
 from backend.settings import Settings
 from backend.storage.google import GoogleDriveStorage, ServerIdentity
 
@@ -27,7 +28,13 @@ async def main() -> None:
         async with httpx2.AsyncClient(timeout=30) as http:
             google = GoogleDriveStorage(ServerIdentity(), http)
             sender = sender_for(settings, http)
-            report = await run_maintenance(create_sessionmaker(engine), settings, google, sender)
+            report = await run_maintenance(
+                create_sessionmaker(engine),
+                settings,
+                google,
+                sender,
+                whatsapp=whatsapp_sender_for(settings, http),
+            )
     finally:
         await engine.dispose()
     print(report)

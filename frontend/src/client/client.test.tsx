@@ -56,6 +56,7 @@ const PAGE: Page = {
   in_proposal: false,
   proposal: null,
   proposal_url: null,
+  whatsapp: false,
 };
 
 function at(path: string, handlers: Record<string, () => { status?: number; body?: unknown }>) {
@@ -145,6 +146,39 @@ describe("the client page", () => {
     await userEvent.click(within(box).getByRole("button", { name: "Assinar" }));
     expect(await within(box).findByRole("status")).toHaveTextContent("ana@gmail.com foi cadastrado para receber atualizações deste projeto.");
     expect(sent.find((r) => r.path.endsWith("/subscribe"))?.body).toEqual({ email: "ana@gmail.com" });
+  });
+
+  it("signs a client up for the updates by WhatsApp, where the office has them (A47)", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, whatsapp: true } }),
+      "POST /api/pages/casa-jardim/whatsapp": () => ({ status: 204 }),
+    });
+    render(<ClientApp />);
+    const box = await screen.findByRole("region", { name: "Atualizações pelo WhatsApp" });
+    // Each card that may change columns has its own place in the order: two with
+    // the same one swapped on every render, and the page never settled (balance.ts).
+    const order = [...document.querySelectorAll("[data-movable]")].map((card) => card.getAttribute("data-movable"));
+    expect(order.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(order).size).toBe(order.length);
+    expect(within(box).getByText(/responda SAIR/)).toBeInTheDocument(); // what they agree to
+    const field = within(box).getByLabelText("Seu WhatsApp");
+    await userEvent.type(field, "(11) 3456-7890"); // a landline
+    await userEvent.click(within(box).getByRole("button", { name: "Assinar" }));
+    expect(within(box).getByRole("alert")).toHaveTextContent("Informe um celular com DDD");
+    expect(sent.some((r) => r.path.endsWith("/whatsapp"))).toBe(false);
+    await userEvent.clear(field);
+    await userEvent.type(field, "(11) 98765-4321");
+    await userEvent.click(within(box).getByRole("button", { name: "Assinar" }));
+    expect(await within(box).findByRole("status")).toHaveTextContent("Enviamos uma mensagem para (11) 98765-4321.");
+    expect(sent.find((r) => r.path.endsWith("/whatsapp"))?.body).toEqual({ phone: "+5511987654321" });
+  });
+
+  it("offers no WhatsApp sign-up where the office doesn't have it", async () => {
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: PAGE }) });
+    await screen.findByRole("region", { name: "Atualizações por e-mail" });
+    expect(screen.queryByRole("region", { name: "Atualizações pelo WhatsApp" })).toBeNull();
   });
 
   it("names the address it sent, even if the box changed meanwhile", async () => {

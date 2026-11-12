@@ -14,6 +14,7 @@ from backend.documents.comparisons import LABEL_MAX as COMPARISON_LABEL_MAX
 from backend.documents.comparisons import TITLE_MAX as COMPARISON_TITLE_MAX
 from backend.identity.emails import EMAIL_LIMIT
 from backend.notifications.models import RECIPIENTS_MAX
+from backend.notifications.whatsapp import PHONE_MAX
 from backend.projects.creation import CLIENT_NAME_LIMIT, CUSTOM_TYPE_LIMIT, SLUG_MAX
 from backend.projects.creation import NAME_MAX as PROJECT_NAME_MAX
 from backend.projects.models import MEETING_LOCATION_MAX, MEETING_TITLE_MAX, STAGE_TITLE_MAX
@@ -47,6 +48,7 @@ FIELD_LIMITS: dict[str, int] = {
     "pagePassword": PAGE_PASSWORD_MAX,
     "pagePasswordMin": PAGE_PASSWORD_MIN,  # the shortest: a page's, a share link's
     "recipients": RECIPIENTS_MAX,
+    "phone": PHONE_MAX,  # a client's WhatsApp number as typed (A47)
     "shareLabel": SHARE_LABEL_MAX,
     "shareBytes": SHARE_BYTES_MAX,
     # Proposals (A42).
