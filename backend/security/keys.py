@@ -40,6 +40,13 @@ def _unb64(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
+def same(given: str, expected: str) -> bool:
+    """Whether a secret sent by the browser (a header, a cookie, a query value) is
+    the expected one, in constant time. As bytes: `compare_digest` refuses text
+    with any non-ASCII character, which anyone can send."""
+    return hmac.compare_digest(given.encode(), expected.encode())
+
+
 def keyed_hash(secret: str, purpose: str, data: str) -> str:
     """A hex digest of `data` that only the app can recompute (HMAC-SHA256)."""
     return hmac.new(_key(secret, purpose), data.encode(), hashlib.sha256).hexdigest()

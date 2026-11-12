@@ -37,7 +37,6 @@ export function MobileMenu({
 }) {
   const { t } = useTranslation();
   const proposals = useFeature("proposals"); // their own tab (A40, A42)
-  const portfolio = useFeature("portfolio");
   const [theme, setTheme] = useTheme();
   const [helpOpen, setHelpOpen] = useState(false);
   return (
@@ -68,11 +67,9 @@ export function MobileMenu({
                       {t("nav.proposals")}
                     </NavLink>
                   )}
-                  {portfolio && (
-                    <NavLink to="/portfolio" onClick={close}>
-                      {t("nav.portfolio")}
-                    </NavLink>
-                  )}
+                  <NavLink to="/portfolio" onClick={close}>
+                    {t("nav.portfolio")}
+                  </NavLink>
                   <NavLink to="/configuracoes" onClick={close}>
                     {t("nav.settings")}
                   </NavLink>

@@ -95,8 +95,12 @@ decision in the [decision changelog](decision-changelog.md).
   the office's name and logo (later perhaps its public projects).
 - `myunio.app` itself keeps the Unio landing page. Raised by Fabio, 17 Oct 2026;
   not urgent.
-- Built 31 Oct 2026 (PR for review), behind the `portfolio` feature: a published
-  portfolio at `/` (A45). The redirects above stay possible for offices without one.
+- Built 31 Oct 2026 (PR for review), behind the `portfolio` feature, and every
+  office's since 11 Nov 2026: a published portfolio at `/` (A45). The same day,
+  the simple page: until the portfolio is published, the address shows a card of
+  the office (logo or name, contacts, networks, the staff's way in). The
+  redirects above were set aside: most offices come for the portfolio because
+  they have no site, and clients can't use the painel's sign-in.
 - Since 5 Nov 2026 the images are the page: a grid of covers, a work opening
   over it as its photos large, the words after them (A45).
 - Material made for the social networks: a "Mosaico" format since 4 Nov 2026 (A45).

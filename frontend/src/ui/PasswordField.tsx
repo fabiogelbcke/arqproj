@@ -21,7 +21,7 @@ function systemShowsCapsLock() {
 
 /** A labelled password input with an eye button that shows the password as typed,
  *  and, unless the system shows its own, a mark in its right edge while Caps Lock is on
- *  (said to screen readers too). */
+ *  (said to screen readers too). With `maxLength`, TextField's "12/25" counter. */
 export function PasswordField({ label, description, errorMessage, ...props }: Props) {
   const { t } = useTranslation();
   const [shown, setShown] = useState(false);
@@ -34,7 +34,11 @@ export function PasswordField({ label, description, errorMessage, ...props }: Pr
       <Label className={styles.label}>{label}</Label>
       {/* Room in the input for the mark only while it shows, so the browser's own
           buttons there (Safari's passwords key) sit beside the eye. */}
-      <div className={styles.password} data-caps-lock={capsLock || undefined}>
+      <div
+        className={styles.password}
+        data-caps-lock={capsLock || undefined}
+        data-counted={props.maxLength ? true : undefined}
+      >
         <Input
           className={styles.input}
           onKeyDown={readCapsLock}
@@ -43,6 +47,13 @@ export function PasswordField({ label, description, errorMessage, ...props }: Pr
           onBlur={() => setCapsLock(false)}
         />
         <span className={styles.passwordTools}>
+          {/* As TextField's: a password longer than the limit is cut as it's
+              pasted, and hidden, so the count is the only sign of it. */}
+          {props.maxLength && (
+            <span className={styles.passwordCount} aria-hidden="true">
+              {String(props.value ?? "").length}/{props.maxLength}
+            </span>
+          )}
           {capsLock && (
             <span className={styles.capsLock} title={t("signIn.capsLock")} data-testid="caps-lock">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -64,7 +75,8 @@ export function PasswordField({ label, description, errorMessage, ...props }: Pr
           </Button>
         </span>
       </div>
-      <span className="sr-only" role="status">
+      {/* The module's own class: the client pages have no global "sr-only". */}
+      <span className={styles.visuallyHidden} role="status">
         {capsLock ? t("signIn.capsLock") : ""}
       </span>
       {description && (

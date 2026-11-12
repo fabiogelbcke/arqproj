@@ -5,7 +5,8 @@ Only the named assets are served; this is not a general file server.
 The example project (plan section 16) and the link "shared" from it are served
 here too: their content is in the client page's bundle, so their pages are the
 same on Unio's address, which the home links to, and on every office's.
-An office with a published portfolio shows that at `/` instead (portfolio_page.py).
+An office's address shows its portfolio at `/` instead, or a card of the office while
+unpublished (portfolio_page.py); Unio's home only when the office can't be read.
 """
 
 from pathlib import Path
@@ -29,10 +30,11 @@ HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
 }
-# On an office's address the home can give way to the portfolio any minute (it
-# is published, or staff sign in for the preview), so a browser asks each time;
-# the answer is a 304 while the file hasn't changed.
-HOME_ON_OFFICE_ADDRESS = {**HEADERS, "Cache-Control": "no-cache"}
+# On an office's address the home shows only while the office can't be read, and
+# gives way to its card or portfolio the minute it can, so a browser asks each
+# time; the answer is a 304 while the file hasn't changed. The same when the
+# lookup failed on Unio's own address: on staging that address is an office's too.
+HOME_NOT_KEPT = {**HEADERS, "Cache-Control": "no-cache"}
 
 
 @router.api_route("/", methods=["GET", "HEAD"])
@@ -41,7 +43,8 @@ async def home(request: Request) -> Response:
     if portfolio is not None:
         return portfolio
     unios = normalize_host(request.headers.get("host")) == request.app.state.settings.operator_host
-    headers = HEADERS if unios else HOME_ON_OFFICE_ADDRESS
+    unread = getattr(request.state, "office_unread", False)
+    headers = HEADERS if unios and not unread else HOME_NOT_KEPT
     return FileResponse(PUBLIC / "index.html", media_type="text/html", headers=headers)
 
 

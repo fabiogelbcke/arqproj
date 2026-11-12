@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 
 import { Button } from "./Button";
-import { toast } from "./Toast";
+import { copyText } from "./copyText";
 import styles from "./ui.module.css";
 
 /** A link to pass on, with "Copiar link" (a WhatsApp message, say): an invite,
@@ -11,15 +11,8 @@ export function LinkToCopy({ link, label, className }: { link: string; label: st
   return (
     <div className={[styles.linkToCopy, className].filter(Boolean).join(" ")}>
       <input aria-label={label} readOnly value={link} onFocus={(event) => event.currentTarget.select()} />
-      <Button
-        size="small"
-        onPress={() =>
-          void navigator.clipboard?.writeText(link).then(
-            () => toast(t("team.copied")),
-            () => toast(link),
-          )
-        }
-      >
+      {/* Not copied: the link is right here, to select and copy by hand. */}
+      <Button size="small" onPress={() => void copyText(link, { failed: t("copy.failed") })}>
         {t("team.copy")}
       </Button>
     </div>

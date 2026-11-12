@@ -660,7 +660,7 @@ async def change_presets(
 ) -> list[PresetOut]:
     """The office's services, in order ("Salvar como padrão"). An empty list goes
     back to the built-in one. One save at a time: two at once would each insert
-    their list after the other's delete (one service per place, 0054)."""
+    their list after the other's delete (one service per place, 0057)."""
     await db.execute(_LOCK_PRESETS, {"tenant": str(tenant.id)})
     await db.execute(delete(ProposalServicePreset))
     for position, service in enumerate(body.services, start=1):

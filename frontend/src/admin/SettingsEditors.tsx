@@ -194,8 +194,8 @@ function TypeForm({ catalog, kind }: { catalog: Catalog; kind: SiteType }) {
         <ErrorNotice error={change.error} />
         {!disabled && (
           <div className={styles.saveBar}>
-            <Button type="submit" variant="primary" isDisabled={change.isPending || !labels.pt.trim()}>
-              {change.isPending ? t("admin.settings.saving") : t("admin.settings.save")}
+            <Button type="submit" variant="primary" isDisabled={!labels.pt.trim()} pending={change.isPending}>
+              {t("admin.settings.save")}
             </Button>
           </div>
         )}
@@ -271,8 +271,8 @@ function StageForm({ catalog, stage }: { catalog: Catalog; stage: SiteStage }) {
         <ErrorNotice error={change.error} />
         {!disabled && (
           <div className={styles.saveBar}>
-            <Button type="submit" variant="primary" isDisabled={change.isPending || !titles.pt.trim() || !about.pt.trim()}>
-              {change.isPending ? t("admin.settings.saving") : t("admin.settings.save")}
+            <Button type="submit" variant="primary" isDisabled={!titles.pt.trim() || !about.pt.trim()} pending={change.isPending}>
+              {t("admin.settings.save")}
             </Button>
           </div>
         )}

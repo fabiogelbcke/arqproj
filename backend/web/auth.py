@@ -19,7 +19,6 @@ email yet (A36) signs in like anyone, but `current_staff` refuses them: only
 
 from __future__ import annotations
 
-import hmac
 import logging
 import uuid
 from dataclasses import dataclass
@@ -27,7 +26,7 @@ from datetime import UTC, datetime, timedelta
 
 import anyio
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,6 +39,7 @@ from backend.notifications.email import Email, EmailError, sender_for
 from backend.notifications.office import office_of
 from backend.notifications.password_reset import reset_email
 from backend.office.profile import display_name
+from backend.security import keys
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
 from backend.web import attempts
@@ -51,6 +51,11 @@ SUPPORT_TAG = "unio_support"
 CSRF_HEADER = "X-CSRF-Token"
 # Added to every failed sign-in, to slow down password guessing.
 FAILED_LOGIN_DELAY = 1.0
+# Wrong passwords for one account from one device: five in 15 minutes, then 15
+# minutes' wait, as on client pages (section 5: password attempts are limited).
+SIGN_IN_TRIES = "sign-in"
+# The longest password accepted: as long as any the join page lets one choose.
+PASSWORD_MAX = 500
 
 # "Esqueceu a senha?": at most one email to an address every few minutes, and a
 # few requests from one device in 15 minutes (counted as the client pages' tries).
@@ -77,16 +82,16 @@ class CurrentStaff:
 
 
 class LoginIn(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=500)
+    password: str = Field(max_length=PASSWORD_MAX)
 
 
 class LinkIn(BaseModel):
-    token: str
+    token: str = Field(max_length=200)
 
 
 class ResetIn(BaseModel):
-    email: str
+    email: str = Field(max_length=500)
 
 
 class LinkOut(BaseModel):
@@ -96,8 +101,8 @@ class LinkOut(BaseModel):
 
 
 class ChoosePasswordIn(BaseModel):
-    token: str
-    password: str
+    token: str = Field(max_length=200)
+    password: str = Field(max_length=PASSWORD_MAX)
 
 
 class AnalyticsOut(BaseModel):
@@ -208,8 +213,7 @@ async def optional_staff(
 
 
 def _check_csrf(request: Request, staff: CurrentStaff) -> CurrentStaff:
-    sent = request.headers.get(CSRF_HEADER, "")
-    if not hmac.compare_digest(sent, staff.csrf_token):
+    if not keys.same(request.headers.get(CSRF_HEADER, ""), staff.csrf_token):
         raise ApiError(403, ErrorCode.CSRF_TOKEN_MISSING_OR_WRONG)
     return staff
 
@@ -269,7 +273,7 @@ def me_out(
     )
 
 
-@router.post("/session", responses=documented(401, 422))
+@router.post("/session", responses=documented(401, 422, 429))
 async def sign_in(
     body: LoginIn,
     request: Request,
@@ -277,13 +281,29 @@ async def sign_in(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
-    user = await accounts.find_user(db, body.email)
-    # Hand the database connection back before the slow part (a queued password
-    # check, then the delay), so failed attempts cannot hold the whole pool.
-    await db.commit()
-    # Same work and the same answer whether the email or the password is wrong.
-    if not await verify_password(user.password_hash if user else None, body.password):
-        await anyio.sleep(FAILED_LOGIN_DELAY)
+    # Per address typed, whether or not it has an account, so the limit says
+    # nothing about who has one.
+    who = attempts.device(request)
+    key = f"{SIGN_IN_TRIES}:{tenant.id}:{accounts.normalize_email(body.email)}"
+    if not attempts.admit(key, who):  # reserved before the (slow) password check
+        raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
+    with attempts.trying(key, who) as attempt:
+        user = await accounts.find_user(db, body.email)
+        checked = user.password_hash if user else None
+        # Hand the database connection back before the slow part (a queued password
+        # check, then the delay), so failed attempts cannot hold the whole pool.
+        await db.commit()
+        # Same work and the same answer whether the email or the password is wrong.
+        if not await verify_password(checked, body.password):
+            attempt.failed()
+            await anyio.sleep(FAILED_LOGIN_DELAY)
+            raise ApiError(401, ErrorCode.INVALID_CREDENTIALS)
+        attempt.succeeded()
+    # Checked with no lock held: the password may have been replaced or taken away
+    # meanwhile (a reset, Google confirming a sign-up, which ends every session).
+    # Under the account's lock until the session is made, it must still be the one.
+    user = await accounts.password_still(db, user.id, checked)
+    if user is None:
         raise ApiError(401, ErrorCode.INVALID_CREDENTIALS)
     return await signed_in(request, response, tenant, db, user)
 
@@ -368,13 +388,16 @@ async def choose_password(
     db: AsyncSession = Depends(get_tenant_session),
 ) -> MeOut:
     """Use an invite or reset link: set the password, end other sessions, sign in."""
+    # The link first: a made-up one costs no (slow, few at a time) hashing.
+    if await links.find(db, body.token) is None:
+        raise ApiError(404, ErrorCode.LINK_INVALID)
+    await db.commit()  # the connection goes back while the password is hashed
     try:
-        # Before touching the database, so no connection waits on the hashing; a
-        # too-short password leaves the link usable.
+        # A too-short password leaves the link usable.
         password_hash = await accounts.new_password_hash(body.password)
     except accounts.PasswordTooShort:
         raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT) from None
-    found = await links.find(db, body.token)
+    found = await links.find(db, body.token)  # still unused
     if found is None:
         raise ApiError(404, ErrorCode.LINK_INVALID)
     # It confirms the address too: not while an unconfirmed address is being

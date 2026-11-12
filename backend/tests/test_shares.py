@@ -448,6 +448,32 @@ async def test_guessing_a_link_password_waits_after_a_few_tries(client, owner, f
     assert (blocked.status_code, blocked.json()["error"]) == (429, "too_many_attempts")
 
 
+async def test_link_passwords_are_hashed_and_checked_with_no_connection_held(
+    client, owner, files, holding_connection, monkeypatch
+):
+    """Hashing is slow, a few at a time: a request waiting for it must not keep a
+    database connection, or a burst of them would take the whole small pool."""
+    held = []
+
+    def watched(real):
+        async def run(*args):
+            held.append(holding_connection())
+            return await real(*args)
+
+        return run
+
+    monkeypatch.setattr(shares, "hash_password", watched(shares.hash_password))
+    monkeypatch.setattr(shares, "verify_password", watched(shares.verify_password))
+    link = await made(client, ["Planta.pdf"], password="marcenaria")
+    unlock = f"/api/share/{token_of(link)}/unlock"
+    assert (
+        await client.post(unlock, json={"password": "outra"}, headers=ALINEA)
+    ).status_code == 401
+    right = await client.post(unlock, json={"password": "marcenaria"}, headers=ALINEA)
+    assert right.status_code == 204
+    assert held == [False, False, False]
+
+
 # -- copying a link again ---------------------------------------------------------------
 
 

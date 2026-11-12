@@ -205,7 +205,7 @@ async def callback(request: Request) -> Response:
 
     # On the office's own address: the owner who started, and only once.
     nonce = request.cookies.get(NONCE_COOKIE, "")
-    if not secrets.compare_digest(nonce, state["nonce"]):
+    if not keys.same(nonce, state["nonce"]):
         return _back(request, ErrorCode.DRIVE_LINK_INVALID)
     if request.query_params.get("error"):  # e.g. the owner pressed "Cancel" at Google
         return _back(request, ErrorCode.DRIVE_DENIED)

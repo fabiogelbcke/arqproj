@@ -189,6 +189,8 @@ class PageOut(BaseModel):
     description: str
     cover_url: str | None
     completed: bool
+    # Archived: the page still shows, but takes no new subscribers (A32).
+    archived: bool = False
     # The previous release's current stage (A30), for one release: the first stage
     # still open, else the last; None without stages.
     current_position: int | None
@@ -328,6 +330,7 @@ async def _page(db: AsyncSession, tenant: CurrentTenant, project: Project, slug:
             else None
         ),
         completed=project.status is ProjectStatus.COMPLETED,
+        archived=project.status is ProjectStatus.ARCHIVED,
         current_position=next((s.position for s in stages if not s.completed), len(stages) or None),
         last_update=project.last_activity_at or project.created_at,
         details=details,
@@ -489,17 +492,14 @@ async def unlock(
     who, key = attempts.device(request), str(project.id)
     if not attempts.admit(key, who):  # reserved before the (slow) hash check
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS, headers=challenge)
-    try:
-        right = await verify_password(project.password_hash, body.password)
-    except BaseException:
-        attempts.failed(key, who)  # a try that didn't finish still counts
-        raise
-    if not right:
-        attempts.failed(key, who)
-        log.info("wrong page password for %s", slug)
-        capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": False})
-        raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD, headers=challenge)
-    attempts.succeeded(key, who)
+    with attempts.trying(key, who) as attempt:  # a try that didn't finish still counts
+        await db.commit()  # the connection goes back while the password is checked
+        if not await verify_password(project.password_hash, body.password):
+            attempt.failed()
+            log.info("wrong page password for %s", slug)
+            capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": False})
+            raise ApiError(401, ErrorCode.WRONG_PAGE_PASSWORD, headers=challenge)
+        attempt.succeeded()
     capture_visit(request, project.tenant_id, "page_unlock_tried", {"unlocked": True})
     token = keys.sign(
         request.app.state.settings.app_secret,

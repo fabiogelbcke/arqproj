@@ -693,7 +693,7 @@ async def test_the_offices_services_replace_the_built_in_ones_until_emptied(clie
 async def test_two_saves_of_the_offices_services_take_turns(client, db_session, owner):
     """Each save replaces the whole list. Two at once would each insert theirs
     after the other's delete, and the second would break the one-service-per-place
-    rule (0054); so a save waits for one already under way, then replaces its list."""
+    rule (0057); so a save waits for one already under way, then replaces its list."""
     import asyncio
 
     from sqlalchemy.ext.asyncio import create_async_engine

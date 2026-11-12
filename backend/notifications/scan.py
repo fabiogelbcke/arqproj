@@ -27,6 +27,8 @@ from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from backend.comments import alerts
+from backend.comments.models import Author, Comment
 from backend.db.isolation import scope_to_tenant
 from backend.documents.versions import shown_name
 from backend.notifications import digest
@@ -36,6 +38,7 @@ from backend.notifications.models import (
     EventKind,
     MaintenanceRun,
     NotificationBatch,
+    ProjectEvent,
     ProjectFileSeen,
 )
 from backend.notifications.office import office_of
@@ -57,9 +60,11 @@ class Report:
     projects: int = 0
     new_files: int = 0
     failed: int = 0  # projects whose folders couldn't be read: logged, tried next pass
+    failed_offices: int = 0  # an office's own setup failed (logged): its projects next pass
     busy: int = 0  # being scanned by another pass just then
     emails: int = 0
     emails_by_tenant: dict[str, int] = field(default_factory=dict)  # for analytics
+    staff_emails: int = 0  # clients' comments, to the office (A49)
     unfinished: int = 0  # not reached before the time budget ran out: the next pass
 
 
@@ -124,14 +129,34 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
 
 
 async def _project_pass(db, settings, sender, storage, office, project, report) -> None:
-    """One project, under its lock (taken by the caller), in one transaction: its
-    new files, then its email if one is due."""
+    """One project, under its lock (taken by the caller): its clients' comments to
+    the office first, then its new files and its email if one is due."""
+    if sender is not None:
+        # Clients' comments, to the office's staff (A49), first: they need nothing
+        # from Drive, which may fail below or hold the update email back. Archived
+        # since, the project's last comments still reach them.
+        report.staff_emails += await alerts.deliver(db, sender, office, project, datetime.now(UTC))
     if project.status not in CLIENT_VISIBLE:
-        # Archived (or back to draft) while an email waited: it is never sent,
-        # even if the project comes back later (section 14).
+        # Archived (or back to draft) while an email or a change waited: it is
+        # never sent, even if the project comes back later (section 14).
         await digest.drop_unsent(db, project)
         await db.commit()
         return
+    try:
+        # A failure below (Drive, or a bug) undoes only its own work: the comments'
+        # emails went, so they are saved (which ends the project's lock: its pass
+        # stops there), then the failure is the caller's to log.
+        async with db.begin_nested():
+            await _files_and_email(db, settings, sender, storage, office, project, report)
+    except Exception:
+        await db.commit()
+        raise
+    await db.commit()
+
+
+async def _files_and_email(db, settings, sender, storage, office, project, report) -> None:
+    """The project's new files, then its update email if one is due; the caller
+    commits."""
     if storage is not None and project.folder_id is not None:
         report.new_files += await scan_project(db, storage, project)
     now = datetime.now(UTC)
@@ -144,11 +169,14 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
             if sent:
                 tenant = str(project.tenant_id)
                 report.emails_by_tenant[tenant] = report.emails_by_tenant.get(tenant, 0) + sent
-        except digest.Wait:
-            await db.commit()  # a file still changing, or files unreadable: next pass
+        except digest.Wait as wait:
+            # A file still changing: the next pass. Logged, so an email held back
+            # pass after pass shows.
+            log.warning(
+                "emails: batch %s of %s/%s waits: %s", due.id, project.tenant_id, project.id, wait
+            )
             return
     await digest.gather(db, project)
-    await db.commit()
 
 
 async def _scan_office(
@@ -156,16 +184,26 @@ async def _scan_office(
 ) -> None:
     async with sessionmaker() as db:
         scope_to_tenant(db.sync_session, tenant_id)
-        # Published projects, and any with an email waiting (to drop it if the
-        # project was archived meanwhile).
+        # Published projects, and any with an email waiting or changes not yet in
+        # one (to drop them if the project was archived meanwhile), or clients'
+        # comments not yet emailed to staff.
         waiting = select(NotificationBatch.project_id).where(
             NotificationBatch.state.in_(digest.UNSENT)
+        )
+        loose = select(ProjectEvent.project_id).where(
+            ProjectEvent.batch_id.is_(None), ProjectEvent.kind.in_(digest.EMAILED)
+        )
+        untold = select(Comment.project_id).where(
+            Comment.author == Author.CLIENT, Comment.staff_notified_at.is_(None)
         )
         project_ids = list(
             await db.scalars(
                 select(Project.id).where(
                     Project.deleted_at.is_(None),
-                    Project.status.in_(CLIENT_VISIBLE) | Project.id.in_(waiting),
+                    Project.status.in_(CLIENT_VISIBLE)
+                    | Project.id.in_(waiting)
+                    | Project.id.in_(loose)
+                    | Project.id.in_(untold),
                 )
             )
         )
@@ -187,7 +225,8 @@ async def _scan_office(
                     _LOCK_PROJECT, {"key": MAINTENANCE_LOCK, "project": str(project_id)}
                 ):
                     raise Busy
-                # None without Drive: meetings and stages still email.
+                # None without Drive: no scan. A due email with files, or any while
+                # the office is disconnected, waits for Drive to be back.
                 storage = await storage_view(db, settings, google)
                 project = await db.scalar(select(Project).where(Project.id == project_id))
                 if project is not None:
@@ -235,7 +274,13 @@ async def run_maintenance(
     deadline = time.monotonic() + budget if budget is not None else float("inf")
     random.shuffle(offices)
     for tenant_id in offices:
-        await _scan_office(sessionmaker, settings, google, sender, tenant_id, report, deadline)
+        try:
+            await _scan_office(sessionmaker, settings, google, sender, tenant_id, report, deadline)
+        except Exception:
+            # One office's trouble (once, a time zone Python doesn't know) is that
+            # office's: logged with its traceback, and the others still get their pass.
+            report.failed_offices += 1
+            log.exception("maintenance: office %s failed", tenant_id)
     log.info("maintenance: %s", report)
     await _record(sessionmaker, report)
     return report
@@ -245,7 +290,7 @@ async def _record(sessionmaker, report: Report) -> None:
     """When it ran, and when it last ran to the end (plan section 4)."""
     now = datetime.now(UTC)
     # Every project done by this pass: none left, failed, or held by another pass.
-    complete = not (report.unfinished or report.failed or report.busy)
+    complete = not (report.unfinished or report.failed or report.failed_offices or report.busy)
     values = {"last_run_at": now, "last_report": asdict(report)}
     async with sessionmaker() as db:
         await db.execute(

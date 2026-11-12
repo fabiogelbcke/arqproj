@@ -995,16 +995,76 @@ def test_support_accounts_go_on_downgrade_and_what_they_made_stays(migrated_url)
         engine.dispose()
 
 
-def test_rows_breaking_the_new_rules_are_put_right_in_every_office(migrated_url):
-    """0054 adds rules the code already kept (#210). Rows from before that break
-    them are put right first, every office's, even as an owner that tenant
-    isolation binds (Cloud SQL's migration login): two pieces in one place are
-    renumbered in their order, a video file registered twice keeps its first row."""
+def test_accounts_still_unconfirmed_become_sign_ups_in_every_office(migrated_url):
+    """0054 adds `users.unconfirmed_signup`: accounts still unconfirmed, in every
+    office, are marked (Google confirming them then ends what their maker chose);
+    confirmed ones aren't. Run as an owner tenant isolation binds (Cloud SQL's
+    migration login), as the update must still reach every office."""
     from backend.commands import local_db
 
     owner = RUNTIME_ROLE + "_owner_like_0054"
     local_db.create_runtime_role(owner)
     command.upgrade(alembic_config(migrated_url), "0053")
+    engine = create_engine(migrated_url)
+    with engine.begin() as connection:
+        for slug in ("alinea", "norte"):
+            tenant = connection.scalar(
+                text("INSERT INTO tenants (slug, name) VALUES (:s, 'X') RETURNING id"), {"s": slug}
+            )
+            for email, confirmed in (("in@x.example", "now()"), ("joined@x.example", "NULL")):
+                connection.execute(
+                    text(
+                        "INSERT INTO users (tenant_id, email, name, email_confirmed_at) "
+                        f"VALUES (:t, :e, 'Pessoa', {confirmed})"
+                    ),
+                    {"t": tenant, "e": email},
+                )
+        connection.execute(
+            text(
+                f"""
+                DO $$
+                DECLARE t text;
+                BEGIN
+                    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+                        EXECUTE format('ALTER TABLE %I OWNER TO %I', t, '{owner}');
+                    END LOOP;
+                END $$
+                """
+            )
+        )
+        for function in ("current_tenant_id()", "set_updated_at()"):
+            connection.execute(text(f'ALTER FUNCTION {function} OWNER TO "{owner}"'))
+        connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
+    try:
+        command.upgrade(
+            alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False)),
+            "0054",
+        )
+        with engine.connect() as connection:
+            marked = connection.execute(
+                text("SELECT email, count(*) FROM users WHERE unconfirmed_signup GROUP BY email")
+            ).all()
+            assert marked == [("joined@x.example", 2)]
+            assert connection.scalar(
+                text("SELECT relforcerowsecurity FROM pg_class WHERE relname = 'users'")
+            )
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f'DROP OWNED BY "{owner}"'))
+            connection.execute(text(f'DROP ROLE "{owner}"'))
+        engine.dispose()
+
+
+def test_rows_breaking_the_new_rules_are_put_right_in_every_office(migrated_url):
+    """0057 adds rules the code already kept (#210). Rows from before that break
+    them are put right first, every office's, even as an owner that tenant
+    isolation binds (Cloud SQL's migration login): two pieces in one place are
+    renumbered in their order, a video file registered twice keeps its first row."""
+    from backend.commands import local_db
+
+    owner = RUNTIME_ROLE + "_owner_like_0057"
+    local_db.create_runtime_role(owner)
+    command.upgrade(alembic_config(migrated_url), "0056")
     engine = create_engine(migrated_url)
     with engine.begin() as connection:
         for slug in ("alinea", "norte"):
@@ -1058,7 +1118,7 @@ def test_rows_breaking_the_new_rules_are_put_right_in_every_office(migrated_url)
         connection.execute(text(f'GRANT CREATE ON SCHEMA public TO "{owner}"'))
     as_owner = alembic_config(make_url(migrated_url).set(username=owner).render_as_string(False))
     try:
-        command.upgrade(as_owner, "0054")
+        command.upgrade(as_owner, "0057")
         with engine.connect() as connection:
             pieces = connection.execute(
                 text(

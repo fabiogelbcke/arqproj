@@ -21,7 +21,7 @@ export const FORMATS = ["gallery", "mosaic"] as const satisfies readonly Portfol
 
 // As the server allows (backend/portfolio/models.py).
 export const LIMITS = {
-  intro: 600,
+  intro: 1000,
   title: 80,
   place: 80,
   description: 2000,

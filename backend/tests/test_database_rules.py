@@ -1,4 +1,4 @@
-"""Rules the code relies on, enforced by the database too (0054): orders without
+"""Rules the code relies on, enforced by the database too (0057): orders without
 two items in one place, a portfolio video's file registered once, support
 accounts without a password, and email batches closed exactly when done."""
 

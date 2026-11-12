@@ -5,9 +5,11 @@ Each maintenance pass, for each published project:
 
 1. Changes not yet in an email (all but notes, A32) join the project's open batch.
 2. The batch is due 45 minutes after its last change, or 2 hours after its first.
+   A change made between two passes, before the batch came due, joins it first.
 3. Just before sending: the project must still be published, files must still be
    on its page and unchanged for a minute (section 11's settling check), and the
    address still subscribed; outside production, only the office's own staff.
+   While the office's Drive is disconnected its pages are offline: the email waits.
    Nothing left to say, or nobody to say it to: the batch is dropped.
 4. One email per address, each with its own idempotency key and recorded as sent,
    so a retry never sends twice. A failure is retried on the next pass.
@@ -20,7 +22,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from html import escape
 from pathlib import Path
 from string import Template
@@ -28,6 +30,7 @@ from string import Template
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.comments.threads import office_said, still_said
 from backend.notifications.email import Email, EmailError, EmailSender
 from backend.notifications.events import CLIENT_VISIBLE
 from backend.notifications.models import (
@@ -46,6 +49,9 @@ from backend.projects.enums import ProjectStatus
 from backend.projects.models import Meeting, Project, ProjectSlug, ProjectStage
 from backend.security import keys
 from backend.settings import Settings
+from backend.storage.models import StorageConnection
+from backend.tenancy.models import Feature, Locale, Tenant
+from backend.tenancy.resolve import known_features
 from backend.web.page_files import _in_project, stage_groups
 from backend.web.page_stages import _title
 
@@ -102,6 +108,7 @@ UNSENT = (BatchState.OPEN, BatchState.SENDING)
 async def to_send(db: AsyncSession, project: Project, now: datetime) -> list[NotificationBatch]:
     """Batches going out: any still sending (retried as they are), then the open
     one if it has come due."""
+    await _join_before_due(db, project)
     batches = list(
         await db.scalars(
             select(NotificationBatch)
@@ -113,6 +120,9 @@ async def to_send(db: AsyncSession, project: Project, now: datetime) -> list[Not
 
 
 async def drop_unsent(db: AsyncSession, project: Project) -> None:
+    """Every change not yet emailed is never emailed: those already in a batch, and
+    those made since the last pass (archived minutes after a change)."""
+    await gather(db, project)
     for batch in await db.scalars(
         select(NotificationBatch).where(
             NotificationBatch.project_id == project.id, NotificationBatch.state.in_(UNSENT)
@@ -121,10 +131,9 @@ async def drop_unsent(db: AsyncSession, project: Project) -> None:
         batch.state, batch.closed_at = BatchState.DROPPED, datetime.now(batch.first_event_at.tzinfo)
 
 
-async def gather(db: AsyncSession, project: Project) -> NotificationBatch | None:
-    """Changes not yet in an email join the project's open batch (made if none)."""
-    batch = await open_batch(db, project)
-    loose = list(
+async def _loose(db: AsyncSession, project: Project) -> list[ProjectEvent]:
+    """Changes not yet in an email, oldest first."""
+    return list(
         await db.scalars(
             select(ProjectEvent)
             .where(
@@ -135,6 +144,26 @@ async def gather(db: AsyncSession, project: Project) -> NotificationBatch | None
             .order_by(ProjectEvent.occurred_at)
         )
     )
+
+
+async def _join_before_due(db: AsyncSession, project: Project) -> None:
+    """Changes made since the last pass but before the open batch came due join it
+    first: it was not quiet for 45 minutes after all (A12), so it is due later, as
+    one email (still within its 2 hours). Changes after it came due wait their turn."""
+    batch = await open_batch(db, project)
+    if batch is None:
+        return
+    for event in await _loose(db, project):
+        if event.occurred_at >= due_at(batch):
+            break
+        event.batch_id = batch.id
+        batch.last_event_at = max(batch.last_event_at, event.occurred_at)
+
+
+async def gather(db: AsyncSession, project: Project) -> NotificationBatch | None:
+    """Changes not yet in an email join the project's open batch (made if none)."""
+    batch = await open_batch(db, project)
+    loose = await _loose(db, project)
     if loose:
         if batch is None:
             batch = NotificationBatch(
@@ -151,8 +180,13 @@ async def gather(db: AsyncSession, project: Project) -> NotificationBatch | None
     return batch
 
 
+def due_at(batch: NotificationBatch) -> datetime:
+    """45 minutes after its last change, or 2 hours after its first (A12)."""
+    return min(batch.last_event_at + QUIET, batch.first_event_at + HOLD)
+
+
 def is_due(batch: NotificationBatch, now: datetime) -> bool:
-    return now - batch.last_event_at >= QUIET or now - batch.first_event_at >= HOLD
+    return now >= due_at(batch)
 
 
 # -- who it is from -------------------------------------------------------------------
@@ -162,7 +196,8 @@ def is_due(batch: NotificationBatch, now: datetime) -> bool:
 
 
 class Wait(Exception):
-    """Not now: a file is still changing, or the page's files can't be read."""
+    """Not now: a file is still changing, or the office's files or pages can't be
+    read (why, for the log)."""
 
 
 async def _visible_files(db: AsyncSession, storage, project: Project) -> dict:
@@ -210,24 +245,39 @@ async def summarize(
     events: list[ProjectEvent],
     office: Office,
     now: datetime,
+    comments: bool = False,
 ) -> Summary:
     """What the email says, as things are now (section 14: a file taken down
     meanwhile is left out; several meeting changes read as the latest): each
     stage's changes, in general terms ("3 arquivos enviados", no file names:
-    Fabio, 26 Oct 2026), then the project and the meeting."""
+    Fabio, 26 Oct 2026), then the project and the meeting. The office's comments
+    (A49) count under the stage they are on, or their file is in now, while
+    comments are switched on."""
     locale = office.locale
     summary = Summary()
     changes: dict[int, list[str]] = {}  # by stage position
     files = [e for e in events if e.kind is EventKind.FILE_PUBLISHED]
-    if files:
+    said = [e for e in events if e.kind is EventKind.OFFICE_COMMENTED] if comments else []
+    if said:
+        # Only comments still shown: one removed since is no news.
+        shown = await office_said(db, project.id)
+        said = [e for e in said if still_said(shown, e)]
+    visible = {}
+    if files or any(e.item_id is not None for e in said):
         if storage is None:
-            raise Wait  # the page can't show its files now either
+            raise Wait("the office's files can't be read")  # nor can the page's
         visible = await _visible_files(db, storage, project)
+    if files:
         # As the page shows them now: renamed or moved meanwhile, by their current
         # name and stage; taken down, left out (section 14).
         shown = {e.item_id: visible[e.item_id] for e in files if e.item_id in visible}
-        if any(item.modified_at > now - SETTLE for _position, item in shown.values()):
-            raise Wait
+        # Changed in the last minute: still changing. A time ahead of ours (a
+        # computer's wrong clock, kept by Drive's sync) is not a change happening
+        # now, and would otherwise hold the email back for good. "Ours" is read
+        # after the listing: a file changed while Drive was being read still waits.
+        listed = datetime.now(UTC)
+        if any(listed - SETTLE < item.modified_at <= listed for _position, item in shown.values()):
+            raise Wait("a file changed in the last minute")
         counts: dict[int, int] = {}
         for position, _item in shown.values():
             counts[position] = counts.get(position, 0) + 1
@@ -254,6 +304,17 @@ async def summarize(
             changes.setdefault(stage.position, []).append(t(locale, key))
     # By position, under each stage's current title; files in a stage removed
     # meanwhile are on the page under no stage, and say so by number.
+    # Comments on a stage, or on a file the page still shows, where it is now.
+    noted: dict[int, int] = {}
+    for e in said:
+        if e.stage_id is not None:
+            position = stages[e.stage_id].position if e.stage_id in stages else None
+        else:
+            position = visible[e.item_id][0] if e.item_id in visible else None
+        if position is not None:
+            noted[position] = noted.get(position, 0) + 1
+    for position, count in noted.items():
+        changes.setdefault(position, []).append(t(locale, "officeComments", count=count))
     by_position = {s.position: s for s in stages.values()}
     for position in sorted(changes):
         stage = by_position.get(position)
@@ -273,15 +334,16 @@ async def summarize(
         )
         if upcoming is not None:
             when = upcoming.starts_at.astimezone(office.zone)
+            # The date as the language writes it ("02/03/2026", in English "03/02/2026"),
+            # as the portfolio page does.
+            day = "%d/%m/%Y" if locale is Locale.PT_BR else "%m/%d/%Y"
             new = any(e.kind is EventKind.MEETING_SCHEDULED for e in meetings)
             summary.others.append(
                 t(
                     locale,
                     "meetingScheduled" if new else "meetingChanged",
                     title=upcoming.title,
-                    when=t(
-                        locale, "when", date=when.strftime("%d/%m/%Y"), time=when.strftime("%H:%M")
-                    ),
+                    when=t(locale, "when", date=when.strftime(day), time=when.strftime("%H:%M")),
                 )
             )
         elif (cleared := [e for e in meetings if e.kind is EventKind.MEETING_CLEARED]) and not any(
@@ -378,7 +440,14 @@ async def deliver(
             .order_by(ProjectEvent.occurred_at)
         )
     )
-    summary = await summarize(db, storage, project, events, office, now)  # may raise Wait
+    # Disconnected ("Desconectar"), the office's pages are offline (plan section 9):
+    # nothing goes, and nothing is dropped, until it reconnects.
+    connection = await db.scalar(select(StorageConnection))
+    if connection is not None and connection.disconnected:
+        raise Wait("the office disconnected Drive: its pages are offline")
+    tenant = await db.get(Tenant, project.tenant_id)
+    comments = Feature.COMMENTS in known_features(tenant.features)
+    summary = await summarize(db, storage, project, events, office, now, comments)  # may Wait
     # Who may get it now: subscribed, and outside production staff only (section 14).
     allowed = {
         r.email

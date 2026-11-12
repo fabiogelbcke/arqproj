@@ -15,16 +15,16 @@ policy lifted while the migration login copies them, as in 0053): duplicated
 places are renumbered in their order, oldest first; a video registered twice
 keeps its first row.
 
-Revision: 0054
-Previous: 0053
+Revision: 0057
+Previous: 0056
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0054"
-down_revision: str | None = "0053"
+revision: str = "0057"
+down_revision: str | None = "0056"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

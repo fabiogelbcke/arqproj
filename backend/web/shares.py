@@ -27,7 +27,6 @@ typed once per device as a project page's (plan section 6).
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 import logging
 import secrets
@@ -185,7 +184,7 @@ def _staff_acting(request: Request, staff: CurrentStaff | None) -> CurrentStaff 
     if staff is None:
         return None
     sent = request.headers.get(CSRF_HEADER, "")
-    return staff if hmac.compare_digest(sent, staff.csrf_token) else None
+    return staff if keys.same(sent, staff.csrf_token) else None
 
 
 # -- where a link's files are now -----------------------------------------------------
@@ -386,6 +385,10 @@ async def make_share(
         raise ApiError(422, ErrorCode.SHARE_TOO_LARGE)
     if body.password is not None and len(body.password) < PAGE_PASSWORD_MIN:
         raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT)
+    password_hash = None
+    if body.password:
+        await db.commit()  # the connection goes back while the password is hashed
+        password_hash = await hash_password(body.password)
     label = (body.label or "").strip() or None
     days = EXPIRY_DAYS[body.expiry]
     token = secrets.token_urlsafe(24)
@@ -394,7 +397,7 @@ async def make_share(
         project_id=project.id,
         token_hash=_hash(token),
         token_encrypted=keys.encrypt(request.app.state.settings.app_secret, TOKEN_PURPOSE, token),
-        password_hash=await hash_password(body.password) if body.password else None,
+        password_hash=password_hash,
         label=label,
         created_by=acting.user_id if acting else None,
         expires_at=datetime.now(UTC) + timedelta(days=days) if days else None,
@@ -716,16 +719,13 @@ async def unlock_share(
     who, key = attempts.device(request), f"share:{link.id}"
     if not attempts.admit(key, who):  # reserved before the (slow) hash check
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS, headers=challenge)
-    try:
-        right = await verify_password(link.password_hash, body.password)
-    except BaseException:
-        attempts.failed(key, who)
-        raise
-    if not right:
-        attempts.failed(key, who)
-        capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": False})
-        raise ApiError(401, ErrorCode.WRONG_SHARE_PASSWORD, headers=challenge)
-    attempts.succeeded(key, who)
+    with attempts.trying(key, who) as attempt:
+        await db.commit()  # the connection goes back while the password is checked
+        if not await verify_password(link.password_hash, body.password):
+            attempt.failed()
+            capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": False})
+            raise ApiError(401, ErrorCode.WRONG_SHARE_PASSWORD, headers=challenge)
+        attempt.succeeded()
     capture_visit(request, link.tenant_id, "share_unlock_tried", {"unlocked": True})
     response = Response(status_code=204, headers=challenge)
     response.set_cookie(

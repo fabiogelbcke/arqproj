@@ -6,7 +6,7 @@ type Answer = { status: number; headers?: Record<string, string> } | "break";
 type Sent = { headers: Record<string, string>; size: number | null };
 
 /** Google's upload session, scripted: each PUT gets the next answer. */
-function session(answers: Answer[]) {
+function session(answers: Answer[], { tellsProgress = true } = {}) {
   const sent: Sent[] = [];
   class Xhr {
     upload: { onprogress?: (event: { loaded: number }) => void } = {};
@@ -29,7 +29,7 @@ function session(answers: Answer[]) {
       const answer = this.answer;
       setTimeout(() => {
         if (answer === "break") return this.onerror?.();
-        this.upload.onprogress?.({ loaded: body?.size ?? 0 });
+        if (tellsProgress) this.upload.onprogress?.({ loaded: body?.size ?? 0 });
         this.status = answer.status;
         this.responseText = answer.status >= 400 ? `{"error": "${answer.status}"}` : "";
         this.onload?.();
@@ -56,6 +56,20 @@ describe("sending a file to its upload session", () => {
       { headers: { "Content-Range": "bytes 4-9/10" }, size: 6 },
     ]);
     expect(progress.at(-1)).toBe(1);
+  });
+
+  it("counts a sent file as complete even when the browser told no progress on the way", async () => {
+    session([{ status: 200 }], { tellsProgress: false });
+    const progress: number[] = [];
+    await sendFile("https://upload.example/s", file(), (p) => progress.push(p), NO_WAIT);
+    expect(progress).toEqual([1]);
+  });
+
+  it("counts the file as complete when, after a break, all of it had arrived", async () => {
+    session(["break", { status: 308, headers: { Range: "bytes=0-9" } }], { tellsProgress: false });
+    const progress: number[] = [];
+    await sendFile("https://upload.example/s", file(), (p) => progress.push(p), NO_WAIT);
+    expect(progress).toEqual([1]);
   });
 
   it("after Google's 5xx, starts over when nothing arrived", async () => {

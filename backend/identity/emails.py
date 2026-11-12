@@ -21,7 +21,8 @@ def tidy_email(raw: str) -> str:
 
 def is_email(email: str) -> bool:
     """A name, "@", and a domain of at least two parts ending in letters
-    ("ana@escritorio.com.br"), with no spaces or doubled dots. Expects it tidied."""
+    ("ana@escritorio.com.br"), with no spaces or doubled dots, and not ".invalid".
+    Expects it tidied."""
     if len(email) > EMAIL_LIMIT:
         return False
     local, at, domain = email.rpartition("@")
@@ -33,6 +34,8 @@ def is_email(email: str) -> bool:
         and len(labels) >= 2
         and all(len(label) <= 63 and _LABEL.fullmatch(label) for label in labels)
         and re.fullmatch(r"[a-z]{2,}", labels[-1]) is not None
+        # Reserved (RFC 2606): no mail reaches it, and Suporte Unio's accounts use it.
+        and labels[-1] != "invalid"
     )
 
 
