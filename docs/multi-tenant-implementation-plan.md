@@ -1346,6 +1346,9 @@ Version naming and upload flow (A25):
   on the card got messy with many versions). Staff can't choose another
   version as current; to go back, remove the newer one or upload the old one
   again as the next version.
+- "Ocultar do cliente" on a file hides its document: every version is renamed
+  with a leading `_` (A31), and only when the app may rename all of them, so the
+  client never sees an older version in place of the hidden one.
 
 Before-and-after comparisons (A46) are worked out from names the same way:
 `Cozinha (antes).jpg` and `Cozinha (depois - Obra).jpg` in one folder are the

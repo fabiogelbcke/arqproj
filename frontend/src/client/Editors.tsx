@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { ActionMenu } from "../ui/ActionMenu";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { EmailListField, addEmails } from "../ui/EmailListField";
 import { PendingContent } from "../ui/PendingContent";
 import { TextInput } from "../ui/TextInput";
@@ -350,6 +351,18 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
   const set = (field: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [field]: e.target.value });
   const save = useSave(() => onDone(true));
   const path = { params: { path: { project_id: staff.project_id } } };
+  // Removing it emails whoever gets the project's updates (A32): asked first.
+  const [removing, setRemoving] = useState(false);
+  const remove = () =>
+    void save
+      .run(() =>
+        call(
+          api.DELETE("/api/projects/{project_id}/meeting", {
+            params: { path: { project_id: staff.project_id }, query: { row_version: staff.row_version } },
+          }),
+        ),
+      )
+      .then(() => setRemoving(false));
   return (
     <Editor
       title={meeting ? t("edit.meeting") : t("edit.scheduleMeeting")}
@@ -375,22 +388,29 @@ export function MeetingEditor({ page, staff, onDone }: { page: Page; staff: Staf
       }
       extraAction={
         meeting && (
-          <button
-            className="b b--ghost b--danger"
-            type="button"
-            style={{ marginRight: "auto" }}
-            onClick={() =>
-              save.run(() =>
-                call(
-                  api.DELETE("/api/projects/{project_id}/meeting", {
-                    params: { path: { project_id: staff.project_id }, query: { row_version: staff.row_version } },
-                  }),
-                ),
-              )
-            }
-          >
-            {t("edit.removeMeeting")}
-          </button>
+          <>
+            <button
+              className="b b--ghost b--danger"
+              type="button"
+              style={{ marginRight: "auto" }}
+              disabled={save.busy}
+              onClick={() => setRemoving(true)}
+            >
+              {t("edit.removeMeeting")}
+            </button>
+            {removing && (
+              <ConfirmDialog
+                title={t("edit.removeMeetingAsk")}
+                text={t("edit.removeMeetingMeans", { title: meeting.title })}
+                note={staff.recipients?.some((recipient) => recipient.subscribed) ? t("edit.clientsNotified") : undefined}
+                confirm={t("edit.removeMeeting")}
+                danger
+                busy={save.busy}
+                onCancel={() => setRemoving(false)}
+                onConfirm={remove}
+              />
+            )}
+          </>
         )
       }
     >
