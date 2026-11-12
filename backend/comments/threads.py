@@ -6,6 +6,7 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,16 +41,22 @@ async def threads(db: AsyncSession, project_id: uuid.UUID) -> Threads:
     return found
 
 
-async def office_spots(db: AsyncSession, project_id: uuid.UUID) -> tuple[set, set[str]]:
-    """The stages and files with a comment of the office's still shown: an
-    `office_commented` event about anything else was taken back since."""
+async def office_said(db: AsyncSession, project_id: uuid.UUID) -> set[tuple[str, datetime]]:
+    """The office's comments still shown, each as (its stage's or file's id, when).
+    An `office_commented` event is saved with its comment, in one transaction, so
+    it bears the same time: an event not here is about a comment removed since."""
     rows = (
         await db.execute(
-            select(Comment.stage_id, Comment.item_id).where(
+            select(Comment.stage_id, Comment.item_id, Comment.created_at).where(
                 Comment.project_id == project_id,
                 Comment.author == Author.STAFF,
                 Comment.removed_at.is_(None),
             )
         )
     ).all()
-    return {stage for stage, _ in rows if stage}, {item for _, item in rows if item}
+    return {(str(stage or item), at) for stage, item, at in rows}
+
+
+def still_said(said: set[tuple[str, datetime]], event) -> bool:
+    """An `office_commented` event whose comment is still shown."""
+    return (str(event.stage_id or event.item_id), event.occurred_at) in said

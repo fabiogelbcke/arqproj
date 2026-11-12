@@ -48,7 +48,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.comments.models import Author, Comment
-from backend.comments.threads import Threads, office_spots, threads
+from backend.comments.threads import Threads, office_said, still_said, threads
 from backend.db.engine import get_tenant_session
 from backend.documents import comparisons, versions
 from backend.documents.versions import shown_name
@@ -508,7 +508,7 @@ async def _updates(
         .where(ProjectEvent.project_id == project.id, ProjectEvent.occurred_at >= since)
         .order_by(ProjectEvent.occurred_at.desc())
     )
-    said_on = await office_spots(db, project.id) if comments else (set(), set())
+    said = await office_said(db, project.id) if comments else set()
     updates = []
     counted = set()  # the notes, advance and meeting already listed
     async for event in events:  # until 30 survive the filtering, however many it takes
@@ -517,8 +517,8 @@ async def _updates(
         commented = event.kind is EventKind.OFFICE_COMMENTED
         if commented and not comments:
             continue
-        if commented and event.stage_id not in said_on[0] and event.item_id not in said_on[1]:
-            continue  # its comments were all removed since
+        if commented and not still_said(said, event):
+            continue  # its comment was removed since
         if event.kind is EventKind.FILE_PUBLISHED or (commented and event.item_id is not None):
             if event.item_id not in visible:
                 continue

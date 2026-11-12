@@ -111,6 +111,18 @@ async def test_staff_comment_as_their_account_and_tell_the_client(
     assert await events(db_session) == [("office_commented", 1, None)]
 
 
+async def test_staff_with_the_longest_name_allowed_can_comment(client, db_session, owner, folders):
+    from backend.web.team import NAME_MAX
+
+    long = "Ana " + "Beatriz " * 20
+    await db_session.execute(
+        text("UPDATE users SET name = :name WHERE email = 'dona@alinea.example'"),
+        {"name": long[:NAME_MAX].strip()},
+    )
+    shown = await said(client, "Olá", owner, position=1)
+    assert shown["name"] == long[:NAME_MAX].strip()
+
+
 async def test_a_clients_comment_is_not_client_news(visitor, db_session, owner, folders):
     await said(visitor, "Olá", position=1, name="Maria")
     assert await events(db_session) == []
@@ -436,11 +448,20 @@ async def test_an_office_comment_removed_is_no_news(app, client, db_session, own
     await run_with(app, outbox)  # the files noted
     shown = await said(client, "Por engano", owner, position=1)
     await said(client, "Este fica", owner, position=2)
+    # Two on one stage, one of them removed: the other still counts, alone.
+    await age_comments(db_session, 1)
+    # (One test is one transaction, so one now(): its events go back with them.)
+    await db_session.execute(
+        text("UPDATE project_events SET occurred_at = occurred_at - interval '1 minute'")
+    )
+    again = await said(client, "Também por engano", owner, position=2)
     await client.delete(f"/api/pages/casa-jardim/comments/{shown['id']}", headers=owner)
+    await client.delete(f"/api/pages/casa-jardim/comments/{again['id']}", headers=owner)
     updates = (await listing(client))["updates"]
     assert [(u["kind"], u["stage_position"]) for u in updates] == [("office_commented", 2)]
     await run_with(app, outbox)
     await make_due(db_session)
     await run_with(app, outbox)
     [email] = [e for e in outbox.sent if e.to == STAFF]
-    assert "1 comentário do escritório" in email.text and "01 Briefing" not in email.text
+    assert "A etapa 02 Levantamento foi atualizada: 1 comentário do escritório." in email.text
+    assert "01 Briefing" not in email.text

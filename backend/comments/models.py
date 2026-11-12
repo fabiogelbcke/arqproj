@@ -16,6 +16,7 @@ from backend.projects.models import _project_fk
 
 BODY_MAX = 2000
 NAME_MAX = 60  # a client's name, as they type it
+SIGNED_MAX = 80  # any signature kept: a staff account's name may be this long (team.py)
 
 
 class Author(StrEnum):
@@ -41,7 +42,7 @@ class Comment(IdMixin, CreatedAtMixin, TenantOwned, Base):
         CheckConstraint("(stage_id IS NULL) <> (item_id IS NULL)", name="stage_or_file"),
         CheckConstraint(f"length(btrim(body)) BETWEEN 1 AND {BODY_MAX}", name="body_length"),
         CheckConstraint(
-            f"length(btrim(author_name)) BETWEEN 1 AND {NAME_MAX}", name="author_name_length"
+            f"length(btrim(author_name)) BETWEEN 1 AND {SIGNED_MAX}", name="author_name_length"
         ),
         # A staff comment names its account; the account may be removed later.
         CheckConstraint("author = 'staff' OR user_id IS NULL", name="client_has_no_account"),

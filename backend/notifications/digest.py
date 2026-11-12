@@ -30,7 +30,7 @@ from string import Template
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.comments.threads import office_spots
+from backend.comments.threads import office_said, still_said
 from backend.notifications.email import Email, EmailError, EmailSender
 from backend.notifications.events import CLIENT_VISIBLE
 from backend.notifications.models import (
@@ -260,8 +260,8 @@ async def summarize(
     said = [e for e in events if e.kind is EventKind.OFFICE_COMMENTED] if comments else []
     if said:
         # Only comments still shown: one removed since is no news.
-        stages_said, files_said = await office_spots(db, project.id)
-        said = [e for e in said if e.stage_id in stages_said or e.item_id in files_said]
+        shown = await office_said(db, project.id)
+        said = [e for e in said if still_said(shown, e)]
     visible = {}
     if files or any(e.item_id is not None for e in said):
         if storage is None:

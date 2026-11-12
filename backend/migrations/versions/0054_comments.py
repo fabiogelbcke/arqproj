@@ -65,7 +65,7 @@ def upgrade() -> None:
             "length(btrim(body)) BETWEEN 1 AND 2000", name=op.f("ck_comments_body_length")
         ),
         sa.CheckConstraint(
-            "length(btrim(author_name)) BETWEEN 1 AND 60",
+            "length(btrim(author_name)) BETWEEN 1 AND 80",
             name=op.f("ck_comments_author_name_length"),
         ),
         sa.CheckConstraint(
