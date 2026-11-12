@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError, api, call } from "../api/client";
+import { PasswordField } from "../ui/PasswordField";
 import { SiteHeader } from "./ProjectPage";
+import { PendingContent } from "../ui/PendingContent";
 
 /** A protected page: the client types the password once per device (A06). With
  *  `unlock`, a shared link's own password (A37), in the link's words. */
@@ -49,20 +51,19 @@ export function PasswordGate({
             }
           }}
         >
-          <label htmlFor="page-password">{t("page.password")}</label>
           <div className="password-gate__row">
-            <input
-              id="page-password"
-              className="input"
-              type="password"
+            {/* The eye and the Caps Lock mark: a password sent by message is
+                easy to mistype, and the client can't ask anyone right then. */}
+            <PasswordField
+              label={t("page.password")}
               autoComplete="current-password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
+              onChange={setPassword}
+              isRequired
               autoFocus
             />
-            <button className="b b--primary" type="submit" disabled={busy || !password}>
-              {t("page.enter")}
+            <button className="b b--primary" type="submit" disabled={busy || !password} aria-busy={busy || undefined}>
+              <PendingContent pending={busy}>{t("page.enter")}</PendingContent>
             </button>
           </div>
           {problem && (

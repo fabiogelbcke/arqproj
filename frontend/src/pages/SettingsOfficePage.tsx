@@ -98,7 +98,7 @@ function ProposalDetails() {
         <ErrorNotice error={save.error} />
         {manage && (
           <div className={styles.actions}>
-            <Button type="submit" variant="primary" isDisabled={save.isPending || !draft}>
+            <Button type="submit" variant="primary" isDisabled={!draft} pending={save.isPending}>
               {t("office.saveProposalDetails")}
             </Button>
           </div>
@@ -178,7 +178,7 @@ export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
         <ErrorNotice error={save.error} />
         {manage && (
           <div className={styles.actions}>
-            <Button type="submit" variant="primary" isDisabled={save.isPending || !draft}>
+            <Button type="submit" variant="primary" isDisabled={!draft} pending={save.isPending}>
               {t("office.save")}
             </Button>
           </div>
@@ -304,7 +304,7 @@ function NeedsDrive() {
           {t("settings.drive")}
         </Link>
       ) : (
-        <Button variant="primary" onPress={() => connect.mutate(false)} isDisabled={connect.isPending}>
+        <Button variant="primary" onPress={() => connect.mutate(false)} pending={connect.isPending}>
           {t(expired ? "drive.reconnect" : "drive.connect")}
         </Button>
       )}

@@ -128,7 +128,7 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
   const already =
     error instanceof ApiError && error.code === "already_staff" ? t("team.alreadyIn", { name: error.conflictName }) : null;
   return (
-    <DialogFrame title={t("team.inviteTitle")} onClose={onClose}>
+    <DialogFrame title={t("team.inviteTitle")} onClose={onClose} busy={invite.isPending}>
       {sent ? (
         // Sent: the link to copy too, then done (or invite someone else).
         <div className={styles.form}>
@@ -182,9 +182,11 @@ function InviteDialog({ onClose }: { onClose: () => void }) {
             <ErrorNotice error={error} />
           )}
           <div className={styles.actions}>
-            <Button onPress={onClose}>{t("team.close")}</Button>
-            <Button type="submit" variant="primary" isDisabled={invite.isPending}>
-              {invite.isPending ? t("team.inviting") : t("team.invite")}
+            <Button onPress={onClose} isDisabled={invite.isPending}>
+              {t("team.close")}
+            </Button>
+            <Button type="submit" variant="primary" pending={invite.isPending}>
+              {t("team.invite")}
             </Button>
           </div>
         </Form>

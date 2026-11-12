@@ -1249,6 +1249,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
           }
         }
       },
@@ -9253,10 +9263,12 @@
         "properties": {
           "token": {
             "type": "string",
+            "maxLength": 200,
             "title": "Token"
           },
           "password": {
             "type": "string",
+            "maxLength": 500,
             "title": "Password"
           }
         },
@@ -10409,7 +10421,6 @@
         "enum": [
           "project_members",
           "proposals",
-          "portfolio",
           "cover_band",
           "before_after",
           "whatsapp_updates"
@@ -10853,6 +10864,7 @@
         "properties": {
           "token": {
             "type": "string",
+            "maxLength": 200,
             "title": "Token"
           }
         },
@@ -10925,10 +10937,12 @@
         "properties": {
           "email": {
             "type": "string",
+            "maxLength": 500,
             "title": "Email"
           },
           "password": {
             "type": "string",
+            "maxLength": 500,
             "title": "Password"
           }
         },
@@ -13069,6 +13083,7 @@
         "properties": {
           "email": {
             "type": "string",
+            "maxLength": 500,
             "title": "Email"
           }
         },
@@ -14056,6 +14071,11 @@
           "unavailable": {
             "type": "boolean",
             "title": "Unavailable",
+            "default": false
+          },
+          "folder_missing": {
+            "type": "boolean",
+            "title": "Folder Missing",
             "default": false
           }
         },

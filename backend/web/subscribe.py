@@ -122,7 +122,10 @@ async def subscribe(
         capture_visit(
             request, tenant.id, "client_email_subscribed", {"returning": recipient is not None}
         )
-    stop = unsubscribe_token(request.app.state.settings, project.id, email)
+    settings = request.app.state.settings
+    if settings.email_staff_only and email not in office.staff:
+        return  # outside production only staff are emailed (A32), the welcome too
+    stop = unsubscribe_token(settings, project.id, email)
     welcome = welcome_email(
         office,
         project.name,

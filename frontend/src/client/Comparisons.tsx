@@ -13,6 +13,7 @@ import { capture } from "../posthog";
 import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { MoreIcon } from "../ui/MoreIcon";
+import { ProgressBar } from "../ui/ProgressBar";
 import { TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
 import styles from "../ui/ui.module.css";
@@ -72,7 +73,12 @@ export function AddCard({
   const menu = useRef<HTMLDivElement>(null);
   useDismiss(menu, open === "menu", () => setOpen(false));
   return (
-    <div ref={menu} className={`file file--add menu${open === "menu" ? " is-open" : ""}`}>
+    <div
+      ref={menu}
+      className={`file file--add menu${open === "menu" ? " is-open" : ""}`}
+      // The stage's way to add files, the tour's upload step (in place of its drop area).
+      data-tour={section ? undefined : "upload"}
+    >
       <button
         type="button"
         className="file--add__button"
@@ -387,7 +393,7 @@ function NewComparison({
     }
   };
   return (
-    <DialogFrame title={t("compare.new")} onClose={progress === null ? close : () => {}} outsideCloses={false}>
+    <DialogFrame title={t("compare.new")} onClose={close} outsideCloses={false} busy={progress !== null}>
       <form
         className="compare-form"
         onSubmit={(event) => {
@@ -440,7 +446,11 @@ function NewComparison({
           </p>
         )}
         {progress !== null && (
-          <progress className="upload-bar" max={1} value={progress} aria-label={t("compare.sending", { name: title })} />
+          <ProgressBar
+            value={progress}
+            label={t("compare.sending", { name: title })}
+            caption={t("compare.sending", { name: title })}
+          />
         )}
         <div className={styles.confirmActions}>
           <Button onPress={close} isDisabled={progress !== null}>
@@ -528,7 +538,7 @@ function EditComparison({
         <p className={styles.hint}>{t("compare.editNote")}</p>
         <div className={styles.confirmActions}>
           <Button onPress={onClose}>{t("confirm.cancel")}</Button>
-          <Button variant="primary" type="submit" isDisabled={busy || !title.trim()}>
+          <Button variant="primary" type="submit" isDisabled={!title.trim()} pending={busy}>
             {t("projectSettings.save")}
           </Button>
         </div>
@@ -629,11 +639,10 @@ export function ComparisonMenu({
         }}
       />
       {sending !== null && (
-        <progress
-          className="upload-bar filemenu__progress"
-          max={1}
+        <ProgressBar
+          className="filemenu__progress"
           value={sending}
-          aria-label={t("edit.sending", { name: file.name })}
+          label={t("edit.sending", { name: file.name })}
         />
       )}
       {open === "menu" && (

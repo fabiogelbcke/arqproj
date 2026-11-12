@@ -82,7 +82,7 @@ export function ConfirmEmailPage({ me }: { me: Me }) {
             <EmailField label={t("confirmEmail.newEmail")} value={newEmail} onChange={setNewEmail} isRequired autoComplete="username" />
             <ErrorNotice error={correct.error} />
             <div className={styles.confirmActions}>
-              <Button type="submit" variant="primary" isDisabled={correct.isPending}>
+              <Button type="submit" variant="primary" pending={correct.isPending}>
                 {t("confirmEmail.saveEmail")}
               </Button>
               <Button variant="ghost" onPress={() => setCorrecting(false)}>
@@ -110,7 +110,7 @@ export function ConfirmEmailPage({ me }: { me: Me }) {
             <ErrorNotice error={confirm.error} />
             {resent && !resend.error && <p role="status" className={styles.small}>{t("confirmEmail.resent", { email: me.email })}</p>}
             <ErrorNotice error={resend.error} />
-            <Button type="submit" variant="primary" isDisabled={confirm.isPending}>
+            <Button type="submit" variant="primary" pending={confirm.isPending}>
               {t("confirmEmail.submit")}
             </Button>
             <div className={styles.confirmActions}>
@@ -178,7 +178,7 @@ export function ConfirmLinkPage() {
             </div>
             <ErrorNotice error={confirm.error} />
             {/* A button, not on load: mail scanners open links to check them. */}
-            <Button variant="primary" onPress={() => confirm.mutate()} isDisabled={confirm.isPending}>
+            <Button variant="primary" onPress={() => confirm.mutate()} pending={confirm.isPending}>
               {t("confirmEmail.linkSubmit")}
             </Button>
           </>

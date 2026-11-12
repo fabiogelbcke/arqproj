@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { PendingContent } from "../ui/PendingContent";
 import { TextInput } from "../ui/TextInput";
 import { toast, toastError } from "../ui/Toast";
 import type { Page } from "./format";
@@ -154,8 +155,8 @@ export function StageEditForm({
             <button className="b b--small" type="button" onClick={() => onDone()}>
               {t("projectSettings.cancel")}
             </button>
-            <button className="b b--small b--primary" type="submit" disabled={change.busy || !title.trim()}>
-              {t("projectSettings.save")}
+            <button className="b b--small b--primary" type="submit" disabled={change.busy || !title.trim()} aria-busy={change.busy || undefined}>
+              <PendingContent pending={change.busy}>{t("projectSettings.save")}</PendingContent>
             </button>
           </div>
         ),
@@ -303,8 +304,8 @@ export function AddStage({
             {t("projectSettings.cancel")}
           </button>
           {naming && (
-            <button className="b b--primary" type="submit" disabled={change.busy || !custom.trim()}>
-              {t("edit.add")}
+            <button className="b b--primary" type="submit" disabled={change.busy || !custom.trim()} aria-busy={change.busy || undefined}>
+              <PendingContent pending={change.busy}>{t("edit.add")}</PendingContent>
             </button>
           )}
         </div>
