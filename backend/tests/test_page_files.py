@@ -93,6 +93,19 @@ async def test_files_download_and_images_and_pdfs_also_show_inline(client, owner
     assert "sandbox" in inline.headers["content-security-policy"]
 
 
+async def test_a_local_image_is_its_own_preview_and_a_pdf_has_none(client, owner, files):
+    """The card never loads an image's original when its preview fails (on Drive
+    that is megabytes a card): with local folders the preview is the image."""
+    first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
+    image = next(f for f in first if f["kind"] == "image")
+    thumb = await client.get(f"/api/pages/casa-jardim/files/{image['key']}/thumb", headers=ALINEA)
+    assert (thumb.status_code, thumb.content) == (200, PNG)
+    assert thumb.headers["content-type"] == "image/png"
+    pdf = next(f for f in first if f["kind"] == "pdf")
+    none = await client.get(f"/api/pages/casa-jardim/files/{pdf['key']}/thumb", headers=ALINEA)
+    assert none.status_code == 404
+
+
 async def test_other_files_never_open_on_the_offices_address(client, owner, files):
     """A .dwg (or an .html) only downloads, as raw bytes, sandboxed."""
     groups = (await listing(client)).json()["stages"][0]["groups"]
@@ -227,6 +240,31 @@ async def test_a_missing_stage_folder_marks_that_stage_unavailable(client, owner
     assert stages[5]["unavailable"] is False  # no folder bound: simply empty
 
 
+async def test_staff_are_told_when_the_project_folder_is_gone(client, owner, tmp_path):
+    """Deleted or trashed in Drive, the project's folder won't come back by retrying:
+    staff are told to look for it; visitors see only "unavailable" (the office's
+    Drive is none of their business)."""
+    stages = (await listing(client)).json()["stages"]
+    assert stages[0]["unavailable"] is True and stages[0]["folder_missing"] is True
+    assert stages[5]["folder_missing"] is False  # no folder bound
+    Roles(client).visitor()
+    stages = (await listing(client)).json()["stages"]
+    assert stages[0]["unavailable"] is True and stages[0]["folder_missing"] is False
+
+
+async def test_a_refused_project_folder_is_not_called_gone(client, owner, files, monkeypatch):
+    """Drive refuses a revoked or broken connection the same way it refuses one
+    folder (403, no_access): that is no reason to send staff to the trash."""
+    from backend.storage.base import StorageError, StorageProblem
+
+    async def refused(*_args):
+        raise StorageError(StorageProblem.NO_ACCESS, "403")
+
+    monkeypatch.setattr(page_files, "_in_project", refused)
+    stages = (await listing(client)).json()["stages"]
+    assert stages[0]["unavailable"] is True and stages[0]["folder_missing"] is False
+
+
 async def test_a_file_moved_out_of_the_stage_no_longer_opens(client, owner, files):
     """A key opens what the page listed only while it's still there (A05)."""
     first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
@@ -260,6 +298,7 @@ async def test_disconnected_storage_marks_stages_unavailable_with_a_reference(
     assert response.status_code == 200
     shown = response.json()
     assert shown["stages"][0]["unavailable"] is True
+    assert shown["stages"][0]["folder_missing"] is False  # Drive itself, not the folder
     assert shown["stages"][5]["unavailable"] is False  # no folder bound
     assert shown["reference"] == response.headers["x-request-id"]
 

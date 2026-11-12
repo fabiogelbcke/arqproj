@@ -360,7 +360,7 @@ def test_an_office_on_google_gets_a_view_limited_to_its_folder():
 
 
 async def test_a_download_abandoned_before_reading_can_still_be_closed(drive):
-    storage, fake = drive
+    storage, _fake = drive
     closed = []
 
     class Body(httpx2.AsyncByteStream):

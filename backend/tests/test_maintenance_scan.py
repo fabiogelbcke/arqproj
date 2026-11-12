@@ -12,6 +12,7 @@ from backend.tests import test_office
 from backend.tests.conftest import TEST_DATABASE_URL
 from backend.tests.test_monitoring_command import pass_line_pattern
 from backend.tests.test_office import ALINEA
+from backend.tests.test_page_edit import in_days
 
 owner = test_office.owner  # fixtures
 
@@ -163,6 +164,26 @@ async def test_a_bug_in_one_project_is_logged_and_the_pass_still_ends(
     assert logged and logged[0].exc_info  # with the traceback, to fix it
 
 
+async def test_one_office_failing_is_logged_and_the_others_still_get_their_pass(
+    app, db_session, owner, folders, caplog
+):
+    """An office's own trouble (a time zone Python doesn't know) is that office's:
+    the others are scanned, and the pass records itself, as not run to the end."""
+    norte = await db_session.scalar(text("SELECT id FROM tenants WHERE slug = 'norte'"))
+    await db_session.execute(
+        text("UPDATE tenants SET timezone = 'America/Nowhere' WHERE slug = 'norte'")
+    )
+    report = await run(app)
+    assert report.failed_offices == 1
+    assert await casa(db_session, "files_scanned_at") is not None  # Alinea's still scanned
+    logged = [r for r in caplog.records if r.levelname == "ERROR" and str(norte) in r.getMessage()]
+    assert logged and logged[0].exc_info
+    row = (
+        await db_session.execute(text("SELECT last_run_at, last_success_at FROM maintenance_runs"))
+    ).one()
+    assert row.last_run_at is not None and row.last_success_at is None
+
+
 async def test_a_project_another_pass_is_scanning_is_skipped(app, db_session, owner, folders):
     """Two Cloud Run instances may run a pass at once: each project is scanned by
     one of them, under a lock that holds across connections."""
@@ -229,9 +250,7 @@ async def test_completing_or_reopening_a_stage_and_completing_the_project_are_re
 
 
 async def test_meetings_and_notes_are_recorded(client, db_session, owner, folders):
-    from datetime import date, timedelta
-
-    day = (date.today() + timedelta(days=5)).isoformat()
+    day = in_days(5)
     await call(client, owner, "PUT", "/meeting", title="Visita", day=day, start="10:00")
     await call(client, owner, "PUT", "/meeting", title="Visita à obra", day=day, start="11:00")
     await call(client, owner, "DELETE", "/meeting")
@@ -249,9 +268,7 @@ async def test_meetings_and_notes_are_recorded(client, db_session, owner, folder
 
 
 async def test_saving_the_meeting_unchanged_records_nothing(client, db_session, owner, folders):
-    from datetime import date, timedelta
-
-    day = (date.today() + timedelta(days=5)).isoformat()
+    day = in_days(5)
     meeting = {"title": "Visita", "day": day, "start": "10:00", "location": "Obra"}
     await call(client, owner, "PUT", "/meeting", **meeting)
     before = (await events(db_session), await casa(db_session, "last_activity_at"))

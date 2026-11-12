@@ -66,6 +66,8 @@ class AnalyticsEvent(StrEnum):
     COMPARISON_EDITED = "comparison_edited"
     COMPARISON_HIDDEN = "comparison_hidden"
     COMPARISON_MOVED = "comparison_moved"
+    COMMENT_POSTED = "comment_posted"  # staff's (A49)
+    COMMENT_REMOVED = "comment_removed"
     # Share links: staff's, or a visitor's when a client makes one.
     SHARE_LINK_CREATED = "share_link_created"
     SHARE_LINK_RENEWED = "share_link_renewed"
@@ -92,6 +94,8 @@ class AnalyticsEvent(StrEnum):
     SHARE_UNLOCK_TRIED = "share_unlock_tried"
     CLIENT_EMAIL_SUBSCRIBED = "client_email_subscribed"
     CLIENT_EMAIL_UNSUBSCRIBED = "client_email_unsubscribed"
+    CLIENT_COMMENTED = "client_commented"  # A49
+    CLIENT_COMMENT_REMOVED = "client_comment_removed"
     # Personless counts: bytes sent, update emails per office.
     FILE_TRANSFER = "file_transfer"
     UPDATE_EMAILS_SENT = "update_emails_sent"

@@ -122,13 +122,20 @@ export function ImageCropDialog({
   };
 
   return (
-    <ModalOverlay className={styles.cropOverlay} isOpen isDismissable onOpenChange={(open) => !open && onCancel()}>
+    // While the crop is drawn, closing would still hand the file on afterwards: it waits.
+    <ModalOverlay
+      className={styles.cropOverlay}
+      isOpen
+      isDismissable={!saving}
+      isKeyboardDismissDisabled={saving}
+      onOpenChange={(open) => !open && onCancel()}
+    >
       <Modal className={styles.cropModal}>
         <Dialog className={styles.cropDialog}>
           <Heading slot="title" className={styles.cropTitle}>
             {t(kind === "logo" ? (dark ? "crop.darkLogoTitle" : "crop.logoTitle") : "crop.coverTitle")}
           </Heading>
-          <CloseButton onPress={onCancel} />
+          <CloseButton onPress={onCancel} isDisabled={saving} />
           <p className={styles.cropHint}>{t(kind === "logo" ? "crop.logoHint" : "crop.coverHint")}</p>
           {failed ? (
             <p role="alert">{t("crop.unreadable")}</p>
@@ -163,10 +170,10 @@ export function ImageCropDialog({
             </div>
           )}
           <div className={styles.cropActions}>
-            <Button variant="ghost" onPress={onCancel}>
+            <Button variant="ghost" onPress={onCancel} isDisabled={saving}>
               {t("crop.cancel")}
             </Button>
-            <Button variant="primary" onPress={() => void apply()} isDisabled={!box || saving || failed}>
+            <Button variant="primary" onPress={() => void apply()} isDisabled={!box || failed} pending={saving}>
               {t("crop.apply")}
             </Button>
           </div>

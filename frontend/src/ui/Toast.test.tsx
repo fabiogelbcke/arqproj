@@ -1,8 +1,10 @@
 import { act, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 
 import "../i18n";
 import { ApiError } from "../api/client";
+import { DialogFrame } from "./DialogFrame";
 import { Toaster, toast, toastError } from "./Toast";
 
 describe("toasts", () => {
@@ -26,5 +28,24 @@ describe("toasts", () => {
     render(<Toaster />);
     act(() => toastError(new Error("TypeError: x is undefined")));
     expect(screen.getByRole("status")).not.toHaveTextContent("TypeError");
+  });
+
+  it("stay readable and usable over an open dialog, whose Desfazer doesn't close it", async () => {
+    const onClose = vi.fn();
+    const undo = vi.fn();
+    render(
+      <>
+        <Toaster />
+        <DialogFrame title="Projeto" onClose={onClose}>
+          <p>Conteúdo</p>
+        </DialogFrame>
+      </>,
+    );
+    act(() => toast("Arquivado.", undo));
+    // A modal hides the rest of the page from screen readers and the pointer; not the toasts.
+    expect(screen.getByRole("status")).toHaveTextContent("Arquivado.");
+    await userEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    expect(undo).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

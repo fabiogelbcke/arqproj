@@ -53,7 +53,7 @@ export function ForgotPasswordPage() {
                 label={t("signIn.email")}
               />
               <ErrorNotice error={ask.error} />
-              <Button type="submit" variant="primary" isDisabled={ask.isPending}>
+              <Button type="submit" variant="primary" pending={ask.isPending}>
                 {t("forgot.submit")}
               </Button>
             </Form>

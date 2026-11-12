@@ -84,4 +84,10 @@ class FolderStorage:
         return Download(item.mime_type, max(last - first + 1, 0), chunks())
 
     async def thumbnail(self, item: StorageItem, size: int = 640) -> bytes | None:
-        return None
+        """An image is its own preview: nothing shrinks it here, and on this
+        machine its size costs nothing. The page never falls back to an image's
+        original itself, which on Drive would be megabytes a card."""
+        if not item.mime_type.startswith("image/"):
+            return None
+        path = self._path(item.id)
+        return await anyio.to_thread.run_sync(path.read_bytes)

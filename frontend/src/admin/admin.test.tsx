@@ -30,6 +30,7 @@ const ALINEA = {
   share_links: 3,
   downloads: 7,
   portfolio: { pieces: 34, images: 120, published: 1 },
+  comments: { client: 9, staff: 4 },
   features: [] as string[],
   all_features: ["project_members"],
   team: [],
@@ -123,6 +124,7 @@ describe("the operator dashboard", () => {
     });
     renderAt("/escritorios/alinea");
     expect(await screen.findByRole("heading", { name: "Alinea", level: 1 })).toBeInTheDocument();
+    expect(screen.getByText("9 de clientes · 4 da equipe")).toBeInTheDocument(); // comments (A49)
     const team = screen.getByRole("table");
     expect(within(team).getByText("Bia").closest("tr")).toHaveTextContent("Convite pendente");
     expect(screen.getByRole("link", { name: /Abrir os erros deste escritório/ })).toHaveAttribute(

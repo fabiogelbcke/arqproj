@@ -364,7 +364,6 @@ async def test_a_drive_failure_trashes_what_was_made_and_says_try_again(
     owner,
     on_google,
 ):
-    fake, _ = on_google
     failing = FailsOnThirdFolder()
     app.state.http = httpx2.AsyncClient(transport=httpx2.MockTransport(failing))
     before = await project_count(db_session)
