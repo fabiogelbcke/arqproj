@@ -720,7 +720,7 @@ The following is a logical schema specification, not a migration:
 | `share_link_files` | tenant, link, the file's storage identity, order: the exact versions it serves (A37) |
 | `proposals` | tenant, project, version (from 1, unique per project), content (JSON: what staff filled in, checked when saved), who saved it, when: each saved version of a project's proposal, only ever added (A42) |
 | `proposal_service_presets` | tenant, order, title (≤ 80), description (≤ 1000): the services the office offers, as new proposals list them (A42) |
-| `portfolios` | tenant (one each), published, format (gallery, mosaic), opening text (≤ 600), social profiles ({network: address}), the `_portfolio` folder holding the photos (A45) |
+| `portfolios` | tenant (one each), published, format (gallery, mosaic), opening text (≤ 1000), social profiles ({network: address}), the `_portfolio` folder holding the photos (A45) |
 | `portfolio_sections` | tenant, order, a site project type's key or the office's own name (≤ 40), the slug in the page's address (unique in the office): a section of the painel's Portfólio tab and an item of the public page's menu (A45) |
 | `portfolio_entries` | tenant, order, section (optional), title (≤ 80, optional), place (≤ 80), year, description (≤ 2000), photo credits (≤ 120), the project it was drawn from (optional, staff only): each piece the portfolio shows, a photo on its own or a project of several (A45) |
 | `portfolio_details` | tenant, work, order, a built-in detail's key and value type (as `project_details`, never the client) or the office's own label (≤ 40, text only), the value in the column of its type: each line of a work's sheet (A45) |

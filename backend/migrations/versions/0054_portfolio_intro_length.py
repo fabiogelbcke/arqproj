@@ -1,0 +1,31 @@
+"""The portfolio's opening text ("Apresentação") takes up to 1000 characters, 600
+until now (A45; Fabio, 12 Nov 2026).
+
+Revision: 0054
+Previous: 0053
+"""
+
+from collections.abc import Sequence
+
+from alembic import op
+
+revision: str = "0054"
+down_revision: str | None = "0053"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
+
+def upgrade() -> None:
+    op.drop_constraint(op.f("ck_portfolios_intro_length"), "portfolios", type_="check")
+    op.create_check_constraint(
+        op.f("ck_portfolios_intro_length"), "portfolios", "length(intro) <= 1000"
+    )
+
+
+def downgrade() -> None:
+    # A text written at the new length is cut to the old one, never refused.
+    op.execute("UPDATE portfolios SET intro = left(intro, 600) WHERE length(intro) > 600")
+    op.drop_constraint(op.f("ck_portfolios_intro_length"), "portfolios", type_="check")
+    op.create_check_constraint(
+        op.f("ck_portfolios_intro_length"), "portfolios", "length(intro) <= 600"
+    )
