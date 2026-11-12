@@ -65,6 +65,13 @@ describe("sending a file to its upload session", () => {
     expect(progress).toEqual([1]);
   });
 
+  it("counts the file as complete when, after a break, all of it had arrived", async () => {
+    session(["break", { status: 308, headers: { Range: "bytes=0-9" } }], { tellsProgress: false });
+    const progress: number[] = [];
+    await sendFile("https://upload.example/s", file(), (p) => progress.push(p), NO_WAIT);
+    expect(progress).toEqual([1]);
+  });
+
   it("after Google's 5xx, starts over when nothing arrived", async () => {
     const sent = session([{ status: 503 }, { status: 308 }, { status: 201 }]);
     await sendFile("https://upload.example/s", file(), () => {}, NO_WAIT);

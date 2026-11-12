@@ -104,7 +104,10 @@ export async function sendFile(
   for (let attempt = 0; ; attempt += 1) {
     try {
       const from = attempt === 0 ? 0 : await received(url, file.size);
-      if (attempt > 0 && from >= file.size) return;
+      if (attempt > 0 && from >= file.size) {
+        onProgress(1); // it had all arrived before the connection broke
+        return;
+      }
       const headers: Record<string, string> =
         from === 0
           ? file.type
