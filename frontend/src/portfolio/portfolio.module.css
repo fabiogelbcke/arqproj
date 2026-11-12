@@ -9,7 +9,6 @@
 .crumbs a { color: inherit; }
 .crumbs a:hover { color: var(--ink); }
 .title { font: 500 32px/1.15 var(--display-font); letter-spacing: -0.015em; overflow-wrap: anywhere; }
-.lead { color: var(--muted); max-width: 70ch; }
 .hint { font-size: var(--text-sm); color: var(--muted); }
 .hint a { color: var(--ink); }
 .warning { font-size: var(--text-sm); color: var(--danger); }

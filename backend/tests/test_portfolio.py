@@ -1,9 +1,10 @@
-"""The office's portfolio: edited in the painel, behind the `portfolio` feature
-(A40), and shown at its own address's root once published."""
+"""The office's portfolio: edited in the painel by any office, and shown at its
+own address's root once published."""
 
 import re
 import uuid
 from datetime import date
+from html import escape
 
 import pytest
 from sqlalchemy import text
@@ -33,18 +34,10 @@ def png(width: int, height: int) -> bytes:
     return buffer.getvalue()
 
 
-async def switch_on(db, slug="alinea"):
-    await db.execute(
-        text("UPDATE tenants SET features = features || '{portfolio}' WHERE slug = :s"),
-        {"s": slug},
-    )
-
-
 @pytest.fixture
 async def staff(office_owner, db_session):
-    """Alinea's owner, with the portfolio switched on for the office, and its
-    before-and-after comparisons (A46)."""
-    await switch_on(db_session)
+    """Alinea's owner, with before-and-after comparisons switched on for the
+    office (A46)."""
     await db_session.execute(
         text("UPDATE tenants SET features = features || '{before_after}' WHERE slug = 'alinea'")
     )
@@ -103,29 +96,61 @@ async def publish(client, headers, published=True):
     assert answer.status_code == 200, answer.text
 
 
-async def test_without_the_feature_the_portfolio_is_refused_and_the_root_stays_unios(
-    client, office_owner
+async def test_unpublished_the_offices_address_shows_its_card_and_unios_keeps_its_home(
+    client, staff, db_session
 ):
-    answer = await client.get("/api/portfolio", headers=ALINEA)
-    assert (answer.status_code, answer.json()["error"]) == (409, "feature_off")
-    # The public photo and video routes too: the switch covers the whole router.
-    for public in ("photos/" + str(uuid.uuid4()), "videos/" + str(uuid.uuid4()) + "/poster"):
-        refused = await client.get(f"/api/portfolio/{public}", headers=ALINEA)
-        assert refused.status_code == 409, public
-    root = await client.get("/", headers=ALINEA)
-    assert root.status_code == 200 and "UNIO" in root.text
-
-
-async def test_unios_home_on_an_office_address_is_not_kept_by_the_browser(client, staff):
-    """Published, or previewed after signing in, the portfolio shows at once: the
-    home shown there until then was never cached (on Unio's own address it is)."""
+    """Before publishing, the office's address is a card of the office (never
+    Unio's home, which isn't the office's): its name (or logo), the ways to reach
+    it and its networks where saved, and the way in for staff. Published, or
+    previewed after signing in, the portfolio shows at once: the card was never
+    cached (on Unio's own address the home is)."""
+    await client.patch("/api/office", json={"contact_email": "oi@alinea.example"}, headers=staff)
+    await db_session.execute(
+        text(
+            "UPDATE office_profiles SET phone = '(51) 3333-4444', "
+            "whatsapp = '51 99999-0000', city = 'Porto Alegre'"
+        )
+    )
+    saved = await client.patch(
+        "/api/portfolio",
+        json={"links": {"instagram": "https://www.instagram.com/alinea"}},
+        headers=staff,
+    )
+    assert saved.status_code == 200, saved.text
+    name = (await client.get("/api/office", headers=staff)).json()["name"]
     client.cookies.clear()
-    before = await client.get("/", headers=ALINEA)
-    assert before.status_code == 200 and "UNIO" in before.text
-    assert before.headers["cache-control"] == "no-cache"
+    card = await client.get("/", headers=ALINEA)
+    assert card.status_code == 200 and "UNIO" not in card.text
+    assert card.headers["cache-control"] == "no-cache"
+    assert f"<h1><span>{escape(name)}</span></h1>" in card.text
+    for way in ("mailto:oi@alinea.example", "https://wa.me/5551999990000", "tel:5133334444"):
+        assert f'href="{way}"' in card.text, way
+    assert "Porto Alegre" in card.text
+    assert 'href="https://www.instagram.com/alinea"' in card.text and "Instagram" in card.text
+    assert 'href="/painel/">Acesso da equipe</a>' in card.text
     unios = await client.get("/", headers={"host": "localhost"})  # Unio's own address
     assert unios.status_code == 200 and "UNIO" in unios.text
     assert unios.headers["cache-control"] == "public, max-age=3600"
+
+
+async def test_an_office_with_nothing_saved_still_has_its_card(client, office_owner):
+    card = await client.get("/", headers=ALINEA)
+    assert card.status_code == 200 and "<h1>" in card.text and "UNIO" not in card.text
+    assert "mailto:" not in card.text and 'class="nets"' not in card.text
+
+
+async def test_unios_home_shows_when_the_office_cant_be_read(client, staff, monkeypatch):
+    """Looking the office up never stops the address answering: any failure
+    falls back to Unio's home, which needs no database."""
+    from backend.web import portfolio_page
+
+    async def away(*args, **kwargs):
+        raise RuntimeError("database away")
+
+    monkeypatch.setattr(portfolio_page, "resolve", away)
+    client.cookies.clear()
+    answer = await client.get("/", headers=ALINEA)
+    assert answer.status_code == 200 and "UNIO" in answer.text
 
 
 async def test_a_type_the_operator_added_is_shown_by_its_own_name(client, staff, db_session):
@@ -287,7 +312,8 @@ async def test_photos_are_public_only_once_published(client, staff):
     assert (await client.get(url, headers=ALINEA)).status_code == 200  # staff, before
     client.cookies.clear()
     assert (await client.get(url, headers=ALINEA)).status_code == 404
-    assert "UNIO" in (await client.get("/", headers=ALINEA)).text  # not published yet
+    # Not published yet: the office's card, not the portfolio.
+    assert 'href="/painel/"' in (await client.get("/", headers=ALINEA)).text
 
 
 async def test_published_the_offices_address_shows_the_portfolio_and_unios_keeps_its_home(
@@ -401,7 +427,6 @@ async def test_staff_preview_an_unpublished_portfolio_and_visitors_dont(client, 
 
 async def test_a_work_draws_only_on_the_offices_own_projects(client, db_session, staff):
     elsewhere = await project_id(client)
-    await switch_on(db_session, "norte")
     norte = await sign_in_as(
         client, db_session, "dono@norte.example", Role.OWNER, host=NORTE, slug="norte"
     )
@@ -413,7 +438,6 @@ async def test_a_work_draws_only_on_the_offices_own_projects(client, db_session,
 
 async def test_one_offices_works_are_out_of_anothers_reach(client, db_session, staff):
     entry = await add(client, staff)
-    await switch_on(db_session, "norte")
     norte = await sign_in_as(
         client, db_session, "dono@norte.example", Role.OWNER, host=NORTE, slug="norte"
     )
@@ -546,7 +570,6 @@ async def test_sections_are_the_offices_own_and_removed_only_when_empty(client, 
     assert emptied.status_code == 200 and len(emptied.json()["sections"]) == 2
 
     # Another office: none of these, and no reach into them.
-    await switch_on(db_session, "norte")
     norte = await sign_in_as(
         client, db_session, "dono@norte.example", Role.OWNER, host=NORTE, slug="norte"
     )

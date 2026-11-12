@@ -40,7 +40,6 @@ function Painel() {
   // The painel's tour, on demand only (plan section 16): from the account menu and the phone's drawer. Loaded when asked for.
   // Proposals have their own tab, where switched on (A40, A42).
   const proposals = me.data?.features.includes("proposals") ?? false;
-  const portfolio = me.data?.features.includes("portfolio") ?? false;
   // An operator in a support session (A43): until when, in the viewer's own time.
   const support = me.data?.support_until
     ? new Date(me.data.support_until).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })
@@ -70,7 +69,7 @@ function Painel() {
               {t("nav.projects")}
             </NavLink>
             {proposals && <NavLink to="/propostas">{t("nav.proposals")}</NavLink>}
-            {portfolio && <NavLink to="/portfolio">{t("nav.portfolio")}</NavLink>}
+            <NavLink to="/portfolio">{t("nav.portfolio")}</NavLink>
             <NavLink to="/configuracoes" data-tour="settings">
               {t("nav.settings")}
             </NavLink>
