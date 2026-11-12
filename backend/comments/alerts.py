@@ -6,7 +6,7 @@ A project's new client comments go in one email, once quiet for a few minutes
 fixed when it first goes (`alert_batch`): a retry after a failure sends that same
 email under the same idempotency key per address, so nobody gets it twice, and
 comments arriving meanwhile wait for the next. They are marked as told once
-every address got it.
+every address got it, or a day after the first try.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 
 QUIET = timedelta(minutes=5)  # after the latest comment
 HOLD = timedelta(minutes=30)  # after the first, however many follow
-GIVE_UP = timedelta(days=1)  # still failing: logged, and not tried again
+GIVE_UP = timedelta(days=1)  # after the first try, still failing: logged, not tried again
 QUOTED = 300  # characters of each comment the email quotes
 _TEMPLATES = Path(__file__).parent.parent / "notifications" / "templates"
 _TEMPLATE = Template((_TEMPLATES / "comments.html").read_text("utf-8"))
@@ -106,6 +106,7 @@ async def deliver(
         batch = uuid.uuid4()
         for comment in pending:
             comment.alert_batch = batch
+            comment.alert_tried_at = now
     recipients = await _recipients(db, project, Feature.PROJECT_MEMBERS in features)
     slug = await db.scalar(
         select(ProjectSlug.slug).where(ProjectSlug.project_id == project.id, ProjectSlug.is_current)
@@ -144,7 +145,7 @@ async def deliver(
                 project.id,
                 error.detail,
             )
-    if failed and now - pending[0].created_at < GIVE_UP:
+    if failed and now - pending[0].alert_tried_at < GIVE_UP:
         return sent  # tried again next pass; those already sent aren't sent twice
     if failed:
         log.error("comments: giving up emailing staff of %s/%s", project.tenant_id, project.id)

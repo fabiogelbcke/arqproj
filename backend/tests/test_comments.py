@@ -443,6 +443,29 @@ async def test_a_failed_email_is_retried_and_none_goes_twice(
     assert len(outbox.sent) == 3
 
 
+async def test_a_day_of_retries_counts_from_the_first_try(
+    app, client, visitor, db_session, owner, folders
+):
+    """A comment that waited long (the pass stopped, or comments only now on) is
+    still tried for a day when its first email fails; then given up."""
+    await sign_in_as(client, db_session, "bruno@alinea.example", Role.MEMBER)
+    outbox = Outbox()
+    outbox.fail.add("bruno@alinea.example")
+    await said(visitor, "Olá", position=1, name="Maria")
+    await age_comments(db_session, 2 * 24 * 60)
+    await run_with(app, outbox)
+    outbox.fail.add("bruno@alinea.example")
+    await run_with(app, outbox)  # tried again, though the comment is two days old
+    assert [e.to for e in outbox.sent] == [STAFF, STAFF]
+    await db_session.execute(
+        text("UPDATE comments SET alert_tried_at = alert_tried_at - interval '25 hours'")
+    )
+    outbox.fail.add("bruno@alinea.example")
+    await run_with(app, outbox)  # a day after the first try: the last
+    await run_with(app, outbox)
+    assert [e.to for e in outbox.sent] == [STAFF, STAFF, STAFF]
+
+
 async def test_removed_or_switched_off_comments_never_email(
     app, client, visitor, db_session, owner, folders
 ):

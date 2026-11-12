@@ -62,7 +62,8 @@ class Comment(IdMixin, CreatedAtMixin, TenantOwned, Base):
     author_name: Mapped[str] = mapped_column(Text)
     body: Mapped[str] = mapped_column(Text)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # A client's comment: the email to staff it is in, fixed when that first goes,
-    # and when every address got it.
+    # A client's comment: the email to staff it is in, fixed when that is first
+    # tried, and when every address got it.
     alert_batch: Mapped[uuid.UUID | None] = mapped_column()
+    alert_tried_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     staff_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -153,6 +153,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
     assert _column_grants(migrated_url, group) == {
         ("comments", "removed_at", "UPDATE"),  # staff remove one (A49)
         ("comments", "alert_batch", "UPDATE"),  # its client's comment emailed
+        ("comments", "alert_tried_at", "UPDATE"),
         ("comments", "staff_notified_at", "UPDATE"),
         ("users", "password_hash", "UPDATE"),
         ("users", "tour_seen_at", "UPDATE"),  # the project page's tour, once per account
