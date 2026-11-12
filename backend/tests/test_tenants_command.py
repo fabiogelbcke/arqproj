@@ -62,6 +62,11 @@ async def test_a_new_primary_address_demotes_the_old_one(database):
         (["add-host", "--slug", "alinea", "--host", "https://free.example"], "Not a usable"),
         (["add-host", "--slug", "alinea", "--host", "free.example:443"], "Not a usable"),
         (["add-host", "--slug", "alinea", "--host", "free.example/painel"], "Not a usable"),
+        (
+            ["add", "--slug", "outra", "--name", "B", "--host", "free.example"]
+            + ["--timezone", "GMT-3"],
+            "Not a known time zone",
+        ),
     ],
 )
 async def test_mistakes_are_refused_and_change_nothing(database, argv, error):
