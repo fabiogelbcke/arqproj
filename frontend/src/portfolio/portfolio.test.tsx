@@ -229,6 +229,26 @@ describe("the Portfólio tab", () => {
     expect(await screen.findByText("3 fotos adicionadas.")).toBeInTheDocument();
   });
 
+  it("can't be closed while the photos go up, so the upload's outcome is never hidden", async () => {
+    let answer: (reply: { body: unknown }) => void = () => undefined;
+    api({ "POST /api/portfolio/photos": () => new Promise((resolve) => (answer = resolve)) });
+    renderAt("/portfolio");
+    const input = await screen.findByLabelText("Enviar fotos para Interiores");
+    await userEvent.upload(input, [new File(["a"], "sala.jpg", { type: "image/jpeg" })]);
+    const dialog = await screen.findByRole("dialog", { name: "1 foto" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Adicionar" }));
+    expect(await within(dialog).findByText("Enviando 0 de 1…")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    expect(screen.getByRole("dialog", { name: "1 foto" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Fechar" })).toBeDisabled();
+    within(dialog).getByRole("combobox", { name: "Em um projeto" }).focus();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("dialog", { name: "1 foto" })).toBeInTheDocument();
+    answer({ body: PORTFOLIO });
+    expect(await screen.findByText("1 foto adicionada.")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("makes one project of a drop when asked, opened on its photos", async () => {
     const made = { ...PORTFOLIO, entries: [entry({ id: "e-new", title: "Casa Nova", photos: [], project_id: null }), ...PORTFOLIO.entries] };
     const sent = api({

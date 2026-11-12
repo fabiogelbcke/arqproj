@@ -89,6 +89,8 @@
 /* Dialogs: a project to draw from, a project's images to pick. */
 .dialogBody { display: grid; gap: 16px; min-width: 0; }
 .dialogActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+/* An upload's bar (ui/ProgressBar): a line of its own, above the buttons or the list. */
+.uploadProgress { flex-basis: 100%; margin-block: 4px 8px; }
 .choices { display: grid; gap: 4px; max-height: 55vh; overflow: auto; margin: 0; padding: 0; list-style: none; }
 .choice {
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 6px; border: 0; border-radius: var(--r-card);
@@ -207,7 +209,7 @@
 
 /* The bar at the bottom while pieces are selected: the project page's dock. */
 .dock {
-  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 40;
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: var(--z-floating);
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 64px; padding: 12px 14px 12px 22px;
   width: min(calc(100vw - 32px), 920px); border-radius: 20px; background: var(--ink); color: var(--bg);
   box-shadow: 0 0 0 2px var(--bg), 0 14px 36px rgb(0 0 0 / 30%), 0 3px 8px rgb(0 0 0 / 18%);

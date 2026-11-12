@@ -145,7 +145,7 @@
 .saveBar { position: sticky; bottom: 0; padding: 12px 0; background: var(--surface); }
 
 /* The warning before a change that reaches existing projects: big, red, signed. */
-.warningOverlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 45%); }
+.warningOverlay { position: fixed; inset: 0; z-index: var(--z-confirm); display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 45%); }
 .warningModal { width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto; border-radius: var(--r-card); }
 .warning {
   display: grid; gap: 14px; padding: 24px; outline: none; border: 3px solid var(--danger); border-radius: var(--r-card);
@@ -154,13 +154,11 @@
 .warning p { margin: 0; line-height: 1.5; }
 .warningSign {
   display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%;
-  background: var(--danger); color: #fff; font-size: 30px; line-height: 1;
+  background: var(--danger); color: var(--on-danger); font-size: 30px; line-height: 1;
 }
 .warningTitle { margin: 0; color: var(--danger); font: 600 22px/1.2 var(--display-font); }
 .warningList { margin: 0; padding: 12px 14px; list-style: none; display: grid; gap: 6px; border-radius: var(--r-field); background: var(--danger-soft); color: var(--danger); font-weight: 500; }
 .warningNote { color: var(--muted); font-size: var(--text-sm); }
-.warningConfirm { background: var(--danger); border-color: var(--danger); color: #fff; }
-.warningConfirm[data-hovered] { border-color: var(--danger); filter: brightness(1.1); }
 
 @media (max-width: 720px) {
   .settings { grid-template-columns: minmax(0, 1fr); }

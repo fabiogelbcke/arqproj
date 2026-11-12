@@ -2,7 +2,8 @@
   "app": {
     "name": "Dashboard",
     "loading": "Loading…",
-    "close": "Close"
+    "close": "Close",
+    "working": "Please wait…"
   },
   "footer": {
     "tagline": "Projects connect people.",
@@ -144,7 +145,6 @@
     "slugTakenBy": "This address already belongs to “{{name}}”. Choose another.",
     "publishNote": "The project is published at once: the client can open its link right away. Its folder is created in the office's Google Drive.",
     "create": "Create project",
-    "creating": "Creating…",
     "cancel": "Cancel",
     "created": "Project “{{name}}” created.",
     "noStagesHint": "No stages selected. You can add stages on the project page.",
@@ -176,8 +176,7 @@
     "done": "Project set up. You can change any of this in edit mode.",
     "skip": "Skip",
     "next": "Continue",
-    "finish": "Finish",
-    "saving": "Saving…"
+    "finish": "Finish"
   },
   "projectTypeShort": {
     "architecture": "Architecture",
@@ -210,7 +209,6 @@
     "archive": "Archive",
     "cancel": "Cancel",
     "save": "Save",
-    "saving": "Saving…",
     "saved": "Saved.",
     "archived": "Project “{{name}}” archived.",
     "undo": "Undo",
@@ -476,6 +474,11 @@
   "confirm": {
     "cancel": "Cancel"
   },
+  "copy": {
+    "copied": "Link copied.",
+    "failed": "Couldn't copy. Select the link and copy it yourself.",
+    "failedLink": "Couldn't copy. The link is {{link}}"
+  },
   "painelTour": {
     "again": "Explore the dashboard",
     "first-stepsTitle": "First steps",
@@ -574,7 +577,6 @@
     "staffBar": "Office tools",
     "backToPainel": "Painel",
     "copyLink": "Copy the client's link",
-    "linkCopied": "Link copied.",
     "password": "Password",
     "enter": "Enter",
     "noFilesShort": "No files",
@@ -927,7 +929,6 @@
     "name": "Name",
     "email": "Email",
     "invite": "Send invite",
-    "inviting": "Sending…",
     "invited": "Invitation sent to {{email}}. You can also share the link:",
     "notEmailed": "The email could not be sent. Copy the link and share it with the person you invited:",
     "inviteLink": "Invite link",
@@ -938,7 +939,6 @@
     "cancel": "Cancel invite",
     "cancelled": "Invite to {{email}} cancelled.",
     "copy": "Copy link",
-    "copied": "Link copied.",
     "linkTitle": "Invite with a link",
     "linkIntro": "Share this link to invite people to the team. It is valid for 24 hours and does not grant administrator access.",
     "linkOn": "Create invite link",
@@ -1058,8 +1058,6 @@
     "readyHint": "Send this link to whoever is receiving the files.",
     "link": "Link to share",
     "copy": "Copy link",
-    "copied": "Link copied",
-    "copyFailed": "Couldn't copy. Select the link and copy it yourself.",
     "shareSheet": "Share…",
     "done": "Done",
     "validUntil": "Valid until {{date}}",
@@ -1126,7 +1124,6 @@
       "en": "English",
       "enHint": "Left blank, the Portuguese is used.",
       "save": "Save changes",
-      "saving": "Saving…",
       "saved": "Changes saved.",
       "add": "Add",
       "notFound": "This item no longer exists. Go back to the list and reload the page.",
@@ -1459,7 +1456,6 @@
       "email": "Email",
       "viewPdf": "View PDF",
       "save": "Save proposal",
-      "saving": "Saving…",
       "saveHint": "Each save makes a new version. The client always sees the latest.",
       "saved": "Proposal saved (version {{version}}).",
       "officeUpdate": {
@@ -1701,8 +1697,6 @@
     "removeFromPortfolio": "Remove from the portfolio",
     "share": "Share",
     "shareSection": "Share the section {{name}}",
-    "linkCopied": "Link copied.",
-    "copyFailed": "Couldn't copy. The address is {{url}}",
     "intro": "Introduction",
     "introHint": "Shows after the projects, in the Office section.",
     "introPlaceholder": "E.g. Residential and interior architecture in Porto Alegre.",
@@ -1760,7 +1754,7 @@
     "videos": "Videos",
     "videosHint": "MP4 or WebM videos up to 200 MB, kept in the office's Google Drive like the photos. They show among this project's photos and open full screen.",
     "uploadVideos": "Upload videos",
-    "videoUploading": "Uploading video {{n}} of {{total}}: {{percent}}%",
+    "videoUploading": "Uploading video {{n}} of {{total}}…",
     "videosAdded_one": "{{count}} video added.",
     "videosAdded_other": "{{count}} videos added.",
     "tooManyVideos": "Each project can have up to {{count}} videos; the rest weren't uploaded.",

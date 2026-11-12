@@ -2,7 +2,8 @@
   "app": {
     "name": "Painel",
     "loading": "Carregando…",
-    "close": "Fechar"
+    "close": "Fechar",
+    "working": "Aguarde…"
   },
   "footer": {
     "tagline": "Projetos conectam pessoas.",
@@ -144,7 +145,6 @@
     "slugTakenBy": "Este endereço já é do projeto “{{name}}”. Escolha outro.",
     "publishNote": "O projeto é publicado na hora: o cliente já pode abrir o link. A pasta do projeto é criada no Google Drive do escritório.",
     "create": "Criar projeto",
-    "creating": "Criando…",
     "cancel": "Cancelar",
     "created": "Projeto “{{name}}” criado.",
     "noStagesHint": "Nenhuma etapa selecionada. Você pode adicionar etapas na página do projeto.",
@@ -176,8 +176,7 @@
     "done": "Projeto configurado. Você poderá alterar essas informações no modo de edição.",
     "skip": "Pular",
     "next": "Continuar",
-    "finish": "Concluir",
-    "saving": "Salvando…"
+    "finish": "Concluir"
   },
   "projectTypeShort": {
     "architecture": "Arquitetônico",
@@ -210,7 +209,6 @@
     "archive": "Arquivar",
     "cancel": "Cancelar",
     "save": "Salvar",
-    "saving": "Salvando…",
     "saved": "Salvo.",
     "archived": "Projeto “{{name}}” arquivado.",
     "undo": "Desfazer",
@@ -476,6 +474,11 @@
   "confirm": {
     "cancel": "Cancelar"
   },
+  "copy": {
+    "copied": "Link copiado.",
+    "failed": "Não foi possível copiar. Selecione o link e copie manualmente.",
+    "failedLink": "Não foi possível copiar. O link é {{link}}"
+  },
   "painelTour": {
     "again": "Ver o tour do painel",
     "first-stepsTitle": "Primeiros passos",
@@ -574,7 +577,6 @@
     "staffBar": "Ferramentas do escritório",
     "backToPainel": "Painel",
     "copyLink": "Copiar link do cliente",
-    "linkCopied": "Link copiado.",
     "password": "Senha",
     "enter": "Entrar",
     "noFilesShort": "Sem arquivos",
@@ -927,7 +929,6 @@
     "name": "Nome",
     "email": "E-mail",
     "invite": "Enviar convite",
-    "inviting": "Enviando…",
     "invited": "Convite enviado para {{email}}. Você também pode compartilhar o link:",
     "notEmailed": "Não foi possível enviar o e-mail. Copie o link e compartilhe com a pessoa convidada:",
     "inviteLink": "Link do convite",
@@ -938,7 +939,6 @@
     "cancel": "Cancelar convite",
     "cancelled": "Convite para {{email}} cancelado.",
     "copy": "Copiar link",
-    "copied": "Link copiado.",
     "linkTitle": "Convidar através de um link",
     "linkIntro": "Compartilhe este link para convidar pessoas para a equipe. Ele é válido por 24 horas e não concede acesso de administrador.",
     "linkOn": "Criar link de convite",
@@ -1058,8 +1058,6 @@
     "readyHint": "Envie este link a quem vai receber os arquivos.",
     "link": "Link para compartilhar",
     "copy": "Copiar link",
-    "copied": "Link copiado",
-    "copyFailed": "Não foi possível copiar. Selecione o link e copie manualmente.",
     "shareSheet": "Compartilhar…",
     "done": "Concluir",
     "validUntil": "Válido até {{date}}",
@@ -1126,7 +1124,6 @@
       "en": "Inglês",
       "enHint": "Em branco, usa o português.",
       "save": "Salvar alterações",
-      "saving": "Salvando…",
       "saved": "Alterações salvas.",
       "add": "Adicionar",
       "notFound": "Este item não existe mais. Volte à lista e recarregue a página.",
@@ -1459,7 +1456,6 @@
       "email": "E-mail",
       "viewPdf": "Ver PDF",
       "save": "Salvar proposta",
-      "saving": "Salvando…",
       "saveHint": "Cada vez que você salva, uma nova versão é criada. O cliente vê sempre a mais recente.",
       "saved": "Proposta salva (versão {{version}}).",
       "officeUpdate": {
@@ -1701,8 +1697,6 @@
     "removeFromPortfolio": "Remover do portfólio",
     "share": "Compartilhar",
     "shareSection": "Compartilhar a seção {{name}}",
-    "linkCopied": "Link copiado.",
-    "copyFailed": "Não foi possível copiar. O endereço é {{url}}",
     "intro": "Apresentação",
     "introHint": "Aparece depois dos projetos, na seção Escritório.",
     "introPlaceholder": "Ex.: Arquitetura residencial e de interiores em Porto Alegre.",
@@ -1760,7 +1754,7 @@
     "videos": "Vídeos",
     "videosHint": "Vídeos em MP4 ou WebM, de até 200 MB, guardados no Google Drive do escritório como as fotos. Aparecem entre as fotos deste projeto e abrem em tela cheia.",
     "uploadVideos": "Enviar vídeos",
-    "videoUploading": "Enviando vídeo {{n}} de {{total}}: {{percent}}%",
+    "videoUploading": "Enviando vídeo {{n}} de {{total}}…",
     "videosAdded_one": "{{count}} vídeo adicionado.",
     "videosAdded_other": "{{count}} vídeos adicionados.",
     "tooManyVideos": "Cada projeto pode ter até {{count}} vídeos; os demais não foram enviados.",
