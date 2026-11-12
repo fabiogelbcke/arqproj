@@ -287,7 +287,7 @@ async def create_project(
         if project_folder is not None:
             try:
                 await maker.trash(project_folder)  # its stage folders go with it
-            except Exception:  # noqa: BLE001 - the original failure is what matters
+            except Exception:  # the original failure is what matters
                 log.exception("could not trash new folder %s", project_folder)
         if isinstance(error, IntegrityError):
             broken = error.orig.diag.constraint_name  # the rule, not words in the message

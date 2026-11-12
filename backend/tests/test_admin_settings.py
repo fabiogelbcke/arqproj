@@ -368,9 +368,9 @@ async def test_only_the_operator_login_writes_the_lists(app, actions_enabled):
 
     change = text("UPDATE stage_definitions SET hidden = hidden WHERE key = 'briefing'")
     async with app.state.sessionmaker() as db:
-        with pytest.raises(ProgrammingError):
+        with pytest.raises(ProgrammingError, match="permission denied"):
             await db.execute(change)
     async with app.state.operator_sessionmaker() as db:
         await db.execute(change)
-        with pytest.raises(ProgrammingError):
+        with pytest.raises(ProgrammingError, match="permission denied"):
             await db.execute(text("UPDATE projects SET name = name"))

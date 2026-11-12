@@ -6,8 +6,9 @@ test it. These instructions apply only when someone works on it.
 
 ## Testing
 
-- When the current app's libraries change, update both `requirements.txt`
-  (production deploys from it) and the `legacy` group in `pyproject.toml`.
+- When the old app's libraries change, update both its `requirements.txt` and
+  the `legacy` group in `pyproject.toml`. Neither is deployed: production runs
+  the new app's image (`deploy/Dockerfile`).
 - Run its complete suite with `.venv/bin/python -m tools.test_local`.
   Prepare the environment with `uv sync`, then `npm ci` and
   `npm run browsers:install` if needed. The runner uses isolated fictional data,

@@ -12,6 +12,7 @@ from backend.tests import test_office
 from backend.tests.conftest import TEST_DATABASE_URL
 from backend.tests.test_monitoring_command import pass_line_pattern
 from backend.tests.test_office import ALINEA
+from backend.tests.test_page_edit import in_days
 
 owner = test_office.owner  # fixtures
 
@@ -249,9 +250,7 @@ async def test_completing_or_reopening_a_stage_and_completing_the_project_are_re
 
 
 async def test_meetings_and_notes_are_recorded(client, db_session, owner, folders):
-    from datetime import date, timedelta
-
-    day = (date.today() + timedelta(days=5)).isoformat()
+    day = in_days(5)
     await call(client, owner, "PUT", "/meeting", title="Visita", day=day, start="10:00")
     await call(client, owner, "PUT", "/meeting", title="Visita à obra", day=day, start="11:00")
     await call(client, owner, "DELETE", "/meeting")
@@ -269,9 +268,7 @@ async def test_meetings_and_notes_are_recorded(client, db_session, owner, folder
 
 
 async def test_saving_the_meeting_unchanged_records_nothing(client, db_session, owner, folders):
-    from datetime import date, timedelta
-
-    day = (date.today() + timedelta(days=5)).isoformat()
+    day = in_days(5)
     meeting = {"title": "Visita", "day": day, "start": "10:00", "location": "Obra"}
     await call(client, owner, "PUT", "/meeting", **meeting)
     before = (await events(db_session), await casa(db_session, "last_activity_at"))
