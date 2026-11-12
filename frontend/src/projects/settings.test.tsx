@@ -175,6 +175,24 @@ describe("the Projeto dialog", () => {
     expect(within(dialog).getByLabelText(/Nome do projeto/)).toHaveValue("Casa Jardim II"); // kept
   });
 
+  it("stays open while it saves, so a failure is never hidden by closing it", async () => {
+    let answer: (reply: { status: number; body: unknown }) => void = () => undefined;
+    api({ [`PATCH ${PATH}`]: () => new Promise((resolve) => (answer = resolve)) });
+    const dialog = await openSettings();
+    await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), " II");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    const save = within(dialog).getByRole("button", { name: /^Salvar/ });
+    expect(await within(save).findByRole("progressbar", { name: "Aguarde…" })).toBeInTheDocument();
+    expect(save).toHaveAttribute("aria-disabled", "true");
+    expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Fechar" })).toBeDisabled();
+    within(dialog).getByLabelText(/Nome do projeto/).focus();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("dialog", { name: "Projeto" })).toBeInTheDocument();
+    answer({ status: 409, body: { error: "project_changed" } });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("alterado por outra pessoa");
+  });
+
   it("names the project that already has the name", async () => {
     api({
       [`PATCH ${PATH}`]: () => ({ status: 409, body: { error: "project_name_taken", conflict_name: "Casa das Oliveiras" } }),

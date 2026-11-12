@@ -30,6 +30,23 @@ function invite(email: string, name = "Ana", role = "owner"): string {
   return output.match(/http\S+#token=\S+/)![0].replace(/:\d+\//, `:${PORT}/`);
 }
 
+/** Holds the requests `match` picks until the returned release is called: a
+ *  save or an upload shot while it runs. The rest go on as usual. Released
+ *  with `false`, the held ones fail instead, so nothing is saved. */
+async function hold(page: Page, url: string, match: (method: string) => boolean = () => true) {
+  let release: (send: boolean) => void = () => undefined;
+  const waiting = new Promise<boolean>((resolve) => (release = resolve));
+  await page.route(url, async (route) => {
+    if (!match(route.request().method())) return route.continue();
+    const send = await waiting;
+    await (send ? route.continue() : route.abort()).catch(() => undefined); // the page may have moved on
+  });
+  return async (send = true) => {
+    release(send);
+    await page.unroute(url);
+  };
+}
+
 /** The whole page; a dialog is shot as the screen shows it (it covers the screen, not the page). */
 async function shoot(page: Page, name: string, theme: "light" | "dark" = "light") {
   await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
@@ -161,7 +178,15 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await newEmail.press("Enter");
   await newEmail.scrollIntoViewIfNeeded();
   await shoot(page, "03d-projeto-emails");
+  // Saving: a spinner in Salvar, the rest held still until it answers.
+  const saved = await hold(page, "**/api/projects/*", (method) => method === "PATCH");
+  await page.getByRole("dialog", { name: "Projeto" }).getByRole("button", { name: "Salvar", exact: true }).click();
+  await page.getByRole("dialog", { name: "Projeto" }).getByRole("progressbar", { name: "Aguarde…" }).waitFor();
+  await shoot(page, "03e-projeto-salvando");
+  await saved(false); // not saved: the screens after this one stay as they were
+  await page.getByRole("dialog", { name: "Projeto" }).getByRole("progressbar").waitFor({ state: "detached" });
   await page.keyboard.press("Escape");
+  await page.getByRole("dialog", { name: "Projeto" }).waitFor({ state: "detached" });
 
   await page.goto("/painel/configuracoes/escritorio");
   await page.getByLabel(/Nome do escritório/).waitFor();
@@ -318,7 +343,13 @@ test("@screenshots staff app", async ({ page, browser }) => {
     await comparing.getByRole("textbox", { name: `Rótulo de “${side}”` }).press("Enter");
   }
   await shoot(page, "06x-comparacao-nova");
+  // Sending: the upload bar (ui/ProgressBar) with its words and percentage.
+  let puts = 0; // the "before" image goes; the "after" one waits, so the bar stops part way
+  const uploaded = await hold(page, "**/*", (method) => method === "PUT" && ++puts === 2);
   await comparing.getByRole("button", { name: "Enviar comparação" }).click();
+  await comparing.getByText(/^[1-9]\d?%$/).waitFor();
+  await shoot(page, "06x-comparacao-enviando");
+  await uploaded();
   await stage.getByRole("button", { name: "Abrir Fachada" }).waitFor();
   await page.setViewportSize(SIZES[0]!);
   await stage.getByRole("button", { name: "Abrir Fachada" }).scrollIntoViewIfNeeded();
@@ -388,7 +419,11 @@ test("@screenshots staff app", async ({ page, browser }) => {
   const reopen = page.getByRole("alertdialog", { name: "Reabrir “Levantamento”?" });
   await reopen.waitFor();
   await shoot(page, "06p-reabrir-etapa");
+  const reopened = await hold(page, "**/stages/*/completion");
   await reopen.getByRole("button", { name: "Reabrir etapa" }).click();
+  await reopen.getByRole("progressbar", { name: "Aguarde…" }).waitFor();
+  await shoot(page, "06p-reabrir-etapa-confirmando");
+  await reopened();
   await reopen.waitFor({ state: "detached" });
   const visitor = await browser.newPage();
   await visitor.emulateMedia({ reducedMotion: "reduce" });

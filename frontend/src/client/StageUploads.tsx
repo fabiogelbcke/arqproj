@@ -18,6 +18,8 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { MoreIcon } from "../ui/MoreIcon";
 import { NameDialog } from "../ui/NameDialog";
+import { PendingContent } from "../ui/PendingContent";
+import { ProgressBar } from "../ui/ProgressBar";
 import { TextInput } from "../ui/TextInput";
 import { toast, toastError } from "../ui/Toast";
 import styles from "../ui/ui.module.css";
@@ -102,7 +104,10 @@ export async function sendFile(
   for (let attempt = 0; ; attempt += 1) {
     try {
       const from = attempt === 0 ? 0 : await received(url, file.size);
-      if (attempt > 0 && from >= file.size) return;
+      if (attempt > 0 && from >= file.size) {
+        onProgress(1); // it had all arrived before the connection broke
+        return;
+      }
       const headers: Record<string, string> =
         from === 0
           ? file.type
@@ -112,7 +117,10 @@ export async function sendFile(
       const answer = await put(url, from ? file.slice(from) : file, headers, (loaded) =>
         onProgress(file.size ? (from + loaded) / file.size : 1),
       );
-      if (answer.status < 300) return;
+      if (answer.status < 300) {
+        onProgress(1); // all of it, even when the browser told no progress on the way
+        return;
+      }
       if (!passing(answer.status)) throw refused(answer);
       last = { status: answer.status, detail: (answer.responseText ?? "").slice(0, 500) };
     } catch (failure) {
@@ -418,11 +426,10 @@ export function StageDrop({
                   <span className="uploads__percent" aria-hidden="true">
                     {Math.round(item.progress * 100)}%
                   </span>
-                  <progress
-                    className="upload-bar"
-                    max={1}
+                  <ProgressBar
+                    className="uploads__bar"
                     value={item.progress}
-                    aria-label={t("edit.sending", { name: item.name })}
+                    label={t("edit.sending", { name: item.name })}
                   />
                 </>
               )}
@@ -576,11 +583,10 @@ export function FileMenu({
         }}
       />
       {sendingVersion !== null && (
-        <progress
-          className="upload-bar filemenu__progress"
-          max={1}
+        <ProgressBar
+          className="filemenu__progress"
           value={sendingVersion}
-          aria-label={t("edit.sending", { name: file.name })}
+          label={t("edit.sending", { name: file.name })}
         />
       )}
       {open === "menu" && (
@@ -747,8 +753,14 @@ export function AddSection({
         <button className="b b--small" type="button" onClick={close}>
           {t("projectSettings.cancel")}
         </button>
-        <button className="b b--small b--primary" type="button" disabled={busy || !name.trim() || taken} onClick={submit}>
-          {t("edit.add")}
+        <button
+          className="b b--small b--primary"
+          type="button"
+          disabled={busy || !name.trim() || taken}
+          aria-busy={busy || undefined}
+          onClick={submit}
+        >
+          <PendingContent pending={busy}>{t("edit.add")}</PendingContent>
         </button>
       </div>
     </div>

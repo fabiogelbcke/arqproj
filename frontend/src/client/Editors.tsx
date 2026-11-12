@@ -8,6 +8,7 @@ import { ApiError, api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { ActionMenu } from "../ui/ActionMenu";
 import { EmailListField, addEmails } from "../ui/EmailListField";
+import { PendingContent } from "../ui/PendingContent";
 import { TextInput } from "../ui/TextInput";
 import { toast } from "../ui/Toast";
 import { OTHER_TYPE } from "../projects/StageChoice";
@@ -76,8 +77,8 @@ function Editor({
         <button className="b" type="button" onClick={onCancel}>
           {t("projectSettings.cancel")}
         </button>
-        <button className="b b--primary" type="submit" disabled={busy}>
-          {busy ? t("projectSettings.saving") : t("projectSettings.save")}
+        <button className="b b--primary" type="submit" disabled={busy} aria-busy={busy || undefined}>
+          <PendingContent pending={busy}>{t("projectSettings.save")}</PendingContent>
         </button>
       </div>
     </form>
