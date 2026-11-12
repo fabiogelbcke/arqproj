@@ -114,7 +114,10 @@ export async function sendFile(
       const answer = await put(url, from ? file.slice(from) : file, headers, (loaded) =>
         onProgress(file.size ? (from + loaded) / file.size : 1),
       );
-      if (answer.status < 300) return;
+      if (answer.status < 300) {
+        onProgress(1); // all of it, even when the browser told no progress on the way
+        return;
+      }
       if (!passing(answer.status)) throw refused(answer);
       last = { status: answer.status, detail: (answer.responseText ?? "").slice(0, 500) };
     } catch (failure) {

@@ -184,8 +184,9 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await page.getByRole("dialog", { name: "Projeto" }).getByRole("progressbar", { name: "Aguarde…" }).waitFor();
   await shoot(page, "03e-projeto-salvando");
   await saved(false); // not saved: the screens after this one stay as they were
-  await page.getByRole("dialog", { name: "Projeto" }).getByRole("alert").waitFor();
+  await page.getByRole("dialog", { name: "Projeto" }).getByRole("progressbar").waitFor({ state: "detached" });
   await page.keyboard.press("Escape");
+  await page.getByRole("dialog", { name: "Projeto" }).waitFor({ state: "detached" });
 
   await page.goto("/painel/configuracoes/escritorio");
   await page.getByLabel(/Nome do escritório/).waitFor();
@@ -343,9 +344,10 @@ test("@screenshots staff app", async ({ page, browser }) => {
   }
   await shoot(page, "06x-comparacao-nova");
   // Sending: the upload bar (ui/ProgressBar) with its words and percentage.
-  const uploaded = await hold(page, "**/*", (method) => method === "PUT");
+  let puts = 0; // the "before" image goes; the "after" one waits, so the bar stops part way
+  const uploaded = await hold(page, "**/*", (method) => method === "PUT" && ++puts === 2);
   await comparing.getByRole("button", { name: "Enviar comparação" }).click();
-  await comparing.getByRole("progressbar", { name: /Enviando a comparação/ }).waitFor();
+  await comparing.getByText(/^[1-9]\d?%$/).waitFor();
   await shoot(page, "06x-comparacao-enviando");
   await uploaded();
   await stage.getByRole("button", { name: "Abrir Fachada" }).waitFor();
