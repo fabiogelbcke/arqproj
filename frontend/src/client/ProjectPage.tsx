@@ -1113,7 +1113,9 @@ export function ProjectPage({
     const url = new URL(window.location.href);
     url.searchParams.delete(SETUP_PARAM);
     window.history.replaceState(window.history.state, "", url);
-  }, []); // on arrival only
+    // On arrival only: the address is cleaned once, whatever happens to the steps later.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // The guided tour (Tour.ts, loaded only for staff): once per account, then from the account menu
   // (not on an archived page, which can't be edited).
   const tour = (first: boolean) =>
@@ -1126,7 +1128,10 @@ export function ProjectPage({
     if (!page.staff || !ready || tourSeen || archived || tourOffered || settingUp) return;
     tourOffered = true; // once per visit, even if the page mounts again
     tour(true);
-  }, [ready, tourSeen, page.staff, settingUp]); // once, when the session is ready
+    // Once, when the session is ready: `tour` is a new function on every render and
+    // must not start the tour again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, tourSeen, page.staff, settingUp]);
   const [openEditor, setOpenEditor] = useState<string | null>(null);
   const staff = page.staff;
   // Stage controls wait for the reloaded page after each change (a new row version).

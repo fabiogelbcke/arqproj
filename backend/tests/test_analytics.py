@@ -27,7 +27,7 @@ def sent(app):
     """A real PostHog client whose messages are kept here instead of sent."""
     messages: list[dict] = []
     client = Posthog("phc_test", host="http://posthog.invalid")
-    client._enqueue = lambda msg, *args, **kwargs: messages.append(msg)  # noqa: SLF001
+    client._enqueue = lambda msg, *args, **kwargs: messages.append(msg)
     app.state.posthog = client
     yield messages
     client.disabled = True  # nothing left to send to the invalid host

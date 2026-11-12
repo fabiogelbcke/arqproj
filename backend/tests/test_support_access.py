@@ -174,9 +174,9 @@ async def test_a_support_sessions_events_never_reach_posthog(client, actions_ena
     settings = Settings(posthog_project_token="phc_test", posthog_host="http://posthog.invalid")
     posthog = posthog_for(settings, send=False)
     try:
-        assert all(posthog._enqueue(m, True) is None for m in tagged)  # noqa: SLF001
+        assert all(posthog._enqueue(m, True) is None for m in tagged)
         office_event = {"event": "x", "distinct_id": "a", "timestamp": None, "properties": {}}
-        assert posthog._enqueue(office_event, True) is not None  # noqa: SLF001
+        assert posthog._enqueue(office_event, True) is not None
     finally:
         posthog.shutdown()
 

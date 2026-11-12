@@ -227,7 +227,7 @@ async def test_offices_cant_switch_their_own_features(app, owner):
     from sqlalchemy.exc import ProgrammingError
 
     async with app.state.sessionmaker() as db:
-        with pytest.raises(ProgrammingError):
+        with pytest.raises(ProgrammingError, match="permission denied"):
             await db.execute(text("UPDATE tenants SET features = '{project_members}'"))
 
 

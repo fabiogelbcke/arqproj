@@ -75,8 +75,10 @@ People who run admin commands against staging or production need
 
 ## Cloud Run `portal-staging`
 
-Two containers: `app` (the image; port 8080) and `cloudsql` (Cloud SQL Auth
-Proxy 2.26.2, `--auto-iam-authn`), which the app waits for. Public (no IAM
+Three containers: `app` (the image; port 8080), `cloudsql` (Cloud SQL Auth
+Proxy 2.26.2, `--auto-iam-authn`) and `cloudsql-operator` (the same proxy acting
+as `portal-staging-operator@`, on port 5433, for the operator login), which the
+app waits for. Public (no IAM
 check), 0–2 instances, 1 CPU / 512 MiB for the app. Address:
 `https://staging.myunio.app`, office `alinea`'s primary address (17 Oct 2026). It is
 a Cloud Run domain mapping (free, managed certificate) on `myunio.app` (A33),
@@ -122,13 +124,18 @@ the office that started); files are read as `portal-production@`. Emails send fr
 `portal-resend-api-key` (`myunio.app` wasn't until 22 Oct 2026, so its emails were
 refused). Email alerts for errors and stopped maintenance passes: README, "Alerts".
 
-**Right after the first production deploy:**
+**Right after the first production deploy** (17 Oct 2026; kept as the record of
+what an empty production needs):
 1. Cloud Scheduler job `portal-production-maintenance`, every 10 minutes as
    `portal-scheduler@` (command in README, "Client emails locally"); until it
    exists, nothing scans for new files or sends client emails in production.
-2. The `myunio.app` domain mapping moves from `portal-staging` to `portal`.
+2. The `myunio.app` address moves from `portal-staging` to `portal` (since 20 Oct
+   2026 every production address is on the load balancer below).
 3. The office: `make tenant ENV=production SLUG=alinea NAME="ALINEA ARQUITETOS"
-   HOST=alineaarquitetos.com`, then `make staff ENV=production …`.
+   HOST=alinea.myunio.app`, then `make tenant-host ENV=production SLUG=alinea
+   HOST=alineaarquitetos.com` and the same for `www.alineaarquitetos.com`, which
+   redirect to the primary address (25 Oct 2026, A23), then `make staff
+   ENV=production …`.
 
 ## Load balancer (A21)
 

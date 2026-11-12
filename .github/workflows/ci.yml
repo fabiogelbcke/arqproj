@@ -17,9 +17,13 @@ env:
   # The superuser of the PostgreSQL started below (locally, it is you).
   PGUSER: postgres
 
+# Each job's time limit is about twice its usual run (Nov 2026: backend 8–10
+# minutes, e2e 4–15, frontend and image under 2), so a hung test fails the run
+# instead of holding a runner for GitHub's default six hours.
 jobs:
   backend:
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7.0.1
       # On the runner's own network, so the server really is local: the tests'
@@ -39,6 +43,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -52,10 +57,12 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run api-types:check
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
 
   e2e:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7.0.1
       # On the runner's own network, so the server really is local: the tests'
@@ -94,6 +101,7 @@ jobs:
   # database, before anything reaches staging (plan section 19).
   image:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
       - name: PostgreSQL 17

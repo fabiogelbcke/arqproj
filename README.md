@@ -1,11 +1,25 @@
-# Architecture project portal (POC)
+# Unio: client portal for architecture offices
 
-A small Flask site that turns a Google Drive folder tree into a clean,
+Unio (`myunio.app`) gives each architecture office a client page per project,
+built from the office's Google Drive folders, and a staff app (the "painel") to
+run them. It is one multi-tenant app: the backend in `backend/` (Python,
+FastAPI) and the staff app and client page in `frontend/` (React). Staging and
+production run the image built from `deploy/Dockerfile` (`uvicorn backend.app`);
+see "New backend" and "Cloud Run" below and `docs/infrastructure.md`.
+
+**The old app.** Several sections of this file still describe the original
+single-office Flask site (`app.py`, `arq/`, `tools/`, `templates/`), which is no
+longer in use or deployed: "Drive conventions" through "Editing and regenerating
+local test files", "Run all automated tests locally", "Connect a real Drive",
+"Environment", "Security model", "Code map" and "Known gaps". Read
+`docs/old-app.md` before working on it.
+
+## Drive conventions (old app)
+
+A small Flask site that turned a Google Drive folder tree into a clean,
 client-facing project page: title, description, project details, a stage
 timeline with status, and the files for each stage. Drive stays private — the
 server reads it with a service account and proxies files to clients.
-
-## Drive conventions
 
 ```
 Projects/                        ← root folder (shared with the service account)
@@ -143,9 +157,9 @@ uv sync                   # creates .venv (Python 3.13) for the current app and 
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-`uv sync` installs exact versions from `uv.lock`: the current app's libraries
-(the `legacy` group, mirroring `requirements.txt`, which production still
-deploys from) and the new backend's. Keep both in step when changing either.
+`uv sync` installs exact versions from `uv.lock`: the old app's libraries
+(the `legacy` group, mirroring its `requirements.txt`; neither is deployed) and
+the new backend's.
 
 The demo runs a fake Drive API locally, with real JWT signing and verification, loaded with sample data.
 
@@ -233,9 +247,9 @@ Use real Drive mode to verify actual Google-native exports and permissions.
 ## New backend (`backend/`)
 
 The multi-tenant rewrite lives in `backend/` (Python, FastAPI) and `frontend/`
-(the React staff app, "painel"). See `docs/rewrite-steps.md`. It runs alongside
-the current app and does not change what production serves. Everyday commands
-are in the `Makefile` (`make help` lists them):
+(the React staff app, "painel"). See `docs/rewrite-steps.md`. It is what staging
+and production run. Everyday commands are in the `Makefile` (`make help` lists
+them):
 
 ```bash
 brew install postgresql@17 && brew services start postgresql@17   # once
@@ -456,9 +470,7 @@ checks against a dedicated Google sandbox once account setup is available.
 The multi-tenant/database/notification tests described in
 `docs/multi-tenant-implementation-plan.md` are planned work, not implemented tests.
 
-There is no frontend production build. A production-runtime check uses Gunicorn
-and the Python version in `.python-version`; the Cloud Run source build is a
-separate release check and must not be triggered by deploying during testing.
+The old app had no frontend build and ran under Gunicorn; it no longer deploys.
 
 ## Connect a real Drive (~15 min)
 
@@ -519,7 +531,7 @@ must use that port and be registered on the client too; the launcher checks it.
 
 **Deploying:** merging into `staging` deploys staging (`portal-staging`,
 `staging.myunio.app`); merging `staging` into `main` deploys production (`portal`,
-`alineaarquitetos.com` and `myunio.app`). There is no manual deploy step. Treat a
+`alinea.myunio.app`, with `alineaarquitetos.com` redirecting there, and `myunio.app`). There is no manual deploy step. Treat a
 merge into `main` as a production release. Production builds nothing: it runs the
 image staging built and tested from the same code, and refuses code that never
 ran on staging (docs/infrastructure.md, "Deploys").

@@ -1,6 +1,7 @@
 """Edit mode, part 1: description, details, the next meeting and stage notes."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -103,7 +104,8 @@ async def test_a_change_made_meanwhile_is_not_overwritten(client, owner):
 
 
 def in_days(n: int) -> str:
-    return (date.today() + timedelta(days=n)).isoformat()
+    """The day n days from today in Alinea's time zone, as the meeting form sends it."""
+    return (datetime.now(ZoneInfo("America/Sao_Paulo")).date() + timedelta(days=n)).isoformat()
 
 
 async def test_the_next_meeting_is_set_in_the_offices_time_zone(client, owner):
