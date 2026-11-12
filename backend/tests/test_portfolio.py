@@ -168,6 +168,11 @@ async def test_unios_home_shows_when_the_office_cant_be_read(client, staff, monk
     client.cookies.clear()
     answer = await client.get("/", headers=ALINEA)
     assert answer.status_code == 200 and "UNIO" in answer.text
+    # Not kept by the browser, on Unio's own address either: on staging that
+    # address is the office's too, and the home is standing in for its page.
+    unios = await client.get("/", headers={"host": "localhost"})
+    assert unios.status_code == 200 and "UNIO" in unios.text
+    assert unios.headers["cache-control"] == "no-cache"
 
 
 async def test_a_type_the_operator_added_is_shown_by_its_own_name(client, staff, db_session):

@@ -312,6 +312,8 @@ async def page(request: Request) -> Response | None:
         return await _page(request)
     except Exception:
         log.exception("portfolio unavailable at %s; Unio's home shown", request.headers.get("host"))
+        # The home then stands in for a page that may exist: not to be kept.
+        request.state.office_unread = True
         return None
 
 
