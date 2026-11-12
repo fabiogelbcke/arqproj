@@ -71,7 +71,7 @@ export function JoinPage() {
               <EmailField label={t("team.email")} value={email} onChange={setEmail} isRequired autoComplete="username" />
               <NewPasswordFields password={password} onChange={setPassword} />
               <ErrorNotice error={link.error ?? join.error} values={{ min: MIN_PASSWORD_LENGTH }} />
-              <Button type="submit" variant="primary" isDisabled={join.isPending || !link.data}>
+              <Button type="submit" variant="primary" isDisabled={!link.data} pending={join.isPending}>
                 {t("join.submit")}
               </Button>
             </Form>

@@ -10,7 +10,7 @@ from backend.commands.seed import seed
 from backend.identity import accounts
 from backend.identity.models import LoginSession
 from backend.tenancy.models import Tenant
-from backend.web import auth
+from backend.web import attempts, auth
 from backend.web.errors import ErrorCode
 
 pytestmark = pytest.mark.anyio
@@ -262,3 +262,95 @@ async def test_a_malformed_request_gets_an_error_code_too(client, staff, body):
     send = {"content": body} if isinstance(body, str) else {"json": body}
     response = await client.post("/api/session", headers={"host": "alinea.localhost"}, **send)
     assert (response.status_code, response.json()) == (422, {"error": "invalid_request"})
+
+
+# -- the attempt limit (section 5: password attempts are rate-limited) ----------------
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(attempts.time, "monotonic", lambda: now[0])
+    return now
+
+
+async def test_five_wrong_passwords_make_the_device_wait(client, staff, failed_delays, clock):
+    for _ in range(attempts.LIMIT):
+        assert (await sign_in(client, password="not the password")).status_code == 401
+    blocked = await sign_in(client, password="still guessing")
+    assert (blocked.status_code, blocked.json()) == (429, {"error": "too_many_attempts"})
+    # Even the right password waits now, until 15 minutes after the fifth.
+    assert (await sign_in(client)).status_code == 429
+    clock[0] += attempts.WINDOW_SECONDS - 1
+    assert (await sign_in(client)).status_code == 429
+    clock[0] += 2
+    assert (await sign_in(client)).status_code == 200
+
+
+async def test_the_wait_is_for_that_address_only(client, db_session, staff, failed_delays, clock):
+    for _ in range(attempts.LIMIT):
+        await sign_in(client, email="Ana@Alinea.example ", password="not the password")
+    assert (await sign_in(client)).status_code == 429  # however the address is typed
+    await add_staff(db_session, "alinea", "bia@alinea.example")
+    assert (await sign_in(client, email="bia@alinea.example")).status_code == 200
+    # The same address at another office is another account.
+    norte = await sign_in(client, host="norte.localhost", password="another password 123")
+    assert norte.status_code == 200
+
+
+async def test_an_address_without_an_account_waits_the_same(client, staff, failed_delays, clock):
+    """The limit says nothing about who has an account."""
+    for _ in range(attempts.LIMIT):
+        await sign_in(client, email="nobody@alinea.example")
+    assert (await sign_in(client, email="nobody@alinea.example")).status_code == 429
+
+
+async def test_a_right_password_clears_the_wrong_ones(client, staff, failed_delays, clock):
+    for _ in range(attempts.LIMIT - 1):
+        await sign_in(client, password="not the password")
+    assert (await sign_in(client)).status_code == 200
+    for _ in range(attempts.LIMIT - 1):
+        assert (await sign_in(client, password="not the password")).status_code == 401
+
+
+async def test_an_overlong_password_is_refused_before_any_check(client, staff, monkeypatch):
+    checked = []
+    monkeypatch.setattr(auth, "verify_password", lambda *a: checked.append(a))
+    response = await sign_in(client, password="x" * (auth.PASSWORD_MAX + 1))
+    assert (response.status_code, response.json()) == (422, {"error": "invalid_request"})
+    assert checked == []
+
+
+async def test_a_csrf_token_with_other_characters_is_refused_not_an_error(client, staff):
+    """Anyone can send any bytes in a header; a comparison must not fail on them."""
+    await sign_in(client)
+    for sent in ("çã".encode(), b"\xff\xfe"):
+        refused = await client.post(
+            "/api/me/tour-seen", headers={"host": "alinea.localhost", auth.CSRF_HEADER: sent}
+        )
+        assert (refused.status_code, refused.json()) == (
+            403,
+            {"error": "csrf_token_missing_or_wrong"},
+        )
+
+
+async def test_the_connection_watch_sees_a_transaction_held(app, holding_connection):
+    """Self-test of the `holding_connection` fixture the hashing tests rely on."""
+    async with app.state.sessionmaker() as session:
+        assert not holding_connection()
+        await session.execute(text("SELECT 1"))
+        assert holding_connection()
+        await session.commit()
+        assert not holding_connection()
+
+
+async def test_a_malformed_requests_values_never_reach_the_log(client, staff, caplog):
+    """The log says which field was wrong and how, never what was sent: it may be a
+    password."""
+    # The email left out: the error's value would be the whole body, password and all.
+    body = {"password": "a secret password"}
+    response = await client.post("/api/session", json=body, headers={"host": "alinea.localhost"})
+    assert response.status_code == 422
+    logged = [r.getMessage() for r in caplog.records if "invalid request" in r.getMessage()]
+    assert logged and "email" in logged[0] and "missing" in logged[0]
+    assert "a secret password" not in caplog.text

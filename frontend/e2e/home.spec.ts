@@ -1,22 +1,17 @@
 import { expect, test } from "@playwright/test";
 
-import { PORT } from "../playwright.config";
-
-// Unio's own address: an office's address shows its portfolio at `/` once one is
-// published (staff-app.spec.ts publishes Alinea's), so this test doesn't depend on
-// which tests ran before it.
-const UNIO = `http://localhost:${PORT}`;
-
 for (const width of [320, 390, 1440]) {
   test(`public homepage works without JavaScript at ${width}px`, async ({ browser }) => {
     const context = await browser.newContext({
       javaScriptEnabled: false,
       viewport: { width, height: 900 },
-      baseURL: UNIO,
+      baseURL: test.info().project.use.baseURL,
     });
     const page = await context.newPage();
     try {
-      const response = await page.goto("/");
+      // Unio's own address: an office's shows the office's card or its portfolio (A45).
+      const unio = String(test.info().project.use.baseURL).replace("alinea.localhost", "localhost");
+      const response = await page.goto(unio);
       expect(response?.status()).toBe(200);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       const logo = page.locator("header img");

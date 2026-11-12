@@ -27,6 +27,7 @@ const PAGE: Page = {
   cover_url: null,
   features: [],
   completed: false,
+  archived: false,
   current_position: null,
   last_update: "2026-11-01T12:00:00Z",
   details: [],

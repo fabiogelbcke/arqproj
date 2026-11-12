@@ -12,16 +12,18 @@ export function ToggleSwitch({
   isDisabled,
   onChange,
   children,
+  className,
 }: {
   label: string;
   isSelected: boolean;
   isDisabled?: boolean;
   onChange: (on: boolean) => void;
   children?: ReactNode;
+  className?: string;
 }) {
   return (
     <Switch
-      className={styles.toggleSwitch}
+      className={[styles.toggleSwitch, className].filter(Boolean).join(" ")}
       aria-label={label}
       isSelected={isSelected}
       isDisabled={isDisabled}

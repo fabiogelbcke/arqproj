@@ -74,6 +74,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     cover_url: project.cover_url,
     features: project.features,
     completed: project.status === "completed",
+    archived: false, // under way: it takes sign-ups
     current_position: null, // the previous release's (A30); this page doesn't read it
     last_update: project.last_update,
     details: project.details,
@@ -103,6 +104,7 @@ export function installExampleApi(now = new Date(), preview?: ExamplePreview) {
     stages: project.stages.map((stage, i) => ({
       position: i + 1,
       unavailable: false,
+      folder_missing: false,
       groups: stage.groups
         .filter((group) => group.files.length)
         .map((group) => ({

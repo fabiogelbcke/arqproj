@@ -59,8 +59,8 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, element: <ProjectsPage />, handle: title("nav.projects") },
           { path: "propostas", element: <WithProposals />, handle: title("nav.proposals") },
-          { path: "portfolio", element: <WithPortfolio />, handle: title("nav.portfolio") },
-          { path: "portfolio/:entryId", element: <WithPortfolio entry />, handle: title("nav.portfolio") },
+          { path: "portfolio", element: <PortfolioPage />, handle: title("nav.portfolio") },
+          { path: "portfolio/:entryId", element: <PortfolioEntryPage />, handle: title("nav.portfolio") },
           { path: "projetos/:projectId/proposta", element: <ProposalPage />, handle: title("proposal.generator.title") },
           {
             path: "configuracoes",
@@ -83,9 +83,4 @@ export const routes: RouteObject[] = [
 /** The Propostas tab, where the office has proposals switched on (A40, A42). */
 function WithProposals() {
   return useFeature("proposals") ? <ProposalsPage /> : <NotFoundPage />;
-}
-
-function WithPortfolio({ entry = false }: { entry?: boolean }) {
-  if (!useFeature("portfolio")) return <NotFoundPage />;
-  return entry ? <PortfolioEntryPage /> : <PortfolioPage />;
 }
