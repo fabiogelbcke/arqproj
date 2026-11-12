@@ -176,26 +176,25 @@ both features.
 
 The Meta business portfolio, the number's provider and Google Cloud should
 belong to an address of Unio's, not a person's, so they outlive whoever set
-them up. myunio.app receives no email today (checked 10 Nov 2026: no MX
-record). Its DNS is at GoDaddy. The app's own emails go out through Resend on
-`send.myunio.app` and `resend._domainkey`, which an inbox doesn't touch: leave
-those two records as they are.
+them up. **Chosen (11 Nov 2026): Zoho Mail's free plan** on myunio.app, the
+cheapest with an inbox of its own and sending. Use its address for the Meta
+portfolio and the number.
+
+The domain's DNS is at GoDaddy. Zoho's records there: its verification TXT,
+MX `mx.zoho.com` (10), `mx2.zoho.com` (20), `mx3.zoho.com` (50), the SPF on
+`myunio.app` (GoDaddy's SPF include, which includes `zohomail.com`) and DKIM at
+`zmail._domainkey`. The app's own emails go out through Resend on
+`send.myunio.app` and `resend._domainkey`, which the inbox doesn't touch: leave
+those records as they are. Another mail service's MX records would take the
+domain's mail from Zoho: one service at a time.
 
 | Option | Cost | Notes |
 | --- | --- | --- |
-| Google Workspace Business Starter | ~R$40 a user a month (check Google's price) | Suggested. A Gmail inbox on myunio.app; more addresses (`whatsapp@`, `suporte@`) are free aliases of one user |
-| Forwarding (ImprovMX) or Zoho Mail's free plan | Free | Mail to the address reaches an existing Gmail, which can send as it through Resend's SMTP. No inbox of Unio's own |
+| **Zoho Mail Forever Free** | Free | Chosen. Inbox and sending, up to 5 users, 5 GB each; webmail and Zoho's app only (no IMAP) |
+| Zoho Mail Lite | ~US$1 a user a month | Adds IMAP, to read it in Gmail or Apple Mail |
+| Google Workspace Business Starter | ~R$40 a user a month | A Gmail inbox on myunio.app; for when someone else takes the account over |
+| Forwarding (ImprovMX) | Free | Mail reaches an existing Gmail; receive only |
 
-Setting up Workspace (~20 min, in the browser):
-
-1. At workspace.google.com, "Começar", with **myunio.app** as a domain we own.
-2. Create the first user, e.g. `contato@myunio.app`.
-3. Let Google add its records at GoDaddy (it offers to, after a GoDaddy sign-in):
-   the verification record and Google's MX records.
-4. In the admin console, Apps → Google Workspace → Gmail → Authenticate email:
-   turn on DKIM and add the record it gives, so our mail isn't marked as spam.
-
-Then use that address for the Meta portfolio and the number.
 
 ### The number
 
