@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import { TextField } from "./TextField";
+import { PasswordField } from "./PasswordField";
 
 export const MIN_PASSWORD_LENGTH = 8; // backend.identity.accounts; the server checks it too
 
@@ -10,9 +10,8 @@ export function NewPasswordFields({ password, onChange }: { password: string; on
   const { t } = useTranslation();
   return (
     <>
-      <TextField
+      <PasswordField
         name="password"
-        type="password"
         autoComplete="new-password"
         isRequired
         minLength={MIN_PASSWORD_LENGTH}
@@ -21,9 +20,8 @@ export function NewPasswordFields({ password, onChange }: { password: string; on
         label={t("choosePassword.password")}
         description={t("choosePassword.passwordHint", { min: MIN_PASSWORD_LENGTH })}
       />
-      <TextField
+      <PasswordField
         name="confirm"
-        type="password"
         autoComplete="new-password"
         isRequired
         validate={(value) => (value && value !== password ? t("choosePassword.mismatch") : null)}

@@ -162,6 +162,12 @@ async def change_project(
 ) -> ProjectSummary:
     if body.members is not None and not tenant.has(Feature.PROJECT_MEMBERS):
         raise ApiError(409, ErrorCode.FEATURE_OFF)
+    new_password = None
+    if body.access_mode is AccessMode.PASSWORD and body.password is not None:
+        if len(body.password) < PAGE_PASSWORD_MIN:
+            raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT)
+        # Slow on purpose: before any query, not while the project's row is locked.
+        new_password = await hash_password(body.password)
     # Locked until this save ends: a second dialog saving at the same moment
     # waits, then finds the new version and gets `project_changed`, rather than
     # colliding on the same new address.
@@ -192,10 +198,8 @@ async def change_project(
             raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
     access_changed = False
     if body.access_mode is AccessMode.PASSWORD:
-        if body.password is not None:
-            if len(body.password) < PAGE_PASSWORD_MIN:
-                raise ApiError(422, ErrorCode.PASSWORD_TOO_SHORT)
-            values["password_hash"] = await hash_password(body.password)
+        if new_password is not None:
+            values["password_hash"] = new_password
             access_changed = True
         elif project.password_hash is None:
             raise ApiError(422, ErrorCode.PASSWORD_REQUIRED)

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+from zoneinfo import available_timezones
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -49,6 +50,10 @@ async def run(argv: list[str], database_url: str) -> str:
     more.add_argument("--primary", action="store_true", help="make it the primary address")
     args = parser.parse_args(argv)
     host = _host(args.host)
+    # The office's emails and pages read their times in it: one Python doesn't know
+    # would stop its update emails (and its maintenance pass) every time.
+    if args.command == "add" and args.timezone not in available_timezones():
+        raise SystemExit(f"Not a known time zone: {args.timezone!r} (e.g. America/Sao_Paulo)")
 
     engine = create_async_engine(database_url)
     try:

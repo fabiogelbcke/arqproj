@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import "../i18n";
+import { ChangeWarning } from "../admin/Settings";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { NameDialog } from "./NameDialog";
 
@@ -39,7 +40,10 @@ describe("ConfirmDialog", () => {
   it("can't be left while the action runs: Cancelar, Esc and a click outside do nothing", async () => {
     const { onConfirm, onCancel } = confirm({ busy: true });
     expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Arquivar" })).toBeDisabled();
+    const action = screen.getByRole("button", { name: /^Arquivar/ });
+    expect(within(action).getByRole("progressbar", { name: "Aguarde…" })).toBeInTheDocument(); // it runs
+    expect(action).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(action);
     await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     screen.getByRole("alertdialog").focus();
     await userEvent.keyboard("{Escape}");
@@ -71,5 +75,17 @@ describe("NameDialog", () => {
     render(<NameDialog title="Renomear seção" label="Nome" initial="Plantas" confirm="Salvar" onConfirm={vi.fn()} onCancel={onCancel} />);
     await userEvent.keyboard("{Escape}");
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ChangeWarning (admin)", () => {
+  it("can't be left while the change saves: \"Voltar e revisar\" and Esc do nothing", async () => {
+    const onCancel = vi.fn();
+    render(<ChangeWarning changes={["3 projetos mudam de etapa"]} busy onConfirm={vi.fn()} onCancel={onCancel} />);
+    expect(screen.getByRole("button", { name: "Voltar e revisar" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Voltar e revisar" }));
+    screen.getByRole("alertdialog").focus();
+    await userEvent.keyboard("{Escape}");
+    expect(onCancel).not.toHaveBeenCalled();
   });
 });

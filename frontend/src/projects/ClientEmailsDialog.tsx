@@ -65,8 +65,8 @@ export function ClientEmailsDialog({ project, onClose }: { project: ProjectSumma
           <Button onPress={onClose} isDisabled={change.isPending}>
             {t("projectSettings.cancel")}
           </Button>
-          <Button type="submit" variant="primary" isDisabled={change.isPending}>
-            {change.isPending ? t("projectSettings.saving") : t("projectSettings.save")}
+          <Button type="submit" variant="primary" pending={change.isPending}>
+            {t("projectSettings.save")}
           </Button>
         </div>
       </Form>

@@ -9,14 +9,14 @@ from datetime import UTC, datetime, timedelta
 import anyio
 import httpx2
 import pytest
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.app import create_app
 from backend.commands.seed import seed
 from backend.db.isolation import scope_to_tenant
-from backend.identity import accounts
+from backend.identity import accounts, support
 from backend.identity.models import JoinLink, Role, User
 from backend.notifications.email import EmailError
 from backend.settings import Settings
@@ -331,6 +331,23 @@ async def test_a_bad_join_is_refused_and_nothing_is_made(client, owner, sent, bo
     assert (response.status_code, response.json()["error"]) == (422, error)
     assert sent.emails == []
     assert len((await client.get("/api/team", headers=owner)).json()["members"]) == 1
+
+
+@pytest.mark.parametrize("role", [Role.OWNER, Role.MEMBER])
+async def test_no_one_joins_or_is_invited_as_suporte_unio(client, db_session, owner, sent, role):
+    """Its accounts' addresses (A43) are on `.invalid`, which no mail reaches: never
+    a staff member's, so neither an error nor a second account for the address."""
+    t = await tenant_id(db_session, "alinea")
+    await db_session.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(t)})
+    address = (await support.account(db_session, role)).email
+    invited = await invite(client, owner, email=address)
+    assert (invited.status_code, invited.json()["error"]) == (422, "invalid_email")
+    token = token_in(await turn_on(client, owner))
+    joined = await join(client, token, email=address)
+    assert (joined.status_code, joined.json()["error"]) == (422, "invalid_email")
+    assert sent.emails == []
+    made = await db_session.scalar(select(func.count()).where(User.email == address))
+    assert made == 1  # Suporte Unio's own
 
 
 async def test_when_the_email_cannot_go_the_account_is_made_and_a_code_can_be_asked_again(

@@ -18,8 +18,10 @@ registered to that office. The sign-in is completed only there:
 
 Google signs in an existing account of this office by its verified email, and
 never makes one: invites and sign-up links do. Proving the email this way also
-confirms it (an unconfirmed sign-up). A pending invite is accepted only through
-its link first. Passwords keep working.
+confirms it (an unconfirmed sign-up), but not that whoever signed up was its
+owner: such an account's sign-ins end and its password stops working
+(`accounts.confirm_by_google`). A pending invite is accepted only through its
+link first. Passwords keep working.
 """
 
 from __future__ import annotations
@@ -158,19 +160,20 @@ async def finish(
     who = attempts.device(request)
     if not attempts.admit(TRIES, who):
         return _back("tentativas")
-    try:
-        identity = await google(request).identify(
-            getattr(request.app.state, "http", None),  # set up at app start
-            request.query_params["code"],
-            flow["verifier"],
-            flow["nonce"],
-        )
-    except (SignInError, ApiError) as error:
-        attempts.failed(TRIES, who)
-        detail = error.detail if isinstance(error, SignInError) else error.code
-        log.error("google sign-in failed: route=%s tenant=%s %s", FINISH, tenant.slug, detail)
-        return _back("falhou")
-    attempts.succeeded(TRIES, who)
+    with attempts.trying(TRIES, who) as attempt:
+        try:
+            identity = await google(request).identify(
+                getattr(request.app.state, "http", None),  # set up at app start
+                request.query_params["code"],
+                flow["verifier"],
+                flow["nonce"],
+            )
+        except (SignInError, ApiError) as error:
+            attempt.failed()
+            detail = error.detail if isinstance(error, SignInError) else error.code
+            log.error("google sign-in failed: route=%s tenant=%s %s", FINISH, tenant.slug, detail)
+            return _back("falhou")
+        attempt.succeeded()
     user = await accounts.find_user(db, identity.email)
     if user is not None:
         # As codes and links do: one confirmation at a time per account, its address
@@ -185,8 +188,9 @@ async def finish(
         # password; until then the team page offers to cancel or resend it, which
         # must never touch an account in use.
         return _back("convite")
-    # Google has shown the address is theirs: a pending sign-up or invite counts.
-    await accounts.confirm_email(db, user)
+    # Google has shown the address is theirs: a pending sign-up is confirmed, and
+    # whoever made it with that address loses their sign-ins and password.
+    await accounts.confirm_by_google(db, user)
     response = _back()
     await signed_in(request, response, tenant, db, user, method="google")  # commits
     log.info("staff %s signed in with google in %s", user.id, tenant.slug)

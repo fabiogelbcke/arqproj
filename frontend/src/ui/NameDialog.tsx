@@ -76,7 +76,7 @@ export function NameDialog({
               <Button onPress={onCancel} isDisabled={busy}>
                 {t("confirm.cancel")}
               </Button>
-              <Button variant="primary" type="submit" isDisabled={!ready}>
+              <Button variant="primary" type="submit" isDisabled={!trimmed || !!error} pending={busy}>
                 {confirm}
               </Button>
             </div>

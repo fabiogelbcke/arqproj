@@ -81,7 +81,7 @@ function NameForm({ current }: { current: string }) {
       />
       <ErrorNotice error={save.error} />
       <div className={styles.actions}>
-        <Button type="submit" variant="primary" isDisabled={save.isPending || name === null || !value.trim()}>
+        <Button type="submit" variant="primary" isDisabled={name === null || !value.trim()} pending={save.isPending}>
           {t("account.save")}
         </Button>
       </div>
@@ -125,7 +125,7 @@ function PasswordForm() {
       <p className={styles.small}>{t("account.passwordNote")}</p>
       <ErrorNotice error={change.error} />
       <div className={styles.actions}>
-        <Button type="submit" variant="primary" isDisabled={change.isPending}>
+        <Button type="submit" variant="primary" pending={change.isPending}>
           {t("account.changePassword")}
         </Button>
       </div>
@@ -179,7 +179,7 @@ function ChangeEmail() {
               <Button variant="ghost" onPress={close} isDisabled={change.isPending}>
                 {t("account.cancel")}
               </Button>
-              <Button type="submit" variant="primary" isDisabled={change.isPending}>
+              <Button type="submit" variant="primary" pending={change.isPending}>
                 {t("account.sendCode")}
               </Button>
             </div>

@@ -173,7 +173,7 @@ export function ImageCropDialog({
             <Button variant="ghost" onPress={onCancel} isDisabled={saving}>
               {t("crop.cancel")}
             </Button>
-            <Button variant="primary" onPress={() => void apply()} isDisabled={!box || saving || failed}>
+            <Button variant="primary" onPress={() => void apply()} isDisabled={!box || failed} pending={saving}>
               {t("crop.apply")}
             </Button>
           </div>

@@ -22,6 +22,7 @@ const PAGE: Page = {
   description: "",
   cover_url: null,
   completed: false,
+  archived: false,
   current_position: null,
   last_update: "2026-10-15T23:30:00Z",
   details: [],
@@ -160,6 +161,19 @@ describe("sharing files by link", () => {
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /01 Briefing/ }));
     expect(within(dialog).getByText(/O limite é de 300 MB por link/)).toBeInTheDocument();
     expect(make).toBeDisabled();
+  });
+
+  it("refuses more files than a link holds, counting a comparison as two", async () => {
+    const photos = Array.from({ length: 199 }, (_, i) => file(`p${i}`, `Foto ${i}.jpg`, 10));
+    const pair = { ...file("k-before", "Cozinha", 10), comparison: { after: file("k-after", "Cozinha (depois).jpg", 10) } };
+    const many = { ...FILES, stages: [{ position: 1, groups: [{ folder: null, files: [...photos, pair] }] }] };
+    at({ "GET /api/pages/casa-jardim/files": () => ({ body: many }) });
+    await userEvent.click(await screen.findByRole("button", { name: "Compartilhar arquivos" }));
+    const dialog = await screen.findByRole("dialog", { name: "Compartilhar arquivos" });
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /01 Briefing/ }));
+    expect(summaryOf(dialog)).toHaveTextContent("201 arquivos");
+    expect(within(dialog).getByText(/O limite é de 200 arquivos por link/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Gerar link" })).toBeDisabled();
   });
 
   it("lists this device's links, updates one to newer versions and turns one off", async () => {

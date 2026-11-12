@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { api, call } from "../api/client";
 import type { Page } from "./format";
 import { useChange } from "./StageEditing";
+import { PendingContent } from "../ui/PendingContent";
 
 type Staff = NonNullable<Page["staff"]>;
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -234,8 +235,14 @@ export default function StageOrder({
             <button className="b b--ghost" type="button" disabled={change.busy} onClick={onClose}>
               {t("projectSettings.cancel")}
             </button>
-            <button className="b b--primary" type="button" disabled={!changed || change.busy} onClick={() => void save()}>
-              {t("projectSettings.save")}
+            <button
+              className="b b--primary"
+              type="button"
+              disabled={!changed || change.busy}
+              aria-busy={change.busy || undefined}
+              onClick={() => void save()}
+            >
+              <PendingContent pending={change.busy}>{t("projectSettings.save")}</PendingContent>
             </button>
           </div>
         </Dialog>

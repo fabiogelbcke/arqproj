@@ -214,7 +214,9 @@ describe("the Projeto dialog", () => {
     const dialog = await openSettings();
     await userEvent.type(within(dialog).getByLabelText(/Nome do projeto/), " II");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
-    expect(await within(dialog).findByRole("button", { name: "Salvando…" })).toBeDisabled();
+    const save = within(dialog).getByRole("button", { name: /^Salvar/ });
+    expect(await within(save).findByRole("progressbar", { name: "Aguarde…" })).toBeInTheDocument();
+    expect(save).toHaveAttribute("aria-disabled", "true");
     expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
     expect(within(dialog).getByRole("button", { name: "Fechar" })).toBeDisabled();
     within(dialog).getByLabelText(/Nome do projeto/).focus();
@@ -263,6 +265,8 @@ describe("the Projeto dialog", () => {
     const password = within(dialog).getByLabelText(/^Senha/);
     await userEvent.type(password, "segredo");
     // The shared password field: the office can check what it typed before saving.
+    // Hidden as it's typed, so the counter is the only sign a long one was cut.
+    expect(within(dialog).getByText("7/25")).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: "Mostrar senha" }));
     expect(password).toHaveAttribute("type", "text");
     await userEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));

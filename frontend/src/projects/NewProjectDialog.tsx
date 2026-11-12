@@ -134,10 +134,8 @@ function CreateForm({
         <Button onPress={close} isDisabled={create.isPending}>
           {t("newProject.cancel")}
         </Button>
-        <Button type="submit" variant="primary" isDisabled={create.isPending || !options.data}>
-          {create.isPending
-            ? t("newProject.creating")
-            : t(proposal ? "newProject.createProposal" : "newProject.createAndContinue")}
+        <Button type="submit" variant="primary" isDisabled={!options.data} pending={create.isPending}>
+          {t(proposal ? "newProject.createProposal" : "newProject.createAndContinue")}
         </Button>
       </div>
     </Form>
@@ -158,7 +156,7 @@ function NeedsDrive({ close }: { close: () => void }) {
       <div className={styles.actions}>
         <Button onPress={close}>{t("newProject.cancel")}</Button>
         {owner && (
-          <Button variant="primary" onPress={() => connect.mutate(false)} isDisabled={connect.isPending}>
+          <Button variant="primary" onPress={() => connect.mutate(false)} pending={connect.isPending}>
             {t("drive.connect")}
           </Button>
         )}

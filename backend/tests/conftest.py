@@ -28,6 +28,7 @@ from backend.commands import local_db
 from backend.commands.provision import provision_url
 from backend.migrations.snippets import CURRENT_TENANT_FUNCTION_SQL
 from backend.settings import LOCAL_RUNTIME_ROLE, Settings
+from backend.web import attempts
 
 # Settings for staging or production require a real secret; tests that build them
 # get this one (test_settings checks the rule with it removed).
@@ -144,6 +145,32 @@ def app(db_connection: AsyncConnection) -> FastAPI:
     application = create_app(Settings(environment="test", database_url=TEST_DATABASE_URL))
     application.state.sessionmaker = lambda: _AsAppLogin(db_connection)
     return application
+
+
+@pytest.fixture
+def holding_connection(app: FastAPI):
+    """Asks whether any of the app's database sessions holds a transaction (and so
+    a connection) right now: slow password hashing must run with none held, or a
+    burst of requests would take the whole small pool."""
+    opened: list[AsyncSession] = []
+    make_session = app.state.sessionmaker
+
+    def recording_sessionmaker():
+        context = make_session()
+        opened.append(context.session)
+        return context
+
+    app.state.sessionmaker = recording_sessionmaker
+    return lambda: any(session.in_transaction() for session in opened)
+
+
+@pytest.fixture(autouse=True)
+def fresh_attempts() -> Iterator[None]:
+    """The attempt limits live in the server's memory: each test starts with none
+    (every staff sign-in counts toward one)."""
+    attempts.reset()
+    yield
+    attempts.reset()
 
 
 @pytest.fixture

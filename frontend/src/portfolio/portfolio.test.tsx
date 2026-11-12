@@ -32,9 +32,8 @@ afterEach(() => {
   vi.mocked(sendVideo).mockReset();
 });
 
-const WITH_PORTFOLIO = { ...ME, features: ["portfolio"] };
-// Before-and-after comparisons switched on too (A40, A46).
-const COMPARING = { "GET /api/me": () => ({ body: { ...ME, features: ["portfolio", "before_after"] } }) };
+// Before-and-after comparisons switched on (A40, A46).
+const COMPARING = { "GET /api/me": () => ({ body: { ...ME, features: ["before_after"] } }) };
 
 function entry(changes: Partial<Entry>): Entry {
   return {
@@ -80,7 +79,7 @@ const NO_TYPES = { "GET /api/project-types": () => ({ body: { types: [], stages:
 function api(extra = {}) {
   return fakeApi({
     "GET /api/tenant": () => ({ body: TENANT }),
-    "GET /api/me": () => ({ body: WITH_PORTFOLIO }),
+    "GET /api/me": () => ({ body: ME }),
     "GET /api/portfolio": () => ({ body: PORTFOLIO }),
     "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: true, has_project: true } }),
     ...extra,
@@ -99,18 +98,11 @@ function dragOnto(from: Element, to: Element) {
 }
 
 describe("the Portfólio tab", () => {
-  it("is a tab only where the portfolio is switched on", async () => {
+  it("is a tab of every office's painel", async () => {
     api({ "GET /api/projects": () => ({ body: [] }) });
     renderAt("/");
     const nav = await screen.findByRole("navigation", { name: "Painel" });
     expect(await within(nav).findByRole("link", { name: "Portfólio" })).toHaveAttribute("href", "/portfolio");
-  });
-
-  it("isn't there, nor its address, where the portfolio is off", async () => {
-    api({ "GET /api/me": () => ({ body: ME }), "GET /api/projects": () => ({ body: [] }) });
-    renderAt("/portfolio");
-    expect(await screen.findByRole("heading", { name: "Página não encontrada" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Portfólio" })).toBeNull();
   });
 
   it("lays the images out in sections by type, each its projects then its loose photos, and Sem tipo last", async () => {
@@ -141,7 +133,10 @@ describe("the Portfólio tab", () => {
   it("publishes with the switch", async () => {
     const sent = api({ "PATCH /api/portfolio": () => ({ body: { ...PORTFOLIO, published: true } }) });
     renderAt("/portfolio");
-    await userEvent.click(await screen.findByRole("switch", { name: "Mostrar o portfólio no endereço do escritório" }));
+    // The switch names the office's address: the host this page is served from.
+    await userEvent.click(
+      await screen.findByRole("switch", { name: `Mostrar portfólio do escritório no endereço ${window.location.host}` }),
+    );
     await waitFor(() => expect(sent.find((call) => call.method === "PATCH")?.body).toEqual({ published: true }));
     expect(await screen.findByRole("link", { name: "Ver portfólio" })).toHaveAttribute("href", "/");
   });
@@ -153,8 +148,8 @@ describe("the Portfólio tab", () => {
     // Each format is a card: its name, what it is for, and a drawing of its layout.
     const cards = within(formats).getAllByRole("radio");
     expect(cards.map((card) => card.closest("label")?.textContent)).toEqual([
-      "GaleriaCapas na horizontal, no mesmo quadro; cada projeto em fotos grandes, uma de cada vez, com setas.",
-      "MosaicoCada imagem no formato original, sem capa grande: para o material feito para posts, stories e reels.",
+      "GaleriaTodas as imagens em formato padrão.",
+      "MosaicoCada foto no seu formato original.",
     ]);
     expect(cards.map((card) => card.closest("label")?.querySelector("svg") !== null)).toEqual([true, true]);
     expect(within(formats).getByRole("radio", { name: /Galeria/ })).toBeChecked();

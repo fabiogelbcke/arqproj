@@ -115,7 +115,7 @@ export function DriveDetails({
                   });
                   connect.mutate(false);
                 }}
-                isDisabled={connect.isPending}
+                pending={connect.isPending}
               >
                 {t(expired ? "drive.reconnect" : status.has_folder ? "drive.reconnectSame" : "drive.connect")}
               </Button>
@@ -248,7 +248,7 @@ function SwitchAccount({
               <Button variant="ghost" onPress={close}>
                 {t("drive.switchCancel")}
               </Button>
-              <Button variant="danger" onPress={onConfirm} isDisabled={busy}>
+              <Button variant="danger" onPress={onConfirm} pending={busy}>
                 {t("drive.switchConfirm")}
               </Button>
             </div>

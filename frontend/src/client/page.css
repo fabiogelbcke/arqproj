@@ -18,14 +18,16 @@ a.site__brand { color: inherit; text-decoration: none; }
 /* The password box on a protected page. */
 .password-gate { display: grid; gap: 8px; margin-top: 18px; max-width: 420px; }
 .password-gate label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-muted, var(--muted)); }
-.password-gate__row { display: flex; gap: 8px; }
-.password-gate__row .input { flex: 1; min-height: var(--control-main); padding: 8px 12px; border: 1px solid var(--line); background: transparent; color: inherit; }
+.password-gate__row { display: flex; gap: 8px; align-items: end; }
+.password-gate__row > :first-child { flex: 1; min-width: 0; }
 .password-gate__problem { color: var(--danger, #9b3d1d); font-size: 14px; }
 
 /* The prototype's buttons, unavailable (while a save runs, or until a form is
    ready): faded, the cursor saying no, and no hover or press of their own, as
    ui/Button's disabled state. */
 .b:disabled { opacity: .45; cursor: not-allowed; }
+/* Its action running (ui/PendingContent's spinner): not faded like one that can't be used. */
+.b[aria-busy="true"]:disabled { opacity: 1; cursor: progress; }
 .b:disabled:active { transform: none; }
 .b:disabled:hover { border-color: var(--line-strong); }
 .b--ghost:disabled:hover { border-color: transparent; }
@@ -165,16 +167,8 @@ a.site__brand { color: inherit; text-decoration: none; }
 }
 .uploads__name { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
 .uploads__percent { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.uploads .upload-bar { flex-basis: 100%; }
-/* An upload's bar: a soft rounded track filling smoothly (the browser's own bar
-   is drawn three ways, so each is restyled). */
-.upload-bar {
-  appearance: none; -webkit-appearance: none; display: block; width: 100%; height: 6px;
-  border: 0; border-radius: 999px; overflow: hidden; background: var(--line); color: var(--ink);
-}
-.upload-bar::-webkit-progress-bar { background: var(--line); border-radius: 999px; }
-.upload-bar::-webkit-progress-value { background: var(--ink); border-radius: 999px; transition: width .25s ease; }
-.upload-bar::-moz-progress-bar { background: var(--ink); border-radius: 999px; }
+/* Its bar (ui/ProgressBar) takes a line of its own. */
+.uploads__bar { flex-basis: 100%; }
 .uploads__failed [role="alert"] { flex-basis: 100%; color: var(--danger, #9b3d1d); }
 
 /* The current stage is a dark band, open or not (in the dark theme too). The prototype keeps

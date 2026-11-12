@@ -302,6 +302,41 @@ async def test_hiding_renames_with_an_underscore_and_the_page_stops_showing_it(
     assert "Programa.pdf" not in await stage_files(client)
 
 
+async def test_hiding_a_document_hides_every_version(client, owner, folders):
+    """Hiding only the newest would leave the client looking at the one before."""
+    (folders / "01 - Briefing" / "Programa v2.pdf").write_bytes(PDF)
+    (folders / "01 - Briefing" / "Memorial.pdf").write_bytes(PDF)  # another document
+    key = await file_key(client)  # the card's: the current version, v2
+    response = await client.post(f"/api/pages/casa-jardim/files/{key}/hide", headers=owner)
+    assert response.status_code == 204, response.text
+    assert sorted(p.name for p in (folders / "01 - Briefing").iterdir()) == [
+        "Memorial.pdf",
+        "_Programa v2.pdf",
+        "_Programa.pdf",
+    ]
+    assert await stage_files(client) == ["Memorial.pdf"]
+
+
+async def test_a_version_the_app_may_not_rename_stops_the_hiding_before_any_change(
+    client, owner, folders, monkeypatch
+):
+    """The app made v2 but the original was put straight into Drive: hiding only
+    v2 would show the client v1 in its place, so nothing is hidden."""
+    (folders / "01 - Briefing" / "Programa v2.pdf").write_bytes(PDF)
+
+    async def only_v2(self, item_id):
+        return item_id.endswith("v2.pdf")
+
+    monkeypatch.setattr(creation.LocalFolders, "can_rename", only_v2)
+    key = await file_key(client)
+    response = await client.post(f"/api/pages/casa-jardim/files/{key}/hide", headers=owner)
+    assert (response.status_code, response.json()["error"]) == (409, "file_not_ours")
+    assert sorted(p.name for p in (folders / "01 - Briefing").iterdir()) == [
+        "Programa v2.pdf",
+        "Programa.pdf",
+    ]
+
+
 async def test_a_file_put_straight_into_drive_is_hidden_there(client, owner, folders, monkeypatch):
     async def not_ours(self, item_id):
         return False  # drive.file: the grant sees only what the app created

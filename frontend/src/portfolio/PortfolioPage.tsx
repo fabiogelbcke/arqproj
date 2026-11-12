@@ -1,4 +1,4 @@
-// The Portfólio tab: /painel/portfolio, behind the `portfolio` feature (A40).
+// The Portfólio tab: /painel/portfolio, for every office (A45).
 // Whether the office's address shows the portfolio, its format and opening
 // text, the images in sections by type (as the project page's file manager:
 // each section a card with its drop area, its projects then its loose photos),
@@ -20,6 +20,7 @@ import { loadError } from "../ui/loadError";
 import { IconButton } from "../ui/IconButton";
 import { LinkButton } from "../ui/LinkButton";
 import { NameDialog } from "../ui/NameDialog";
+import { ProgressBar } from "../ui/ProgressBar";
 import { Panel } from "../ui/Panel";
 import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
@@ -79,7 +80,6 @@ export function PortfolioPage() {
             {me.data?.tenant_name} / {t("portfolio.kicker")}
           </p>
           <h1 className={styles.title}>{t("portfolio.title")}</h1>
-          <p className={styles.lead}>{t("portfolio.lead", { address: officeAddress() })}</p>
         </div>
         {portfolio.data && (
           <div className={styles.actions}>
@@ -193,26 +193,24 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
   const { t } = useTranslation();
   const save = useSavePortfolio();
   const [intro, setIntro] = useState(portfolio.intro);
-  const shown = portfolio.entries.some((entry) => entry.photos.length > 0);
   const change = (body: { published?: boolean; intro?: string; format?: Portfolio["format"] }, done: string) =>
     save.mutate(body, { onSuccess: () => toast(done), onError: (failure) => toastError(failure) });
   return (
-    <Panel className={styles.section} aria-labelledby="portfolio-publishing">
+    <Panel className={styles.publishing} aria-labelledby="portfolio-publishing">
       <h2 id="portfolio-publishing" className="sr-only">
         {t("portfolio.publishing")}
       </h2>
       <ToggleSwitch
-        label={t("portfolio.publish")}
+        className={styles.publishSwitch}
+        label={t("portfolio.publish", { address: officeAddress() })}
         isSelected={portfolio.published}
         isDisabled={save.isPending}
         onChange={(on) => change({ published: on }, t(on ? "portfolio.publishedDone" : "portfolio.unpublishedDone"))}
       >
-        <span className={styles.switchLabel}>{t("portfolio.publish")}</span>
+        <span className={styles.switchLabel}>{t("portfolio.publish", { address: officeAddress() })}</span>
       </ToggleSwitch>
-      <p className={styles.hint}>
-        {t(portfolio.published ? "portfolio.publishedHint" : "portfolio.unpublishedHint", { address: officeAddress() })}
-      </p>
-      {portfolio.published && !shown && <p className={styles.warning}>{t("portfolio.nothingShown")}</p>}
+      {/* Below the switch: the format on the left, the opening text on the right. */}
+      <div className={styles.publishingBody}>
       <div className={styles.format} role="radiogroup" aria-labelledby="portfolio-format">
         <span id="portfolio-format" className={styles.switchLabel}>
           {t("portfolio.format")}
@@ -236,23 +234,26 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
           ))}
         </div>
       </div>
-      <TextAreaField
-        label={t("portfolio.intro")}
-        description={t("portfolio.introHint")}
-        placeholder={t("portfolio.introPlaceholder")}
-        value={intro}
-        onChange={setIntro}
-        maxLength={LIMITS.intro}
-        rows={3}
-      />
-      <Button
-        size="small"
-        className={styles.save}
-        isDisabled={save.isPending || intro.trim() === portfolio.intro}
-        onPress={() => change({ intro }, t("portfolio.saved"))}
-      >
-        {t("portfolio.save")}
-      </Button>
+      <div className={styles.introField}>
+        <TextAreaField
+          label={t("portfolio.intro")}
+          description={t("portfolio.introHint")}
+          placeholder={t("portfolio.introPlaceholder")}
+          value={intro}
+          onChange={setIntro}
+          maxLength={LIMITS.intro}
+          rows={4}
+        />
+        <Button
+          size="small"
+          className={styles.save}
+          isDisabled={save.isPending || intro.trim() === portfolio.intro}
+          onPress={() => change({ intro }, t("portfolio.saved"))}
+        >
+          {t("portfolio.save")}
+        </Button>
+      </div>
+      </div>
     </Panel>
   );
 }
@@ -958,7 +959,13 @@ function SelectionBar({
         {t("portfolio.selectedCount", { count: chosen.length })}
         {images !== chosen.length && <span className={styles.dockMeta}> · {t("portfolio.photoCount", { count: images })}</span>}
       </span>
-      <Button size="small" variant="primary" isDisabled={busy || chosen.length < 2} onPress={group}>
+      <Button
+        size="small"
+        variant="primary"
+        isDisabled={chosen.length < 2 || (busy && !merge.isPending)}
+        pending={merge.isPending}
+        onPress={group}
+      >
         {t("portfolio.group")}
       </Button>
       {others.length > 0 && (
@@ -1205,9 +1212,12 @@ function ReviewDialog({
         </div>
         <div className={styles.dialogActions}>
           {progress && (
-            <span className={styles.hint} aria-live="polite">
-              {t("portfolio.uploading", { done: progress.done, total: progress.total })}
-            </span>
+            <ProgressBar
+              className={styles.uploadProgress}
+              value={progress.done / progress.total}
+              label={t("portfolio.uploading", progress)}
+              caption={t("portfolio.uploading", progress)}
+            />
           )}
           {failed && (
             <span className={styles.warning} role="status">
@@ -1266,7 +1276,7 @@ function PhotoSheet({ entry, sections, onClose }: { entry: Entry; sections: Sect
           </Button>
           <Button
             variant="primary"
-            isDisabled={change.isPending}
+            pending={change.isPending}
             onPress={() =>
               change.mutate(
                 { id: entry.id, title: title.trim(), section_id: section || null },
@@ -1340,7 +1350,13 @@ function NewSectionDialog({ sections, onClose }: { sections: Section[]; onClose:
               {types.map((type) => {
                 const name = t(`portfolio.types.${type.key}`, type.label);
                 return (
-                  <Button key={type.key} size="small" isDisabled={add.isPending} onPress={() => create({ project_type: type.key }, name)}>
+                  <Button
+                    key={type.key}
+                    size="small"
+                    isDisabled={add.isPending && add.variables?.project_type !== type.key}
+                    pending={add.isPending && add.variables?.project_type === type.key}
+                    onPress={() => create({ project_type: type.key }, name)}
+                  >
                     {name}
                   </Button>
                 );
@@ -1352,7 +1368,12 @@ function NewSectionDialog({ sections, onClose }: { sections: Section[]; onClose:
           <Button variant="ghost" isDisabled={add.isPending} onPress={onClose}>
             {t("portfolio.cancel")}
           </Button>
-          <Button variant="primary" isDisabled={!label.trim() || add.isPending} onPress={() => create({ label: label.trim() }, label.trim())}>
+          <Button
+            variant="primary"
+            isDisabled={!label.trim() || (add.isPending && !add.variables?.label)}
+            pending={add.isPending && !!add.variables?.label}
+            onPress={() => create({ label: label.trim() }, label.trim())}
+          >
             {t("portfolio.createSection")}
           </Button>
         </div>
