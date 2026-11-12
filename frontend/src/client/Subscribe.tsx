@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, api, call } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { emailSuggestion, isEmail, tidyEmail } from "../ui/email";
+import { PendingContent } from "../ui/PendingContent";
 import { formatPhone, parsePhone } from "../ui/phone";
 
 export function Subscribe({ slug }: { slug: string }) {
@@ -66,8 +67,13 @@ export function Subscribe({ slug }: { slug: string }) {
           aria-invalid={problem ? true : undefined}
           aria-describedby={problem ? `${id}-problem` : undefined}
         />
-        <button className="b b--small b--primary" type="submit" disabled={state === "sending" || !tidy}>
-          {t("subscribe.submit")}
+        <button
+          className="b b--small b--primary"
+          type="submit"
+          disabled={state === "sending" || !tidy}
+          aria-busy={state === "sending" || undefined}
+        >
+          <PendingContent pending={state === "sending"}>{t("subscribe.submit")}</PendingContent>
         </button>
       </form>
       {suggestion && (

@@ -19,7 +19,8 @@ export function tidyEmail(raw: string): string {
 }
 
 /** The server's rule: a name, "@", and a domain of at least two parts ending in
- *  letters ("ana@escritorio.com.br"), with no spaces or doubled dots. */
+ *  letters ("ana@escritorio.com.br"), with no spaces or doubled dots, and not
+ *  ".invalid". */
 export function isEmail(email: string): boolean {
   if (email.length > LIMITS.email) return false;
   const at = email.lastIndexOf("@");
@@ -30,7 +31,9 @@ export function isEmail(email: string): boolean {
     LOCAL.test(local) &&
     labels.length >= 2 &&
     labels.every((label) => label.length <= 63 && LABEL.test(label)) &&
-    /^[a-z]{2,}$/.test(labels.at(-1)!)
+    /^[a-z]{2,}$/.test(labels.at(-1)!) &&
+    // Reserved (RFC 2606): no mail reaches it, and Unio's support accounts use it.
+    labels.at(-1) !== "invalid"
   );
 }
 

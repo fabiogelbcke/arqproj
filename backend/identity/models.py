@@ -64,6 +64,12 @@ class User(IdMixin, TimestampsMixin, TenantOwned, Base):
     email_confirmed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # Made through a signup link (the shared member link or an owner link) and its
+    # address never confirmed since. Whoever signed up chose the address, so it may
+    # not be theirs: Google confirming it ends their sessions and password
+    # (`accounts.confirm_by_google`). Not set by an email change ("Minha conta"),
+    # whose account was confirmed before, nor by invites, which go to the address.
+    unconfirmed_signup: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     # An office's hidden "Suporte Unio" account, which an operator enters through
     # (A43): never signs in otherwise, and isn't one of the office's team.
     support: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))

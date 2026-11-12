@@ -168,6 +168,7 @@ def test_the_app_has_exactly_the_access_migrations_granted(migrated_url):
         ("users", "email_confirmed_at", "UPDATE"),
         ("users", "email", "UPDATE"),
         ("users", "name", "UPDATE"),  # "Minha conta": a person renames themselves (0043)
+        ("users", "unconfirmed_signup", "UPDATE"),  # a sign-up confirmed is one no longer
         ("password_links", "used_at", "UPDATE"),
         ("password_links", "tries", "UPDATE"),  # wrong confirmation codes
         ("join_links", "revoked_at", "UPDATE"),  # turned off, or replaced by a new one

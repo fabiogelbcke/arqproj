@@ -98,8 +98,9 @@ async def test_a_too_short_password_keeps_the_link_usable(client, db_session, te
 
 async def test_an_expired_link_is_refused(client, db_session, tenants):
     token = await invite(db_session)
+    # Well before: the database's now() is when the test's transaction began.
     await db_session.execute(
-        update(PasswordLink).values(expires_at=datetime.now(UTC) - timedelta(seconds=1))
+        update(PasswordLink).values(expires_at=datetime.now(UTC) - timedelta(hours=1))
     )
     checked = await client.post("/api/password-link", json={"token": token}, headers=ALINEA)
     assert checked.status_code == 404
@@ -124,6 +125,49 @@ async def test_a_reset_ends_every_other_sign_in(client, db_session, tenants):
     client.cookies.clear()
     assert (await sign_in(client, password="the old password")).status_code == 401
     assert (await sign_in(client)).status_code == 200
+
+
+async def test_a_made_up_link_costs_no_hashing(client, tenants, monkeypatch):
+    """Hashing is slow and runs a few at a time: the link is looked up first, so
+    requests with made-up links can't keep real ones waiting."""
+    hashed = []
+
+    async def recording_hash(password):
+        hashed.append(password)
+        return "never stored"
+
+    monkeypatch.setattr(accounts, "new_password_hash", recording_hash)
+    response = await choose(client, "made-up-token")
+    assert (response.status_code, response.json()) == (404, {"error": "link_invalid"})
+    assert hashed == []
+
+
+async def test_a_link_used_while_the_password_was_hashed_is_refused(
+    client, db_session, tenants, monkeypatch
+):
+    """Looked up before the hashing and used after it: a link used meanwhile (a
+    second tab) sets nothing the second time."""
+    token = await invite(db_session)
+    real_hash = accounts.new_password_hash
+
+    async def used_meanwhile(password):
+        if password == NEW_PASSWORD:
+            assert (await choose(client, token, password="the other tab")).status_code == 200
+        return await real_hash(password)
+
+    monkeypatch.setattr(accounts, "new_password_hash", used_meanwhile)
+    response = await choose(client, token)
+    assert (response.status_code, response.json()) == (404, {"error": "link_invalid"})
+    client.cookies.clear()
+    assert (await sign_in(client, password="the other tab")).status_code == 200
+
+
+@pytest.mark.parametrize("field", ["token", "password"])
+async def test_overlong_fields_are_refused(client, db_session, tenants, field):
+    token = await invite(db_session)
+    body = {"token": token, "password": NEW_PASSWORD} | {field: "x" * 501}
+    response = await client.post("/api/password", json=body, headers=ALINEA)
+    assert (response.status_code, response.json()) == (422, {"error": "invalid_request"})
 
 
 async def test_hashing_the_new_password_holds_no_database_connection(

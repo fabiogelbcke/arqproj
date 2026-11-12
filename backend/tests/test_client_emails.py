@@ -176,6 +176,77 @@ async def test_a_due_batch_goes_as_it_was_and_later_changes_wait_their_turn(
     assert await batches(db_session) == [("sent",), ("open",)]
 
 
+async def shift(db_session, first, last, change):
+    """The open batch's first and last change, and the change since the last pass
+    (a stage completed), that many minutes older."""
+    await db_session.execute(
+        text(
+            "UPDATE notification_batches SET first_event_at = first_event_at - :first * interval"
+            " '1 minute', last_event_at = last_event_at - :last * interval '1 minute'"
+        ),
+        {"first": first, "last": last},
+    )
+    await db_session.execute(
+        text(
+            "UPDATE project_events SET occurred_at = occurred_at - :change * interval '1 minute'"
+            " WHERE batch_id IS NULL AND kind = 'stage_completed'"
+        ),
+        {"change": change},
+    )
+
+
+async def test_a_change_made_before_the_email_came_due_joins_it(
+    app, client, db_session, owner, outbox, ready
+):
+    """A file at 10:05, a stage completed at 10:45, the pass at 10:55: it was never
+    quiet for 45 minutes, so one email, due 45 minutes after the stage (A12)."""
+    from backend.tests.test_maintenance_scan import call
+
+    await new_file(app, outbox, ready)
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    await shift(db_session, first=50, last=50, change=10)
+    await run(app, outbox)
+    assert outbox.sent == [] and await batches(db_session) == [("open",)]
+    await make_due(db_session)
+    await run(app, outbox)
+    [email] = outbox.sent
+    assert "- 02 Levantamento: 1 arquivo enviado" in email.text
+    assert "- 03 Estudo Preliminar: marcada como concluída" in email.text
+
+
+async def test_a_change_joins_by_the_quiet_period_in_the_settings(
+    app, client, db_session, owner, outbox, ready
+):
+    """The same changes with a 5-minute quiet period (A48): the email came due at
+    10:10, so the stage at 10:45 waits its turn."""
+    from backend.tests.test_maintenance_scan import call
+
+    await db_session.execute(text("UPDATE notice_settings SET quiet_minutes = 5"))
+    await new_file(app, outbox, ready)
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    await shift(db_session, first=50, last=50, change=10)
+    await run(app, outbox)
+    [email] = outbox.sent
+    assert "foi atualizada: 1 arquivo enviado." in email.text  # the stage not with it
+    assert await batches(db_session) == [("sent",), ("open",)]
+
+
+async def test_a_change_never_holds_an_email_past_its_2_hours(
+    app, client, db_session, owner, outbox, ready
+):
+    """Changes all along: at 2 hours the email goes with what came before, and a
+    change after that waits its turn."""
+    from backend.tests.test_maintenance_scan import call
+
+    await new_file(app, outbox, ready)
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    await shift(db_session, first=130, last=40, change=8)  # due by the 2 hours 10 minutes ago
+    await run(app, outbox)
+    [email] = outbox.sent
+    assert "foi atualizada: 1 arquivo enviado." in email.text  # the stage not with it
+    assert await batches(db_session) == [("sent",), ("open",)]
+
+
 # Stages 3 to 6 of Casa Jardim's 7 completed, as if earlier: the last one is open.
 ALL_BUT_THE_LAST = (
     f"UPDATE project_stages SET completed_at = now() WHERE project_id = {CASA} AND position < 7"
@@ -220,6 +291,28 @@ async def test_archiving_drops_a_waiting_email_for_good(app, db_session, outbox,
     )
     await run(app, outbox)
     assert outbox.sent == []  # back from the archive, the old news stays unsent
+
+
+async def test_a_change_just_before_archiving_is_never_emailed(
+    app, client, db_session, owner, outbox, ready
+):
+    """Archived minutes after a change, before a pass gathered it: back from the
+    archive later, that change is old news and stays unsent (section 14)."""
+    from backend.tests.test_maintenance_scan import call
+
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    await db_session.execute(
+        text(f"UPDATE projects SET status = 'archived', archived_from = 'active' WHERE id = {CASA}")
+    )
+    await run(app, outbox)
+    assert await batches(db_session) == [("dropped",)]
+    await db_session.execute(
+        text(f"UPDATE projects SET status = 'active', archived_from = NULL WHERE id = {CASA}")
+    )
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    assert outbox.sent == []
 
 
 async def test_a_proposal_never_emails_its_client(app, client, db_session, owner, outbox, ready):
@@ -447,15 +540,105 @@ async def test_a_file_taken_down_before_sending_is_left_out(app, db_session, out
     assert await batches(db_session) == [("dropped",)]
 
 
-async def test_a_file_still_changing_waits_for_the_next_pass(app, db_session, outbox, ready):
+async def test_a_file_still_changing_waits_for_the_next_pass(
+    app, db_session, outbox, ready, caplog
+):
     path = await new_file(app, outbox, ready)
     await make_due(db_session)
     path.write_bytes(PDF + b"more")  # changed just now
     await run(app, outbox)
     assert outbox.sent == [] and await batches(db_session) == [("open",)]
+    # Logged, so an email held back pass after pass shows.
+    project = await db_session.scalar(text(f"SELECT {CASA}"))
+    assert any(
+        r.levelname == "WARNING" and "waits" in r.getMessage() and str(project) in r.getMessage()
+        for r in caplog.records
+    )
     age(path)
     await run(app, outbox)
     assert len(outbox.sent) == 1
+
+
+async def test_a_file_changed_while_the_pass_reads_drive_still_waits(
+    app, db_session, outbox, ready, monkeypatch
+):
+    """Changed after the pass began but before its listing came back: a change
+    happening now, not a clock ahead of ours (section 11's settling check)."""
+    path = await new_file(app, outbox, ready)
+    await make_due(db_session)
+    real = digest._visible_files
+
+    async def changed_meanwhile(db, storage, project):
+        path.write_bytes(PDF + b"more")  # after the pass took its time, during the listing
+        return await real(db, storage, project)
+
+    monkeypatch.setattr(digest, "_visible_files", changed_meanwhile)
+    await run(app, outbox)
+    assert outbox.sent == [] and await batches(db_session) == [("open",)]
+
+
+async def test_a_file_dated_ahead_of_our_clock_doesnt_hold_the_email(
+    app, db_session, outbox, ready
+):
+    """A computer with its clock ahead gives its files a time still to come (Drive's
+    sync keeps it): not a file changing now, so the email goes."""
+    path = await new_file(app, outbox, ready)
+    later = time.time() + 3600
+    os.utime(path, (later, later))
+    await make_due(db_session)
+    await run(app, outbox)
+    assert len(outbox.sent) == 1
+
+
+async def test_while_drive_is_disconnected_the_email_waits_and_then_goes_whole(
+    app, client, db_session, owner, outbox, ready, caplog
+):
+    """Disconnected ("Desconectar"), the office's pages are offline (plan section
+    9): nothing is emailed, nor dropped. Reconnected, the email goes with its files."""
+    from backend.tests.test_maintenance_scan import call
+
+    alinea = "tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
+    await new_file(app, outbox, ready)
+    await call(client, owner, "PUT", "/stages/3/completion", completed=True)
+    await run(app, outbox)
+    await db_session.execute(
+        text(
+            "UPDATE storage_connections SET kind = 'google', writer_status = 'none',"
+            f" reader_identity = 'leitor@exemplo.com', root_id = 'pasta' WHERE {alinea}"
+        )
+    )
+    await make_due(db_session)
+    await run(app, outbox)
+    await run(app, outbox)
+    assert outbox.sent == [] and await batches(db_session) == [("open",)]
+    assert any(
+        r.levelname == "WARNING" and "disconnected Drive" in r.getMessage() for r in caplog.records
+    )
+    await db_session.execute(
+        text(
+            "UPDATE storage_connections SET kind = 'folder', reader_identity = NULL,"
+            f" root_id = '' WHERE {alinea}"
+        )
+    )
+    await run(app, outbox)
+    [email] = outbox.sent
+    assert "- 02 Levantamento: 1 arquivo enviado" in email.text
+    assert "- 03 Estudo Preliminar: marcada como concluída" in email.text
+
+
+async def test_files_that_cant_be_read_hold_the_email(app, db_session, outbox, ready):
+    """No usable connection at all: the page shows no files either, so the email
+    waits rather than drop them."""
+    await new_file(app, outbox, ready)
+    await db_session.execute(
+        text(
+            "DELETE FROM storage_connections"
+            " WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
+        )
+    )
+    await make_due(db_session)
+    await run(app, outbox)
+    assert outbox.sent == [] and await batches(db_session) == [("open",)]
 
 
 @pytest.mark.parametrize(
@@ -524,6 +707,22 @@ async def test_several_meeting_changes_read_as_the_latest(
     assert lines == [
         f"Reunião alterada: Visita à obra, {date.fromisoformat(day):%d/%m/%Y} às 15:30."
     ]
+
+
+async def test_a_meeting_is_dated_as_the_offices_language_writes_dates(
+    app, client, db_session, owner, outbox, ready
+):
+    from datetime import date
+
+    from backend.tests.test_maintenance_scan import call
+
+    await db_session.execute(text("UPDATE tenants SET locale = 'en' WHERE slug = 'alinea'"))
+    day = date(date.today().year + 1, 3, 14)
+    await call(client, owner, "PUT", "/meeting", title="Visita", day=day.isoformat(), start="15:30")
+    await run(app, outbox)
+    await make_due(db_session)
+    await run(app, outbox)
+    assert "Meeting changed: Visita, 03/14/" in outbox.sent[0].text
 
 
 async def test_a_meeting_scheduled_and_cancelled_meanwhile_is_not_news(

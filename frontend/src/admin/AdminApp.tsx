@@ -80,7 +80,7 @@ function SignIn() {
             {reference && <span className={styles.muted}>{t("errors.reference", { id: reference })}</span>}
           </p>
         )}
-        <Button variant="primary" onPress={() => google.mutate()} isDisabled={google.isPending}>
+        <Button variant="primary" onPress={() => google.mutate()} pending={google.isPending}>
           {t("admin.signInGoogle")}
         </Button>
         <ErrorNotice error={google.error} />

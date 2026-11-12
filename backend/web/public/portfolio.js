@@ -219,6 +219,15 @@ const layMosaic = (mosaic) => {
 // below shows them again.
 const cards = [...document.querySelectorAll(".works > li, .mosaic > li")];
 let relayMosaic = () => {};
+// A work's images get their shape as `--r`, so the stylesheet can size each one
+// to fit the screen's height as well as its width (an inline style in the page
+// itself is not allowed by its security policy; one set from here is).
+const shapePosts = (root) => {
+  for (const image of root.querySelectorAll(".posts img[width][height]")) {
+    image.style.setProperty("--r", String(image.getAttribute("width") / image.getAttribute("height")));
+  }
+};
+shapePosts(document);
 for (const mosaic of document.querySelectorAll(".mosaic")) {
   const relay = layMosaic(mosaic);
   if (!mosaic.classList.contains("posts")) relayMosaic = relay;
@@ -289,6 +298,7 @@ if (layer && layer.showModal && window.fetch) {
     wireLightbox(body);
     unwireRun();
     unwireRun = wireRun(body, layer);
+    shapePosts(body);
     for (const mosaic of body.querySelectorAll(".mosaic")) layMosaic(mosaic);
     body.querySelector("a.back")?.addEventListener("click", (event) => {
       if (modified(event)) return;
