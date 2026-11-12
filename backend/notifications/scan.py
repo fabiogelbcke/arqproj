@@ -140,16 +140,23 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
         # Clients' comments, to the office's staff (A49), first: they need nothing
         # from Drive, which may fail below or hold the update email back.
         report.staff_emails += await alerts.deliver(db, sender, office, project, datetime.now(UTC))
+    try:
+        # A failure below (Drive, or a bug) undoes only its own work: the comments'
+        # emails went, so they are saved (which ends the project's lock: its pass
+        # stops there), then the failure is the caller's to log.
+        async with db.begin_nested():
+            await _files_and_email(db, settings, sender, storage, office, project, report)
+    except Exception:
+        await db.commit()
+        raise
+    await db.commit()
+
+
+async def _files_and_email(db, settings, sender, storage, office, project, report) -> None:
+    """The project's new files, then its update email if one is due; the caller
+    commits."""
     if storage is not None and project.folder_id is not None:
-        try:
-            async with db.begin_nested():  # a failed scan undoes only its own work
-                report.new_files += await scan_project(db, storage, project)
-        except Exception:
-            # Drive failing, or a bug: the comments' emails went, so they are saved
-            # (which ends the project's lock: its pass stops here), then the
-            # failure is the caller's to log.
-            await db.commit()
-            raise
+        report.new_files += await scan_project(db, storage, project)
     now = datetime.now(UTC)
     # Batches that came due, or are being retried, go as they were: changes made
     # after start the next one, with its own quiet period (section 14).
@@ -166,10 +173,8 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
             log.warning(
                 "emails: batch %s of %s/%s waits: %s", due.id, project.tenant_id, project.id, wait
             )
-            await db.commit()
             return
     await digest.gather(db, project)
-    await db.commit()
 
 
 async def _scan_office(

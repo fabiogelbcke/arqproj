@@ -44,8 +44,10 @@ _TEMPLATE = Template((_TEMPLATES / "comments.html").read_text("utf-8"))
 
 async def _recipients(db: AsyncSession, project: Project, members: bool) -> list[str]:
     """The project's members, with that feature on and some chosen; else every
-    staff account of the office (never a support session's)."""
-    staff = select(User.email).where(User.support.is_(False))
+    staff account of the office (never a support session's), confirmed."""
+    # Confirmed addresses only: a mistyped one (joining by the shared link, A36)
+    # must not get clients' names and words.
+    staff = select(User.email).where(User.support.is_(False), User.email_confirmed_at.is_not(None))
     if members:
         chosen = list(
             await db.scalars(

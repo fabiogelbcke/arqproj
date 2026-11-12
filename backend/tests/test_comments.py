@@ -539,3 +539,39 @@ async def test_the_project_stays_locked_while_its_files_are_scanned(
     outbox = Outbox()
     await run_with(app, outbox)
     assert len(outbox.sent) == 1 and held and all(held)
+
+
+async def test_a_failure_after_the_staff_email_does_not_send_it_again(
+    app, visitor, db_session, owner, folders, monkeypatch
+):
+    """Drive failing while the client's update email is made: the staff email
+    sent before it stays told."""
+    from backend.notifications import digest
+    from backend.storage.base import StorageError, StorageProblem
+
+    async def drive_down(db, project, now):
+        raise StorageError(StorageProblem.UNAVAILABLE, "Drive said 503")
+
+    outbox = Outbox()
+    await said(visitor, "Olá", position=1, name="Maria")
+    await age_comments(db_session, 6)
+    monkeypatch.setattr(digest, "to_send", drive_down)
+    await run_with(app, outbox)
+    await run_with(app, outbox)
+    assert len(outbox.sent) == 1
+
+
+async def test_an_unconfirmed_address_gets_no_clients_comments(
+    app, visitor, db_session, owner, folders
+):
+    """Joined by the shared link (A36) and not yet confirmed: perhaps mistyped."""
+    from backend.identity import accounts
+
+    await accounts.create_user(
+        db_session, email="novo@alinea.example", name="Novo", email_confirmed=False
+    )
+    outbox = Outbox()
+    await said(visitor, "Olá", position=1, name="Maria")
+    await age_comments(db_session, 6)
+    await run_with(app, outbox)
+    assert [e.to for e in outbox.sent] == [STAFF]
