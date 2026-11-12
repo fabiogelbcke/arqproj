@@ -254,7 +254,7 @@ async def _put_back(undos, operation, tenant, project) -> None:
     for undo in reversed(undos):
         try:
             await undo()
-        except Exception:  # noqa: BLE001 - the original failure is what matters
+        except Exception:  # the original failure is what matters
             log.exception(
                 "comparisons: could not undo %s for %s/%s", operation, tenant.id, project.id
             )
