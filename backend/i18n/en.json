@@ -1707,7 +1707,7 @@
     "introPlaceholder": "E.g. Residential and interior architecture in Porto Alegre.",
     "format": "Portfolio format",
     "formats": {"gallery": "Gallery", "mosaic": "Mosaic"},
-    "formatHint": {"gallery": "Landscape covers, in rows. Each project as large photos, one at a time.", "mosaic": "Each image in its own shape. For posts, stories and reels."},
+    "formatHint": {"gallery": "Every image in one standard shape.", "mosaic": "Each photo in its own shape."},
     "save": "Save",
     "saved": "Changes saved.",
     "works": "Projects in the portfolio",

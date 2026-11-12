@@ -127,8 +127,8 @@ describe("the Portfólio tab", () => {
     // Each format is a card: its name, what it is for, and a drawing of its layout.
     const cards = within(formats).getAllByRole("radio");
     expect(cards.map((card) => card.closest("label")?.textContent)).toEqual([
-      "GaleriaCapas na horizontal, em linhas. Cada projeto em fotos grandes, uma de cada vez.",
-      "MosaicoCada imagem no formato original. Para posts, stories e reels.",
+      "GaleriaTodas as imagens em formato padrão.",
+      "MosaicoCada foto no seu formato original.",
     ]);
     expect(cards.map((card) => card.closest("label")?.querySelector("svg") !== null)).toEqual([true, true]);
     expect(within(formats).getByRole("radio", { name: /Galeria/ })).toBeChecked();
