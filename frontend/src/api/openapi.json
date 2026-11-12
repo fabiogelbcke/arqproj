@@ -10578,7 +10578,6 @@
         "enum": [
           "project_members",
           "proposals",
-          "portfolio",
           "cover_band",
           "before_after",
           "comments"

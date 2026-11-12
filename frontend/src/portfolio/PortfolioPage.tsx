@@ -1,4 +1,4 @@
-// The Portfólio tab: /painel/portfolio, behind the `portfolio` feature (A40).
+// The Portfólio tab: /painel/portfolio, for every office (A45).
 // Whether the office's address shows the portfolio, its format and opening
 // text, the images in sections by type (as the project page's file manager:
 // each section a card with its drop area, its projects then its loose photos),
@@ -73,7 +73,6 @@ export function PortfolioPage() {
             {me.data?.tenant_name} / {t("portfolio.kicker")}
           </p>
           <h1 className={styles.title}>{t("portfolio.title")}</h1>
-          <p className={styles.lead}>{t("portfolio.lead", { address: officeAddress() })}</p>
         </div>
         {portfolio.data && (
           <div className={styles.actions}>
@@ -201,16 +200,13 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
         {t("portfolio.publishing")}
       </h2>
       <ToggleSwitch
-        label={t("portfolio.publish")}
+        label={t("portfolio.publish", { address: officeAddress() })}
         isSelected={portfolio.published}
         isDisabled={save.isPending}
         onChange={(on) => change({ published: on }, t(on ? "portfolio.publishedDone" : "portfolio.unpublishedDone"))}
       >
-        <span className={styles.switchLabel}>{t("portfolio.publish")}</span>
+        <span className={styles.switchLabel}>{t("portfolio.publish", { address: officeAddress() })}</span>
       </ToggleSwitch>
-      <p className={styles.hint}>
-        {t(portfolio.published ? "portfolio.publishedHint" : "portfolio.unpublishedHint", { address: officeAddress() })}
-      </p>
       {portfolio.published && !shown && <p className={styles.warning}>{t("portfolio.nothingShown")}</p>}
       <div className={styles.format} role="radiogroup" aria-labelledby="portfolio-format">
         <span id="portfolio-format" className={styles.switchLabel}>

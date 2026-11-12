@@ -974,7 +974,6 @@ test("a portfolio work's before and after opens on a slider, by pointer and keyb
   browser,
 }) => {
   await signInAsNewStaff(page, "portfolio@alinea.example");
-  switchOn("portfolio");
   switchOn("before_after");
   const me = await (await page.request.get("/api/me")).json();
   const headers = { "X-CSRF-Token": me.csrf_token };

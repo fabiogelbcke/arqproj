@@ -2766,7 +2766,7 @@ export interface components {
          *     Remove a feature from here once every office has it.
          * @enum {string}
          */
-        Feature: "project_members" | "proposals" | "portfolio" | "cover_band" | "before_after" | "comments";
+        Feature: "project_members" | "proposals" | "cover_band" | "before_after" | "comments";
         /** FileOut */
         FileOut: {
             /** Key */
