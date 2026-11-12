@@ -115,24 +115,24 @@ log = logging.getLogger(__name__)
 
 FOLDER = "_portfolio"
 _EXTENSIONS = {CoverType.PNG: "png", CoverType.JPEG: "jpg", CoverType.WEBP: "webp"}
-# Pixels on the long side, from Drive's thumbnails: a card, and a photo on its own.
-SIZES = {"card": 960, "full": 2000}
+# Pixels on the long side, from Drive's thumbnails: a grid tile, a card, and a
+# photo on its own. The page offers them as a `srcset`, so a small tile on a
+# phone never fetches the card.
+SIZES = {"thumb": 480, "card": 960, "full": 2000}
 PHOTO_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; sandbox",
     "X-Content-Type-Options": "nosniff",
 }
-# A photo never changes under its address (a new photo is a new row), but it can
-# be removed or the portfolio unpublished: kept for minutes, not a day.
-PUBLIC_PHOTO = {**PHOTO_HEADERS, "Cache-Control": "public, max-age=300"}
+# A photo never changes under its address (a new photo is a new row), so the CDN
+# in front of the load balancer (A21) keeps it a day for every visitor: without
+# it, each request makes three calls to Drive (~0.7 s). A photo removed, or the
+# portfolio unpublished, can still be served from there until then: its address
+# is random and no longer linked. A visitor's browser keeps it an hour.
+PUBLIC_PHOTO = {**PHOTO_HEADERS, "Cache-Control": "public, max-age=3600, s-maxage=86400"}
 PRIVATE_PHOTO = {**PHOTO_HEADERS, "Cache-Control": "private, max-age=86400"}
 
 
-def _switched_on(tenant: CurrentTenant = Depends(current_tenant)) -> None:
-    if not tenant.has(Feature.PORTFOLIO):
-        raise ApiError(409, ErrorCode.FEATURE_OFF)
-
-
-router = APIRouter(prefix="/api", dependencies=[Depends(_switched_on)])
+router = APIRouter(prefix="/api")
 
 
 class PhotoComparisonOut(BaseModel):

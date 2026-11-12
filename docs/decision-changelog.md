@@ -19,6 +19,133 @@ a new entry too.
 
 ---
 
+## 2026-11-12 — A45: on an address Unio shares with an office, the office's page
+
+**Was:** `/` on Unio's own address (the operator host) always showed Unio's
+home, before the office was even looked up. On staging the one address,
+`staging.myunio.app`, is both the operator host and the test office's, so the
+portfolio and the office's card could never be seen there.
+
+**Now:** the question at `/` is whether the address is an office's, not whether
+it is Unio's: an address that resolves to an office shows that office's card or
+portfolio; an address no office owns keeps Unio's home. In production nothing
+changes, since no office owns `myunio.app`; on staging the test office's page
+shows. Unio's home still shows whenever the lookup fails.
+
+**Why:** Fabio, 12 Nov 2026: "there's no way to see the portfolio in staging
+now?"
+
+## 2026-11-11 — A49: who removes a comment
+
+**Was:** any of the office's staff, owner or member, removed any comment;
+clients couldn't remove theirs, even one sent by mistake.
+
+**Now:** an owner removes any comment (a client's spam, anyone's mistake); a
+member removes only their own. A client removes their own, from the device they
+posted it on: posting hands the page a signed receipt for that comment, kept on
+the device, and removing shows it. No account, so no other way to tell the
+client is the same person; from another device, or after clearing the site's
+data, they ask the office.
+
+**Why:** Fabio, 11 Nov 2026, asked whether "admins" could remove anyone's
+comments; offered tighter rules, he chose both: members limited to their own,
+and clients able to take back theirs.
+
+## 2026-11-11 — A45: the portfolio for every office; the tab says less
+
+**Was:** the portfolio was behind the `portfolio` feature (A40): an office had
+the Portfólio tab, and its address could show the portfolio, only after the
+operator switched it on. The tab opened with a paragraph explaining the page
+("Uma página com os projetos do escritório, no endereço …"), the publishing
+switch had a line under it saying what the address showed in each state, the
+format cards carried a full sentence each, and an empty section said it "enters
+the portfolio's menu once it has photos".
+
+**Now:** every office has the tab; nothing to switch on. A portfolio starts
+unpublished: the switch alone decides whether the address shows it, which is
+what the feature's "off" state did. The `Feature`
+enum loses `portfolio`; a tenant row still naming it is ignored, as A40 says, so
+no migration. The tab's copy is shorter: no lead paragraph, no line under the
+switch, the switch itself naming the address ("Mostrar portfólio do escritório no
+endereço alinea.myunio.app"), one short line per format, and the empty-section
+text says the section only shows once it has a photo or a project.
+
+**Why:** Fabio, 11 Nov 2026: "Remove portfolio from feature flags, it should be
+available to all offices now (default off)", with the copy trims in the same
+message. The feature flag had done its job: the portfolio was tried on the test
+offices and is the shape he wants.
+
+**Also:** while the portfolio is unpublished, the office's address no longer
+shows Unio's home (a visitor typed the office's address and met our product's
+page) but a card of the office: its logo or name, the ways to reach it and its
+networks where saved, and "Acesso da equipe". Set aside: a redirect to the
+office's own website (a new setting, and most offices come for the portfolio
+because they have no site) and a redirect to the painel sign-in (a login the
+office's clients can't use). Unio's home still shows there when the office can't
+be read, so the address always answers.
+
+## 2026-11-10 — A49: comments on files and stages
+
+**Was:** comments and approvals were explicitly deferred from the pilot (plan
+section 2, "Explicitly deferred"), and clients have no accounts (A06).
+
+**Now:** clients and staff comment on each stage and each file, behind the
+`comments` feature (A40). A client signs with a name remembered on their
+device, nothing more; everyone who can open the page sees the whole
+conversation. A client's comment emails the project's team (or every staff
+account); a staff comment reaches the client through the update email (A32)
+and the updates panel. Approvals stay deferred.
+
+**Why:** Fabio, 10 Nov 2026: "we need to allow comments on files and on
+stages". Asked how a client signs, he chose a name only, over a name and email
+or a link sent to an address on the project's list: the simplest for clients.
+Their replies still reach them, through the project's update emails. A comment
+stays with a file by its identity in storage rather than by its name, so a new
+version, a rename or a move made on the site keeps the conversation.
+
+## 2026-11-10 — A21, A45: a CDN for published portfolio photos; a work's images fit the screen
+
+**Was:** every portfolio photo was fetched through the app, which made three calls
+to Drive for each (about 0.7 s, up to 1.6 s, measured on Alinea's page), and was
+kept five minutes by the visitor's browser only. Grid tiles about 440 px wide
+fetched 960 px images. In Mosaico, a work of one image (most of them since
+pieces became single images, 9 Nov) showed it the full width of the page, at
+twice the screen's height on a laptop.
+
+**Now:** Cloud CDN on the load balancer keeps published photos a day
+(`s-maxage`), the browser an hour; a 480 px size joins the two others, offered
+as a `srcset`; on a desktop a work's images are capped at 72% of the screen's
+width or 1100 px and 82% of its height.
+
+**Why:** almost all the waiting was the app reaching Drive, not the download, so
+smaller images alone would not fix it. A CDN costs about what plain outbound
+transfer does (it replaces it for cached content; lookups are $0.0075 per
+10,000), so no added cost to speak of. Considered and left: keeping our own small
+copy of each photo, the fastest even for a first visitor, but a second store
+beside Drive (A10); and remembering Drive's thumbnail links, which expire. The
+cost of the CDN: a photo removed, or a portfolio unpublished, can still be
+served from it for up to a day, at an address no longer linked anywhere (Fabio
+accepted, 10 Nov 2026). Purging the CDN on removal can come if that matters.
+
+## 2026-11-10 — A46: with comparisons on, the whole stage takes dropped files
+
+**Was:** with `before_after` on, a stage and each section showed both the "+"
+card and their drop area ("Solte arquivos aqui ou escolha no computador"), two
+ways to add files side by side.
+
+**Now:** with the feature on, the drop areas go. Files dropped anywhere on a
+stage or a section upload there (the section, not its stage, when dropped on
+it), the place outlined while they are over it; the "+" card's "Enviar
+arquivos" opens the same chooser. Switched off, the page keeps its drop areas
+and has no "+" card, as before.
+
+**Why:** Fabio, looking at the "+" card: the drop area repeated it, and the
+whole stage being droppable is simpler. The drop area's note (the Drive folder,
+the size limit) no longer shows; a file over the limit still fails with its
+message.
+
+---
+
 ## 2026-11-10 — A45: the office's networks at the top of the page as well as in the footer
 
 **Was:** the office's social profiles showed only in the footer, as plain names

@@ -11,6 +11,9 @@
   --line: #dedfe0; --line-strong: #a7a9ab; --mark: #444649; --mark-soft: rgb(36 38 41 / 6%); --focus: #242629;
   --primary: #242629; --on-primary: #ffffff; --accent: #444649;
   --danger: #9b3d1d; --danger-soft: rgb(155 61 29 / 7%);
+  /* Text on the danger colour (a destructive action's button): at least 4.5:1 in
+     both themes (6.8:1 here, 8.1:1 on the dark theme's lighter danger). */
+  --on-danger: #ffffff;
   /* The one warm colour (painel redesign, 22 Oct 2026): progress (stages completed), edit mode on
      the project page's staff bar, and things still to do (notices). */
   --warm: #e38b3c;
@@ -50,7 +53,7 @@
   --bg: #1d1e20; --raise: #2a2c2e; --surface: #303235; --ink: #f1f1f1; --muted: #babdc0;
   --line: #55585b; --line-strong: #777a7d; --mark: #d4d6d8; --mark-soft: rgb(255 255 255 / 9%); --focus: #ffffff;
   --primary: #f1f1f1; --on-primary: #1d1e20; --accent: #d4d6d8;
-  --danger: #e9a58a; --danger-soft: rgb(233 165 138 / 9%);
+  --danger: #e9a58a; --danger-soft: rgb(233 165 138 / 9%); --on-danger: #1d1e20;
   --warm: #f0a35e;
   --lime-soft: rgb(230 244 177 / 17%); --done-ink: #d3e79a;
   --shadow-lift: 0 10px 28px rgb(0 0 0 / 35%), 0 2px 6px rgb(0 0 0 / 25%);
@@ -58,6 +61,16 @@
   --glass-fill: rgb(241 241 241 / 8%); --glass-edge: rgb(241 241 241 / 16%);
   --glass-shadow: 0 8px 24px rgb(0 0 0 / 30%), inset 0 1px 0 rgb(241 241 241 / 10%);
   color-scheme: dark;
+}
+/* What sits over what, one scale for the whole site, lowest first: what floats at
+   a phone's bottom (the painel's search and +, the portfolio's selection bar, a
+   proposal's pinned PDF); the project page's staff bar and the painel's menu
+   drawer; a dialog; a confirmation, over the dialog it confirms from; a menu shown
+   as a sheet on a phone, over the staff bar; a dialog opened over a dialog (the
+   cropper, the stage order); and toasts over everything, so a message is never
+   hidden behind what it is about. */
+:root {
+  --z-floating: 40; --z-dock: 50; --z-dialog: 51; --z-confirm: 52; --z-sheet: 55; --z-over-dialog: 70; --z-toast: 80;
 }
 /* Phones: the two-column cards need their smallest text a little smaller. */
 @media (max-width: 620px) { :root, :root[data-theme="light"], :root[data-theme="dark"] { --text-2xs: 10px; } }

@@ -79,7 +79,7 @@ export function ChoosePasswordPage() {
         >
           <NewPasswordFields password={password} onChange={setPassword} />
           <ErrorNotice error={choose.error} values={{ min: MIN_PASSWORD_LENGTH }} />
-          <Button type="submit" variant="primary" isDisabled={choose.isPending}>
+          <Button type="submit" variant="primary" pending={choose.isPending}>
             {t("choosePassword.submit")}
           </Button>
         </Form>

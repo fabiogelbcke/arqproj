@@ -5,7 +5,7 @@ import pytest
 from backend.projects.creation import SLUG_MAX
 from backend.tests import test_office
 from backend.tests.test_office import ALINEA
-from backend.web import attempts
+from backend.web import attempts, pages, project_settings
 from backend.web.auth import COOKIE
 
 owner = test_office.owner  # fixtures
@@ -127,6 +127,49 @@ def test_guesses_sent_all_at_once_still_stop_at_five():
     assert attempts.admit("p", "device", now=1001.0 + 15 * 60 + 1)
 
 
+def test_a_try_left_unended_counts_as_failed(monkeypatch):
+    """`trying` ends every try: an error inside (or a cancelled request) counts as a
+    wrong one, so nothing stays reserved and nothing is a free guess."""
+    attempts.reset()
+    monkeypatch.setattr(attempts.time, "monotonic", lambda: 1.0)
+    for _ in range(attempts.LIMIT):
+        assert attempts.admit("p", "device")
+        with pytest.raises(RuntimeError), attempts.trying("p", "device"):
+            raise RuntimeError("unexpected")
+    assert not attempts._in_flight
+    assert not attempts.admit("p", "device", now=2.0)  # five failures: waiting
+    assert attempts.admit("p", "device", now=1.0 + attempts.WINDOW_SECONDS + 1)
+
+
+def test_old_entries_are_forgotten_so_typed_keys_dont_pile_up(monkeypatch):
+    """Keys include whatever address was typed at sign-in: entries past the window
+    are dropped every so often, while a device still waiting keeps its wait."""
+    attempts.reset()
+    monkeypatch.setattr(attempts, "PRUNE_EVERY", 11)
+    for n in range(5):  # five addresses tried once each, long ago
+        assert attempts.admit(f"sign-in:{n}@example.com", "device", now=1.0)
+        attempts.failed(f"sign-in:{n}@example.com", "device", now=1.0)
+    later = 1.0 + attempts.WINDOW_SECONDS
+    for _ in range(attempts.LIMIT):  # one device now waiting
+        assert attempts.admit("p", "guesser", now=later)
+        attempts.failed("p", "guesser", now=later)
+    assert len(attempts._failures) == 5  # ten calls: not pruned yet
+    assert attempts.admit("q", "device", now=later)
+    attempts.failed("q", "device", now=later)  # the eleventh prunes
+    assert set(attempts._failures) == {("q", "device")}
+    assert set(attempts._blocked_until) == {("p", "guesser")}
+    assert not attempts.admit("p", "guesser", now=later + 1)
+
+
+def test_a_try_ends_once():
+    attempts.reset()
+    assert attempts.admit("p", "device", now=1.0)
+    with attempts.trying("p", "device") as attempt:
+        attempt.succeeded()
+        attempt.failed()  # already ended: nothing
+    assert not attempts._in_flight and not attempts._failures
+
+
 def test_a_right_password_frees_its_reservation():
     attempts.reset()
     assert attempts.admit("p", "device", now=1.0)
@@ -183,6 +226,41 @@ async def test_only_a_published_protected_page_takes_a_password(client, owner, s
     assert (response.status_code, response.json()) == (404, {"error": "page_not_found"})
 
 
+async def test_the_password_is_checked_with_no_connection_held(
+    client, owner, holding_connection, monkeypatch
+):
+    """Checking is slow, a few at a time: a guess waiting for it must not keep a
+    database connection, or a burst of guesses would take the whole small pool."""
+    held = []
+    real_verify = pages.verify_password
+
+    async def watched(*args):
+        held.append(holding_connection())
+        return await real_verify(*args)
+
+    monkeypatch.setattr(pages, "verify_password", watched)
+    Roles(client).visitor()
+    assert (await unlock(client, "chute")).status_code == 401
+    assert (await unlock(client, SEED_PASSWORD)).status_code == 204
+    assert held == [False, False]
+
+
+async def test_a_check_that_fails_unexpectedly_still_counts(client, owner, monkeypatch):
+    """A try that didn't finish counts: an error is no free guess, and it leaves
+    nothing reserved."""
+
+    async def broken(*_args):
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(pages, "verify_password", broken)
+    Roles(client).visitor()
+    for _ in range(attempts.LIMIT):
+        assert (await unlock(client, SEED_PASSWORD)).status_code == 500
+    monkeypatch.undo()
+    assert (await unlock(client, SEED_PASSWORD)).status_code == 429
+    assert not attempts._in_flight
+
+
 # -- access settings ------------------------------------------------------------------
 
 
@@ -197,6 +275,26 @@ async def test_a_new_password_locks_out_every_device(client, owner):
     roles.visitor()
     assert await page_status(client) == 403  # the earlier unlock no longer counts
     assert (await unlock(client, SEED_PASSWORD)).status_code == 401
+    assert (await unlock(client, "nova-senha")).status_code == 204
+
+
+async def test_a_new_password_is_hashed_before_the_project_is_locked(
+    client, owner, holding_connection, monkeypatch
+):
+    """Saving locks the project's row until the save ends: the slow hashing must
+    come before, holding neither the lock nor a connection."""
+    held = []
+    real_hash = project_settings.hash_password
+
+    async def watched(password):
+        held.append(holding_connection())
+        return await real_hash(password)
+
+    monkeypatch.setattr(project_settings, "hash_password", watched)
+    changed = await change(client, owner, PROTECTED, access_mode="password", password="nova-senha")
+    assert changed.status_code == 200, changed.text
+    assert held == [False]
+    Roles(client).visitor()
     assert (await unlock(client, "nova-senha")).status_code == 204
 
 

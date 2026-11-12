@@ -105,6 +105,10 @@ PUBLIC = {
     "POST /api/pages/{slug}/subscribe": "a client signs up for emails; rate-limited (A32)",
     "POST /api/pages/{slug}/shares": "clients share files too, behind the page's password (A37)",
     "POST /api/pages/{slug}/shares/mine": "a client's own links: the owner keys they hold",
+    "POST /api/pages/{slug}/comments": "clients comment too, behind the page's password; "
+    "rate-limited per device; staff's need CSRF (A49)",
+    "DELETE /api/pages/{slug}/comments/{comment_id}": "the device that posted it, an owner "
+    "or its staff author; staff's need CSRF (A49)",
     "POST /api/pages/{slug}/shares/{link_id}/disable": "staff with CSRF, or the link's owner key",
     "POST /api/pages/{slug}/shares/{link_id}/refresh": "staff with CSRF, or the link's owner key",
     "GET /share/{token}": "a share link's shell: the token is the permission (A37)",
@@ -151,15 +155,7 @@ WHILE_ARCHIVED = {
 }
 
 # Request fields without a length limit, and why.
-UNLIMITED = {
-    # Whoever merges second removes these lines (the limits are there by then).
-    "auth.LoginIn.email": "limits added in the sign-in hardening PR",
-    "auth.LoginIn.password": "limits added in the sign-in hardening PR",
-    "auth.LinkIn.token": "limits added in the sign-in hardening PR",
-    "auth.ResetIn.email": "limits added in the sign-in hardening PR",
-    "auth.ChoosePasswordIn.token": "limits added in the sign-in hardening PR",
-    "auth.ChoosePasswordIn.password": "limits added in the sign-in hardening PR",
-}
+UNLIMITED: dict[str, str] = {}
 
 
 # -- reading the app's routes ---------------------------------------------------------
