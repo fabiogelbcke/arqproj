@@ -112,14 +112,15 @@ async def _check_current(
     key = _limit_key(staff)
     if not attempts.admit(*key):
         raise ApiError(429, ErrorCode.TOO_MANY_ATTEMPTS)
-    user = await db.get(User, staff.user_id)
-    checked = user.password_hash if user else None
-    await db.commit()  # the connection back before the slow check
-    if user is None or not await verify_password(checked, current):
-        attempts.failed(*key)
-        await anyio.sleep(FAILED_LOGIN_DELAY)
-        raise ApiError(422, ErrorCode.CURRENT_PASSWORD_WRONG)
-    attempts.succeeded(*key)
+    with attempts.trying(*key) as attempt:
+        user = await db.get(User, staff.user_id)
+        checked = user.password_hash if user else None
+        await db.commit()  # the connection back before the slow check
+        if user is None or not await verify_password(checked, current):
+            attempt.failed()
+            await anyio.sleep(FAILED_LOGIN_DELAY)
+            raise ApiError(422, ErrorCode.CURRENT_PASSWORD_WRONG)
+        attempt.succeeded()
     if confirmation:
         await accounts.lock_confirmation(db, staff.user_id)
     user = await db.get(User, staff.user_id, with_for_update=True, populate_existing=True)

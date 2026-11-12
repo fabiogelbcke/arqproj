@@ -609,10 +609,20 @@ replay, another office's address and another browser are refused as this
 section asks, with nothing of ours to store. Google signs in an existing
 account of that office by its verified email (and confirms it, under the same
 per-account lock as codes and links), never creates one, and doesn't accept a
-pending invite (its link does, first); passwords keep working. Code exchanges
-are rate-limited per device (5 failures in 15 minutes, as passwords), for
-offices and operators alike; a failure's support code comes back with the
-redirect. Sign-up and owner links don't offer Google yet.
+pending invite (its link does, first); passwords keep working. Google proves
+the address, not who signed up with it (anyone holding the shared link can type
+a colleague's, A36): a sign-up still unconfirmed (`users.unconfirmed_signup`,
+set by the signup links, cleared by the first confirmation of any kind) that
+Google confirms has every session ended and its password made unusable, in the
+same transaction, so only the address's owner is left signed in; a password is
+set again through "Esqueceu a senha?". A password sign-in being checked
+meanwhile gets no session: before making one it reads the account again under
+its row lock, which Google's confirmation and a new password take first. An account confirming a changed email
+("Minha conta") was the person's before, so Google only confirms it. (The emailed confirmation link stays as A36 has it: it
+reaches only the address, and its email says to ignore it if the person didn't
+sign up.) Code exchanges are rate-limited per device (5 failures in 15 minutes,
+as passwords), for offices and operators alike; a failure's support code comes
+back with the redirect. Sign-up and owner links don't offer Google yet.
 
 Staff roles for the pilot:
 
@@ -633,7 +643,10 @@ sessions or is rechecked on each administrative request.
 Use random secret signing material independent of user passwords; server-side
 sessions with rotation on login, secure/HttpOnly/SameSite cookies in production,
 and **no parent-domain cookie** shared by every office. Staff mutations use CSRF
-protection. Password attempts, login handoffs and invitations are rate-limited.
+protection. Password attempts, login handoffs and invitations are rate-limited
+(staff sign-in, built 10 Nov 2026: 5 wrong passwords for one address from one
+device in 15 minutes, then 15 minutes' wait, as client pages; the slow password
+hashing never runs while a database connection is held).
 Local test mode uses an explicit fake identity provider and is refused in
 production configuration; it must never become a hidden production bypass.
 
@@ -699,7 +712,7 @@ The following is a logical schema specification, not a migration:
 | --- | --- |
 | `tenants` | ID, display name, slug, locale, timezone, lifecycle, plan/feature settings |
 | `tenant_domains` | hostname unique, tenant ID, canonical/alias status |
-| `users` | tenant, email (unique per tenant), display name, role (owner/member), password hash (none for Google-only accounts), later identity provider + subject |
+| `users` | tenant, email (unique per tenant), display name, role (owner/member), password hash (none for Google-only accounts), when the email was confirmed, whether it is an unconfirmed sign-up (made through a signup link and not confirmed since, A36), later identity provider + subject |
 | `password_links` | tenant, user (same tenant), kind (invite/reset), token hash, expiry, used time; one-time links for people to choose their own password (step 1.5b). Reset links also come from "Esqueceu a senha?" on the sign-in screen (18 Oct 2026): emailed from the office's address, built on its stored domain, with the same answer whether or not the account exists, at most one email every 2 minutes per account and 5 requests per device in 15 minutes |
 | `sessions` | tenant, user (same tenant), token hash, CSRF token, last seen, expiry, revoked |
 | `drive_connections` | tenant, provider account subject, root ID, drive ID/type, read identity, write-token secret reference, separate read/write health, generation |
