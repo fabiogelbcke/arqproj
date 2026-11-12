@@ -8,6 +8,7 @@ from sqlalchemy import event, select, text
 
 from backend.notifications.email import EmailError
 from backend.notifications.models import ProjectRecipient
+from backend.settings import Settings
 from backend.tests import test_office
 from backend.tests.test_office import ALINEA, tenant_id
 from backend.tests.test_pages import project_id
@@ -30,8 +31,14 @@ class Sent:
         return "id"
 
 
+def as_production(monkeypatch):
+    monkeypatch.setattr(Settings, "email_staff_only", property(lambda self: False))
+
+
 @pytest.fixture
 async def sent(client, owner, monkeypatch):
+    """Emails as in production, where clients get them."""
+    as_production(monkeypatch)
     client.cookies.clear()  # a visitor
     attempts.reset()
     box = Sent()
@@ -108,12 +115,17 @@ async def test_a_locked_or_unknown_page_takes_no_sign_ups(client, db_session, se
 
 
 async def test_an_archived_project_takes_no_sign_ups(client, db_session, sent):
+    page = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()
+    assert page["archived"] is False
     await db_session.execute(
         text("UPDATE projects SET status = 'archived', archived_from = 'active' WHERE id = :p"),
         {"p": str(await project_id(db_session, "casa-jardim"))},
     )
     response = await ask(client, "ana@gmail.com")
     assert (response.status_code, response.json()["error"]) == (409, "project_archived")
+    # The page says so, and offers no form that would always fail.
+    page = (await client.get("/api/pages/casa-jardim", headers=ALINEA)).json()
+    assert page["archived"] is True
 
 
 async def test_a_full_list_takes_no_more(client, db_session, sent):
@@ -158,3 +170,16 @@ async def test_signing_up_again_after_stopping_gets_a_new_welcome(client, db_ses
     await ask(client, "ana@gmail.com")
     first, second = sent.emails
     assert first.idempotency_key != second.idempotency_key  # not deduplicated away
+
+
+async def test_outside_production_only_staff_addresses_are_welcomed(
+    client, db_session, sent, monkeypatch
+):
+    """As the updates (A32): staging and local runs never email a client, the
+    welcome included. The address is still listed."""
+    monkeypatch.setattr(Settings, "email_staff_only", property(lambda self: True))  # as staging
+    assert (await ask(client, "ana@gmail.com")).status_code == 204
+    assert (await listed(db_session))["ana@gmail.com"] == "subscribed"
+    assert sent.emails == []
+    assert (await ask(client, "dona@alinea.example")).status_code == 204  # the owner's
+    assert [email.to for email in sent.emails] == ["dona@alinea.example"]

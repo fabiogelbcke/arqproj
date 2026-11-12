@@ -2071,7 +2071,10 @@ export interface paths {
         put?: never;
         /**
          * Hide File
-         * @description The file stays in Drive, renamed "_name", which the page doesn't show.
+         * @description The file stays in Drive, renamed "_name", which the page doesn't show: every
+         *     version of its document, so the client doesn't see the one before instead;
+         *     and only if the app may rename all of them, checked before any is renamed
+         *     (as a comparison is hidden).
          */
         post: operations["hide_file_api_pages__slug__files__key__hide_post"];
         delete?: never;
@@ -2691,7 +2694,7 @@ export interface components {
          *     Remove a feature from here once every office has it.
          * @enum {string}
          */
-        Feature: "project_members" | "proposals" | "portfolio" | "cover_band" | "before_after";
+        Feature: "project_members" | "proposals" | "cover_band" | "before_after";
         /** FileOut */
         FileOut: {
             /** Key */
@@ -3169,6 +3172,11 @@ export interface components {
             cover_url: string | null;
             /** Completed */
             completed: boolean;
+            /**
+             * Archived
+             * @default false
+             */
+            archived: boolean;
             /** Current Position */
             current_position: number | null;
             /**
@@ -5463,6 +5471,15 @@ export interface operations {
             };
             /** @description Unprocessable Content */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

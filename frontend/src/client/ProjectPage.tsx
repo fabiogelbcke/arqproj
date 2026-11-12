@@ -1,6 +1,6 @@
 // The client's project page, read-only (slice 2.3), after the fresh prototype's
 // markup: its stylesheet (prototype.css) styles these same class names.
-import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { flushSync } from "react-dom";
 
@@ -11,6 +11,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { OfficeBrand } from "../ui/OfficeBrand";
 import { PopoverDetails } from "../ui/PopoverDetails";
 import { useDismiss } from "../ui/useDismiss";
+import { copyText } from "../ui/copyText";
 import { Toaster, toast, toastError } from "../ui/Toast";
 import { SiteFooter } from "../ui/UnioMark";
 import { EditButton, openOnClick } from "./EditButton";
@@ -102,20 +103,35 @@ function filesFor(state: FilesState | null, position: number) {
   return { files, reference: state.reference };
 }
 
-/** An image's small preview: Drive's thumbnail, else (local folders) the image. */
+/** A card's preview image: Drive's thumbnail (with local folders, the image
+ *  itself), never the original, which on Drive is the whole file: megabytes a
+ *  card, and a fresh upload often has no thumbnail yet. One that failed is tried
+ *  again on the next listing, whose keys, and so addresses, are new. */
+function usePreview(src: string | null) {
+  const [failed, setFailed] = useState<string | null>(null);
+  return { src: src !== null && src !== failed ? src : null, onError: () => setFailed(src) };
+}
+
+/** An image's small preview (usePreview), or nothing. */
 function Thumb({ slug, fileKey, className }: { slug: string; fileKey: string; className?: string }) {
-  const [original, setOriginal] = useState(false);
-  const [broken, setBroken] = useState(false);
-  if (broken) return null;
-  return (
-    <img
-      className={className}
-      src={fileSource.address(slug, fileKey, original ? "inline" : "thumb") ?? fileSource.address(slug, fileKey, "inline")!}
-      alt=""
-      loading="lazy"
-      onError={() => (original ? setBroken(true) : setOriginal(true))}
-    />
-  );
+  const { src, onError } = usePreview(fileSource.address(slug, fileKey, "thumb"));
+  if (!src) return null;
+  return <img className={className} src={src} alt="" loading="lazy" onError={onError} />;
+}
+
+/** React keys for a group's cards that stay put when the page lists again: a
+ *  file's key is new on every listing (encrypted afresh), so a card keyed by it
+ *  would be made anew, losing an open dialog or a version's upload. A name is
+ *  unique in its folder but for a clash (two files claiming one version) or a
+ *  Google format beside a PDF of its name: those are told apart by their order. */
+export function cardIds(files: FileItem[]): string[] {
+  const seen = new Map<string, number>();
+  return files.map((file) => {
+    const id = `${file.comparison ? "comparison" : "file"}:${file.name}`;
+    const n = (seen.get(id) ?? 0) + 1;
+    seen.set(id, n);
+    return n > 1 ? `${id}#${n}` : id;
+  });
 }
 
 /** A comparison's card (A46): its two images side by side, split where the
@@ -149,14 +165,12 @@ function FileCard({
   // apart, "Atualizado" for a few days after a new one.
   const { t, i18n } = useTranslation();
   const [versions, setVersions] = useState(false); // every version, in a modal
-  // Only images and PDFs have previews (Drive's); other files show their type.
-  const preview = fileSource.address(slug, file.key, "thumb");
-  const [thumb, setThumb] = useState<"thumb" | "original" | "none">(
-    file.kind === "other" ? "none" : preview ? "thumb" : file.kind === "image" ? "original" : "none",
-  );
+  // Only images and PDFs have previews (Drive's); other files, or one without a
+  // preview, show their type.
+  const { src, onError } = usePreview(file.kind === "other" ? null : fileSource.address(slug, file.key, "thumb"));
   const extension = file.name.includes(".") ? file.name.split(".").pop()!.toUpperCase() : "";
-  // Drive's preview first; for an image without one (local folders), the image itself.
-  const src = thumb === "thumb" ? preview : thumb === "original" ? fileSource.address(slug, file.key, "inline") : null;
+  // Its details are read out after its name, as they show.
+  const details = useId();
   return (
     <div
       className={`file${drag ? " is-draggable" : ""}`}
@@ -164,17 +178,18 @@ function FileCard({
       draggable={!!drag}
       onDragStart={drag && ((event) => startDrag(event, drag))}
     >
-      <button className="file__open" type="button" onClick={onOpen} aria-label={t("page.openFile", { name: file.name })}>
+      <button
+        className="file__open"
+        type="button"
+        onClick={onOpen}
+        aria-label={t("page.openFile", { name: file.name })}
+        aria-describedby={details}
+      >
         <span className="file__thumb">
           {file.comparison ? (
             <CompareThumb slug={slug} file={file} />
           ) : src ? (
-            <img
-              src={src}
-              alt=""
-              loading="lazy"
-              onError={() => setThumb(thumb === "thumb" && file.kind === "image" ? "original" : "none")}
-            />
+            <img src={src} alt="" loading="lazy" onError={onError} />
           ) : file.kind === "pdf" ? (
             <span className="sheetthumb" aria-hidden="true" />
           ) : (
@@ -185,7 +200,7 @@ function FileCard({
           <span className="file__name" title={file.name}>
             {file.name}
           </span>
-          <span className="file__meta">
+          <span className="file__meta" id={details}>
             {file.comparison && <span className="file__compare-tag">{t("compare.tag")}</span>}
             {/* Read out, and shown in the list view, where the badge isn't. */}
             {file.version != null && (
@@ -309,11 +324,11 @@ function StageFilesList({
         </div>
       ))
     );
-  const cards = (group: (typeof files.groups)[number]) => (
+  const cards = (group: (typeof files.groups)[number], ids = cardIds(group.files)) => (
     <div className="files" data-view={view}>
-      {group.files.map((file) => (
+      {group.files.map((file, i) => (
         <FileCard
-          key={file.key}
+          key={ids[i]}
           file={file}
           slug={slug}
           timeZone={timeZone}
@@ -994,13 +1009,7 @@ function StaffBar({
         data-tour="link"
         aria-label={t("page.copyLink")}
         title={t("page.copyLink")}
-        onClick={() => {
-          const link = window.location.origin + window.location.pathname;
-          navigator.clipboard?.writeText(link).then(
-            () => toast(t("page.linkCopied")),
-            () => toast(link),
-          );
-        }}
+        onClick={() => void copyText(window.location.origin + window.location.pathname)}
       >
         <Icon name="link" />
       </button>
@@ -1256,8 +1265,9 @@ export function ProjectPage({
         <MeetingCard page={page} slug={slug} onEdit={canEdit ? () => setOpenEditor("meet") : undefined} />
       )}
     </div>,
-    // Clients add themselves to the emails (A32); not in edit mode, not when done.
-    ...(!canEdit && !page.completed
+    // Clients add themselves to the emails (A32); not in edit mode, not when done
+    // or archived (the server would refuse every sign-up).
+    ...(!canEdit && !page.completed && !page.archived
       ? [
           <div key="subscribe" data-movable="1">
             <Subscribe slug={slug} />

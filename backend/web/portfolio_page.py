@@ -1,9 +1,10 @@
 """The office's portfolio at its own address's root (`/`), once published.
 
 `/` belongs to no office (Unio's home is served there on every address), so this
-looks the office up from the address itself. Unio's own address keeps its home,
-and so does an office without the `portfolio` feature (A40) or with the
-portfolio unpublished. `/?projeto={id}` shows one work with all its photos.
+looks the office up from the address itself; an address no office owns (Unio's
+own) keeps Unio's home. An office's address shows a card of the office while the
+portfolio is unpublished: its logo or name, its contact details and networks, and
+the way in for staff. `/?projeto={id}` shows one work with all its photos.
 Signed-in staff see an unpublished portfolio with `/?previa=1`.
 
 The page is plain HTML drawn here: quick to load and read by search engines.
@@ -50,7 +51,7 @@ from backend.projects.enums import DetailType
 from backend.projects.models import ProjectTypeDef
 from backend.tenancy.middleware import REDIRECT_MAX_AGE, redirect_url
 from backend.tenancy.models import Feature, Locale
-from backend.tenancy.resolve import CurrentTenant, normalize_host, resolve
+from backend.tenancy.resolve import CurrentTenant, resolve
 from backend.web.auth import COOKIE
 from backend.web.portfolio import (
     SIZES,
@@ -215,24 +216,115 @@ def _meta(entry: PortfolioEntry) -> str:
     return " · ".join(part for part in (entry.place, str(entry.year or "")) if part)
 
 
+def _brand(office: OfficeProfile | None, name: str) -> str:
+    """The office's logo (its dark-mode one in dark mode), or its name."""
+    light, dark = logo_urls(office)
+    if not light:
+        return f"<span>{name}</span>"
+    source = (
+        f'<source srcset="{escape(dark)}" media="(prefers-color-scheme: dark)">' if dark else ""
+    )
+    return f'<picture>{source}<img src="{escape(light)}" alt="{name}"></picture>'
+
+
+def _ways(office: OfficeProfile | None) -> list[str]:
+    """The ways to reach the office it has saved: email, WhatsApp, phone, address."""
+    ways: list[str] = []
+    if office is None:
+        return ways
+    if office.contact_email:
+        email = escape(office.contact_email)
+        ways.append(f'<a href="mailto:{email}">{email}</a>')
+    if office.whatsapp and (wa := _whatsapp(office.whatsapp)):
+        ways.append(f'<a href="{wa}">WhatsApp {escape(office.whatsapp)}</a>')
+    if office.phone:
+        digits = re.sub(r"[^\d+]", "", office.phone)
+        ways.append(f'<a href="tel:{digits}">{escape(office.phone)}</a>')
+    if office.address or office.city:
+        place = ", ".join(part for part in (office.address, office.city) if part)
+        ways.append(f"<span>{escape(place)}</span>")
+    return ways
+
+
+def _mark(network: str) -> str:
+    return (
+        '<svg viewBox="0 0 24 24" aria-hidden="true">'
+        f'<path d="{ICON_PATHS[SocialNetwork(network)]}"></path></svg>'
+    )
+
+
+def _nets(t: dict, profiles: list[tuple[str, str]]) -> str:
+    """The office's networks, each by its mark and name, in one line."""
+    return (
+        '<p class="nets">'
+        + "".join(
+            f'<a href="{escape(address)}" rel="noopener">{_mark(network)}'
+            f"<span>{escape(t['networks'][network])}</span></a>"
+            for network, address in profiles
+        )
+        + "</p>"
+    )
+
+
+# The card gives way to the portfolio the minute it is published: asked each time.
+CARD = {**HEADERS, "Cache-Control": "no-cache"}
+
+
+def _card(
+    tenant: CurrentTenant, office: OfficeProfile | None, found: Portfolio | None, request: Request
+) -> HTMLResponse:
+    """The office's address before its portfolio is published: a card of the
+    office, its logo or name, the ways to reach it and its networks where saved,
+    and the way in for staff. Never Unio's home there: the address is the office's."""
+    t = _texts(tenant.locale)
+    name = escape(office.display_name if office else tenant.name)
+    ways = _ways(office)
+    profiles = list(links(found).items())
+    body = (
+        f"<h1>{_brand(office, name)}</h1>"
+        + (f'<p class="ways">{"".join(ways)}</p>' if ways else "")
+        + (_nets(t, profiles) if profiles else "")
+        + f'<p class="small"><a href="/painel/">{escape(t["staff"])}</a></p>'
+    )
+    stylesheet = _asset_url("portfolio.css", request.app.state.settings.deployed)
+    document = f"""<!doctype html>
+<html lang="{tenant.locale.value}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{name}</title>
+<link rel="stylesheet" href="{stylesheet}">
+</head>
+<body>
+<main class="card">{body}</main>
+</body>
+</html>
+"""
+    return HTMLResponse(document, headers=CARD)
+
+
 async def page(request: Request) -> Response | None:
-    """The portfolio for this address, or None: Unio's home is shown instead,
-    also when the portfolio can't be read: the home never depends on the database."""
+    """The portfolio for this address, or the office's card while it is
+    unpublished; None on an address no office owns (Unio's own), and whenever the
+    office can't be read: Unio's home is shown then, as it never depends on the
+    database."""
     try:
         return await _page(request)
     except Exception:
         log.exception("portfolio unavailable at %s; Unio's home shown", request.headers.get("host"))
+        # The home then stands in for a page that may exist: not to be kept.
+        request.state.office_unread = True
         return None
 
 
 async def _page(request: Request) -> Response | None:
     settings = request.app.state.settings
     host = request.headers.get("host")
-    if normalize_host(host) == settings.operator_host:
-        return None
+    # Not "is this Unio's own address?" but "is it an office's?": on staging the
+    # one address is both, and the office's page wins there (12 Nov 2026).
     async with request.app.state.sessionmaker() as session:
         resolution = await resolve(session, host)
-    if resolution is None or not resolution.tenant.has(Feature.PORTFOLIO):
+    if resolution is None:
         return None
     if resolution.redirect_host:
         # An alias or `www.`: to the office's own address first, as every other
@@ -243,19 +335,19 @@ async def _page(request: Request) -> Response | None:
     async with request.app.state.sessionmaker() as db:
         scope_to_tenant(db.sync_session, tenant.id)
         found = await db.scalar(select(Portfolio))
+        office = await db.scalar(select(OfficeProfile))
         preview = False
         if not (found and found.published):
             token = request.cookies.get(COOKIE)
             if "previa" not in request.query_params or not token:
-                return None
+                return _card(tenant, office, found, request)
             signed_in = await sessions.find_active(db, token)
             # Confirmed staff only, as everywhere else (an account from the shared
             # office link has a session before its email is confirmed).
             if signed_in is None or signed_in[1].email_confirmed_at is None:
-                return None
+                return _card(tenant, office, found, request)
             await db.commit()
             preview = True
-        office = await db.scalar(select(OfficeProfile))
         # Each comparison's "after" photo shows with its "before" one (A46).
         pairs: dict = {}
         works = []
@@ -336,14 +428,7 @@ def _document(
         """Its title; a piece without one is named by its section, or "Projeto"."""
         return entry.title or kind(entry) or t["work"]
 
-    light, dark = logo_urls(office)
-    if light:
-        source = (
-            f'<source srcset="{escape(dark)}" media="(prefers-color-scheme: dark)">' if dark else ""
-        )
-        brand = f'<picture>{source}<img src="{escape(light)}" alt="{name}"></picture>'
-    else:
-        brand = f"<span>{name}</span>"
+    brand = _brand(office, name)
 
     if chosen:
         entry, photos = chosen
@@ -413,34 +498,16 @@ def _document(
             )
         image = photo_url(works[0][1][0]) if works else None
 
-    contact = []
-    if office and office.contact_email:
-        email = escape(office.contact_email)
-        contact.append(f'<a href="mailto:{email}">{email}</a>')
-    if office and office.whatsapp and (wa := _whatsapp(office.whatsapp)):
-        contact.append(f'<a href="{wa}">WhatsApp {escape(office.whatsapp)}</a>')
-    if office and office.phone:
-        digits = re.sub(r"[^\d+]", "", office.phone)
-        contact.append(f'<a href="tel:{digits}">{escape(office.phone)}</a>')
-    if office and (office.address or office.city):
-        place = ", ".join(part for part in (office.address, office.city) if part)
-        contact.append(f"<span>{escape(place)}</span>")
+    contact = _ways(office)
     # The office's networks: their marks beside the page's sections at the top,
     # and with their names in the footer. Discreet (the page's own colour, the
     # text's size), but seen on arriving and on leaving.
     profiles = list(links(found).items())
-
-    def mark(network: str) -> str:
-        return (
-            '<svg viewBox="0 0 24 24" aria-hidden="true">'
-            f'<path d="{ICON_PATHS[SocialNetwork(network)]}"></path></svg>'
-        )
-
     follow = (
         '<div class="follow">'
         + "".join(
             f'<a href="{escape(address)}" rel="noopener" '
-            f'aria-label="{escape(t["networks"][network])}">{mark(network)}</a>'
+            f'aria-label="{escape(t["networks"][network])}">{_mark(network)}</a>'
             for network, address in profiles
         )
         + "</div>"
@@ -448,13 +515,7 @@ def _document(
         else ""
     )
     social = (
-        f'<div><p class="label">{escape(t["follow"])}</p><p class="nets">'
-        + "".join(
-            f'<a href="{escape(address)}" rel="noopener">{mark(network)}'
-            f"<span>{escape(t['networks'][network])}</span></a>"
-            for network, address in profiles
-        )
-        + "</p></div>"
+        f'<div><p class="label">{escape(t["follow"])}</p>{_nets(t, profiles)}</div>'
         if profiles
         else ""
     )

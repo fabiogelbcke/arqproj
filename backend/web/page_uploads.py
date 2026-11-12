@@ -33,7 +33,8 @@ by that name, never by a Drive id; with two of one name in Drive, the first as
 listed, which is the one the page shows first. A section is renamed or hidden
 (a leading "_", as a file is) only if the app made it: the grant reaches only
 what it created (`folder_not_ours`).
-Hiding renames it with a leading "_", which the page never shows (A05); moving
+Hiding renames it with a leading "_", which the page never shows (A05), every
+version of its document; moving
 puts it in another stage's folder, where the page shows it next. The office's
 grant (drive.file) reaches only files the app created, so a file put straight
 into Drive is hidden or moved there (`file_not_ours`, `file_not_ours_to_move`).
@@ -85,6 +86,7 @@ router = APIRouter()
 UPLOAD_MAX_MB = 100
 UPLOAD_MAX = UPLOAD_MAX_MB * 1024 * 1024
 SECTION_NAME_MAX = 80
+CHECK_NAMES_MAX = 100  # names a check takes: the page asks in batches of this many
 LOCAL_PURPOSE = "local-upload"
 LOCAL_SECONDS = 3600  # like Google's session, it is used at once
 
@@ -178,6 +180,11 @@ async def _documents(reader, folder: str) -> list[versions.Document]:
     return versions.group([i for i in await _list(reader, folder) if _showable(i)])
 
 
+def _document_of(documents: list[versions.Document], item) -> versions.Document | None:
+    """The document the item is a version of."""
+    return next((d for d in documents if any(i.id == item.id for _n, i in d.versions)), None)
+
+
 async def _section(reader, stage: ProjectStage, name: str | None) -> str:
     """The folder files go into: the stage's own, or its section of that name."""
     if name is None:
@@ -202,7 +209,7 @@ async def _as_new_version(
         documents = await _documents(reader, found["f"])
     except StorageError as error:
         raise _listing_failed(error, tenant, project.id, position) from None
-    document = next((d for d in documents if any(i.id == item.id for _n, i in d.versions)), None)
+    document = _document_of(documents, item)
     if document is None:
         raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # gone since
     extension = versions.parse(name).extension.casefold()
@@ -305,7 +312,7 @@ async def start_upload(
 
 class CheckIn(BaseModel):
     row_version: int
-    names: list[str] = Field(max_length=100)
+    names: list[str] = Field(max_length=CHECK_NAMES_MAX)
     folder: str | None = Field(default=None, max_length=255)  # a section, as for uploads
 
 
@@ -633,15 +640,28 @@ async def hide_file(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """The file stays in Drive, renamed "_name", which the page doesn't show."""
+    """The file stays in Drive, renamed "_name", which the page doesn't show: every
+    version of its document, so the client doesn't see the one before instead;
+    and only if the app may rename all of them, checked before any is renamed
+    (as a comparison is hidden)."""
     project = await _readable(db, slug, staff, request)
     await _changeable(db, project.id)
-    _storage, item = await _item(request, db, project, key)
+    reader, item, found = await _item_at(request, db, project, key)
+    try:
+        documents = await _documents(reader, found["f"])
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project.id, found.get("s")) from None
+    document = _document_of(documents, item)
+    if document is None:
+        raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # gone since
+    items = [version for _n, version in document.versions]
     maker, _root = await _folders(request, db)
     try:
-        if not await maker.can_rename(item.id):
-            raise ApiError(409, ErrorCode.FILE_NOT_OURS)
-        await maker.rename(item.id, f"_{item.name}")
+        for version in items:
+            if not await maker.can_rename(version.id):
+                raise ApiError(409, ErrorCode.FILE_NOT_OURS)
+        for version in items:
+            await maker.rename(version.id, f"_{version.name}")
     except ConnectError as error:
         log.error(
             "uploads: hiding %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail

@@ -110,7 +110,8 @@ function SignupForm({ token, domain }: { token: string; domain: string }) {
       <Button
         type="submit"
         variant="primary"
-        isDisabled={create.isPending || create.isSuccess || !name.trim() || status?.kind === "problem"}
+        isDisabled={create.isSuccess || !name.trim() || status?.kind === "problem"}
+        pending={create.isPending}
       >
         {t("signup.create")}
       </Button>

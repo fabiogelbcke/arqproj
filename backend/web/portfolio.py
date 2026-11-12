@@ -132,12 +132,7 @@ PUBLIC_PHOTO = {**PHOTO_HEADERS, "Cache-Control": "public, max-age=3600, s-maxag
 PRIVATE_PHOTO = {**PHOTO_HEADERS, "Cache-Control": "private, max-age=86400"}
 
 
-def _switched_on(tenant: CurrentTenant = Depends(current_tenant)) -> None:
-    if not tenant.has(Feature.PORTFOLIO):
-        raise ApiError(409, ErrorCode.FEATURE_OFF)
-
-
-router = APIRouter(prefix="/api", dependencies=[Depends(_switched_on)])
+router = APIRouter(prefix="/api")
 
 
 class PhotoComparisonOut(BaseModel):

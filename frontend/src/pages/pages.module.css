@@ -209,7 +209,6 @@ a.brand:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 }
 .switchWarning p { margin: 0; font-size: var(--text-lg); }
 .switchWarning ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: var(--text-md); }
-.dangerButton { background: var(--danger) !important; border-color: var(--danger) !important; color: #fff !important; }
 .space { display: grid; gap: 6px; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
 .spaceBar { display: block; height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; }
 .spaceBar i { display: block; height: 100%; background: var(--ink); }
@@ -257,7 +256,7 @@ a.brand:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 .burger::after { position: absolute; top: 6px; }
 /* The drawer: from the right, full height, most of the width, over a dimmed page. */
 .drawerOverlay {
-  position: fixed; inset: 0; z-index: 50; background: rgb(8 9 9 / 45%);
+  position: fixed; inset: 0; z-index: var(--z-dock); background: rgb(8 9 9 / 45%);
 }
 .drawerOverlay[data-entering] { animation: drawerFade 0.25s ease-out; }
 .drawerOverlay[data-exiting] { animation: drawerFade 0.2s ease-in reverse; }
