@@ -834,7 +834,7 @@
     "as": "Comentando como {{name}}.",
     "changeName": "Alterar",
     "asStaff": "Você comenta pela equipe do escritório.",
-    "send": "Enviar",
+    "send": "Enviar comentário",
     "staffTag": "Escritório",
     "remove": "Remover",
     "removeOf": "Remover o comentário de {{name}}",

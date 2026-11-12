@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.comments.models import Comment
+from backend.comments.models import Author, Comment
 
 
 @dataclass
@@ -38,3 +38,18 @@ async def threads(db: AsyncSession, project_id: uuid.UUID) -> Threads:
         else:
             found.by_item[comment.item_id].append(comment)
     return found
+
+
+async def office_spots(db: AsyncSession, project_id: uuid.UUID) -> tuple[set, set[str]]:
+    """The stages and files with a comment of the office's still shown: an
+    `office_commented` event about anything else was taken back since."""
+    rows = (
+        await db.execute(
+            select(Comment.stage_id, Comment.item_id).where(
+                Comment.project_id == project_id,
+                Comment.author == Author.STAFF,
+                Comment.removed_at.is_(None),
+            )
+        )
+    ).all()
+    return {stage for stage, _ in rows if stage}, {item for _, item in rows if item}

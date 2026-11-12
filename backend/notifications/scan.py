@@ -128,14 +128,19 @@ async def scan_project(db: AsyncSession, storage, project: Project) -> int:
 
 
 async def _project_pass(db, settings, sender, storage, office, project, report) -> None:
-    """One project, under its lock (taken by the caller), in one transaction: its
-    new files, then its email if one is due."""
+    """One project, under its lock (taken by the caller): its clients' comments to
+    the office first, then its new files and its email if one is due."""
     if project.status not in CLIENT_VISIBLE:
         # Archived (or back to draft) while an email or a change waited: it is
         # never sent, even if the project comes back later (section 14).
         await digest.drop_unsent(db, project)
         await db.commit()
         return
+    if sender is not None:
+        # Clients' comments, to the office's staff (A49): saved on their own, as
+        # they need nothing from Drive, which may fail or hold the update email.
+        report.staff_emails += await alerts.deliver(db, sender, office, project, datetime.now(UTC))
+        await db.commit()
     if storage is not None and project.folder_id is not None:
         report.new_files += await scan_project(db, storage, project)
     now = datetime.now(UTC)
@@ -157,9 +162,6 @@ async def _project_pass(db, settings, sender, storage, office, project, report) 
             await db.commit()
             return
     await digest.gather(db, project)
-    if sender is not None:
-        # Clients' comments, to the office's staff (A49).
-        report.staff_emails += await alerts.deliver(db, sender, office, project, now)
     await db.commit()
 
 

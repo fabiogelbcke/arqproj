@@ -834,7 +834,7 @@
     "as": "Commenting as {{name}}.",
     "changeName": "Change",
     "asStaff": "You comment for the office's staff.",
-    "send": "Send",
+    "send": "Send comment",
     "staffTag": "Office",
     "remove": "Remove",
     "removeOf": "Remove {{name}}'s comment",

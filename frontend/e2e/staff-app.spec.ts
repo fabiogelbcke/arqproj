@@ -868,7 +868,7 @@ test("a client comments on a stage and a file, and staff see it and remove one (
   const thread = stage.getByRole("region", { name: "Comentários sobre Briefing" });
   await thread.getByLabel("Seu comentário").fill("Podemos rever a sala?");
   await thread.getByLabel("Seu nome").fill("Maria Oliveira");
-  await thread.getByRole("button", { name: "Enviar" }).click();
+  await thread.getByRole("button", { name: "Enviar comentário" }).click();
   await expect(thread.getByText("Podemos rever a sala?")).toBeVisible();
   // On a file, from its preview: signed with the name the device remembers.
   await stage.locator(".file").first().getByRole("button").first().click();
@@ -876,7 +876,7 @@ test("a client comments on a stage and a file, and staff see it and remove one (
   const fileThread = preview.getByRole("region", { name: /^Comentários sobre / });
   await expect(fileThread.getByText("Comentando como Maria Oliveira.")).toBeVisible();
   await fileThread.getByLabel("Seu comentário").fill("Faltou a garagem");
-  await fileThread.getByRole("button", { name: "Enviar" }).click();
+  await fileThread.getByRole("button", { name: "Enviar comentário" }).click();
   await expect(fileThread.getByText("Faltou a garagem")).toBeVisible();
   await client.close();
 

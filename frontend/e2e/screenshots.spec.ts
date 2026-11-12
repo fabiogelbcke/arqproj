@@ -337,7 +337,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   const stageThread = talk.getByRole("region", { name: /^Comentários sobre / });
   for (const text of ["Enviamos a revisão da planta com a varanda ampliada.", "Confirmem se a escada pode ficar junto à parede norte."]) {
     await stageThread.getByLabel("Seu comentário").fill(text);
-    await stageThread.getByRole("button", { name: "Enviar" }).click();
+    await stageThread.getByRole("button", { name: "Enviar comentário" }).click();
     await stageThread.getByRole("listitem").filter({ hasText: text }).waitFor();
   }
   await stageThread.scrollIntoViewIfNeeded();
@@ -345,7 +345,7 @@ test("@screenshots staff app", async ({ page, browser }) => {
   await talk.getByRole("button", { name: "Abrir Fachada" }).click();
   const fileThread = page.getByRole("dialog", { name: "Fachada" }).getByRole("region", { name: "Comentários sobre Fachada" });
   await fileThread.getByLabel("Seu comentário").fill("O render já considera o brise de madeira.");
-  await fileThread.getByRole("button", { name: "Enviar" }).click();
+  await fileThread.getByRole("button", { name: "Enviar comentário" }).click();
   await fileThread.getByText("O render já considera o brise de madeira.").waitFor();
   await shoot(page, "06y-comentarios-arquivo");
   await shoot(page, "06y-comentarios-arquivo", "dark");

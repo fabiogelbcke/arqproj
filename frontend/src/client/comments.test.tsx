@@ -117,7 +117,7 @@ describe("comments", () => {
     const thread = within(stage).getByRole("region", { name: "Comentários sobre Briefing" });
     expect(within(thread).getByText("Revisão enviada.")).toBeInTheDocument();
     expect(within(thread).getByText("Escritório")).toBeInTheDocument(); // the office's, marked
-    const send = within(thread).getByRole("button", { name: "Enviar" });
+    const send = within(thread).getByRole("button", { name: "Enviar comentário" });
     await userEvent.type(within(thread).getByLabelText("Seu comentário"), "Podemos rever a sala?");
     expect(send).toBeDisabled(); // no name yet
     await userEvent.type(within(thread).getByLabelText("Seu nome"), "Maria");
@@ -145,7 +145,7 @@ describe("comments", () => {
     const thread = within(preview).getByRole("region", { name: "Comentários sobre Planta.pdf" });
     expect(within(thread).getByText("Faltou a garagem")).toBeInTheDocument();
     await userEvent.type(within(thread).getByLabelText("Seu comentário"), "Recebido");
-    await userEvent.click(within(thread).getByRole("button", { name: "Enviar" }));
+    await userEvent.click(within(thread).getByRole("button", { name: "Enviar comentário" }));
     expect(await within(thread).findByText("Recebido")).toBeInTheDocument();
     expect(sent.find((r) => r.method === "POST")?.body).toEqual({ body: "Recebido", key: "k-planta", name: "João" });
   });
@@ -159,7 +159,7 @@ describe("comments", () => {
     await userEvent.click(await within(stage).findByRole("button", { name: "1 comentário" }));
     const box = within(stage).getByLabelText("Seu comentário");
     await userEvent.type(box, "Olá");
-    await userEvent.click(within(stage).getByRole("button", { name: "Enviar" }));
+    await userEvent.click(within(stage).getByRole("button", { name: "Enviar comentário" }));
     expect(await screen.findByText(/Muitos comentários seguidos/)).toBeInTheDocument();
     expect(box).toHaveValue("Olá");
   });
@@ -220,11 +220,41 @@ describe("a comment being sent", () => {
     await userEvent.click(await within(stage).findByRole("button", { name: "1 comentário" }));
     const box = within(stage).getByLabelText("Seu comentário");
     await userEvent.type(box, "Primeiro");
-    await userEvent.click(within(stage).getByRole("button", { name: "Enviar" }));
+    await userEvent.click(within(stage).getByRole("button", { name: "Enviar comentário" }));
     await userEvent.clear(box);
     await userEvent.type(box, "Segundo");
     answer(null);
     expect(await within(stage).findByText("Primeiro")).toBeInTheDocument();
     expect(box).toHaveValue("Segundo");
+  });
+});
+
+describe("a conversation closed and opened again", () => {
+  it("keeps what was posted and removed, and the card's count follows", async () => {
+    localStorage.setItem("comment-name", "Maria");
+    open(
+      { staff: { project_id: "p-1", status: "active", row_version: 4, recipients: [] } } as Partial<Page>,
+      {
+        "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
+        "POST /api/pages/casa-jardim/comments": () => ({ body: said("c9", "Ana", "Recebido", "staff") }),
+        "DELETE /api/pages/casa-jardim/comments/c1": () => ({ status: 204 }),
+      },
+    );
+    const card = (await screen.findByRole("button", { name: "Abrir Planta.pdf" })).closest(".file") as HTMLElement;
+    await userEvent.click(within(card).getByRole("button", { name: "Abrir Planta.pdf" }));
+    let preview = await screen.findByRole("dialog", { name: "Planta.pdf" });
+    await userEvent.type(within(preview).getByLabelText("Seu comentário"), "Recebido");
+    await userEvent.click(within(preview).getByRole("button", { name: "Enviar comentário" }));
+    await within(preview).findByText("Recebido");
+    await userEvent.click(within(preview).getByRole("button", { name: "Remover o comentário de Maria" }));
+    await userEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Remover" }));
+    await waitFor(() => expect(within(preview).queryByText("Faltou a garagem")).not.toBeInTheDocument());
+    await userEvent.click(within(preview).getByRole("button", { name: "Fechar" }));
+    // Opened again: as it was left, not as first listed.
+    await userEvent.click(within(card).getByRole("button", { name: "Abrir Planta.pdf" }));
+    preview = await screen.findByRole("dialog", { name: "Planta.pdf" });
+    expect(within(preview).getByText("Recebido")).toBeInTheDocument();
+    expect(within(preview).queryByText("Faltou a garagem")).not.toBeInTheDocument();
+    expect(within(card).getByLabelText("1 comentário")).toBeInTheDocument();
   });
 });

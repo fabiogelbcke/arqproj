@@ -1,7 +1,7 @@
 // Comments on a stage or a file (A49): the conversation, oldest first, and a box
 // to add to it. A client signs with a name typed once and remembered on this
 // device; staff comment as their account. Staff may remove any comment.
-import { useEffect, useId, useState } from "react";
+import { createContext, useContext, useEffect, useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api, call, type Schemas } from "../api/client";
@@ -13,6 +13,32 @@ import { day } from "./format";
 type Comment = Schemas["CommentOut"];
 
 const NAME_KEY = "comment-name";
+
+/** Each conversation as it is now, by its place ("stage:2", "file:<key>"): what
+ *  was posted or removed here since the page listed its files, which it doesn't do
+ *  again for a comment (that reads the office's Drive). A conversation closed and
+ *  opened again, and a card's count, show it; a new listing starts over. */
+type Lists = { lists: Record<string, Comment[]>; change: (id: string, base: Comment[], to: (list: Comment[]) => Comment[]) => void };
+const CommentLists = createContext<Lists | null>(null);
+
+export function CommentListsProvider({ listing, children }: { listing: unknown; children: ReactNode }) {
+  const [lists, setLists] = useState<Record<string, Comment[]>>({});
+  useEffect(() => setLists({}), [listing]);
+  const change: Lists["change"] = (id, base, to) => setLists((all) => ({ ...all, [id]: to(all[id] ?? base) }));
+  return <CommentLists.Provider value={{ lists, change }}>{children}</CommentLists.Provider>;
+}
+
+/** A conversation as it is now: as listed, unless changed here since. */
+export function useCommentList(id: string, listed: Comment[]): [Comment[], (to: (list: Comment[]) => Comment[]) => void] {
+  const store = useContext(CommentLists);
+  const [own, setOwn] = useState(listed); // without a page around it (its tests)
+  useEffect(() => setOwn(listed), [listed]);
+  if (!store) return [own, (to) => setOwn(to)];
+  return [store.lists[id] ?? listed, (to) => store.change(id, listed, to)];
+}
+
+export const stageThread = (position: number) => `stage:${position}`;
+export const fileThread = (key: string) => `file:${key}`;
 
 /** The name this device signed its last comment with, if any. */
 function rememberedName(): string {
@@ -38,7 +64,6 @@ export function CommentThread({
   staff,
   timeZone,
   label,
-  onCount,
 }: {
   slug: string;
   comments: Comment[];
@@ -46,15 +71,10 @@ export function CommentThread({
   staff: boolean; // signed in as the office's staff: signs as them, may remove any
   timeZone: string;
   label: string; // what it is about, for screen readers: "Comentários sobre Planta.pdf"
-  onCount?: (count: number) => void; // how many there are now, for a count shown elsewhere
 }) {
   const { t, i18n } = useTranslation();
   const id = useId();
-  // Kept here as they are posted and removed: the page isn't listed again for it
-  // (that reads the office's Drive), so what is being typed is never disturbed.
-  const [list, setList] = useState(comments);
-  useEffect(() => setList(comments), [comments]); // listed again for another reason
-  useEffect(() => onCount?.(list.length), [list.length, onCount]);
+  const [list, setList] = useCommentList("key" in where ? fileThread(where.key) : stageThread(where.position), comments);
   const [body, setBody] = useState("");
   const [name, setName] = useState(rememberedName);
   const [naming, setNaming] = useState(() => !rememberedName());
@@ -219,7 +239,8 @@ export function StageComments({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [count, setCount] = useState(comments.length);
+  const [now] = useCommentList(stageThread(position), comments);
+  const count = now.length;
   const panel = useId();
   return (
     <div className="stage-comments">
@@ -242,7 +263,6 @@ export function StageComments({
             staff={staff}
             timeZone={timeZone}
             label={t("comments.about", { name: title })}
-            onCount={setCount}
           />
         )}
       </div>

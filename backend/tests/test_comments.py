@@ -406,3 +406,41 @@ async def test_the_offices_comments_reach_the_clients_update_email(
     await run_with(app, outbox)
     [email] = [e for e in outbox.sent if e.to == STAFF]
     assert "A etapa 01 Briefing foi atualizada: 2 comentários do escritório." in email.text
+
+
+async def test_a_clients_comment_reaches_staff_while_drive_fails(
+    app, visitor, db_session, owner, folders, monkeypatch
+):
+    """The email needs nothing from Drive: a project whose files can't be read
+    (its folder gone, Drive down) still tells its staff."""
+    from backend.notifications import scan
+    from backend.storage.base import StorageError, StorageProblem
+
+    async def gone(storage, project):
+        raise StorageError(StorageProblem.NOT_FOUND, "folder gone")
+
+    outbox = Outbox()
+    await said(visitor, "Olá", position=1, name="Maria")
+    await age_comments(db_session, 6)
+    monkeypatch.setattr(scan, "scan_project", gone)
+    await run_with(app, outbox)
+    assert [e.to for e in outbox.sent] == [STAFF]
+    await run_with(app, outbox)
+    assert len(outbox.sent) == 1  # marked as told, though the scan failed after
+
+
+async def test_an_office_comment_removed_is_no_news(app, client, db_session, owner, folders):
+    """Removed, it leaves the updates panel and the client's next email."""
+    outbox = Outbox()
+    await add_recipients(db_session, STAFF, CLIENT)
+    await run_with(app, outbox)  # the files noted
+    shown = await said(client, "Por engano", owner, position=1)
+    await said(client, "Este fica", owner, position=2)
+    await client.delete(f"/api/pages/casa-jardim/comments/{shown['id']}", headers=owner)
+    updates = (await listing(client))["updates"]
+    assert [(u["kind"], u["stage_position"]) for u in updates] == [("office_commented", 2)]
+    await run_with(app, outbox)
+    await make_due(db_session)
+    await run_with(app, outbox)
+    [email] = [e for e in outbox.sent if e.to == STAFF]
+    assert "1 comentário do escritório" in email.text and "01 Briefing" not in email.text
