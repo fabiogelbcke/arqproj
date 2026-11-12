@@ -18,6 +18,7 @@ dependencies = [
     "python-multipart~=0.0.32",
     "posthog>=7.75.11",
     "fpdf2~=2.8.3",
+    "pillow~=13.0",
 ]
 
 [dependency-groups]
@@ -25,9 +26,9 @@ dev = [
     "pytest~=9.1.1",
     "ruff~=0.17.0",
 ]
-# The current single-office app (app.py, arq/, tools/) until cutover. Mirrors
-# requirements.txt and requirements-dev.txt, which production still deploys from.
-# Never installed into the new backend's production image.
+# The old single-office app (app.py, arq/, tools/), no longer in use or deployed
+# (docs/old-app.md). Mirrors its requirements.txt and requirements-dev.txt.
+# Never installed into the production image (deploy/Dockerfile).
 legacy = [
     "flask>=3.0",
     "requests>=2.31",
@@ -54,8 +55,10 @@ target-version = "py313"
 include = ["backend/**/*.py"]
 
 [tool.ruff.lint]
-# pyflakes, pycodestyle, import order, common bugs, modern syntax.
-select = ["F", "E", "W", "I", "B", "UP"]
+# pyflakes, pycodestyle, import order, common bugs, modern syntax; datetimes
+# without a time zone, blocking calls in async code, pylint's errors, unpacked
+# values never used, and noqa comments that no longer silence anything.
+select = ["F", "E", "W", "I", "B", "UP", "DTZ", "ASYNC", "PLE", "RUF059", "RUF100"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI declares dependencies as parameter defaults; that is the intended pattern.
