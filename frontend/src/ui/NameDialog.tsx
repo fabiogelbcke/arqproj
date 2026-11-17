@@ -14,6 +14,7 @@ export function NameDialog({
   initial,
   confirm,
   maxLength,
+  description,
   problem,
   busy = false,
   onConfirm,
@@ -24,6 +25,7 @@ export function NameDialog({
   initial: string;
   confirm: string;
   maxLength?: number;
+  description?: string; // a hint under the field
   problem?: (name: string) => string | null; // why this name can't be used, if it can't
   busy?: boolean;
   onConfirm: (name: string) => void; // trimmed, and only when it changed
@@ -63,6 +65,7 @@ export function NameDialog({
               value={name}
               onChange={setName}
               maxLength={maxLength}
+              description={description}
               isInvalid={!!error}
               aria-describedby={error ? errorId : undefined}
               autoFocus

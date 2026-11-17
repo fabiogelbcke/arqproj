@@ -1989,6 +1989,35 @@ describe("edit mode", () => {
       expect(await screen.findByText(/“Planta.pdf” e suas versões anteriores não aparecem mais/)).toBeInTheDocument();
     });
 
+    it("renames a file from its menu: the name only, its extension kept", async () => {
+      const { sent } = asEditor({ "POST /api/pages/casa-jardim/files/k1/rename": () => ({ status: 204 }) });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Renomear" }));
+      const dialog = screen.getByRole("dialog", { name: "Renomear" });
+      const field = within(dialog).getByLabelText("Nome do arquivo");
+      expect(field).toHaveValue("Planta");
+      expect(within(dialog).getByText("A extensão .pdf é mantida.")).toBeInTheDocument();
+      await userEvent.clear(field);
+      await userEvent.type(field, "Planta térreo{Enter}");
+      expect(await screen.findByText("Arquivo renomeado para “Planta térreo.pdf”.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/k1/rename"))?.body).toEqual({ name: "Planta térreo" });
+    });
+
+    it("keeps the rename dialog open, saying why, when the server refuses the name", async () => {
+      asEditor({
+        "POST /api/pages/casa-jardim/files/k1/rename": () => ({ status: 409, body: { error: "file_name_taken" } }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Renomear" }));
+      const dialog = screen.getByRole("dialog", { name: "Renomear" });
+      await userEvent.clear(within(dialog).getByLabelText("Nome do arquivo"));
+      await userEvent.type(within(dialog).getByLabelText("Nome do arquivo"), "Corte{Enter}");
+      expect(await screen.findByText("Já existe um arquivo com esse nome aqui. Escolha outro nome.")).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Renomear" })).toBeInTheDocument();
+    });
+
     it("closes a file's menu with a click outside it", async () => {
       asEditor();
       await startEditing();

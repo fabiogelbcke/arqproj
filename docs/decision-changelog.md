@@ -19,6 +19,23 @@ a new entry too.
 
 ---
 
+## 2026-11-17 — A25: staff rename a file from the site
+
+**Was:** a file could not be renamed on the site; staff renamed it in Drive,
+and a document's versions only stayed one if each was renamed the same way.
+Sections and comparisons could already be renamed.
+
+**Now:** "Renomear" in a file's "⋯" renames every version of its document
+together, keeping each one's `vN` and the extension, when the app may rename
+all of them (drive.file); names that would join another document (another
+document's, one ending in a version or in "(antes)"/"(depois)") are refused.
+
+**Why:** Fabio asked for it (17 Nov 2026). Versions are grouped by name (A25),
+so renaming one file alone would split the document; the comparison's edit
+already renamed every version of a side this way. Editing the extension was
+left out: a new extension is a different kind of file, and the version check
+on uploads compares extensions.
+
 ## 2026-11-12 — A45: on an address Unio shares with an office, the office's page
 
 **Was:** `/` on Unio's own address (the operator host) always showed Unio's
