@@ -582,6 +582,25 @@ export function FileMenu({
         ),
       t("edit.coverSet", { name: file.name }),
     );
+  // "Renomear": the name only; its extension stays (as the server keeps it), and
+  // every version is renamed with it.
+  // Its own state, as the cover's cropping: the dialog takes the focus out of the
+  // menu, which closes on blur.
+  const [renaming, setRenaming] = useState(false);
+  const [base, extension] = splitExtension(file.name);
+  const rename = async (name: string) => {
+    setBusy(true);
+    try {
+      await call(api.POST("/api/pages/{slug}/files/{key}/rename", { params: { path }, body: { name } }));
+      setRenaming(false); // refused, it stays open with the name to change
+      toast(t("edit.fileRenamed", { name: name + extension }));
+      onChanged();
+    } catch (failure) {
+      toastError(failure);
+    } finally {
+      setBusy(false);
+    }
+  };
   const places = movePlaces(page, sections, position, folder);
   const move = (to: MovePlace) =>
     act(() => moveRequest(page, slug, file.key, to), t("edit.fileMoved", { name: file.name, stage: to.done }));
@@ -634,6 +653,17 @@ export function FileMenu({
             {t("edit.newVersion")}
             <small>{t("edit.newVersionNote")}</small>
           </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={busy}
+            onClick={() => {
+              setOpen(false);
+              setRenaming(true);
+            }}
+          >
+            {t("edit.renameFile")}
+          </button>
           {file.kind === "image" && (
             <button
               type="button"
@@ -678,6 +708,24 @@ export function FileMenu({
             {t("edit.menuBack")}
           </button>
         </div>
+      )}
+      {renaming && (
+        <NameDialog
+          title={t("edit.renameFile")}
+          label={t("edit.fileName")}
+          initial={base}
+          description={[
+            extension && t("edit.fileNameKeeps", { extension }),
+            file.older.length > 0 && t("edit.fileNameVersions", { count: file.older.length + 1 }),
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          confirm={t("projectSettings.save")}
+          maxLength={LIMITS.fileName}
+          busy={busy}
+          onConfirm={(name) => void rename(name)}
+          onCancel={() => setRenaming(false)}
+        />
       )}
       {cropping && (
         <ImageCropDialog
@@ -796,6 +844,14 @@ export function AddSection({
       </div>
     </div>
   );
+}
+
+/** "Planta.pdf" as ["Planta", ".pdf"]: the extension as the server reads it (one to
+ *  five letters or digits after the last dot), or none. */
+export function splitExtension(name: string): [string, string] {
+  const dot = name.lastIndexOf(".");
+  if (dot > 0 && /^[a-z0-9]{1,5}$/i.test(name.slice(dot + 1))) return [name.slice(0, dot), name.slice(dot)];
+  return [name, ""];
 }
 
 /** The "⋯" on a section's title in edit mode: "Renomear seção" and "Ocultar
