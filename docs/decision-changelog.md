@@ -19,6 +19,23 @@ a new entry too.
 
 ---
 
+## 2026-11-17 — A25: staff rename a file from the site
+
+**Was:** a file could not be renamed on the site; staff renamed it in Drive,
+and a document's versions only stayed one if each was renamed the same way.
+Sections and comparisons could already be renamed.
+
+**Now:** "Renomear" in a file's "⋯" renames every version of its document
+together, keeping each one's `vN` and the extension, when the app may rename
+all of them (drive.file); names that would join another document (another
+document's, one ending in a version or in "(antes)"/"(depois)") are refused.
+
+**Why:** Fabio asked for it (17 Nov 2026). Versions are grouped by name (A25),
+so renaming one file alone would split the document; the comparison's edit
+already renamed every version of a side this way. Editing the extension was
+left out: a new extension is a different kind of file, and the version check
+on uploads compares extensions.
+
 ## 2026-11-12 — A45: on an address Unio shares with an office, the office's page
 
 **Was:** `/` on Unio's own address (the operator host) always showed Unio's
@@ -126,6 +143,24 @@ beside Drive (A10); and remembering Drive's thumbnail links, which expire. The
 cost of the CDN: a photo removed, or a portfolio unpublished, can still be
 served from it for up to a day, at an address no longer linked anywhere (Fabio
 accepted, 10 Nov 2026). Purging the CDN on removal can come if that matters.
+
+## 2026-11-10 — A23, A33: Alinea's primary address is `alinea.myunio.app` (changed 25 Oct 2026, recorded now)
+
+**Was:** Alinea was served on its own domain, `alineaarquitetos.com`, as the one
+exception to `{office}.myunio.app` (A23, A33).
+
+**Now:** since 25 Oct 2026 Alinea's primary address is `alinea.myunio.app`, the
+shape every office has (A21). `alineaarquitetos.com` and `www.` stay its addresses
+and redirect there, except the `/` home page, which every address shows. Its
+emails still send from `alineaarquitetos.com` (A32).
+
+**Why:** Fabio's call on 25 Oct 2026. The change was made and recorded in
+`docs/infrastructure.md` then (commit c5174b2, "Share links: …", which notes
+"Production's main address"), but the register rows were not updated; the
+overnight audit of 10 Nov 2026 (issue #210) found the drift. A12's "configurable
+per office" was corrected in the same change to the pilot's fixed timings (the per-office
+setting was already recorded as deferred in section 24), and A33's "hosting region
+is still open" to `us-east1` (A16): corrections, not changes.
 
 ## 2026-11-10 — A46: with comparisons on, the whole stage takes dropped files
 

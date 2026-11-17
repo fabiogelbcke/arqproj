@@ -93,6 +93,7 @@ lint: ## Code style checks
 	uv run ruff check backend
 	uv run ruff format --check backend
 	cd $(FRONTEND) && npm run typecheck
+	cd $(FRONTEND) && npm run lint
 
 format: ## Fix Python formatting
 	uv run ruff format backend

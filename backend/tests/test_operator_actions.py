@@ -193,10 +193,10 @@ async def test_duplicate_creation_rolls_back_and_does_not_audit(
 async def test_app_cannot_read_audit_and_operator_cannot_change_audit(app, actions_enabled):
     # Negative permission checks are the safety rule's executable violation cases.
     async with app.state.sessionmaker() as db:
-        with pytest.raises(ProgrammingError):
+        with pytest.raises(ProgrammingError, match="permission denied"):
             await db.execute(text("SELECT * FROM operator_audit_events"))
     async with app.state.operator_sessionmaker() as db:
-        with pytest.raises(ProgrammingError):
+        with pytest.raises(ProgrammingError, match="permission denied"):
             await db.execute(text("DELETE FROM operator_audit_events"))
 
 

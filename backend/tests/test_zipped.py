@@ -11,7 +11,7 @@ from backend.shares import zipped
 
 pytestmark = pytest.mark.anyio
 
-MOMENT = datetime(2026, 10, 25, 14, 30)
+MOMENT = datetime(2026, 10, 25, 14, 30)  # noqa: DTZ001 - office time: a zip's times have no zone
 
 
 def entries_of(files: dict[str, bytes]) -> list[zipped.Entry]:

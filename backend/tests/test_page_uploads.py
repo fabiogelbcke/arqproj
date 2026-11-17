@@ -355,6 +355,92 @@ async def test_only_staff_hide_files(client, owner, folders):
     assert (folders / "01 - Briefing" / "Programa.pdf").exists()
 
 
+# -- Renomear ----------------------------------------------------------------------------
+
+
+async def rename(client, headers, key, name):
+    return await client.post(
+        f"/api/pages/casa-jardim/files/{key}/rename", headers=headers, json={"name": name}
+    )
+
+
+def briefing(folders) -> list[str]:
+    return sorted(p.name for p in (folders / "01 - Briefing").iterdir())
+
+
+async def test_renaming_renames_every_version_keeping_versions_and_extension(
+    client, owner, folders
+):
+    """The names group the versions (A25): renaming only the newest would split
+    the document in two."""
+    (folders / "01 - Briefing" / "Programa v2.pdf").write_bytes(PDF)
+    (folders / "01 - Briefing" / "Memorial.pdf").write_bytes(PDF)  # another document
+    key = await file_key(client)  # the card's: the current version, v2
+    response = await rename(client, owner, key, "  Programa de Necessidades ")
+    assert response.status_code == 204, response.text
+    assert briefing(folders) == [
+        "Memorial.pdf",
+        "Programa de Necessidades v2.pdf",
+        "Programa de Necessidades.pdf",
+    ]
+    stages = (await client.get("/api/pages/casa-jardim/files", headers=owner)).json()["stages"]
+    shown = {f["name"]: f for g in stages[0]["groups"] for f in g["files"]}
+    assert shown["Programa de Necessidades.pdf"]["version"] == 2  # still one document
+
+
+async def test_the_extension_stays_and_typing_it_changes_nothing(client, owner, folders):
+    key = await file_key(client)
+    assert (await rename(client, owner, key, "Briefing.PDF")).status_code == 204
+    assert briefing(folders) == ["Briefing.pdf"]  # not "Briefing.PDF.pdf"
+    key = await file_key(client, "Briefing.pdf")
+    assert (await rename(client, owner, key, "Briefing final.docx")).status_code == 204
+    assert briefing(folders) == ["Briefing final.docx.pdf"]  # only the name is the staff's
+
+
+@pytest.mark.parametrize("name", ["", "   ", "_Programa", "Programa v3", "Cozinha (antes)"])
+async def test_a_name_that_would_hide_it_or_join_another_document_is_refused(
+    client, owner, folders, name
+):
+    key = await file_key(client)
+    response = await rename(client, owner, key, name)
+    assert (response.status_code, response.json()["error"]) == (422, "file_name_invalid")
+    assert briefing(folders) == ["Programa.pdf"]
+
+
+async def test_another_documents_name_is_refused_but_its_own_in_other_letters_is_not(
+    client, owner, folders
+):
+    """Taking "Memorial" would make the two one document's versions."""
+    (folders / "01 - Briefing" / "Memorial.pdf").write_bytes(PDF)
+    key = await file_key(client)
+    response = await rename(client, owner, key, "memorial")
+    assert (response.status_code, response.json()["error"]) == (409, "file_name_taken")
+    assert (await rename(client, owner, key, "PROGRAMA")).status_code == 204
+    assert briefing(folders) == ["Memorial.pdf", "PROGRAMA.pdf"]
+
+
+async def test_a_version_the_app_may_not_rename_stops_the_renaming_before_any_change(
+    client, owner, folders, monkeypatch
+):
+    (folders / "01 - Briefing" / "Programa v2.pdf").write_bytes(PDF)
+
+    async def only_v2(self, item_id):
+        return item_id.endswith("v2.pdf")
+
+    monkeypatch.setattr(creation.LocalFolders, "can_rename", only_v2)
+    key = await file_key(client)
+    response = await rename(client, owner, key, "Programa de Necessidades")
+    assert (response.status_code, response.json()["error"]) == (409, "file_not_ours_to_rename")
+    assert briefing(folders) == ["Programa v2.pdf", "Programa.pdf"]
+
+
+async def test_only_staff_rename_files(client, owner, folders):
+    key = await file_key(client)
+    response = await rename(client, ALINEA, key, "Outro")
+    assert response.status_code in (401, 403)
+    assert briefing(folders) == ["Programa.pdf"]
+
+
 # -- Mover para outra etapa -------------------------------------------------------------
 
 

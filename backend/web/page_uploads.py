@@ -56,7 +56,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.analytics import capture
 from backend.db.engine import get_tenant_session
-from backend.documents import versions
+from backend.documents import comparisons, versions
 from backend.documents.versions import shown_name
 from backend.projects.creation import LocalFolders
 from backend.projects.enums import ProjectStatus
@@ -668,6 +668,86 @@ async def hide_file(
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
     capture(request, "file_hidden")
+    return Response(status_code=204)
+
+
+FILE_NAME_MAX = 200  # a new name, without its extension: room left for " v999.xlsx"
+
+
+class RenameIn(BaseModel):
+    name: str = Field(max_length=FILE_NAME_MAX)  # the new name, without its extension
+
+
+@router.post(
+    "/api/pages/{slug}/files/{key}/rename",
+    status_code=204,
+    responses=documented(401, 404, 409, 422, 503),
+)
+async def rename_file(
+    request: Request,
+    slug: str,
+    key: str,
+    body: RenameIn,
+    staff: CurrentStaff = Depends(require_csrf),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """ "Renomear": every version of the document, each keeping its version and
+    extension (`Planta Térreo v2.pdf`), since the names are what group them
+    (A25); only if the app may rename all of them, checked before any is (as a
+    file is hidden). The file keeps its identity, so its comments, updates and
+    share links follow it."""
+    project = await _readable(db, slug, staff, request)
+    await _changeable(db, project.id)
+    reader, item, found = await _item_at(request, db, project, key)
+    try:
+        documents = await _documents(reader, found["f"])
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project.id, found.get("s")) from None
+    document = _document_of(documents, item)
+    if document is None:
+        raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # gone since
+    extension = document.named.extension  # fixed: a new name changes only the rest
+    try:
+        base = _clean(body.name)
+    except ApiError:
+        raise ApiError(422, ErrorCode.FILE_NAME_INVALID) from None
+    if extension and base.casefold().endswith(extension.casefold()):
+        base = base[: -len(extension)].rstrip()  # typed with it: the same name
+    # A name ending in a version or a comparison's marker would join (or start)
+    # another document instead of naming this one.
+    if (
+        not base
+        or versions.parse(base + extension).base != base
+        or comparisons.marked(base) is not None
+    ):
+        raise ApiError(422, ErrorCode.FILE_NAME_INVALID)
+    if any(
+        d is not document and d.named.key == versions.parse(base + extension).key for d in documents
+    ):
+        raise ApiError(409, ErrorCode.FILE_NAME_TAKEN)
+    names = {
+        version_id: name
+        for version_id, name in comparisons.renamed(document, base)
+        if name != next(i.name for _n, i in document.versions if i.id == version_id)
+    }
+    maker, _root = await _folders(request, db)
+    try:
+        for _n, version in document.versions:
+            if not await maker.can_rename(version.id):
+                raise ApiError(409, ErrorCode.FILE_NOT_OURS_TO_RENAME)
+        for version_id, name in names.items():
+            await maker.rename(version_id, name)
+    except ConnectError as error:
+        log.error(
+            "uploads: renaming %s failed for %s/%s: %s",
+            item.id,
+            tenant.id,
+            project.id,
+            error.detail,
+        )
+        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    capture(request, "file_renamed", {"versions": len(document.versions)})
     return Response(status_code=204)
 
 
