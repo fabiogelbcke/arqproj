@@ -2231,6 +2231,44 @@ describe("edit mode", () => {
     }
     const card = (name: string) => screen.getByRole("button", { name: `Abrir ${name}` }).closest(".file")!;
 
+    it("never uploads a picture dragged from the page, only files from the computer", async () => {
+      // A browser drags a card's picture as a file of its own ("thumb"): dropped on
+      // a stage, it was uploaded as "thumb.png" (Alinea, Nov 2026).
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }),
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+        "POST /api/pages/casa-jardim/files/k1/move": () => ({ status: 204 }),
+      });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await within(stage).findByRole("heading", { name: "Renders" });
+      const choosers = await within(stage).findAllByLabelText("escolha no computador");
+      const area = choosers.map((c) => c.closest(".drop")).find((d) => d && !d.classList.contains("drop--section"))!;
+      for (const picture of document.querySelectorAll(".file__thumb img")) {
+        expect(picture).toHaveAttribute("draggable", "false"); // a drag on it is the card's
+      }
+      const thumb = new File(["png"], "thumb.png", { type: "image/png" });
+      const fromPage = Object.assign(dragData(), { files: [thumb] });
+      fromPage.setData("Files", "");
+      fireEvent.dragStart(card("Planta.pdf").querySelector(".file__thumb") ?? card("Planta.pdf"), {
+        dataTransfer: fromPage,
+      });
+      for (const target of [stage, area]) {
+        fireEvent.dragOver(target, { dataTransfer: fromPage });
+        fireEvent.drop(target, { dataTransfer: fromPage });
+      }
+      fireEvent.dragEnd(card("Planta.pdf"), { dataTransfer: fromPage });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(sent.some((r) => r.path.endsWith("/uploads"))).toBe(false);
+      // From the computer (no drag began on the page): uploaded as before.
+      const fromComputer = Object.assign(dragData(), { files: [new File(["%PDF"], "Corte.pdf", { type: "application/pdf" })] });
+      fromComputer.setData("Files", "");
+      fireEvent.dragOver(area, { dataTransfer: fromComputer });
+      fireEvent.drop(area, { dataTransfer: fromComputer });
+      expect(await screen.findByText("Arquivo enviado.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/uploads"))?.body).toMatchObject({ name: "Corte.pdf" });
+    });
+
     it("moves a file by dragging its card into a section or onto another stage", async () => {
       const { sent } = asEditor({
         "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }),

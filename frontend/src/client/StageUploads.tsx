@@ -25,6 +25,7 @@ import { toast, toastError } from "../ui/Toast";
 import styles from "../ui/ui.module.css";
 import { useDismiss } from "../ui/useDismiss";
 import { fileSource, type Page } from "./format";
+import { fromComputer } from "./fileDrag";
 
 type Staff = NonNullable<Page["staff"]>;
 type FileItem = Schemas["FileOut"];
@@ -350,7 +351,7 @@ export function StageDrop({
   useEffect(() => {
     const box = bare ? chooser.current?.closest<HTMLElement>(section ? ".file-section" : ".stage") : null;
     if (!box) return;
-    const outside = (event: DragEvent) => !event.dataTransfer?.types.includes("Files");
+    const outside = (event: DragEvent) => !fromComputer(event.dataTransfer);
     const mark = (on: boolean) => box.classList.toggle("is-drop-target", on);
     const onOver = (event: DragEvent) => {
       if (outside(event)) return;
@@ -410,13 +411,15 @@ export function StageDrop({
             if (!(event.target as Element).closest("label, input")) chooser.current?.click();
           }}
           onDragOver={(event) => {
+            if (!fromComputer(event.dataTransfer)) return; // a card: the stage moves it
             event.preventDefault();
             setOver(true);
           }}
           onDragLeave={() => setOver(false)}
           onDrop={(event) => {
-            event.preventDefault();
             setOver(false);
+            if (!fromComputer(event.dataTransfer)) return;
+            event.preventDefault();
             void upload([...event.dataTransfer.files]);
           }}
         >
