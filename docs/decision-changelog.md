@@ -19,6 +19,21 @@ a new entry too.
 
 ---
 
+## 2026-11-20 — A34: a card's picture is not draggable; drop areas take files from the computer only
+
+**Was:** a file card was draggable to move it, but its preview picture was too,
+and the drop areas uploaded any drag that carried files. Grabbed by its
+picture, a card was dragged as an image ("thumb", the 480 px preview), which
+the stage uploaded as "thumb.png" while the card also moved (Alinea, Nov 2026).
+
+**Now:** card previews are not draggable, so a drag is always the card's; the
+drop areas upload only files from the computer, never a drag begun on the page.
+
+**Why:** a bug, not a change of mind. Considered and left: telling a drop from
+the computer by its data types alone (a picture from the page carries a link
+and HTML besides the file); an image dragged from another website carries the
+same, and staff may mean to upload it.
+
 ## 2026-11-17 — A25: staff rename a file from the site
 
 **Was:** a file could not be renamed on the site; staff renamed it in Drive,
