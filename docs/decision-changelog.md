@@ -19,6 +19,25 @@ a new entry too.
 
 ---
 
+## 2026-11-21 — A31: hidden files go into an `_arquivados` folder, names unchanged
+
+**Was:** "Ocultar do cliente" renamed every version of a file with a leading
+`_` where it was (`_Planta.pdf`), and "Ocultar seção" renamed the section's
+folder the same way. Stage folders in Drive filled up with `_`-names among the
+files the client sees.
+
+**Now:** a hidden file (every version), a hidden comparison (both sides) or a
+hidden section moves into an `_arquivados` folder inside the folder it was in,
+its name unchanged; the folder is made the first time. Files hidden before stay
+as they were.
+
+**Why:** Fabio asked for it (19 Nov 2026): the folders stay tidy, and a hidden
+file keeps its own name, easy to find and put back by hand. Considered and
+left: one central archive per stage or project (the file would lose where it
+was); `_ocultos`, to match the button (Fabio chose `_arquivados`, though
+"arquivar" also names archiving a project); moving the files hidden before
+(Fabio: from now on only).
+
 ## 2026-11-20 — A34: a card's picture is not draggable; drop areas take files from the computer only
 
 **Was:** a file card was draggable to move it, but its preview picture was too,
