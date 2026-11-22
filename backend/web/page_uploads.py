@@ -459,6 +459,23 @@ async def _section_to_change(
     return stage, reader, folder
 
 
+# "Ocultar do cliente" (A31): what is hidden goes into this folder, inside the one
+# it was in, its name unchanged; the page never shows a "_" folder (A05). Before
+# 21 Nov 2026 it was renamed "_name" where it was, and those stay as they are.
+ARCHIVE_FOLDER = "_arquivados"
+
+
+async def archive_folder(maker, reader, parent: str) -> str:
+    """`parent`'s `_arquivados`, made the first time something is hidden there.
+    Only one the app made: one made straight in Drive is out of its reach
+    (drive.file), so the app makes its own beside it. Raises StorageError when
+    `parent` can't be listed."""
+    for item in await _list(reader, parent):
+        if item.is_folder and item.name == ARCHIVE_FOLDER and await maker.can_rename(item.id):
+            return item.id
+    return await maker.create_folder(ARCHIVE_FOLDER, parent)
+
+
 async def _rename_section(request, db, tenant, project_id, position, folder, name) -> None:
     maker, _root = await _folders(request, db)
     try:
@@ -528,12 +545,27 @@ async def hide_section(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """ "Ocultar seção": the folder stays in Drive with its files, renamed "_name",
-    which the page never shows (A05), to staff or clients."""
-    _stage, _reader, folder = await _section_to_change(
+    """ "Ocultar seção": the folder, with its files and its name, goes into its
+    stage's `_arquivados`, which the page never shows (A05), to staff or clients."""
+    stage, reader, folder = await _section_to_change(
         request, db, tenant, project_id, position, body
     )
-    await _rename_section(request, db, tenant, project_id, position, folder, f"_{body.name}")
+    maker, _root = await _folders(request, db)
+    try:
+        if not await maker.can_rename(folder):
+            raise ApiError(409, ErrorCode.FOLDER_NOT_OURS)  # made straight in Drive
+        await maker.move(folder, await archive_folder(maker, reader, stage.folder_id))
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project_id, position) from None
+    except ConnectError as error:
+        log.error(
+            "uploads: hiding a section failed for %s/%s, stage %s: %s",
+            tenant.id,
+            project_id,
+            position,
+            error.detail,
+        )
+        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
     return Response(status_code=204)
 
 
@@ -640,10 +672,10 @@ async def hide_file(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """The file stays in Drive, renamed "_name", which the page doesn't show: every
-    version of its document, so the client doesn't see the one before instead;
-    and only if the app may rename all of them, checked before any is renamed
-    (as a comparison is hidden)."""
+    """The file stays in Drive, moved into `_arquivados` in its folder with its
+    name, which the page doesn't show: every version of its document, so the
+    client doesn't see the one before instead; and only if the app may move all
+    of them, checked before any is moved (as a comparison is hidden)."""
     project = await _readable(db, slug, staff, request)
     await _changeable(db, project.id)
     reader, item, found = await _item_at(request, db, project, key)
@@ -660,8 +692,11 @@ async def hide_file(
         for version in items:
             if not await maker.can_rename(version.id):
                 raise ApiError(409, ErrorCode.FILE_NOT_OURS)
+        archive = await archive_folder(maker, reader, found["f"])
         for version in items:
-            await maker.rename(version.id, f"_{version.name}")
+            await maker.move(version.id, archive)
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project.id, found.get("s")) from None
     except ConnectError as error:
         log.error(
             "uploads: hiding %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail

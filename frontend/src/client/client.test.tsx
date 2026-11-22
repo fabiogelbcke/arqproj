@@ -2176,8 +2176,8 @@ describe("edit mode", () => {
       await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar seção/ }));
       const ask = screen.getByRole("alertdialog", { name: "Ocultar a seção “Plantas”?" });
       expect(ask).toHaveTextContent("A seção e o seu arquivo deixarão de aparecer na página");
-      expect(ask).toHaveTextContent("continuará no Google Drive, na pasta “_Plantas”");
-      expect(ask).toHaveTextContent("tirando o _ do início");
+      expect(ask).toHaveTextContent("A pasta “Plantas” vai, com o arquivo, para a pasta “_arquivados” da etapa");
+      expect(ask).toHaveTextContent("mova a pasta no Google Drive de volta para a pasta da etapa");
       await userEvent.click(within(ask).getByRole("button", { name: "Ocultar seção" }));
       expect(await screen.findByText("Seção “Plantas” ocultada.")).toBeInTheDocument();
       expect(sent.find((r) => r.path.endsWith("/folders/hide"))?.body).toEqual({ row_version: 4, name: "Plantas" });
@@ -2189,7 +2189,7 @@ describe("edit mode", () => {
       const stage = screen.getByRole("region", { name: "Levantamento" });
       await userEvent.click(await within(stage).findByRole("button", { name: "Ações da seção Renders" }));
       await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar seção/ }));
-      expect(screen.getByRole("alertdialog")).toHaveTextContent("A pasta continuará no Google Drive, como “_Renders”.");
+      expect(screen.getByRole("alertdialog")).toHaveTextContent("A pasta “Renders” vai para a pasta “_arquivados” da etapa, no Google Drive.");
     });
 
     it("renames a section while Editar etapa is open without saving or closing the stage", async () => {

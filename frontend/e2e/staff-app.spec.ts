@@ -1019,13 +1019,15 @@ test("staff upload a before-and-after comparison, and the client slides between 
   await viewer.screenshot({ path: join(tmpdir(), "arqproj-e2e-comparison.png") });
   await client.close();
 
-  // Hidden as one: both images leave the page, and stay in the folder.
+  // Hidden as one: both images leave the page, and go into the folder's
+  // `_arquivados` with their names (A31).
   await briefing.getByRole("button", { name: "Ações para Fachada" }).click();
   await page.getByRole("menuitem", { name: /Ocultar do cliente/ }).click();
   await expect(briefing.getByRole("button", { name: "Abrir Fachada" })).toHaveCount(0);
-  expect(readdirSync(folder).filter((name) => name.includes("Fachada")).sort()).toEqual([
-    "_Fachada (antes - Estudo).jpg",
-    "_Fachada (depois).jpg",
+  expect(readdirSync(folder).filter((name) => name.includes("Fachada"))).toEqual([]);
+  expect(readdirSync(join(folder, "_arquivados")).filter((name) => name.includes("Fachada")).sort()).toEqual([
+    "Fachada (antes - Estudo).jpg",
+    "Fachada (depois).jpg",
   ]);
 });
 
