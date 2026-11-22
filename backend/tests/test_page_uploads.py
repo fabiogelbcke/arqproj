@@ -875,6 +875,22 @@ async def test_hiding_a_section_keeps_it_and_its_files_in_drive_but_off_the_page
     assert await groups_seen(client) == [(None, ["Programa.pdf"])]  # staff don't see it either
 
 
+async def test_a_section_goes_beside_a_hand_made_arquivados_not_into_it(
+    client, owner, folders, monkeypatch
+):
+    await new_section(client, owner)
+    (folders / "01 - Briefing" / "_arquivados").mkdir()
+    real = creation.LocalFolders.can_rename
+
+    async def not_that_folder(self, item_id):
+        return not item_id.endswith("Briefing/_arquivados") and await real(self, item_id)
+
+    monkeypatch.setattr(creation.LocalFolders, "can_rename", not_that_folder)
+    assert (await change_section(client, owner, "hide")).status_code == 204
+    assert not any((folders / "01 - Briefing" / "_arquivados").iterdir())
+    assert (folders / "01 - Briefing" / "_arquivados (2)" / "Plantas").is_dir()
+
+
 @pytest.mark.parametrize("action", ["rename", "hide"])
 async def test_a_section_made_straight_in_drive_is_changed_there(
     client, owner, folders, monkeypatch, action

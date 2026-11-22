@@ -2028,8 +2028,8 @@ export interface paths {
         put?: never;
         /**
          * Hide Section
-         * @description "Ocultar seção": the folder stays in Drive with its files, renamed "_name",
-         *     which the page never shows (A05), to staff or clients.
+         * @description "Ocultar seção": the folder, with its files and its name, goes into its
+         *     stage's `_arquivados`, which the page never shows (A05), to staff or clients.
          */
         post: operations["hide_section_api_projects__project_id__stages__position__folders_hide_post"];
         delete?: never;
@@ -2071,10 +2071,10 @@ export interface paths {
         put?: never;
         /**
          * Hide File
-         * @description The file stays in Drive, renamed "_name", which the page doesn't show: every
-         *     version of its document, so the client doesn't see the one before instead;
-         *     and only if the app may rename all of them, checked before any is renamed
-         *     (as a comparison is hidden).
+         * @description The file stays in Drive, moved into `_arquivados` in its folder with its
+         *     name, which the page doesn't show: every version of its document, so the
+         *     client doesn't see the one before instead; and only if the app may move all
+         *     of them, checked before any is moved (as a comparison is hidden).
          */
         post: operations["hide_file_api_pages__slug__files__key__hide_post"];
         delete?: never;
@@ -2182,7 +2182,8 @@ export interface paths {
         put?: never;
         /**
          * Hide Comparison
-         * @description Both sides, every version, stay in Drive renamed "_name" (A05).
+         * @description Both sides, every version, go into `_arquivados` in their folder, their
+         *     names unchanged; the page never shows it (A05).
          */
         post: operations["hide_comparison_api_pages__slug__comparisons__key__hide_post"];
         delete?: never;
