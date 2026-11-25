@@ -163,10 +163,17 @@ businesses' numbers, which offices' own numbers would need later).
 | Developer app with WhatsApp | Asks for a privacy policy URL; ours mentions WhatsApp first | ~30 min |
 | Phone number | A number not on WhatsApp, confirmed once by SMS or voice call (below) | ~10 min |
 | Display name | "Unio", reviewed by Meta | Usually 1–2 days |
-| Payment method | A card in WhatsApp Manager, or BRL billing | ~5 min |
+| Payment method | A card in WhatsApp Manager, billed in **BRL** (below) | ~5 min |
 | Templates | `unio_atualizacao` (button "Abrir o projeto"), `unio_atualizacao_reuniao` (also "Adicionar à agenda"), `unio_boas_vindas`, `unio_convite` (buttons "Quero receber" / "Não quero"), and the meeting reminders (A48) `unio_lembrete_reuniao` ("Abrir o projeto") and `unio_lembrete_video` ("Entrar na reunião"), in the approved Portuguese texts (reminders: below). Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
 | Access token and webhook | A permanent token in Secret Manager, our webhook registered with Meta | Part of the coding |
 | Business verification (later) | Below | A few days to ~2 weeks |
+
+**Billing currency: BRL** (set up 25–26 Nov 2026). Meta bills Brazilian
+accounts in reais through Facebook Brasil, and the currency can't be changed in
+the dashboard once set (only through Meta's Currency Migration API). Brazil-billed
+accounts not in BRL stop delivering messages from 1 July 2027
+([pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing)),
+so a new Messaging account for Unio must be created in BRL too.
 
 **Building needs no number yet.** Meta's free test number, created with the
 app, messages up to 5 numbers we register, which is enough to build and test
