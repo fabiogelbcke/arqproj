@@ -6966,7 +6966,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RenameIn"
+                "$ref": "#/components/schemas/backend__web__page_stages__RenameIn"
               }
             }
           }
@@ -7915,7 +7915,7 @@
     "/api/projects/{project_id}/stages/{position}/folders/hide": {
       "post": {
         "summary": "Hide Section",
-        "description": "\"Ocultar seção\": the folder stays in Drive with its files, renamed \"_name\",\nwhich the page never shows (A05), to staff or clients.",
+        "description": "\"Ocultar seção\": the folder, with its files and its name, goes into its\nstage's `_arquivados`, which the page never shows (A05), to staff or clients.",
         "operationId": "hide_section_api_projects__project_id__stages__position__folders_hide_post",
         "parameters": [
           {
@@ -8078,7 +8078,7 @@
     "/api/pages/{slug}/files/{key}/hide": {
       "post": {
         "summary": "Hide File",
-        "description": "The file stays in Drive, renamed \"_name\", which the page doesn't show: every\nversion of its document, so the client doesn't see the one before instead;\nand only if the app may rename all of them, checked before any is renamed\n(as a comparison is hidden).",
+        "description": "The file stays in Drive, moved into `_arquivados` in its folder with its\nname, which the page doesn't show: every version of its document, so the\nclient doesn't see the one before instead; and only if the app may move all\nof them, checked before any is moved (as a comparison is hidden).",
         "operationId": "hide_file_api_pages__slug__files__key__hide_post",
         "parameters": [
           {
@@ -8153,6 +8153,98 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/files/{key}/rename": {
+      "post": {
+        "summary": "Rename File",
+        "description": "\"Renomear\": every version of the document, each keeping its version and\nextension (`Planta Térreo v2.pdf`), since the names are what group them\n(A25); only if the app may rename all of them, checked before any is (as a\nfile is hidden). The file keeps its identity, so its comments, updates and\nshare links follow it.",
+        "operationId": "rename_file_api_pages__slug__files__key__rename_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/backend__web__page_uploads__RenameIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
           }
         }
       }
@@ -8444,7 +8536,7 @@
     "/api/pages/{slug}/comparisons/{key}/hide": {
       "post": {
         "summary": "Hide Comparison",
-        "description": "Both sides, every version, stay in Drive renamed \"_name\" (A05).",
+        "description": "Both sides, every version, go into `_arquivados` in their folder, their\nnames unchanged; the page never shows it (A05).",
         "operationId": "hide_comparison_api_pages__slug__comparisons__key__hide_post",
         "parameters": [
           {
@@ -10549,6 +10641,9 @@
           "upload_failed",
           "file_not_ours",
           "file_not_ours_to_move",
+          "file_name_invalid",
+          "file_name_taken",
+          "file_not_ours_to_rename",
           "comparison_exists",
           "comparison_not_image",
           "comparison_title_invalid",
@@ -13264,25 +13359,6 @@
         ],
         "title": "RecipientOut"
       },
-      "RenameIn": {
-        "properties": {
-          "row_version": {
-            "type": "integer",
-            "title": "Row Version"
-          },
-          "title": {
-            "type": "string",
-            "maxLength": 80,
-            "title": "Title"
-          }
-        },
-        "type": "object",
-        "required": [
-          "row_version",
-          "title"
-        ],
-        "title": "RenameIn"
-      },
       "ResetIn": {
         "properties": {
           "email": {
@@ -15102,6 +15178,25 @@
         ],
         "title": "OrderIn"
       },
+      "backend__web__page_stages__RenameIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "title"
+        ],
+        "title": "RenameIn"
+      },
       "backend__web__page_uploads__CheckIn": {
         "properties": {
           "row_version": {
@@ -15181,6 +15276,20 @@
           "position"
         ],
         "title": "MoveIn"
+      },
+      "backend__web__page_uploads__RenameIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RenameIn"
       },
       "backend__web__page_uploads__SectionIn": {
         "properties": {

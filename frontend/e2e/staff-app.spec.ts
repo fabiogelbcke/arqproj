@@ -855,6 +855,48 @@ test("staff upload a file into a stage, the client sees it, and staff hide it", 
   await later.close();
 });
 
+test("staff rename a file, every version with it, and the client sees the new name (A25)", async ({
+  page,
+  browser,
+}) => {
+  await page.goto(invite("renomear@alinea.example"));
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.goto("/casa-jardim");
+  await page
+    .getByRole("navigation", { name: "Ferramentas do escritório" })
+    .getByRole("button", { name: "Editar" })
+    .click();
+  await page.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Briefing/ }).click();
+  const briefing = page.locator("#stage-0");
+  for (const name of ["Estudo de massa.pdf", "Estudo de massa v2.pdf"]) {
+    await briefing.getByLabel("escolha no computador").setInputFiles({
+      name,
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 massa"),
+    });
+    if (name.includes("v2")) await page.getByRole("button", { name: "Sim, enviar como v2" }).click();
+    await expect(page.getByText(/enviad/).first()).toBeVisible();
+  }
+  await briefing.getByRole("button", { name: "Ações para Estudo de massa.pdf" }).click();
+  await page.getByRole("menuitem", { name: "Renomear" }).click();
+  const dialog = page.getByRole("dialog", { name: "Renomear" });
+  await expect(dialog.getByText("As 2 versões são renomeadas juntas.", { exact: false })).toBeVisible();
+  await dialog.getByLabel("Nome do arquivo").fill("Estudo de implantação");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Arquivo renomeado para “Estudo de implantação.pdf”.")).toBeVisible();
+
+  const client = await browser.newPage();
+  await client.goto("/casa-jardim");
+  await client.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Briefing/ }).click();
+  const stage = client.locator("#stage-0");
+  await expect(stage.getByText("Estudo de implantação.pdf")).toBeVisible(); // still one document, at v2
+  await expect(stage.getByText("Estudo de massa.pdf")).toHaveCount(0);
+  await client.close();
+});
+
 test("a client comments on a stage and a file, and staff see it and remove one (A49)", async ({ page, browser }) => {
   switchOn("comments");
   const client = await browser.newPage();
@@ -977,13 +1019,15 @@ test("staff upload a before-and-after comparison, and the client slides between 
   await viewer.screenshot({ path: join(tmpdir(), "arqproj-e2e-comparison.png") });
   await client.close();
 
-  // Hidden as one: both images leave the page, and stay in the folder.
+  // Hidden as one: both images leave the page, and go into the folder's
+  // `_arquivados` with their names (A31).
   await briefing.getByRole("button", { name: "Ações para Fachada" }).click();
   await page.getByRole("menuitem", { name: /Ocultar do cliente/ }).click();
   await expect(briefing.getByRole("button", { name: "Abrir Fachada" })).toHaveCount(0);
-  expect(readdirSync(folder).filter((name) => name.includes("Fachada")).sort()).toEqual([
-    "_Fachada (antes - Estudo).jpg",
-    "_Fachada (depois).jpg",
+  expect(readdirSync(folder).filter((name) => name.includes("Fachada"))).toEqual([]);
+  expect(readdirSync(join(folder, "_arquivados")).filter((name) => name.includes("Fachada")).sort()).toEqual([
+    "Fachada (antes - Estudo).jpg",
+    "Fachada (depois).jpg",
   ]);
 });
 

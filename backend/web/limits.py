@@ -25,7 +25,7 @@ from backend.proposals.models import SERVICE_DESCRIPTION_MAX, SERVICE_TITLE_MAX
 from backend.shares.models import LABEL_MAX as SHARE_LABEL_MAX
 from backend.web.office import NAME_LIMIT as OFFICE_NAME_LIMIT
 from backend.web.page_edit import DESCRIPTION_MAX, DETAIL_TEXT_MAX, NOTES_MAX
-from backend.web.page_uploads import CHECK_NAMES_MAX, SECTION_NAME_MAX
+from backend.web.page_uploads import CHECK_NAMES_MAX, FILE_NAME_MAX, SECTION_NAME_MAX
 from backend.web.project_settings import PAGE_PASSWORD_MAX, PAGE_PASSWORD_MIN
 from backend.web.shares import FILES_MAX as SHARE_FILES_MAX
 from backend.web.shares import SIZE_MAX as SHARE_BYTES_MAX
@@ -40,6 +40,7 @@ FIELD_LIMITS: dict[str, int] = {
     "stageTitle": STAGE_TITLE_MAX,
     "stageNotes": NOTES_MAX,
     "sectionName": SECTION_NAME_MAX,
+    "fileName": FILE_NAME_MAX,  # "Renomear", without the extension
     "uploadCheckNames": CHECK_NAMES_MAX,  # file names one version check takes
     "comparisonTitle": COMPARISON_TITLE_MAX,  # A46
     "comparisonLabel": COMPARISON_LABEL_MAX,

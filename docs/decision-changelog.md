@@ -19,6 +19,57 @@ a new entry too.
 
 ---
 
+## 2026-11-21 — A31: hidden files go into an `_arquivados` folder, names unchanged
+
+**Was:** "Ocultar do cliente" renamed every version of a file with a leading
+`_` where it was (`_Planta.pdf`), and "Ocultar seção" renamed the section's
+folder the same way. Stage folders in Drive filled up with `_`-names among the
+files the client sees.
+
+**Now:** a hidden file (every version), a hidden comparison (both sides) or a
+hidden section moves into an `_arquivados` folder inside the folder it was in,
+its name unchanged; the folder is made the first time. Files hidden before stay
+as they were.
+
+**Why:** Fabio asked for it (19 Nov 2026): the folders stay tidy, and a hidden
+file keeps its own name, easy to find and put back by hand. Considered and
+left: one central archive per stage or project (the file would lose where it
+was); `_ocultos`, to match the button (Fabio chose `_arquivados`, though
+"arquivar" also names archiving a project); moving the files hidden before
+(Fabio: from now on only).
+
+## 2026-11-20 — A34: a card's picture is not draggable; drop areas take files from the computer only
+
+**Was:** a file card was draggable to move it, but its preview picture was too,
+and the drop areas uploaded any drag that carried files. Grabbed by its
+picture, a card was dragged as an image ("thumb", the 480 px preview), which
+the stage uploaded as "thumb.png" while the card also moved (Alinea, Nov 2026).
+
+**Now:** card previews are not draggable, so a drag is always the card's; the
+drop areas upload only files from the computer, never a drag begun on the page.
+
+**Why:** a bug, not a change of mind. Considered and left: telling a drop from
+the computer by its data types alone (a picture from the page carries a link
+and HTML besides the file); an image dragged from another website carries the
+same, and staff may mean to upload it.
+
+## 2026-11-17 — A25: staff rename a file from the site
+
+**Was:** a file could not be renamed on the site; staff renamed it in Drive,
+and a document's versions only stayed one if each was renamed the same way.
+Sections and comparisons could already be renamed.
+
+**Now:** "Renomear" in a file's "⋯" renames every version of its document
+together, keeping each one's `vN` and the extension, when the app may rename
+all of them (drive.file); names that would join another document (another
+document's, one ending in a version or in "(antes)"/"(depois)") are refused.
+
+**Why:** Fabio asked for it (17 Nov 2026). Versions are grouped by name (A25),
+so renaming one file alone would split the document; the comparison's edit
+already renamed every version of a side this way. Editing the extension was
+left out: a new extension is a different kind of file, and the version check
+on uploads compares extensions.
+
 ## 2026-11-12 — A45: on an address Unio shares with an office, the office's page
 
 **Was:** `/` on Unio's own address (the operator host) always showed Unio's
