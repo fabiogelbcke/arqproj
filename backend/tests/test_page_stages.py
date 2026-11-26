@@ -93,6 +93,22 @@ async def test_renaming_renames_the_folder_and_keeps_the_description(client, own
     assert (folders / "02 - Medição" / "Croqui.pdf").exists()  # files move with it
 
 
+async def test_a_stage_is_never_named_like_another_of_its_project(client, owner, folders):
+    """As when the project is created: Drive would hold two folders a person can't
+    tell apart. Case and spaces aside; a stage may keep its own name re-cased."""
+    before = on_disk(folders)
+    added = await call(client, owner, "POST", "/stages", title=" anteprojeto ")
+    assert (added.status_code, added.json()["error"]) == (409, "stage_name_taken")
+    renamed = await call(client, owner, "PATCH", "/stages/2", title="BRIEFING")
+    assert (renamed.status_code, renamed.json()["error"]) == (409, "stage_name_taken")
+    assert on_disk(folders) == before
+    await call(client, owner, "POST", "/stages", title="Aprovação")
+    again = await call(client, owner, "PATCH", "/stages/3", title="aprovação")
+    assert (again.status_code, again.json()["error"]) == (409, "stage_name_taken")
+    recased = await call(client, owner, "PATCH", "/stages/2", title="CONCEITO")
+    assert recased.status_code == 204, recased.text
+
+
 async def test_moving_a_stage_swaps_folders_and_each_keeps_its_completion(client, owner, folders):
     before = await page(client)  # 01 and 02 completed
     assert (await call(client, owner, "POST", "/stages/3/move", direction=-1)).status_code == 204
@@ -312,27 +328,6 @@ async def test_removing_the_last_open_stage_leaves_the_project_to_staff(
     assert (await page(client))["completed"] is False  # "Concluir projeto" is theirs to press
     assert "project_completed" not in await kinds(db_session)
     assert (await call(client, owner, "PUT", "/completion")).status_code == 204
-
-
-async def test_the_previous_releases_progress_still_works_for_one_release(client, owner, folders):
-    """A tab still running the previous release during a deploy (A30)."""
-    assert (await page(client))["current_position"] == 3  # the first stage still open
-    response = await call(client, owner, "POST", "/progress", action="advance")
-    assert response.status_code == 204, response.text
-    shown = await page(client)
-    assert (completed(shown)[:4], shown["current_position"]) == ([True, True, True, False], 4)
-    await call(client, owner, "POST", "/progress", action="back")  # the last completed
-    assert completed(await page(client))[:4] == [True, True, False, False]
-    for _ in range(4):  # 03 to 06
-        await call(client, owner, "POST", "/progress", action="advance")
-    # "complete" on the last stage: it and the project, as the previous release did.
-    response = await call(client, owner, "POST", "/progress", action="complete")
-    assert response.status_code == 204, response.text
-    shown = await page(client)
-    assert (shown["completed"], shown["current_position"]) == (True, 7)
-    await call(client, owner, "POST", "/progress", action="reopen")
-    shown = await page(client)
-    assert (shown["completed"], completed(shown)[-1]) == (False, False)
 
 
 async def test_completing_a_completed_stage_or_reopening_an_open_one_is_refused(

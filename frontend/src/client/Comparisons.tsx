@@ -20,6 +20,7 @@ import styles from "../ui/ui.module.css";
 import { useDismiss } from "../ui/useDismiss";
 import { type Page } from "./format";
 import { movePlaces, sendFile, UPLOAD_MAX_MB, UploadBroke, uploadFile, type MovePlace } from "./StageUploads";
+import { fromComputer } from "./fileDrag";
 
 type Staff = NonNullable<Page["staff"]>;
 type FileItem = Schemas["FileOut"];
@@ -239,6 +240,7 @@ function SidePicker({
       onDrop={(event) => {
         event.preventDefault();
         setOver(false);
+        if (!fromComputer(event.dataTransfer)) return; // a picture dragged from the page
         const dropped = event.dataTransfer.files[0];
         if (dropped && !locked && !busy) onFile(dropped);
       }}
@@ -251,7 +253,7 @@ function SidePicker({
         onClick={() => chooser.current?.click()}
       >
         {preview ? (
-          <img src={preview} alt="" />
+          <img src={preview} alt="" draggable={false} />
         ) : (
           <>
             <span className="compare-side__plus" aria-hidden="true" />

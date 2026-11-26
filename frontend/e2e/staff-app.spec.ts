@@ -855,6 +855,108 @@ test("staff upload a file into a stage, the client sees it, and staff hide it", 
   await later.close();
 });
 
+test("staff rename a file, every version with it, and the client sees the new name (A25)", async ({
+  page,
+  browser,
+}) => {
+  await page.goto(invite("renomear@alinea.example"));
+  await page.getByLabel("Nova senha").fill("senha-escolhida");
+  await page.getByLabel("Repita a senha").fill("senha-escolhida");
+  await page.getByRole("button", { name: "Salvar senha e entrar" }).click();
+  await skipTour(page);
+  await page.goto("/casa-jardim");
+  await page
+    .getByRole("navigation", { name: "Ferramentas do escritório" })
+    .getByRole("button", { name: "Editar" })
+    .click();
+  await page.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Briefing/ }).click();
+  const briefing = page.locator("#stage-0");
+  for (const name of ["Estudo de massa.pdf", "Estudo de massa v2.pdf"]) {
+    await briefing.getByLabel("escolha no computador").setInputFiles({
+      name,
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 massa"),
+    });
+    if (name.includes("v2")) await page.getByRole("button", { name: "Sim, enviar como v2" }).click();
+    await expect(page.getByText(/enviad/).first()).toBeVisible();
+  }
+  await briefing.getByRole("button", { name: "Ações para Estudo de massa.pdf" }).click();
+  await page.getByRole("menuitem", { name: "Renomear" }).click();
+  const dialog = page.getByRole("dialog", { name: "Renomear" });
+  await expect(dialog.getByText("As 2 versões são renomeadas juntas.", { exact: false })).toBeVisible();
+  await dialog.getByLabel("Nome do arquivo").fill("Estudo de implantação");
+  await dialog.getByRole("button", { name: "Salvar" }).click();
+  await expect(page.getByText("Arquivo renomeado para “Estudo de implantação.pdf”.")).toBeVisible();
+
+  const client = await browser.newPage();
+  await client.goto("/casa-jardim");
+  await client.getByRole("list", { name: "Etapas" }).getByRole("button", { name: /^Briefing/ }).click();
+  const stage = client.locator("#stage-0");
+  await expect(stage.getByText("Estudo de implantação.pdf")).toBeVisible(); // still one document, at v2
+  await expect(stage.getByText("Estudo de massa.pdf")).toHaveCount(0);
+  await client.close();
+});
+
+test("a client comments on a stage and a file, and staff see it and remove one (A49)", async ({ page, browser }) => {
+  switchOn("comments");
+  const client = await browser.newPage();
+  await client.goto("/casa-jardim");
+  await client
+    .getByRole("list", { name: "Etapas" })
+    .getByRole("button", { name: /^Briefing/ })
+    .click();
+  const stage = client.locator("#stage-0");
+  await stage.getByRole("button", { name: /Comentar|comentário/ }).click();
+  const thread = stage.getByRole("region", { name: "Comentários sobre Briefing" });
+  await thread.getByLabel("Seu comentário").fill("Podemos rever a sala?");
+  await thread.getByLabel("Seu nome").fill("Maria Oliveira");
+  await thread.getByRole("button", { name: "Enviar comentário" }).click();
+  await expect(thread.getByText("Podemos rever a sala?")).toBeVisible();
+  // On a file, from its preview: signed with the name the device remembers.
+  await stage.locator(".file").first().getByRole("button").first().click();
+  const preview = client.getByRole("dialog");
+  const fileThread = preview.getByRole("region", { name: /^Comentários sobre / });
+  await expect(fileThread.getByText("Comentando como Maria Oliveira.")).toBeVisible();
+  await fileThread.getByLabel("Seu comentário").fill("Faltou a garagem");
+  await fileThread.getByRole("button", { name: "Enviar comentário" }).click();
+  await expect(fileThread.getByText("Faltou a garagem")).toBeVisible();
+  // The client takes back one of theirs, from this device.
+  await fileThread.getByLabel("Seu comentário").fill("Esta foi sem querer");
+  await fileThread.getByRole("button", { name: "Enviar comentário" }).click();
+  await fileThread.getByText("Esta foi sem querer").waitFor();
+  await fileThread
+    .getByRole("listitem")
+    .filter({ hasText: "Esta foi sem querer" })
+    .getByRole("button", { name: "Remover o comentário de Maria Oliveira" })
+    .click();
+  await fileThread.getByRole("button", { name: "Remover", exact: true }).click();
+  await expect(fileThread.getByText("Esta foi sem querer")).toHaveCount(0);
+  await client.close();
+
+  // Staff see both, the file's count on its card, and remove the stage's.
+  await signInAsNewStaff(page, "comentarios@alinea.example", "owner"); // removes anyone's (A49)
+  await page.goto("/casa-jardim");
+  await page
+    .getByRole("list", { name: "Etapas" })
+    .getByRole("button", { name: /^Briefing/ })
+    .click();
+  const briefing = page.locator("#stage-0");
+  await expect(briefing.locator(".file__comments").first()).toBeVisible();
+  await briefing.getByRole("button", { name: /comentário/ }).click();
+  const staffThread = briefing.getByRole("region", { name: "Comentários sobre Briefing" });
+  await expect(staffThread.getByText("Você comenta pela equipe do escritório.")).toBeVisible();
+  await staffThread.getByRole("button", { name: "Remover o comentário de Maria Oliveira" }).click();
+  await staffThread.getByRole("button", { name: "Remover", exact: true }).click();
+  await expect(staffThread.getByText("Podemos rever a sala?")).toHaveCount(0);
+  // And from a file's preview, a modal dialog of its own: asked in the comment, so
+  // nothing opens under it.
+  await briefing.locator(".file", { has: page.locator(".file__comments") }).getByRole("button").first().click();
+  const inPreview = page.getByRole("dialog").getByRole("region", { name: /^Comentários sobre / });
+  await inPreview.getByRole("button", { name: "Remover o comentário de Maria Oliveira" }).click();
+  await inPreview.getByRole("button", { name: "Remover", exact: true }).click();
+  await expect(inPreview.getByText("Faltou a garagem")).toHaveCount(0);
+});
+
 test("staff upload a before-and-after comparison, and the client slides between them (A46)", async ({
   page,
   browser,
@@ -917,13 +1019,15 @@ test("staff upload a before-and-after comparison, and the client slides between 
   await viewer.screenshot({ path: join(tmpdir(), "arqproj-e2e-comparison.png") });
   await client.close();
 
-  // Hidden as one: both images leave the page, and stay in the folder.
+  // Hidden as one: both images leave the page, and go into the folder's
+  // `_arquivados` with their names (A31).
   await briefing.getByRole("button", { name: "Ações para Fachada" }).click();
   await page.getByRole("menuitem", { name: /Ocultar do cliente/ }).click();
   await expect(briefing.getByRole("button", { name: "Abrir Fachada" })).toHaveCount(0);
-  expect(readdirSync(folder).filter((name) => name.includes("Fachada")).sort()).toEqual([
-    "_Fachada (antes - Estudo).jpg",
-    "_Fachada (depois).jpg",
+  expect(readdirSync(folder).filter((name) => name.includes("Fachada"))).toEqual([]);
+  expect(readdirSync(join(folder, "_arquivados")).filter((name) => name.includes("Fachada")).sort()).toEqual([
+    "Fachada (antes - Estudo).jpg",
+    "Fachada (depois).jpg",
   ]);
 });
 
@@ -1051,6 +1155,11 @@ test("staff edit the page in place and the client sees it", async ({
   });
   expect(contrast).toBe(true);
   await remove.click();
+  // Removing the cover asks first: the photo goes to the office's Drive trash.
+  await page
+    .getByRole("alertdialog", { name: "Remover a capa?" })
+    .getByRole("button", { name: "Remover capa" })
+    .click();
   await expect(
     page.getByRole("button", { name: /Adicionar foto de capa/ }),
   ).toBeVisible();
@@ -1548,8 +1657,8 @@ async function coveringPopup(page: Page, selector: string): Promise<string[]> {
   }, selector);
 }
 
-async function signInAsNewStaff(page: Page, email: string) {
-  await page.goto(invite(email));
+async function signInAsNewStaff(page: Page, email: string, role: "owner" | "member" = "member") {
+  await page.goto(invite(email, role));
   await page.getByLabel("Nova senha").fill("senha-escolhida");
   await page.getByLabel("Repita a senha").fill("senha-escolhida");
   await page.getByRole("button", { name: "Salvar senha e entrar" }).click();

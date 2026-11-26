@@ -16,6 +16,7 @@ import { Button } from "../ui/Button";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { IconButton } from "../ui/IconButton";
 import { LinkButton } from "../ui/LinkButton";
 import { NameDialog } from "../ui/NameDialog";
@@ -25,13 +26,17 @@ import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
 import { TextAreaField, TextField } from "../ui/TextField";
 import { copyText } from "../ui/copyText";
-import { toast, toastError } from "../ui/Toast";
+import { toast, toastError, toastProblem } from "../ui/Toast";
 import { ToggleSwitch } from "../ui/ToggleSwitch";
 import {
   FORMATS,
   LIMITS,
   NETWORKS,
+  fileNames,
   isProject,
+  lostInMerge,
+  PHOTO_TYPES,
+  UnreadableImage,
   resized,
   useAddEntry,
   useAddLoosePhoto,
@@ -83,7 +88,7 @@ export function PortfolioPage() {
           </div>
         )}
       </div>
-      {portfolio.error ? (
+      {loadError(portfolio) ? (
         <ErrorNotice error={portfolio.error} />
       ) : !portfolio.data ? (
         <p className={styles.hint}>{t("app.loading")}</p>
@@ -188,15 +193,15 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
   const { t } = useTranslation();
   const save = useSavePortfolio();
   const [intro, setIntro] = useState(portfolio.intro);
-  const shown = portfolio.entries.some((entry) => entry.photos.length > 0);
   const change = (body: { published?: boolean; intro?: string; format?: Portfolio["format"] }, done: string) =>
     save.mutate(body, { onSuccess: () => toast(done), onError: (failure) => toastError(failure) });
   return (
-    <Panel className={styles.section} aria-labelledby="portfolio-publishing">
+    <Panel className={styles.publishing} aria-labelledby="portfolio-publishing">
       <h2 id="portfolio-publishing" className="sr-only">
         {t("portfolio.publishing")}
       </h2>
       <ToggleSwitch
+        className={styles.publishSwitch}
         label={t("portfolio.publish", { address: officeAddress() })}
         isSelected={portfolio.published}
         isDisabled={save.isPending}
@@ -204,7 +209,8 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
       >
         <span className={styles.switchLabel}>{t("portfolio.publish", { address: officeAddress() })}</span>
       </ToggleSwitch>
-      {portfolio.published && !shown && <p className={styles.warning}>{t("portfolio.nothingShown")}</p>}
+      {/* Below the switch: the format on the left, the opening text on the right. */}
+      <div className={styles.publishingBody}>
       <div className={styles.format} role="radiogroup" aria-labelledby="portfolio-format">
         <span id="portfolio-format" className={styles.switchLabel}>
           {t("portfolio.format")}
@@ -228,23 +234,26 @@ function Publishing({ portfolio }: { portfolio: Portfolio }) {
           ))}
         </div>
       </div>
-      <TextAreaField
-        label={t("portfolio.intro")}
-        description={t("portfolio.introHint")}
-        placeholder={t("portfolio.introPlaceholder")}
-        value={intro}
-        onChange={setIntro}
-        maxLength={LIMITS.intro}
-        rows={3}
-      />
-      <Button
-        size="small"
-        className={styles.save}
-        isDisabled={save.isPending || intro.trim() === portfolio.intro}
-        onPress={() => change({ intro }, t("portfolio.saved"))}
-      >
-        {t("portfolio.save")}
-      </Button>
+      <div className={styles.introField}>
+        <TextAreaField
+          label={t("portfolio.intro")}
+          description={t("portfolio.introHint")}
+          placeholder={t("portfolio.introPlaceholder")}
+          value={intro}
+          onChange={setIntro}
+          maxLength={LIMITS.intro}
+          rows={4}
+        />
+        <Button
+          size="small"
+          className={styles.save}
+          isDisabled={save.isPending || intro.trim() === portfolio.intro}
+          onPress={() => change({ intro }, t("portfolio.saved"))}
+        >
+          {t("portfolio.save")}
+        </Button>
+      </div>
+      </div>
     </Panel>
   );
 }
@@ -466,7 +475,7 @@ function SectionCard({
   const order = useOrderSections();
   const remove = useRemoveSection();
   const change = useChangeEntry();
-  const merge = useMergeEntries();
+  const joining = useJoin();
   const reorder = useOrderEntries();
   const [over, setOver] = useState(false);
   const projects = entries.filter(isProject);
@@ -502,13 +511,14 @@ function SectionCard({
   const dropOn = async (target: Entry, where: "before" | "after" | "into") => {
     const ids = carried().filter((id) => id !== target.id);
     if (!ids.length) return;
-    try {
-      if (where === "into") {
-        await merge.mutateAsync({ into: target.id, entries: ids });
+    if (where === "into") {
+      const pieces = ids.flatMap((id) => all.find((entry) => entry.id === id) ?? []);
+      return joining.join(target, pieces, () => {
         toast(t(target.photos.length > 1 ? "portfolio.addedTo" : "portfolio.grouped", { title: nameOf(target, t) }));
         onSelect([]);
-        return;
-      }
+      });
+    }
+    try {
       const moving = new Set(ids);
       const rest = all.map((entry) => entry.id).filter((id) => !moving.has(id));
       const at = rest.indexOf(target.id) + (where === "after" ? 1 : 0);
@@ -627,8 +637,62 @@ function SectionCard({
           )}
         </div>
       )}
+      {joining.dialog}
     </section>
   );
+}
+
+/** Joining pieces into one (`target`): asked first when it throws away words of
+ *  theirs that the target already has (the server keeps the target's), naming
+ *  them; at once otherwise. A failure is a toast. */
+function useJoin() {
+  const { t, i18n } = useTranslation();
+  const merge = useMergeEntries();
+  const [asking, setAsking] = useState<{
+    target: Entry;
+    pieces: Entry[];
+    lost: ReturnType<typeof lostInMerge>;
+    done: () => void;
+  } | null>(null);
+  const run = async (target: Entry, pieces: Entry[], done: () => void) => {
+    try {
+      await merge.mutateAsync({ into: target.id, entries: pieces.map((piece) => piece.id) });
+      done();
+    } catch (failure) {
+      toastError(failure);
+    } finally {
+      setAsking(null);
+    }
+  };
+  const join = (target: Entry, pieces: Entry[], done: () => void) => {
+    const lost = lostInMerge(target, pieces);
+    if (lost.length) setAsking({ target, pieces, lost, done });
+    else void run(target, pieces, done);
+  };
+  const list = (items: string[]) => new Intl.ListFormat(i18n.language).format(items);
+  const dialog = asking && (
+    <ConfirmDialog
+      title={t("portfolio.mergeTitle", { title: nameOf(asking.target, t) })}
+      text={t("portfolio.mergeLoses", {
+        target: nameOf(asking.target, t),
+        lost: list(
+          asking.lost.map(({ entry, words }) =>
+            t("portfolio.mergeLostOf", {
+              words: list(words.map((word) => t(`portfolio.mergeWord.${word}`))),
+              name: nameOf(entry, t),
+            }),
+          ),
+        ),
+      })}
+      note={t("portfolio.mergeNote")}
+      confirm={t("portfolio.mergeConfirm")}
+      danger
+      busy={merge.isPending}
+      onConfirm={() => void run(asking.target, asking.pieces, asking.done)}
+      onCancel={() => setAsking(null)}
+    />
+  );
+  return { join, dialog, busy: merge.isPending };
 }
 
 function Group({ title, count, children }: { title: string; count: number; children: ReactNode }) {
@@ -655,11 +719,17 @@ function UploadIcon() {
  *  dropped or chosen go to the dialog; "envie um projeto inteiro" too, as one
  *  project. */
 function DropArea({ section, onFiles }: { section: Section | null; onFiles: (files: File[], asProject: boolean) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [over, setOver] = useState(false);
   const photos = useRef<HTMLInputElement>(null);
   const project = useRef<HTMLInputElement>(null);
-  const images = (list: FileList | null) => [...(list ?? [])].filter((file) => file.type.startsWith("image/"));
+  // The photos a browser opens; another image (a HEIC, a TIFF) is named and left out.
+  const images = (list: FileList | null) => {
+    const all = [...(list ?? [])].filter((file) => file.type.startsWith("image/"));
+    const refused = all.filter((file) => !PHOTO_TYPES.includes(file.type)).map((file) => file.name);
+    if (refused.length) toastProblem(t("portfolio.photosUnreadable", { names: fileNames(refused, i18n.language) }));
+    return all.filter((file) => PHOTO_TYPES.includes(file.type));
+  };
   return (
     <div
       className={styles.drop}
@@ -688,7 +758,7 @@ function DropArea({ section, onFiles }: { section: Section | null; onFiles: (fil
         <input
           ref={photos}
           type="file"
-          accept="image/*"
+          accept={PHOTO_TYPES.join(",")}
           multiple
           className="sr-only"
           aria-label={t("portfolio.sendToSection", { section: section?.name ?? t("portfolio.typeNone") })}
@@ -705,7 +775,7 @@ function DropArea({ section, onFiles }: { section: Section | null; onFiles: (fil
         <input
           ref={project}
           type="file"
-          accept="image/*"
+          accept={PHOTO_TYPES.join(",")}
           multiple
           className="sr-only"
           aria-label={t("portfolio.sendProjectTo", { section: section?.name ?? t("portfolio.typeNone") })}
@@ -842,40 +912,28 @@ function SelectionBar({
   onOpen: (entry: Entry) => void;
 }) {
   const { t } = useTranslation();
-  const merge = useMergeEntries();
+  const joining = useJoin();
   const split = useSplitEntry();
   const change = useChangeEntry();
   const remove = useRemoveEntry();
   const [removing, setRemoving] = useState(false);
   const ids = chosen.map((entry) => entry.id);
   const images = chosen.reduce((n, entry) => n + entry.photos.length, 0);
-  const busy = merge.isPending || split.isPending || change.isPending || remove.isPending;
+  const busy = joining.busy || split.isPending || change.isPending || remove.isPending;
   const others = portfolio.entries.filter((entry) => isProject(entry) && !ids.includes(entry.id));
   const one = chosen.length === 1 ? chosen[0]! : null;
   const group = () => {
     const [first, ...rest] = chosen;
-    merge.mutate(
-      { into: first!.id, entries: rest.map((entry) => entry.id) },
-      {
-        onSuccess: () => {
-          toast(t("portfolio.grouped"));
-          onClear();
-        },
-        onError: (failure) => toastError(failure),
-      },
-    );
+    joining.join(first!, rest, () => {
+      toast(t("portfolio.grouped"));
+      onClear();
+    });
   };
   const addTo = (target: Entry) =>
-    merge.mutate(
-      { into: target.id, entries: ids },
-      {
-        onSuccess: () => {
-          toast(t("portfolio.addedTo", { title: nameOf(target, t) }));
-          onClear();
-        },
-        onError: (failure) => toastError(failure),
-      },
-    );
+    joining.join(target, chosen, () => {
+      toast(t("portfolio.addedTo", { title: nameOf(target, t) }));
+      onClear();
+    });
   const moveTo = async (section: Section | null) => {
     try {
       for (const id of ids) await change.mutateAsync({ id, section_id: section?.id ?? null });
@@ -904,8 +962,8 @@ function SelectionBar({
       <Button
         size="small"
         variant="primary"
-        isDisabled={chosen.length < 2 || (busy && !merge.isPending)}
-        pending={merge.isPending}
+        isDisabled={chosen.length < 2 || (busy && !joining.busy)}
+        pending={joining.busy}
         onPress={group}
       >
         {t("portfolio.group")}
@@ -968,6 +1026,7 @@ function SelectionBar({
       <IconButton label={t("portfolio.clearSelection")} onPress={onClear}>
         ×
       </IconButton>
+      {joining.dialog}
       {removing && (
         <ConfirmDialog
           title={t("portfolio.removeManyTitle", { count: chosen.length })}
@@ -1000,7 +1059,7 @@ function ReviewDialog({
   known: Set<string>; // every piece there is: the one made for a new project is the other
   onClose: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const addLoose = useAddLoosePhoto();
   const addEntry = useAddEntry();
   const addPhoto = useAddPhoto();
@@ -1020,6 +1079,7 @@ function ReviewDialog({
   // their place in the drop) and the project made for them.
   const sent = useRef(new Set<number>());
   const made = useRef<string | null>(null);
+  const unreadable = useRef(new Set<number>()); // skipped: the browser couldn't open them
   const [failed, setFailed] = useState(false);
 
   async function send() {
@@ -1029,7 +1089,7 @@ function ReviewDialog({
     try {
       // Loose photos go last to first: each lands first in its section, so the
       // first dropped ends first. A project's go in order, after its own.
-      const order = [...drop.files.keys()].filter((index) => !sent.current.has(index));
+      const order = [...drop.files.keys()].filter((index) => !sent.current.has(index) && !unreadable.current.has(index));
       if (where === "loose") order.reverse();
       let target = project;
       if (where === "new") {
@@ -1040,7 +1100,14 @@ function ReviewDialog({
         target = made.current;
       }
       for (const index of order) {
-        const file = await resized(drop.files[index]!, drop.files[index]!.name);
+        let file: File;
+        try {
+          file = await resized(drop.files[index]!, drop.files[index]!.name);
+        } catch (failure) {
+          if (!(failure instanceof UnreadableImage)) throw failure;
+          unreadable.current.add(index); // said once all the others are in
+          continue;
+        }
         if (where === "loose") {
           await addLoose.mutateAsync({ file, section: sectionId, title: captions[index]!.trim().slice(0, LIMITS.title) });
         } else {
@@ -1049,7 +1116,10 @@ function ReviewDialog({
         sent.current.add(index);
         setProgress({ done: sent.current.size, total: count });
       }
-      toast(where === "new" ? t("portfolio.projectCreated") : t("portfolio.photosAdded", { count }));
+      // One message at a time: the photos left out matter more than the others' arrival, in sight.
+      const names = [...unreadable.current].map((index) => drop.files[index]!.name);
+      if (names.length) toastProblem(t("portfolio.photosUnreadable", { names: fileNames(names, i18n.language) }));
+      else toast(where === "new" ? t("portfolio.projectCreated") : t("portfolio.photosAdded", { count }));
       onClose();
     } catch (failure) {
       toastError(failure);
@@ -1373,7 +1443,7 @@ export function ProjectChoice({
           value={query}
           onChange={setQuery}
         />
-        {projects.error ? (
+        {loadError(projects) ? (
           <ErrorNotice error={projects.error} />
         ) : !projects.data ? (
           <p className={styles.hint}>{t("app.loading")}</p>

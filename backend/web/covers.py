@@ -83,6 +83,7 @@ async def store_cover(
     name = f"capa.{_EXTENSIONS[cover_type]}"
     connection = await storage_connection(request, db)
     previous = project.cover_file_id
+    writer = None  # Drive's, whose old file is trashed once the new one is saved
 
     if connection is not None and connection.kind is StorageKind.FOLDER:
         root = local_root(request, connection)
@@ -106,14 +107,15 @@ async def store_cover(
         except ConnectError as error:
             log.error("cover upload to Drive failed for %s: %s", tenant.slug, error.detail)
             raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-        if previous:
-            await writer.trash(previous)
     project.cover_type = cover_type
     # Always an UPDATE, so the trigger moves `updated_at` and the cover's address
     # (its `?v=`) changes even when the file kept its name (locally, capa.jpg).
     flag_modified(project, "cover_file_id")
     await db.commit()
     db.expire_all()
+    if previous and writer is not None:
+        # Only once the project points at the new one, as the office's logo.
+        await writer.trash(previous)
 
 
 def stock_photo_bytes(name: str) -> bytes:

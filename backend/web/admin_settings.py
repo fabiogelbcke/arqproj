@@ -18,7 +18,7 @@ answers with both lists as they now are.
 from __future__ import annotations
 
 from datetime import time, timedelta
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
@@ -36,7 +36,7 @@ from backend.notifications.models import (
 )
 from backend.operators import actions, catalog
 from backend.projects.enums import ProjectType
-from backend.projects.models import ProjectTypeDef, StageDef
+from backend.projects.models import STAGE_TITLE_MAX, ProjectTypeDef, StageDef
 from backend.tenancy.models import Locale
 from backend.web.admin import (
     _action_failure,
@@ -143,7 +143,7 @@ async def _catalog(request: Request) -> SiteCatalogOut:
         can_change=getattr(request.app.state, "operator_sessionmaker", None) is not None,
         limits={
             "typeLabel": catalog.TYPE_LABEL_MAX,
-            "stageTitle": catalog.STAGE_TITLE_MAX,
+            "stageTitle": STAGE_TITLE_MAX,
             "stageAbout": catalog.STAGE_ABOUT_MAX,
         },
     )
@@ -159,7 +159,7 @@ async def _change(request: Request, operator: dict, change) -> SiteCatalogOut:
             await db.commit()
     except catalog.CatalogProblem as problem:
         status = 409 if problem.code == ErrorCode.SETTING_NAME_TAKEN else 422
-        raise ApiError(status, ErrorCode(problem.code)) from None
+        raise ApiError(status, problem.code) from None
     except SQLAlchemyError as error:  # e.g. two operators adding the same key at once
         raise _action_failure(request, "settings", error) from None
     return await _catalog(request)
@@ -233,7 +233,7 @@ class NewSiteStageIn(BaseModel):
 async def new_stage(
     body: NewSiteStageIn, request: Request, operator: dict = Depends(operator_with_csrf)
 ) -> SiteCatalogOut:
-    titles = _checked(body.titles, catalog.STAGE_TITLE_MAX)
+    titles = _checked(body.titles, STAGE_TITLE_MAX)
     about = _checked(body.about, catalog.STAGE_ABOUT_MAX)
 
     async def change(db):
@@ -252,7 +252,7 @@ class SiteStageIn(BaseModel):
 async def change_stage(
     key: str, body: SiteStageIn, request: Request, operator: dict = Depends(operator_with_csrf)
 ) -> SiteCatalogOut:
-    titles = _checked(body.titles, catalog.STAGE_TITLE_MAX)
+    titles = _checked(body.titles, STAGE_TITLE_MAX)
     about = _checked(body.about, catalog.STAGE_ABOUT_MAX)
 
     async def change(db):
@@ -264,7 +264,7 @@ async def change_stage(
 
 class SiteOrderIn(BaseModel):
     kind: Literal["types", "stages"]
-    keys: list[str] = Field(max_length=500)
+    keys: list[Annotated[str, Field(max_length=100)]] = Field(max_length=500)
 
 
 @router.put(f"{PREFIX}/order", responses=documented(401, 403, 404, 422, 503))
@@ -284,7 +284,7 @@ def _checked(given: SiteTexts, limit: int) -> dict[str, str]:
     try:
         return catalog.texts(given.pt, given.en, limit)
     except catalog.CatalogProblem as problem:
-        raise ApiError(422, ErrorCode(problem.code)) from None
+        raise ApiError(422, problem.code) from None
 
 
 # -- "Avisos" (A48) ---------------------------------------------------------------------

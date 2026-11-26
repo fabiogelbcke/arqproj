@@ -26,7 +26,6 @@ export function unfilled(schema: string, shown: Fields[], leftOut: Record<string
 const PAGE_LEFT_OUT = {
   in_proposal: "a proposal not yet accepted shows only the proposal; the example is past it",
   proposal: "only while in proposal; once accepted, `proposal_url` (shown)",
-  current_position: "the previous release's, unread by this page",
   staff: "the staff view: shown to signed-in staff, tested in example.test.tsx",
 };
 const FILE_LEFT_OUT = {
@@ -60,6 +59,8 @@ describe("the example project keeps up with the project page", () => {
     );
     expect(unfilled("FileOut", shown, FILE_LEFT_OUT)).toEqual([]);
     expect(shown.some((file) => file.updated === true)).toBe(true);
+    // Every kind of update too: a new version's, a comparison's.
+    expect(unfilled("UpdateOut", files.updates as Fields[], {})).toEqual([]);
   });
 
   it("notices a field the example leaves empty", () => {
@@ -67,5 +68,8 @@ describe("the example project keeps up with the project page", () => {
     const page = Object.fromEntries(fieldsOf("PageOut").map((field) => [field, "x"]));
     expect(unfilled("PageOut", [{ ...page, team: [] }], PAGE_LEFT_OUT)).toEqual(["team"]);
     expect(unfilled("PageOut", [{ ...page, team: ["Ana"] }], PAGE_LEFT_OUT)).toEqual([]);
+    // An update without a version anywhere is caught too.
+    const update = { id: "u", kind: "file_published", occurred_at: "x", stage_position: 1, name: "x", comparison: true };
+    expect(unfilled("UpdateOut", [update], {})).toEqual(["version"]);
   });
 });

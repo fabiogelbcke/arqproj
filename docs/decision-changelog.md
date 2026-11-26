@@ -19,6 +19,110 @@ a new entry too.
 
 ---
 
+## 2026-11-26 — A47: the WhatsApp texts reworded for Meta; "responda SAIR" on the welcome and updates
+
+**Was:** the update read "Olá! Você tem novidades no projeto {{project}}, do
+{{office}}: {{news}}.", the question "Olá! O {{office}} cadastrou…", and every
+message was to say how to stop.
+
+**Now:** "Olá! Você tem novidades no projeto {{project}}, do escritório
+{{office}}. Veja o que mudou: {{news}}. Confira os detalhes na página do
+projeto."; the welcome says "…do projeto {{project}}, de {{office}}: …"; the
+question "Olá! {{office}} cadastrou…". The footer "Para não receber mais estas
+mensagens, responda SAIR." goes on the welcome and the updates only.
+
+**Why:** creating the templates (26 Nov 2026), Meta refused a body ending in a
+variable or with two variables separated only by punctuation, which the update
+had. The other wording and the footer's place are Fabio's, the same day: the
+welcome and the updates are what a client gets most, where a way out heads off
+blocks and reports; the question has its "Não quero". Replying SAIR works on any
+message.
+
+---
+
+## 2026-11-21 — A31: hidden files go into an `_arquivados` folder, names unchanged
+
+**Was:** "Ocultar do cliente" renamed every version of a file with a leading
+`_` where it was (`_Planta.pdf`), and "Ocultar seção" renamed the section's
+folder the same way. Stage folders in Drive filled up with `_`-names among the
+files the client sees.
+
+**Now:** a hidden file (every version), a hidden comparison (both sides) or a
+hidden section moves into an `_arquivados` folder inside the folder it was in,
+its name unchanged; the folder is made the first time. Files hidden before stay
+as they were.
+
+**Why:** Fabio asked for it (19 Nov 2026): the folders stay tidy, and a hidden
+file keeps its own name, easy to find and put back by hand. Considered and
+left: one central archive per stage or project (the file would lose where it
+was); `_ocultos`, to match the button (Fabio chose `_arquivados`, though
+"arquivar" also names archiving a project); moving the files hidden before
+(Fabio: from now on only).
+
+## 2026-11-20 — A34: a card's picture is not draggable; drop areas take files from the computer only
+
+**Was:** a file card was draggable to move it, but its preview picture was too,
+and the drop areas uploaded any drag that carried files. Grabbed by its
+picture, a card was dragged as an image ("thumb", the 480 px preview), which
+the stage uploaded as "thumb.png" while the card also moved (Alinea, Nov 2026).
+
+**Now:** card previews are not draggable, so a drag is always the card's; the
+drop areas upload only files from the computer, never a drag begun on the page.
+
+**Why:** a bug, not a change of mind. Considered and left: telling a drop from
+the computer by its data types alone (a picture from the page carries a link
+and HTML besides the file); an image dragged from another website carries the
+same, and staff may mean to upload it.
+
+## 2026-11-17 — A25: staff rename a file from the site
+
+**Was:** a file could not be renamed on the site; staff renamed it in Drive,
+and a document's versions only stayed one if each was renamed the same way.
+Sections and comparisons could already be renamed.
+
+**Now:** "Renomear" in a file's "⋯" renames every version of its document
+together, keeping each one's `vN` and the extension, when the app may rename
+all of them (drive.file); names that would join another document (another
+document's, one ending in a version or in "(antes)"/"(depois)") are refused.
+
+**Why:** Fabio asked for it (17 Nov 2026). Versions are grouped by name (A25),
+so renaming one file alone would split the document; the comparison's edit
+already renamed every version of a side this way. Editing the extension was
+left out: a new extension is a different kind of file, and the version check
+on uploads compares extensions.
+
+## 2026-11-12 — A45: on an address Unio shares with an office, the office's page
+
+**Was:** `/` on Unio's own address (the operator host) always showed Unio's
+home, before the office was even looked up. On staging the one address,
+`staging.myunio.app`, is both the operator host and the test office's, so the
+portfolio and the office's card could never be seen there.
+
+**Now:** the question at `/` is whether the address is an office's, not whether
+it is Unio's: an address that resolves to an office shows that office's card or
+portfolio; an address no office owns keeps Unio's home. In production nothing
+changes, since no office owns `myunio.app`; on staging the test office's page
+shows. Unio's home still shows whenever the lookup fails.
+
+**Why:** Fabio, 12 Nov 2026: "there's no way to see the portfolio in staging
+now?"
+
+## 2026-11-11 — A49: who removes a comment
+
+**Was:** any of the office's staff, owner or member, removed any comment;
+clients couldn't remove theirs, even one sent by mistake.
+
+**Now:** an owner removes any comment (a client's spam, anyone's mistake); a
+member removes only their own. A client removes their own, from the device they
+posted it on: posting hands the page a signed receipt for that comment, kept on
+the device, and removing shows it. No account, so no other way to tell the
+client is the same person; from another device, or after clearing the site's
+data, they ask the office.
+
+**Why:** Fabio, 11 Nov 2026, asked whether "admins" could remove anyone's
+comments; offered tighter rules, he chose both: members limited to their own,
+and clients able to take back theirs.
+
 ## 2026-11-11 — A45: the portfolio for every office; the tab says less
 
 **Was:** the portfolio was behind the `portfolio` feature (A40): an office had
@@ -76,6 +180,25 @@ per office: one place to tune during the pilot; per office can follow.
 
 ---
 
+## 2026-11-10 — A49: comments on files and stages
+
+**Was:** comments and approvals were explicitly deferred from the pilot (plan
+section 2, "Explicitly deferred"), and clients have no accounts (A06).
+
+**Now:** clients and staff comment on each stage and each file, behind the
+`comments` feature (A40). A client signs with a name remembered on their
+device, nothing more; everyone who can open the page sees the whole
+conversation. A client's comment emails the project's team (or every staff
+account); a staff comment reaches the client through the update email (A32)
+and the updates panel. Approvals stay deferred.
+
+**Why:** Fabio, 10 Nov 2026: "we need to allow comments on files and on
+stages". Asked how a client signs, he chose a name only, over a name and email
+or a link sent to an address on the project's list: the simplest for clients.
+Their replies still reach them, through the project's update emails. A comment
+stays with a file by its identity in storage rather than by its name, so a new
+version, a rename or a move made on the site keeps the conversation.
+
 ## 2026-11-10 — A21, A45: a CDN for published portfolio photos; a work's images fit the screen
 
 **Was:** every portfolio photo was fetched through the app, which made three calls
@@ -99,6 +222,57 @@ beside Drive (A10); and remembering Drive's thumbnail links, which expire. The
 cost of the CDN: a photo removed, or a portfolio unpublished, can still be
 served from it for up to a day, at an address no longer linked anywhere (Fabio
 accepted, 10 Nov 2026). Purging the CDN on removal can come if that matters.
+
+## 2026-11-10 — A45: joining portfolio pieces asks before it discards their words
+
+**Was:** "Agrupar em projeto", "Adicionar a…" and dropping a piece in the middle
+of another joined them at once. The target keeps its own title, place, year,
+description, sheet and credits; the words the others had for those went with
+them, silently and for good.
+
+**Now:** when joining would discard any of the others' words, a confirmation
+names them ("Serão descartados o título de “Loja Centro”.") and starts on
+Cancelar. Joining pieces whose words simply move to the target still happens at
+once. What the server keeps is unchanged.
+
+**Why:** the overnight audit (issue #210) found that a drop a little off a
+tile's edge merged two works irreversibly, deleting the dragged one's texts.
+
+## 2026-11-10 — A23, A33: Alinea's primary address is `alinea.myunio.app` (changed 25 Oct 2026, recorded now)
+
+**Was:** Alinea was served on its own domain, `alineaarquitetos.com`, as the one
+exception to `{office}.myunio.app` (A23, A33).
+
+**Now:** since 25 Oct 2026 Alinea's primary address is `alinea.myunio.app`, the
+shape every office has (A21). `alineaarquitetos.com` and `www.` stay its addresses
+and redirect there, except the `/` home page, which every address shows. Its
+emails still send from `alineaarquitetos.com` (A32).
+
+**Why:** Fabio's call on 25 Oct 2026. The change was made and recorded in
+`docs/infrastructure.md` then (commit c5174b2, "Share links: …", which notes
+"Production's main address"), but the register rows were not updated; the
+overnight audit of 10 Nov 2026 (issue #210) found the drift. A12's "configurable
+per office" was corrected in the same change to the pilot's fixed timings (the per-office
+setting was already recorded as deferred in section 24), and A33's "hosting region
+is still open" to `us-east1` (A16): corrections, not changes.
+
+## 2026-11-10 — A30: the one-release shims of independent stages removed
+
+**Was:** when stages became independent (23 Oct 2026, section 10), the previous
+`POST /api/projects/{id}/progress` route and the `current_position` and
+`current_stage_title` fields of the project list and the page kept working "for
+one release", for a tab still running the previous build during a deploy (A30).
+
+**Now:** they are gone. A30 itself is unchanged: an API change stays compatible
+with the previous release only.
+
+**Why:** many releases have passed, so no open tab can still run that build, and
+the staff app had stopped reading the fields (only test fixtures still set them).
+Issue #210 ("Rigidity") listed them as dead code; Fabio's rule while every
+office's data is test data is no compatibility shims. The database column
+`projects.current_position` is not part of this: a separate pull request drops
+it with a migration. `POST /api/projects/{id}/publish` stays: A35 keeps it, unused, for
+when drafts return.
 
 ## 2026-11-10 — A46: with comparisons on, the whole stage takes dropped files
 

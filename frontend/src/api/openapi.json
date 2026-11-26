@@ -4380,6 +4380,7 @@
       },
       "delete": {
         "summary": "Remove Cover",
+        "description": "The cover goes; an archived project keeps its own, as its other content.",
         "operationId": "remove_cover_api_projects__project_id__cover_delete",
         "parameters": [
           {
@@ -5074,7 +5075,7 @@
     "/api/proposal-presets": {
       "put": {
         "summary": "Change Presets",
-        "description": "The office's services, in order (\"Salvar como padrão\"). An empty list goes\nback to the built-in one.",
+        "description": "The office's services, in order (\"Salvar como padrão\"). An empty list goes\nback to the built-in one. One save at a time: two at once would each insert\ntheir list after the other's delete (one service per place, 0057).",
         "operationId": "change_presets_api_proposal_presets_put",
         "requestBody": {
           "content": {
@@ -7163,7 +7164,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RenameIn"
+                "$ref": "#/components/schemas/backend__web__page_stages__RenameIn"
               }
             }
           }
@@ -7649,81 +7650,6 @@
         }
       }
     },
-    "/api/projects/{project_id}/progress": {
-      "post": {
-        "summary": "Progress",
-        "description": "The previous release's progress, for a tab still running its code during a\ndeploy (A30); remove in the release after independent stages. \"advance\" and\n\"complete\" complete the first open stage; \"back\" and \"reopen\" reopen the last\ncompleted one.",
-        "operationId": "progress_api_projects__project_id__progress_post",
-        "deprecated": true,
-        "parameters": [
-          {
-            "name": "project_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Project Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProgressIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorOut"
-                }
-              }
-            },
-            "description": "Unprocessable Content"
-          }
-        }
-      }
-    },
     "/api/projects/{project_id}/stages/{position}/uploads": {
       "post": {
         "summary": "Start Upload",
@@ -8112,7 +8038,7 @@
     "/api/projects/{project_id}/stages/{position}/folders/hide": {
       "post": {
         "summary": "Hide Section",
-        "description": "\"Ocultar seção\": the folder stays in Drive with its files, renamed \"_name\",\nwhich the page never shows (A05), to staff or clients.",
+        "description": "\"Ocultar seção\": the folder, with its files and its name, goes into its\nstage's `_arquivados`, which the page never shows (A05), to staff or clients.",
         "operationId": "hide_section_api_projects__project_id__stages__position__folders_hide_post",
         "parameters": [
           {
@@ -8275,7 +8201,7 @@
     "/api/pages/{slug}/files/{key}/hide": {
       "post": {
         "summary": "Hide File",
-        "description": "The file stays in Drive, renamed \"_name\", which the page doesn't show.",
+        "description": "The file stays in Drive, moved into `_arquivados` in its folder with its\nname, which the page doesn't show: every version of its document, so the\nclient doesn't see the one before instead; and only if the app may move all\nof them, checked before any is moved (as a comparison is hidden).",
         "operationId": "hide_file_api_pages__slug__files__key__hide_post",
         "parameters": [
           {
@@ -8350,6 +8276,98 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/files/{key}/rename": {
+      "post": {
+        "summary": "Rename File",
+        "description": "\"Renomear\": every version of the document, each keeping its version and\nextension (`Planta Térreo v2.pdf`), since the names are what group them\n(A25); only if the app may rename all of them, checked before any is (as a\nfile is hidden). The file keeps its identity, so its comments, updates and\nshare links follow it.",
+        "operationId": "rename_file_api_pages__slug__files__key__rename_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/backend__web__page_uploads__RenameIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Service Unavailable"
           }
         }
       }
@@ -8641,7 +8659,7 @@
     "/api/pages/{slug}/comparisons/{key}/hide": {
       "post": {
         "summary": "Hide Comparison",
-        "description": "Both sides, every version, stay in Drive renamed \"_name\" (A05).",
+        "description": "Both sides, every version, go into `_arquivados` in their folder, their\nnames unchanged; the page never shows it (A05).",
         "operationId": "hide_comparison_api_pages__slug__comparisons__key__hide_post",
         "parameters": [
           {
@@ -8798,6 +8816,185 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/comments": {
+      "post": {
+        "summary": "Add Comment",
+        "operationId": "add_comment_api_pages__slug__comments_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        }
+      }
+    },
+    "/api/pages/{slug}/comments/{comment_id}": {
+      "delete": {
+        "summary": "Remove Comment",
+        "description": "By an owner, any comment (spam, a mistake); by a member, their own; by a\nclient, their own, from the device that posted it, which shows its receipt.",
+        "operationId": "remove_comment_api_pages__slug__comments__comment_id__delete",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Comment Id"
+            }
+          },
+          {
+            "name": "X-Comment-Receipt",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Comment-Receipt"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
           },
           "422": {
             "description": "Validation Error",
@@ -8993,8 +9190,7 @@
             "title": "Name"
           },
           "status": {
-            "type": "string",
-            "title": "Status"
+            "$ref": "#/components/schemas/TenantStatus"
           },
           "created_at": {
             "type": "string",
@@ -9024,34 +9220,41 @@
             "additionalProperties": {
               "type": "integer"
             },
+            "propertyNames": {
+              "$ref": "#/components/schemas/ProjectStatus"
+            },
             "type": "object",
             "title": "Projects"
           },
           "storage": {
-            "type": "string",
-            "title": "Storage"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StorageKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "writer_status": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/WriterStatus"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Writer Status"
+            ]
           },
           "reader_status": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/ReaderStatus"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Reader Status"
+            ]
           },
           "drive_account": {
             "anyOf": [
@@ -9095,6 +9298,13 @@
             "type": "object",
             "title": "Portfolio"
           },
+          "comments": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Comments"
+          },
           "usage": {
             "additionalProperties": {
               "type": "integer"
@@ -9105,6 +9315,9 @@
           "link_statuses": {
             "additionalProperties": {
               "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/LinkState"
             },
             "type": "object",
             "title": "Link Statuses"
@@ -9159,6 +9372,7 @@
           "share_links",
           "downloads",
           "portfolio",
+          "comments",
           "usage",
           "link_statuses",
           "project_types",
@@ -9182,8 +9396,7 @@
             "$ref": "#/components/schemas/Role"
           },
           "status": {
-            "type": "string",
-            "title": "Status"
+            "$ref": "#/components/schemas/StaffStatus"
           },
           "last_seen_at": {
             "anyOf": [
@@ -9238,6 +9451,14 @@
         ],
         "title": "AnalyticsOut",
         "description": "Product analytics for the browser (A39), given only to signed-in staff and\nonly where the server has PostHog set, so one image serves staging and\nproduction with each one's own key. Visitors get their own, cookieless setup\nfrom `/api/tenant` (`web.tenant.VisitorAnalyticsOut`)."
+      },
+      "Author": {
+        "type": "string",
+        "enum": [
+          "client",
+          "staff"
+        ],
+        "title": "Author"
       },
       "Body_add_logo_png_api_office_logo_png_put": {
         "properties": {
@@ -9406,6 +9627,106 @@
           "code"
         ],
         "title": "CodeIn"
+      },
+      "CommentIn": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Body"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "CommentIn"
+      },
+      "CommentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "removable": {
+            "type": "boolean",
+            "title": "Removable",
+            "default": false
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "author",
+          "name",
+          "body",
+          "created_at"
+        ],
+        "title": "CommentOut"
       },
       "ComparisonEditIn": {
         "properties": {
@@ -9975,6 +10296,7 @@
         "properties": {
           "email": {
             "type": "string",
+            "maxLength": 500,
             "title": "Email"
           }
         },
@@ -10391,6 +10713,8 @@
           "csrf_token_missing_or_wrong",
           "invalid_credentials",
           "invalid_request",
+          "not_found",
+          "method_not_allowed",
           "link_invalid",
           "password_too_short",
           "current_password_wrong",
@@ -10441,6 +10765,7 @@
           "password_required",
           "invalid_detail",
           "invalid_stage",
+          "stage_name_taken",
           "invalid_meeting",
           "files_unavailable",
           "file_not_found",
@@ -10456,6 +10781,9 @@
           "upload_failed",
           "file_not_ours",
           "file_not_ours_to_move",
+          "file_name_invalid",
+          "file_name_taken",
+          "file_not_ours_to_rename",
           "comparison_exists",
           "comparison_not_image",
           "comparison_title_invalid",
@@ -10483,6 +10811,10 @@
           "proposal_accepted",
           "portfolio_full",
           "portfolio_entry_not_found",
+          "comment_not_found",
+          "invalid_comment",
+          "comment_not_yours",
+          "too_many_comments",
           "portfolio_video_refused",
           "portfolio_link_invalid",
           "portfolio_photo_compared",
@@ -10526,7 +10858,8 @@
           "meeting_scheduled",
           "meeting_changed",
           "meeting_cleared",
-          "note_changed"
+          "note_changed",
+          "office_commented"
         ],
         "title": "EventKind",
         "description": "What a client can notice on the page (A28). All but a note email (A32)."
@@ -10538,10 +10871,21 @@
           "proposals",
           "cover_band",
           "before_after",
-          "whatsapp_updates"
+          "whatsapp_updates",
+          "comments"
         ],
         "title": "Feature",
         "description": "Work merged but switched on only for some offices, from the operator\ndashboard (A40): staging and main deploy it switched off for everyone else.\nRemove a feature from here once every office has it."
+      },
+      "FileKind": {
+        "type": "string",
+        "enum": [
+          "image",
+          "pdf",
+          "other"
+        ],
+        "title": "FileKind",
+        "description": "How the page shows a file."
       },
       "FileOut": {
         "properties": {
@@ -10554,8 +10898,7 @@
             "title": "Name"
           },
           "kind": {
-            "type": "string",
-            "title": "Kind"
+            "$ref": "#/components/schemas/FileKind"
           },
           "size": {
             "anyOf": [
@@ -10611,6 +10954,20 @@
                 "type": "null"
               }
             ]
+          },
+          "comments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CommentOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
           }
         },
         "type": "object",
@@ -11039,6 +11396,16 @@
         ],
         "title": "LinkOut"
       },
+      "LinkState": {
+        "type": "string",
+        "enum": [
+          "active",
+          "expired",
+          "disabled"
+        ],
+        "title": "LinkState",
+        "description": "A share link, as the dashboard counts them."
+      },
       "Locale": {
         "type": "string",
         "enum": [
@@ -11338,13 +11705,7 @@
             "$ref": "#/components/schemas/Role"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "invited",
-              "unconfirmed"
-            ],
-            "title": "Status"
+            "$ref": "#/components/schemas/StaffStatus"
           },
           "me": {
             "type": "boolean",
@@ -11674,7 +12035,8 @@
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -11685,7 +12047,8 @@
           "contact_email": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -11780,6 +12143,21 @@
         ],
         "title": "OnboardingOut"
       },
+      "OperatorAction": {
+        "type": "string",
+        "enum": [
+          "owner_link",
+          "suspend",
+          "restore",
+          "delete",
+          "feature_on",
+          "feature_off",
+          "support_owner",
+          "support_member"
+        ],
+        "title": "OperatorAction",
+        "description": "What an operator can do to an office from its page (A38). Recorded in the\naudit log as written here."
+      },
       "OperatorOut": {
         "properties": {
           "email": {
@@ -11831,7 +12209,8 @@
         "properties": {
           "owners": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 2000
             },
             "type": "array",
             "maxItems": 200,
@@ -11957,16 +12336,10 @@
             "type": "boolean",
             "title": "Completed"
           },
-          "current_position": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Position"
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
           },
           "last_update": {
             "type": "string",
@@ -12060,7 +12433,6 @@
           "description",
           "cover_url",
           "completed",
-          "current_position",
           "last_update",
           "details",
           "stages",
@@ -12276,7 +12648,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 600
+                "maxLength": 1000
               },
               {
                 "type": "null"
@@ -12288,12 +12660,14 @@
             "anyOf": [
               {
                 "additionalProperties": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 500
                 },
                 "propertyNames": {
                   "$ref": "#/components/schemas/SocialNetwork"
                 },
-                "type": "object"
+                "type": "object",
+                "maxProperties": 8
               },
               {
                 "type": "null"
@@ -12389,30 +12763,6 @@
         ],
         "title": "PresetsIn"
       },
-      "ProgressIn": {
-        "properties": {
-          "row_version": {
-            "type": "integer",
-            "title": "Row Version"
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "advance",
-              "back",
-              "complete",
-              "reopen"
-            ],
-            "title": "Action"
-          }
-        },
-        "type": "object",
-        "required": [
-          "row_version",
-          "action"
-        ],
-        "title": "ProgressIn"
-      },
       "ProjectChange": {
         "properties": {
           "row_version": {
@@ -12491,7 +12841,8 @@
             "anyOf": [
               {
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 500
                 },
                 "type": "array",
                 "maxItems": 20
@@ -12522,7 +12873,8 @@
             "anyOf": [
               {
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 40
                 },
                 "type": "array",
                 "maxItems": 20
@@ -12584,7 +12936,8 @@
           },
           "stages": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 100
             },
             "type": "array",
             "maxItems": 50,
@@ -12607,7 +12960,8 @@
           },
           "recipients": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             },
             "type": "array",
             "maxItems": 20,
@@ -12695,28 +13049,6 @@
           "completed_stage_count": {
             "type": "integer",
             "title": "Completed Stage Count"
-          },
-          "current_position": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Position"
-          },
-          "current_stage_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Stage Title"
           },
           "next_meeting": {
             "anyOf": [
@@ -12809,8 +13141,6 @@
           "project_type_label",
           "stage_count",
           "completed_stage_count",
-          "current_position",
-          "current_stage_title",
           "next_meeting",
           "created_at",
           "last_activity_at",
@@ -12910,7 +13240,8 @@
           },
           "not_included": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             },
             "type": "array",
             "maxItems": 20,
@@ -13200,7 +13531,8 @@
           },
           "not_included": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             },
             "type": "array",
             "maxItems": 20,
@@ -13288,25 +13620,6 @@
           "subscribed"
         ],
         "title": "RecipientOut"
-      },
-      "RenameIn": {
-        "properties": {
-          "row_version": {
-            "type": "integer",
-            "title": "Row Version"
-          },
-          "title": {
-            "type": "string",
-            "maxLength": 80,
-            "title": "Title"
-          }
-        },
-        "type": "object",
-        "required": [
-          "row_version",
-          "title"
-        ],
-        "title": "RenameIn"
       },
       "ResetIn": {
         "properties": {
@@ -13499,7 +13812,8 @@
         "properties": {
           "files": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 2000
             },
             "type": "array",
             "maxItems": 200,
@@ -13704,8 +14018,7 @@
             "title": "Name"
           },
           "kind": {
-            "type": "string",
-            "title": "Kind"
+            "$ref": "#/components/schemas/FileKind"
           },
           "size": {
             "anyOf": [
@@ -13989,7 +14302,8 @@
           },
           "keys": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 100
             },
             "type": "array",
             "maxItems": 500,
@@ -14252,6 +14566,16 @@
         ],
         "title": "SpaceOut"
       },
+      "StaffStatus": {
+        "type": "string",
+        "enum": [
+          "invited",
+          "unconfirmed",
+          "active"
+        ],
+        "title": "StaffStatus",
+        "description": "Where a staff account stands, as the team list and the operator dashboard\nshow it."
+      },
       "StaffView": {
         "properties": {
           "project_id": {
@@ -14306,6 +14630,20 @@
             "type": "boolean",
             "title": "Folder Missing",
             "default": false
+          },
+          "comments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CommentOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comments"
           }
         },
         "type": "object",
@@ -14450,21 +14788,11 @@
       "TenantActionIn": {
         "properties": {
           "action": {
-            "type": "string",
-            "enum": [
-              "owner_link",
-              "suspend",
-              "restore",
-              "delete",
-              "feature_on",
-              "feature_off",
-              "support_owner",
-              "support_member"
-            ],
-            "title": "Action"
+            "$ref": "#/components/schemas/OperatorAction"
           },
           "confirmation": {
             "type": "string",
+            "maxLength": 200,
             "title": "Confirmation",
             "default": ""
           },
@@ -14569,6 +14897,14 @@
           "analytics"
         ],
         "title": "TenantOut"
+      },
+      "TenantStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "suspended"
+        ],
+        "title": "TenantStatus"
       },
       "TokenIn": {
         "properties": {
@@ -15168,6 +15504,25 @@
         ],
         "title": "OrderIn"
       },
+      "backend__web__page_stages__RenameIn": {
+        "properties": {
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "row_version",
+          "title"
+        ],
+        "title": "RenameIn"
+      },
       "backend__web__page_uploads__CheckIn": {
         "properties": {
           "row_version": {
@@ -15176,7 +15531,8 @@
           },
           "names": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 255
             },
             "type": "array",
             "maxItems": 100,
@@ -15247,6 +15603,20 @@
           "position"
         ],
         "title": "MoveIn"
+      },
+      "backend__web__page_uploads__RenameIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RenameIn"
       },
       "backend__web__page_uploads__SectionIn": {
         "properties": {

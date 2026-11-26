@@ -33,7 +33,8 @@ by that name, never by a Drive id; with two of one name in Drive, the first as
 listed, which is the one the page shows first. A section is renamed or hidden
 (a leading "_", as a file is) only if the app made it: the grant reaches only
 what it created (`folder_not_ours`).
-Hiding renames it with a leading "_", which the page never shows (A05); moving
+Hiding renames it with a leading "_", which the page never shows (A05), every
+version of its document; moving
 puts it in another stage's folder, where the page shows it next. The office's
 grant (drive.file) reaches only files the app created, so a file put straight
 into Drive is hidden or moved there (`file_not_ours`, `file_not_ours_to_move`).
@@ -46,6 +47,7 @@ import logging
 import time
 import uuid
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, Response
@@ -53,17 +55,17 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
-from backend.documents import versions
+from backend.documents import comparisons, versions
 from backend.documents.versions import shown_name
 from backend.projects.creation import LocalFolders
-from backend.projects.enums import ProjectStatus
 from backend.projects.models import Project, ProjectStage
 from backend.security import keys
 from backend.storage.base import StorageError
 from backend.storage.google_connect import ConnectError
 from backend.tenancy.resolve import CurrentTenant, current_tenant
+from backend.web.access import changeable, changeable_project
 from backend.web.auth import CurrentStaff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_files import (
@@ -76,7 +78,7 @@ from backend.web.page_files import (
     _showable,
     _storage,
 )
-from backend.web.pages import _origin, _readable
+from backend.web.pages import _origin, changeable_page
 from backend.web.projects import _folders
 
 log = logging.getLogger(__name__)
@@ -85,6 +87,7 @@ router = APIRouter()
 UPLOAD_MAX_MB = 100
 UPLOAD_MAX = UPLOAD_MAX_MB * 1024 * 1024
 SECTION_NAME_MAX = 80
+CHECK_NAMES_MAX = 100  # names a check takes: the page asks in batches of this many
 LOCAL_PURPOSE = "local-upload"
 LOCAL_SECONDS = 3600  # like Google's session, it is used at once
 
@@ -121,22 +124,11 @@ def _clean(name: str) -> str:
     return cleaned
 
 
-async def _changeable(db: AsyncSession, project_id: uuid.UUID) -> Project:
-    project = await db.scalar(
-        select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
-    )
-    if project is None:
-        raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
-    if project.status is ProjectStatus.ARCHIVED:
-        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)  # viewable, not changed (section 22)
-    return project
-
-
 async def _stage_for_upload(
     request: Request, db: AsyncSession, tenant: CurrentTenant, project_id, position, row_version
 ):
     """The project, the stage and the office's storage view, if files may go in."""
-    project = await _changeable(db, project_id)
+    project = await changeable(db, project_id)
     if project.row_version != row_version:
         # Someone moved or removed stages meanwhile: this position may now be
         # another stage, and the file would go to its folder.
@@ -178,6 +170,11 @@ async def _documents(reader, folder: str) -> list[versions.Document]:
     return versions.group([i for i in await _list(reader, folder) if _showable(i)])
 
 
+def _document_of(documents: list[versions.Document], item) -> versions.Document | None:
+    """The document the item is a version of."""
+    return next((d for d in documents if any(i.id == item.id for _n, i in d.versions)), None)
+
+
 async def _section(reader, stage: ProjectStage, name: str | None) -> str:
     """The folder files go into: the stage's own, or its section of that name."""
     if name is None:
@@ -202,7 +199,7 @@ async def _as_new_version(
         documents = await _documents(reader, found["f"])
     except StorageError as error:
         raise _listing_failed(error, tenant, project.id, position) from None
-    document = next((d for d in documents if any(i.id == item.id for _n, i in d.versions)), None)
+    document = _document_of(documents, item)
     if document is None:
         raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # gone since
     extension = versions.parse(name).extension.casefold()
@@ -246,7 +243,7 @@ async def start_upload(
     project_id: uuid.UUID,
     position: int,
     body: UploadIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> UploadOut:
@@ -293,7 +290,7 @@ async def start_upload(
     )
     capture(
         request,
-        "upload_started",
+        AnalyticsEvent.UPLOAD_STARTED,
         {
             "bytes": body.size,
             "new_version": body.version_of is not None,
@@ -305,7 +302,7 @@ async def start_upload(
 
 class CheckIn(BaseModel):
     row_version: int
-    names: list[str] = Field(max_length=100)
+    names: list[Annotated[str, Field(max_length=255)]] = Field(max_length=CHECK_NAMES_MAX)
     folder: str | None = Field(default=None, max_length=255)  # a section, as for uploads
 
 
@@ -332,7 +329,7 @@ async def check_upload(
     project_id: uuid.UUID,
     position: int,
     body: CheckIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> CheckOut:
@@ -386,7 +383,7 @@ async def create_section(
     project_id: uuid.UUID,
     position: int,
     body: SectionIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -424,7 +421,7 @@ async def create_section(
             error.detail,
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-    capture(request, "section_created", {"stage_position": position})
+    capture(request, AnalyticsEvent.SECTION_CREATED, {"stage_position": position})
     return Response(status_code=204)
 
 
@@ -450,6 +447,23 @@ async def _section_to_change(
     except StorageError as error:
         raise _listing_failed(error, tenant, project_id, position) from None
     return stage, reader, folder
+
+
+# "Ocultar do cliente" (A31): what is hidden goes into this folder, inside the one
+# it was in, its name unchanged; the page never shows a "_" folder (A05). Before
+# 21 Nov 2026 it was renamed "_name" where it was, and those stay as they are.
+ARCHIVE_FOLDER = "_arquivados"
+
+
+async def archive_folder(maker, reader, parent: str) -> str:
+    """`parent`'s `_arquivados`, made the first time something is hidden there.
+    Only one the app made: one made straight in Drive is out of its reach
+    (drive.file), so the app makes its own beside it. Raises StorageError when
+    `parent` can't be listed."""
+    for item in await _list(reader, parent):
+        if item.is_folder and item.name == ARCHIVE_FOLDER and await maker.can_rename(item.id):
+            return item.id
+    return await maker.create_folder(ARCHIVE_FOLDER, parent)
 
 
 async def _rename_section(request, db, tenant, project_id, position, folder, name) -> None:
@@ -479,7 +493,7 @@ async def rename_section(
     project_id: uuid.UUID,
     position: int,
     body: SectionRenameIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -517,16 +531,31 @@ async def hide_section(
     project_id: uuid.UUID,
     position: int,
     body: SectionChangeIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """ "Ocultar seção": the folder stays in Drive with its files, renamed "_name",
-    which the page never shows (A05), to staff or clients."""
-    _stage, _reader, folder = await _section_to_change(
+    """ "Ocultar seção": the folder, with its files and its name, goes into its
+    stage's `_arquivados`, which the page never shows (A05), to staff or clients."""
+    stage, reader, folder = await _section_to_change(
         request, db, tenant, project_id, position, body
     )
-    await _rename_section(request, db, tenant, project_id, position, folder, f"_{body.name}")
+    maker, _root = await _folders(request, db)
+    try:
+        if not await maker.can_rename(folder):
+            raise ApiError(409, ErrorCode.FOLDER_NOT_OURS)  # made straight in Drive
+        await maker.move(folder, await archive_folder(maker, reader, stage.folder_id))
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project_id, position) from None
+    except ConnectError as error:
+        log.error(
+            "uploads: hiding a section failed for %s/%s, stage %s: %s",
+            tenant.id,
+            project_id,
+            position,
+            error.detail,
+        )
+        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
     return Response(status_code=204)
 
 
@@ -563,7 +592,7 @@ async def upload_failed(
         body.status,
         body.detail,
     )
-    capture(request, "upload_failed", {"bytes": body.size, "stage_position": position})
+    capture(request, AnalyticsEvent.UPLOAD_FAILED, {"bytes": body.size, "stage_position": position})
     raise ApiError(502, ErrorCode.UPLOAD_FAILED)
 
 
@@ -629,25 +658,117 @@ async def hide_file(
     request: Request,
     slug: str,
     key: str,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """The file stays in Drive, renamed "_name", which the page doesn't show."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
-    _storage, item = await _item(request, db, project, key)
+    """The file stays in Drive, moved into `_arquivados` in its folder with its
+    name, which the page doesn't show: every version of its document, so the
+    client doesn't see the one before instead; and only if the app may move all
+    of them, checked before any is moved (as a comparison is hidden)."""
+    reader, item, found = await _item_at(request, db, project, key)
+    try:
+        documents = await _documents(reader, found["f"])
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project.id, found.get("s")) from None
+    document = _document_of(documents, item)
+    if document is None:
+        raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # gone since
+    items = [version for _n, version in document.versions]
     maker, _root = await _folders(request, db)
     try:
-        if not await maker.can_rename(item.id):
-            raise ApiError(409, ErrorCode.FILE_NOT_OURS)
-        await maker.rename(item.id, f"_{item.name}")
+        for version in items:
+            if not await maker.can_rename(version.id):
+                raise ApiError(409, ErrorCode.FILE_NOT_OURS)
+        archive = await archive_folder(maker, reader, found["f"])
+        for version in items:
+            await maker.move(version.id, archive)
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project.id, found.get("s")) from None
     except ConnectError as error:
         log.error(
             "uploads: hiding %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-    capture(request, "file_hidden")
+    capture(request, AnalyticsEvent.FILE_HIDDEN)
+    return Response(status_code=204)
+
+
+FILE_NAME_MAX = 200  # a new name, without its extension: room left for " v999.xlsx"
+
+
+class RenameIn(BaseModel):
+    name: str = Field(max_length=FILE_NAME_MAX)  # the new name, without its extension
+
+
+@router.post(
+    "/api/pages/{slug}/files/{key}/rename",
+    status_code=204,
+    responses=documented(401, 404, 409, 422, 503),
+)
+async def rename_file(
+    request: Request,
+    slug: str,
+    key: str,
+    body: RenameIn,
+    project: Project = Depends(changeable_page),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """ "Renomear": every version of the document, each keeping its version and
+    extension (`Planta Térreo v2.pdf`), since the names are what group them
+    (A25); only if the app may rename all of them, checked before any is (as a
+    file is hidden). The file keeps its identity, so its comments, updates and
+    share links follow it."""
+    reader, item, found = await _item_at(request, db, project, key)
+    try:
+        documents = await _documents(reader, found["f"])
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project.id, found.get("s")) from None
+    document = _document_of(documents, item)
+    if document is None:
+        raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # gone since
+    extension = document.named.extension  # fixed: a new name changes only the rest
+    try:
+        base = _clean(body.name)
+    except ApiError:
+        raise ApiError(422, ErrorCode.FILE_NAME_INVALID) from None
+    if extension and base.casefold().endswith(extension.casefold()):
+        base = base[: -len(extension)].rstrip()  # typed with it: the same name
+    # A name ending in a version or a comparison's marker would join (or start)
+    # another document instead of naming this one.
+    if (
+        not base
+        or versions.parse(base + extension).base != base
+        or comparisons.marked(base) is not None
+    ):
+        raise ApiError(422, ErrorCode.FILE_NAME_INVALID)
+    if any(
+        d is not document and d.named.key == versions.parse(base + extension).key for d in documents
+    ):
+        raise ApiError(409, ErrorCode.FILE_NAME_TAKEN)
+    names = {
+        version_id: name
+        for version_id, name in comparisons.renamed(document, base)
+        if name != next(i.name for _n, i in document.versions if i.id == version_id)
+    }
+    maker, _root = await _folders(request, db)
+    try:
+        for _n, version in document.versions:
+            if not await maker.can_rename(version.id):
+                raise ApiError(409, ErrorCode.FILE_NOT_OURS_TO_RENAME)
+        for version_id, name in names.items():
+            await maker.rename(version_id, name)
+    except ConnectError as error:
+        log.error(
+            "uploads: renaming %s failed for %s/%s: %s",
+            item.id,
+            tenant.id,
+            project.id,
+            error.detail,
+        )
+        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    capture(request, AnalyticsEvent.FILE_RENAMED, {"versions": len(document.versions)})
     return Response(status_code=204)
 
 
@@ -666,15 +787,13 @@ async def move_file(
     slug: str,
     key: str,
     body: MoveIn,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Into a stage's folder, at its top or into one of its sections (the same
     stage's too). The file keeps its identity, so it is not "new" again and sends
     no email (A10)."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
     if project.row_version != body.row_version:
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)  # that position may be another stage now
     stage = await db.scalar(
@@ -711,5 +830,5 @@ async def move_file(
             "uploads: moving %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-    capture(request, "file_moved")
+    capture(request, AnalyticsEvent.FILE_MOVED)
     return Response(status_code=204)

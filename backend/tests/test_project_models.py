@@ -13,7 +13,14 @@ from backend.projects.enums import (
     ProjectStatus,
     ProjectType,
 )
-from backend.projects.models import Meeting, Project, ProjectDetail, ProjectSlug, ProjectStage
+from backend.projects.models import (
+    STAGE_TITLE_MAX,
+    Meeting,
+    Project,
+    ProjectDetail,
+    ProjectSlug,
+    ProjectStage,
+)
 from backend.tests.test_tenancy_models import add_tenant, assert_refused
 
 pytestmark = pytest.mark.anyio
@@ -122,6 +129,17 @@ async def test_a_built_in_stage_must_exist(db_session, alinea):
         ProjectStage(tenant_id=alinea.id, project_id=project.id, position=1, builtin_key="nope")
     )
     await assert_refused(db_session, db_session.flush(), "fk_project_stages_builtin_key")
+
+
+async def test_an_offices_own_stage_name_fits_the_screens_limit(db_session, alinea):
+    project = await add_project(db_session, alinea)
+    for position, title in ((1, "x" * STAGE_TITLE_MAX), (2, "x" * (STAGE_TITLE_MAX + 1))):
+        db_session.add(
+            ProjectStage(tenant_id=alinea.id, project_id=project.id, position=position, title=title)
+        )
+        if position == 1:
+            await db_session.flush()  # at the limit: kept
+    await assert_refused(db_session, db_session.flush(), "ck_project_stages_title_length")
 
 
 async def test_a_project_uses_a_known_type(db_session, alinea):

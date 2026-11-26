@@ -32,8 +32,9 @@ HEADERS = {
 }
 # On an office's address the home shows only while the office can't be read, and
 # gives way to its card or portfolio the minute it can, so a browser asks each
-# time; the answer is a 304 while the file hasn't changed.
-HOME_ON_OFFICE_ADDRESS = {**HEADERS, "Cache-Control": "no-cache"}
+# time; the answer is a 304 while the file hasn't changed. The same when the
+# lookup failed on Unio's own address: on staging that address is an office's too.
+HOME_NOT_KEPT = {**HEADERS, "Cache-Control": "no-cache"}
 
 
 @router.api_route("/", methods=["GET", "HEAD"])
@@ -42,7 +43,8 @@ async def home(request: Request) -> Response:
     if portfolio is not None:
         return portfolio
     unios = normalize_host(request.headers.get("host")) == request.app.state.settings.operator_host
-    headers = HEADERS if unios else HOME_ON_OFFICE_ADDRESS
+    unread = getattr(request.state, "office_unread", False)
+    headers = HEADERS if unios and not unread else HOME_NOT_KEPT
     return FileResponse(PUBLIC / "index.html", media_type="text/html", headers=headers)
 
 

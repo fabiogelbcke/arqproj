@@ -1,7 +1,7 @@
 // The office's projects: the list, and creating one (step P2).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, call, type Schemas } from "../api/client";
+import { ApiError, api, call, type Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
 import { ONBOARDING } from "../drive/drive";
 import { sortOptions, type Sort as AnySort } from "../ui/sort";
@@ -60,10 +60,17 @@ export type ProjectChange = Schemas["ProjectChange"];
 
 export function useChangeProject() {
   const store = useStoreProject();
+  const client = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...body }: ProjectChange & { id: string }) =>
       call(api.PATCH("/api/projects/{project_id}", { params: { path: { project_id: id } }, body })),
     onSuccess: store,
+    // Someone else changed it meanwhile: the list again, with their version, so
+    // that the next try (the dialog opened again) doesn't conflict the same way.
+    onError: (failure) => {
+      if (failure instanceof ApiError && failure.code === "project_changed")
+        void client.invalidateQueries({ queryKey: PROJECTS });
+    },
   });
 }
 

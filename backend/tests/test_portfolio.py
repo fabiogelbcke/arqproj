@@ -3,7 +3,7 @@ own address's root once published."""
 
 import re
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from html import escape
 
 import pytest
@@ -133,6 +133,23 @@ async def test_unpublished_the_offices_address_shows_its_card_and_unios_keeps_it
     assert unios.headers["cache-control"] == "public, max-age=3600"
 
 
+async def test_an_address_that_is_both_unios_and_an_offices_shows_the_office(
+    client, office_owner, db_session
+):
+    """Staging: its one address, staging.myunio.app, is Unio's and the test
+    office's. The office's page wins there; an address no office owns (Unio's own
+    in production) keeps Unio's home, as the test above shows for localhost."""
+    await db_session.execute(
+        text(
+            "UPDATE tenant_domains SET hostname = 'localhost' WHERE is_primary "
+            "AND tenant_id = (SELECT id FROM tenants WHERE slug = 'alinea')"
+        )
+    )
+    answer = await client.get("/", headers={"host": "localhost"})
+    assert answer.status_code == 200 and 'href="/painel/"' in answer.text
+    assert "UNIO" not in answer.text
+
+
 async def test_an_office_with_nothing_saved_still_has_its_card(client, office_owner):
     card = await client.get("/", headers=ALINEA)
     assert card.status_code == 200 and "<h1>" in card.text and "UNIO" not in card.text
@@ -151,6 +168,11 @@ async def test_unios_home_shows_when_the_office_cant_be_read(client, staff, monk
     client.cookies.clear()
     answer = await client.get("/", headers=ALINEA)
     assert answer.status_code == 200 and "UNIO" in answer.text
+    # Not kept by the browser, on Unio's own address either: on staging that
+    # address is the office's too, and the home is standing in for its page.
+    unios = await client.get("/", headers={"host": "localhost"})
+    assert unios.status_code == 200 and "UNIO" in unios.text
+    assert unios.headers["cache-control"] == "no-cache"
 
 
 async def test_a_type_the_operator_added_is_shown_by_its_own_name(client, staff, db_session):
@@ -845,6 +867,16 @@ async def test_with_project_members_the_team_is_the_members_not_a_typed_responsi
     assert "responsible" not in [t["key"] for t in project_page]
 
 
+async def test_a_work_completed_on_new_years_eve_is_of_the_offices_year(client, db_session, staff):
+    """Completed at 22:30 on 31 Dec in São Paulo: 2027 already in UTC, the
+    database's time zone in production (Cloud SQL)."""
+    await db_session.execute(text("SET TIME ZONE 'UTC'"))
+    late = datetime(2027, 1, 1, 1, 30, tzinfo=UTC)
+    await _project_facts(db_session, status="completed", completed=late)
+    drawn = await add(client, staff, project_id=await project_id(client))
+    assert drawn["year"] == 2026
+
+
 async def test_a_work_in_progress_takes_its_expected_year_unless_given_one(
     client, db_session, staff
 ):
@@ -1105,6 +1137,20 @@ async def test_only_a_video_sent_for_the_portfolio_is_registered(client, staff, 
     assert (await client.get("/api/portfolio", headers=staff)).json()["entries"][0]["videos"] == []
 
 
+async def test_a_video_registered_twice_is_kept_once(client, staff, tmp_path):
+    """A double click or a retry after a lost answer: two rows would share one
+    file, and removing either would take the other's video from storage."""
+    entry = await add(client, staff)
+    first = await send_video(client, staff, entry)
+    (video,) = first.json()["entries"][0]["videos"]
+    name = next(p.name for p in (tmp_path / "_portfolio").iterdir() if p.suffix == ".mp4")
+    again = await register_video(client, staff, entry, name)
+    assert again.status_code == 200, again.text
+    assert again.json()["entries"][0]["videos"] == [video]
+    posters = [p for p in (tmp_path / "_portfolio").iterdir() if p.name.endswith("-capa.jpg")]
+    assert len(posters) == 1  # the retry's frame isn't stored either
+
+
 @pytest.mark.parametrize(
     ("size", "mime_type", "status"),
     [(1000, "video/quicktime", 415), (200 * 1024 * 1024 + 1, "video/mp4", 413)],
@@ -1184,7 +1230,7 @@ async def test_switched_off_photos_arent_compared_and_a_pair_shows_as_two_photos
 
 
 async def test_a_photo_is_compared_with_another_of_its_work_and_undone(client, staff):
-    entry, (first, second, third) = await three_photos(client, staff)
+    entry, (_first, second, third) = await three_photos(client, staff)
     answer = await compare(client, staff, second, third, before_label=" Obra\n (antes) ")
     assert answer.status_code == 200, answer.text
     shown = photos_of(answer, entry)
@@ -1240,6 +1286,8 @@ async def test_a_comparison_shows_as_one_photo_opening_on_the_slider(client, sta
     page = (await client.get(f"/?projeto={entry}", headers=ALINEA)).text
     # The first photo, then the comparison as one: its "after" in it.
     first_shown, photos = slides(page)
+    assert f'href="/api/portfolio/photos/{first}?size=full"' in first_shown
+    assert "data-after=" not in first_shown and "compare-tag" not in first_shown
     assert f'href="/api/portfolio/photos/{second}?size=full"' in photos
     assert f'data-after="/api/portfolio/photos/{third}?size=full"' in photos
     assert 'data-before-label="Antes" data-after-label="Obra pronta"' in photos
@@ -1264,7 +1312,7 @@ async def test_a_comparison_as_the_cover_opens_on_the_slider_and_its_after_is_ne
 
 async def test_the_mosaic_shows_a_comparison_in_its_grid(client, staff):
     await client.patch("/api/portfolio", json={"format": "mosaic"}, headers=staff)
-    entry, (first, second, third) = await three_photos(client, staff)
+    entry, (first, _second, third) = await three_photos(client, staff)
     await compare(client, staff, first, third)
     await publish(client, staff)
     client.cookies.clear()

@@ -17,9 +17,11 @@ from backend.projects.enums import (
     ProjectStatus,
 )
 from backend.settings import Environment
-from backend.tenancy.models import Locale, Tenant
+from backend.tenancy.models import Locale, Tenant, TenantStatus
 from backend.web import painel
+from backend.web.admin import OperatorSignInProblem
 from backend.web.errors import ErrorCode
+from backend.web.google_signin import GoogleProblem
 
 pytestmark = pytest.mark.anyio
 
@@ -198,11 +200,17 @@ def test_every_language_has_every_text():
         ("locale", Locale),
         ("projectStatus", ProjectStatus),
         ("accessMode", AccessMode),
+        ("signIn.googleProblem", GoogleProblem),
+        ("admin.signInProblem", OperatorSignInProblem),
+        ("admin.personStatus", accounts.StaffStatus),
+        ("admin.status", TenantStatus),
     ],
 )
 def test_every_built_in_value_the_screens_show_is_translated(group, enum: type[StrEnum]):
     for locale in Locale:
-        texts = catalog(locale)[group]
+        texts = catalog(locale)
+        for key in group.split("."):
+            texts = texts[key]
         missing = {member.value for member in enum} - set(texts)
         assert not missing, f"{locale}: no {group} text for {missing}"
 

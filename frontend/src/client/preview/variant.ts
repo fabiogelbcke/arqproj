@@ -78,7 +78,7 @@ export function previewData(settings: Settings, now: Date, timeZone: string): Ex
       return { ...pattern, key: `previa-${(key += 1)}`, name };
     });
   const stages: ExampleStage[] = Array.from({ length: settings.stages }, (_, i) => {
-    const stage = base.stages[i] ?? { title: MORE_STAGES[i - base.stages.length] ?? `Etapa ${i + 1}`, about: null, notes: "", completed: false, groups: [] };
+    const stage = base.stages[i] ?? { title: MORE_STAGES[i - base.stages.length] ?? `Etapa ${i + 1}`, about: null, notes: "", completed: false, groups: [], comments: [] };
     const title = settings.longNames && i % 2 === 0 ? fit(LONG_STAGE, LIMITS.stageTitle) : stage.title;
     const shown = files(i + 1);
     return { ...stage, title, groups: shown.length ? [{ folder: null, files: shown }] : [] };

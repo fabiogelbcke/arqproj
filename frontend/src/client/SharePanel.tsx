@@ -106,6 +106,7 @@ export function SharePanel({
     .flatMap((file) => (file.comparison ? [file, file.comparison.after] : [file]));
   const bytes = chosen.reduce((sum, file) => sum + (file.size ?? 0), 0);
   const tooLarge = bytes > LIMITS.shareBytes;
+  const tooMany = chosen.length > LIMITS.shareFiles; // the server refuses more
   const toggle = (keys: string[], on: boolean) =>
     setPicked((was) => {
       const next = new Set(was);
@@ -245,7 +246,7 @@ export function SharePanel({
               <p>{t("share.noFiles")}</p>
             ) : (
               <div className="share-picking">
-                <p className={`share-summary${tooLarge ? " is-over" : ""}`} role="status">
+                <p className={`share-summary${tooLarge || tooMany ? " is-over" : ""}`} role="status">
                   {chosen.length
                     ? t("share.summary", {
                         count: chosen.length,
@@ -254,6 +255,7 @@ export function SharePanel({
                     : t("share.none")}
                 </p>
                 {tooLarge && <p className="share-over">{t("errors.share_too_large")}</p>}
+                {tooMany && <p className="share-over">{t("share.tooMany", { max: LIMITS.shareFiles })}</p>}
                 <div className="share-stages">
                   {shownStages.map((index) => {
                     const stage = page.stages[index]!;
@@ -388,7 +390,7 @@ export function SharePanel({
               <Button onPress={onClose}>{t("confirm.cancel")}</Button>
               <Button
                 variant="primary"
-                isDisabled={!chosen.length || tooLarge || shortPassword || state === "making"}
+                isDisabled={!chosen.length || tooLarge || tooMany || shortPassword || state === "making"}
                 onPress={() => void make()}
               >
                 {state === "making" ? t("share.making") : t("share.make")}

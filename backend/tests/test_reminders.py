@@ -213,7 +213,7 @@ async def test_a_video_meeting_soon_is_reminded_by_email_and_whatsapp_once(
     assert message.template == REMINDER_VIDEO_TEMPLATE
     title, project, _office, when = message.params
     assert (title, project, when) == ("Apresentação", "Casa Jardim", hour)
-    [(label, link)] = message.links
+    [(label, _link)] = message.links
     assert label == "Entrar na reunião"
     assert message.text.endswith("responda SAIR.")
     # The day's reminder is past with it: both are noted, and nothing goes again.

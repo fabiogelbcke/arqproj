@@ -93,6 +93,19 @@ async def test_files_download_and_images_and_pdfs_also_show_inline(client, owner
     assert "sandbox" in inline.headers["content-security-policy"]
 
 
+async def test_a_local_image_is_its_own_preview_and_a_pdf_has_none(client, owner, files):
+    """The card never loads an image's original when its preview fails (on Drive
+    that is megabytes a card): with local folders the preview is the image."""
+    first = (await listing(client)).json()["stages"][0]["groups"][0]["files"]
+    image = next(f for f in first if f["kind"] == "image")
+    thumb = await client.get(f"/api/pages/casa-jardim/files/{image['key']}/thumb", headers=ALINEA)
+    assert (thumb.status_code, thumb.content) == (200, PNG)
+    assert thumb.headers["content-type"] == "image/png"
+    pdf = next(f for f in first if f["kind"] == "pdf")
+    none = await client.get(f"/api/pages/casa-jardim/files/{pdf['key']}/thumb", headers=ALINEA)
+    assert none.status_code == 404
+
+
 async def test_other_files_never_open_on_the_offices_address(client, owner, files):
     """A .dwg (or an .html) only downloads, as raw bytes, sandboxed."""
     groups = (await listing(client)).json()["stages"][0]["groups"]

@@ -25,6 +25,7 @@ import { toast, toastError } from "../ui/Toast";
 import styles from "../ui/ui.module.css";
 import { useDismiss } from "../ui/useDismiss";
 import { fileSource, type Page } from "./format";
+import { fromComputer } from "./fileDrag";
 
 type Staff = NonNullable<Page["staff"]>;
 type FileItem = Schemas["FileOut"];
@@ -35,6 +36,23 @@ const UPLOAD_MAX = UPLOAD_MAX_MB * 1024 * 1024;
 
 // Waits before trying again after a break: about half a minute in all.
 const RETRY_WAITS = [1000, 2000, 4000, 8000, 16000];
+// Files going up at once from one drop; the rest wait their turn, so a drop of
+// dozens neither shares the connection between them all nor opens every upload.
+export const SENDING_AT_ONCE = 3;
+
+/** `work` on each item, at most `limit` at a time, results in the items' order. */
+export async function inTurns<T, R>(items: T[], limit: number, work: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await work(items[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
 
 /** One PUT, reporting how much of its body went (which fetch can't). Resolves
  *  with any answer; rejects only when the connection breaks. */
@@ -254,9 +272,13 @@ export function StageDrop({
     setSending((all) => all.map((item) => (item.id === id ? { ...item, ...change } : item)));
   const [asking, setAsking] = useState<{ match: Match; answer: (answer: Answer) => void } | null>(null);
 
-  const sendOne = async (file: File, versionOf?: string) => {
+  /** Listed at once, waiting its turn at 0%. */
+  const listed = (file: File) => {
     const id = (next.current += 1);
     setSending((all) => [...all, { id, name: file.name, progress: 0 }]);
+    return id;
+  };
+  const sendOne = async (id: number, file: File, versionOf?: string) => {
     try {
       await uploadFile(staff, position, file, (progress) => update(id, { progress }), versionOf, section);
       setSending((all) => all.filter((item) => item.id !== id));
@@ -272,17 +294,24 @@ export function StageDrop({
    *  nothing: it fails on its own when sent. */
   const choose = async (files: File[]) => {
     const names = files.filter((file) => file.size <= UPLOAD_MAX).map((file) => file.name);
-    const found = names.length
-      ? await call(
-          api.POST("/api/projects/{project_id}/stages/{position}/uploads/check", {
-            params: { path: { project_id: staff.project_id, position } },
-            body: { row_version: staff.row_version, names, ...(section ? { folder: section } : {}) },
-          }),
-        )
-      : { matches: [] };
+    // The server takes so many names a check: a large drop asks in batches.
+    const matches: Match[] = [];
+    for (let from = 0; from < names.length; from += LIMITS.uploadCheckNames) {
+      const found = await call(
+        api.POST("/api/projects/{project_id}/stages/{position}/uploads/check", {
+          params: { path: { project_id: staff.project_id, position } },
+          body: {
+            row_version: staff.row_version,
+            names: names.slice(from, from + LIMITS.uploadCheckNames),
+            ...(section ? { folder: section } : {}),
+          },
+        }),
+      );
+      matches.push(...found.matches);
+    }
     const chosen: { file: File; versionOf?: string }[] = [];
     for (const file of files) {
-      const match = file.size <= UPLOAD_MAX && found.matches.find((candidate) => candidate.name === file.name);
+      const match = file.size <= UPLOAD_MAX && matches.find((candidate) => candidate.name === file.name);
       if (!match) {
         chosen.push({ file });
         continue;
@@ -304,8 +333,10 @@ export function StageDrop({
       toastError(failure, { max: UPLOAD_MAX_MB });
       return;
     }
-    const sent = (await Promise.all(chosen.map(({ file, versionOf }) => sendOne(file, versionOf)))).filter(Boolean)
-      .length;
+    const queued = chosen.map(({ file, versionOf }) => ({ id: listed(file), file, versionOf }));
+    const sent = (
+      await inTurns(queued, SENDING_AT_ONCE, ({ id, file, versionOf }) => sendOne(id, file, versionOf))
+    ).filter(Boolean).length;
     if (sent) {
       capture("files_uploaded", { file_count: sent, stage_position: position });
       toast(t("edit.uploaded", { count: sent }));
@@ -320,7 +351,7 @@ export function StageDrop({
   useEffect(() => {
     const box = bare ? chooser.current?.closest<HTMLElement>(section ? ".file-section" : ".stage") : null;
     if (!box) return;
-    const outside = (event: DragEvent) => !event.dataTransfer?.types.includes("Files");
+    const outside = (event: DragEvent) => !fromComputer(event.dataTransfer);
     const mark = (on: boolean) => box.classList.toggle("is-drop-target", on);
     const onOver = (event: DragEvent) => {
       if (outside(event)) return;
@@ -380,13 +411,15 @@ export function StageDrop({
             if (!(event.target as Element).closest("label, input")) chooser.current?.click();
           }}
           onDragOver={(event) => {
+            if (!fromComputer(event.dataTransfer)) return; // a card: the stage moves it
             event.preventDefault();
             setOver(true);
           }}
           onDragLeave={() => setOver(false)}
           onDrop={(event) => {
-            event.preventDefault();
             setOver(false);
+            if (!fromComputer(event.dataTransfer)) return;
+            event.preventDefault();
             void upload([...event.dataTransfer.files]);
           }}
         >
@@ -529,7 +562,8 @@ export function FileMenu({
   const hide = () =>
     act(
       () => call(api.POST("/api/pages/{slug}/files/{key}/hide", { params: { path } })),
-      t("edit.fileHidden", { name: file.name }),
+      // Every version goes (the server hides the whole document).
+      t(file.older.length ? "edit.fileHiddenVersions" : "edit.fileHidden", { name: file.name }),
     );
   // "Definir como capa": the image, cropped to the cover's shape here, goes up as the
   // cover (a copy: the file stays where it is).
@@ -551,6 +585,25 @@ export function FileMenu({
         ),
       t("edit.coverSet", { name: file.name }),
     );
+  // "Renomear": the name only; its extension stays (as the server keeps it), and
+  // every version is renamed with it.
+  // Its own state, as the cover's cropping: the dialog takes the focus out of the
+  // menu, which closes on blur.
+  const [renaming, setRenaming] = useState(false);
+  const [base, extension] = splitExtension(file.name);
+  const rename = async (name: string) => {
+    setBusy(true);
+    try {
+      await call(api.POST("/api/pages/{slug}/files/{key}/rename", { params: { path }, body: { name } }));
+      setRenaming(false); // refused, it stays open with the name to change
+      toast(t("edit.fileRenamed", { name: name + extension }));
+      onChanged();
+    } catch (failure) {
+      toastError(failure);
+    } finally {
+      setBusy(false);
+    }
+  };
   const places = movePlaces(page, sections, position, folder);
   const move = (to: MovePlace) =>
     act(() => moveRequest(page, slug, file.key, to), t("edit.fileMoved", { name: file.name, stage: to.done }));
@@ -603,6 +656,17 @@ export function FileMenu({
             {t("edit.newVersion")}
             <small>{t("edit.newVersionNote")}</small>
           </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={busy}
+            onClick={() => {
+              setOpen(false);
+              setRenaming(true);
+            }}
+          >
+            {t("edit.renameFile")}
+          </button>
           {file.kind === "image" && (
             <button
               type="button"
@@ -647,6 +711,24 @@ export function FileMenu({
             {t("edit.menuBack")}
           </button>
         </div>
+      )}
+      {renaming && (
+        <NameDialog
+          title={t("edit.renameFile")}
+          label={t("edit.fileName")}
+          initial={base}
+          description={[
+            extension && t("edit.fileNameKeeps", { extension }),
+            file.older.length > 0 && t("edit.fileNameVersions", { count: file.older.length + 1 }),
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          confirm={t("projectSettings.save")}
+          maxLength={LIMITS.fileName}
+          busy={busy}
+          onConfirm={(name) => void rename(name)}
+          onCancel={() => setRenaming(false)}
+        />
       )}
       {cropping && (
         <ImageCropDialog
@@ -765,6 +847,14 @@ export function AddSection({
       </div>
     </div>
   );
+}
+
+/** "Planta.pdf" as ["Planta", ".pdf"]: the extension as the server reads it (one to
+ *  five letters or digits after the last dot), or none. */
+export function splitExtension(name: string): [string, string] {
+  const dot = name.lastIndexOf(".");
+  if (dot > 0 && /^[a-z0-9]{1,5}$/i.test(name.slice(dot + 1))) return [name.slice(0, dot), name.slice(dot)];
+  return [name, ""];
 }
 
 /** The "⋯" on a section's title in edit mode: "Renomear seção" and "Ocultar

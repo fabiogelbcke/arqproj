@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import secrets
 import sys
 from datetime import UTC, datetime, timedelta
@@ -29,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from backend.db.isolation import scope_to_tenant
 from backend.identity import accounts, links
 from backend.identity.models import JoinLink, LinkKind, Role
+from backend.security import keys
 from backend.settings import Settings
 from backend.tenancy.models import Tenant, TenantDomain
 
@@ -80,7 +80,7 @@ async def run(argv: list[str], database_url: str) -> str:
                         role=Role.OWNER,
                         single_use=True,
                         expires_at=datetime.now(UTC) + timedelta(days=args.days),
-                        token_hash=hashlib.sha256(token.encode()).hexdigest(),
+                        token_hash=keys.token_hash(token),
                     )
                 )
                 await session.commit()

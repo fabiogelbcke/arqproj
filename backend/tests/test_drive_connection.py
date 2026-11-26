@@ -15,9 +15,11 @@ from backend.notifications.scan import MAINTENANCE_LOCK
 from backend.office.models import OfficeProfile
 from backend.security import keys
 from backend.storage.google import GoogleDriveStorage
+from backend.storage.google_connect import ConnectError, ConnectProblem, DriveWriter
 from backend.storage.models import StorageConnection, StorageKind, WriterStatus
 from backend.tenancy.models import Tenant
 from backend.tests.conftest import TEST_DATABASE_URL
+from backend.tests.test_team import lock_waiters
 from backend.web import auth, drive
 
 pytestmark = pytest.mark.anyio
@@ -497,6 +499,7 @@ async def test_starting_afresh_gives_every_project_and_stage_an_empty_folder(
     assert saved.root_id not in ("root1", "") and saved.writer_status is WriterStatus.CONNECTED
     projects, stages, logo = await folders_of(db_session)
     assert projects and len(projects) == len(projects_before)
+    assert len(stages) == len(stages_before)
     new_folders = {folder for folder, _cover, _scanned in projects} | set(stages)
     assert all(f and f.startswith("new") for f in new_folders)  # all in the new account
     assert len(new_folders) == len(projects) + len(stages)
@@ -587,7 +590,7 @@ async def test_starting_afresh_waits_for_a_scan_of_the_old_folders(
                 {"key": MAINTENANCE_LOCK, "project": str(project)},
             )
             switch = asyncio.create_task(come_back(client, await start(client, owner, fresh=True)))
-            await asyncio.sleep(1)
+            await lock_waiters(scanner, stop=switch.done)
             assert not switch.done()  # waiting for the scan
         done = await asyncio.wait_for(switch, 10)  # the scan ended: the switch goes on
     finally:
@@ -698,3 +701,54 @@ async def test_missing_quota_is_not_reported_as_zero(client, owner, google):
     response = await client.get("/api/drive/space", headers=ALINEA)
     assert response.status_code == 503
     assert "Google returned" not in response.text
+
+
+# -- whether the office's grant reaches a folder ------------------------------------
+
+
+def _answering(status, body):
+    return DriveWriter(
+        httpx2.AsyncClient(
+            transport=httpx2.MockTransport(lambda _request: httpx2.Response(status, json=body))
+        ),
+        "writer",
+    )
+
+
+def _drive_error(status, reason):
+    return {"error": {"code": status, "message": "detail", "errors": [{"reason": reason}]}}
+
+
+@pytest.mark.parametrize(
+    ("status", "body", "reaches"),
+    [
+        (200, {"id": "f", "trashed": False}, True),
+        (200, {"id": "f", "trashed": True}, False),
+        (404, _drive_error(404, "notFound"), False),  # deleted, or never this account's
+        (403, _drive_error(403, "insufficientFilePermissions"), False),
+        (403, _drive_error(403, "appNotAuthorizedToFile"), False),
+    ],
+)
+async def test_the_grant_reaches_a_folder_unless_google_says_it_cannot(status, body, reaches):
+    writer = _answering(status, body)
+    assert await writer.can_open("f") is reaches
+    assert await writer.can_rename("f") is reaches
+
+
+@pytest.mark.parametrize(
+    ("status", "body"),
+    [
+        (403, _drive_error(403, "rateLimitExceeded")),
+        (403, _drive_error(403, "userRateLimitExceeded")),
+        (429, _drive_error(429, "rateLimitExceeded")),
+        (503, {}),
+    ],
+)
+async def test_throttling_is_a_passing_failure_not_a_folder_out_of_reach(status, body):
+    """Read as "can't open", Drive slowing down made a second `_capa`, skipped a
+    stage folder's rename, or told a reconnecting owner it was another account."""
+    writer = _answering(status, body)
+    for check in (writer.can_open, writer.can_rename):
+        with pytest.raises(ConnectError) as raised:
+            await check("f")
+        assert raised.value.problem is ConnectProblem.UNAVAILABLE

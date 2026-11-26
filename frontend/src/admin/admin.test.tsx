@@ -30,6 +30,7 @@ const ALINEA = {
   share_links: 3,
   downloads: 7,
   portfolio: { pieces: 34, images: 120, published: 1 },
+  comments: { client: 9, staff: 4 },
   features: [] as string[],
   all_features: ["project_members"],
   team: [],
@@ -60,6 +61,20 @@ describe("the operator dashboard", () => {
     await userEvent.click(screen.getByRole("button", { name: "Entrar com Google" }));
     await vi.waitFor(() => expect(assign).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?x=1"));
     expect(sent.some((r) => r.path === "/api/admin/signin")).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["4bf92f3577b34da6a3ce929d0e0e4736", "Código de suporte: 4bf92f3577b34da6a3ce929d0e0e4736"],
+    ["Ligue-para-0800-123-4567", null],
+  ])("after a failed sign-in, shows the support code from the address only when it is one (%s)", async (ref, shown) => {
+    vi.stubGlobal("location", { ...window.location, search: `?entrar=negado&ref=${ref}` });
+    fakeApi({ "GET /api/admin/me": () => ({ status: 401, body: { error: "not_signed_in" } }) });
+    renderAt("/");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Esta conta Google não tem acesso a esta área.");
+    if (shown) expect(alert).toHaveTextContent(shown);
+    else expect(alert).not.toHaveTextContent("Código de suporte");
     vi.unstubAllGlobals();
   });
 
@@ -123,6 +138,7 @@ describe("the operator dashboard", () => {
     });
     renderAt("/escritorios/alinea");
     expect(await screen.findByRole("heading", { name: "Alinea", level: 1 })).toBeInTheDocument();
+    expect(screen.getByText("9 de clientes · 4 da equipe")).toBeInTheDocument(); // comments (A49)
     const team = screen.getByRole("table");
     expect(within(team).getByText("Bia").closest("tr")).toHaveTextContent("Convite pendente");
     expect(screen.getByRole("link", { name: /Abrir os erros deste escritório/ })).toHaveAttribute(
@@ -130,6 +146,23 @@ describe("the operator dashboard", () => {
       officeErrorsUrl({ project: "arq-proj", service: "portal" }, ALINEA),
     );
     expect(screen.getByRole("link", { name: "alineaarquitetos.com" })).toHaveAttribute("href", "https://alineaarquitetos.com/painel/");
+  });
+
+  it("keeps the dashboard when checking who is signed in fails on the way to another page", async () => {
+    let checks = 0;
+    fakeApi({
+      "GET /api/admin/me": () => (++checks === 1 ? { body: ME } : { status: 500, body: {} }),
+      "GET /api/admin/offices": () => ({ body: [ALINEA, NORTE] }),
+      "GET /api/admin/offices/alinea": () => ({ body: ALINEA }),
+    });
+    const router = renderAt("/");
+    await screen.findByRole("table");
+    await router.navigate("/escritorios/alinea"); // the office's page asks again: it failed
+    expect(await screen.findByRole("heading", { name: "Alinea", level: 1 })).toBeInTheDocument();
+    await vi.waitFor(() => expect(checks).toBeGreaterThanOrEqual(2));
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect(screen.getByRole("heading", { name: "Alinea", level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("switches a feature on for one office (A40)", async () => {

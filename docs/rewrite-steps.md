@@ -481,13 +481,18 @@ Deferred: the office setting for the quiet period (A12). The pilot uses 45 minut
 ### Slice 6: real Google login and live checks
 
 Google sign-in for staff; the live read/write capability matrix against real
-Drive accounts.
+Drive accounts. **Built (26 Oct 2026):** "Entrar com Google" for office staff
+(`backend/web/google_signin.py`). The remaining live checks of the capability
+matrix stay open (plan section 9).
 
 ### Slice 7: moving the first office over
 
 Switching `alineaarquitetos.com` (no projects to import: Alinea starts fresh)
 to the new app: only with your explicit approval, and with the current site kept
-ready to switch back.
+ready to switch back. **Done (17 Oct 2026):** production's `portal` service runs
+the new app in place of the old site, whose trigger is disabled
+(`docs/infrastructure.md`); since 25 Oct 2026 Alinea's primary address is
+`alinea.myunio.app` and `alineaarquitetos.com` redirects there (A23).
 
 ## What I need from you to start
 

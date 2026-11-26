@@ -9,8 +9,8 @@ Fabio, 10 Nov 2026).
   with the values the code held until now. The app reads it; the operator login
   reads and changes it, audited as its other changes to the whole site.
 
-Revision: 0056
-Previous: 0055
+Revision: 0059
+Previous: 0058
 """
 
 from collections.abc import Sequence
@@ -19,8 +19,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import ARRAY
 
-revision: str = "0056"
-down_revision: str | None = "0055"
+revision: str = "0059"
+down_revision: str | None = "0058"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

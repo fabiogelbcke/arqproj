@@ -33,6 +33,7 @@ from backend.projects.models import (
     StageDef,
 )
 from backend.tenancy.models import Locale
+from backend.web.errors import ErrorCode
 
 log = logging.getLogger(__name__)
 
@@ -57,9 +58,9 @@ def valid_slug(slug: str) -> bool:
 
 
 class CreationProblem(Exception):
-    def __init__(self, code: str, conflict_name: str | None = None) -> None:
+    def __init__(self, code: ErrorCode, conflict_name: str | None = None) -> None:
         super().__init__(code)
-        self.code = code  # an ErrorCode value
+        self.code = code
         self.conflict_name = conflict_name
 
 
@@ -70,7 +71,7 @@ def custom_type_name(project_type: str, typed: str | None) -> str | None:
         return None
     name = (typed or "").strip()
     if not name or len(name) > CUSTOM_TYPE_LIMIT:
-        raise CreationProblem("invalid_custom_type")
+        raise CreationProblem(ErrorCode.INVALID_CUSTOM_TYPE)
     return name
 
 
@@ -175,13 +176,13 @@ async def _validate(db: AsyncSession, new: NewProject, locale: Locale) -> list[N
     """The project's stages, in order, once everything in `new` checks out: the
     built-in ones in their fixed order, then the office's own as typed."""
     if not new.name.strip() or len(new.name.strip()) > NAME_MAX:
-        raise CreationProblem("invalid_project_name")
+        raise CreationProblem(ErrorCode.INVALID_PROJECT_NAME)
     if not new.client_name.strip() or len(new.client_name.strip()) > CLIENT_NAME_LIMIT:
-        raise CreationProblem("invalid_client_name")
+        raise CreationProblem(ErrorCode.INVALID_CLIENT_NAME)
     # Hidden ones aren't offered for a new project (A44).
     kind = await db.get(ProjectTypeDef, new.project_type)
     if kind is None or kind.hidden:
-        raise CreationProblem("unknown_project_type")
+        raise CreationProblem(ErrorCode.UNKNOWN_PROJECT_TYPE)
     custom_type_name(new.project_type, new.custom_type)
     chosen = set(new.stages)
     stages = list(
@@ -192,7 +193,7 @@ async def _validate(db: AsyncSession, new: NewProject, locale: Locale) -> list[N
         )
     )
     if len(chosen) != len(new.stages) or len(stages) != len(chosen):
-        raise CreationProblem("unknown_stage")  # unknown or repeated
+        raise CreationProblem(ErrorCode.UNKNOWN_STAGE)  # unknown or repeated
     ordered = [NewStage(s, s.titles.get(locale.value) or s.titles["pt-BR"]) for s in stages]
     names = {stage.title.casefold() for stage in ordered}
     for typed in new.custom_stages:
@@ -200,24 +201,24 @@ async def _validate(db: AsyncSession, new: NewProject, locale: Locale) -> list[N
         # Blank, too long, or named like another of its stages: Drive would hold two
         # folders a person can't tell apart.
         if not title or len(title) > STAGE_TITLE_MAX or title.casefold() in names:
-            raise CreationProblem("invalid_stage")
+            raise CreationProblem(ErrorCode.INVALID_STAGE)
         names.add(title.casefold())
         ordered.append(NewStage(None, title))
     if not valid_slug(new.slug):
-        raise CreationProblem("invalid_slug")
+        raise CreationProblem(ErrorCode.INVALID_SLUG)
     taken = await db.scalar(
         select(Project.name)
         .join(ProjectSlug, ProjectSlug.project_id == Project.id)
         .where(ProjectSlug.slug == new.slug)
     )
     if taken is not None:
-        raise CreationProblem("slug_taken", conflict_name=taken)
+        raise CreationProblem(ErrorCode.SLUG_TAKEN, conflict_name=taken)
     if (same_name := await project_named(db, new.name)) is not None:
-        raise CreationProblem("project_name_taken", conflict_name=same_name)
+        raise CreationProblem(ErrorCode.PROJECT_NAME_TAKEN, conflict_name=same_name)
     try:
         email_list(new.recipients)
     except InvalidEmail:
-        raise CreationProblem("invalid_email") from None
+        raise CreationProblem(ErrorCode.INVALID_EMAIL) from None
     return ordered
 
 
@@ -287,15 +288,16 @@ async def create_project(
         if project_folder is not None:
             try:
                 await maker.trash(project_folder)  # its stage folders go with it
-            except Exception:  # noqa: BLE001 - the original failure is what matters
+            except Exception:  # the original failure is what matters
                 log.exception("could not trash new folder %s", project_folder)
         if isinstance(error, IntegrityError):
-            if "creation_key" in str(error.orig):  # the same request, sent twice at once
+            broken = error.orig.diag.constraint_name  # the rule, not words in the message
+            if broken == "uq_projects_tenant_id_creation_key":  # the same request, sent twice
                 found = await db.scalar(
                     select(Project).where(Project.creation_key == new.creation_key)
                 )
                 if found is not None:
                     return found
-            if "slug" in str(error.orig):
-                raise CreationProblem("slug_taken") from None  # taken in the meantime
+            if broken == "uq_project_slugs_tenant_id_slug":
+                raise CreationProblem(ErrorCode.SLUG_TAKEN) from None  # taken in the meantime
         raise

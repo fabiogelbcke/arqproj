@@ -4,6 +4,7 @@ Alembic and the schema tests read Base.metadata; a model module missing here
 would silently drop out of migration checks.
 """
 
+from backend.comments import models as comment_models  # noqa: F401
 from backend.db.base import Base
 from backend.identity import models as identity_models  # noqa: F401
 from backend.notifications import models as notification_models  # noqa: F401

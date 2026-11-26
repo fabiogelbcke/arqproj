@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { hashKey, QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
@@ -8,12 +8,14 @@ import { ApiError, api, call, setCsrfToken, type Schemas } from "../api/client";
 import { Button } from "../ui/Button";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { InfoTip } from "../ui/InfoTip";
 import { Panel } from "../ui/Panel";
 import { TextField } from "../ui/TextField";
 import { Toaster } from "../ui/Toast";
 import { UnioMark } from "../ui/UnioMark";
-import { officeErrorsUrl, SUPPORT_CODE, supportCodeUrl, type LogsTarget } from "./logs";
+import { SUPPORT_CODE, supportCode } from "../api/supportCode";
+import { officeErrorsUrl, supportCodeUrl, type LogsTarget } from "./logs";
 import styles from "./admin.module.css";
 import { CreateTenant, Features, SignupLink, TenantActions } from "./Actions";
 import { SettingsLayout } from "./Settings";
@@ -58,7 +60,7 @@ function SignIn() {
   const client = useQueryClient();
   const query = new URLSearchParams(window.location.search);
   const problem = query.get("entrar");
-  const reference = query.get("ref");
+  const reference = supportCode(query.get("ref"));
   const [email, setEmail] = useState("");
   const google = useMutation({
     mutationFn: () => call(api.POST("/api/admin/signin")),
@@ -115,6 +117,8 @@ function Layout({ me }: { me: Operator }) {
     mutationFn: () => call(api.POST("/api/admin/signout")),
     onSuccess: () => {
       setCsrfToken(null);
+      // Nothing the operator loaded stays for whoever signs in next.
+      client.removeQueries({ predicate: (query) => query.queryHash !== hashKey(ME) });
       client.setQueryData(ME, null);
     },
   });
@@ -189,7 +193,7 @@ function StorageState({ office }: { office: Office }) {
         : office.writer_status === "expired"
           ? "expired"
           : "disconnected"
-      : office.storage;
+      : (office.storage ?? "none");
   return <span className={styles.state} data-state={state}>{t(`admin.storage.${state}`)}</span>;
 }
 
@@ -287,7 +291,7 @@ function OfficePage() {
     queryFn: () => call(api.GET("/api/admin/offices/{slug}", { params: { path: { slug } } })),
   });
   const logs = me ? target(me) : null;
-  if (office.error) return <ErrorNotice error={office.error} />;
+  if (loadError(office)) return <ErrorNotice error={office.error} />;
   if (!office.data) return <p className={styles.muted}>{t("app.loading")}</p>;
   const o = office.data;
   return (
@@ -349,6 +353,9 @@ function OfficePage() {
             {t(o.portfolio.published ? "admin.portfolioPublished" : "admin.portfolioUnpublished")}
           </span>
         </Fact>
+        <Fact label={t("admin.comments")}>
+          {t("admin.commentCount", { client: o.comments.client ?? 0, staff: o.comments.staff ?? 0 })}
+        </Fact>
       </dl>
       <Panel aria-labelledby="team">
         <h2 id="team">{t("admin.team")}</h2>
@@ -404,7 +411,7 @@ function Root() {
   const { t } = useTranslation();
   const me = useOperator();
   if (me.isPending) return <p className={styles.centered}>{t("app.loading")}</p>;
-  if (me.error)
+  if (loadError(me))
     return (
       <main className={styles.centered}>
         <ErrorNotice error={me.error} />
