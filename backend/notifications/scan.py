@@ -162,9 +162,7 @@ async def _project_pass(
         # emails went, so they are saved (which ends the project's lock: its pass
         # stops there), then the failure is the caller's to log.
         async with db.begin_nested():
-            await _files_and_email(
-                db, settings, sender, storage, office, project, report, whatsapp
-            )
+            await _files_and_email(db, settings, sender, storage, office, project, report, whatsapp)
     except Exception:
         await db.commit()
         raise

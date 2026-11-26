@@ -103,6 +103,7 @@ PUBLIC = {
     "GET /api/pages/{slug}/files/{key}": "a client page's file, behind its password",
     "GET /api/pages/{slug}/files/{key}/thumb": "a client page's file, behind its password",
     "POST /api/pages/{slug}/subscribe": "a client signs up for emails; rate-limited (A32)",
+    "POST /api/pages/{slug}/whatsapp": "a client signs up for WhatsApp; rate-limited (A47)",
     "POST /api/pages/{slug}/shares": "clients share files too, behind the page's password (A37)",
     "POST /api/pages/{slug}/shares/mine": "a client's own links: the owner keys they hold",
     "POST /api/pages/{slug}/comments": "clients comment too, behind the page's password; "
@@ -119,6 +120,9 @@ PUBLIC = {
     "PUT /api/local-uploads/{token}": "local folders only (refused deployed): an encrypted token",
     "GET /api/emails/unsubscribe/{token}": "the email's unsubscribe link: a signed token",
     "POST /api/emails/unsubscribe/{token}": "the email's unsubscribe link: a signed token",
+    "GET /api/whatsapp/webhook": "Meta checks the address: its verify token (A47)",
+    "POST /api/whatsapp/webhook": "Meta's events: checked by Meta's signature (A47)",
+    "GET /w/{code}": "a WhatsApp button's short link: the code is a signed token (A47)",
     # The office's portfolio (A45): public once published.
     "GET /api/portfolio/photos/{photo_id}": "a published portfolio's photo",
     "GET /api/portfolio/videos/{video_id}/poster": "a published portfolio's video",

@@ -37,6 +37,7 @@ const PAGE: Page = {
   proposal: null,
   proposal_url: null,
   archived: false,
+  whatsapp: false,
 };
 
 const said = (id: string, name: string, body: string, author: "client" | "staff" = "client") => ({

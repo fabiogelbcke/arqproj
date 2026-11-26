@@ -816,7 +816,7 @@
       "resetIgnore": "If you didn't ask for this, ignore this email: your password stays the same."
   },
   "whatsapp": {
-    "update": "Hello! You have news on the project {{project}}, from {{office}}: {{news}}.",
+    "update": "Hello! You have news on the project {{project}}, from the office {{office}}. Here is what changed: {{news}}. See the details on the project page.",
     "footer": "To stop these messages, reply STOP.",
     "welcome": "Hello! This number will receive WhatsApp updates on the project {{project}}, from {{office}}: new files, stages and meetings.",
     "invite": "Hello! {{office}} added this number to receive WhatsApp updates on the project {{project}}: new files, stages and meetings. Would you like to receive them?",

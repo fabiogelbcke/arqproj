@@ -4,6 +4,7 @@ batch's message, signing up on the page, staff adding a number, and Meta's webho
 import hashlib
 import hmac
 import json
+import re
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -1210,3 +1211,33 @@ async def test_a_number_added_to_an_archived_project_isnt_asked(client, db_sessi
     response = await change(client, owner, casa_jardim, whatsapp=[CLIENT])
     assert response.status_code == 200, response.text
     assert phone.to(CLIENT) == []
+
+
+# -- the texts Meta approves ----------------------------------------------------------
+
+# The texts sent as templates, in the "whatsapp" section: each must stay what Meta
+# approved, and Meta refuses a template that starts or ends with a variable, or has
+# two separated by nothing but spaces or punctuation (26 Nov 2026).
+TEMPLATE_TEXTS = ("update", "welcome", "invite")
+VARIABLE = r"\{\{\w+\}\}"
+
+
+def meta_refuses(text: str) -> bool:
+    words = re.sub(r"^[\W_]+|[\W_]+$", "", re.sub(VARIABLE, "X1X", text))
+    starts_or_ends = words.startswith("X1X") or words.endswith("X1X")
+    side_by_side = re.search(VARIABLE + r"[\s\W]*" + VARIABLE, text) is not None
+    return starts_or_ends or side_by_side
+
+
+def test_meta_s_rules_are_caught():
+    assert meta_refuses("Olá! Novidades no projeto {{project}}, do {{office}}: {{news}}.")
+    assert meta_refuses("{{office}} cadastrou este número.")
+    assert meta_refuses("Olá! Projeto {{project}}: {{news}} hoje.")
+    assert not meta_refuses("Olá! Projeto {{project}}, do escritório {{office}}. Veja.")
+
+
+@pytest.mark.parametrize("locale", ["pt-BR", "en"])
+def test_the_template_texts_keep_to_meta_s_rules(locale):
+    texts = json.loads((Path("backend/i18n") / f"{locale}.json").read_text())["whatsapp"]
+    for key in TEMPLATE_TEXTS:
+        assert not meta_refuses(texts[key]), (locale, key)

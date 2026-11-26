@@ -12644,7 +12644,8 @@
             "anyOf": [
               {
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 40
                 },
                 "type": "array",
                 "maxItems": 20

@@ -45,7 +45,7 @@ from backend.notifications.models import (
     WhatsAppSource,
     WhatsAppStatus,
 )
-from backend.notifications.whatsapp import parse_phone
+from backend.notifications.whatsapp import PHONE_MAX, parse_phone
 from backend.projects.creation import CLIENT_NAME_LIMIT, NAME_MAX, project_named, valid_slug
 from backend.projects.enums import AccessMode, CoverType, ProjectStatus
 from backend.projects.models import Project, ProjectMember, ProjectSlug
@@ -99,7 +99,9 @@ class ProjectChange(BaseModel):
     members: list[uuid.UUID] | None = Field(default=None, max_length=MEMBERS_MAX)
     # The client's WhatsApp numbers, the whole list as typed (A47), if the office
     # has the feature. A new one is asked whether it wants the updates.
-    whatsapp: list[str] | None = Field(default=None, max_length=RECIPIENTS_MAX)
+    whatsapp: list[Annotated[str, Field(max_length=PHONE_MAX)]] | None = Field(
+        default=None, max_length=RECIPIENTS_MAX
+    )
 
 
 async def _project(db: AsyncSession, project_id: uuid.UUID, lock: bool = False) -> Project:

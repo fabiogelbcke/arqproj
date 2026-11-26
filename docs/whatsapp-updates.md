@@ -116,8 +116,10 @@ email (A17). Nothing in our volume needs a middleman.
 - A client adds a phone number and ticks "Receber pelo WhatsApp" on the project
   page, beside the existing "Novidades por e-mail" (A32). We keep the consent
   time and its source.
-- The first message confirms the opt-in, and every message says how to stop
-  ("Responda SAIR"). Replying SAIR stops them at once, through Meta's webhook.
+- The first message confirms the opt-in, and it and every update say how to
+  stop ("Responda SAIR", in the footer; not the question to a number staff
+  added, which has its own "Não quero"). Replying SAIR stops them at once,
+  through Meta's webhook.
 - Staff can add a client's number, but the client opts in from the page.
   Unsolicited WhatsApp messages get numbers reported and blocked.
 - Each recipient chooses email, WhatsApp or both, so nobody gets everything
@@ -149,6 +151,31 @@ businesses' numbers, which offices' own numbers would need later).
 | Templates | `unio_atualizacao` (button "Abrir o projeto"), `unio_atualizacao_reuniao` (also "Adicionar à agenda"), `unio_boas_vindas`, `unio_convite` (buttons "Quero receber" / "Não quero"), in the approved Portuguese texts. Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
 | Access token and webhook | A permanent token in Secret Manager, our webhook registered with Meta | Part of the coding |
 | Business verification (later) | Below | A few days to ~2 weeks |
+
+**Set up (25–26 Nov 2026).** Business portfolio "Unio", its app "Unio"
+(subscribed to the account's events; still in development mode, no webhook
+address yet), billing in BRL. The number is **+55 47 3170-4880** (Numio,
+virtual landline, verified by voice call), phone number ID `1496834270177830`,
+used by staging and production alike: only `WHATSAPP_TEST_NUMBERS` receive
+staging's messages. Its display name "Unio" awaits Meta's review. A Meta-issued
+US number (+1 555-845-0878) from the setup is on the account too, unused, to be
+deleted: an unverified business has room for 2 numbers.
+
+**Templates as submitted (26 Nov 2026)**, pt_BR, Utility. Meta refuses a body
+that starts or ends with a variable, or has two variables with only spaces or
+punctuation between them, so the texts approved on 9 Nov were reworded
+(`test_whatsapp.py` checks ours). The footer "Para não receber mais estas
+mensagens, responda SAIR." goes on the welcome and the updates only; every link
+button opens `https://myunio.app/w/{{1}}`.
+
+| Template | Text | Footer | Buttons |
+| --- | --- | --- | --- |
+| `unio_atualizacao` | Olá! Você tem novidades no projeto {{1}}, do escritório {{2}}. Veja o que mudou: {{3}}. Confira os detalhes na página do projeto. | Yes | Abrir o projeto |
+| `unio_atualizacao_reuniao` | (the same) | Yes | Abrir o projeto, Adicionar à agenda |
+| `unio_boas_vindas` | Olá! Este número vai receber pelo WhatsApp as atualizações do projeto {{1}}, de {{2}}: arquivos novos, etapas e reuniões. | Yes | none |
+| `unio_convite` | Olá! {{1}} cadastrou este número para receber pelo WhatsApp as atualizações do projeto {{2}}: arquivos novos, etapas e reuniões. Deseja receber? | No | Quero receber, Não quero (quick replies) |
+
+English versions wait for an office in English.
 
 **Building needs no number yet.** Meta's free test number, created with the
 app, messages up to 5 numbers we register, which is enough to build and test
@@ -206,7 +233,8 @@ a MEI can hold this activity is for the accountant.
 ### Rules that can cost us the number
 
 - **Quality rating.** Many blocks or reports lower our limits, then block the
-  number. Hence opt-in by the client and "Responda SAIR" in every message.
+  number. Hence opt-in by the client and "Responda SAIR" in the welcome and
+  every update.
 - **Templates stay utility.** One promotional line gets a template
   recategorized as marketing, at about 8× the price.
 

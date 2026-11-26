@@ -19,6 +19,27 @@ a new entry too.
 
 ---
 
+## 2026-11-26 — A47: the WhatsApp texts reworded for Meta; "responda SAIR" on the welcome and updates
+
+**Was:** the update read "Olá! Você tem novidades no projeto {{project}}, do
+{{office}}: {{news}}.", the question "Olá! O {{office}} cadastrou…", and every
+message was to say how to stop.
+
+**Now:** "Olá! Você tem novidades no projeto {{project}}, do escritório
+{{office}}. Veja o que mudou: {{news}}. Confira os detalhes na página do
+projeto."; the welcome says "…do projeto {{project}}, de {{office}}: …"; the
+question "Olá! {{office}} cadastrou…". The footer "Para não receber mais estas
+mensagens, responda SAIR." goes on the welcome and the updates only.
+
+**Why:** creating the templates (26 Nov 2026), Meta refused a body ending in a
+variable or with two variables separated only by punctuation, which the update
+had. The other wording and the footer's place are Fabio's, the same day: the
+welcome and the updates are what a client gets most, where a way out heads off
+blocks and reports; the question has its "Não quero". Replying SAIR works on any
+message.
+
+---
+
 ## 2026-11-21 — A31: hidden files go into an `_arquivados` folder, names unchanged
 
 **Was:** "Ocultar do cliente" renamed every version of a file with a leading
