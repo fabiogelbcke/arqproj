@@ -206,7 +206,7 @@ async def subscribe_whatsapp(
     await db.commit()
     log.info("whatsapp: a number signed itself up for project %s", project.id)
     if staff is None:
-        capture_visit(request, tenant.id, "client_whatsapp_subscribed", {})
+        capture_visit(request, tenant.id, AnalyticsEvent.CLIENT_WHATSAPP_SUBSCRIBED, {})
     background.add_task(
         whatsapp_updates.greet_now,
         request.app.state.sessionmaker,

@@ -95,6 +95,7 @@ class AnalyticsEvent(StrEnum):
     SHARE_UNLOCK_TRIED = "share_unlock_tried"
     CLIENT_EMAIL_SUBSCRIBED = "client_email_subscribed"
     CLIENT_EMAIL_UNSUBSCRIBED = "client_email_unsubscribed"
+    CLIENT_WHATSAPP_SUBSCRIBED = "client_whatsapp_subscribed"  # A47
     CLIENT_COMMENTED = "client_commented"  # A49
     CLIENT_COMMENT_REMOVED = "client_comment_removed"
     # Personless counts: bytes sent, update emails per office.
