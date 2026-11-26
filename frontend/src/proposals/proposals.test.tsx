@@ -122,7 +122,6 @@ const PAGE: Page = {
   cover_url: null,
   completed: false,
   archived: false,
-  current_position: null,
   last_update: "2026-10-15T23:30:00Z",
   details: [],
   stages: [],

@@ -26,7 +26,6 @@ export function unfilled(schema: string, shown: Fields[], leftOut: Record<string
 const PAGE_LEFT_OUT = {
   in_proposal: "a proposal not yet accepted shows only the proposal; the example is past it",
   proposal: "only while in proposal; once accepted, `proposal_url` (shown)",
-  current_position: "the previous release's, unread by this page",
   staff: "the staff view: shown to signed-in staff, tested in example.test.tsx",
 };
 const FILE_LEFT_OUT = {

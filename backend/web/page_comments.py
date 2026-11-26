@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture, capture_visit
+from backend.analytics import AnalyticsEvent, capture, capture_visit
 from backend.comments.models import BODY_MAX, NAME_MAX, Author, Comment
 from backend.db.engine import get_tenant_session
 from backend.documents.versions import shown_name
@@ -141,9 +141,9 @@ async def add_comment(
     await db.commit()
     on = "file" if body.key is not None else "stage"
     if staff is None:
-        capture_visit(request, project.tenant_id, "client_commented", {"on": on})
+        capture_visit(request, project.tenant_id, AnalyticsEvent.CLIENT_COMMENTED, {"on": on})
     else:
-        capture(request, "comment_posted", {"on": on})
+        capture(request, AnalyticsEvent.COMMENT_POSTED, {"on": on})
     return shown
 
 
@@ -194,6 +194,6 @@ async def remove_comment(
     comment.removed_at = datetime.now(UTC)
     await db.commit()
     if staff is None:
-        capture_visit(request, project.tenant_id, "client_comment_removed")
+        capture_visit(request, project.tenant_id, AnalyticsEvent.CLIENT_COMMENT_REMOVED)
     else:
-        capture(request, "comment_removed", {"author": comment.author.value})
+        capture(request, AnalyticsEvent.COMMENT_REMOVED, {"author": comment.author.value})

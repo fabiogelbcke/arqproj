@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.documents import comparisons, versions
 from backend.documents.comparisons import Side
@@ -198,7 +198,7 @@ async def start_comparison(
     log.info("comparisons: opened for %s/%s, stage %s", tenant.id, project_id, position)
     capture(
         request,
-        "comparison_upload_started",
+        AnalyticsEvent.COMPARISON_UPLOAD_STARTED,
         {"bytes": sum(chosen.size for chosen in sides.values()), "stage_position": position},
     )
     return ComparisonUploadOut(before_url=urls.get(Side.BEFORE), after_url=urls.get(Side.AFTER))
@@ -303,7 +303,7 @@ async def edit_comparison(
         return lambda: maker.rename(renamed, names[item.id])
 
     await _change(request, db, tenant, project, comparison, "renaming", rename)
-    capture(request, "comparison_edited")
+    capture(request, AnalyticsEvent.COMPARISON_EDITED)
     return Response(status_code=204)
 
 
@@ -335,7 +335,7 @@ async def hide_comparison(
         return lambda: maker.move(moved, found["f"])  # back where the page listed it
 
     await _change(request, db, tenant, project, comparison, "hiding", hide)
-    capture(request, "comparison_hidden")
+    capture(request, AnalyticsEvent.COMPARISON_HIDDEN)
     return Response(status_code=204)
 
 
@@ -390,5 +390,5 @@ async def move_comparison(
         return lambda: maker.move(moved, found["f"])  # back where the page listed it
 
     await _change(request, db, tenant, project, comparison, "moving", move)
-    capture(request, "comparison_moved")
+    capture(request, AnalyticsEvent.COMPARISON_MOVED)
     return Response(status_code=204)

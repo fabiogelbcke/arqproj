@@ -28,7 +28,6 @@ const PAGE: Page = {
   features: [],
   completed: false,
   archived: false,
-  current_position: null,
   last_update: "2026-11-01T12:00:00Z",
   details: [],
   stages: [

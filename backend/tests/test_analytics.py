@@ -1,6 +1,9 @@
 """Product analytics (PostHog): what the server sends, for whom, and that a local
 run or a test sends nothing unless asked to."""
 
+import ast
+from pathlib import Path
+
 import pytest
 from posthog import Posthog
 from sqlalchemy import text
@@ -246,3 +249,114 @@ async def test_a_password_changed_from_minha_conta_is_recorded(client, db_sessio
     assert response.status_code == 200, response.text
     (event,) = events(sent, "password_set")
     assert event["distinct_id"] == await staff_id(db_session, "dona@alinea.example")
+
+
+# -- every event is one of AnalyticsEvent's ----------------------------------------
+
+ROOT = Path(__file__).resolve().parents[2]
+
+# The functions that send an event, and which argument it is. `client.capture` is
+# PostHog's own; a function of ours whose parameter is an `AnalyticsEvent` joins
+# the list (shares' `_event`, which sends as staff or as a visitor).
+SENDERS = {"capture": 1, "capture_visit": 2}
+
+# Where PostHog's client is called directly instead of through `analytics.capture`,
+# and why: these events carry their own distinct id, not the request's person.
+DIRECT = {
+    "backend/analytics.py": "the helpers themselves",
+    "backend/transfers.py": "personless: the office's or today's visitor's id",
+    "backend/web/maintenance.py": "per office, from Cloud Scheduler: no person",
+}
+
+
+def _runtime_sources() -> dict[str, str]:
+    return {
+        str(path.relative_to(ROOT)): path.read_text("utf-8")
+        for path in (ROOT / "backend").rglob("*.py")
+        if not {"tests", "migrations", "commands"} & set(path.relative_to(ROOT).parts)
+    }
+
+
+def _is_event_type(annotation: ast.expr | None) -> bool:
+    return isinstance(annotation, ast.Name) and annotation.id == "AnalyticsEvent"
+
+
+def _event_params(tree: ast.Module) -> dict[str, tuple[int, str]]:
+    """Our functions taking an AnalyticsEvent: name -> (position, parameter)."""
+    found = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            for index, arg in enumerate(node.args.args):
+                if _is_event_type(arg.annotation):
+                    found[node.name] = (index, arg.arg)
+    return found
+
+
+def _an_event(value: ast.expr, typed: set[str]) -> bool:
+    """`AnalyticsEvent.X`, a choice between two of them, or a parameter that is one."""
+    if isinstance(value, ast.IfExp):
+        return _an_event(value.body, typed) and _an_event(value.orelse, typed)
+    if isinstance(value, ast.Attribute):
+        return isinstance(value.value, ast.Name) and value.value.id == "AnalyticsEvent"
+    return isinstance(value, ast.Name) and value.id in typed
+
+
+def event_problems(sources: dict[str, str], direct: dict[str, str]) -> set[str]:
+    trees = {name: ast.parse(source) for name, source in sources.items()}
+    senders = {name: (index, "event") for name, index in SENDERS.items()}
+    for tree in trees.values():
+        senders |= _event_params(tree)
+    problems = {f"{name}: listed, but no such file" for name in direct if name not in sources}
+    for name, tree in trees.items():
+        for function in ast.walk(tree):
+            if not isinstance(function, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            typed = {a.arg for a in function.args.args if _is_event_type(a.annotation)}
+            for call in ast.walk(function):
+                if not isinstance(call, ast.Call):
+                    continue
+                where = f"{name}:{call.lineno}"
+                if isinstance(call.func, ast.Attribute) and call.func.attr == "capture":
+                    if name not in direct:
+                        problems.add(f"{where}: PostHog's client called directly")
+                    index, keyword = 0, "event"
+                elif isinstance(call.func, ast.Name) and call.func.id in senders:
+                    index, keyword = senders[call.func.id]
+                else:
+                    continue
+                given = [k.value for k in call.keywords if k.arg == keyword]
+                event = call.args[index] if len(call.args) > index else (given or [None])[0]
+                if event is None or not _an_event(event, typed):
+                    problems.add(f"{where}: an event that is not an AnalyticsEvent")
+    return problems
+
+
+def test_every_event_the_server_sends_is_an_analytics_event():
+    """PostHog's dashboards find events by name: one typed from memory in a new
+    route ("stage_complete" for "stage_completion_changed") would go unseen."""
+    assert event_problems(_runtime_sources(), DIRECT) == set()
+
+
+def test_the_event_rule_catches_a_name_typed_in_place():
+    """Self-test: a string event, one passed through an untyped parameter, a direct
+    client call and a stale allowlist entry are each caught."""
+    source = (
+        "def a(request):\n"
+        "    capture(request, 'stage_moved')\n"
+        "def b(request, event: str):\n"
+        "    capture(request, event)\n"
+        "def c(request, event: AnalyticsEvent):\n"
+        "    capture_visit(request, None, event)\n"
+        "def d(request):\n"
+        "    c(request, 'share_page_viewed')\n"
+        "    c(request, AnalyticsEvent.SHARE_PAGE_VIEWED)\n"
+        "def e(client):\n"
+        "    client.capture(AnalyticsEvent.FILE_TRANSFER)\n"
+    )
+    assert event_problems({"x.py": source}, {"gone.py": "a file removed since"}) == {
+        "gone.py: listed, but no such file",
+        "x.py:2: an event that is not an AnalyticsEvent",
+        "x.py:4: an event that is not an AnalyticsEvent",
+        "x.py:8: an event that is not an AnalyticsEvent",
+        "x.py:11: PostHog's client called directly",
+    }

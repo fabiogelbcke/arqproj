@@ -18,7 +18,6 @@ gets nowhere: the code goes to that person. A few wrong codes use the link up.
 
 from __future__ import annotations
 
-import hashlib
 import secrets
 from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
@@ -28,6 +27,7 @@ from sqlalchemy import case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.identity.models import LinkKind, PasswordLink, User
+from backend.security import keys
 
 LIFETIME = {
     LinkKind.INVITE: timedelta(days=7),
@@ -41,10 +41,6 @@ CONFIRM_PATH = "/painel/confirmar-email"
 CODE_TRIES = 5  # wrong codes before a confirmation link is used up
 # The links for choosing a password; a confirmation never sets one.
 PASSWORD_KINDS = (LinkKind.INVITE, LinkKind.RESET)
-
-
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 LOCAL_PORT = 5173  # `make dev`'s staff app; with `make serve` it is 8000
@@ -82,12 +78,14 @@ async def create_confirmation(session: AsyncSession, user: User) -> tuple[str, s
     stops working): the link's token and its code."""
     token = secrets.token_urlsafe(32)
     code = f"{secrets.randbelow(10**6):06d}"
-    await _add(session, user, LinkKind.CONFIRM, token, code_hash=_code_hash(_hash(token), code))
+    await _add(
+        session, user, LinkKind.CONFIRM, token, code_hash=_code_hash(keys.token_hash(token), code)
+    )
     return token, code
 
 
 def _code_hash(token_hash: str, code: str) -> str:
-    return _hash(f"{token_hash}:{code}")
+    return keys.token_hash(f"{token_hash}:{code}")
 
 
 async def _add(
@@ -103,7 +101,7 @@ async def _add(
         PasswordLink(
             user_id=user.id,
             kind=kind,
-            token_hash=_hash(token),
+            token_hash=keys.token_hash(token),
             code_hash=code_hash,
             expires_at=datetime.now(UTC) + LIFETIME[kind],
         )
@@ -120,7 +118,7 @@ def _usable(token: str, kinds: Collection[LinkKind]):
     # that sets a password or confirms an email, however it came to exist.
     support = PasswordLink.user_id.in_(select(User.id).where(User.support))
     return (
-        PasswordLink.token_hash == _hash(token),
+        PasswordLink.token_hash == keys.token_hash(token),
         PasswordLink.kind.in_(kinds),
         support if set(kinds) == {LinkKind.SUPPORT} else ~support,
         *_live(),

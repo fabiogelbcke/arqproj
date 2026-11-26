@@ -55,7 +55,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, nulls_last, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.documents.comparisons import LABEL_MAX as COMPARISON_LABEL_MAX
 from backend.identity.models import User
@@ -732,10 +732,15 @@ async def change_portfolio(
         found.links = _profiles(body.links)
     if body.format is not None and body.format is not found.format:
         found.format = body.format
-        capture(request, "portfolio_format_changed", {"format": body.format.value})
+        capture(request, AnalyticsEvent.PORTFOLIO_FORMAT_CHANGED, {"format": body.format.value})
     if body.published is not None and body.published != found.published:
         found.published = body.published
-        capture(request, "portfolio_published" if body.published else "portfolio_unpublished")
+        capture(
+            request,
+            AnalyticsEvent.PORTFOLIO_PUBLISHED
+            if body.published
+            else AnalyticsEvent.PORTFOLIO_UNPUBLISHED,
+        )
     await db.commit()
     return await _out(db, tenant)
 
@@ -783,7 +788,9 @@ async def add_entry(
         detail.entry_id = entry.id
         db.add(detail)
     await db.commit()
-    capture(request, "portfolio_entry_added", {"from_project": body.project_id is not None})
+    capture(
+        request, AnalyticsEvent.PORTFOLIO_ENTRY_ADDED, {"from_project": body.project_id is not None}
+    )
     return await _out(db, tenant)
 
 
@@ -851,7 +858,7 @@ async def remove_entry(
     await db.delete(entry)  # its photos and videos go with it
     await db.commit()
     await _trash(request, db, files)
-    capture(request, "portfolio_entry_removed")
+    capture(request, AnalyticsEvent.PORTFOLIO_ENTRY_REMOVED)
     return await _out(db, tenant)
 
 
@@ -896,7 +903,7 @@ async def add_section(
     else:
         raise ApiError(422, ErrorCode.INVALID_REQUEST)
     await db.commit()
-    capture(request, "portfolio_section_added", {"own": body.project_type is None})
+    capture(request, AnalyticsEvent.PORTFOLIO_SECTION_ADDED, {"own": body.project_type is None})
     return await _out(db, tenant)
 
 
@@ -936,7 +943,7 @@ async def remove_section(
         raise ApiError(409, ErrorCode.PORTFOLIO_SECTION_NOT_EMPTY)
     await db.delete(section)
     await db.commit()
-    capture(request, "portfolio_section_removed")
+    capture(request, AnalyticsEvent.PORTFOLIO_SECTION_REMOVED)
     return await _out(db, tenant)
 
 
@@ -1030,7 +1037,7 @@ async def merge_entries(
     for other_id in wanted:
         await db.delete(others[other_id])  # what words it still has go with it; the images moved
     await db.commit()
-    capture(request, "portfolio_entries_merged", {"count": len(wanted)})
+    capture(request, AnalyticsEvent.PORTFOLIO_ENTRIES_MERGED, {"count": len(wanted)})
     return await _out(db, tenant)
 
 
@@ -1084,7 +1091,7 @@ async def split_entry(
         photo.entry_id = piece.id
         photo.position = 1
     await db.commit()
-    capture(request, "portfolio_entry_split", {"count": len(leaving)})
+    capture(request, AnalyticsEvent.PORTFOLIO_ENTRY_SPLIT, {"count": len(leaving)})
     return await _out(db, tenant)
 
 
@@ -1192,7 +1199,7 @@ async def add_loose_photo(
     await db.flush()
     await _add_photo(request, db, tenant, found, entry, content, kind)
     await db.commit()
-    capture(request, "portfolio_photo_added", {"loose": True})
+    capture(request, AnalyticsEvent.PORTFOLIO_PHOTO_ADDED, {"loose": True})
     return await _out(db, tenant)
 
 
@@ -1213,7 +1220,7 @@ async def add_photo(
     entry = await _entry(db, entry_id)
     await _add_photo(request, db, tenant, found, entry, content, kind)
     await db.commit()
-    capture(request, "portfolio_photo_added", {"loose": False})
+    capture(request, AnalyticsEvent.PORTFOLIO_PHOTO_ADDED, {"loose": False})
     return await _out(db, tenant)
 
 
@@ -1283,7 +1290,12 @@ async def compare_photo(
     photo.before_label = _label_text(body.before_label) if body.after else None
     photo.after_label = _label_text(body.after_label) if body.after else None
     await db.commit()
-    capture(request, "portfolio_comparison_set" if body.after else "portfolio_comparison_removed")
+    capture(
+        request,
+        AnalyticsEvent.PORTFOLIO_COMPARISON_SET
+        if body.after
+        else AnalyticsEvent.PORTFOLIO_COMPARISON_REMOVED,
+    )
     return await _out(db, tenant)
 
 
@@ -1347,7 +1359,7 @@ async def video_upload_failed(
         body.status,
         body.detail,
     )
-    capture(request, "portfolio_video_upload_failed", {"bytes": body.size})
+    capture(request, AnalyticsEvent.PORTFOLIO_VIDEO_UPLOAD_FAILED, {"bytes": body.size})
     raise ApiError(502, ErrorCode.UPLOAD_FAILED)
 
 
@@ -1472,7 +1484,7 @@ async def add_video(
     )
     db.add(video)
     await db.commit()
-    capture(request, "portfolio_video_added", {"bytes": sent.size})
+    capture(request, AnalyticsEvent.PORTFOLIO_VIDEO_ADDED, {"bytes": sent.size})
     return await _out(db, tenant)
 
 

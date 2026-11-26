@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.notifications.events import record
 from backend.notifications.models import EventKind
@@ -217,16 +218,15 @@ async def change_content(
         for row in rows:
             db.add(ProjectDetail(project_id=project_id, **row))
     await db.commit()
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture(
-            "project_content_updated",
-            properties={
-                "description_updated": body.description is not None,
-                "details_updated": body.details is not None,
-                "project_type_updated": body.project_type is not None,
-            },
-        )
+    capture(
+        request,
+        AnalyticsEvent.PROJECT_CONTENT_UPDATED,
+        {
+            "description_updated": body.description is not None,
+            "details_updated": body.details is not None,
+            "project_type_updated": body.project_type is not None,
+        },
+    )
     return Response(status_code=204)
 
 
@@ -299,11 +299,11 @@ async def set_meeting(
     kind = EventKind.MEETING_SCHEDULED if upcoming is None else EventKind.MEETING_CHANGED
     record(db, project, kind, title=title)
     await db.commit()
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture(
-            "meeting_scheduled", properties={"action": "created" if upcoming is None else "updated"}
-        )
+    capture(
+        request,
+        AnalyticsEvent.MEETING_SCHEDULED,
+        {"action": "created" if upcoming is None else "updated"},
+    )
     return Response(status_code=204)
 
 
@@ -324,9 +324,7 @@ async def clear_meeting(
         record(db, project, EventKind.MEETING_CLEARED, title=upcoming.title)
     await db.commit()
     if upcoming is not None:
-        posthog_client = getattr(request.app.state, "posthog", None)
-        if posthog_client is not None:
-            posthog_client.capture("meeting_cleared")
+        capture(request, AnalyticsEvent.MEETING_CLEARED)
     return Response(status_code=204)
 
 

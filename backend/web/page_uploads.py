@@ -55,7 +55,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.documents import comparisons, versions
 from backend.documents.versions import shown_name
@@ -290,7 +290,7 @@ async def start_upload(
     )
     capture(
         request,
-        "upload_started",
+        AnalyticsEvent.UPLOAD_STARTED,
         {
             "bytes": body.size,
             "new_version": body.version_of is not None,
@@ -421,7 +421,7 @@ async def create_section(
             error.detail,
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-    capture(request, "section_created", {"stage_position": position})
+    capture(request, AnalyticsEvent.SECTION_CREATED, {"stage_position": position})
     return Response(status_code=204)
 
 
@@ -592,7 +592,7 @@ async def upload_failed(
         body.status,
         body.detail,
     )
-    capture(request, "upload_failed", {"bytes": body.size, "stage_position": position})
+    capture(request, AnalyticsEvent.UPLOAD_FAILED, {"bytes": body.size, "stage_position": position})
     raise ApiError(502, ErrorCode.UPLOAD_FAILED)
 
 
@@ -690,7 +690,7 @@ async def hide_file(
             "uploads: hiding %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-    capture(request, "file_hidden")
+    capture(request, AnalyticsEvent.FILE_HIDDEN)
     return Response(status_code=204)
 
 
@@ -768,7 +768,7 @@ async def rename_file(
             error.detail,
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-    capture(request, "file_renamed", {"versions": len(document.versions)})
+    capture(request, AnalyticsEvent.FILE_RENAMED, {"versions": len(document.versions)})
     return Response(status_code=204)
 
 
@@ -830,5 +830,5 @@ async def move_file(
             "uploads: moving %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-    capture(request, "file_moved")
+    capture(request, AnalyticsEvent.FILE_MOVED)
     return Response(status_code=204)

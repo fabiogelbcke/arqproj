@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.identity import accounts
 from backend.identity.emails import is_email, tidy_email
@@ -88,9 +89,7 @@ async def change_password(
     user = await _check_current(staff, db, body.current)
     await accounts.set_password(db, user, password_hash)  # ends every sign-in
     result = await signed_in(request, response, tenant, db, user)  # this device again
-    posthog_client = getattr(request.app.state, "posthog", None)
-    if posthog_client is not None:
-        posthog_client.capture("password_set")  # A39, as a reset link's
+    capture(request, AnalyticsEvent.PASSWORD_SET)  # A39, as a reset link's
     return result
 
 
