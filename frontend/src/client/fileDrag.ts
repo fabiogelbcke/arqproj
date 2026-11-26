@@ -26,6 +26,28 @@ export function startDrag(event: DragEvent, file: DraggedFile) {
 
 const carries = (event: DragEvent) => [...event.dataTransfer.types].includes(FILE_DRAG);
 
+// Whether the drag under way began on this page. A browser drags a picture on
+// the page as a file of its own ("thumb", a card's preview): dropped on a drop
+// area, that file would be uploaded (it was, as "thumb.png", at Alinea; 20 Nov
+// 2026). Pictures on the page are not draggable, and this flag is the net for
+// anything else dragged from it.
+let fromPage = false;
+if (typeof document !== "undefined") {
+  document.addEventListener("dragstart", () => (fromPage = true), true);
+  document.addEventListener("dragend", () => (fromPage = false), true);
+  // A card that moves leaves the page before its dragend: cleared after the drop
+  // too, once the drop areas have read it, so files from the computer upload again.
+  document.addEventListener("drop", () => setTimeout(() => (fromPage = false)), true);
+}
+
+/** Files dragged in from the computer, which the drop areas upload: never a card
+ *  or anything else dragged from the page itself. */
+export function fromComputer(transfer: DataTransfer | null | undefined): boolean {
+  if (!transfer || fromPage) return false;
+  const types = [...transfer.types];
+  return types.includes("Files") && !types.includes(FILE_DRAG);
+}
+
 /** A drop target's handlers. Only the innermost target under the pointer takes
  *  the drag (a section, not its stage around it): `onOver` names it, for the
  *  page to mark it, and `onLeave` when the pointer leaves it. */

@@ -333,7 +333,12 @@ async def test_hiding_hides_every_version_of_both_sides(client, owner, folders):
     key = (await card(client, "Cozinha"))["key"]
     assert (await act(client, owner, "hide", key)).status_code == 204
     assert [f["name"] for f in await cards(client)] == ["Programa.pdf"]  # no older version shows
-    assert (stage / "_Cozinha (antes).jpg").exists()  # still in Drive
+    # Still in Drive, names unchanged, in the folder's `_arquivados` (A31).
+    assert sorted(p.name for p in (stage / "_arquivados").iterdir()) == [
+        "Cozinha (antes) v2.jpg",
+        "Cozinha (antes).jpg",
+        "Cozinha (depois).jpg",
+    ]
 
 
 async def test_moving_takes_both_sides_to_the_other_stage(client, owner, folders):

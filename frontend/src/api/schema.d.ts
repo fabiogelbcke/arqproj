@@ -2031,8 +2031,8 @@ export interface paths {
         put?: never;
         /**
          * Hide Section
-         * @description "Ocultar seção": the folder stays in Drive with its files, renamed "_name",
-         *     which the page never shows (A05), to staff or clients.
+         * @description "Ocultar seção": the folder, with its files and its name, goes into its
+         *     stage's `_arquivados`, which the page never shows (A05), to staff or clients.
          */
         post: operations["hide_section_api_projects__project_id__stages__position__folders_hide_post"];
         delete?: never;
@@ -2074,12 +2074,36 @@ export interface paths {
         put?: never;
         /**
          * Hide File
-         * @description The file stays in Drive, renamed "_name", which the page doesn't show: every
-         *     version of its document, so the client doesn't see the one before instead;
-         *     and only if the app may rename all of them, checked before any is renamed
-         *     (as a comparison is hidden).
+         * @description The file stays in Drive, moved into `_arquivados` in its folder with its
+         *     name, which the page doesn't show: every version of its document, so the
+         *     client doesn't see the one before instead; and only if the app may move all
+         *     of them, checked before any is moved (as a comparison is hidden).
          */
         post: operations["hide_file_api_pages__slug__files__key__hide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pages/{slug}/files/{key}/rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rename File
+         * @description "Renomear": every version of the document, each keeping its version and
+         *     extension (`Planta Térreo v2.pdf`), since the names are what group them
+         *     (A25); only if the app may rename all of them, checked before any is (as a
+         *     file is hidden). The file keeps its identity, so its comments, updates and
+         *     share links follow it.
+         */
+        post: operations["rename_file_api_pages__slug__files__key__rename_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2161,7 +2185,8 @@ export interface paths {
         put?: never;
         /**
          * Hide Comparison
-         * @description Both sides, every version, stay in Drive renamed "_name" (A05).
+         * @description Both sides, every version, go into `_arquivados` in their folder, their
+         *     names unchanged; the page never shows it (A05).
          */
         post: operations["hide_comparison_api_pages__slug__comparisons__key__hide_post"];
         delete?: never;
@@ -2760,7 +2785,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "not_found" | "method_not_allowed" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "comparison_exists" | "comparison_not_image" | "comparison_title_invalid" | "comparison_label_invalid" | "comparison_not_ours" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "comment_not_found" | "invalid_comment" | "comment_not_yours" | "too_many_comments" | "portfolio_video_refused" | "portfolio_link_invalid" | "portfolio_photo_compared" | "portfolio_section_not_found" | "portfolio_section_exists" | "portfolio_section_not_empty";
+        ErrorCode: "operator_action_conflict" | "operator_action_failed" | "operator_actions_unavailable" | "invalid_setting_text" | "setting_name_taken" | "setting_not_found" | "signup_link_invalid" | "office_address_taken" | "invalid_office_address" | "not_signed_in" | "csrf_token_missing_or_wrong" | "invalid_credentials" | "invalid_request" | "not_found" | "method_not_allowed" | "link_invalid" | "password_too_short" | "current_password_wrong" | "email_unchanged" | "owner_only" | "drive_not_configured" | "signin_not_configured" | "drive_denied" | "drive_link_invalid" | "drive_connect_failed" | "drive_share_failed" | "drive_other_account" | "drive_not_connected" | "drive_expired" | "drive_unreadable" | "invalid_office_name" | "invalid_email" | "logo_wrong_type" | "logo_too_large" | "invalid_project_name" | "invalid_client_name" | "unknown_project_type" | "invalid_custom_type" | "unknown_stage" | "unknown_member" | "feature_off" | "invalid_slug" | "project_name_taken" | "slug_taken" | "project_not_found" | "project_changed" | "invalid_status_change" | "project_has_no_folder" | "project_archived" | "cover_wrong_type" | "cover_too_large" | "cover_photo_not_found" | "page_not_found" | "page_locked" | "page_unavailable" | "wrong_page_password" | "too_many_attempts" | "recipients_full" | "password_required" | "invalid_detail" | "invalid_stage" | "invalid_meeting" | "files_unavailable" | "file_not_found" | "file_too_large" | "version_type_mismatch" | "invalid_file_name" | "hidden_file_name" | "stage_has_no_folder" | "invalid_folder_name" | "folder_exists" | "folder_not_found" | "folder_not_ours" | "upload_failed" | "file_not_ours" | "file_not_ours_to_move" | "file_name_invalid" | "file_name_taken" | "file_not_ours_to_rename" | "comparison_exists" | "comparison_not_image" | "comparison_title_invalid" | "comparison_label_invalid" | "comparison_not_ours" | "invalid_staff_name" | "already_staff" | "not_an_invite" | "join_link_invalid" | "account_exists" | "email_unconfirmed" | "support_account" | "email_code_wrong" | "email_code_expired" | "email_code_recent" | "email_not_sent" | "already_confirmed" | "share_not_found" | "share_too_large" | "share_files_changed" | "share_daily_limit" | "share_locked" | "wrong_share_password" | "proposal_not_found" | "proposal_accepted" | "portfolio_full" | "portfolio_entry_not_found" | "comment_not_found" | "invalid_comment" | "comment_not_yours" | "too_many_comments" | "portfolio_video_refused" | "portfolio_link_invalid" | "portfolio_photo_compared" | "portfolio_section_not_found" | "portfolio_section_exists" | "portfolio_section_not_empty";
         /** ErrorOut */
         ErrorOut: {
             error: components["schemas"]["ErrorCode"];
@@ -3759,13 +3784,6 @@ export interface components {
             /** Subscribed */
             subscribed: boolean;
         };
-        /** RenameIn */
-        RenameIn: {
-            /** Row Version */
-            row_version: number;
-            /** Title */
-            title: string;
-        };
         /** ResetIn */
         ResetIn: {
             /** Email */
@@ -4405,6 +4423,13 @@ export interface components {
             /** Order */
             order: number[];
         };
+        /** RenameIn */
+        backend__web__page_stages__RenameIn: {
+            /** Row Version */
+            row_version: number;
+            /** Title */
+            title: string;
+        };
         /** CheckIn */
         backend__web__page_uploads__CheckIn: {
             /** Row Version */
@@ -4427,6 +4452,11 @@ export interface components {
             position: number;
             /** Folder */
             folder?: string | null;
+        };
+        /** RenameIn */
+        backend__web__page_uploads__RenameIn: {
+            /** Name */
+            name: string;
         };
         /** SectionIn */
         backend__web__page_uploads__SectionIn: {
@@ -10468,7 +10498,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RenameIn"];
+                "application/json": components["schemas"]["backend__web__page_stages__RenameIn"];
             };
         };
         responses: {
@@ -11298,6 +11328,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    rename_file_api_pages__slug__files__key__rename_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["backend__web__page_uploads__RenameIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
             /** @description Service Unavailable */
