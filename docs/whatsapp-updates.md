@@ -161,7 +161,7 @@ businesses' numbers, which offices' own numbers would need later).
 | Phone number | A number not on WhatsApp, confirmed once by SMS or voice call (below) | ~10 min |
 | Display name | "Unio", reviewed by Meta | Usually 1–2 days |
 | Payment method | A card in WhatsApp Manager, billed in **BRL** (below) | ~5 min |
-| Templates | `unio_atualizacao` (button "Abrir o projeto"), `unio_atualizacao_reuniao` (also "Adicionar à agenda"), `unio_boas_vindas`, `unio_convite` (buttons "Quero receber" / "Não quero"), and the meeting reminders (A48) `unio_lembrete_reuniao` ("Abrir o projeto") and `unio_lembrete_video` ("Entrar na reunião"), in the approved Portuguese texts (reminders: below). Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
+| Templates | `unio_projeto_atualizado` (button "Abrir o projeto"), `unio_projeto_atualizado_reuniao` (also "Adicionar à agenda"), `unio_cadastro_confirmado`, `unio_confirmar_cadastro` (buttons "Quero receber" / "Não quero"), and the meeting reminders (A48) `unio_lembrete_reuniao` ("Abrir o projeto"), `unio_lembrete_local` (also "Ver no mapa") and `unio_lembrete_video` ("Entrar na reunião"), as submitted (below). Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
 | Access token and webhook | A permanent token in Secret Manager, our webhook registered with Meta | Part of the coding |
 | Business verification (later) | Below | A few days to ~2 weeks |
 
@@ -184,16 +184,23 @@ deleted: an unverified business has room for 2 numbers.
 **Templates as submitted (26 Nov 2026)**, pt_BR, Utility. Meta refuses a body
 that starts or ends with a variable, or has two variables with only spaces or
 punctuation between them, so the texts approved on 9 Nov were reworded
-(`test_whatsapp.py` checks ours). The footer "Para não receber mais estas
+(`test_whatsapp.py` checks ours). Meta's automatic check also put the first
+versions of the updates, the welcome and the question in **Marketing**
+(`unio_atualizacao`, `unio_atualizacao_reuniao`, `unio_boas_vindas`,
+`unio_convite`: about 9× the price, and capped per person), though they are
+event-driven notices; they were redone under the names below, worded like Meta's
+Utility examples ("account alerts or updates", an opt-in confirmed), and the
+old four are not used. Should one still come back Marketing, request a review in
+Business Support Home → Template Category Updates (60 days). The footer "Para não receber mais estas
 mensagens, responda SAIR." goes on the welcome and the updates only; every link
 button opens `https://myunio.app/w/{{1}}`.
 
 | Template | Text | Footer | Buttons |
 | --- | --- | --- | --- |
-| `unio_atualizacao` | Olá! Você tem novidades no projeto {{1}}, do escritório {{2}}. Veja o que mudou: {{3}}. Confira os detalhes na página do projeto. | Yes | Abrir o projeto |
-| `unio_atualizacao_reuniao` | (the same) | Yes | Abrir o projeto, Adicionar à agenda |
-| `unio_boas_vindas` | Olá! Este número vai receber pelo WhatsApp as atualizações do projeto {{1}}, de {{2}}: arquivos novos, etapas e reuniões. | Yes | none |
-| `unio_convite` | Olá! {{1}} cadastrou este número para receber pelo WhatsApp as atualizações do projeto {{2}}: arquivos novos, etapas e reuniões. Deseja receber? | No | Quero receber, Não quero (quick replies) |
+| `unio_projeto_atualizado` | Olá! O projeto {{1}}, de {{2}}, foi atualizado. O que mudou: {{3}}. Confira os detalhes na página do projeto. | Yes | Abrir o projeto |
+| `unio_projeto_atualizado_reuniao` | (the same) | Yes | Abrir o projeto, Adicionar à agenda |
+| `unio_cadastro_confirmado` | Olá! Cadastro confirmado: você vai receber aqui as atualizações do projeto {{1}}, de {{2}}, sobre arquivos, etapas e reuniões. | Yes | none |
+| `unio_confirmar_cadastro` | Olá! {{1}} cadastrou este número para receber as atualizações do projeto {{2}} pelo WhatsApp. Confirma que deseja receber? | No | Quero receber, Não quero (quick replies) |
 | `unio_lembrete_reuniao` | Olá! Este é um lembrete da reunião {{1}} do projeto {{2}}, de {{3}}, marcada para {{4}}. Os detalhes estão na página do projeto. | No | Abrir o projeto |
 | `unio_lembrete_local` | Olá! Este é um lembrete da reunião {{1}} do projeto {{2}}, de {{3}}, marcada para {{4}}, em {{5}}. Os detalhes estão na página do projeto. | No | Abrir o projeto, Ver no mapa |
 | `unio_lembrete_video` | Olá! A reunião {{1}} do projeto {{2}}, de {{3}}, começa às {{4}}. Use o botão abaixo para entrar. | No | Entrar na reunião |

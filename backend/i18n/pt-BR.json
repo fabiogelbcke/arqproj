@@ -817,10 +817,10 @@
       "resetIgnore": "Se não foi você quem pediu, ignore este e-mail: sua senha continua a mesma."
   },
   "whatsapp": {
-    "update": "Olá! Você tem novidades no projeto {{project}}, do escritório {{office}}. Veja o que mudou: {{news}}. Confira os detalhes na página do projeto.",
+    "update": "Olá! O projeto {{project}}, de {{office}}, foi atualizado. O que mudou: {{news}}. Confira os detalhes na página do projeto.",
     "footer": "Para não receber mais estas mensagens, responda SAIR.",
-    "welcome": "Olá! Este número vai receber pelo WhatsApp as atualizações do projeto {{project}}, de {{office}}: arquivos novos, etapas e reuniões.",
-    "invite": "Olá! {{office}} cadastrou este número para receber pelo WhatsApp as atualizações do projeto {{project}}: arquivos novos, etapas e reuniões. Deseja receber?",
+    "welcome": "Olá! Cadastro confirmado: você vai receber aqui as atualizações do projeto {{project}}, de {{office}}, sobre arquivos, etapas e reuniões.",
+    "invite": "Olá! {{office}} cadastrou este número para receber as atualizações do projeto {{project}} pelo WhatsApp. Confirma que deseja receber?",
     "inviteYes": "Quero receber",
     "inviteNo": "Não quero",
     "accepted": "Pronto! Você vai receber aqui as atualizações do projeto {{project}}. Para parar, responda SAIR.",

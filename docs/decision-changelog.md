@@ -48,18 +48,28 @@ does not, which was accepted.
 {{office}}: {{news}}.", the question "Olá! O {{office}} cadastrou…", and every
 message was to say how to stop.
 
-**Now:** "Olá! Você tem novidades no projeto {{project}}, do escritório
-{{office}}. Veja o que mudou: {{news}}. Confira os detalhes na página do
-projeto."; the welcome says "…do projeto {{project}}, de {{office}}: …"; the
-question "Olá! {{office}} cadastrou…". The footer "Para não receber mais estas
-mensagens, responda SAIR." goes on the welcome and the updates only.
+**Now:** "Olá! O projeto {{project}}, de {{office}}, foi atualizado. O que
+mudou: {{news}}. Confira os detalhes na página do projeto."; the welcome
+"Olá! Cadastro confirmado: você vai receber aqui as atualizações do projeto
+{{project}}, de {{office}}, sobre arquivos, etapas e reuniões."; the question
+"Olá! {{office}} cadastrou este número para receber as atualizações do projeto
+{{project}} pelo WhatsApp. Confirma que deseja receber?". The templates are
+`unio_projeto_atualizado`, `unio_projeto_atualizado_reuniao`,
+`unio_cadastro_confirmado` and `unio_confirmar_cadastro`. The footer "Para não
+receber mais estas mensagens, responda SAIR." goes on the welcome and the
+updates only.
 
 **Why:** creating the templates (26 Nov 2026), Meta refused a body ending in a
 variable or with two variables separated only by punctuation, which the update
 had. The other wording and the footer's place are Fabio's, the same day: the
 welcome and the updates are what a client gets most, where a way out heads off
 blocks and reports; the question has its "Não quero". Replying SAIR works on any
-message.
+message. A first rewording ("Olá! Você tem novidades no projeto…",
+the welcome and the question nearly as before) passed those rules, but Meta's
+automatic check put all four in Marketing, about 9× the price and capped per
+person, though they are notices of the client's own project. Reworded after
+Meta's Utility examples (an update to a subscribed service, an opt-in
+confirmed) under new names, so each is reviewed afresh.
 
 ---
 

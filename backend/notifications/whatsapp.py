@@ -35,11 +35,11 @@ log = logging.getLogger(__name__)
 
 GRAPH_URL = "https://graph.facebook.com/{version}/{number}/messages"
 # The templates' names at Meta, and their languages there.
-UPDATE_TEMPLATE = "unio_atualizacao"  # button: "Abrir o projeto"
+UPDATE_TEMPLATE = "unio_projeto_atualizado"  # button: "Abrir o projeto"
 # With a meeting scheduled or changed: "Adicionar à agenda" too.
-UPDATE_MEETING_TEMPLATE = "unio_atualizacao_reuniao"
-WELCOME_TEMPLATE = "unio_boas_vindas"
-INVITE_TEMPLATE = "unio_convite"
+UPDATE_MEETING_TEMPLATE = "unio_projeto_atualizado_reuniao"
+WELCOME_TEMPLATE = "unio_cadastro_confirmado"
+INVITE_TEMPLATE = "unio_confirmar_cadastro"
 # Meeting reminders (A48): the day's ("Abrir o projeto"), the day's for a meeting
 # with a place ("Ver no mapa" too), and before a video meeting ("Entrar na reunião").
 REMINDER_TEMPLATE = "unio_lembrete_reuniao"
