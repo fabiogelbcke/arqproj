@@ -1,6 +1,6 @@
 """The longest text staff can enter in each field, how many client addresses a
-project keeps, how much a share link holds and how many names an upload's version
-check takes: the limits the server enforces.
+project keeps, how much a share link holds, how many names an upload's version
+check takes and the largest amount a proposal takes: the limits the server enforces.
 
 `make api-types` writes them to `frontend/src/api/limits.json`, which the screens'
 inputs (maxLength) and the preview page read. So a limit changes here, in the
@@ -70,6 +70,7 @@ FIELD_LIMITS: dict[str, int] = {
     "proposalServices": proposal.SERVICES_MAX,
     "proposalPayments": proposal.PAYMENTS_MAX,
     "proposalNotIncluded": proposal.NOT_INCLUDED_MAX,
+    "proposalAmount": proposal.AMOUNT_MAX,  # in centavos: a fee's, an instalment's
     "serviceTitle": SERVICE_TITLE_MAX,
     "serviceDescription": SERVICE_DESCRIPTION_MAX,
 }

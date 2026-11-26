@@ -17,6 +17,7 @@ import { Button } from "../ui/Button";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { DialogFrame } from "../ui/DialogFrame";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { BeforeAfter } from "../ui/BeforeAfter";
 import { IconButton } from "../ui/IconButton";
 import { Panel } from "../ui/Panel";
@@ -24,13 +25,16 @@ import { ProgressBar } from "../ui/ProgressBar";
 import { SelectField } from "../ui/SelectField";
 import { TextAreaField, TextField } from "../ui/TextField";
 import { toast, toastError, toastProblem } from "../ui/Toast";
+import { useUnsavedChangesGuard } from "../ui/useUnsavedChangesGuard";
 import {
   LIMITS,
   PORTFOLIO,
   SUGGESTED_LINES,
   VIDEO_TYPES,
+  fileNames,
   moved,
   parsedArea,
+  PHOTO_TYPES,
   resized,
   sendVideo,
   useAddPhoto,
@@ -45,6 +49,7 @@ import {
   type Entry,
   type Section,
   type SheetLine,
+  UnreadableImage,
 } from "./portfolio";
 import { useFeature } from "../session/session";
 import { ProjectChoice, SeePortfolio } from "./PortfolioPage";
@@ -73,7 +78,7 @@ export function PortfolioEntryPage() {
           </div>
         )}
       </div>
-      {portfolio.error ? (
+      {loadError(portfolio) ? (
         <ErrorNotice error={portfolio.error} />
       ) : !portfolio.data ? (
         <p className={styles.hint}>{t("app.loading")}</p>
@@ -155,6 +160,7 @@ function Details({ entry, sections }: { entry: Entry; sections: Section[] }) {
     kind !== (entry.section_id ?? "") ||
     JSON.stringify(lines) !== JSON.stringify(entry.details.map(sentLine)) ||
     credits.trim() !== entry.credits;
+  const { leaving } = useUnsavedChangesGuard(changed);
   return (
     <Panel className={`${styles.section} ${styles.words}`} aria-labelledby="portfolio-details">
       <h2 id="portfolio-details">{t("portfolio.details")}</h2>
@@ -255,6 +261,17 @@ function Details({ entry, sections }: { entry: Entry; sections: Section[] }) {
       >
         {t("portfolio.save")}
       </Button>
+      {leaving.state === "blocked" && (
+        <ConfirmDialog
+          title={t("portfolio.leave.ask")}
+          text={t("portfolio.leave.means")}
+          confirm={t("portfolio.leave.confirm")}
+          cancel={t("portfolio.leave.cancel")}
+          danger
+          onCancel={() => leaving.reset()}
+          onConfirm={() => leaving.proceed()}
+        />
+      )}
     </Panel>
   );
 }
@@ -396,7 +413,7 @@ function Sheet({ lines, onChange }: { lines: SheetLine[]; onChange: (lines: Shee
 }
 
 function Photos({ entry }: { entry: Entry }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [params, setParams] = useSearchParams();
   const change = useChangeEntry();
   const remove = useRemovePhoto();
@@ -413,22 +430,37 @@ function Photos({ entry }: { entry: Entry }) {
   // Each comparison's "after" photo, by its id: the "before" photo it goes with.
   const afterOf = new Map(entry.photos.flatMap((photo) => (photo.comparison ? [[photo.comparison.after, photo.id]] : [])));
   const [comparing, setComparing] = useState<string | null>(null); // the "before" photo being paired
+  const [removing, setRemoving] = useState<string | null>(null); // the photo asked about
   const cover = entry.photos.find((photo) => !afterOf.has(photo.id))?.id;
   // Another photo still free to be this one's "after": in no comparison yet.
   const free = (id: string) =>
     entry.photos.some((other) => other.id !== id && !other.comparison && !afterOf.has(other.id));
 
-  /** Each source shrunk and uploaded in turn, so the order is kept. */
+  /** Each source shrunk and uploaded in turn, so the order is kept. One the
+   *  browser can't open is skipped, and named once the others are in. */
   async function upload(sources: { blob: () => Promise<Blob>; name: string }[]) {
     const chosen = sources.slice(0, Math.max(0, room));
+    const unreadable: string[] = [];
+    let added = 0;
     setProgress({ done: 0, total: chosen.length });
     try {
       for (const [index, source] of chosen.entries()) {
-        const file = await resized(await source.blob(), source.name);
+        const blob = await source.blob();
+        let file: File;
+        try {
+          file = await resized(blob, source.name);
+        } catch (failure) {
+          if (!(failure instanceof UnreadableImage)) throw failure;
+          unreadable.push(source.name);
+          continue;
+        }
         await add.mutateAsync({ entry: entry.id, file });
+        added += 1;
         setProgress({ done: index + 1, total: chosen.length });
       }
-      if (chosen.length) toast(t("portfolio.photosAdded", { count: chosen.length }));
+      // One message at a time: the photos left out matter more than the others' arrival, in sight.
+      if (unreadable.length) toastProblem(t("portfolio.photosUnreadable", { names: fileNames(unreadable, i18n.language) }));
+      else if (added) toast(t("portfolio.photosAdded", { count: added }));
       if (sources.length > chosen.length) toast(t("portfolio.tooManyPhotos", { count: LIMITS.photos }));
     } catch (failure) {
       toastError(failure);
@@ -456,7 +488,7 @@ function Photos({ entry }: { entry: Entry }) {
           <input
             ref={input}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept={PHOTO_TYPES.join(",")}
             multiple
             hidden
             onChange={(event) => {
@@ -515,12 +547,7 @@ function Photos({ entry }: { entry: Entry }) {
                 <IconButton
                   label={t("portfolio.removePhoto")}
                   isDisabled={remove.isPending}
-                  onPress={() =>
-                    remove.mutate(photo.id, {
-                      onSuccess: () => toast(t("portfolio.photoRemoved")),
-                      onError: (failure) => toastError(failure),
-                    })
-                  }
+                  onPress={() => setRemoving(photo.id)}
                 >
                   ×
                 </IconButton>
@@ -528,6 +555,23 @@ function Photos({ entry }: { entry: Entry }) {
             </li>
           ))}
         </ol>
+      )}
+      {removing && (
+        <ConfirmDialog
+          title={t("portfolio.removePhotoTitle")}
+          text={t("portfolio.removePhotoText")}
+          confirm={t("portfolio.remove")}
+          danger
+          busy={remove.isPending}
+          onConfirm={() =>
+            remove.mutate(removing, {
+              onSuccess: () => toast(t("portfolio.photoRemoved")),
+              onError: (failure) => toastError(failure),
+              onSettled: () => setRemoving(null),
+            })
+          }
+          onCancel={() => setRemoving(null)}
+        />
       )}
       {comparing && <ComparePhotos entry={entry} before={comparing} onClose={() => setComparing(null)} />}
       {picking && (
@@ -561,6 +605,7 @@ function Videos({ entry }: { entry: Entry }) {
   const remove = useRemoveVideo();
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<{ n: number; total: number; percent: number } | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null); // the video asked about
   const room = LIMITS.videos - entry.videos.length;
 
   /** Each in turn: its poster first, which also shows the browser can play it. */
@@ -664,12 +709,7 @@ function Videos({ entry }: { entry: Entry }) {
                 <IconButton
                   label={t("portfolio.removeVideo")}
                   isDisabled={remove.isPending}
-                  onPress={() =>
-                    remove.mutate(video.id, {
-                      onSuccess: () => toast(t("portfolio.videoRemoved")),
-                      onError: (failure) => toastError(failure),
-                    })
-                  }
+                  onPress={() => setRemoving(video.id)}
                 >
                   ×
                 </IconButton>
@@ -677,6 +717,23 @@ function Videos({ entry }: { entry: Entry }) {
             </li>
           ))}
         </ol>
+      )}
+      {removing && (
+        <ConfirmDialog
+          title={t("portfolio.removeVideoTitle")}
+          text={t("portfolio.removeVideoText")}
+          confirm={t("portfolio.remove")}
+          danger
+          busy={remove.isPending}
+          onConfirm={() =>
+            remove.mutate(removing, {
+              onSuccess: () => toast(t("portfolio.videoRemoved")),
+              onError: (failure) => toastError(failure),
+              onSettled: () => setRemoving(null),
+            })
+          }
+          onCancel={() => setRemoving(null)}
+        />
       )}
     </section>
   );
@@ -795,7 +852,7 @@ function ProjectPhotos({
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [choosing, setChoosing] = useState(false);
   const shown = project ?? projects.data?.find((item) => item.id === entry.project_id) ?? null;
-  if (!projects.data) return null;
+  // Until the projects are in (or if they fail), the choice: it says it is loading, or what failed.
   if (choosing || !shown) {
     return (
       <ProjectChoice
@@ -856,7 +913,7 @@ function ImagePicker({
     <DialogFrame title={t("portfolio.pickTitle", { name: project.name })} onClose={onClose}>
       <div className={styles.dialogBody}>
         <p className={styles.hint}>{t("portfolio.pickHint")}</p>
-        {files.error ? (
+        {loadError(files) ? (
           <ErrorNotice error={files.error} />
         ) : !files.data ? (
           <p className={styles.hint}>{t("app.loading")}</p>

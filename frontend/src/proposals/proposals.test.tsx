@@ -10,6 +10,7 @@ import {
   formatAmount,
   instalments,
   parseAmount,
+  typedAmount,
   type Generator,
   type ProposalView,
 } from "./proposals";
@@ -65,6 +66,13 @@ describe("amounts as typed", () => {
       expect(parseAmount(typed, "pt-BR")).toBeNull();
     },
   );
+
+  it("takes no more than the largest amount a proposal holds (R$ 99.999.999,99)", () => {
+    expect(typedAmount("9999999999", "pt-BR")).toBe("99.999.999,99");
+    expect(typedAmount("99999999999", "pt-BR")).toBe("99.999.999,99"); // the extra digit isn't taken
+    expect(parseAmount("99.999.999,99", "pt-BR")).toBe(9_999_999_999);
+    expect(parseAmount("100.000.000,00", "pt-BR")).toBeNull();
+  });
 
   it("shows centavos as the field writes them", () => {
     expect(formatAmount(2_900_000, "pt-BR")).toBe("29.000,00");
@@ -1032,6 +1040,54 @@ describe("the proposal generator", () => {
       screen.getByRole("button", { name: "Salvar proposta" }),
     );
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/casa-jardim"));
+  });
+
+  it("stops at the largest fee the server takes, so saving never fails over it", async () => {
+    generator();
+    const fee = await screen.findByLabelText(/Valor total/);
+    await userEvent.type(fee, "123456789012");
+    expect(fee).toHaveValue("12.345.678,90");
+  });
+
+  it("names a services-not-included line too long, or too many lines, before saving", async () => {
+    const sent = generator(SAVED);
+    await userEvent.type(await screen.findByLabelText(/Valor total/), "29.000,00");
+    const field = screen.getByLabelText("Serviços não incluídos");
+    await userEvent.click(field);
+    await userEvent.paste(`Mobiliário\n${"x".repeat(81)}`);
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Serviços não incluídos: a linha 2 passa de 80 caracteres.",
+    );
+    expect(field).toHaveAttribute("aria-invalid", "true"); // the field says so as it is typed
+    expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(false);
+
+    await userEvent.clear(field);
+    await userEvent.paste(Array.from({ length: 21 }, (_, i) => `Item ${i + 1}`).join("\n"));
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Serviços não incluídos: no máximo 20 linhas.",
+    );
+    expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(false);
+
+    await userEvent.type(field, "{Backspace}{Backspace}{Backspace}{Backspace}{Backspace}{Backspace}{Backspace}{Backspace}");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar proposta" }));
+    await waitFor(() => expect(sent.some((r) => r.path.endsWith("/proposals"))).toBe(true));
+    const body = sent.find((r) => r.path.endsWith("/proposals"))!.body as { not_included: string[] };
+    expect(body.not_included).toHaveLength(20);
+  });
+
+  it("previews without a line the server would refuse, instead of keeping an old preview", async () => {
+    const sent = generator();
+    const field = await screen.findByLabelText("Serviços não incluídos");
+    await userEvent.click(field);
+    await userEvent.paste(`Mobiliário\n${"x".repeat(81)}`);
+    const previewed = () =>
+      sent
+        .filter((r) => r.path.endsWith("/preview-page"))
+        .map((r) => (r.body as { not_included: string[] }).not_included);
+    await waitFor(() => expect(previewed()).toContainEqual(["Mobiliário"]));
+    expect(previewed().every((lines) => lines.every((line) => line.length <= 80))).toBe(true);
   });
 
   it("types amounts as currency, the digits as centavos", async () => {
