@@ -126,6 +126,14 @@ class PortfolioSection(IdMixin, TimestampsMixin, TenantOwned, Base):
         # Lets entries reference (tenant_id, id): always the same office.
         UniqueConstraint("tenant_id", "id", name="uq_portfolio_sections_tenant_id_id"),
         UniqueConstraint("tenant_id", "slug", name="uq_portfolio_sections_tenant_id_slug"),
+        # One section per place; deferred, so a reorder can swap places.
+        UniqueConstraint(
+            "tenant_id",
+            "position",
+            name="uq_portfolio_sections_tenant_id_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
         # One section per type in an office.
         Index(
             "uq_portfolio_sections_project_type",
@@ -176,6 +184,14 @@ class PortfolioEntry(IdMixin, TimestampsMixin, TenantOwned, Base):
         ),
         # Lets photos reference (tenant_id, id): always the same office.
         UniqueConstraint("tenant_id", "id", name="uq_portfolio_entries_tenant_id_id"),
+        # One piece per place; deferred, so all can move down a place at once.
+        UniqueConstraint(
+            "tenant_id",
+            "position",
+            name="uq_portfolio_entries_tenant_id_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
         CheckConstraint("position >= 1", name="position_positive"),
         CheckConstraint(f"length(title) <= {TITLE_MAX}", name="title_length"),
         CheckConstraint(f"length(place) <= {PLACE_MAX}", name="place_length"),
@@ -270,6 +286,13 @@ class PortfolioPhoto(IdMixin, CreatedAtMixin, TenantOwned, Base):
             ondelete="CASCADE",
         ),
         UniqueConstraint("tenant_id", "id", name="uq_portfolio_photos_tenant_id_id"),
+        UniqueConstraint(
+            "entry_id",
+            "position",
+            name="uq_portfolio_photos_entry_id_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "compare_photo_id"],
             ["portfolio_photos.tenant_id", "portfolio_photos.id"],
@@ -317,6 +340,16 @@ class PortfolioVideo(IdMixin, CreatedAtMixin, TenantOwned, Base):
             name="fk_portfolio_videos_entry",
             ondelete="CASCADE",
         ),
+        UniqueConstraint(
+            "entry_id",
+            "position",
+            name="uq_portfolio_videos_entry_id_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        # A file is one video: removing one of two rows sharing it would trash
+        # the file the other plays.
+        UniqueConstraint("tenant_id", "file_id", name="uq_portfolio_videos_tenant_id_file_id"),
         CheckConstraint("position >= 1", name="position_positive"),
         enum_check("video_type", VideoType),
         enum_check("poster_type", CoverType),

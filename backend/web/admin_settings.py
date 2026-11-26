@@ -23,7 +23,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from backend.operators import actions, catalog
 from backend.projects.enums import ProjectType
-from backend.projects.models import ProjectTypeDef, StageDef
+from backend.projects.models import STAGE_TITLE_MAX, ProjectTypeDef, StageDef
 from backend.tenancy.models import Locale
 from backend.web.admin import (
     _action_failure,
@@ -130,7 +130,7 @@ async def _catalog(request: Request) -> SiteCatalogOut:
         can_change=getattr(request.app.state, "operator_sessionmaker", None) is not None,
         limits={
             "typeLabel": catalog.TYPE_LABEL_MAX,
-            "stageTitle": catalog.STAGE_TITLE_MAX,
+            "stageTitle": STAGE_TITLE_MAX,
             "stageAbout": catalog.STAGE_ABOUT_MAX,
         },
     )
@@ -220,7 +220,7 @@ class NewSiteStageIn(BaseModel):
 async def new_stage(
     body: NewSiteStageIn, request: Request, operator: dict = Depends(operator_with_csrf)
 ) -> SiteCatalogOut:
-    titles = _checked(body.titles, catalog.STAGE_TITLE_MAX)
+    titles = _checked(body.titles, STAGE_TITLE_MAX)
     about = _checked(body.about, catalog.STAGE_ABOUT_MAX)
 
     async def change(db):
@@ -239,7 +239,7 @@ class SiteStageIn(BaseModel):
 async def change_stage(
     key: str, body: SiteStageIn, request: Request, operator: dict = Depends(operator_with_csrf)
 ) -> SiteCatalogOut:
-    titles = _checked(body.titles, catalog.STAGE_TITLE_MAX)
+    titles = _checked(body.titles, STAGE_TITLE_MAX)
     about = _checked(body.about, catalog.STAGE_ABOUT_MAX)
 
     async def change(db):

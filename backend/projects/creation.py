@@ -291,12 +291,13 @@ async def create_project(
             except Exception:  # the original failure is what matters
                 log.exception("could not trash new folder %s", project_folder)
         if isinstance(error, IntegrityError):
-            if "creation_key" in str(error.orig):  # the same request, sent twice at once
+            broken = error.orig.diag.constraint_name  # the rule, not words in the message
+            if broken == "uq_projects_tenant_id_creation_key":  # the same request, sent twice
                 found = await db.scalar(
                     select(Project).where(Project.creation_key == new.creation_key)
                 )
                 if found is not None:
                     return found
-            if "slug" in str(error.orig):
+            if broken == "uq_project_slugs_tenant_id_slug":
                 raise CreationProblem(ErrorCode.SLUG_TAKEN) from None  # taken in the meantime
         raise
