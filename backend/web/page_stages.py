@@ -49,7 +49,7 @@ from backend.projects.models import (
 from backend.storage.google_connect import ConnectError
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
-from backend.web.auth import CurrentStaff, require_csrf
+from backend.web.access import changeable_project
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_edit import _change
 from backend.web.projects import _folders
@@ -187,7 +187,7 @@ async def add_stage(
     request: Request,
     project_id: uuid.UUID,
     body: NewStageIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    current: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -210,7 +210,6 @@ async def add_stage(
     if await _named_like_another(db, stages, title, tenant.locale):
         raise ApiError(409, ErrorCode.STAGE_NAME_TAKEN)
     # The Drive connection first: getting it may itself save (an expired grant).
-    current = await _project(db, project_id)
     maker = await _maker(request, db, current)
     reopens = current.status is ProjectStatus.COMPLETED
     project = await _change(
@@ -258,7 +257,7 @@ async def rename_stage(
     project_id: uuid.UUID,
     position: int,
     body: RenameIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -272,7 +271,7 @@ async def rename_stage(
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
     if await _named_like_another(db, stages, title, tenant.locale, but=stage):
         raise ApiError(409, ErrorCode.STAGE_NAME_TAKEN)
-    maker = await _maker(request, db, await _project(db, project_id))
+    maker = await _maker(request, db, project)
     project = await _change(db, project_id, body.row_version)
     old_title = await _title(db, stage, tenant.locale)
     about = stage.about
@@ -317,7 +316,7 @@ async def move_stage(
     project_id: uuid.UUID,
     position: int,
     body: MoveIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -326,7 +325,7 @@ async def move_stage(
     other_position = position + body.direction
     if position not in stages or other_position not in stages:
         raise ApiError(422, ErrorCode.INVALID_STAGE)
-    maker = await _maker(request, db, await _project(db, project_id))
+    maker = await _maker(request, db, project)
     await _change(db, project_id, body.row_version)
     moving, other = stages[position], stages[other_position]
     moving_title = await _title(db, moving, tenant.locale)
@@ -372,7 +371,7 @@ async def reorder_stages(
     request: Request,
     project_id: uuid.UUID,
     body: OrderIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -381,7 +380,7 @@ async def reorder_stages(
     stages = {s.position: s for s in await _stages(db, project_id)}
     if sorted(body.order) != sorted(stages):
         raise ApiError(422, ErrorCode.INVALID_STAGE)  # each stage once, none missing
-    maker = await _maker(request, db, await _project(db, project_id))
+    maker = await _maker(request, db, project)
     await _change(db, project_id, body.row_version)
     moves = [(stages[old], old, new) for new, old in enumerate(body.order, start=1) if old != new]
     titles = {stage.id: await _title(db, stage, tenant.locale) for stage, _, _ in moves}
@@ -414,7 +413,7 @@ async def remove_stage(
     project_id: uuid.UUID,
     position: int,
     row_version: int,
-    _staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -424,7 +423,7 @@ async def remove_stage(
     removed = next((s for s in stages if s.position == position), None)
     if removed is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
-    maker = await _maker(request, db, await _project(db, project_id))
+    maker = await _maker(request, db, project)
     await _change(db, project_id, row_version)
     later = [s for s in stages if s.position > position]
     titles = {s.id: await _title(db, s, tenant.locale) for s in later}
@@ -466,7 +465,7 @@ async def set_completion(
     project_id: uuid.UUID,
     position: int,
     body: CompletionIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
@@ -541,7 +540,7 @@ async def complete_project(
     request: Request,
     project_id: uuid.UUID,
     body: ProjectCompletionIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """ "Concluir projeto": an active project whose stages are all completed. Staff
@@ -557,8 +556,6 @@ async def complete_project(
 async def _finish(db: AsyncSession, project_id: uuid.UUID, row_version: int) -> None:
     project = await _project(db, project_id)
     stages = await _stages(db, project_id)
-    if project.status is ProjectStatus.ARCHIVED:
-        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)  # as every change (section 22)
     if project.status is not ProjectStatus.ACTIVE or any(s.completed_at is None for s in stages):
         raise ApiError(422, ErrorCode.INVALID_STATUS_CHANGE)
     values = {"status": ProjectStatus.COMPLETED, "last_activity_at": datetime.now(UTC)}
@@ -581,7 +578,7 @@ class ProgressIn(BaseModel):
 async def progress(
     project_id: uuid.UUID,
     body: ProgressIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:

@@ -148,14 +148,16 @@ class ProjectIn(BaseModel):
     project_type: str = Field(max_length=100)
     # "Outro"'s name (2 Nov 2026); ignored for a built-in type.
     custom_type: str | None = Field(default=None, max_length=500)
-    stages: list[str] = Field(max_length=50)
+    stages: list[Annotated[str, Field(max_length=100)]] = Field(max_length=50)
     # The office's own stages, named as typed: after the built-in ones.
     custom_stages: list[Annotated[str, Field(max_length=STAGE_TITLE_MAX)]] = Field(
         default=[], max_length=20
     )
     slug: str = Field(max_length=200)
     # The client's addresses for updates (A32), optional.
-    recipients: list[str] = Field(default=[], max_length=RECIPIENTS_MAX)
+    recipients: list[Annotated[str, Field(max_length=500)]] = Field(
+        default=[], max_length=RECIPIENTS_MAX
+    )
     # "Começa como proposta" (A42): the page shows only the proposal until accepted.
     proposal: bool = False
     # Made by the screen once per dialog: a retried or double-sent request
@@ -403,7 +405,7 @@ async def new_project(
     except CreationProblem as problem:
         taken = problem.code in (ErrorCode.SLUG_TAKEN, ErrorCode.PROJECT_NAME_TAKEN)
         status = 409 if taken else 422
-        raise ApiError(status, ErrorCode(problem.code), problem.conflict_name) from None
+        raise ApiError(status, problem.code, problem.conflict_name) from None
     except ConnectError as error:
         log.error("creating project folders failed for %s: %s", tenant.slug, error.detail)
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None

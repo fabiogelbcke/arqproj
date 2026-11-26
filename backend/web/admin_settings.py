@@ -15,7 +15,7 @@ answers with both lists as they now are.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
@@ -146,7 +146,7 @@ async def _change(request: Request, operator: dict, change) -> SiteCatalogOut:
             await db.commit()
     except catalog.CatalogProblem as problem:
         status = 409 if problem.code == ErrorCode.SETTING_NAME_TAKEN else 422
-        raise ApiError(status, ErrorCode(problem.code)) from None
+        raise ApiError(status, problem.code) from None
     except SQLAlchemyError as error:  # e.g. two operators adding the same key at once
         raise _action_failure(request, "settings", error) from None
     return await _catalog(request)
@@ -251,7 +251,7 @@ async def change_stage(
 
 class SiteOrderIn(BaseModel):
     kind: Literal["types", "stages"]
-    keys: list[str] = Field(max_length=500)
+    keys: list[Annotated[str, Field(max_length=100)]] = Field(max_length=500)
 
 
 @router.put(f"{PREFIX}/order", responses=documented(401, 403, 404, 422, 503))
@@ -271,4 +271,4 @@ def _checked(given: SiteTexts, limit: int) -> dict[str, str]:
     try:
         return catalog.texts(given.pt, given.en, limit)
     except catalog.CatalogProblem as problem:
-        raise ApiError(422, ErrorCode(problem.code)) from None
+        raise ApiError(422, problem.code) from None
