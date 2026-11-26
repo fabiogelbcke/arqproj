@@ -46,6 +46,7 @@ from backend.web.page_uploads import (
     _listing_failed,
     _section,
     _stage_for_upload,
+    archive_folder,
     local_upload_url,
     upload_origin,
 )
@@ -322,14 +323,21 @@ async def hide_comparison(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """Both sides, every version, stay in Drive renamed "_name" (A05)."""
+    """Both sides, every version, go into `_arquivados` in their folder, their
+    names unchanged; the page never shows it (A05)."""
     project = await _readable(db, slug, staff, request)
     await _changeable(db, project.id)
-    _reader, _listed, comparison, _found = await _comparison_at(request, db, tenant, project, key)
+    reader, _listed, comparison, found = await _comparison_at(request, db, tenant, project, key)
+    archive: list[str] = []  # made once, by the first file moved
 
     async def hide(maker, item):
-        hidden = await maker.rename(item.id, f"_{item.name}")
-        return lambda: maker.rename(hidden, item.name)
+        if not archive:
+            try:
+                archive.append(await archive_folder(maker, reader, found["f"]))
+            except StorageError as error:
+                raise _listing_failed(error, tenant, project.id, found.get("s")) from None
+        moved = await maker.move(item.id, archive[0])
+        return lambda: maker.move(moved, found["f"])  # back where the page listed it
 
     await _change(request, db, tenant, project, comparison, "hiding", hide)
     capture(request, "comparison_hidden")

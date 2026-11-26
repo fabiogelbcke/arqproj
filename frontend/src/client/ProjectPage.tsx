@@ -117,7 +117,8 @@ function usePreview(src: string | null) {
 function Thumb({ slug, fileKey, className }: { slug: string; fileKey: string; className?: string }) {
   const { src, onError } = usePreview(fileSource.address(slug, fileKey, "thumb"));
   if (!src) return null;
-  return <img className={className} src={src} alt="" loading="lazy" onError={onError} />;
+  // Not draggable: a drag that starts on it is the card's (fileDrag), never the picture.
+  return <img className={className} src={src} alt="" loading="lazy" draggable={false} onError={onError} />;
 }
 
 /** React keys for a group's cards that stay put when the page lists again: a
@@ -190,7 +191,7 @@ function FileCard({
           {file.comparison ? (
             <CompareThumb slug={slug} file={file} />
           ) : src ? (
-            <img src={src} alt="" loading="lazy" onError={onError} />
+            <img src={src} alt="" loading="lazy" draggable={false} onError={onError} />
           ) : file.kind === "pdf" ? (
             <span className="sheetthumb" aria-hidden="true" />
           ) : (
