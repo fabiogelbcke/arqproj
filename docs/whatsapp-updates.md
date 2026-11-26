@@ -135,6 +135,19 @@ Estudo Preliminar. Veja em alinea.myunio.app/casa-jardim". The same 45-minute
 batching applies, so one message covers a burst of uploads. No promotional
 text, or it becomes marketing.
 
+**Meeting reminders (A48)**: three more templates, without the "responda SAIR"
+footer (A47 keeps it to the welcome and the updates). Their texts are in the
+table of templates as submitted, below. Examples for Meta: {{1}} "Apresentação
+do layout", {{2}} "Casa Jardim", {{3}} "Alinea Arquitetos", {{4}} "hoje às
+14:00" (or "amanhã às 08:00"; "14:00" for the video one), {{5}} "Rua XV de
+Novembro, 100, Joinville". Until they are approved, a reminder by WhatsApp fails
+and is logged; the email still goes.
+
+**What can change without Meta** ("Configurações" → "Avisos" in the operator
+dashboard): the batching windows, the reminder times, the days before an
+unanswered question is asked again, and which news goes by WhatsApp. Only the
+templates' fixed text needs approval.
+
 ## Setting up with Meta (outside the code)
 
 Both features share this setup. No setup or monthly fee and no App Review (we
@@ -147,10 +160,17 @@ businesses' numbers, which offices' own numbers would need later).
 | Developer app with WhatsApp | Asks for a privacy policy URL; ours mentions WhatsApp first | ~30 min |
 | Phone number | A number not on WhatsApp, confirmed once by SMS or voice call (below) | ~10 min |
 | Display name | "Unio", reviewed by Meta | Usually 1–2 days |
-| Payment method | A card in WhatsApp Manager, or BRL billing | ~5 min |
-| Templates | `unio_projeto_atualizado` (button "Abrir o projeto"), `unio_projeto_atualizado_reuniao` (also "Adicionar à agenda"), `unio_cadastro_confirmado`, `unio_confirmar_cadastro` (buttons "Quero receber" / "Não quero"), in the approved Portuguese texts. Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
+| Payment method | A card in WhatsApp Manager, billed in **BRL** (below) | ~5 min |
+| Templates | `unio_projeto_atualizado` (button "Abrir o projeto"), `unio_projeto_atualizado_reuniao` (also "Adicionar à agenda"), `unio_cadastro_confirmado`, `unio_confirmar_cadastro` (buttons "Quero receber" / "Não quero"), and the meeting reminders (A48) `unio_lembrete_reuniao` ("Abrir o projeto"), `unio_lembrete_local` (also "Ver no mapa") and `unio_lembrete_video` ("Entrar na reunião"), as submitted (below). Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
 | Access token and webhook | A permanent token in Secret Manager, our webhook registered with Meta | Part of the coding |
 | Business verification (later) | Below | A few days to ~2 weeks |
+
+**Billing currency: BRL** (set up 25–26 Nov 2026). Meta bills Brazilian
+accounts in reais through Facebook Brasil, and the currency can't be changed in
+the dashboard once set (only through Meta's Currency Migration API). Brazil-billed
+accounts not in BRL stop delivering messages from 1 July 2027
+([pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing)),
+so a new Messaging account for Unio must be created in BRL too.
 
 **Set up (25–26 Nov 2026).** Business portfolio "Unio", its app "Unio"
 (subscribed to the account's events; still in development mode, no webhook
@@ -181,12 +201,39 @@ button opens `https://myunio.app/w/{{1}}`.
 | `unio_projeto_atualizado_reuniao` | (the same) | Yes | Abrir o projeto, Adicionar à agenda |
 | `unio_cadastro_confirmado` | Olá! Cadastro confirmado: você vai receber aqui as atualizações do projeto {{1}}, de {{2}}, sobre arquivos, etapas e reuniões. | Yes | none |
 | `unio_confirmar_cadastro` | Olá! {{1}} cadastrou este número para receber as atualizações do projeto {{2}} pelo WhatsApp. Confirma que deseja receber? | No | Quero receber, Não quero (quick replies) |
+| `unio_lembrete_reuniao` | Olá! Este é um lembrete da reunião {{1}} do projeto {{2}}, de {{3}}, marcada para {{4}}. Os detalhes estão na página do projeto. | No | Abrir o projeto |
+| `unio_lembrete_local` | Olá! Este é um lembrete da reunião {{1}} do projeto {{2}}, de {{3}}, marcada para {{4}}, em {{5}}. Os detalhes estão na página do projeto. | No | Abrir o projeto, Ver no mapa |
+| `unio_lembrete_video` | Olá! A reunião {{1}} do projeto {{2}}, de {{3}}, começa às {{4}}. Use o botão abaixo para entrar. | No | Entrar na reunião |
 
 English versions wait for an office in English.
 
 **Building needs no number yet.** Meta's free test number, created with the
 app, messages up to 5 numbers we register, which is enough to build and test
 both features.
+
+### An email address of Unio's own
+
+The Meta business portfolio, the number's provider and Google Cloud should
+belong to an address of Unio's, not a person's, so they outlive whoever set
+them up. **Chosen (11 Nov 2026): Zoho Mail's free plan** on myunio.app, the
+cheapest with an inbox of its own and sending. Use its address for the Meta
+portfolio and the number.
+
+The domain's DNS is at GoDaddy. Zoho's records there: its verification TXT,
+MX `mx.zoho.com` (10), `mx2.zoho.com` (20), `mx3.zoho.com` (50), the SPF on
+`myunio.app` (GoDaddy's SPF include, which includes `zohomail.com`) and DKIM at
+`zmail._domainkey`. The app's own emails go out through Resend on
+`send.myunio.app` and `resend._domainkey`, which the inbox doesn't touch: leave
+those records as they are. Another mail service's MX records would take the
+domain's mail from Zoho: one service at a time.
+
+| Option | Cost | Notes |
+| --- | --- | --- |
+| **Zoho Mail Forever Free** | Free | Chosen. Inbox and sending, up to 5 users, 5 GB each; webmail and Zoho's app only (no IMAP) |
+| Zoho Mail Lite | ~US$1 a user a month | Adds IMAP, to read it in Gmail or Apple Mail |
+| Google Workspace Business Starter | ~R$40 a user a month | A Gmail inbox on myunio.app; for when someone else takes the account over |
+| Forwarding (ImprovMX) | Free | Mail reaches an existing Gmail; receive only |
+
 
 ### The number
 
@@ -253,7 +300,7 @@ A second delivery channel on the existing pipeline (plan section 14):
 File uploaded / stage completed
         │
         ▼
-ProjectEvent ──► NotificationBatch (45 min quiet, 2 h max)       ← exists
+ProjectEvent ──► NotificationBatch (45 min quiet, 2 h max: "Avisos")
         │
         ▼  batch due (maintenance, every 10 minutes)
 For each recipient:

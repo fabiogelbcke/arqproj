@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,7 @@ from backend.notifications.models import (
     ProjectWhatsApp,
     WhatsAppDelivery,
     WhatsAppMessageSeen,
+    WhatsAppNews,
     WhatsAppOptOut,
     WhatsAppSource,
     WhatsAppStatus,
@@ -80,6 +82,24 @@ def _when(locale: Locale, starts: datetime) -> str:
         weekday=weekday,
         date=starts.strftime("%d/%m"),
         time=starts.strftime("%H:%M"),
+    )
+
+
+def only(summary: Summary, news: frozenset[WhatsAppNews]) -> Summary:
+    """The update's news that may go by WhatsApp ("Avisos", A48)."""
+    stages = [
+        replace(
+            stage,
+            files=stage.files if WhatsAppNews.FILES in news else 0,
+            progress=stage.progress if WhatsAppNews.STAGES in news else None,
+        )
+        for stage in summary.news
+    ]
+    return replace(
+        summary,
+        news=[stage for stage in stages if stage.files or stage.progress],
+        project_completed=summary.project_completed and WhatsAppNews.PROJECT in news,
+        meeting=summary.meeting if WhatsAppNews.MEETINGS in news else None,
     )
 
 
@@ -453,9 +473,11 @@ async def send_batch(
     batch: NotificationBatch,
     summary: Summary,
     allowed: set[str],
+    news: frozenset[WhatsAppNews] = frozenset(WhatsAppNews),
 ) -> tuple[int, bool]:
     """Send the batch's message to each number still due it: how many went, and
-    whether any is left to try on the next pass."""
+    whether any is left to try on the next pass. Only the `news` that may go by
+    WhatsApp is in it; with none of it, no message (the email goes on its own)."""
     deliveries = list(
         await db.scalars(
             select(WhatsAppDelivery)
@@ -470,8 +492,9 @@ async def send_batch(
     ]
     if not due:
         return 0, False
-    news = news_line(office.locale, summary)
-    if sender is None or not news:
+    summary = only(summary, news)
+    line = news_line(office.locale, summary)
+    if sender is None or not line:
         # WhatsApp not set up here (deployed without Meta's settings), or nothing
         # it can say: the email goes on its own, and the batch isn't held for it.
         return 0, False
@@ -490,7 +513,7 @@ async def send_batch(
         delivery.attempts += 1
         try:
             delivery.provider_id = await sender.send(
-                update_message(office, project, delivery.phone, news, links, callback)
+                update_message(office, project, delivery.phone, line, links, callback)
             )
             delivery.status = DeliveryStatus.SENT
             sent += 1

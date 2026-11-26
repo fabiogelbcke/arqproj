@@ -19,6 +19,29 @@ a new entry too.
 
 ---
 
+## 2026-11-26 — A48: reminders reworded for Meta, no "responda SAIR", a map for meetings with a place
+
+**Was:** two reminder templates, "Olá! Lembrete da reunião {{1}} do projeto
+{{2}}, do {{3}}: {{4}}." and "…começa às {{4}}.", each with the updates' footer;
+a meeting's place showed only in the email ("Local: …").
+
+**Now:** "Olá! Este é um lembrete da reunião {{1}} do projeto {{2}}, de {{3}},
+marcada para {{4}}. Os detalhes estão na página do projeto." and "Olá! A reunião
+{{1}} do projeto {{2}}, de {{3}}, começa às {{4}}. Use o botão abaixo para
+entrar.", without the footer. A day's reminder for a meeting with a place uses a
+third template, `unio_lembrete_local` ("…marcada para {{4}}, em {{5}}…"), whose
+"Ver no mapa" opens Google Maps searching the place as the office typed it; the
+email gets the same link.
+
+**Why:** Meta refused the day's text (a variable at its end, two separated by
+": ", four variables in seven words). Fabio, 26 Nov 2026: "de" rather than "do
+{{3}}", the footer on the welcome and updates only (A47), and a map for
+meetings with a location. A template's buttons are fixed, so the map needs its
+own template. The search uses the place as typed: an address finds it, "Sala 2"
+does not, which was accepted.
+
+---
+
 ## 2026-11-26 — A47: the WhatsApp texts reworded for Meta; "responda SAIR" on the welcome and updates
 
 **Was:** the update read "Olá! Você tem novidades no projeto {{project}}, do
@@ -165,6 +188,30 @@ office's own website (a new setting, and most offices come for the portfolio
 because they have no site) and a redirect to the painel sign-in (a login the
 office's clients can't use). Unio's home still shows there when the office can't
 be read, so the address always answers.
+
+## 2026-11-10 — A48: meeting reminders; A12's windows and A47's resend become settings
+
+**Was:** clients heard of a meeting only when it was scheduled or changed, in
+that batch's email or WhatsApp message. The quiet period and the maximum hold
+were fixed in the code at 45 minutes and 2 hours (A12 said "configurable per
+office", never built), as was the 3 days before an unanswered WhatsApp question
+is asked again (A47), and every kind of news went by WhatsApp.
+
+**Now:** reminders by email and WhatsApp on the meeting's day at 8:30, at 18:00
+the evening before for a meeting starting before 9:30, and 30 minutes before a
+video meeting with an "Entrar na reunião" button. These times, the batching
+windows, the resend wait and which news goes by WhatsApp are one Unio-wide
+setting in the operator dashboard's "Configurações" → "Avisos".
+
+**Why:** Fabio asked for reminders (9 Nov 2026): 8:30 for both kinds, plus 30
+minutes before for video. "Before 8:30 → evening before" was Claude's, widened
+to "less than an hour after 8:30" while building: the pass runs every 10
+minutes, so a meeting at 8:40 would otherwise be reminded at its start or after
+it. Fabio asked for the times to be changeable from the admin panel without
+Meta's approval, which covers only the templates' fixed text. Unio-wide, not
+per office: one place to tune during the pilot; per office can follow.
+
+---
 
 ## 2026-11-10 — A49: comments on files and stages
 

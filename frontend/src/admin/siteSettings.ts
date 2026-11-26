@@ -42,6 +42,24 @@ export const useChangeStage = (key: string) =>
 export const useReorder = () =>
   useChange((body: Schemas["SiteOrderIn"]) => call(api.PUT("/api/admin/settings/order", { body })));
 
+// "Avisos" (A48): batching, reminders and what goes by WhatsApp, for every office.
+export type Notices = Schemas["NoticeSettingsOut"];
+const NOTICES = ["admin", "settings", "notices"] as const;
+/** What may go by WhatsApp, in the order the screen lists it (as the server's). */
+export const NEWS = ["files", "stages", "project", "meetings", "reminders"] as const satisfies readonly Notices["whatsapp_news"][number][];
+
+export function useNotices() {
+  return useQuery({ queryKey: NOTICES, queryFn: () => call(api.GET("/api/admin/settings/notices")) });
+}
+
+export function useChangeNotices() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Schemas["NoticeSettingsIn"]) => call(api.PUT("/api/admin/settings/notices", { body })),
+    onSuccess: (notices) => client.setQueryData(NOTICES, notices),
+  });
+}
+
 /** The list with one item moved a place up (-1) or down (1). */
 export function moved(keys: string[], key: string, by: -1 | 1): string[] {
   const list = [...keys];

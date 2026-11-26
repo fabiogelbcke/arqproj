@@ -62,7 +62,7 @@ describe("Configurações (A44)", () => {
     expect(within(tabs).getByRole("link", { name: "Escritórios" })).not.toHaveAttribute("aria-current");
     await waitFor(() => expect(router.state.location.pathname).toBe("/configuracoes/tipos"));
     const side = screen.getByRole("navigation", { name: "Seções das configurações" });
-    expect(within(side).getAllByRole("link").map((l) => l.textContent)).toEqual(["Tipos de projeto", "Etapas"]);
+    expect(within(side).getAllByRole("link").map((l) => l.textContent)).toEqual(["Tipos de projeto", "Etapas", "Avisos"]);
     expect(screen.getByRole("note")).toHaveTextContent(/valem para todos os escritórios/);
   });
 
