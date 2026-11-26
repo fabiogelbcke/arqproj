@@ -46,6 +46,8 @@ class User(IdMixin, TimestampsMixin, TenantOwned, Base):
         CheckConstraint("email = lower(email) AND email LIKE '%_@_%'", name="email_format"),
         CheckConstraint("length(btrim(name)) > 0", name="name_not_blank"),
         enum_check("role", Role),
+        # A support account never signs in but through an operator (A43).
+        CheckConstraint("NOT support OR password_hash IS NULL", name="support_without_password"),
     )
 
     email: Mapped[str] = mapped_column(Text)

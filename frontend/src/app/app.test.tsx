@@ -245,7 +245,7 @@ describe("signing out, then in as someone else", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Sair" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
-    await userEvent.type(screen.getByLabelText(/E-mail/), BRUNO.email);
+    await userEvent.type(await screen.findByLabelText(/E-mail/), BRUNO.email); // once the sign-in page is up
     await userEvent.type(screen.getByLabelText(/Senha/), "a password");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/"));

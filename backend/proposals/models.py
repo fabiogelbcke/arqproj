@@ -27,6 +27,13 @@ class ProposalServicePreset(IdMixin, TimestampsMixin, TenantOwned, Base):
 
     __tablename__ = "proposal_service_presets"
     __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "position",
+            name="uq_proposal_service_presets_tenant_id_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
         CheckConstraint("position >= 1", name="position_positive"),
         CheckConstraint(
             f"length(btrim(title)) BETWEEN 1 AND {SERVICE_TITLE_MAX}", name="title_length"
