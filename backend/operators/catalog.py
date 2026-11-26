@@ -27,6 +27,7 @@ from backend.projects.models import (
     StageDef,
 )
 from backend.tenancy.models import Locale, Tenant
+from backend.web.errors import ErrorCode
 
 TYPE_LABEL_MAX = 40  # a type's name: it fits its button in the creation form
 STAGE_TITLE_MAX = 80  # as an office's own stage (STAGE_TITLE_MAX in projects.models)
@@ -35,9 +36,9 @@ KEY_MAX = 40
 
 
 class CatalogProblem(Exception):
-    """A change the lists refuse; `code` is an ErrorCode value."""
+    """A change the lists refuse."""
 
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: ErrorCode) -> None:
         super().__init__(code)
         self.code = code
 
@@ -46,7 +47,7 @@ def texts(pt: str, en: str, limit: int) -> dict[str, str]:
     """Both languages, trimmed; English left blank takes the Portuguese."""
     pt, en = pt.strip(), en.strip()
     if not pt or len(pt) > limit or len(en) > limit:
-        raise CatalogProblem("invalid_setting_text")
+        raise CatalogProblem(ErrorCode.INVALID_SETTING_TEXT)
     return {Locale.PT_BR.value: pt, Locale.EN.value: en or pt}
 
 
@@ -112,7 +113,7 @@ def _same_name(names: list[dict[str, str]], name: str) -> bool:
 async def add_type(db: AsyncSession, labels: dict[str, str]) -> str:
     types = list(await db.scalars(select(ProjectTypeDef)))
     if _same_name([t.labels for t in types], labels[Locale.PT_BR.value]):
-        raise CatalogProblem("setting_name_taken")
+        raise CatalogProblem(ErrorCode.SETTING_NAME_TAKEN)
     key = new_key(labels[Locale.PT_BR.value], {t.key for t in types})
     position = max((t.position for t in types), default=0) + 1
     db.add(ProjectTypeDef(key=key, position=position, labels=labels))
@@ -122,7 +123,7 @@ async def add_type(db: AsyncSession, labels: dict[str, str]) -> str:
 async def add_stage(db: AsyncSession, titles: dict[str, str], about: dict[str, str]) -> str:
     stages = list(await db.scalars(select(StageDef)))
     if _same_name([s.titles for s in stages], titles[Locale.PT_BR.value]):
-        raise CatalogProblem("setting_name_taken")
+        raise CatalogProblem(ErrorCode.SETTING_NAME_TAKEN)
     key = new_key(titles[Locale.PT_BR.value], {s.key for s in stages})
     position = max((s.position for s in stages), default=0) + 1
     db.add(StageDef(key=key, position=position, titles=titles, about=about))
@@ -142,14 +143,14 @@ async def change_type(
     """Its name, whether hidden, and every stage it lists (replacing the list)."""
     kind = await db.get(ProjectTypeDef, key, with_for_update=True)
     if kind is None:
-        raise CatalogProblem("setting_not_found")
+        raise CatalogProblem(ErrorCode.SETTING_NOT_FOUND)
     others = list(await db.scalars(select(ProjectTypeDef).where(ProjectTypeDef.key != key)))
     if _same_name([t.labels for t in others], labels[Locale.PT_BR.value]):
-        raise CatalogProblem("setting_name_taken")
+        raise CatalogProblem(ErrorCode.SETTING_NAME_TAKEN)
     keys = [row.key for row in listed]
     known = set(await db.scalars(select(StageDef.key).where(StageDef.key.in_(keys))))
     if len(set(keys)) != len(keys) or known != set(keys):
-        raise CatalogProblem("setting_not_found")
+        raise CatalogProblem(ErrorCode.SETTING_NOT_FOUND)
     if key == ProjectType.OTHER:
         # It lists every stage: only the ticked ones are kept.
         listed = [row for row in listed if row.usual]
@@ -166,10 +167,10 @@ async def change_stage(
 ) -> None:
     stage = await db.get(StageDef, key, with_for_update=True)
     if stage is None:
-        raise CatalogProblem("setting_not_found")
+        raise CatalogProblem(ErrorCode.SETTING_NOT_FOUND)
     others = list(await db.scalars(select(StageDef).where(StageDef.key != key)))
     if _same_name([s.titles for s in others], titles[Locale.PT_BR.value]):
-        raise CatalogProblem("setting_name_taken")
+        raise CatalogProblem(ErrorCode.SETTING_NAME_TAKEN)
     stage.titles, stage.about, stage.hidden = titles, about, hidden
 
 
@@ -177,6 +178,6 @@ async def reorder(db: AsyncSession, model: type[ProjectTypeDef] | type[StageDef]
     """Every type (or stage) in the order given: all of them, each once."""
     rows = {row.key: row for row in await db.scalars(select(model).with_for_update())}
     if len(keys) != len(set(keys)) or set(keys) != set(rows):
-        raise CatalogProblem("setting_not_found")
+        raise CatalogProblem(ErrorCode.SETTING_NOT_FOUND)
     for position, key in enumerate(keys, start=1):
         rows[key].position = position

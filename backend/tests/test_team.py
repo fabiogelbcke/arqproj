@@ -200,15 +200,20 @@ async def test_when_the_email_cannot_go_the_invite_stands_and_says_so(client, ow
 
 
 async def test_members_see_the_team_but_only_owners_invite(client, owner, db_session, sent):
+    pending = (await invite(client, owner, email="ana@alinea.example")).json()["member"]["id"]
     member = await sign_in_as(client, db_session, "rui@alinea.example", Role.MEMBER)
     team_now = (await client.get("/api/team", headers=member)).json()
     assert team_now["can_manage"] is False
     for response in (
         await invite(client, member),
+        await client.post(f"/api/team/invites/{pending}/link", headers=member),
+        await client.delete(f"/api/team/invites/{pending}", headers=member),
         await client.post("/api/team/join-link", headers=member),
         await client.delete("/api/team/join-link", headers=member),
     ):
         assert (response.status_code, response.json()["error"]) == (403, "owner_only")
+    team_now = (await client.get("/api/team", headers=member)).json()
+    assert pending in {person["id"] for person in team_now["members"]}  # still invited
 
 
 async def test_inviting_needs_a_signed_in_request_with_its_csrf_token(client, owner, sent):

@@ -29,6 +29,7 @@ TENANT_TABLES = (
     "notification_deliveries",
     "share_links",
     "sessions",
+    "comments",
     "project_stages",
     "project_slugs",
     "project_recipients",

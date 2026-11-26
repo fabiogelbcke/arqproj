@@ -275,6 +275,17 @@ async def test_an_archived_project_takes_no_new_cover(client, owner, tmp_path):
     assert not (tmp_path / "Casa Jardim").exists()
 
 
+async def test_an_archived_project_keeps_its_cover(client, owner):
+    """Removing it is a change like any other (plan section 22)."""
+    url = (await upload(client, owner, await project(client), PNG)).json()["cover_url"]
+    archived = (await change(client, owner, await project(client), status="archived")).json()
+    response = await client.delete(f"/api/projects/{archived['id']}/cover", headers=owner)
+    assert (response.status_code, response.json()["error"]) == (409, "project_archived")
+    listed = (await client.get("/api/projects?archived=true", headers=ALINEA)).json()
+    kept = {p["id"]: p for p in listed}[archived["id"]]["cover_url"]
+    assert kept is not None and kept.split("?")[0] == url.split("?")[0]  # its version moves
+
+
 async def test_a_project_without_a_folder_cannot_take_a_cover(client, owner):
     response = await upload(client, owner, await project(client, "casa-das-oliveiras"), PNG)
     assert (response.status_code, response.json()["error"]) == (409, "project_has_no_folder")

@@ -36,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.db.engine import get_tenant_session
 from backend.identity.emails import is_email, tidy_email
-from backend.identity.models import Role, User
+from backend.identity.models import User
 from backend.office.models import LogoType, OfficeProfile
 from backend.office.profile import profile as load_profile
 from backend.projects.enums import ProjectStatus
@@ -63,6 +63,7 @@ from backend.storage.connections import storage_for
 from backend.storage.models import StorageConnection
 from backend.tenancy.models import Feature, Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant
+from backend.web.access import locked_changeable_project, refuse_unless_owner
 from backend.web.auth import CurrentStaff, current_staff, require_csrf
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.projects import ProjectSummary, summaries
@@ -293,9 +294,9 @@ def _office(found: OfficeProfile | None) -> OfficeDetailsOut:
     )
 
 
-async def _project(db: AsyncSession, project_id: uuid.UUID, lock: bool = False) -> Project:
+async def _project(db: AsyncSession, project_id: uuid.UUID) -> Project:
     query = select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
-    project = await db.scalar(query.with_for_update() if lock else query)
+    project = await db.scalar(query)
     if project is None:
         raise ApiError(404, ErrorCode.PROJECT_NOT_FOUND)
     return project
@@ -541,16 +542,14 @@ async def save(
     body: ProposalContent,
     update_office: bool = False,
     staff: CurrentStaff = Depends(require_csrf),
+    # Locked until saved: two saves at once get consecutive versions.
+    project: Project = Depends(locked_changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> VersionOut:
     """The next version. The client page shows it at once (A42: no email)."""
-    if update_office and staff.role is not Role.OWNER:
-        raise ApiError(403, ErrorCode.OWNER_ONLY)
-    # Locked until saved: two saves at once get consecutive versions.
-    project = await _project(db, project_id, lock=True)
-    if project.status is ProjectStatus.ARCHIVED:
-        raise ApiError(409, ErrorCode.PROJECT_ARCHIVED)
+    if update_office:
+        refuse_unless_owner(staff)
     # Accepted, it is what the client agreed to: no new versions (Fabio, 29 Oct 2026).
     if project.status is not ProjectStatus.PROPOSAL:
         raise ApiError(409, ErrorCode.PROPOSAL_ACCEPTED)

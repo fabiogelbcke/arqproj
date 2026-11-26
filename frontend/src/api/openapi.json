@@ -4183,6 +4183,7 @@
       },
       "delete": {
         "summary": "Remove Cover",
+        "description": "The cover goes; an archived project keeps its own, as its other content.",
         "operationId": "remove_cover_api_projects__project_id__cover_delete",
         "parameters": [
           {
@@ -10165,6 +10166,7 @@
         "properties": {
           "email": {
             "type": "string",
+            "maxLength": 500,
             "title": "Email"
           }
         },
@@ -10580,6 +10582,8 @@
           "csrf_token_missing_or_wrong",
           "invalid_credentials",
           "invalid_request",
+          "not_found",
+          "method_not_allowed",
           "link_invalid",
           "password_too_short",
           "current_password_wrong",
@@ -11767,7 +11771,8 @@
           "name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -11778,7 +11783,8 @@
           "contact_email": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -11924,7 +11930,8 @@
         "properties": {
           "owners": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 2000
             },
             "type": "array",
             "maxItems": 200,
@@ -12381,12 +12388,14 @@
             "anyOf": [
               {
                 "additionalProperties": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 500
                 },
                 "propertyNames": {
                   "$ref": "#/components/schemas/SocialNetwork"
                 },
-                "type": "object"
+                "type": "object",
+                "maxProperties": 8
               },
               {
                 "type": "null"
@@ -12584,7 +12593,8 @@
             "anyOf": [
               {
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "maxLength": 500
                 },
                 "type": "array",
                 "maxItems": 20
@@ -12662,7 +12672,8 @@
           },
           "stages": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 100
             },
             "type": "array",
             "maxItems": 50,
@@ -12685,7 +12696,8 @@
           },
           "recipients": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             },
             "type": "array",
             "maxItems": 20,
@@ -12980,7 +12992,8 @@
           },
           "not_included": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             },
             "type": "array",
             "maxItems": 20,
@@ -13270,7 +13283,8 @@
           },
           "not_included": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 500
             },
             "type": "array",
             "maxItems": 20,
@@ -13550,7 +13564,8 @@
         "properties": {
           "files": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 2000
             },
             "type": "array",
             "maxItems": 200,
@@ -14040,7 +14055,8 @@
           },
           "keys": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 100
             },
             "type": "array",
             "maxItems": 500,
@@ -14530,6 +14546,7 @@
           },
           "confirmation": {
             "type": "string",
+            "maxLength": 200,
             "title": "Confirmation",
             "default": ""
           },
@@ -15205,7 +15222,8 @@
           },
           "names": {
             "items": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 255
             },
             "type": "array",
             "maxItems": 100,

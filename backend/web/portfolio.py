@@ -218,7 +218,9 @@ class PortfolioIn(BaseModel):
     format: PortfolioFormat | None = None
     intro: str | None = Field(default=None, max_length=INTRO_MAX)
     # Every profile, replacing those kept: "@name" or an address on the network.
-    links: dict[SocialNetwork, str] | None = None
+    links: dict[SocialNetwork, Annotated[str, Field(max_length=500)]] | None = Field(
+        default=None, max_length=len(SocialNetwork)
+    )
 
 
 class SectionIn(BaseModel):

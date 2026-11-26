@@ -1,10 +1,12 @@
 """Lifecycle mutations use the restricted operator role and audit atomically."""
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import Column, ForeignKey, Integer, MetaData, Table, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ProgrammingError
 
+from backend.migrations.registry import metadata
+from backend.operators.actions import TENANT_TABLES
 from backend.tests import test_admin
 from backend.tests.conftest import TEST_DATABASE_URL, _session_on
 
@@ -14,6 +16,42 @@ pytestmark = pytest.mark.anyio
 # The migrations grant the operator's rights to "<database>_operator", so the role
 # follows TEST_DATABASE_URL (a separate test database per working copy).
 OPERATOR_ROLE = f"{make_url(TEST_DATABASE_URL).database}_operator"
+
+
+def tenant_table_problems(source: MetaData, listed: tuple[str, ...]) -> set[str]:
+    """Deleting an office (TENANT_TABLES) must reach every table holding its rows,
+    children before the tables they reference."""
+    with_tenant = {table.name for table in source.tables.values() if "tenant_id" in table.c}
+    problems = {f"{name}: has tenant_id, but is not listed" for name in with_tenant - set(listed)}
+    problems |= {f"{name}: listed, but has no tenant_id" for name in set(listed) - with_tenant}
+    for position, name in enumerate(listed):
+        for key in source.tables[name].foreign_keys if name in source.tables else ():
+            parent = key.column.table.name
+            if parent in listed and listed.index(parent) < position:
+                problems.add(f"{name}: deleted after {parent}, which it references")
+    return problems
+
+
+def test_deleting_an_office_reaches_every_table_with_its_rows():
+    assert tenant_table_problems(metadata, TENANT_TABLES) == set()
+
+
+def test_the_tenant_tables_rule_catches_a_forgotten_or_misplaced_table():
+    source = MetaData()
+    Table("tenants", source, Column("id", Integer, primary_key=True))
+
+    def owned(name, *columns):
+        tenant = Column("tenant_id", ForeignKey("tenants.id"))
+        return Table(name, source, Column("id", Integer, primary_key=True), tenant, *columns)
+
+    owned("parents")
+    owned("children", Column("parent_id", ForeignKey("parents.id")))
+    owned("forgotten")
+    assert tenant_table_problems(source, ("parents", "children", "stray")) == {
+        "forgotten: has tenant_id, but is not listed",
+        "stray: listed, but has no tenant_id",
+        "children: deleted after parents, which it references",
+    }
 
 
 @pytest.fixture
