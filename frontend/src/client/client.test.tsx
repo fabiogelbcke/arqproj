@@ -1988,6 +1988,35 @@ describe("edit mode", () => {
       expect(await screen.findByText(/“Planta.pdf” e suas versões anteriores não aparecem mais/)).toBeInTheDocument();
     });
 
+    it("renames a file from its menu: the name only, its extension kept", async () => {
+      const { sent } = asEditor({ "POST /api/pages/casa-jardim/files/k1/rename": () => ({ status: 204 }) });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Renomear" }));
+      const dialog = screen.getByRole("dialog", { name: "Renomear" });
+      const field = within(dialog).getByLabelText("Nome do arquivo");
+      expect(field).toHaveValue("Planta");
+      expect(within(dialog).getByText("A extensão .pdf é mantida.")).toBeInTheDocument();
+      await userEvent.clear(field);
+      await userEvent.type(field, "Planta térreo{Enter}");
+      expect(await screen.findByText("Arquivo renomeado para “Planta térreo.pdf”.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/k1/rename"))?.body).toEqual({ name: "Planta térreo" });
+    });
+
+    it("keeps the rename dialog open, saying why, when the server refuses the name", async () => {
+      asEditor({
+        "POST /api/pages/casa-jardim/files/k1/rename": () => ({ status: 409, body: { error: "file_name_taken" } }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Renomear" }));
+      const dialog = screen.getByRole("dialog", { name: "Renomear" });
+      await userEvent.clear(within(dialog).getByLabelText("Nome do arquivo"));
+      await userEvent.type(within(dialog).getByLabelText("Nome do arquivo"), "Corte{Enter}");
+      expect(await screen.findByText("Já existe um arquivo com esse nome aqui. Escolha outro nome.")).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Renomear" })).toBeInTheDocument();
+    });
+
     it("closes a file's menu with a click outside it", async () => {
       asEditor();
       await startEditing();
@@ -2146,8 +2175,8 @@ describe("edit mode", () => {
       await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar seção/ }));
       const ask = screen.getByRole("alertdialog", { name: "Ocultar a seção “Plantas”?" });
       expect(ask).toHaveTextContent("A seção e o seu arquivo deixarão de aparecer na página");
-      expect(ask).toHaveTextContent("continuará no Google Drive, na pasta “_Plantas”");
-      expect(ask).toHaveTextContent("tirando o _ do início");
+      expect(ask).toHaveTextContent("A pasta “Plantas” vai, com o arquivo, para a pasta “_arquivados” da etapa");
+      expect(ask).toHaveTextContent("mova a pasta no Google Drive de volta para a pasta da etapa");
       await userEvent.click(within(ask).getByRole("button", { name: "Ocultar seção" }));
       expect(await screen.findByText("Seção “Plantas” ocultada.")).toBeInTheDocument();
       expect(sent.find((r) => r.path.endsWith("/folders/hide"))?.body).toEqual({ row_version: 4, name: "Plantas" });
@@ -2159,7 +2188,7 @@ describe("edit mode", () => {
       const stage = screen.getByRole("region", { name: "Levantamento" });
       await userEvent.click(await within(stage).findByRole("button", { name: "Ações da seção Renders" }));
       await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar seção/ }));
-      expect(screen.getByRole("alertdialog")).toHaveTextContent("A pasta continuará no Google Drive, como “_Renders”.");
+      expect(screen.getByRole("alertdialog")).toHaveTextContent("A pasta “Renders” vai para a pasta “_arquivados” da etapa, no Google Drive.");
     });
 
     it("renames a section while Editar etapa is open without saving or closing the stage", async () => {
@@ -2200,6 +2229,44 @@ describe("edit mode", () => {
       };
     }
     const card = (name: string) => screen.getByRole("button", { name: `Abrir ${name}` }).closest(".file")!;
+
+    it("never uploads a picture dragged from the page, only files from the computer", async () => {
+      // A browser drags a card's picture as a file of its own ("thumb"): dropped on
+      // a stage, it was uploaded as "thumb.png" (Alinea, Nov 2026).
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }),
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+        "POST /api/pages/casa-jardim/files/k1/move": () => ({ status: 204 }),
+      });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await within(stage).findByRole("heading", { name: "Renders" });
+      const choosers = await within(stage).findAllByLabelText("escolha no computador");
+      const area = choosers.map((c) => c.closest(".drop")).find((d) => d && !d.classList.contains("drop--section"))!;
+      for (const picture of document.querySelectorAll(".file__thumb img")) {
+        expect(picture).toHaveAttribute("draggable", "false"); // a drag on it is the card's
+      }
+      const thumb = new File(["png"], "thumb.png", { type: "image/png" });
+      const fromPage = Object.assign(dragData(), { files: [thumb] });
+      fromPage.setData("Files", "");
+      fireEvent.dragStart(card("Planta.pdf").querySelector(".file__thumb") ?? card("Planta.pdf"), {
+        dataTransfer: fromPage,
+      });
+      for (const target of [stage, area]) {
+        fireEvent.dragOver(target, { dataTransfer: fromPage });
+        fireEvent.drop(target, { dataTransfer: fromPage });
+      }
+      fireEvent.dragEnd(card("Planta.pdf"), { dataTransfer: fromPage });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(sent.some((r) => r.path.endsWith("/uploads"))).toBe(false);
+      // From the computer (no drag began on the page): uploaded as before.
+      const fromComputer = Object.assign(dragData(), { files: [new File(["%PDF"], "Corte.pdf", { type: "application/pdf" })] });
+      fromComputer.setData("Files", "");
+      fireEvent.dragOver(area, { dataTransfer: fromComputer });
+      fireEvent.drop(area, { dataTransfer: fromComputer });
+      expect(await screen.findByText("Arquivo enviado.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/uploads"))?.body).toMatchObject({ name: "Corte.pdf" });
+    });
 
     it("moves a file by dragging its card into a section or onto another stage", async () => {
       const { sent } = asEditor({

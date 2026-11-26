@@ -57,7 +57,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
-from backend.documents import versions
+from backend.documents import comparisons, versions
 from backend.documents.versions import shown_name
 from backend.projects.creation import LocalFolders
 from backend.projects.models import Project, ProjectStage
@@ -449,6 +449,23 @@ async def _section_to_change(
     return stage, reader, folder
 
 
+# "Ocultar do cliente" (A31): what is hidden goes into this folder, inside the one
+# it was in, its name unchanged; the page never shows a "_" folder (A05). Before
+# 21 Nov 2026 it was renamed "_name" where it was, and those stay as they are.
+ARCHIVE_FOLDER = "_arquivados"
+
+
+async def archive_folder(maker, reader, parent: str) -> str:
+    """`parent`'s `_arquivados`, made the first time something is hidden there.
+    Only one the app made: one made straight in Drive is out of its reach
+    (drive.file), so the app makes its own beside it. Raises StorageError when
+    `parent` can't be listed."""
+    for item in await _list(reader, parent):
+        if item.is_folder and item.name == ARCHIVE_FOLDER and await maker.can_rename(item.id):
+            return item.id
+    return await maker.create_folder(ARCHIVE_FOLDER, parent)
+
+
 async def _rename_section(request, db, tenant, project_id, position, folder, name) -> None:
     maker, _root = await _folders(request, db)
     try:
@@ -518,12 +535,27 @@ async def hide_section(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """ "Ocultar seção": the folder stays in Drive with its files, renamed "_name",
-    which the page never shows (A05), to staff or clients."""
-    _stage, _reader, folder = await _section_to_change(
+    """ "Ocultar seção": the folder, with its files and its name, goes into its
+    stage's `_arquivados`, which the page never shows (A05), to staff or clients."""
+    stage, reader, folder = await _section_to_change(
         request, db, tenant, project_id, position, body
     )
-    await _rename_section(request, db, tenant, project_id, position, folder, f"_{body.name}")
+    maker, _root = await _folders(request, db)
+    try:
+        if not await maker.can_rename(folder):
+            raise ApiError(409, ErrorCode.FOLDER_NOT_OURS)  # made straight in Drive
+        await maker.move(folder, await archive_folder(maker, reader, stage.folder_id))
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project_id, position) from None
+    except ConnectError as error:
+        log.error(
+            "uploads: hiding a section failed for %s/%s, stage %s: %s",
+            tenant.id,
+            project_id,
+            position,
+            error.detail,
+        )
+        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
     return Response(status_code=204)
 
 
@@ -630,10 +662,10 @@ async def hide_file(
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """The file stays in Drive, renamed "_name", which the page doesn't show: every
-    version of its document, so the client doesn't see the one before instead;
-    and only if the app may rename all of them, checked before any is renamed
-    (as a comparison is hidden)."""
+    """The file stays in Drive, moved into `_arquivados` in its folder with its
+    name, which the page doesn't show: every version of its document, so the
+    client doesn't see the one before instead; and only if the app may move all
+    of them, checked before any is moved (as a comparison is hidden)."""
     reader, item, found = await _item_at(request, db, project, key)
     try:
         documents = await _documents(reader, found["f"])
@@ -648,14 +680,95 @@ async def hide_file(
         for version in items:
             if not await maker.can_rename(version.id):
                 raise ApiError(409, ErrorCode.FILE_NOT_OURS)
+        archive = await archive_folder(maker, reader, found["f"])
         for version in items:
-            await maker.rename(version.id, f"_{version.name}")
+            await maker.move(version.id, archive)
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project.id, found.get("s")) from None
     except ConnectError as error:
         log.error(
             "uploads: hiding %s failed for %s/%s: %s", item.id, tenant.id, project.id, error.detail
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
     capture(request, AnalyticsEvent.FILE_HIDDEN)
+    return Response(status_code=204)
+
+
+FILE_NAME_MAX = 200  # a new name, without its extension: room left for " v999.xlsx"
+
+
+class RenameIn(BaseModel):
+    name: str = Field(max_length=FILE_NAME_MAX)  # the new name, without its extension
+
+
+@router.post(
+    "/api/pages/{slug}/files/{key}/rename",
+    status_code=204,
+    responses=documented(401, 404, 409, 422, 503),
+)
+async def rename_file(
+    request: Request,
+    slug: str,
+    key: str,
+    body: RenameIn,
+    project: Project = Depends(changeable_page),
+    tenant: CurrentTenant = Depends(current_tenant),
+    db: AsyncSession = Depends(get_tenant_session),
+) -> Response:
+    """ "Renomear": every version of the document, each keeping its version and
+    extension (`Planta Térreo v2.pdf`), since the names are what group them
+    (A25); only if the app may rename all of them, checked before any is (as a
+    file is hidden). The file keeps its identity, so its comments, updates and
+    share links follow it."""
+    reader, item, found = await _item_at(request, db, project, key)
+    try:
+        documents = await _documents(reader, found["f"])
+    except StorageError as error:
+        raise _listing_failed(error, tenant, project.id, found.get("s")) from None
+    document = _document_of(documents, item)
+    if document is None:
+        raise ApiError(404, ErrorCode.FILE_NOT_FOUND)  # gone since
+    extension = document.named.extension  # fixed: a new name changes only the rest
+    try:
+        base = _clean(body.name)
+    except ApiError:
+        raise ApiError(422, ErrorCode.FILE_NAME_INVALID) from None
+    if extension and base.casefold().endswith(extension.casefold()):
+        base = base[: -len(extension)].rstrip()  # typed with it: the same name
+    # A name ending in a version or a comparison's marker would join (or start)
+    # another document instead of naming this one.
+    if (
+        not base
+        or versions.parse(base + extension).base != base
+        or comparisons.marked(base) is not None
+    ):
+        raise ApiError(422, ErrorCode.FILE_NAME_INVALID)
+    if any(
+        d is not document and d.named.key == versions.parse(base + extension).key for d in documents
+    ):
+        raise ApiError(409, ErrorCode.FILE_NAME_TAKEN)
+    names = {
+        version_id: name
+        for version_id, name in comparisons.renamed(document, base)
+        if name != next(i.name for _n, i in document.versions if i.id == version_id)
+    }
+    maker, _root = await _folders(request, db)
+    try:
+        for _n, version in document.versions:
+            if not await maker.can_rename(version.id):
+                raise ApiError(409, ErrorCode.FILE_NOT_OURS_TO_RENAME)
+        for version_id, name in names.items():
+            await maker.rename(version_id, name)
+    except ConnectError as error:
+        log.error(
+            "uploads: renaming %s failed for %s/%s: %s",
+            item.id,
+            tenant.id,
+            project.id,
+            error.detail,
+        )
+        raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    capture(request, "file_renamed", {"versions": len(document.versions)})
     return Response(status_code=204)
 
 

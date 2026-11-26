@@ -96,6 +96,11 @@ class ErrorCode(StrEnum):
     UPLOAD_FAILED = "upload_failed"  # the browser couldn't finish sending: logged, with the code
     FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
     FILE_NOT_OURS_TO_MOVE = "file_not_ours_to_move"  # put straight into Drive: move it there
+    # "Renomear" (A25): blank, starting with "_", or ending in a version ("v2") or a
+    # comparison's marker ("(antes)"), which would join another document.
+    FILE_NAME_INVALID = "file_name_invalid"
+    FILE_NAME_TAKEN = "file_name_taken"  # another document of the folder has that name
+    FILE_NOT_OURS_TO_RENAME = "file_not_ours_to_rename"  # put straight into Drive: rename it there
     # A before-and-after comparison (A46): one of that title is already in the folder.
     COMPARISON_EXISTS = "comparison_exists"
     COMPARISON_NOT_IMAGE = "comparison_not_image"  # a side that isn't a JPEG, PNG, WebP or GIF
