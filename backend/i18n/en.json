@@ -816,10 +816,10 @@
       "resetIgnore": "If you didn't ask for this, ignore this email: your password stays the same."
   },
   "whatsapp": {
-    "update": "Hello! You have news on the project {{project}}, from the office {{office}}. Here is what changed: {{news}}. See the details on the project page.",
+    "update": "Hello! The project {{project}}, from {{office}}, was updated. What changed: {{news}}. See the details on the project page.",
     "footer": "To stop these messages, reply STOP.",
-    "welcome": "Hello! This number will receive WhatsApp updates on the project {{project}}, from {{office}}: new files, stages and meetings.",
-    "invite": "Hello! {{office}} added this number to receive WhatsApp updates on the project {{project}}: new files, stages and meetings. Would you like to receive them?",
+    "welcome": "Hello! Sign-up confirmed: you will receive updates on the project {{project}}, from {{office}}, here, about files, stages and meetings.",
+    "invite": "Hello! {{office}} added this number to receive updates on the project {{project}} by WhatsApp. Do you confirm you want to receive them?",
     "inviteYes": "Yes, please",
     "inviteNo": "No, thanks",
     "accepted": "Done! You will receive updates on the project {{project}} here. To stop, reply STOP.",

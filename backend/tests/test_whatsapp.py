@@ -190,14 +190,14 @@ def test_what_meta_is_sent():
     template = WhatsAppMessage(
         to=CLIENT,
         text="…",
-        template="unio_convite",
+        template="unio_confirmar_cadastro",
         params=("Alinea", "Casa Jardim"),
         buttons=("yes-token", "no-token"),
         callback="cb",
     )
     body = request_body(template)
     assert body["to"] == CLIENT and body["type"] == "template"
-    assert body["template"]["name"] == "unio_convite"
+    assert body["template"]["name"] == "unio_confirmar_cadastro"
     assert body["template"]["language"] == {"code": "pt_BR"}
     [parts, yes, no] = body["template"]["components"]
     assert [p["text"] for p in parts["parameters"]] == ["Alinea", "Casa Jardim"]
@@ -208,7 +208,7 @@ def test_what_meta_is_sent():
         WhatsAppMessage(
             to=CLIENT,
             text="…",
-            template="unio_atualizacao_reuniao",
+            template="unio_projeto_atualizado_reuniao",
             links=(
                 ("Abrir", "https://myunio.app/w/page.code"),
                 ("Agenda", "https://myunio.app/w/agenda.code"),
@@ -241,11 +241,11 @@ def test_outside_production_only_test_numbers_get_real_messages():
 
 async def test_the_outbox_writes_the_message_as_the_client_reads_it(tmp_path):
     sender = OutboxWhatsAppSender(tmp_path)
-    await sender.send(WhatsAppMessage(to=CLIENT, text="Olá!", template="unio_boas_vindas"))
+    await sender.send(WhatsAppMessage(to=CLIENT, text="Olá!", template="unio_cadastro_confirmado"))
     [written] = tmp_path.iterdir()
     assert CLIENT in written.name
     content = written.read_text()
-    assert "Olá!" in content and "unio_boas_vindas" in content
+    assert "Olá!" in content and "unio_cadastro_confirmado" in content
 
 
 # -- what an update says --------------------------------------------------------------
@@ -365,10 +365,10 @@ async def test_a_due_batch_goes_to_each_subscribed_number(
     await make_due(db_session)
     await run(app, outbox, phone)
     [message] = phone.to(CLIENT)
-    assert message.template == "unio_atualizacao"
+    assert message.template == "unio_projeto_atualizado"
     project_name, _office, line = message.params
     assert project_name == "Casa Jardim" and line == "2 arquivos novos na etapa Levantamento"
-    assert message.text.startswith("Olá! Você tem novidades no projeto Casa Jardim")
+    assert message.text.startswith("Olá! O projeto Casa Jardim, de ")
     assert "Croqui" not in message.text  # files counted, never named
     assert "responda SAIR" in message.text
     [(label, link)] = message.links
@@ -479,7 +479,7 @@ async def test_a_greeting_that_didnt_go_is_sent_by_the_pass(app, db_session, sub
     )
     report = await run(app, Outbox(), phone)
     [welcome] = phone.to(OTHER)
-    assert welcome.template == "unio_boas_vindas" and report.greeted == 1
+    assert welcome.template == "unio_cadastro_confirmado" and report.greeted == 1
     assert (await number(db_session, OTHER))[2] is not None
     await run(app, Outbox(), phone)
     assert len(phone.to(OTHER)) == 1  # once
@@ -527,7 +527,7 @@ async def test_a_client_signs_up_and_is_welcomed(client, db_session, visitor):
     status, source, greeted = await number(db_session)
     assert (status, source) == ("subscribed", "client") and greeted is not None
     [welcome] = visitor.to(CLIENT)
-    assert welcome.template == "unio_boas_vindas"
+    assert welcome.template == "unio_cadastro_confirmado"
     assert welcome.params[0] == "Casa Jardim"
     assert "responda SAIR" in welcome.text
 
@@ -598,7 +598,7 @@ async def test_staff_add_a_number_and_the_client_is_asked(client, app, db_sessio
     assert response.status_code == 200, response.text
     assert numbers(response.json()) == [(CLIENT, "invited")]
     [question] = phone.to(CLIENT)
-    assert question.template == "unio_convite"
+    assert question.template == "unio_confirmar_cadastro"
     yes, no = (read_token(app.state.settings, b) for b in question.buttons)
     assert (yes.action, no.action) == ("yes", "no")
     assert yes.recipient_id == no.recipient_id
@@ -998,9 +998,9 @@ def test_a_meeting_to_come_adds_the_calendar_button():
         project.id,
     )
     message = whatsapp_updates.update_message
-    assert message(office, project, CLIENT, "x", plain, "cb").template == "unio_atualizacao"
+    assert message(office, project, CLIENT, "x", plain, "cb").template == "unio_projeto_atualizado"
     with_meeting = message(office, project, CLIENT, "x", meeting, "cb")
-    assert with_meeting.template == "unio_atualizacao_reuniao"
+    assert with_meeting.template == "unio_projeto_atualizado_reuniao"
 
 
 async def casa_ids(db_session):
@@ -1107,7 +1107,7 @@ async def test_an_unanswered_question_is_asked_once_more_after_3_days(
     await asked_ago(db_session, "3 days 1 hour")
     report = await run(app, Outbox(), phone)
     [again] = phone.to(OTHER)
-    assert again.template == "unio_convite" and report.asked_again == 1
+    assert again.template == "unio_confirmar_cadastro" and report.asked_again == 1
     await run(app, Outbox(), phone)
     assert len(phone.to(OTHER)) == 1  # never a third time
 

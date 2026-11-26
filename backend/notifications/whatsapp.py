@@ -35,11 +35,11 @@ log = logging.getLogger(__name__)
 
 GRAPH_URL = "https://graph.facebook.com/{version}/{number}/messages"
 # The templates' names at Meta, and their languages there.
-UPDATE_TEMPLATE = "unio_atualizacao"  # button: "Abrir o projeto"
+UPDATE_TEMPLATE = "unio_projeto_atualizado"  # button: "Abrir o projeto"
 # With a meeting scheduled or changed: "Adicionar à agenda" too.
-UPDATE_MEETING_TEMPLATE = "unio_atualizacao_reuniao"
-WELCOME_TEMPLATE = "unio_boas_vindas"
-INVITE_TEMPLATE = "unio_convite"
+UPDATE_MEETING_TEMPLATE = "unio_projeto_atualizado_reuniao"
+WELCOME_TEMPLATE = "unio_cadastro_confirmado"
+INVITE_TEMPLATE = "unio_confirmar_cadastro"
 LANGUAGES = {Locale.PT_BR: "pt_BR", Locale.EN: "en"}
 PHONE_MAX = 40  # a number as typed, with its spaces and punctuation
 # Meta's error for a number that has no WhatsApp.
