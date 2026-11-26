@@ -61,6 +61,7 @@ class AnalyticsEvent(StrEnum):
     UPLOAD_STARTED = "upload_started"
     UPLOAD_FAILED = "upload_failed"
     FILE_HIDDEN = "file_hidden"
+    FILE_RENAMED = "file_renamed"
     FILE_MOVED = "file_moved"
     COMPARISON_UPLOAD_STARTED = "comparison_upload_started"
     COMPARISON_EDITED = "comparison_edited"

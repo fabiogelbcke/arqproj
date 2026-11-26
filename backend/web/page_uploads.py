@@ -768,7 +768,7 @@ async def rename_file(
             error.detail,
         )
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
-    capture(request, "file_renamed", {"versions": len(document.versions)})
+    capture(request, AnalyticsEvent.FILE_RENAMED, {"versions": len(document.versions)})
     return Response(status_code=204)
 
 
