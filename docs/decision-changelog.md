@@ -19,6 +19,37 @@ a new entry too.
 
 ---
 
+## 2026-11-26 — A47: the WhatsApp texts reworded for Meta; "responda SAIR" on the welcome and updates
+
+**Was:** the update read "Olá! Você tem novidades no projeto {{project}}, do
+{{office}}: {{news}}.", the question "Olá! O {{office}} cadastrou…", and every
+message was to say how to stop.
+
+**Now:** "Olá! O projeto {{project}}, de {{office}}, foi atualizado. O que
+mudou: {{news}}. Confira os detalhes na página do projeto."; the welcome
+"Olá! Cadastro confirmado: você vai receber aqui as atualizações do projeto
+{{project}}, de {{office}}, sobre arquivos, etapas e reuniões."; the question
+"Olá! {{office}} cadastrou este número para receber as atualizações do projeto
+{{project}} pelo WhatsApp. Confirma que deseja receber?". The templates are
+`unio_projeto_atualizado`, `unio_projeto_atualizado_reuniao`,
+`unio_cadastro_confirmado` and `unio_confirmar_cadastro`. The footer "Para não
+receber mais estas mensagens, responda SAIR." goes on the welcome and the
+updates only.
+
+**Why:** creating the templates (26 Nov 2026), Meta refused a body ending in a
+variable or with two variables separated only by punctuation, which the update
+had. The other wording and the footer's place are Fabio's, the same day: the
+welcome and the updates are what a client gets most, where a way out heads off
+blocks and reports; the question has its "Não quero". Replying SAIR works on any
+message. A first rewording ("Olá! Você tem novidades no projeto…",
+the welcome and the question nearly as before) passed those rules, but Meta's
+automatic check put all four in Marketing, about 9× the price and capped per
+person, though they are notices of the client's own project. Reworded after
+Meta's Utility examples (an update to a subscribed service, an opt-in
+confirmed) under new names, so each is reviewed afresh.
+
+---
+
 ## 2026-11-21 — A31: hidden files go into an `_arquivados` folder, names unchanged
 
 **Was:** "Ocultar do cliente" renamed every version of a file with a leading
@@ -266,6 +297,40 @@ and the page's policy stays strict. The cut at 820 px rather than at phones
 beside the logo and the sections overflow the header, which does not wrap.
 
 ---
+
+## 2026-11-10 — A47: a choice made after SAIR counts for its project only
+
+**Was:** signing up again on a project page, or tapping "Quero receber", lifted
+a number's SAIR for every project of every office.
+
+**Now:** SAIR stays in force everywhere except the project the client chose
+again, dated by when they chose it. The shared SAIR list keeps only the date of
+the latest SAIR; each project's number keeps the date of its latest choice.
+
+**Why:** a page sign-up needs no confirmation from the number (as with email,
+A32), so anyone with a page's link could type a number that had replied SAIR and
+restart messages from every office's projects. Found in the review of PR #184.
+
+---
+
+## 2026-11-09 — A47: the WhatsApp texts after Fabio's answers
+
+
+**Was:** an update linked the page at the end of its text, listed the first
+three stages that changed and "e mais N etapas", and dated meetings "12/11 às
+14h". A number staff added got the "Quero receber" question once; with no
+answer, nothing more was sent. The automatic reply pointed to the project page.
+
+**Now:** the update starts "Olá! Você tem novidades no projeto…", lists every
+stage, dates meetings "quinta, 12/11, às 14:00", and links the page through an
+"Abrir o projeto" button, plus "Adicionar à agenda" when a meeting was scheduled
+or changed. An unanswered question goes once more after 3 days. The automatic
+reply gives the office's contacts.
+
+**Why:** Fabio's answers to the questions in the partners' review document
+(9 Nov 2026). Updates can't go without the client's yes, so an unanswered
+question would otherwise leave the client without them for good; one resend, not
+more, because repeated messages lead to blocks, and blocks cost the number.
 
 ## 2026-11-09 — A45: the image is the atom; the tab in sections by type; one dialog per drop
 

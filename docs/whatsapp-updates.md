@@ -15,8 +15,16 @@ number, a webhook):
 
 Today's client updates are emails (decision A32: new files, a stage completed or
 reopened, the project completed, a meeting scheduled, changed or removed;
-batched 45 minutes, at most 2 hours). Nothing here is decided; a choice goes into
-the [register](multi-tenant-implementation-plan.md#2-decision-register).
+batched 45 minutes, at most 2 hours).
+
+**Client updates by WhatsApp were agreed on 2 Nov 2026 as decision A47** (in the
+[register](multi-tenant-implementation-plan.md#2-decision-register)) and built
+behind the `whatsapp_updates` feature: one Unio number, Meta directly, each
+client choosing email, WhatsApp or both, staff-added numbers confirmed by the
+client with a button, SAIR for every project, offices' own numbers left out. The
+register is the source for those (the texts were revised on 9 Nov 2026 after
+Fabio's answers); this page stays the research behind them.
+The file bot is still undecided.
 
 Prices come from Meta's pricing page and secondary sources checked on 28 Oct and
 1 Nov 2026. **Confirm them on Meta's rate card** (linked below). Meta can change
@@ -108,8 +116,10 @@ email (A17). Nothing in our volume needs a middleman.
 - A client adds a phone number and ticks "Receber pelo WhatsApp" on the project
   page, beside the existing "Novidades por e-mail" (A32). We keep the consent
   time and its source.
-- The first message confirms the opt-in, and every message says how to stop
-  ("Responda SAIR"). Replying SAIR stops them at once, through Meta's webhook.
+- The first message confirms the opt-in, and it and every update say how to
+  stop ("Responda SAIR", in the footer; not the question to a number staff
+  added, which has its own "Não quero"). Replying SAIR stops them at once,
+  through Meta's webhook.
 - Staff can add a client's number, but the client opts in from the page.
   Unsolicited WhatsApp messages get numbers reported and blocked.
 - Each recipient chooses email, WhatsApp or both, so nobody gets everything
@@ -138,9 +148,41 @@ businesses' numbers, which offices' own numbers would need later).
 | Phone number | A number not on WhatsApp, confirmed once by SMS or voice call (below) | ~10 min |
 | Display name | "Unio", reviewed by Meta | Usually 1–2 days |
 | Payment method | A card in WhatsApp Manager, or BRL billing | ~5 min |
-| Templates | The Portuguese update texts, approved automatically | Minutes, at most ~24 h |
+| Templates | `unio_projeto_atualizado` (button "Abrir o projeto"), `unio_projeto_atualizado_reuniao` (also "Adicionar à agenda"), `unio_cadastro_confirmado`, `unio_confirmar_cadastro` (buttons "Quero receber" / "Não quero"), in the approved Portuguese texts. Each link button's address is `https://myunio.app/w/{{1}}` (staging's test templates: staging's own address) | Minutes, at most ~24 h |
 | Access token and webhook | A permanent token in Secret Manager, our webhook registered with Meta | Part of the coding |
 | Business verification (later) | Below | A few days to ~2 weeks |
+
+**Set up (25–26 Nov 2026).** Business portfolio "Unio", its app "Unio"
+(subscribed to the account's events; still in development mode, no webhook
+address yet), billing in BRL. The number is **+55 47 3170-4880** (Numio,
+virtual landline, verified by voice call), phone number ID `1496834270177830`,
+used by staging and production alike: only `WHATSAPP_TEST_NUMBERS` receive
+staging's messages. Its display name "Unio" awaits Meta's review. A Meta-issued
+US number (+1 555-845-0878) from the setup is on the account too, unused, to be
+deleted: an unverified business has room for 2 numbers.
+
+**Templates as submitted (26 Nov 2026)**, pt_BR, Utility. Meta refuses a body
+that starts or ends with a variable, or has two variables with only spaces or
+punctuation between them, so the texts approved on 9 Nov were reworded
+(`test_whatsapp.py` checks ours). Meta's automatic check also put the first
+versions of the updates, the welcome and the question in **Marketing**
+(`unio_atualizacao`, `unio_atualizacao_reuniao`, `unio_boas_vindas`,
+`unio_convite`: about 9× the price, and capped per person), though they are
+event-driven notices; they were redone under the names below, worded like Meta's
+Utility examples ("account alerts or updates", an opt-in confirmed), and the
+old four are not used. Should one still come back Marketing, request a review in
+Business Support Home → Template Category Updates (60 days). The footer "Para não receber mais estas
+mensagens, responda SAIR." goes on the welcome and the updates only; every link
+button opens `https://myunio.app/w/{{1}}`.
+
+| Template | Text | Footer | Buttons |
+| --- | --- | --- | --- |
+| `unio_projeto_atualizado` | Olá! O projeto {{1}}, de {{2}}, foi atualizado. O que mudou: {{3}}. Confira os detalhes na página do projeto. | Yes | Abrir o projeto |
+| `unio_projeto_atualizado_reuniao` | (the same) | Yes | Abrir o projeto, Adicionar à agenda |
+| `unio_cadastro_confirmado` | Olá! Cadastro confirmado: você vai receber aqui as atualizações do projeto {{1}}, de {{2}}, sobre arquivos, etapas e reuniões. | Yes | none |
+| `unio_confirmar_cadastro` | Olá! {{1}} cadastrou este número para receber as atualizações do projeto {{2}} pelo WhatsApp. Confirma que deseja receber? | No | Quero receber, Não quero (quick replies) |
+
+English versions wait for an office in English.
 
 **Building needs no number yet.** Meta's free test number, created with the
 app, messages up to 5 numbers we register, which is enough to build and test
@@ -198,7 +240,8 @@ a MEI can hold this activity is for the accountant.
 ### Rules that can cost us the number
 
 - **Quality rating.** Many blocks or reports lower our limits, then block the
-  number. Hence opt-in by the client and "Responda SAIR" in every message.
+  number. Hence opt-in by the client and "Responda SAIR" in the welcome and
+  every update.
 - **Templates stay utility.** One promotional line gets a template
   recategorized as marketing, at about 8× the price.
 

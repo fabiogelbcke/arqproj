@@ -69,6 +69,7 @@ function project(changes: Partial<ProjectSummary>): ProjectSummary {
     cover_url: null,
     access_mode: "public",
     members: [],
+    whatsapp: [],
     ...changes,
   };
 }
