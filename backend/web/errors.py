@@ -11,9 +11,11 @@ import logging
 from enum import StrEnum
 
 from fastapi import Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
+from starlette.exceptions import HTTPException
 
 
 class ErrorCode(StrEnum):
@@ -31,6 +33,8 @@ class ErrorCode(StrEnum):
     CSRF_TOKEN_MISSING_OR_WRONG = "csrf_token_missing_or_wrong"
     INVALID_CREDENTIALS = "invalid_credentials"
     INVALID_REQUEST = "invalid_request"  # malformed body or missing fields: a bug, not the user
+    NOT_FOUND = "not_found"  # no such API address: a bug, or a tab left open over a deploy
+    METHOD_NOT_ALLOWED = "method_not_allowed"  # the address takes another method: likewise
     LINK_INVALID = "link_invalid"  # unknown, used, expired, replaced or another office's
     PASSWORD_TOO_SHORT = "password_too_short"
     CURRENT_PASSWORD_WRONG = "current_password_wrong"  # "Minha conta": not the current one
@@ -84,6 +88,7 @@ class ErrorCode(StrEnum):
     PASSWORD_REQUIRED = "password_required"  # password access needs a password
     INVALID_DETAIL = "invalid_detail"  # unknown, repeated, or a value of the wrong kind
     INVALID_STAGE = "invalid_stage"  # unknown, already there, blank, or nowhere to move
+    STAGE_NAME_TAKEN = "stage_name_taken"  # another of the project's stages has it (case aside)
     INVALID_MEETING = "invalid_meeting"  # title 1-40, ends after it starts, web link
     FILES_UNAVAILABLE = "files_unavailable"  # Drive down or throttled: try again
     FILE_NOT_FOUND = "file_not_found"  # moved, deleted, or its link expired: reload
@@ -99,6 +104,11 @@ class ErrorCode(StrEnum):
     UPLOAD_FAILED = "upload_failed"  # the browser couldn't finish sending: logged, with the code
     FILE_NOT_OURS = "file_not_ours"  # put straight into Drive: rename it there (drive.file)
     FILE_NOT_OURS_TO_MOVE = "file_not_ours_to_move"  # put straight into Drive: move it there
+    # "Renomear" (A25): blank, starting with "_", or ending in a version ("v2") or a
+    # comparison's marker ("(antes)"), which would join another document.
+    FILE_NAME_INVALID = "file_name_invalid"
+    FILE_NAME_TAKEN = "file_name_taken"  # another document of the folder has that name
+    FILE_NOT_OURS_TO_RENAME = "file_not_ours_to_rename"  # put straight into Drive: rename it there
     # A before-and-after comparison (A46): one of that title is already in the folder.
     COMPARISON_EXISTS = "comparison_exists"
     COMPARISON_NOT_IMAGE = "comparison_not_image"  # a side that isn't a JPEG, PNG, WebP or GIF
@@ -128,6 +138,10 @@ class ErrorCode(StrEnum):
     PROPOSAL_ACCEPTED = "proposal_accepted"  # the project now: its proposal stays as accepted
     PORTFOLIO_FULL = "portfolio_full"  # as many works, or photos in one, as it holds
     PORTFOLIO_ENTRY_NOT_FOUND = "portfolio_entry_not_found"  # removed meanwhile: reload
+    COMMENT_NOT_FOUND = "comment_not_found"  # removed meanwhile, or another project's (A49)
+    INVALID_COMMENT = "invalid_comment"  # blank, or a client's without a name
+    COMMENT_NOT_YOURS = "comment_not_yours"  # a member removes only their own (A49)
+    TOO_MANY_COMMENTS = "too_many_comments"  # a device's few a minute (A49)
     PORTFOLIO_VIDEO_REFUSED = "portfolio_video_refused"  # not an MP4 or WebM, or over 200 MB
     PORTFOLIO_LINK_INVALID = "portfolio_link_invalid"  # not a profile on its network
     PORTFOLIO_PHOTO_COMPARED = "portfolio_photo_compared"  # already in another comparison (A46)
@@ -179,3 +193,17 @@ async def handle_api_error(_request: Request, error: ApiError) -> JSONResponse:
     if error.conflict_name is not None:
         body["conflict_name"] = error.conflict_name
     return JSONResponse(body, status_code=error.status_code, headers=error.headers)
+
+
+_ROUTING_CODES = {404: ErrorCode.NOT_FOUND, 405: ErrorCode.METHOD_NOT_ALLOWED}
+
+
+async def handle_http_error(request: Request, error: HTTPException) -> Response:
+    """The router's own answers (an unknown address, a method the address doesn't
+    take): under /api/ only the code, as every API error (plan section 17);
+    elsewhere (pages, the painel's shell) as before."""
+    if not request.url.path.startswith("/api/") or error.status_code >= 500:
+        return await http_exception_handler(request, error)
+    log.warning("%s %s answered %s", request.method, request.url.path, error.status_code)
+    code = _ROUTING_CODES.get(error.status_code, ErrorCode.INVALID_REQUEST)
+    return JSONResponse({"error": code.value}, status_code=error.status_code, headers=error.headers)

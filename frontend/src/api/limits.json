@@ -7,8 +7,12 @@
   "stageTitle": 80,
   "stageNotes": 120,
   "sectionName": 80,
+  "fileName": 200,
+  "uploadCheckNames": 100,
   "comparisonTitle": 120,
   "comparisonLabel": 40,
+  "commentBody": 2000,
+  "commentName": 60,
   "detailText": 40,
   "meetingTitle": 40,
   "meetingLocation": 60,
@@ -21,6 +25,7 @@
   "phone": 40,
   "shareLabel": 60,
   "shareBytes": 314572800,
+  "shareFiles": 200,
   "proposalClient": 80,
   "proposalCity": 60,
   "proposalAddress": 120,
@@ -32,6 +37,7 @@
   "proposalServices": 40,
   "proposalPayments": 24,
   "proposalNotIncluded": 20,
+  "proposalAmount": 9999999999,
   "serviceTitle": 80,
   "serviceDescription": 1000
 }

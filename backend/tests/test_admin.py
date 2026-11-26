@@ -125,6 +125,33 @@ async def test_an_offices_page_adds_its_team(client, operators, db_session):
     assert missing.status_code == 404
 
 
+async def test_an_offices_page_counts_its_comments_and_never_shows_them(
+    client, operators, db_session
+):
+    """Clients' and staff's comments (A49), counted; never their words or names."""
+    from sqlalchemy import text
+
+    from backend.tests.test_office import tenant_id
+
+    t = await tenant_id(db_session, "alinea")
+    await db_session.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(t)})
+    for author, name in (("client", "Maria"), ("client", "João"), ("staff", "Ana")):
+        await db_session.execute(
+            text(
+                "INSERT INTO comments (project_id, stage_id, author, author_name, body) "
+                "SELECT s.project_id, s.id, :author, :name, 'Podemos rever a sala?' "
+                "FROM project_stages s JOIN projects p ON p.id = s.project_id "
+                "WHERE p.name = 'Casa Jardim' AND s.position = 1"
+            ),
+            {"author": author, "name": name},
+        )
+    await sign_in(client)
+    office = (await client.get("/api/admin/offices/alinea", headers=UNIO)).json()
+    assert office["comments"] == {"client": 2, "staff": 1}
+    shown = json.dumps(office)
+    assert "Podemos rever" not in shown and "Maria" not in shown
+
+
 async def test_the_page_answers_only_on_unios_address(app, client, operators, tmp_path):
     (tmp_path / "admin.html").write_text("<!doctype html><title>Admin</title>")
     (tmp_path / "client.html").write_text("<!doctype html><head><!--page-head--></head>")

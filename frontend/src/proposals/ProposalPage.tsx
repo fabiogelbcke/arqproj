@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Form } from "react-aria-components";
 import { useTranslation } from "react-i18next";
-import { Link, useBlocker, useParams, useSearchParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 
 import type { Schemas } from "../api/client";
 import { LIMITS } from "../api/limits";
@@ -15,6 +15,7 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ErrorNotice } from "../ui/ErrorNotice";
 import { TextAreaField, TextField } from "../ui/TextField";
 import { toast, toastError } from "../ui/Toast";
+import { useUnsavedChangesGuard } from "../ui/useUnsavedChangesGuard";
 import { SETUP_PARAM } from "../projects/setup";
 import { ProposalLetter } from "./ProposalLetter";
 import {
@@ -83,9 +84,22 @@ function draftFrom(start: Generator["start"], locale: string): Draft {
 }
 
 type Checked = { content: ProposalContent } | { problem: string };
+type Translate = (key: string, values?: Record<string, unknown>) => string;
+
+/** "Não incluídos" as the server takes them: the lines written, one each. */
+const notIncludedLines = (text: string) => text.split("\n").map((line) => line.trim()).filter(Boolean);
+
+/** What the server would refuse in "Não incluídos", in the user's words (the
+ *  line as numbered in the field); null when it takes them. */
+function notIncludedProblem(text: string, t: Translate): string | null {
+  if (notIncludedLines(text).length > LIMITS.proposalNotIncluded)
+    return t("proposal.generator.notIncludedTooMany", { max: LIMITS.proposalNotIncluded });
+  const long = text.split("\n").findIndex((line) => line.trim().length > LIMITS.proposalLine);
+  return long < 0 ? null : t("proposal.generator.notIncludedTooLong", { line: long + 1, max: LIMITS.proposalLine });
+}
 
 /** The draft as the API takes it, or what to fix first (in the user's words). */
-function check(draft: Draft, locale: string, t: (key: string) => string): Checked {
+function check(draft: Draft, locale: string, t: Translate): Checked {
   const fee = parseAmount(draft.fee, locale);
   const services = kept(draft.services);
   if (!draft.client_name.trim()) return { problem: t("proposal.generator.needsClient") };
@@ -96,13 +110,15 @@ function check(draft: Draft, locale: string, t: (key: string) => string): Checke
     .filter((p) => p.amount.trim() || p.when.trim())
     .map((p) => ({ amount: parseAmount(p.amount, locale), when: p.when }));
   if (payments.some((p) => !p.amount)) return { problem: t("proposal.generator.badPayment") };
+  const notIncluded = notIncludedProblem(draft.not_included, t);
+  if (notIncluded) return { problem: notIncluded };
   return {
     content: {
       ...draft,
       services,
       fee,
       payments: payments as { amount: number; when: string }[],
-      not_included: draft.not_included.split("\n").map((line) => line.trim()).filter(Boolean),
+      not_included: notIncludedLines(draft.not_included),
     },
   };
 }
@@ -118,7 +134,10 @@ function previewBody(draft: Draft, locale: string): Schemas["ProposalStart"] {
       const amount = parseAmount(p.amount, locale);
       return amount ? [{ amount, when: p.when }] : [];
     }),
-    not_included: draft.not_included.split("\n").map((line) => line.trim()).filter(Boolean),
+    // A line too long, or one too many, would have the whole preview refused.
+    not_included: notIncludedLines(draft.not_included)
+      .filter((line) => line.length <= LIMITS.proposalLine)
+      .slice(0, LIMITS.proposalNotIncluded),
   };
 }
 
@@ -188,19 +207,9 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
   const [problem, setProblem] = useState<string | null>(null);
   const [instalmentCount, setInstalmentCount] = useState("4");
 
-  // Leaving with unsaved changes asks first: the browser's own question when the
-  // tab closes or reloads, ours when a link in the painel is followed. Not after
-  // a save, which goes to the proposal's page on purpose.
-  const leaving = useBlocker(dirty);
-  const saved = useRef(false);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      if (!saved.current) event.preventDefault();
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Leaving with unsaved changes asks first. Not after a save, which goes to the
+  // proposal's page on purpose.
+  const { leaving, release } = useUnsavedChangesGuard(dirty);
 
   // The live preview, a moment after typing stops; the last good one stays meanwhile.
   const [preview, setPreview] = useState<ProposalView | null>(null);
@@ -317,7 +326,7 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
           return;
         }
         // Saved as shown: on to the proposal's page, as the client sees it (Fabio, 29 Oct 2026).
-        saved.current = true;
+        release();
         setDirty(false);
         window.location.assign(pageUrl);
       },
@@ -563,9 +572,15 @@ function Generator({ data, onSaved }: { data: Generator; onSaved: (version: numb
             <h2 id="p-terms">{t("proposal.generator.terms")}</h2>
             <TextAreaField
               label={t("proposal.generator.notIncluded")}
-              description={t("proposal.generator.notIncludedHint")}
+              description={t("proposal.generator.notIncludedHint", {
+                lines: LIMITS.proposalNotIncluded,
+                chars: LIMITS.proposalLine,
+              })}
               value={draft.not_included}
               onChange={(not_included) => change({ not_included })}
+              isInvalid={notIncludedProblem(draft.not_included, t) !== null}
+              validate={(text) => notIncludedProblem(text, t)}
+              validationBehavior="aria"
             />
             <DefaultText
               label={t("proposal.generator.intro")}

@@ -121,6 +121,41 @@ async def test_a_logo_is_stored_in_the_offices_folder_and_served_safely(client, 
     assert served.headers["content-type"] == "image/png"
 
 
+async def test_the_logo_streams_without_holding_a_database_connection(
+    app, client, owner, monkeypatch
+):
+    """Every client page loads it: a slow download must not keep one of the few
+    database connections busy meanwhile, as the other files served don't."""
+    from backend.storage.base import Download
+    from backend.web import office
+
+    saved = await upload(client, owner, PNG)
+    sessions, held = [], []
+    opened = app.state.sessionmaker
+
+    def tracked():
+        login = opened()
+        sessions.append(login.session)
+        return login
+
+    class Storage:
+        async def get(self, file_id):
+            return file_id
+
+        async def download(self, _item):
+            async def chunks():
+                held.extend(session.in_transaction() for session in sessions)
+                yield PNG
+
+            return Download(media_type="image/png", size=len(PNG), chunks=chunks())
+
+    app.state.sessionmaker = tracked
+    monkeypatch.setattr(office, "storage_for", lambda *_args: Storage())
+    served = await client.get(saved.json()["logo_url"], headers=ALINEA)
+    assert (served.status_code, served.content) == (200, PNG)
+    assert sessions and held and not any(held)
+
+
 async def test_a_new_logo_of_the_same_type_gets_a_new_address(client, owner, tmp_path):
     # Locally both are `_marca/logo.png`: only the address tells browsers it changed.
     first = (await upload(client, owner, PNG)).json()["logo_url"]

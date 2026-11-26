@@ -2,12 +2,14 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import type { Schemas } from "../api/client";
 import { fakeApi, TENANT } from "../test/render";
 import * as imageCrop from "../ui/imageCrop";
 import { ClientApp, slugFromPath } from "./ClientApp";
 import { detailValue, googleCalendarLink, meetingWhen, paragraphs, type Page } from "./format";
 import { entriesFor } from "./Updates";
 import { shownFiles, sortFiles } from "./FileTools";
+import { cardIds } from "./ProjectPage";
 
 // The guided tour (Driver.js) is checked in the browser tests; here, when it starts.
 const tour = vi.hoisted(() => ({ startTour: vi.fn() }));
@@ -35,7 +37,7 @@ const PAGE: Page = {
   cover_url: null,
   features: [],
   completed: false,
-  current_position: null, // the previous release's (A30), unread now
+  archived: false,
   last_update: "2026-10-15T23:30:00Z", // 20:30 in São Paulo: still the 15th there
   details: [
     { key: "site_area", label: "Área do terreno", type: "area", value: 1240 },
@@ -205,13 +207,14 @@ describe("the client page", () => {
     expect(await within(box).findByRole("status")).toHaveTextContent("ana@gmail.com foi cadastrado para receber");
   });
 
-  it("offers no email updates on a completed project", async () => {
-    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, completed: true } }) });
+  it.each(["completed", "archived"] as const)("offers no email updates on a project %s", async (state) => {
+    // An archived one would refuse every sign-up.
+    at("/casa-jardim", { "GET /api/pages/casa-jardim": () => ({ body: { ...PAGE, [state]: true } }) });
     expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Atualizações por e-mail" })).toBeNull();
   });
 
-  it("says when an archived project sends no more updates", async () => {
+  it("says when a project archived since the page loaded sends no more updates", async () => {
     at("/casa-jardim", {
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
       "POST /api/pages/casa-jardim/subscribe": () => ({ status: 409, body: { error: "project_archived" } }),
@@ -465,6 +468,47 @@ describe("the files", () => {
     expect(within(third).getByText("Assim que o escritório enviar, eles aparecem aqui.")).toBeInTheDocument();
   });
 
+  it("shows an image whose preview fails by its type, never loading the whole file", async () => {
+    // On Drive the original is megabytes a card (a fresh upload often has no preview yet).
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({
+        body: {
+          stages: [
+            {
+              position: 2,
+              groups: [{ folder: null, files: [{ key: "k2", name: "Terreno.jpg", kind: "image", size: 10, modified_at: "2026-10-11T12:00:00Z", older: [] }] }],
+            },
+          ],
+        },
+      }),
+    });
+    const card = (await screen.findByRole("button", { name: "Abrir Terreno.jpg" })).closest(".file") as HTMLElement;
+    const preview = card.querySelector("img")!;
+    expect(preview).toHaveAttribute("src", "/api/pages/casa-jardim/files/k2/thumb");
+    fireEvent.error(preview);
+    expect(card.querySelector("img")).toBeNull();
+    expect(within(card).getByText("JPG")).toBeInTheDocument();
+  });
+
+  it("reads out a card's details with its name", async () => {
+    at("/casa-jardim", {
+      "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
+      "GET /api/pages/casa-jardim/files": () => ({
+        body: {
+          stages: [
+            {
+              position: 2,
+              groups: [{ folder: null, files: [{ key: "k1", name: "Planta.pdf", kind: "pdf", size: 2048, modified_at: "2026-10-10T12:00:00Z", version: 3, updated: true, older: [] }] }],
+            },
+          ],
+        },
+      }),
+    });
+    const open = await screen.findByRole("button", { name: "Abrir Planta.pdf" });
+    expect(open).toHaveAccessibleDescription(/v3.*Atualizado.*2 KB, 10\/10\/2026/);
+  });
+
   it("tells staff where to look when the project's folder is gone from Drive, not to try again", async () => {
     at("/casa-jardim", {
       "GET /api/pages/casa-jardim": () => ({ body: PAGE }),
@@ -479,6 +523,29 @@ describe("the files", () => {
     expect(await within(first).findByText(/A pasta deste projeto não está mais no Drive/)).toBeInTheDocument();
     expect(within(first).getByText(/Código de suporte: abc123/)).toBeInTheDocument();
     expect(within(first).queryByText(/Tente novamente/)).toBeNull();
+  });
+});
+
+describe("cardIds", () => {
+  const file = (name: string, extra: Partial<Schemas["FileOut"]> = {}): Schemas["FileOut"] => ({
+    key: Math.random().toString(),
+    name,
+    kind: "pdf",
+    size: 1,
+    modified_at: "2026-10-10T12:00:00Z",
+    updated: false,
+    clash: false,
+    older: [],
+    ...extra,
+  });
+
+  it("names a card by what it shows, not by its key, which changes on every listing", () => {
+    expect(cardIds([file("Planta.pdf")])).toEqual(cardIds([file("Planta.pdf")]));
+  });
+
+  it("tells apart two cards of one name: a clash, or a comparison named like a file", () => {
+    const ids = cardIds([file("Planta.pdf"), file("Planta.pdf", { clash: true }), file("Cozinha"), file("Cozinha", { comparison: { after: file("Cozinha (depois).jpg"), before_name: "a", after_name: "b" } })]);
+    expect(new Set(ids).size).toBe(4);
   });
 });
 
@@ -785,7 +852,7 @@ describe("edit mode", () => {
     expect(document.querySelector(".project-opening__backdrop img")).toHaveAttribute("src", "/api/pages/casa-jardim/cover?v=1");
   });
 
-  it("in edit mode, a cover can be removed from the page", async () => {
+  it("in edit mode, a cover can be removed from the page, after asking", async () => {
     window.history.pushState({}, "", "/casa-jardim");
     const sent = fakeApi({
       "GET /api/tenant": () => ({ body: TENANT }),
@@ -799,6 +866,13 @@ describe("edit mode", () => {
     render(<ClientApp />);
     await startEditing();
     await userEvent.click(await screen.findByRole("button", { name: "Remover capa" }));
+    // Asked first: the photo goes to the trash.
+    let ask = screen.getByRole("alertdialog", { name: "Remover a capa?" });
+    await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
+    expect(sent.some((r) => r.method === "DELETE")).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Remover capa" }));
+    ask = screen.getByRole("alertdialog", { name: "Remover a capa?" });
+    await userEvent.click(within(ask).getByRole("button", { name: "Remover capa" }));
     expect(await screen.findByText("Capa removida.")).toBeInTheDocument();
     expect(sent.some((r) => r.method === "DELETE" && r.path === "/api/projects/p-1/cover")).toBe(true);
   });
@@ -918,6 +992,19 @@ describe("edit mode", () => {
     await waitFor(() =>
       expect(sent.filter((r) => r.method === "POST").map((r) => r.body)).toEqual([{ row_version: 4, title: "Visita técnica" }]),
     );
+  });
+
+  it("says so when a stage would take another stage's name", async () => {
+    asStaff({
+      "GET /api/project-types": () => ({ body: { types: [], stages: [] } }),
+      "POST /api/projects/p-1/stages": () => ({ status: 409, body: { error: "stage_name_taken" } }),
+    });
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "+ Adicionar etapa" }));
+    await userEvent.selectOptions(await screen.findByLabelText("Etapa"), "Etapa personalizada…");
+    await userEvent.type(screen.getByLabelText("Nome da etapa"), "levantamento{Enter}");
+    expect(await screen.findByText("Já existe uma etapa com esse nome neste projeto. Escolha outro nome.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nome da etapa")).toHaveValue("levantamento"); // kept, to change
   });
 
   it("adds a custom stage on Enter in its name", async () => {
@@ -1627,6 +1714,8 @@ describe("edit mode", () => {
     class FakeXhr {
       static sent: { method: string; url: string; body: unknown }[] = [];
       static answer = 200; // Google's answer to every PUT
+      // Set: Google's answer waits until the test calls `finish`.
+      static hold: ((finish: () => void) => void) | null = null;
       responseText = "";
       upload: { onprogress?: (event: { lengthComputable: boolean; loaded: number; total: number }) => void } = {};
       status = 0;
@@ -1644,13 +1733,16 @@ describe("edit mode", () => {
         this.upload.onprogress?.({ lengthComputable: true, loaded: body.size, total: body.size });
         this.status = FakeXhr.answer;
         this.responseText = this.status >= 400 ? "storageQuotaExceeded" : "";
-        setTimeout(() => this.onload?.());
+        const finish = () => this.onload?.();
+        if (FakeXhr.hold) FakeXhr.hold(finish);
+        else setTimeout(finish);
       }
     }
 
     function asEditor(extra: Parameters<typeof fakeApi>[0] = {}) {
       FakeXhr.sent = [];
       FakeXhr.answer = 200;
+      FakeXhr.hold = null;
       vi.stubGlobal("XMLHttpRequest", FakeXhr);
       return asStaff({
         "GET /api/pages/casa-jardim/files": () => ({ body: FILES }),
@@ -1701,6 +1793,63 @@ describe("edit mode", () => {
       await waitFor(() =>
         expect(sent.filter((r) => r.method === "GET" && r.path === "/api/pages/casa-jardim/files").length).toBe(2),
       );
+    });
+
+    it("keeps a card's open list of versions when the page lists again, though its key is new", async () => {
+      // Every listing encrypts the keys afresh: a card keyed by one would be made anew.
+      let listed = 0;
+      const planta = () => ({
+        key: `k${++listed}`,
+        name: "Planta.pdf",
+        kind: "pdf",
+        size: 2048,
+        modified_at: "2026-10-10T12:00:00Z",
+        version: 2,
+        older: [{ key: `old${listed}`, name: "Planta.pdf", kind: "pdf", size: 10, modified_at: "2026-10-01T12:00:00Z", older: [] }],
+      });
+      let finish: (() => void) | undefined;
+      asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({
+          body: { stages: [{ position: 2, groups: [{ folder: null, files: [planta()] }] }] },
+        }),
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+      });
+      FakeXhr.hold = (done) => (finish = done); // asEditor starts afresh
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await userEvent.upload(
+        await within(stage).findByLabelText("escolha no computador"),
+        new File(["%PDF"], "Corte.pdf", { type: "application/pdf" }),
+      );
+      await waitFor(() => expect(finish).toBeDefined());
+      // While another file goes up, staff open this one's versions.
+      await userEvent.click(within(stage).getByRole("button", { name: "2 versões" }));
+      expect(screen.getByRole("dialog", { name: "Planta.pdf" })).toBeInTheDocument();
+      act(() => finish!()); // the upload ends: the page lists again
+      await waitFor(() => expect(document.querySelector('[data-file="k2"]')).not.toBeNull());
+      expect(screen.getByRole("dialog", { name: "Planta.pdf" })).toBeInTheDocument();
+    });
+
+    it("checks a large drop's names in batches the server takes, and sends three files at a time", async () => {
+      const finishes: (() => void)[] = [];
+      const { sent } = asEditor({
+        "POST /api/projects/p-1/stages/2/uploads/check": () => ({ body: { matches: [] } }),
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+      });
+      FakeXhr.hold = (finish) => finishes.push(finish);
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      const files = Array.from({ length: 150 }, (_, i) => new File(["%PDF"], `Foto ${i + 1}.pdf`, { type: "application/pdf" }));
+      await userEvent.upload(await within(stage).findByLabelText("escolha no computador"), files);
+      await waitFor(() => expect(FakeXhr.sent).toHaveLength(3));
+      const checks = sent.filter((r) => r.path.endsWith("/uploads/check")).map((r) => (r.body as { names: string[] }).names);
+      expect(checks.map((names) => names.length)).toEqual([100, 50]);
+      expect(checks.flat()).toEqual(files.map((file) => file.name));
+      // Each waits its turn, listed meanwhile.
+      expect(within(stage).getByText("Foto 150.pdf")).toBeInTheDocument();
+      act(() => finishes.shift()!());
+      await waitFor(() => expect(FakeXhr.sent).toHaveLength(4));
+      expect(finishes).toHaveLength(3); // never more than three at once
     });
 
     it("reports a send that failed for good, and shows the support code", async () => {
@@ -1856,6 +2005,65 @@ describe("edit mode", () => {
       expect(sent.some((r) => r.method === "POST" && r.path.endsWith("/k1/hide"))).toBe(true);
     });
 
+    it("says every version of a document was hidden, as the server hides them all", async () => {
+      const versioned = {
+        stages: [
+          {
+            position: 2,
+            groups: [
+              {
+                folder: null,
+                files: [
+                  {
+                    ...FILES.stages[1]!.groups[0]!.files[0]!,
+                    version: 2,
+                    older: [{ key: "k0", name: "Planta.pdf", kind: "pdf", size: 10, modified_at: "2026-10-01T12:00:00Z", older: [] }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: versioned }),
+        "POST /api/pages/casa-jardim/files/k1/hide": () => ({ status: 204 }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar do cliente/ }));
+      expect(await screen.findByText(/“Planta.pdf” e suas versões anteriores não aparecem mais/)).toBeInTheDocument();
+    });
+
+    it("renames a file from its menu: the name only, its extension kept", async () => {
+      const { sent } = asEditor({ "POST /api/pages/casa-jardim/files/k1/rename": () => ({ status: 204 }) });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Renomear" }));
+      const dialog = screen.getByRole("dialog", { name: "Renomear" });
+      const field = within(dialog).getByLabelText("Nome do arquivo");
+      expect(field).toHaveValue("Planta");
+      expect(within(dialog).getByText("A extensão .pdf é mantida.")).toBeInTheDocument();
+      await userEvent.clear(field);
+      await userEvent.type(field, "Planta térreo{Enter}");
+      expect(await screen.findByText("Arquivo renomeado para “Planta térreo.pdf”.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/k1/rename"))?.body).toEqual({ name: "Planta térreo" });
+    });
+
+    it("keeps the rename dialog open, saying why, when the server refuses the name", async () => {
+      asEditor({
+        "POST /api/pages/casa-jardim/files/k1/rename": () => ({ status: 409, body: { error: "file_name_taken" } }),
+      });
+      await startEditing();
+      await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
+      await userEvent.click(screen.getByRole("menuitem", { name: "Renomear" }));
+      const dialog = screen.getByRole("dialog", { name: "Renomear" });
+      await userEvent.clear(within(dialog).getByLabelText("Nome do arquivo"));
+      await userEvent.type(within(dialog).getByLabelText("Nome do arquivo"), "Corte{Enter}");
+      expect(await screen.findByText("Já existe um arquivo com esse nome aqui. Escolha outro nome.")).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Renomear" })).toBeInTheDocument();
+    });
+
     it("closes a file's menu with a click outside it", async () => {
       asEditor();
       await startEditing();
@@ -1874,7 +2082,7 @@ describe("edit mode", () => {
       await startEditing();
       await userEvent.click(await screen.findByRole("button", { name: "Ações para Planta.pdf" }));
       await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar do cliente/ }));
-      expect(await screen.findByText(/renomeie-o na pasta da etapa começando com _/)).toBeInTheDocument();
+      expect(await screen.findByText(/renomeie na pasta da etapa cada versão dele começando com _/)).toBeInTheDocument();
     });
 
     it("moves a file to another stage, offering every stage but its own", async () => {
@@ -2014,8 +2222,8 @@ describe("edit mode", () => {
       await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar seção/ }));
       const ask = screen.getByRole("alertdialog", { name: "Ocultar a seção “Plantas”?" });
       expect(ask).toHaveTextContent("A seção e o seu arquivo deixarão de aparecer na página");
-      expect(ask).toHaveTextContent("continuará no Google Drive, na pasta “_Plantas”");
-      expect(ask).toHaveTextContent("tirando o _ do início");
+      expect(ask).toHaveTextContent("A pasta “Plantas” vai, com o arquivo, para a pasta “_arquivados” da etapa");
+      expect(ask).toHaveTextContent("mova a pasta no Google Drive de volta para a pasta da etapa");
       await userEvent.click(within(ask).getByRole("button", { name: "Ocultar seção" }));
       expect(await screen.findByText("Seção “Plantas” ocultada.")).toBeInTheDocument();
       expect(sent.find((r) => r.path.endsWith("/folders/hide"))?.body).toEqual({ row_version: 4, name: "Plantas" });
@@ -2027,7 +2235,7 @@ describe("edit mode", () => {
       const stage = screen.getByRole("region", { name: "Levantamento" });
       await userEvent.click(await within(stage).findByRole("button", { name: "Ações da seção Renders" }));
       await userEvent.click(screen.getByRole("menuitem", { name: /Ocultar seção/ }));
-      expect(screen.getByRole("alertdialog")).toHaveTextContent("A pasta continuará no Google Drive, como “_Renders”.");
+      expect(screen.getByRole("alertdialog")).toHaveTextContent("A pasta “Renders” vai para a pasta “_arquivados” da etapa, no Google Drive.");
     });
 
     it("renames a section while Editar etapa is open without saving or closing the stage", async () => {
@@ -2068,6 +2276,44 @@ describe("edit mode", () => {
       };
     }
     const card = (name: string) => screen.getByRole("button", { name: `Abrir ${name}` }).closest(".file")!;
+
+    it("never uploads a picture dragged from the page, only files from the computer", async () => {
+      // A browser drags a card's picture as a file of its own ("thumb"): dropped on
+      // a stage, it was uploaded as "thumb.png" (Alinea, Nov 2026).
+      const { sent } = asEditor({
+        "GET /api/pages/casa-jardim/files": () => ({ body: withSections() }),
+        "POST /api/projects/p-1/stages/2/uploads": () => ({ body: { upload_url: "https://upload.example/s1" } }),
+        "POST /api/pages/casa-jardim/files/k1/move": () => ({ status: 204 }),
+      });
+      await startEditing();
+      const stage = screen.getByRole("region", { name: "Levantamento" });
+      await within(stage).findByRole("heading", { name: "Renders" });
+      const choosers = await within(stage).findAllByLabelText("escolha no computador");
+      const area = choosers.map((c) => c.closest(".drop")).find((d) => d && !d.classList.contains("drop--section"))!;
+      for (const picture of document.querySelectorAll(".file__thumb img")) {
+        expect(picture).toHaveAttribute("draggable", "false"); // a drag on it is the card's
+      }
+      const thumb = new File(["png"], "thumb.png", { type: "image/png" });
+      const fromPage = Object.assign(dragData(), { files: [thumb] });
+      fromPage.setData("Files", "");
+      fireEvent.dragStart(card("Planta.pdf").querySelector(".file__thumb") ?? card("Planta.pdf"), {
+        dataTransfer: fromPage,
+      });
+      for (const target of [stage, area]) {
+        fireEvent.dragOver(target, { dataTransfer: fromPage });
+        fireEvent.drop(target, { dataTransfer: fromPage });
+      }
+      fireEvent.dragEnd(card("Planta.pdf"), { dataTransfer: fromPage });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(sent.some((r) => r.path.endsWith("/uploads"))).toBe(false);
+      // From the computer (no drag began on the page): uploaded as before.
+      const fromComputer = Object.assign(dragData(), { files: [new File(["%PDF"], "Corte.pdf", { type: "application/pdf" })] });
+      fromComputer.setData("Files", "");
+      fireEvent.dragOver(area, { dataTransfer: fromComputer });
+      fireEvent.drop(area, { dataTransfer: fromComputer });
+      expect(await screen.findByText("Arquivo enviado.")).toBeInTheDocument();
+      expect(sent.find((r) => r.path.endsWith("/uploads"))?.body).toMatchObject({ name: "Corte.pdf" });
+    });
 
     it("moves a file by dragging its card into a section or onto another stage", async () => {
       const { sent } = asEditor({
@@ -2250,6 +2496,34 @@ describe("edit mode", () => {
       start: "16:00",
       end: "17:00",
     });
+  });
+
+  it("asks before removing the meeting, saying subscribed clients will be emailed", async () => {
+    window.history.pushState({}, "", "/casa-jardim");
+    const sent = fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => ({ body: { name: "Ana", email: "ana@alinea.example", csrf_token: "csrf-9" } }),
+      "GET /api/pages/casa-jardim": () => ({
+        body: {
+          ...PAGE,
+          staff: { project_id: "p-1", status: "active", row_version: 4, recipients: [{ email: "ana@exemplo.com.br", subscribed: true }] },
+        },
+      }),
+      "DELETE /api/projects/p-1/meeting": () => ({ status: 204 }),
+    });
+    render(<ClientApp />);
+    await startEditing();
+    await userEvent.click(screen.getByRole("button", { name: "Editar reunião" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Remover reunião" }));
+    let ask = screen.getByRole("alertdialog", { name: "Remover a reunião?" });
+    expect(ask).toHaveTextContent("“Apresentação” deixará de aparecer na página do projeto.");
+    expect(ask).toHaveTextContent("Clientes inscritos neste projeto serão notificados por e-mail.");
+    await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
+    expect(sent.some((r) => r.method === "DELETE")).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Remover reunião" }));
+    ask = screen.getByRole("alertdialog", { name: "Remover a reunião?" });
+    await userEvent.click(within(ask).getByRole("button", { name: "Remover reunião" }));
+    await waitFor(() => expect(sent.find((r) => r.method === "DELETE")?.query).toBe("?row_version=4"));
   });
 
   it("asks whether the meeting is in person or online, and saves only that one's place", async () => {

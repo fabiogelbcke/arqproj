@@ -1,5 +1,6 @@
 """The longest text staff can enter in each field, how many client addresses a
-project keeps, and how much a share link holds: the limits the server enforces.
+project keeps, how much a share link holds, how many names an upload's version
+check takes and the largest amount a proposal takes: the limits the server enforces.
 
 `make api-types` writes them to `frontend/src/api/limits.json`, which the screens'
 inputs (maxLength) and the preview page read. So a limit changes here, in the
@@ -10,6 +11,8 @@ database allows more, and a name saved before the limit stays as it is.
 
 from __future__ import annotations
 
+from backend.comments.models import BODY_MAX as COMMENT_BODY_MAX
+from backend.comments.models import NAME_MAX as COMMENT_NAME_MAX
 from backend.documents.comparisons import LABEL_MAX as COMPARISON_LABEL_MAX
 from backend.documents.comparisons import TITLE_MAX as COMPARISON_TITLE_MAX
 from backend.identity.emails import EMAIL_LIMIT
@@ -23,8 +26,9 @@ from backend.proposals.models import SERVICE_DESCRIPTION_MAX, SERVICE_TITLE_MAX
 from backend.shares.models import LABEL_MAX as SHARE_LABEL_MAX
 from backend.web.office import NAME_LIMIT as OFFICE_NAME_LIMIT
 from backend.web.page_edit import DESCRIPTION_MAX, DETAIL_TEXT_MAX, NOTES_MAX
-from backend.web.page_uploads import SECTION_NAME_MAX
+from backend.web.page_uploads import CHECK_NAMES_MAX, FILE_NAME_MAX, SECTION_NAME_MAX
 from backend.web.project_settings import PAGE_PASSWORD_MAX, PAGE_PASSWORD_MIN
+from backend.web.shares import FILES_MAX as SHARE_FILES_MAX
 from backend.web.shares import SIZE_MAX as SHARE_BYTES_MAX
 from backend.web.team import NAME_MAX as STAFF_NAME_MAX
 
@@ -37,8 +41,12 @@ FIELD_LIMITS: dict[str, int] = {
     "stageTitle": STAGE_TITLE_MAX,
     "stageNotes": NOTES_MAX,
     "sectionName": SECTION_NAME_MAX,
+    "fileName": FILE_NAME_MAX,  # "Renomear", without the extension
+    "uploadCheckNames": CHECK_NAMES_MAX,  # file names one version check takes
     "comparisonTitle": COMPARISON_TITLE_MAX,  # A46
     "comparisonLabel": COMPARISON_LABEL_MAX,
+    "commentBody": COMMENT_BODY_MAX,  # A49
+    "commentName": COMMENT_NAME_MAX,
     "detailText": DETAIL_TEXT_MAX,
     "meetingTitle": MEETING_TITLE_MAX,
     "meetingLocation": MEETING_LOCATION_MAX,
@@ -51,6 +59,7 @@ FIELD_LIMITS: dict[str, int] = {
     "phone": PHONE_MAX,  # a client's WhatsApp number as typed (A47)
     "shareLabel": SHARE_LABEL_MAX,
     "shareBytes": SHARE_BYTES_MAX,
+    "shareFiles": SHARE_FILES_MAX,  # a comparison counts as its two images
     # Proposals (A42).
     "proposalClient": proposal.CLIENT_MAX,
     "proposalCity": proposal.CITY_MAX,
@@ -63,6 +72,7 @@ FIELD_LIMITS: dict[str, int] = {
     "proposalServices": proposal.SERVICES_MAX,
     "proposalPayments": proposal.PAYMENTS_MAX,
     "proposalNotIncluded": proposal.NOT_INCLUDED_MAX,
+    "proposalAmount": proposal.AMOUNT_MAX,  # in centavos: a fee's, an instalment's
     "serviceTitle": SERVICE_TITLE_MAX,
     "serviceDescription": SERVICE_DESCRIPTION_MAX,
 }

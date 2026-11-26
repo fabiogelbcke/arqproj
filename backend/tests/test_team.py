@@ -19,6 +19,7 @@ from backend.db.isolation import scope_to_tenant
 from backend.identity import accounts, support
 from backend.identity.models import JoinLink, Role, User
 from backend.notifications.email import EmailError
+from backend.security import keys
 from backend.settings import Settings
 from backend.tenancy.models import Tenant, TenantDomain
 from backend.tests.conftest import RUNTIME_ROLE, TEST_DATABASE_URL
@@ -200,15 +201,20 @@ async def test_when_the_email_cannot_go_the_invite_stands_and_says_so(client, ow
 
 
 async def test_members_see_the_team_but_only_owners_invite(client, owner, db_session, sent):
+    pending = (await invite(client, owner, email="ana@alinea.example")).json()["member"]["id"]
     member = await sign_in_as(client, db_session, "rui@alinea.example", Role.MEMBER)
     team_now = (await client.get("/api/team", headers=member)).json()
     assert team_now["can_manage"] is False
     for response in (
         await invite(client, member),
+        await client.post(f"/api/team/invites/{pending}/link", headers=member),
+        await client.delete(f"/api/team/invites/{pending}", headers=member),
         await client.post("/api/team/join-link", headers=member),
         await client.delete("/api/team/join-link", headers=member),
     ):
         assert (response.status_code, response.json()["error"]) == (403, "owner_only")
+    team_now = (await client.get("/api/team", headers=member)).json()
+    assert pending in {person["id"] for person in team_now["members"]}  # still invited
 
 
 async def test_inviting_needs_a_signed_in_request_with_its_csrf_token(client, owner, sent):
@@ -371,6 +377,27 @@ async def test_a_device_asking_again_and_again_must_wait(client, owner, sent):
     assert (response.status_code, response.json()) == (429, {"error": "too_many_attempts"})
 
 
+async def lock_waiters(engine, at_least: int = 1, query: str = "%", stop=lambda: False) -> int:
+    """How many connections wait for a lock (pg_stat_activity), once there are
+    `at_least` of them or `stop()` holds: a test sees a request waiting instead of
+    guessing with a sleep. Fails after 10 seconds."""
+    async with engine.connect() as observer:
+        with anyio.fail_after(10):
+            while True:
+                waiting = await observer.scalar(
+                    text(
+                        "SELECT count(*) FROM pg_stat_activity "
+                        "WHERE datname = current_database() "
+                        "AND wait_event_type = 'Lock' AND query LIKE :query"
+                    ),
+                    {"query": query},
+                )
+                await observer.commit()  # fresh activity snapshot
+                if waiting >= at_least or stop():
+                    return waiting
+                await anyio.sleep(0.02)
+
+
 async def test_requests_for_one_address_wait_for_each_other(client, owner, sent):
     """Two at once for a new address must not both find no account and both make
     one: the second waits for the first's lock, which holds across connections."""
@@ -390,12 +417,13 @@ async def test_requests_for_one_address_wait_for_each_other(client, owner, sent)
                     text("SELECT pg_advisory_xact_lock(hashtext('staff-email'), hashtext(:e))"),
                     {"e": "caio@gmail.com"},
                 )
-                async with anyio.create_task_group() as tasks:
-                    tasks.start_soon(request)
-                    await anyio.sleep(0.5)
-                    assert not done.is_set()  # waiting for the lock
-                    await holder.commit()  # let go
-            await done.wait()
+                with anyio.fail_after(10):
+                    async with anyio.create_task_group() as tasks:
+                        tasks.start_soon(request)
+                        await lock_waiters(other, stop=done.is_set)
+                        assert not done.is_set()  # waiting for the lock
+                        await holder.commit()  # let go
+            assert done.is_set()
     finally:
         await other.dispose()
     assert answers == [201]
@@ -416,12 +444,13 @@ async def _waits_for(lock_sql: str, key: str, call) -> int:
         async with other.connect() as holder:
             async with holder.begin():
                 await holder.execute(text(lock_sql), {"k": key})
-                async with anyio.create_task_group() as tasks:
-                    tasks.start_soon(request)
-                    await anyio.sleep(0.5)
-                    assert not done.is_set()  # waiting for the lock
-                    await holder.commit()
-            await done.wait()
+                with anyio.fail_after(10):
+                    async with anyio.create_task_group() as tasks:
+                        tasks.start_soon(request)
+                        await lock_waiters(other, stop=done.is_set)
+                        assert not done.is_set()  # waiting for the lock
+                        await holder.commit()
+            assert done.is_set()
     finally:
         await other.dispose()
     return answers[0]
@@ -503,7 +532,7 @@ async def owner_token(db, **values):
         JoinLink(
             **(
                 {
-                    "token_hash": team._hash(token),
+                    "token_hash": keys.token_hash(token),
                     "role": Role.OWNER,
                     "single_use": True,
                     "expires_at": datetime.now(UTC) + timedelta(days=7),
@@ -642,26 +671,14 @@ async def test_concurrent_owner_joins_create_only_one_account(test_database_url,
             async with holder.begin():
                 await holder.execute(
                     text("SELECT id FROM join_links WHERE token_hash = :hash FOR UPDATE"),
-                    {"hash": team._hash(token)},
+                    {"hash": keys.token_hash(token)},
                 )
                 async with anyio.create_task_group() as tasks:
                     tasks.start_soon(request, "ana@example.com")
                     tasks.start_soon(request, "bia@example.com")
-                    async with owner_engine.connect() as observer:
-                        with anyio.fail_after(10):
-                            while True:
-                                waiting = await observer.scalar(
-                                    text(
-                                        "SELECT count(*) FROM pg_stat_activity "
-                                        "WHERE datname = current_database() "
-                                        "AND wait_event_type = 'Lock' "
-                                        "AND query LIKE 'UPDATE join_links%'"
-                                    )
-                                )
-                                await observer.commit()  # fresh activity snapshot
-                                if waiting == 2 or answers:
-                                    break
-                                await anyio.sleep(0.02)
+                    waiting = await lock_waiters(
+                        owner_engine, 2, "UPDATE join_links%", stop=lambda: bool(answers)
+                    )
                     assert waiting == 2 and answers == []
                     await holder.commit()
         assert sorted(answer.status_code for answer in answers) == [201, 404]
@@ -682,3 +699,23 @@ async def test_concurrent_owner_joins_create_only_one_account(test_database_url,
             await cleanup.execute(delete(Tenant).where(Tenant.id == tenant.id))
         await app_engine.dispose()
         await owner_engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("password_hash", "confirmed", "status"),
+    [
+        (None, None, accounts.StaffStatus.INVITED),
+        # Invited by email: the address is known, the password not chosen yet.
+        (None, datetime(2026, 11, 1, tzinfo=UTC), accounts.StaffStatus.INVITED),
+        ("$argon2id$…", None, accounts.StaffStatus.UNCONFIRMED),  # joined by the shared link
+        ("$argon2id$…", datetime(2026, 11, 1, tzinfo=UTC), accounts.StaffStatus.ACTIVE),
+    ],
+)
+def test_a_staff_members_status_is_one_rule_for_the_team_and_the_operator(
+    password_hash, confirmed, status
+):
+    """The painel's team list and the operator dashboard both show it, from
+    `accounts.staff_status`: a change to what "pending" means changes both."""
+    user = User(name="Ana", email="ana@alinea.example", role=Role.MEMBER)
+    user.password_hash, user.email_confirmed_at = password_hash, confirmed
+    assert accounts.staff_status(user) is status

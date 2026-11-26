@@ -322,6 +322,16 @@ async def test_a_database_failure_removes_the_folders_already_made(
     assert await project_count(db_session) == before
 
 
+async def test_only_the_taken_address_itself_is_reported_as_taken(client, db_session, owner):
+    """The database's refusal is told by the rule it broke, not by words in its
+    message: another rule whose name happens to say "slug" is no taken address."""
+    await db_session.execute(
+        text("ALTER TABLE project_stages ADD CONSTRAINT not_like_a_slug CHECK (title <> 'x-y')")
+    )
+    response = await create(client, owner, custom_stages=["x-y"])
+    assert response.status_code == 500
+
+
 async def test_the_check_above_would_catch_folders_left_behind(
     client, db_session, owner, tmp_path, monkeypatch
 ):
@@ -364,7 +374,6 @@ async def test_a_drive_failure_trashes_what_was_made_and_says_try_again(
     owner,
     on_google,
 ):
-    fake, _ = on_google
     failing = FailsOnThirdFolder()
     app.state.http = httpx2.AsyncClient(transport=httpx2.MockTransport(failing))
     before = await project_count(db_session)
@@ -409,8 +418,6 @@ async def test_the_list_has_what_the_cards_show(client, owner):
     }
     casa = listed["casa-jardim"]
     assert (casa["stage_count"], casa["completed_stage_count"]) == (7, 2)
-    # The previous release's fields, for one release (A30): the first stage still open.
-    assert (casa["current_position"], casa["current_stage_title"]) == (3, "Estudo Preliminar")
     done = listed["refugio-da-mantiqueira"]  # a completed project: every stage
     assert done["completed_stage_count"] == done["stage_count"] > 0
     assert casa["project_type_label"] == "Projeto Arquitetônico"

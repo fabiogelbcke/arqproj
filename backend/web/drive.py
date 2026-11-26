@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.db.isolation import scope_to_tenant
 from backend.identity.models import Role
@@ -49,7 +49,8 @@ from backend.storage.google_connect import (
 from backend.storage.models import ReaderStatus, StorageConnection, StorageKind, WriterStatus
 from backend.tenancy.models import Locale
 from backend.tenancy.resolve import CurrentTenant, current_tenant, normalize_host, resolve
-from backend.web.auth import CurrentStaff, current_staff, require_csrf
+from backend.web.access import require_owner
+from backend.web.auth import CurrentStaff, current_staff
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.request_id import current_request_id
 
@@ -88,11 +89,6 @@ class DriveOut(BaseModel):
 class SpaceOut(BaseModel):
     used: int  # bytes
     total: int | None  # None: no limit set by Google (Workspace pooled storage)
-
-
-def _require_owner(staff: CurrentStaff) -> None:
-    if staff.role is not Role.OWNER:
-        raise ApiError(403, ErrorCode.OWNER_ONLY)
 
 
 def _oauth(request: Request) -> OAuthClient:
@@ -152,10 +148,9 @@ async def connect(
     request: Request,
     response: Response,
     body: ConnectIn | None = None,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     tenant: CurrentTenant = Depends(current_tenant),
 ) -> ConnectOut:
-    _require_owner(staff)
     oauth = _oauth(request)
     nonce = secrets.token_urlsafe(24)
     origin = f"{request.url.scheme}://{request.headers['host']}"
@@ -238,7 +233,7 @@ async def callback(request: Request) -> Response:
                 ConnectProblem.OTHER_ACCOUNT: ErrorCode.DRIVE_OTHER_ACCOUNT,
             }.get(error.problem, ErrorCode.DRIVE_CONNECT_FAILED)
             return _back(request, code)
-    capture(request, "drive_connected", {"fresh": bool(state.get("fresh", False))})
+    capture(request, AnalyticsEvent.DRIVE_CONNECTED, {"fresh": bool(state.get("fresh", False))})
     done = RedirectResponse(f"{SETTINGS_PAGE}?resultado=conectado", 302)
     done.delete_cookie(NONCE_COOKIE, path="/api/drive/callback")
     return done
@@ -372,10 +367,9 @@ async def _reader_status(request: Request, root: str) -> ReaderStatus:
 @router.delete("/drive", status_code=204, responses=documented(401, 403))
 async def disconnect(
     request: Request,
-    staff: CurrentStaff = Depends(require_csrf),
+    staff: CurrentStaff = Depends(require_owner),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> None:
-    _require_owner(staff)
     connection = await _connection(db)
     if connection is None or connection.writer_token is None:
         return
@@ -392,7 +386,7 @@ async def disconnect(
     connection.writer_token = None
     connection.writer_status = WriterStatus.NONE
     await db.commit()
-    capture(request, "drive_disconnected")
+    capture(request, AnalyticsEvent.DRIVE_DISCONNECTED)
 
 
 async def writer_for(request: Request, db: AsyncSession) -> tuple[StorageConnection, DriveWriter]:

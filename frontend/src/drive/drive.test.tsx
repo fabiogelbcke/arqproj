@@ -52,9 +52,16 @@ describe("Drive settings", () => {
     renderAt("/configuracoes/drive");
     expect(await screen.findByText("Conectado como escritorio@gmail.com")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Desconectar" }));
-    expect(screen.getByText(/deixa de acessar o Drive/)).toBeInTheDocument();
+    let ask = await screen.findByRole("alertdialog", { name: "Desconectar o Google Drive?" });
+    expect(ask).toHaveTextContent(/deixa de acessar o Drive/);
+    // A way out, focused first: a stray Enter doesn't disconnect.
+    expect(within(ask).getByRole("button", { name: "Cancelar" })).toHaveFocus();
+    await userEvent.click(within(ask).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(sent.some((r) => r.method === "DELETE")).toBe(false); // not yet: confirm first
     await userEvent.click(screen.getByRole("button", { name: "Desconectar" }));
+    ask = await screen.findByRole("alertdialog", { name: "Desconectar o Google Drive?" });
+    await userEvent.click(within(ask).getByRole("button", { name: "Desconectar" }));
     await waitFor(() => expect(sent.some((r) => r.method === "DELETE")).toBe(true));
   });
 
@@ -67,10 +74,19 @@ describe("Drive settings", () => {
 
   it("explains a failed connection from Google's return, in Portuguese", async () => {
     api(NOT_CONNECTED);
-    renderAt("/configuracoes/drive?erro=drive_share_failed&ref=req42");
+    renderAt("/configuracoes/drive?erro=drive_share_failed&ref=4bf92f3577b34da6a3ce929d0e0e4736");
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Não foi possível preparar a pasta");
-    expect(alert).toHaveTextContent("Código de suporte: req42");
+    expect(alert).toHaveTextContent("Código de suporte: 4bf92f3577b34da6a3ce929d0e0e4736");
+  });
+
+  it("shows only a real support code from the address, never other text put in the link", async () => {
+    api(NOT_CONNECTED);
+    renderAt("/configuracoes/drive?erro=drive_share_failed&ref=Ligue-para-0800-123-4567");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Não foi possível preparar a pasta");
+    expect(alert).not.toHaveTextContent("Código de suporte");
+    expect(alert).not.toHaveTextContent("0800");
   });
 
   it("lets members see the connection but not change it", async () => {
@@ -264,7 +280,7 @@ describe("the painel's first steps", () => {
   });
 
   it("comes before the search while setting up, once there are projects to search (Fabio)", async () => {
-    const casa = { id: "11111111-1111-1111-1111-111111111111", name: "Casa Jardim", client_name: "Família Oliveira", slug: "casa-jardim", status: "active", project_type: "architecture", project_type_label: "Projeto Arquitetônico", stage_count: 7, completed_stage_count: 2, current_position: null, current_stage_title: null, next_meeting: null, created_at: "2026-09-01T12:00:00Z", last_activity_at: null, row_version: 4, cover_url: null, access_mode: "public", recipients: [] };
+    const casa = { id: "11111111-1111-1111-1111-111111111111", name: "Casa Jardim", client_name: "Família Oliveira", slug: "casa-jardim", status: "active", project_type: "architecture", project_type_label: "Projeto Arquitetônico", stage_count: 7, completed_stage_count: 2, next_meeting: null, created_at: "2026-09-01T12:00:00Z", last_activity_at: null, row_version: 4, cover_url: null, access_mode: "public", recipients: [] };
     api(CONNECTED, {
       "GET /api/onboarding": () => ({ body: { storage_connected: true, office_details: false, has_project: true } }),
       "GET /api/projects": () => ({ body: [casa] }),

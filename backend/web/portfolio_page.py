@@ -1,10 +1,10 @@
 """The office's portfolio at its own address's root (`/`), once published.
 
 `/` belongs to no office (Unio's home is served there on every address), so this
-looks the office up from the address itself. Unio's own address keeps its home.
-An office's address shows a card of the office while the portfolio is
-unpublished: its logo or name, its contact details and networks, and the way in
-for staff. `/?projeto={id}` shows one work with all its photos.
+looks the office up from the address itself; an address no office owns (Unio's
+own) keeps Unio's home. An office's address shows a card of the office while the
+portfolio is unpublished: its logo or name, its contact details and networks, and
+the way in for staff. `/?projeto={id}` shows one work with all its photos.
 Signed-in staff see an unpublished portfolio with `/?previa=1`.
 
 The page is plain HTML drawn here: quick to load and read by search engines.
@@ -51,7 +51,7 @@ from backend.projects.enums import DetailType
 from backend.projects.models import ProjectTypeDef
 from backend.tenancy.middleware import REDIRECT_MAX_AGE, redirect_url
 from backend.tenancy.models import Feature, Locale
-from backend.tenancy.resolve import CurrentTenant, normalize_host, resolve
+from backend.tenancy.resolve import CurrentTenant, resolve
 from backend.web.auth import COOKIE
 from backend.web.portfolio import (
     SIZES,
@@ -305,20 +305,23 @@ def _card(
 
 async def page(request: Request) -> Response | None:
     """The portfolio for this address, or the office's card while it is
-    unpublished; None on Unio's own address, and whenever the office can't be read:
-    Unio's home is shown then, as it never depends on the database."""
+    unpublished; None on an address no office owns (Unio's own), and whenever the
+    office can't be read: Unio's home is shown then, as it never depends on the
+    database."""
     try:
         return await _page(request)
     except Exception:
         log.exception("portfolio unavailable at %s; Unio's home shown", request.headers.get("host"))
+        # The home then stands in for a page that may exist: not to be kept.
+        request.state.office_unread = True
         return None
 
 
 async def _page(request: Request) -> Response | None:
     settings = request.app.state.settings
     host = request.headers.get("host")
-    if normalize_host(host) == settings.operator_host:
-        return None
+    # Not "is this Unio's own address?" but "is it an office's?": on staging the
+    # one address is both, and the office's page wins there (12 Nov 2026).
     async with request.app.state.sessionmaker() as session:
         resolution = await resolve(session, host)
     if resolution is None:

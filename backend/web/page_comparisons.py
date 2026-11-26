@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.analytics import capture
+from backend.analytics import AnalyticsEvent, capture
 from backend.db.engine import get_tenant_session
 from backend.documents import comparisons, versions
 from backend.documents.comparisons import Side
@@ -35,21 +35,21 @@ from backend.storage.base import StorageError
 from backend.storage.google_connect import ConnectError
 from backend.tenancy.models import Feature
 from backend.tenancy.resolve import CurrentTenant, current_tenant
-from backend.web.auth import CurrentStaff, require_csrf
+from backend.web.access import changeable_project
 from backend.web.errors import ApiError, ErrorCode, documented
 from backend.web.page_files import INLINE_IMAGES, _in_project, _is_image, _item_at
 from backend.web.page_uploads import (
     UPLOAD_MAX,
-    _changeable,
     _clean,
     _documents,
     _listing_failed,
     _section,
     _stage_for_upload,
+    archive_folder,
     local_upload_url,
     upload_origin,
 )
-from backend.web.pages import _readable
+from backend.web.pages import changeable_page
 from backend.web.projects import _folders
 
 log = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ async def start_comparison(
     project_id: uuid.UUID,
     position: int,
     body: ComparisonIn,
-    _staff: CurrentStaff = Depends(require_csrf),
+    _changeable: Project = Depends(changeable_project),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> ComparisonUploadOut:
@@ -198,7 +198,7 @@ async def start_comparison(
     log.info("comparisons: opened for %s/%s, stage %s", tenant.id, project_id, position)
     capture(
         request,
-        "comparison_upload_started",
+        AnalyticsEvent.COMPARISON_UPLOAD_STARTED,
         {"bytes": sum(chosen.size for chosen in sides.values()), "stage_position": position},
     )
     return ComparisonUploadOut(before_url=urls.get(Side.BEFORE), after_url=urls.get(Side.AFTER))
@@ -226,19 +226,38 @@ def _items(comparison: comparisons.Comparison) -> list:
 
 async def _change(request, db, tenant, project, comparison, operation, action) -> None:
     """`action(maker, item)` on every file of the comparison, once the app may
-    change all of them: one made straight in Drive stops it before any changes."""
+    change all of them: one made straight in Drive stops it before any changes.
+    Each action returns how to undo it, or None when it changed nothing: a
+    failure partway puts back the files already changed, so the two sides are
+    never left apart (as stage folders' renames, page_stages.Renames)."""
     maker, _root = await _folders(request, db)
+    undos = []
     try:
         for item in _items(comparison):
             if not await maker.can_rename(item.id):
                 raise ApiError(409, ErrorCode.COMPARISON_NOT_OURS)
         for item in _items(comparison):
-            await action(maker, item)
+            if (undo := await action(maker, item)) is not None:
+                undos.append(undo)
     except ConnectError as error:
         log.error(
             "comparisons: %s failed for %s/%s: %s", operation, tenant.id, project.id, error.detail
         )
+        await _put_back(undos, operation, tenant, project)
         raise ApiError(503, ErrorCode.DRIVE_CONNECT_FAILED) from None
+    except BaseException:
+        await _put_back(undos, operation, tenant, project)
+        raise
+
+
+async def _put_back(undos, operation, tenant, project) -> None:
+    for undo in reversed(undos):
+        try:
+            await undo()
+        except Exception:  # the original failure is what matters
+            log.exception(
+                "comparisons: could not undo %s for %s/%s", operation, tenant.id, project.id
+            )
 
 
 class ComparisonEditIn(BaseModel):
@@ -257,14 +276,12 @@ async def edit_comparison(
     slug: str,
     key: str,
     body: ComparisonEditIn,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Its title and labels are in its files' names: each version of both sides
     is renamed, keeping its version (`Cozinha (antes - Obra) v2.jpg`)."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
     title = _title(body.title)
     _reader, documents, comparison, _found = await _comparison_at(request, db, tenant, project, key)
     besides = (comparison.before, comparison.after)
@@ -280,11 +297,13 @@ async def edit_comparison(
     names = {item.id: item.name for item in _items(comparison)}
 
     async def rename(maker, item):
-        if new[item.id] != names[item.id]:
-            await maker.rename(item.id, new[item.id])
+        if new[item.id] == names[item.id]:
+            return None
+        renamed = await maker.rename(item.id, new[item.id])  # locally, a new path
+        return lambda: maker.rename(renamed, names[item.id])
 
     await _change(request, db, tenant, project, comparison, "renaming", rename)
-    capture(request, "comparison_edited")
+    capture(request, AnalyticsEvent.COMPARISON_EDITED)
     return Response(status_code=204)
 
 
@@ -297,20 +316,26 @@ async def hide_comparison(
     request: Request,
     slug: str,
     key: str,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
-    """Both sides, every version, stay in Drive renamed "_name" (A05)."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
-    _reader, _listed, comparison, _found = await _comparison_at(request, db, tenant, project, key)
+    """Both sides, every version, go into `_arquivados` in their folder, their
+    names unchanged; the page never shows it (A05)."""
+    reader, _listed, comparison, found = await _comparison_at(request, db, tenant, project, key)
+    archive: list[str] = []  # made once, by the first file moved
 
     async def hide(maker, item):
-        await maker.rename(item.id, f"_{item.name}")
+        if not archive:
+            try:
+                archive.append(await archive_folder(maker, reader, found["f"]))
+            except StorageError as error:
+                raise _listing_failed(error, tenant, project.id, found.get("s")) from None
+        moved = await maker.move(item.id, archive[0])
+        return lambda: maker.move(moved, found["f"])  # back where the page listed it
 
     await _change(request, db, tenant, project, comparison, "hiding", hide)
-    capture(request, "comparison_hidden")
+    capture(request, AnalyticsEvent.COMPARISON_HIDDEN)
     return Response(status_code=204)
 
 
@@ -330,14 +355,12 @@ async def move_comparison(
     slug: str,
     key: str,
     body: ComparisonMoveIn,
-    staff: CurrentStaff = Depends(require_csrf),
+    project: Project = Depends(changeable_page),
     tenant: CurrentTenant = Depends(current_tenant),
     db: AsyncSession = Depends(get_tenant_session),
 ) -> Response:
     """Both sides, every version, into a stage's folder or one of its sections,
     as "Mover para…" moves a file; refused where that title is already compared."""
-    project = await _readable(db, slug, staff, request)
-    await _changeable(db, project.id)
     if project.row_version != body.row_version:
         raise ApiError(409, ErrorCode.PROJECT_CHANGED)  # that position may be another stage now
     stage = await db.scalar(
@@ -363,8 +386,9 @@ async def move_comparison(
         raise ApiError(409, ErrorCode.COMPARISON_EXISTS)
 
     async def move(maker, item):
-        await maker.move(item.id, target)
+        moved = await maker.move(item.id, target)
+        return lambda: maker.move(moved, found["f"])  # back where the page listed it
 
     await _change(request, db, tenant, project, comparison, "moving", move)
-    capture(request, "comparison_moved")
+    capture(request, AnalyticsEvent.COMPARISON_MOVED)
     return Response(status_code=204)

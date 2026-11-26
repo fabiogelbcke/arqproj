@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, call, type Schemas } from "../api/client";
+import { LIMITS } from "../api/limits";
 import { OFFICE } from "../office/office";
 import { PROJECTS } from "../projects/projects";
 
@@ -117,9 +118,11 @@ export async function previewPdf(projectId: string, body: ProposalContent): Prom
 
 /** An amount field as it is typed: its digits are centavos, shown as currency
  *  ("2" → "0,02", "2900000" → "29.000,00"), so the commas and points come by
- *  themselves. Nothing typed, nothing shown. */
+ *  themselves. Nothing typed, nothing shown. A digit past the largest amount
+ *  the server takes (LIMITS.proposalAmount) isn't taken. */
 export function typedAmount(typed: string, locale: string): string {
-  const digits = typed.replace(/\D/g, "").replace(/^0+/, "").slice(0, 11); // up to 999.999.999,99
+  let digits = typed.replace(/\D/g, "").replace(/^0+/, "").slice(0, String(LIMITS.proposalAmount).length);
+  if (Number(digits) > LIMITS.proposalAmount) digits = digits.slice(0, -1);
   return digits ? formatAmount(Number(digits), locale) : "";
 }
 
@@ -128,8 +131,9 @@ export function formatAmount(centavos: number, locale: string): string {
   return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(centavos / 100);
 }
 
-/** What was typed, in centavos; null if it isn't an amount. Takes "29.000",
- *  "29000,50", "R$ 29.000,00" (pt-BR) and "29,000.50" (en). */
+/** What was typed, in centavos; null if it isn't an amount, or is more than a
+ *  proposal takes. Takes "29.000", "29000,50", "R$ 29.000,00" (pt-BR) and
+ *  "29,000.50" (en). */
 export function parseAmount(text: string, locale: string): number | null {
   const decimal = locale.startsWith("pt") ? "," : ".";
   const cleaned = text.replace(/[^\d,.]/g, "");
@@ -140,8 +144,9 @@ export function parseAmount(text: string, locale: string): number | null {
   if (at >= 0 && cleaned.length - at - 1 > 2) return null;
   const [whole, cents] = at >= 0 ? [cleaned.slice(0, at), cleaned.slice(at + 1)] : [cleaned, ""];
   const reais = whole.replace(/[,.]/g, "");
-  if (!/^\d*$/.test(reais) || !/^\d*$/.test(cents) || reais.length > 9) return null;
-  return Number(reais || "0") * 100 + Number(cents.padEnd(2, "0") || "0");
+  if (!/^\d*$/.test(reais) || !/^\d*$/.test(cents)) return null;
+  const centavos = Number(reais || "0") * 100 + Number(cents.padEnd(2, "0") || "0");
+  return centavos <= LIMITS.proposalAmount ? centavos : null; // more than the server takes
 }
 
 /** The fee in equal instalments, the first taking what doesn't divide evenly. */

@@ -33,6 +33,7 @@ class Feature(StrEnum):
     COVER_BAND = "cover_band"  # the project page opens on a band made from its cover
     BEFORE_AFTER = "before_after"  # before-and-after comparisons, on a slider (A46)
     WHATSAPP_UPDATES = "whatsapp_updates"  # client updates by WhatsApp too (A47)
+    COMMENTS = "comments"  # comments on files and stages, by clients and staff (A49)
 
 
 class Locale(StrEnum):

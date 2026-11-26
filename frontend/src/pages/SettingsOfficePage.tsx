@@ -9,6 +9,7 @@ import { useDarkLogo, useOffice, useSaveOffice, useUploadLogo } from "../office/
 import { useFeature } from "../session/session";
 import { Button } from "../ui/Button";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { ImageCropDialog } from "../ui/ImageCropDialog";
 import { EmailField } from "../ui/EmailField";
 import { Panel } from "../ui/Panel";
@@ -127,7 +128,7 @@ export function OfficeDetails({ onSaved }: { onSaved?: () => void }) {
   const [wantsDark, setWantsDark] = useState(false);
   const [draft, setDraft] = useState<{ name: string; contact_email: string } | null>(null);
 
-  if (office.error) return <ErrorNotice error={office.error} />;
+  if (loadError(office)) return <ErrorNotice error={office.error} />;
   if (!office.data) return <p className={styles.lead}>{t("app.loading")}</p>;
   const details = office.data;
   const values = draft ?? { name: details.name, contact_email: details.contact_email ?? "" };

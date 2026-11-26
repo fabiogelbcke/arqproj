@@ -365,7 +365,7 @@ async def test_a_due_batch_goes_to_each_subscribed_number(
     await run(app, outbox, phone)
     [message] = phone.to(CLIENT)
     assert message.template == "unio_atualizacao"
-    project_name, office, line = message.params
+    project_name, _office, line = message.params
     assert project_name == "Casa Jardim" and line == "2 arquivos novos na etapa Levantamento"
     assert message.text.startswith("Olá! Você tem novidades no projeto Casa Jardim")
     assert "Croqui" not in message.text  # files counted, never named
