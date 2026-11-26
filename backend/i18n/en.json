@@ -866,8 +866,10 @@
     "emailSoon": "The meeting “{{title}}” on the project {{project}} starts at {{when}}.",
     "where": "Where: {{location}}",
     "join": "Join the meeting",
-    "whatsappDay": "Hello! A reminder of the meeting {{title}} on the project {{project}}, from {{office}}: {{when}}.",
-    "whatsappSoon": "Hello! The meeting {{title}} on the project {{project}}, from {{office}}, starts at {{when}}."
+    "whatsappDay": "Hello! A reminder of the meeting {{title}} on the project {{project}}, from {{office}}, set for {{when}}. The details are on the project page.",
+    "whatsappSoon": "Hello! The meeting {{title}} on the project {{project}}, from {{office}}, starts at {{when}}. Use the button below to join.",
+    "whatsappPlace": "Hello! A reminder of the meeting {{title}} on the project {{project}}, from {{office}}, set for {{when}}, at {{location}}. The details are on the project page.",
+    "map": "See on the map"
   },
   "compare": {
     "before": "Before",

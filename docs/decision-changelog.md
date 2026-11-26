@@ -19,6 +19,29 @@ a new entry too.
 
 ---
 
+## 2026-11-26 — A48: reminders reworded for Meta, no "responda SAIR", a map for meetings with a place
+
+**Was:** two reminder templates, "Olá! Lembrete da reunião {{1}} do projeto
+{{2}}, do {{3}}: {{4}}." and "…começa às {{4}}.", each with the updates' footer;
+a meeting's place showed only in the email ("Local: …").
+
+**Now:** "Olá! Este é um lembrete da reunião {{1}} do projeto {{2}}, de {{3}},
+marcada para {{4}}. Os detalhes estão na página do projeto." and "Olá! A reunião
+{{1}} do projeto {{2}}, de {{3}}, começa às {{4}}. Use o botão abaixo para
+entrar.", without the footer. A day's reminder for a meeting with a place uses a
+third template, `unio_lembrete_local` ("…marcada para {{4}}, em {{5}}…"), whose
+"Ver no mapa" opens Google Maps searching the place as the office typed it; the
+email gets the same link.
+
+**Why:** Meta refused the day's text (a variable at its end, two separated by
+": ", four variables in seven words). Fabio, 26 Nov 2026: "de" rather than "do
+{{3}}", the footer on the welcome and updates only (A47), and a map for
+meetings with a location. A template's buttons are fixed, so the map needs its
+own template. The search uses the place as typed: an address finds it, "Sala 2"
+does not, which was accepted.
+
+---
+
 ## 2026-11-26 — A47: the WhatsApp texts reworded for Meta; "responda SAIR" on the welcome and updates
 
 **Was:** the update read "Olá! Você tem novidades no projeto {{project}}, do

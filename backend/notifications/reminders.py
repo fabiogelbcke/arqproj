@@ -8,6 +8,9 @@ with it, to whoever gets the project's updates.
 - For a meeting with a video link, another the set minutes before, whose button
   joins it.
 
+A meeting with a place names it, with a "Ver no mapa" link to Google Maps. The
+WhatsApp reminders carry no "responda SAIR" (A47: the welcome and updates do).
+
 Each goes once per meeting time (`Meeting.reminded_day_for`, `reminded_soon_for`):
 moved, a meeting is reminded again. None for a meeting whose time was set after
 the reminder came due (the update tells the client), none once it has started,
@@ -21,6 +24,7 @@ import logging
 from datetime import date, datetime, timedelta
 from enum import StrEnum
 from html import escape
+from urllib.parse import quote
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +37,7 @@ from backend.notifications.office import Office
 from backend.notifications.texts import t
 from backend.notifications.whatsapp import (
     LANGUAGES,
+    REMINDER_PLACE_TEMPLATE,
     REMINDER_TEMPLATE,
     REMINDER_VIDEO_TEMPLATE,
     WhatsAppError,
@@ -53,6 +58,11 @@ log = logging.getLogger(__name__)
 EARLY = timedelta(hours=1)
 # How far ahead a reminder can be: the evening before, at the earliest.
 AHEAD = timedelta(days=2)
+
+
+def maps_url(location: str) -> str:
+    """Google Maps, searching the place as the office typed it."""
+    return f"https://www.google.com/maps/search/?api=1&query={quote(location.strip())}"
 
 
 class Reminder(StrEnum):
@@ -131,14 +141,22 @@ def render(
 ) -> tuple[str, str, str]:
     """Subject, HTML and plain text, in the update emails' frame."""
     subject, lead = email_text(office, project, meeting, kind, now)
-    lines = [_r(office, "where", location=meeting.location)] if meeting.location else []
+    where = _r(office, "where", location=meeting.location) if meeting.location else None
     button = _r(office, "join") if kind is Reminder.SOON else t(office.locale, "open")
     why = t(office.locale, "why", office=office.name, project=project.name)
+    body = ""
+    if where:
+        place = escape(maps_url(meeting.location))
+        body = (
+            f'<p style="margin:0 0 12px">{escape(where)} · '
+            f'<a href="{place}" style="color:inherit">{escape(_r(office, "map"))}</a></p>'
+        )
+    lines = [where, f"{_r(office, 'map')}: {maps_url(meeting.location)}"] if where else []
     html = digest.TEMPLATE.substitute(
         lang=office.locale.value,
         header=digest.email_header(office),
         intro=escape(lead),
-        body="".join(f'<p style="margin:0 0 12px">{escape(line)}</p>' for line in lines),
+        body=body,
         link=escape(link),
         open=escape(button),
         why=escape(why),
@@ -173,25 +191,31 @@ def whatsapp_message(
 ) -> WhatsAppMessage:
     locale = office.locale
     names = (param(meeting.title), param(project.name), param(office.name))
+    page = (
+        t(locale, "openProject", section="whatsapp"),
+        short_link(settings, "page", project.tenant_id, project.id),
+    )
     if kind is Reminder.SOON:
         when = meeting.starts_at.astimezone(office.zone).strftime("%H:%M")
-        template, key, label = REMINDER_VIDEO_TEMPLATE, "whatsappSoon", _r(office, "join")
-        link = short_link(settings, "join", project.tenant_id, meeting.id)
+        template, key = REMINDER_VIDEO_TEMPLATE, "whatsappSoon"
+        links = ((_r(office, "join"), short_link(settings, "join", project.tenant_id, meeting.id)),)
+        params = (*names, param(when))
+    elif meeting.location:
+        template, key = REMINDER_PLACE_TEMPLATE, "whatsappPlace"
+        mapped = (_r(office, "map"), short_link(settings, "map", project.tenant_id, meeting.id))
+        links = (page, mapped)
+        params = (*names, param(_day(office, meeting.starts_at, now)), param(meeting.location))
     else:
-        when = _day(office, meeting.starts_at, now)
-        template, key = REMINDER_TEMPLATE, "whatsappDay"
-        label = t(locale, "openProject", section="whatsapp")
-        link = short_link(settings, "page", project.tenant_id, project.id)
-    params = (*names, param(when))
-    text = _r(office, key, title=params[0], project=params[1], office=params[2], when=params[3])
-    footer = t(locale, "footer", section="whatsapp")
+        template, key, links = REMINDER_TEMPLATE, "whatsappDay", (page,)
+        params = (*names, param(_day(office, meeting.starts_at, now)))
+    values = dict(zip(("title", "project", "office", "when", "location"), params, strict=False))
     return WhatsAppMessage(
         to=phone,
-        text=f"{text}\n\n{footer}",
+        text=_r(office, key, **values),
         template=template,
         language=LANGUAGES[locale],
         params=params,
-        links=((label, link),),
+        links=links,
         callback=callback,
     )
 

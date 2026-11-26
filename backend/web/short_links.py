@@ -1,7 +1,7 @@
 """WhatsApp's link buttons (A47).
 
-    GET /w/{code}   on to a project's page, its next meeting for a calendar, or a
-                    meeting's video call
+    GET /w/{code}   on to a project's page, its next meeting for a calendar, a
+                    meeting's video call or its place on a map
 
 A template's link button is fixed at Meta up to its last part, and each office
 has its own address, so the buttons point here, on Unio's own address, with a
@@ -14,7 +14,11 @@ signed code naming the office and the project (`short_link`):
 - "join": a reminder's "Entrar na reunião" (A48), on to the meeting's video link;
   the page instead when the meeting is over or has no link, or when the page has
   a password. The code names the meeting alone, so one deleted since is not
-  found (its update says it was cancelled).
+  found (its update says it was cancelled);
+- "map": a reminder's "Ver no mapa" (A48), on to Google Maps searching the
+  meeting's location as the office typed it; the page instead when it has none
+  (cleared since). The message itself names the place, so a password doesn't
+  hold it back.
 
 The code is the client's message: it was sent only to their number. One that
 doesn't check out, an office no longer active, or a project that is gone or no
@@ -32,6 +36,7 @@ from sqlalchemy import select
 from backend.db.isolation import scope_to_tenant
 from backend.notifications.events import CLIENT_VISIBLE
 from backend.notifications.office import office_of
+from backend.notifications.reminders import maps_url
 from backend.notifications.whatsapp import LINK_PATH, read_token
 from backend.projects.enums import AccessMode
 from backend.projects.models import Meeting, Project, ProjectSlug
@@ -47,18 +52,22 @@ from backend.web.pages import (
 router = APIRouter(include_in_schema=False)
 
 
+# Codes that name a meeting rather than a project.
+MEETING_ACTIONS = ("join", "map")
+
+
 @router.get(LINK_PATH + "{code}")
 async def follow(request: Request, code: str) -> Response:
     settings = request.app.state.settings
     found = read_token(settings, code)
-    if found is None or found.action not in ("page", "agenda", "join"):
+    if found is None or found.action not in ("page", "agenda", *MEETING_ACTIONS):
         return Response(status_code=404, headers=PAGE_HEADERS)
     async with request.app.state.sessionmaker() as db:
         scope_to_tenant(db.sync_session, found.tenant_id)
         tenant = await db.get(Tenant, found.tenant_id)
         meeting = None
         project_id = found.recipient_id
-        if found.action == "join":  # the code names the meeting
+        if found.action in MEETING_ACTIONS:  # the code names the meeting
             meeting = await db.scalar(select(Meeting).where(Meeting.id == found.recipient_id))
             project_id = meeting.project_id if meeting else None
         project = await db.scalar(
@@ -81,8 +90,10 @@ async def follow(request: Request, code: str) -> Response:
         # Behind a password, the page asks for it first and offers the calendar
         # and the call itself: the link isn't a way round the password (section 6).
         open_page = project.access_mode is AccessMode.PASSWORD
+        if found.action == "map" and meeting.location:
+            return RedirectResponse(maps_url(meeting.location), status_code=302, headers=PRIVATE)
         live = meeting is not None and meeting.link and meeting.ends_at > datetime.now(UTC)
-        if live and not open_page:
+        if found.action == "join" and live and not open_page:
             return RedirectResponse(meeting.link, status_code=302, headers=PRIVATE)
         if found.action == "agenda" and not open_page:
             meeting = await db.scalar(
@@ -99,5 +110,5 @@ async def follow(request: Request, code: str) -> Response:
                     headers={**CALENDAR_HEADERS, **PAGE_HEADERS, **PRIVATE},
                 )
     # Tagged so page analytics (A39) can tell visits that came from WhatsApp.
-    medium = "reminder" if found.action == "join" else "update"
+    medium = "reminder" if found.action in MEETING_ACTIONS else "update"
     return RedirectResponse(f"{page}?utm_source=whatsapp&utm_medium={medium}", status_code=302)

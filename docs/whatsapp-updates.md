@@ -135,18 +135,13 @@ Estudo Preliminar. Veja em alinea.myunio.app/casa-jardim". The same 45-minute
 batching applies, so one message covers a burst of uploads. No promotional
 text, or it becomes marketing.
 
-**Meeting reminders (A48)**, two more templates to submit, with the footer
-"Para não receber mais estas mensagens, responda SAIR." as the updates':
-
-| Template | Text | Button |
-| --- | --- | --- |
-| `unio_lembrete_reuniao` | Olá! Lembrete da reunião {{1}} do projeto {{2}}, do {{3}}: {{4}}. | "Abrir o projeto", `https://myunio.app/w/{{1}}` |
-| `unio_lembrete_video` | Olá! A reunião {{1}} do projeto {{2}}, do {{3}}, começa às {{4}}. | "Entrar na reunião", `https://myunio.app/w/{{1}}` |
-
-Examples for Meta: {{1}} "Apresentação do layout", {{2}} "Casa Jardim", {{3}}
-"Alinea Arquitetos", {{4}} "hoje às 14:00" (or "amanhã às 08:00"), and "14:00"
-for the video one. English versions as the updates'. Until they are approved, a
-reminder by WhatsApp fails and is logged; the email still goes.
+**Meeting reminders (A48)**: three more templates, without the "responda SAIR"
+footer (A47 keeps it to the welcome and the updates). Their texts are in the
+table of templates as submitted, below. Examples for Meta: {{1}} "Apresentação
+do layout", {{2}} "Casa Jardim", {{3}} "Alinea Arquitetos", {{4}} "hoje às
+14:00" (or "amanhã às 08:00"; "14:00" for the video one), {{5}} "Rua XV de
+Novembro, 100, Joinville". Until they are approved, a reminder by WhatsApp fails
+and is logged; the email still goes.
 
 **What can change without Meta** ("Configurações" → "Avisos" in the operator
 dashboard): the batching windows, the reminder times, the days before an
@@ -199,6 +194,9 @@ button opens `https://myunio.app/w/{{1}}`.
 | `unio_atualizacao_reuniao` | (the same) | Yes | Abrir o projeto, Adicionar à agenda |
 | `unio_boas_vindas` | Olá! Este número vai receber pelo WhatsApp as atualizações do projeto {{1}}, de {{2}}: arquivos novos, etapas e reuniões. | Yes | none |
 | `unio_convite` | Olá! {{1}} cadastrou este número para receber pelo WhatsApp as atualizações do projeto {{2}}: arquivos novos, etapas e reuniões. Deseja receber? | No | Quero receber, Não quero (quick replies) |
+| `unio_lembrete_reuniao` | Olá! Este é um lembrete da reunião {{1}} do projeto {{2}}, de {{3}}, marcada para {{4}}. Os detalhes estão na página do projeto. | No | Abrir o projeto |
+| `unio_lembrete_local` | Olá! Este é um lembrete da reunião {{1}} do projeto {{2}}, de {{3}}, marcada para {{4}}, em {{5}}. Os detalhes estão na página do projeto. | No | Abrir o projeto, Ver no mapa |
+| `unio_lembrete_video` | Olá! A reunião {{1}} do projeto {{2}}, de {{3}}, começa às {{4}}. Use o botão abaixo para entrar. | No | Entrar na reunião |
 
 English versions wait for an office in English.
 

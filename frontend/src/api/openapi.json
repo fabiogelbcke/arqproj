@@ -11890,11 +11890,13 @@
           },
           "reminder_morning": {
             "type": "string",
+            "maxLength": 5,
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "title": "Reminder Morning"
           },
           "reminder_evening": {
             "type": "string",
+            "maxLength": 5,
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "title": "Reminder Evening"
           },
@@ -11939,11 +11941,13 @@
           },
           "reminder_morning": {
             "type": "string",
+            "maxLength": 5,
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "title": "Reminder Morning"
           },
           "reminder_evening": {
             "type": "string",
+            "maxLength": 5,
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
             "title": "Reminder Evening"
           },

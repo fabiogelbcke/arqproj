@@ -2,9 +2,11 @@
 what it says and to whom, sending once per meeting time, the video call's link,
 and "Configurações" → "Avisos"."""
 
+import json
 import logging
 from dataclasses import replace
 from datetime import UTC, datetime, time, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
@@ -17,6 +19,7 @@ from backend.notifications.digest import StageNews, Summary
 from backend.notifications.models import NotificationBatch, WhatsAppNews
 from backend.notifications.reminders import Reminder, day_reminder_at, due, mark
 from backend.notifications.whatsapp import (
+    REMINDER_PLACE_TEMPLATE,
     REMINDER_TEMPLATE,
     REMINDER_VIDEO_TEMPLATE,
     short_link,
@@ -25,7 +28,15 @@ from backend.tenancy.models import Locale
 from backend.tests import test_admin, test_office, test_operator_actions
 from backend.tests.test_client_emails import STAFF, Outbox, add_recipients, make_due, new_file
 from backend.tests.test_maintenance_scan import CASA, folders  # noqa: F401
-from backend.tests.test_whatsapp import CLIENT, Phone, add_number, casa_ids, run, switch_on
+from backend.tests.test_whatsapp import (
+    CLIENT,
+    Phone,
+    add_number,
+    casa_ids,
+    meta_refuses,
+    run,
+    switch_on,
+)
 
 owner = test_office.owner  # fixtures
 operators = test_admin.operators
@@ -215,7 +226,7 @@ async def test_a_video_meeting_soon_is_reminded_by_email_and_whatsapp_once(
     assert (title, project, when) == ("Apresentação", "Casa Jardim", hour)
     [(label, _link)] = message.links
     assert label == "Entrar na reunião"
-    assert message.text.endswith("responda SAIR.")
+    assert "SAIR" not in message.text  # the welcome and the updates say it (A47)
     # The day's reminder is past with it: both are noted, and nothing goes again.
     assert await reminded(db_session) == (starts, starts, starts)
     again = await run(app, outbox, phone)
@@ -288,6 +299,59 @@ async def test_the_days_reminder_opens_the_project(app, db_session, subscribed):
     assert await reminded(db_session) == (starts, starts, None)
 
 
+async def test_a_meeting_with_a_place_is_reminded_with_a_map(app, db_session, subscribed):
+    outbox, phone = Outbox(), Phone()
+    starts = datetime.now(UTC) + timedelta(hours=2)
+    await add_meeting(db_session, starts, link=None, location="Rua XV de Novembro, 100")
+    if datetime.now(UTC) < day_reminder_at(starts, OFFICE, notices.DEFAULT):
+        pytest.skip("too early in the day for a reminder two hours ahead")
+    await run(app, outbox, phone)
+    maps = "https://www.google.com/maps/search/?api=1&query=Rua%20XV%20de%20Novembro%2C%20100"
+    [email] = reminders_in(outbox)
+    assert "Local: Rua XV de Novembro, 100" in email.text
+    assert f"Ver no mapa: {maps}" in email.text
+    assert maps.replace("&", "&amp;") in email.html
+    [message] = phone.to(CLIENT)
+    assert message.template == REMINDER_PLACE_TEMPLATE
+    assert message.params[4] == "Rua XV de Novembro, 100"
+    assert message.text.endswith(
+        ", em Rua XV de Novembro, 100. Os detalhes estão na página do projeto."
+    )
+    assert [label for label, _ in message.links] == ["Abrir o projeto", "Ver no mapa"]
+
+
+async def test_the_map_button_opens_the_place_or_the_page(app, client, db_session, owner):
+    tenant, _project = await casa_ids(db_session)
+    await add_meeting(db_session, datetime.now(UTC) + timedelta(hours=2), location="Sala 2")
+    meeting_id = await db_session.scalar(
+        text("SELECT id FROM meetings WHERE title = 'Apresentação'")
+    )
+    path = urlsplit(short_link(app.state.settings, "map", tenant, meeting_id)).path
+    response = await client.get(path)
+    assert response.status_code == 302
+    assert response.headers["location"] == (
+        "https://www.google.com/maps/search/?api=1&query=Sala%202"
+    )
+    # Behind a password too: the message itself names the place.
+    await db_session.execute(
+        text(f"UPDATE projects SET access_mode = 'password', password_hash = 'x' WHERE id = {CASA}")
+    )
+    assert (await client.get(path)).headers["location"].startswith("https://www.google.com/")
+    # Its place cleared since: the page.
+    await db_session.execute(text("UPDATE meetings SET location = NULL"))
+    assert (
+        "/casa-jardim?utm_source=whatsapp&utm_medium=reminder"
+        in ((await client.get(path)).headers["location"])
+    )
+
+
+@pytest.mark.parametrize("locale", ["pt-BR", "en"])
+def test_the_reminder_texts_keep_to_meta_s_rules(locale):
+    texts = json.loads((Path("backend/i18n") / f"{locale}.json").read_text())["reminders"]
+    for key in ("whatsappDay", "whatsappPlace", "whatsappSoon"):
+        assert not meta_refuses(texts[key]), (locale, key)
+
+
 async def test_without_reminders_by_whatsapp_only_the_email_goes(app, db_session, subscribed):
     await db_session.execute(
         text("UPDATE notice_settings SET whatsapp_news = array_remove(whatsapp_news, 'reminders')")
@@ -355,7 +419,10 @@ async def test_the_pass_reads_the_settings(app, db_session, owner, folders):  # 
     await run(app, outbox, None)  # the first scan only notes what is there
     await new_file(app, outbox, folders)
     await db_session.execute(
-        text("UPDATE notification_batches SET last_event_at = last_event_at - interval '6 minutes'")
+        text(
+            "UPDATE notification_batches SET first_event_at = first_event_at - interval "
+            "'6 minutes', last_event_at = last_event_at - interval '6 minutes'"
+        )
     )
     await run(app, outbox, None)
     assert len(outbox.sent) == 1  # with 45 minutes, it would still wait

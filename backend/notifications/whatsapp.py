@@ -40,9 +40,10 @@ UPDATE_TEMPLATE = "unio_atualizacao"  # button: "Abrir o projeto"
 UPDATE_MEETING_TEMPLATE = "unio_atualizacao_reuniao"
 WELCOME_TEMPLATE = "unio_boas_vindas"
 INVITE_TEMPLATE = "unio_convite"
-# Meeting reminders (A48): the day's ("Abrir o projeto"), and before a video
-# meeting ("Entrar na reunião").
+# Meeting reminders (A48): the day's ("Abrir o projeto"), the day's for a meeting
+# with a place ("Ver no mapa" too), and before a video meeting ("Entrar na reunião").
 REMINDER_TEMPLATE = "unio_lembrete_reuniao"
+REMINDER_PLACE_TEMPLATE = "unio_lembrete_local"
 REMINDER_VIDEO_TEMPLATE = "unio_lembrete_video"
 LANGUAGES = {Locale.PT_BR: "pt_BR", Locale.EN: "en"}
 PHONE_MAX = 40  # a number as typed, with its spaces and punctuation

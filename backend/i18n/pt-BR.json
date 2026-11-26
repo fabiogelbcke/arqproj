@@ -866,8 +866,10 @@
     "emailSoon": "A reunião “{{title}}” do projeto {{project}} começa às {{when}}.",
     "where": "Local: {{location}}",
     "join": "Entrar na reunião",
-    "whatsappDay": "Olá! Lembrete da reunião {{title}} do projeto {{project}}, do {{office}}: {{when}}.",
-    "whatsappSoon": "Olá! A reunião {{title}} do projeto {{project}}, do {{office}}, começa às {{when}}."
+    "whatsappDay": "Olá! Este é um lembrete da reunião {{title}} do projeto {{project}}, de {{office}}, marcada para {{when}}. Os detalhes estão na página do projeto.",
+    "whatsappSoon": "Olá! A reunião {{title}} do projeto {{project}}, de {{office}}, começa às {{when}}. Use o botão abaixo para entrar.",
+    "whatsappPlace": "Olá! Este é um lembrete da reunião {{title}} do projeto {{project}}, de {{office}}, marcada para {{when}}, em {{location}}. Os detalhes estão na página do projeto.",
+    "map": "Ver no mapa"
   },
   "compare": {
     "before": "Antes",

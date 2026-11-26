@@ -296,8 +296,8 @@ _MINUTE = timedelta(minutes=1)
 class NoticeSettingsIn(BaseModel):
     quiet_minutes: int
     hold_minutes: int
-    reminder_morning: str = Field(pattern=HHMM)  # "08:30", the office's time zone
-    reminder_evening: str = Field(pattern=HHMM)
+    reminder_morning: str = Field(pattern=HHMM, max_length=5)  # "08:30", the office's time zone
+    reminder_evening: str = Field(pattern=HHMM, max_length=5)
     reminder_before_minutes: int
     ask_again_days: int
     whatsapp_news: list[WhatsAppNews] = Field(max_length=len(WhatsAppNews))
