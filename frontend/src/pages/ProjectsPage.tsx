@@ -28,6 +28,7 @@ import { useMe } from "../session/session";
 import { Button } from "../ui/Button";
 import { ChipGroup } from "../ui/ChipGroup";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { SearchBox } from "../ui/SearchBox";
 import { SelectField } from "../ui/SelectField";
 import { sortFromValue, sortLabelKey, sortValue } from "../ui/sort";
@@ -341,7 +342,7 @@ export function ProjectsPage() {
       </p>
       {hidden ? (
         <DriveDisconnected canManage={drive.data?.can_manage ?? false} />
-      ) : projects.error ? (
+      ) : loadError(projects) ? (
         <ErrorNotice error={projects.error} />
       ) : !projects.data || drive.isPending ? (
         <div className={styles.loading} aria-busy="true">

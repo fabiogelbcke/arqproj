@@ -201,6 +201,79 @@ describe("signed in", () => {
   });
 });
 
+describe("signing out, then in as someone else", () => {
+  it("never shows the last person's projects, even while the new list loads", async () => {
+    const BRUNO = { ...ME, id: "00000000-0000-0000-0000-0000000000b2", email: "bruno@alinea.example", name: "Bruno" };
+    const project = {
+      id: "p-1",
+      name: "Casa da Ana",
+      client_name: "Família Oliveira",
+      slug: "casa-da-ana",
+      status: "active",
+      project_type: "architecture",
+      project_type_label: "Projeto Arquitetônico",
+      stage_count: 7,
+      completed_stage_count: 2,
+      current_position: null,
+      current_stage_title: null,
+      next_meeting: null,
+      created_at: "2026-09-01T12:00:00Z",
+      last_activity_at: null,
+      row_version: 1,
+      cover_url: null,
+      access_mode: "public",
+      recipients: [],
+      members: [],
+    };
+    let who: typeof ME | null = ME;
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => (who ? { body: who } : notSignedIn),
+      "DELETE /api/session": () => {
+        who = null;
+        return { status: 204 };
+      },
+      "POST /api/session": () => {
+        who = BRUNO;
+        return { body: BRUNO };
+      },
+      "GET /api/drive": () => ({ body: { kind: "folder", writer_status: "none", reader_status: "unknown", can_manage: true } }),
+      // Ana's list; Bruno's never arrives in this test.
+      "GET /api/projects": () => (who === ME ? { body: [project] } : new Promise(() => undefined)),
+    });
+    const router = renderAt("/");
+    expect(await screen.findByText("Casa da Ana")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Sua conta" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Sair" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
+    await userEvent.type(screen.getByLabelText(/E-mail/), BRUNO.email);
+    await userEvent.type(screen.getByLabelText(/Senha/), "a password");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    await screen.findByRole("heading", { name: "Projetos" });
+    expect(screen.queryByText("Casa da Ana")).toBeNull();
+  });
+});
+
+describe("a failed refresh", () => {
+  it("keeps the painel when checking who is signed in fails after a change", async () => {
+    let checks = 0;
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => (++checks === 1 ? { body: ME } : { status: 500, body: {} }),
+      "PATCH /api/me": () => ({ body: {} }),
+    });
+    renderAt("/conta");
+    const name = await screen.findByLabelText(/^Seu nome/);
+    await userEvent.type(name, " Lima");
+    await userEvent.click(screen.getAllByRole("button", { name: "Salvar" })[0]!); // asks who is signed in again
+    await waitFor(() => expect(checks).toBe(3), { timeout: 4000 });
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect(screen.getByRole("button", { name: "Sua conta" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Seu nome/)).toBeInTheDocument();
+  });
+});
+
 describe("the painel tour", () => {
   it("starts from the account menu and the phone's drawer, never on its own", async () => {
     fakeApi({
@@ -606,9 +679,20 @@ describe("signing in with Google", () => {
       "GET /api/tenant": () => ({ body: TENANT }),
       "GET /api/me": () => notSignedIn,
     });
-    renderAt("/entrar?google=falhou&ref=abc123");
+    renderAt("/entrar?google=falhou&ref=4bf92f3577b34da6a3ce929d0e0e4736");
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Código de suporte: abc123",
+      "Código de suporte: 4bf92f3577b34da6a3ce929d0e0e4736",
     );
+  });
+
+  it("shows only a real support code from the address, never other text put in the link", async () => {
+    fakeApi({
+      "GET /api/tenant": () => ({ body: TENANT }),
+      "GET /api/me": () => notSignedIn,
+    });
+    renderAt("/entrar?google=falhou&ref=Ligue-para-0800-123-4567");
+    const alert = await screen.findByRole("alert");
+    expect(alert).not.toHaveTextContent("Código de suporte");
+    expect(alert).not.toHaveTextContent("0800");
   });
 });

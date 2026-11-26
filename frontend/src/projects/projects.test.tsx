@@ -120,6 +120,24 @@ beforeEach(() => localStorage.clear());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the project list", () => {
+  it("stays on screen when refreshing it fails", async () => {
+    let loads = 0;
+    api(LOCAL, {
+      "GET /api/projects": (_body: unknown, query: URLSearchParams) =>
+        query.has("archived") ? { body: LIST } : ++loads === 1 ? { body: LIST } : { status: 500, body: {} },
+      "GET /api/office": () => ({ body: { name: "Alinea", can_manage: true } }),
+    });
+    const router = renderAt("/");
+    await screen.findByRole("region", { name: "Em andamento" });
+    await router.navigate("/conta");
+    await screen.findByRole("heading", { name: "Minha conta" });
+    await router.navigate("/"); // back: the list is refreshed, and that fails (twice, with the retry)
+    await waitFor(() => expect(loads).toBe(3), { timeout: 4000 });
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect(screen.getByRole("region", { name: "Em andamento" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("groups projects: in progress, then completed, both open", async () => {
     api();
     renderAt("/");

@@ -11,6 +11,7 @@ import { Button } from "../ui/Button";
 import { DialogFrame } from "../ui/DialogFrame";
 import { EmailField } from "../ui/EmailField";
 import { ErrorNotice } from "../ui/ErrorNotice";
+import { loadError } from "../ui/loadError";
 import { LinkToCopy } from "../ui/LinkToCopy";
 import { Panel } from "../ui/Panel";
 import { TextField } from "../ui/TextField";
@@ -22,7 +23,7 @@ import styles from "./pages.module.css";
 export function SettingsTeamPage() {
   const { t } = useTranslation();
   const team = useTeam();
-  if (team.error) return <ErrorNotice error={team.error} />;
+  if (loadError(team)) return <ErrorNotice error={team.error} />;
   if (!team.data) return <p className={styles.lead}>{t("app.loading")}</p>;
   const manage = team.data.can_manage;
   return (

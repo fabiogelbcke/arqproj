@@ -154,6 +154,26 @@ export const useMergeEntries = () =>
     call(api.POST("/api/portfolio/entries/{entry_id}/merge", { params: { path: { entry_id: into } }, body: { entries } })),
   );
 
+/** A piece's own words that grouping can carry over: the sheet is its lines. */
+export const MERGED_WORDS = ["title", "place", "year", "description", "details", "credits"] as const;
+export type MergedWord = (typeof MERGED_WORDS)[number];
+
+const hasWord = (entry: Entry, word: MergedWord) =>
+  word === "details" ? entry.details.length > 0 : !!entry[word];
+
+/** What grouping `others` into `into` throws away, as the server does it: each
+ *  word `into` lacks comes from the first of the others that has it; the rest
+ *  of their words go with them. Only the pieces that lose something. */
+export function lostInMerge(into: Entry, others: Entry[]): { entry: Entry; words: MergedWord[] }[] {
+  const filled = new Set(MERGED_WORDS.filter((word) => hasWord(into, word)));
+  return others.flatMap((entry) => {
+    const own = MERGED_WORDS.filter((word) => hasWord(entry, word));
+    const words = own.filter((word) => filled.has(word));
+    own.forEach((word) => filled.add(word));
+    return words.length ? [{ entry, words }] : [];
+  });
+}
+
 /** Ungrouping: every image after the first becomes a piece of its own, right after it. */
 export const useSplitEntry = () =>
   useChange((id: string) =>
@@ -202,12 +222,31 @@ export const useComparePhoto = () =>
 export const useRemovePhoto = () =>
   useChange((id: string) => call(api.DELETE("/api/portfolio/photos/{photo_id}", { params: { path: { photo_id: id } } })));
 
+/** The photos every browser opens: what the portfolio's file choosers take
+ *  (a HEIC or TIFF photo, say, many browsers can't). */
+export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/** A photo the browser couldn't open (a format it doesn't read, a damaged
+ *  file): its upload skips it, says which, and goes on with the others. */
+export class UnreadableImage extends Error {
+  constructor(readonly file: string) {
+    super("unreadable image");
+  }
+}
+
+/** Files' names for a message: “sala.heic” e “quarto.tif”. */
+export const fileNames = (names: string[], locale: string) =>
+  new Intl.ListFormat(locale).format(names.map((name) => `“${name}”`));
+
 /** A photo as the server keeps it: a JPEG of at most 2400 px, like a cover. */
 export async function resized(source: Blob, name: string): Promise<File> {
   const address = URL.createObjectURL(source);
   try {
     const whole = { x: 0, y: 0, width: 100, height: 100 }; // in percent
-    return await cropToFile(await loadImage(address), whole, COVER_OUTPUT, name.replace(/\.[^.]*$/, "") + ".jpg");
+    const image = await loadImage(address).catch(() => {
+      throw new UnreadableImage(name);
+    });
+    return await cropToFile(image, whole, COVER_OUTPUT, name.replace(/\.[^.]*$/, "") + ".jpg");
   } finally {
     URL.revokeObjectURL(address);
   }
